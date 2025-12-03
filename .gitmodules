@@ -1,0 +1,3 @@
+[submodule "crates/valentine_gen/minecraft-data"]
+	path = crates/valentine_gen/minecraft-data
+	url = https://github.com/PrismarineJS/minecraft-data
