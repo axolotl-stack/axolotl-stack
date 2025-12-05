@@ -27,7 +27,21 @@ pub enum CommandOriginPlayerEntityID {
     Test(CommandOriginPlayerEntityIDDevConsole),
 }
 bitflags! {
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)] pub struct DeltaMoveFlags : u16 {}
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)] pub struct DeltaMoveFlags : u16 {
+    const FORCE_MOVE = 256; const HAS_ROT_X = 8; const HAS_ROT_Y = 16; const HAS_ROT_Z =
+    32; const HAS_X = 1; const HAS_Y = 2; const HAS_Z = 4; const ON_GROUND = 64; const
+    TELEPORT = 128; }
+}
+impl crate::bedrock::codec::BedrockCodec for DeltaMoveFlags {
+    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let val = self.bits();
+        (val as u16).encode(buf)
+    }
+    fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+        let raw = <u16 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
+        let bits = raw as u16;
+        Ok(Self::from_bits_retain(bits))
+    }
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct EntityAttributesItem {
@@ -424,8 +438,8 @@ impl crate::bedrock::codec::BedrockCodec for PlayerRecords {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         self.type_.encode(buf)?;
         self.records_count.encode(buf)?;
-        let len = self.records.len() as i32;
-        len.encode(buf)?;
+        let len = self.records.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.records {
             if let Some(v) = &item {
                 match v {
@@ -434,8 +448,8 @@ impl crate::bedrock::codec::BedrockCodec for PlayerRecords {
                 }
             }
         }
-        let len = self.verified.len() as i32;
-        len.encode(buf)?;
+        let len = self.verified.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.verified {
             item.encode(buf)?;
         }
@@ -447,14 +461,14 @@ impl crate::bedrock::codec::BedrockCodec for PlayerRecords {
         )?;
         let records_count = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let records = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec
                     .push(
                         match type_ {
-                            _ => {
+                            PlayerRecordsType::Add => {
                                 Some(
                                     PlayerRecordsRecordsItem::Add(
                                         Box::new(
@@ -465,7 +479,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerRecords {
                                     ),
                                 )
                             }
-                            _ => {
+                            PlayerRecordsType::Remove => {
                                 Some(
                                     PlayerRecordsRecordsItem::Remove(
                                         <PlayerRecordsRecordsItemRemove as crate::bedrock::codec::BedrockCodec>::decode(
@@ -481,7 +495,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerRecords {
             tmp_vec
         };
         let verified = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -574,8 +588,8 @@ pub struct ScoreboardIdentityEntries {
 impl crate::bedrock::codec::BedrockCodec for ScoreboardIdentityEntries {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         self.type_.encode(buf)?;
-        let len = self.entries.len() as i32;
-        len.encode(buf)?;
+        let len = self.entries.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.entries {
             item.encode(buf)?;
         }
@@ -586,7 +600,7 @@ impl crate::bedrock::codec::BedrockCodec for ScoreboardIdentityEntries {
             buf,
         )?;
         let entries = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -1051,7 +1065,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAnimate {
             buf,
         )?;
         let content = match action_id {
-            _ => {
+            PacketAnimateActionID::RowLeft => {
                 Some(
                     PacketAnimateContent::RowLeft(
                         <PacketAnimateContentRowLeft as crate::bedrock::codec::BedrockCodec>::decode(
@@ -1060,7 +1074,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAnimate {
                     ),
                 )
             }
-            _ => {
+            PacketAnimateActionID::RowRight => {
                 Some(
                     PacketAnimateContent::RowRight(
                         <PacketAnimateContentRowLeft as crate::bedrock::codec::BedrockCodec>::decode(
@@ -1094,8 +1108,8 @@ impl crate::bedrock::codec::BedrockCodec for PacketAnimateEntity {
         self.stop_condition.encode(buf)?;
         self.controller.encode(buf)?;
         self.blend_out_time.encode(buf)?;
-        let len = self.runtime_entity_ids.len() as i32;
-        len.encode(buf)?;
+        let len = self.runtime_entity_ids.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.runtime_entity_ids {
             item.encode(buf)?;
         }
@@ -1110,7 +1124,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAnimateEntity {
         let controller = <String as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let blend_out_time = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let runtime_entity_ids = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -1336,8 +1350,8 @@ pub struct PacketAvailableCommandsCommandDataItemOverloadsItem {
 impl crate::bedrock::codec::BedrockCodec
 for PacketAvailableCommandsCommandDataItemOverloadsItem {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let len = self.parameters.len() as i32;
-        len.encode(buf)?;
+        let len = self.parameters.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.parameters {
             item.encode(buf)?;
         }
@@ -1345,7 +1359,7 @@ for PacketAvailableCommandsCommandDataItemOverloadsItem {
     }
     fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
         let parameters = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -1893,27 +1907,27 @@ impl crate::bedrock::codec::BedrockCodec for PacketMoveEntityDelta {
         let flags = <DeltaMoveFlags as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
         )?;
-        let x = match flags_has_x {
+        let x = match flags.contains(DeltaMoveFlags::HAS_X) {
             true => Some(<f32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?),
             _ => None,
         };
-        let y = match flags_has_y {
+        let y = match flags.contains(DeltaMoveFlags::HAS_Y) {
             true => Some(<f32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?),
             _ => None,
         };
-        let z = match flags_has_z {
+        let z = match flags.contains(DeltaMoveFlags::HAS_Z) {
             true => Some(<f32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?),
             _ => None,
         };
-        let rot_x = match flags_has_rot_x {
+        let rot_x = match flags.contains(DeltaMoveFlags::HAS_ROT_X) {
             true => Some(<u8 as crate::bedrock::codec::BedrockCodec>::decode(buf)?),
             _ => None,
         };
-        let rot_y = match flags_has_rot_y {
+        let rot_y = match flags.contains(DeltaMoveFlags::HAS_ROT_Y) {
             true => Some(<u8 as crate::bedrock::codec::BedrockCodec>::decode(buf)?),
             _ => None,
         };
-        let rot_z = match flags_has_rot_z {
+        let rot_z = match flags.contains(DeltaMoveFlags::HAS_ROT_Z) {
             true => Some(<u8 as crate::bedrock::codec::BedrockCodec>::decode(buf)?),
             _ => None,
         };
@@ -2063,7 +2077,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketMovePlayer {
             buf,
         )?;
         let teleport = match mode {
-            _ => {
+            PacketMovePlayerMode::Teleport => {
                 Some(
                     <PacketMovePlayerTeleportSome as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
@@ -2308,7 +2322,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerArmorDamage {
         let type_ = <ArmorDamageType as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
         )?;
-        let helmet_damage = match type_head {
+        let helmet_damage = match type_.contains(ArmorDamageType::HEAD) {
             true => {
                 Some(
                     <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -2318,7 +2332,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerArmorDamage {
             }
             _ => None,
         };
-        let chestplate_damage = match type_chest {
+        let chestplate_damage = match type_.contains(ArmorDamageType::CHEST) {
             true => {
                 Some(
                     <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -2328,7 +2342,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerArmorDamage {
             }
             _ => None,
         };
-        let leggings_damage = match type_legs {
+        let leggings_damage = match type_.contains(ArmorDamageType::LEGS) {
             true => {
                 Some(
                     <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -2338,7 +2352,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerArmorDamage {
             }
             _ => None,
         };
-        let boots_damage = match types_feet {
+        let boots_damage = match types.feet {
             true => {
                 Some(
                     <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -2484,7 +2498,9 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerAuthInput {
             buf,
         )?;
         let gaze_direction = match play_mode {
-            _ => Some(<Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf)?),
+            PacketPlayerAuthInputPlayMode::Reality => {
+                Some(<Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf)?)
+            }
             _ => None,
         };
         let tick = <i64 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
@@ -2526,8 +2542,8 @@ pub struct PacketPlayerFog {
 }
 impl crate::bedrock::codec::BedrockCodec for PacketPlayerFog {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let len = self.stack.len() as i32;
-        len.encode(buf)?;
+        let len = self.stack.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.stack {
             item.encode(buf)?;
         }
@@ -2535,7 +2551,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerFog {
     }
     fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
         let stack = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {

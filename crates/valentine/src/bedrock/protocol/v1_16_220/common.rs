@@ -758,7 +758,7 @@ impl crate::bedrock::codec::BedrockCodec for TrackedObject {
             buf,
         )?;
         let entity_unique_id = match type_ {
-            _ => {
+            TrackedObjectType::Entity => {
                 Some(
                     <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
@@ -768,7 +768,7 @@ impl crate::bedrock::codec::BedrockCodec for TrackedObject {
             _ => None,
         };
         let block_position = match type_ {
-            _ => {
+            TrackedObjectType::Block => {
                 Some(
                     <BlockCoordinates as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,

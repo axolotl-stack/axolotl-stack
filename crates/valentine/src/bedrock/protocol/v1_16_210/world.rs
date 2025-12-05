@@ -38,7 +38,21 @@ for ItemStackRequestActionsItemContentMineBlock {
 }
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)] pub struct UpdateBlockFlags : u32
-    {}
+    { const NEIGHBORS = 1; const NETWORK = 2; const NO_GRAPHIC = 4; const PRIORITY = 16;
+    const UNUSED = 8; }
+}
+impl crate::bedrock::codec::BedrockCodec for UpdateBlockFlags {
+    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let val = self.bits();
+        crate::bedrock::codec::VarInt(val as i32).encode(buf)
+    }
+    fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+        let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+        )?;
+        let bits = raw.0 as u32;
+        Ok(Self::from_bits_retain(bits))
+    }
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct PacketPlayerAuthInputBlockActionSomeItemContentAbortBreak {
@@ -100,7 +114,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerAuthInputBlockActionSom
     fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
         let action = <Action as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let content = match action {
-            _ => {
+            Action::AbortBreak => {
                 Some(
                     PacketPlayerAuthInputBlockActionSomeItemContent::AbortBreak(
                         <PacketPlayerAuthInputBlockActionSomeItemContentAbortBreak as crate::bedrock::codec::BedrockCodec>::decode(
@@ -109,7 +123,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerAuthInputBlockActionSom
                     ),
                 )
             }
-            _ => {
+            Action::ContinueBreak => {
                 Some(
                     PacketPlayerAuthInputBlockActionSomeItemContent::ContinueBreak(
                         <PacketPlayerAuthInputBlockActionSomeItemContentAbortBreak as crate::bedrock::codec::BedrockCodec>::decode(
@@ -118,7 +132,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerAuthInputBlockActionSom
                     ),
                 )
             }
-            _ => {
+            Action::CrackBreak => {
                 Some(
                     PacketPlayerAuthInputBlockActionSomeItemContent::CrackBreak(
                         <PacketPlayerAuthInputBlockActionSomeItemContentAbortBreak as crate::bedrock::codec::BedrockCodec>::decode(
@@ -127,7 +141,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerAuthInputBlockActionSom
                     ),
                 )
             }
-            _ => {
+            Action::PredictBreak => {
                 Some(
                     PacketPlayerAuthInputBlockActionSomeItemContent::PredictBreak(
                         <PacketPlayerAuthInputBlockActionSomeItemContentAbortBreak as crate::bedrock::codec::BedrockCodec>::decode(
@@ -136,7 +150,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerAuthInputBlockActionSom
                     ),
                 )
             }
-            _ => {
+            Action::StartBreak => {
                 Some(
                     PacketPlayerAuthInputBlockActionSomeItemContent::StartBreak(
                         <PacketPlayerAuthInputBlockActionSomeItemContentAbortBreak as crate::bedrock::codec::BedrockCodec>::decode(

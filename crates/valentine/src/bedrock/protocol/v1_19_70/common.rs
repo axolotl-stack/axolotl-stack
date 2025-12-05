@@ -7,50 +7,87 @@ use bitflags::bitflags;
 use super::*;
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)] pub struct AbilitySet : u32 {
-    const BUILD = 1; const MINE = 2; const DOORSANDSWITCHES = 4; const OPENCONTAINERS =
-    8; const ATTACKPLAYERS = 16; const ATTACKMOBS = 32; const OPERATORCOMMANDS = 64;
-    const TELEPORT = 128; const INVULNERABLE = 256; const FLYING = 512; const MAYFLY =
-    1024; const INSTANTBUILD = 2048; const LIGHTNING = 4096; const FLYSPEED = 8192; const
-    WALKSPEED = 16384; const MUTED = 32768; const WORLDBUILDER = 65536; const NOCLIP =
-    131072; const PRIVILEGEDBUILDER = 262144; const COUNT = 524288; }
+    const BUILD = 1; const MINE = 2; const DOORS_AND_SWITCHES = 4; const OPEN_CONTAINERS
+    = 8; const ATTACK_PLAYERS = 16; const ATTACK_MOBS = 32; const OPERATOR_COMMANDS = 64;
+    const TELEPORT = 128; const INVULNERABLE = 256; const FLYING = 512; const MAY_FLY =
+    1024; const INSTANT_BUILD = 2048; const LIGHTNING = 4096; const FLY_SPEED = 8192;
+    const WALK_SPEED = 16384; const MUTED = 32768; const WORLD_BUILDER = 65536; const
+    NO_CLIP = 131072; const PRIVILEGED_BUILDER = 262144; const COUNT = 524288; }
+}
+impl crate::bedrock::codec::BedrockCodec for AbilitySet {
+    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let val = self.bits();
+        (val as u32).encode(buf)
+    }
+    fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+        let raw = <u32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
+        let bits = raw as u32;
+        Ok(Self::from_bits_retain(bits))
+    }
 }
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)] pub struct InputFlag : u64 { const
-    ASCEND = 1; const DESCEND = 2; const NORTHJUMP = 4; const JUMPDOWN = 8; const
-    SPRINTDOWN = 16; const CHANGEHEIGHT = 32; const JUMPING = 64; const
-    AUTOJUMPINGINWATER = 128; const SNEAKING = 256; const SNEAKDOWN = 512; const UP =
-    1024; const DOWN = 2048; const LEFT = 4096; const RIGHT = 8192; const UPLEFT = 16384;
-    const UPRIGHT = 32768; const WANTUP = 65536; const WANTDOWN = 131072; const
-    WANTDOWNSLOW = 262144; const WANTUPSLOW = 524288; const SPRINTING = 1048576; const
-    ASCENDBLOCK = 2097152; const DESCENDBLOCK = 4194304; const SNEAKTOGGLEDOWN = 8388608;
-    const PERSISTSNEAK = 16777216; const STARTSPRINTING = 33554432; const STOPSPRINTING =
-    67108864; const STARTSNEAKING = 134217728; const STOPSNEAKING = 268435456; const
-    STARTSWIMMING = 536870912; const STOPSWIMMING = 1073741824; const STARTJUMPING =
-    2147483648; const STARTGLIDING = 4294967296; const STOPGLIDING = 8589934592; const
-    ITEMINTERACT = 17179869184; const BLOCKACTION = 34359738368; const ITEMSTACKREQUEST =
-    68719476736; const HANDLEDTELEPORT = 137438953472; const EMOTING = 274877906944; }
+    ASCEND = 1; const DESCEND = 2; const NORTH_JUMP = 4; const JUMP_DOWN = 8; const
+    SPRINT_DOWN = 16; const CHANGE_HEIGHT = 32; const JUMPING = 64; const
+    AUTO_JUMPING_IN_WATER = 128; const SNEAKING = 256; const SNEAK_DOWN = 512; const UP =
+    1024; const DOWN = 2048; const LEFT = 4096; const RIGHT = 8192; const UP_LEFT =
+    16384; const UP_RIGHT = 32768; const WANT_UP = 65536; const WANT_DOWN = 131072; const
+    WANT_DOWN_SLOW = 262144; const WANT_UP_SLOW = 524288; const SPRINTING = 1048576;
+    const ASCEND_BLOCK = 2097152; const DESCEND_BLOCK = 4194304; const SNEAK_TOGGLE_DOWN
+    = 8388608; const PERSIST_SNEAK = 16777216; const START_SPRINTING = 33554432; const
+    STOP_SPRINTING = 67108864; const START_SNEAKING = 134217728; const STOP_SNEAKING =
+    268435456; const START_SWIMMING = 536870912; const STOP_SWIMMING = 1073741824; const
+    START_JUMPING = 2147483648; const START_GLIDING = 4294967296; const STOP_GLIDING =
+    8589934592; const ITEM_INTERACT = 17179869184; const BLOCK_ACTION = 34359738368;
+    const ITEM_STACK_REQUEST = 68719476736; const HANDLED_TELEPORT = 137438953472; const
+    EMOTING = 274877906944; }
+}
+impl crate::bedrock::codec::BedrockCodec for InputFlag {
+    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let val = self.bits();
+        (val as i64).encode(buf)
+    }
+    fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+        let raw = <i64 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
+        let bits = raw as u64;
+        Ok(Self::from_bits_retain(bits))
+    }
 }
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)] pub struct MetadataFlags2 : u64 {
     const SNEEZING = 1; const TRUSTING = 2; const ROLLING = 4; const SCARED = 8; const
-    INSCAFFOLDING = 16; const OVERSCAFFOLDING = 32; const FALLTHROUGHSCAFFOLDING = 64;
-    const BLOCKING = 128; const TRANSITIONBLOCKING = 256; const BLOCKEDUSINGSHIELD = 512;
-    const BLOCKEDUSINGDAMAGEDSHIELD = 1024; const SLEEPING = 2048; const WANTSTOWAKE =
-    4096; const TRADEINTEREST = 8192; const DOORBREAKER = 16384; const
-    BREAKINGOBSTRUCTION = 32768; const DOOROPENER = 65536; const ILLAGERCAPTAIN = 131072;
-    const STUNNED = 262144; const ROARING = 524288; const DELAYEDATTACKING = 1048576;
-    const AVOIDINGMOBS = 2097152; const AVOIDINGBLOCK = 4194304; const
-    FACINGTARGETTORANGEATTACK = 8388608; const HIDDENWHENINVISIBLE = 16777216; const
-    ISINUI = 33554432; const STALKING = 67108864; const EMOTING = 134217728; const
-    CELEBRATING = 268435456; const ADMIRING = 536870912; const CELEBRATINGSPECIAL =
-    1073741824; const UNKNOWN95 = 2147483648; const RAMATTACK = 4294967296; const
-    PLAYINGDEAD = 8589934592; const INASCENDABLEBLOCK = 17179869184; const
-    OVERDESCENDABLEBLOCK = 34359738368; const CROAKING = 68719476736; const EATMOB =
-    137438953472; const JUMPGOALJUMP = 274877906944; const EMERGING = 549755813888; const
-    SNIFFING = 1099511627776; const DIGGING = 2199023255552; const SONICBOOM =
-    4398046511104; const HASDASHCOOLDOWN = 8796093022208; const PUSHTOWARDSCLOSESTSPACE =
-    17592186044416; const SCENTING = 35184372088832; const RISING = 70368744177664; const
-    FEELINGHAPPY = 140737488355328; const SEARCHING = 281474976710656; }
+    IN_SCAFFOLDING = 16; const OVER_SCAFFOLDING = 32; const FALL_THROUGH_SCAFFOLDING =
+    64; const BLOCKING = 128; const TRANSITION_BLOCKING = 256; const BLOCKED_USING_SHIELD
+    = 512; const BLOCKED_USING_DAMAGED_SHIELD = 1024; const SLEEPING = 2048; const
+    WANTS_TO_WAKE = 4096; const TRADE_INTEREST = 8192; const DOOR_BREAKER = 16384; const
+    BREAKING_OBSTRUCTION = 32768; const DOOR_OPENER = 65536; const ILLAGER_CAPTAIN =
+    131072; const STUNNED = 262144; const ROARING = 524288; const DELAYED_ATTACKING =
+    1048576; const AVOIDING_MOBS = 2097152; const AVOIDING_BLOCK = 4194304; const
+    FACING_TARGET_TO_RANGE_ATTACK = 8388608; const HIDDEN_WHEN_INVISIBLE = 16777216;
+    const IS_IN_UI = 33554432; const STALKING = 67108864; const EMOTING = 134217728;
+    const CELEBRATING = 268435456; const ADMIRING = 536870912; const CELEBRATING_SPECIAL
+    = 1073741824; const UNKNOWN95 = 2147483648; const RAM_ATTACK = 4294967296; const
+    PLAYING_DEAD = 8589934592; const IN_ASCENDABLE_BLOCK = 17179869184; const
+    OVER_DESCENDABLE_BLOCK = 34359738368; const CROAKING = 68719476736; const EAT_MOB =
+    137438953472; const JUMP_GOAL_JUMP = 274877906944; const EMERGING = 549755813888;
+    const SNIFFING = 1099511627776; const DIGGING = 2199023255552; const SONIC_BOOM =
+    4398046511104; const HAS_DASH_COOLDOWN = 8796093022208; const
+    PUSH_TOWARDS_CLOSEST_SPACE = 17592186044416; const SCENTING = 35184372088832; const
+    RISING = 70368744177664; const FEELING_HAPPY = 140737488355328; const SEARCHING =
+    281474976710656; }
+}
+impl crate::bedrock::codec::BedrockCodec for MetadataFlags2 {
+    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let val = self.bits();
+        crate::bedrock::codec::ZigZag64(val as i64).encode(buf)
+    }
+    fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+        let raw = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+        )?;
+        let bits = raw.0 as u64;
+        Ok(Self::from_bits_retain(bits))
+    }
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
@@ -138,7 +175,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipeIngredient {
             buf,
         )?;
         let content = match type_ {
-            _ => {
+            RecipeIngredientType::ComplexAlias => {
                 Some(
                     RecipeIngredientContent::ComplexAlias(
                         <RecipeIngredientContentComplexAlias as crate::bedrock::codec::BedrockCodec>::decode(
@@ -147,7 +184,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipeIngredient {
                     ),
                 )
             }
-            _ => {
+            RecipeIngredientType::IntIDMeta => {
                 Some(
                     RecipeIngredientContent::IntIDMeta(
                         Box::new(
@@ -158,7 +195,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipeIngredient {
                     ),
                 )
             }
-            _ => {
+            RecipeIngredientType::ItemTag => {
                 Some(
                     RecipeIngredientContent::ItemTag(
                         <RecipeIngredientContentItemTag as crate::bedrock::codec::BedrockCodec>::decode(
@@ -167,7 +204,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipeIngredient {
                     ),
                 )
             }
-            _ => {
+            RecipeIngredientType::Molang => {
                 Some(
                     RecipeIngredientContent::Molang(
                         <RecipeIngredientContentMolang as crate::bedrock::codec::BedrockCodec>::decode(
@@ -176,7 +213,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipeIngredient {
                     ),
                 )
             }
-            _ => {
+            RecipeIngredientType::StringIDMeta => {
                 Some(
                     RecipeIngredientContent::StringIDMeta(
                         <RecipeIngredientContentStringIDMeta as crate::bedrock::codec::BedrockCodec>::decode(

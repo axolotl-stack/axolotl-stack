@@ -163,8 +163,8 @@ pub struct PacketTextContentJukeboxPopup {
 impl crate::bedrock::codec::BedrockCodec for PacketTextContentJukeboxPopup {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         self.message.encode(buf)?;
-        let len = self.parameters.len() as i32;
-        len.encode(buf)?;
+        let len = self.parameters.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.parameters {
             item.encode(buf)?;
         }
@@ -173,7 +173,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketTextContentJukeboxPopup {
     fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
         let message = <String as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let parameters = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -238,7 +238,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketText {
             buf,
         )?;
         let content = match type_ {
-            _ => {
+            PacketTextType::Announcement => {
                 Some(
                     PacketTextContent::Announcement(
                         <PacketTextContentAnnouncement as crate::bedrock::codec::BedrockCodec>::decode(
@@ -247,7 +247,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketText {
                     ),
                 )
             }
-            _ => {
+            PacketTextType::Chat => {
                 Some(
                     PacketTextContent::Chat(
                         <PacketTextContentAnnouncement as crate::bedrock::codec::BedrockCodec>::decode(
@@ -256,7 +256,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketText {
                     ),
                 )
             }
-            _ => {
+            PacketTextType::Json => {
                 Some(
                     PacketTextContent::Json(
                         <PacketTextContentJson as crate::bedrock::codec::BedrockCodec>::decode(
@@ -265,7 +265,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketText {
                     ),
                 )
             }
-            _ => {
+            PacketTextType::JsonWhisper => {
                 Some(
                     PacketTextContent::JsonWhisper(
                         <PacketTextContentJson as crate::bedrock::codec::BedrockCodec>::decode(
@@ -274,7 +274,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketText {
                     ),
                 )
             }
-            _ => {
+            PacketTextType::JukeboxPopup => {
                 Some(
                     PacketTextContent::JukeboxPopup(
                         <PacketTextContentJukeboxPopup as crate::bedrock::codec::BedrockCodec>::decode(
@@ -283,7 +283,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketText {
                     ),
                 )
             }
-            _ => {
+            PacketTextType::Popup => {
                 Some(
                     PacketTextContent::Popup(
                         <PacketTextContentJukeboxPopup as crate::bedrock::codec::BedrockCodec>::decode(
@@ -292,7 +292,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketText {
                     ),
                 )
             }
-            _ => {
+            PacketTextType::Raw => {
                 Some(
                     PacketTextContent::Raw(
                         <PacketTextContentJson as crate::bedrock::codec::BedrockCodec>::decode(
@@ -301,7 +301,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketText {
                     ),
                 )
             }
-            _ => {
+            PacketTextType::System => {
                 Some(
                     PacketTextContent::System(
                         <PacketTextContentJson as crate::bedrock::codec::BedrockCodec>::decode(
@@ -310,7 +310,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketText {
                     ),
                 )
             }
-            _ => {
+            PacketTextType::Tip => {
                 Some(
                     PacketTextContent::Tip(
                         <PacketTextContentJson as crate::bedrock::codec::BedrockCodec>::decode(
@@ -319,7 +319,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketText {
                     ),
                 )
             }
-            _ => {
+            PacketTextType::Translation => {
                 Some(
                     PacketTextContent::Translation(
                         <PacketTextContentJukeboxPopup as crate::bedrock::codec::BedrockCodec>::decode(
@@ -328,7 +328,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketText {
                     ),
                 )
             }
-            _ => {
+            PacketTextType::Whisper => {
                 Some(
                     PacketTextContent::Whisper(
                         <PacketTextContentAnnouncement as crate::bedrock::codec::BedrockCodec>::decode(

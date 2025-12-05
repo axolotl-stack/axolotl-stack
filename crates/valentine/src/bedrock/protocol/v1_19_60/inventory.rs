@@ -131,7 +131,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipesItem {
             buf,
         )?;
         let recipe = match type_ {
-            _ => {
+            RecipesItemType::Furnace => {
                 Some(
                     RecipesItemRecipe::Furnace(
                         Box::new(
@@ -142,7 +142,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipesItem {
                     ),
                 )
             }
-            _ => {
+            RecipesItemType::FurnaceWithMetadata => {
                 Some(
                     RecipesItemRecipe::FurnaceWithMetadata(
                         Box::new(
@@ -153,7 +153,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipesItem {
                     ),
                 )
             }
-            _ => {
+            RecipesItemType::Multi => {
                 Some(
                     RecipesItemRecipe::Multi(
                         <RecipesItemRecipeMulti as crate::bedrock::codec::BedrockCodec>::decode(
@@ -162,7 +162,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipesItem {
                     ),
                 )
             }
-            _ => {
+            RecipesItemType::Shaped => {
                 Some(
                     RecipesItemRecipe::Shaped(
                         Box::new(
@@ -173,7 +173,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipesItem {
                     ),
                 )
             }
-            _ => {
+            RecipesItemType::ShapedChemistry => {
                 Some(
                     RecipesItemRecipe::ShapedChemistry(
                         Box::new(
@@ -184,7 +184,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipesItem {
                     ),
                 )
             }
-            _ => {
+            RecipesItemType::Shapeless => {
                 Some(
                     RecipesItemRecipe::Shapeless(
                         Box::new(
@@ -195,7 +195,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipesItem {
                     ),
                 )
             }
-            _ => {
+            RecipesItemType::ShapelessChemistry => {
                 Some(
                     RecipesItemRecipe::ShapelessChemistry(
                         Box::new(
@@ -206,7 +206,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipesItem {
                     ),
                 )
             }
-            _ => {
+            RecipesItemType::ShulkerBox => {
                 Some(
                     RecipesItemRecipe::ShulkerBox(
                         Box::new(
@@ -217,7 +217,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipesItem {
                     ),
                 )
             }
-            _ => {
+            RecipesItemType::SmithingTransform => {
                 Some(
                     RecipesItemRecipe::SmithingTransform(
                         Box::new(

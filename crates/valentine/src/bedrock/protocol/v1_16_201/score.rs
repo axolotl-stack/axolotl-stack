@@ -43,8 +43,8 @@ pub struct ScoreEntries {
 impl crate::bedrock::codec::BedrockCodec for ScoreEntries {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         self.type_.encode(buf)?;
-        let len = self.entries.len() as i32;
-        len.encode(buf)?;
+        let len = self.entries.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.entries {
             item.encode(buf)?;
         }
@@ -55,7 +55,7 @@ impl crate::bedrock::codec::BedrockCodec for ScoreEntries {
             buf,
         )?;
         let entries = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {

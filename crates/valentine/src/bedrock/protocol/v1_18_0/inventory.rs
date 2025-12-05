@@ -39,8 +39,8 @@ impl crate::bedrock::codec::BedrockCodec for PacketCraftingData {
         self.recipes.encode(buf)?;
         self.potion_type_recipes.encode(buf)?;
         self.potion_container_recipes.encode(buf)?;
-        let len = self.material_reducers.len() as i32;
-        len.encode(buf)?;
+        let len = self.material_reducers.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.material_reducers {
             item.encode(buf)?;
         }
@@ -56,7 +56,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketCraftingData {
             buf,
         )?;
         let material_reducers = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {

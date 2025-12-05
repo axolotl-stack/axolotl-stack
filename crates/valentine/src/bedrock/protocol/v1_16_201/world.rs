@@ -431,8 +431,8 @@ pub struct PacketLevelChunkBlobsSome {
 }
 impl crate::bedrock::codec::BedrockCodec for PacketLevelChunkBlobsSome {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let len = self.hashes.len() as i32;
-        len.encode(buf)?;
+        let len = self.hashes.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.hashes {
             item.encode(buf)?;
         }
@@ -440,7 +440,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketLevelChunkBlobsSome {
     }
     fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
         let hashes = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {

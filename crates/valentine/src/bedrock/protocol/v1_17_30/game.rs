@@ -5,6 +5,7 @@
 #![allow(dead_code)]
 use bitflags::bitflags;
 use super::*;
+pub type CommandFlags = u8;
 #[derive(Debug, Clone, PartialEq)]
 pub struct EducationExternalLinkSettings {
     pub url: String,

@@ -201,8 +201,8 @@ pub struct PacketUnlockedRecipes {
 impl crate::bedrock::codec::BedrockCodec for PacketUnlockedRecipes {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         self.unlock_type.encode(buf)?;
-        let len = self.recipes.len() as i32;
-        len.encode(buf)?;
+        let len = self.recipes.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.recipes {
             item.encode(buf)?;
         }
@@ -213,7 +213,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketUnlockedRecipes {
             buf,
         )?;
         let recipes = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {

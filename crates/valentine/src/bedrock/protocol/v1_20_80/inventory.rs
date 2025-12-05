@@ -23,17 +23,17 @@ impl crate::bedrock::codec::BedrockCodec for RecipesItemRecipeShaped {
         self.recipe_id.encode(buf)?;
         self.width.encode(buf)?;
         self.height.encode(buf)?;
-        let len = self.input.len() as i32;
-        len.encode(buf)?;
+        let len = self.input.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.input {
-            let len = item.len() as i32;
-            len.encode(buf)?;
+            let len = item.len();
+            crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
             for item in &item {
                 item.encode(buf)?;
             }
         }
-        let len = self.output.len() as i32;
-        len.encode(buf)?;
+        let len = self.output.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.output {
             item.encode(buf)?;
         }
@@ -55,15 +55,16 @@ impl crate::bedrock::codec::BedrockCodec for RecipesItemRecipeShaped {
             buf,
         )?;
         let input = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec
                     .push({
                         let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(
-                            buf,
-                        )? as usize;
+                                buf,
+                            )?
+                            .0 as usize;
                         let mut tmp_vec = Vec::with_capacity(len);
                         for _ in 0..len {
                             tmp_vec
@@ -79,7 +80,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipesItemRecipeShaped {
             tmp_vec
         };
         let output = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -155,7 +156,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipesItem {
             buf,
         )?;
         let recipe = match type_ {
-            _ => {
+            RecipesItemType::Furnace => {
                 Some(
                     RecipesItemRecipe::Furnace(
                         Box::new(
@@ -166,7 +167,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipesItem {
                     ),
                 )
             }
-            _ => {
+            RecipesItemType::FurnaceWithMetadata => {
                 Some(
                     RecipesItemRecipe::FurnaceWithMetadata(
                         Box::new(
@@ -177,7 +178,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipesItem {
                     ),
                 )
             }
-            _ => {
+            RecipesItemType::Multi => {
                 Some(
                     RecipesItemRecipe::Multi(
                         <RecipesItemRecipeMulti as crate::bedrock::codec::BedrockCodec>::decode(
@@ -186,7 +187,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipesItem {
                     ),
                 )
             }
-            _ => {
+            RecipesItemType::Shaped => {
                 Some(
                     RecipesItemRecipe::Shaped(
                         Box::new(
@@ -197,7 +198,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipesItem {
                     ),
                 )
             }
-            _ => {
+            RecipesItemType::ShapedChemistry => {
                 Some(
                     RecipesItemRecipe::ShapedChemistry(
                         Box::new(
@@ -208,7 +209,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipesItem {
                     ),
                 )
             }
-            _ => {
+            RecipesItemType::Shapeless => {
                 Some(
                     RecipesItemRecipe::Shapeless(
                         Box::new(
@@ -219,7 +220,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipesItem {
                     ),
                 )
             }
-            _ => {
+            RecipesItemType::ShapelessChemistry => {
                 Some(
                     RecipesItemRecipe::ShapelessChemistry(
                         Box::new(
@@ -230,7 +231,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipesItem {
                     ),
                 )
             }
-            _ => {
+            RecipesItemType::ShulkerBox => {
                 Some(
                     RecipesItemRecipe::ShulkerBox(
                         Box::new(
@@ -241,7 +242,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipesItem {
                     ),
                 )
             }
-            _ => {
+            RecipesItemType::SmithingTransform => {
                 Some(
                     RecipesItemRecipe::SmithingTransform(
                         Box::new(
@@ -252,7 +253,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipesItem {
                     ),
                 )
             }
-            _ => {
+            RecipesItemType::SmithingTrim => {
                 Some(
                     RecipesItemRecipe::SmithingTrim(
                         Box::new(

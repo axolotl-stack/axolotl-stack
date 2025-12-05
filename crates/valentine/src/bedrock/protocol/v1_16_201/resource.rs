@@ -99,8 +99,8 @@ pub struct SkinPieceTintColorsItem {
 impl crate::bedrock::codec::BedrockCodec for SkinPieceTintColorsItem {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         self.piece_type.encode(buf)?;
-        let len = self.colors.len() as i32;
-        len.encode(buf)?;
+        let len = self.colors.len();
+        (len as i32).encode(buf)?;
         for item in &self.colors {
             item.encode(buf)?;
         }
@@ -145,8 +145,8 @@ impl crate::bedrock::codec::BedrockCodec for Skin {
         self.skin_id.encode(buf)?;
         self.skin_resource_pack.encode(buf)?;
         self.skin_data.encode(buf)?;
-        let len = self.animations.len() as i32;
-        len.encode(buf)?;
+        let len = self.animations.len();
+        (len as i32).encode(buf)?;
         for item in &self.animations {
             item.encode(buf)?;
         }
@@ -160,13 +160,13 @@ impl crate::bedrock::codec::BedrockCodec for Skin {
         self.full_skin_id.encode(buf)?;
         self.arm_size.encode(buf)?;
         self.skin_color.encode(buf)?;
-        let len = self.personal_pieces.len() as i32;
-        len.encode(buf)?;
+        let len = self.personal_pieces.len();
+        (len as i32).encode(buf)?;
         for item in &self.personal_pieces {
             item.encode(buf)?;
         }
-        let len = self.piece_tint_colors.len() as i32;
-        len.encode(buf)?;
+        let len = self.piece_tint_colors.len();
+        (len as i32).encode(buf)?;
         for item in &self.piece_tint_colors {
             item.encode(buf)?;
         }

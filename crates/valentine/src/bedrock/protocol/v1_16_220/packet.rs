@@ -158,7 +158,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketBossEvent {
             buf,
         )?;
         let content = match type_ {
-            _ => {
+            PacketBossEventType::RegisterPlayer => {
                 Some(
                     PacketBossEventContent::RegisterPlayer(
                         <PacketBossEventContentRegisterPlayer as crate::bedrock::codec::BedrockCodec>::decode(
@@ -167,7 +167,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketBossEvent {
                     ),
                 )
             }
-            _ => {
+            PacketBossEventType::SetBarProgress => {
                 Some(
                     PacketBossEventContent::SetBarProgress(
                         <PacketBossEventContentSetBarProgress as crate::bedrock::codec::BedrockCodec>::decode(
@@ -176,7 +176,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketBossEvent {
                     ),
                 )
             }
-            _ => {
+            PacketBossEventType::SetBarTitle => {
                 Some(
                     PacketBossEventContent::SetBarTitle(
                         <PacketBossEventContentSetBarTitle as crate::bedrock::codec::BedrockCodec>::decode(
@@ -185,7 +185,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketBossEvent {
                     ),
                 )
             }
-            _ => {
+            PacketBossEventType::ShowBar => {
                 Some(
                     PacketBossEventContent::ShowBar(
                         Box::new(
@@ -196,7 +196,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketBossEvent {
                     ),
                 )
             }
-            _ => {
+            PacketBossEventType::Texture => {
                 Some(
                     PacketBossEventContent::Texture(
                         <PacketBossEventContentTexture as crate::bedrock::codec::BedrockCodec>::decode(
@@ -205,7 +205,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketBossEvent {
                     ),
                 )
             }
-            _ => {
+            PacketBossEventType::UnregisterPlayer => {
                 Some(
                     PacketBossEventContent::UnregisterPlayer(
                         <PacketBossEventContentRegisterPlayer as crate::bedrock::codec::BedrockCodec>::decode(
@@ -214,7 +214,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketBossEvent {
                     ),
                 )
             }
-            _ => {
+            PacketBossEventType::UpdateProperties => {
                 Some(
                     PacketBossEventContent::UpdateProperties(
                         <PacketBossEventContentUpdateProperties as crate::bedrock::codec::BedrockCodec>::decode(
@@ -238,8 +238,8 @@ pub struct PacketCreativeContent {
 }
 impl crate::bedrock::codec::BedrockCodec for PacketCreativeContent {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let len = self.items.len() as i32;
-        len.encode(buf)?;
+        let len = self.items.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.items {
             item.encode(buf)?;
         }
@@ -247,7 +247,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketCreativeContent {
     }
     fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
         let items = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {

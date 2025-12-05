@@ -1,9 +1,46 @@
 // ----- Helper utilities for naming and type token resolution -----
-use crate::ir::Type;
 use crate::generator::definitions::fingerprint_type;
+use crate::ir::Type;
 
 pub fn compute_fingerprint(name: &str, t: &Type) -> String {
     format!("{}::{}", name, fingerprint_type(t))
+}
+
+pub fn to_screaming_snake_case(s: &str) -> String {
+    let mut result = String::new();
+    let mut prev_is_upper = false;
+    let mut last_was_underscore = false;
+
+    for (i, c) in s.chars().enumerate() {
+        // 1. Handle Non-Alphanumeric characters (The Fix)
+        // This catches spaces, '|', '.', etc.
+        if !c.is_alphanumeric() {
+            if !last_was_underscore {
+                result.push('_');
+                last_was_underscore = true;
+            }
+            prev_is_upper = false;
+            continue;
+        }
+
+        // 2. Handle CamelCase boundaries (e.g. "HasX" -> "HAS_X")
+        if c.is_uppercase() {
+            if i > 0 && !prev_is_upper && !last_was_underscore {
+                result.push('_');
+            }
+            result.push(c);
+            prev_is_upper = true;
+            last_was_underscore = false;
+        } else {
+            result.push(c.to_ascii_uppercase());
+            prev_is_upper = false;
+            last_was_underscore = false;
+        }
+    }
+
+    // Clean up trailing/leading underscores or double underscores
+    let cleaned = result.replace("__", "_");
+    cleaned.trim_matches('_').to_string()
 }
 
 pub fn camel_case(s: &str) -> String {
@@ -190,9 +227,15 @@ pub fn get_group_name(type_name: &str) -> String {
     // Heuristic grouping based on type name
     let lower = type_name.to_lowercase();
 
-    if lower.contains("login") || lower.contains("handshake") || lower.contains("disconnect") 
-        || lower.contains("encryption") || lower.contains("playstatus") || lower.contains("clienttoserver") 
-        || lower.contains("servertoclient") || lower.contains("setlocalplayer") {
+    if lower.contains("login")
+        || lower.contains("handshake")
+        || lower.contains("disconnect")
+        || lower.contains("encryption")
+        || lower.contains("playstatus")
+        || lower.contains("clienttoserver")
+        || lower.contains("servertoclient")
+        || lower.contains("setlocalplayer")
+    {
         return "connection".to_string();
     }
 
@@ -200,22 +243,45 @@ pub fn get_group_name(type_name: &str) -> String {
         return "resource".to_string();
     }
 
-    if lower.contains("level") || lower.contains("chunk") || lower.contains("block") 
-        || lower.contains("biome") || lower.contains("structure") || lower.contains("map") 
-        || lower.contains("dimension") || lower.contains("tick") || lower.contains("piston") {
+    if lower.contains("level")
+        || lower.contains("chunk")
+        || lower.contains("block")
+        || lower.contains("biome")
+        || lower.contains("structure")
+        || lower.contains("map")
+        || lower.contains("dimension")
+        || lower.contains("tick")
+        || lower.contains("piston")
+    {
         return "world".to_string();
     }
 
-    if lower.contains("entity") || lower.contains("player") || lower.contains("actor") 
-        || lower.contains("move") || lower.contains("animate") || lower.contains("attribute") 
-        || lower.contains("effect") || lower.contains("mob") || lower.contains("camera") 
-        || lower.contains("npc") || lower.contains("agent") || lower.contains("motion") {
+    if lower.contains("entity")
+        || lower.contains("player")
+        || lower.contains("actor")
+        || lower.contains("move")
+        || lower.contains("animate")
+        || lower.contains("attribute")
+        || lower.contains("effect")
+        || lower.contains("mob")
+        || lower.contains("camera")
+        || lower.contains("npc")
+        || lower.contains("agent")
+        || lower.contains("motion")
+    {
         return "entity".to_string();
     }
 
-    if lower.contains("item") || lower.contains("inventory") || lower.contains("window") 
-        || lower.contains("craft") || lower.contains("trade") || lower.contains("book") 
-        || lower.contains("enchant") || lower.contains("hotbar") || lower.contains("container") {
+    if lower.contains("item")
+        || lower.contains("inventory")
+        || lower.contains("window")
+        || lower.contains("craft")
+        || lower.contains("trade")
+        || lower.contains("book")
+        || lower.contains("enchant")
+        || lower.contains("hotbar")
+        || lower.contains("container")
+    {
         return "inventory".to_string();
     }
 
@@ -228,10 +294,15 @@ pub fn get_group_name(type_name: &str) -> String {
         return "game".to_string();
     }
 
-    if lower.contains("text") || lower.contains("chat") || lower.contains("message") || lower.contains("title") || lower.contains("toast") {
+    if lower.contains("text")
+        || lower.contains("chat")
+        || lower.contains("message")
+        || lower.contains("title")
+        || lower.contains("toast")
+    {
         return "chat".to_string();
     }
-    
+
     if lower.contains("packet") || lower.contains("network") || lower.contains("transfer") {
         // Catch-all for packets not matched above
         return "packet".to_string();

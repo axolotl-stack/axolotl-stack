@@ -170,8 +170,8 @@ pub struct PacketDimensionData {
 }
 impl crate::bedrock::codec::BedrockCodec for PacketDimensionData {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let len = self.definitions.len() as i32;
-        len.encode(buf)?;
+        let len = self.definitions.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.definitions {
             item.encode(buf)?;
         }
@@ -179,7 +179,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketDimensionData {
     }
     fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
         let definitions = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {

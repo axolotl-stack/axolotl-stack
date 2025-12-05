@@ -8,21 +8,34 @@ use super::*;
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)] pub struct MetadataFlags2 : u64 {
     const SNEEZING = 1; const TRUSTING = 2; const ROLLING = 4; const SCARED = 8; const
-    INSCAFFOLDING = 16; const OVERSCAFFOLDING = 32; const FALLTHROUGHSCAFFOLDING = 64;
-    const BLOCKING = 128; const TRANSITIONBLOCKING = 256; const BLOCKEDUSINGSHIELD = 512;
-    const BLOCKEDUSINGDAMAGEDSHIELD = 1024; const SLEEPING = 2048; const WANTSTOWAKE =
-    4096; const TRADEINTEREST = 8192; const DOORBREAKER = 16384; const
-    BREAKINGOBSTRUCTION = 32768; const DOOROPENER = 65536; const ILLAGERCAPTAIN = 131072;
-    const STUNNED = 262144; const ROARING = 524288; const DELAYEDATTACKING = 1048576;
-    const AVOIDINGMOBS = 2097152; const AVOIDINGBLOCK = 4194304; const
-    FACINGTARGETTORANGEATTACK = 8388608; const HIDDENWHENINVISIBLE = 16777216; const
-    ISINUI = 33554432; const STALKING = 67108864; const EMOTING = 134217728; const
-    CELEBRATING = 268435456; const ADMIRING = 536870912; const CELEBRATINGSPECIAL =
-    1073741824; const UNKNOWN95 = 2147483648; const RAMATTACK = 4294967296; const
-    PLAYINGDEAD = 8589934592; const INASCENDABLEBLOCK = 17179869184; const
-    OVERDESCENDABLEBLOCK = 34359738368; const CROAKING = 68719476736; const EATMOB =
-    137438953472; const JUMPGOALJUMP = 274877906944; const EMERGING = 549755813888; const
-    SNIFFING = 1099511627776; const DIGGING = 2199023255552; }
+    IN_SCAFFOLDING = 16; const OVER_SCAFFOLDING = 32; const FALL_THROUGH_SCAFFOLDING =
+    64; const BLOCKING = 128; const TRANSITION_BLOCKING = 256; const BLOCKED_USING_SHIELD
+    = 512; const BLOCKED_USING_DAMAGED_SHIELD = 1024; const SLEEPING = 2048; const
+    WANTS_TO_WAKE = 4096; const TRADE_INTEREST = 8192; const DOOR_BREAKER = 16384; const
+    BREAKING_OBSTRUCTION = 32768; const DOOR_OPENER = 65536; const ILLAGER_CAPTAIN =
+    131072; const STUNNED = 262144; const ROARING = 524288; const DELAYED_ATTACKING =
+    1048576; const AVOIDING_MOBS = 2097152; const AVOIDING_BLOCK = 4194304; const
+    FACING_TARGET_TO_RANGE_ATTACK = 8388608; const HIDDEN_WHEN_INVISIBLE = 16777216;
+    const IS_IN_UI = 33554432; const STALKING = 67108864; const EMOTING = 134217728;
+    const CELEBRATING = 268435456; const ADMIRING = 536870912; const CELEBRATING_SPECIAL
+    = 1073741824; const UNKNOWN95 = 2147483648; const RAM_ATTACK = 4294967296; const
+    PLAYING_DEAD = 8589934592; const IN_ASCENDABLE_BLOCK = 17179869184; const
+    OVER_DESCENDABLE_BLOCK = 34359738368; const CROAKING = 68719476736; const EAT_MOB =
+    137438953472; const JUMP_GOAL_JUMP = 274877906944; const EMERGING = 549755813888;
+    const SNIFFING = 1099511627776; const DIGGING = 2199023255552; }
+}
+impl crate::bedrock::codec::BedrockCodec for MetadataFlags2 {
+    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let val = self.bits();
+        crate::bedrock::codec::ZigZag64(val as i64).encode(buf)
+    }
+    fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+        let raw = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+        )?;
+        let bits = raw.0 as u64;
+        Ok(Self::from_bits_retain(bits))
+    }
 }
 pub type MetadataDictionary = Vec<MetadataDictionaryItem>;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

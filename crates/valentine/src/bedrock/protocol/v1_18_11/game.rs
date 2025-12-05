@@ -90,7 +90,7 @@ impl crate::bedrock::codec::BedrockCodec for CommandOrigin {
         let uuid = <uuid::Uuid as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let request_id = <String as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let player_entity_id = match type_ {
-            _ => {
+            CommandOriginType::DevConsole => {
                 Some(
                     CommandOriginPlayerEntityID::DevConsole(
                         <CommandOriginPlayerEntityIDDevConsole as crate::bedrock::codec::BedrockCodec>::decode(
@@ -99,7 +99,7 @@ impl crate::bedrock::codec::BedrockCodec for CommandOrigin {
                     ),
                 )
             }
-            _ => {
+            CommandOriginType::Test => {
                 Some(
                     CommandOriginPlayerEntityID::Test(
                         <CommandOriginPlayerEntityIDDevConsole as crate::bedrock::codec::BedrockCodec>::decode(

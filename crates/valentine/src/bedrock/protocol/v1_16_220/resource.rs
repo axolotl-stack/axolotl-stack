@@ -51,8 +51,8 @@ impl crate::bedrock::codec::BedrockCodec for Skin {
         self.play_fab_id.encode(buf)?;
         self.skin_resource_pack.encode(buf)?;
         self.skin_data.encode(buf)?;
-        let len = self.animations.len() as i32;
-        len.encode(buf)?;
+        let len = self.animations.len();
+        (len as i32).encode(buf)?;
         for item in &self.animations {
             item.encode(buf)?;
         }
@@ -66,13 +66,13 @@ impl crate::bedrock::codec::BedrockCodec for Skin {
         self.full_skin_id.encode(buf)?;
         self.arm_size.encode(buf)?;
         self.skin_color.encode(buf)?;
-        let len = self.personal_pieces.len() as i32;
-        len.encode(buf)?;
+        let len = self.personal_pieces.len();
+        (len as i32).encode(buf)?;
         for item in &self.personal_pieces {
             item.encode(buf)?;
         }
-        let len = self.piece_tint_colors.len() as i32;
-        len.encode(buf)?;
+        let len = self.piece_tint_colors.len();
+        (len as i32).encode(buf)?;
         for item in &self.piece_tint_colors {
             item.encode(buf)?;
         }
@@ -178,8 +178,8 @@ impl crate::bedrock::codec::BedrockCodec for PacketClientboundMapItemDataTexture
         self.height.encode(buf)?;
         self.x_offset.encode(buf)?;
         self.y_offset.encode(buf)?;
-        let len = self.pixels.len() as i32;
-        len.encode(buf)?;
+        let len = self.pixels.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.pixels {
             item.encode(buf)?;
         }
@@ -199,7 +199,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketClientboundMapItemDataTexture
             buf,
         )?;
         let pixels = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {

@@ -294,3 +294,96 @@ impl BedrockCodec for uuid::Uuid {
         Ok(uuid::Uuid::from_bytes(bytes))
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct VarInt(pub i32);
+
+impl BedrockCodec for VarInt {
+    fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let mut x = self.0 as u32;
+        loop {
+            let mut temp = (x & 0x7F) as u8;
+            x >>= 7;
+            if x != 0 {
+                temp |= 0x80;
+                buf.put_u8(temp);
+            } else {
+                buf.put_u8(temp);
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    fn decode<B: Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+        let mut result = 0;
+        let mut shift = 0;
+        loop {
+            if !buf.has_remaining() {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::UnexpectedEof,
+                    "VarInt EOF",
+                ));
+            }
+            let byte = buf.get_u8();
+            result |= ((byte & 0x7F) as i32) << shift;
+            if (byte & 0x80) == 0 {
+                return Ok(VarInt(result));
+            }
+            shift += 7;
+            if shift >= 35 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "VarInt too large",
+                ));
+            }
+        }
+    }
+}
+
+// --- VarLong Wrapper ---
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct VarLong(pub i64);
+
+impl BedrockCodec for VarLong {
+    fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let mut x = self.0 as u64;
+        loop {
+            let mut temp = (x & 0x7F) as u8;
+            x >>= 7;
+            if x != 0 {
+                temp |= 0x80;
+                buf.put_u8(temp);
+            } else {
+                buf.put_u8(temp);
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    fn decode<B: Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+        let mut result = 0;
+        let mut shift = 0;
+        loop {
+            if !buf.has_remaining() {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::UnexpectedEof,
+                    "VarLong EOF",
+                ));
+            }
+            let byte = buf.get_u8();
+            result |= ((byte & 0x7F) as i64) << shift;
+            if (byte & 0x80) == 0 {
+                return Ok(VarLong(result));
+            }
+            shift += 7;
+            if shift >= 70 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "VarLong too large",
+                ));
+            }
+        }
+    }
+}

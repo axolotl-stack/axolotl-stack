@@ -41,7 +41,8 @@ pub fn parse(path: &Path) -> Result<ParseResult, Box<dyn std::error::Error>> {
                 let options = &vec[1];
                 options
                     .get("mappings")
-                    .and_then(|m| m.as_object()).cloned()
+                    .and_then(|m| m.as_object())
+                    .cloned()
                     .ok_or("mcpe_packet mapper has no mappings")?
             } else if vec.len() >= 2 && vec[0].as_str() == Some("container") {
                 let fields = vec[1]
@@ -52,7 +53,8 @@ pub fn parse(path: &Path) -> Result<ParseResult, Box<dyn std::error::Error>> {
                 for f in fields {
                     if let Some(f_obj) = f.as_object()
                         && let Some(type_val) = f_obj.get("type")
-                        && let Ok(JsonTypeDef::Complex(inner_vec)) = serde_json::from_value::<JsonTypeDef>(type_val.clone())
+                        && let Ok(JsonTypeDef::Complex(inner_vec)) =
+                            serde_json::from_value::<JsonTypeDef>(type_val.clone())
                         && inner_vec.len() >= 2
                         && inner_vec[0].as_str() == Some("mapper")
                     {
@@ -88,7 +90,10 @@ pub fn parse(path: &Path) -> Result<ParseResult, Box<dyn std::error::Error>> {
 
     let mut packets = Vec::new();
     for (id_str, name_val) in mappings {
-        let id: u32 = if let Some(hex) = id_str.strip_prefix("0x").or_else(|| id_str.strip_prefix("0X")) {
+        let id: u32 = if let Some(hex) = id_str
+            .strip_prefix("0x")
+            .or_else(|| id_str.strip_prefix("0X"))
+        {
             u32::from_str_radix(hex, 16)?
         } else {
             id_str.parse()?
@@ -156,8 +161,6 @@ fn parse_type(
                     let inner_def: JsonTypeDef = serde_json::from_value(inner.clone())
                         .map_err(|e| format!("Failed to parse array inner type: {}", e))?;
 
-                    // Inner type of array often doesn't have a name unless we generate one.
-                    // We pass None for now.
                     Ok(Type::Array {
                         count_type: Box::new(parse_primitive_or_ref(count_type)?),
                         inner_type: Box::new(parse_type(&inner_def, types_map, None)?),
@@ -180,11 +183,18 @@ fn parse_type(
 
                     let mut variants: Vec<(String, i64)> = Vec::new();
                     for (k, v) in mappings {
-                        let name = v.as_str().ok_or("mapper mapping value not string")?.to_string();
-                        let val: i64 = if let Some(hex) = k.strip_prefix("0x").or_else(|| k.strip_prefix("0X")) {
-                            i64::from_str_radix(hex, 16).map_err(|e| format!("mapper key parse hex: {}", e))?
+                        let name = v
+                            .as_str()
+                            .ok_or("mapper mapping value not string")?
+                            .to_string();
+                        let val: i64 = if let Some(hex) =
+                            k.strip_prefix("0x").or_else(|| k.strip_prefix("0X"))
+                        {
+                            i64::from_str_radix(hex, 16)
+                                .map_err(|e| format!("mapper key parse hex: {}", e))?
                         } else {
-                            k.parse::<i64>().map_err(|e| format!("mapper key parse: {}", e))?
+                            k.parse::<i64>()
+                                .map_err(|e| format!("mapper key parse: {}", e))?
                         };
                         variants.push((name, val));
                     }
@@ -237,13 +247,23 @@ fn parse_type(
                         _ => Primitive::VarInt,
                     };
 
-                    let flags_list = options.get("flags").and_then(|v| v.as_array());
                     let mut flags = Vec::new();
-                    if let Some(list) = flags_list {
+
+                    // 1. Handle Array Format ["flag_a", "flag_b"] -> 1<<0, 1<<1
+                    if let Some(list) = options.get("flags").and_then(|v| v.as_array()) {
                         for (i, v) in list.iter().enumerate() {
                             let name = v.as_str().unwrap_or("unknown").to_string();
                             let val: u64 = 1u64.checked_shl(i as u32).unwrap_or(0);
                             flags.push((name, val));
+                        }
+                    }
+                    // 2. Handle Object Format {"flag_a": 1, "flag_b": 4} (CRITICAL FIX)
+                    else if let Some(map) = options.get("flags").and_then(|v| v.as_object()) {
+                        for (name, val) in map {
+                            let val_u64 = val.as_u64().ok_or_else(|| {
+                                format!("Bitflag value for {} is not an integer", name)
+                            })?;
+                            flags.push((name.clone(), val_u64));
                         }
                     }
 
@@ -254,29 +274,61 @@ fn parse_type(
                     })
                 }
                 "bitfield" => {
-                    let mut total_bits: u32 = 0;
+                    // Check if it's the "Size based" format (Array of objects with "size")
                     if let Some(list) = options.as_array() {
+                        // Calculate total bits to determine backing type
+                        let mut total_bits: u32 = 0;
+                        let mut packed_fields = Vec::new();
+                        let mut current_shift = 0;
+
                         for seg in list {
                             if let Some(size) = seg.get("size").and_then(|v| v.as_u64()) {
-                                total_bits = total_bits.saturating_add(size as u32);
+                                let size = size as u32;
+                                let name =
+                                    seg.get("name").and_then(|v| v.as_str()).unwrap_or("unused");
+
+                                // Calculate mask for this segment (e.g. size 3 -> 0b111 -> 7)
+                                let mask = (1u64 << size) - 1;
+
+                                if name != "unused" {
+                                    packed_fields.push(crate::ir::PackedField {
+                                        name: name.to_string(),
+                                        shift: current_shift,
+                                        mask,
+                                    });
+                                }
+
+                                total_bits += size;
+                                current_shift += size;
                             }
                         }
-                    }
-                    let prim = if total_bits <= 8 {
-                        Primitive::U8
-                    } else if total_bits <= 16 {
-                        Primitive::U16
-                    } else if total_bits <= 32 {
-                        Primitive::U32
-                    } else if total_bits <= 64 {
-                        Primitive::U64
+
+                        let backing = if total_bits <= 8 {
+                            Primitive::U8
+                        } else if total_bits <= 16 {
+                            Primitive::U16
+                        } else if total_bits <= 32 {
+                            Primitive::U32
+                        } else {
+                            Primitive::U64
+                        };
+
+                        Ok(Type::Packed {
+                            backing,
+                            fields: packed_fields,
+                        })
                     } else {
-                        Primitive::ByteArray
-                    };
-                    Ok(Type::Primitive(prim))
+                        // ... (Keep your existing Bitflags logic for ["flag", "flag"] here) ...
+                        // The previous "bitflags" block I gave you handles the OTHER format.
+                        // This block handles "bitfield" (singular).
+                        // Ensure you don't delete the "bitflags" logic!
+                        Err("Invalid bitfield format".into())
+                    }
                 }
                 "entityMetadataLoop" => {
-                    let inner = options.get("type").ok_or("entityMetadataLoop missing type")?;
+                    let inner = options
+                        .get("type")
+                        .ok_or("entityMetadataLoop missing type")?;
                     let inner_def: JsonTypeDef = serde_json::from_value(inner.clone())
                         .map_err(|e| format!("entityMetadataLoop inner error: {}", e))?;
                     Ok(Type::Array {
@@ -302,9 +354,7 @@ fn parse_type(
                         Ok(Type::Primitive(Primitive::ByteArray))
                     }
                 }
-                "enum_size_based_on_values_len" => Ok(Type::Primitive(Primitive::VarInt)),
                 "option" => {
-                    // Option can be ["option", <type>] or ["option", { type: <type> }]
                     let inner_def: JsonTypeDef = if let Some(inner) = options.get("type") {
                         serde_json::from_value(inner.clone())
                             .map_err(|e| format!("option inner error: {}", e))?
@@ -312,19 +362,16 @@ fn parse_type(
                         serde_json::from_value(options.clone())
                             .map_err(|e| format!("option value error: {}", e))?
                     };
-                    Ok(Type::Option(Box::new(parse_type(&inner_def, types_map, None)?)))
+                    Ok(Type::Option(Box::new(parse_type(
+                        &inner_def, types_map, None,
+                    )?)))
                 }
                 "pstring" => Ok(Type::Primitive(Primitive::McString)),
                 "buffer" => Ok(Type::Primitive(Primitive::ByteArray)),
                 _ => {
                     if kind == "native" {
-                        // If it's native, usually it's a primitive alias.
-                        // We can try to parse the name_hint as primitive?
-                        // Or return ByteArray/Void as fallback.
-                        // Check options if it has any info?
-                        Ok(Type::Primitive(Primitive::Void)) // Placeholder
+                        Ok(Type::Primitive(Primitive::Void))
                     } else {
-                        // Fallback: if this refers to a named type, use that definition.
                         if let Some(named) = types_map.get(kind) {
                             parse_type(named, types_map, name_hint)
                         } else {

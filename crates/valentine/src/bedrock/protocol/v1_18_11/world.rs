@@ -114,14 +114,16 @@ impl crate::bedrock::codec::BedrockCodec for SubChunkEntryWithCachingItem {
             buf,
         )?;
         let payload = match result {
-            _ => None,
+            SubChunkEntryWithCachingItemResult::SuccessAllAir => None,
             _ => Some(<ByteArray as crate::bedrock::codec::BedrockCodec>::decode(buf)?),
         };
         let heightmap_type = <SubChunkEntryWithCachingItemHeightmapType as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
         )?;
         let heightmap = match heightmap_type {
-            _ => Some(<Vec<u8> as crate::bedrock::codec::BedrockCodec>::decode(buf)?),
+            SubChunkEntryWithCachingItemHeightmapType::HasData => {
+                Some(<Vec<u8> as crate::bedrock::codec::BedrockCodec>::decode(buf)?)
+            }
             _ => None,
         };
         let blob_id = <u64 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
@@ -247,7 +249,9 @@ impl crate::bedrock::codec::BedrockCodec for SubChunkEntryWithoutCachingItem {
             buf,
         )?;
         let heightmap = match heightmap_type {
-            _ => Some(<Vec<u8> as crate::bedrock::codec::BedrockCodec>::decode(buf)?),
+            SubChunkEntryWithoutCachingItemHeightmapType::HasData => {
+                Some(<Vec<u8> as crate::bedrock::codec::BedrockCodec>::decode(buf)?)
+            }
             _ => None,
         };
         Ok(Self {
@@ -412,8 +416,8 @@ impl crate::bedrock::codec::BedrockCodec for PacketSubchunkRequest {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         self.dimension.encode(buf)?;
         self.origin.encode(buf)?;
-        let len = self.requests.len() as u32;
-        len.encode(buf)?;
+        let len = self.requests.len();
+        (len as u32).encode(buf)?;
         for item in &self.requests {
             item.encode(buf)?;
         }

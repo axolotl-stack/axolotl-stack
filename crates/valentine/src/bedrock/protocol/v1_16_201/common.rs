@@ -7,13 +7,56 @@ use bitflags::bitflags;
 use super::*;
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)] pub struct ActionPermissions : u32
-    {}
+    { const ATTACK_MOBS = 65552; const ATTACK_PLAYERS = 65544; const BUILD_AND_MINE =
+    65537; const DOORS_AND_SWITCHES = 65538; const OPEN_CONTAINERS = 65540; const
+    OPERATOR = 65568; const TELEPORT = 65664; }
+}
+impl crate::bedrock::codec::BedrockCodec for ActionPermissions {
+    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let val = self.bits();
+        crate::bedrock::codec::VarInt(val as i32).encode(buf)
+    }
+    fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+        let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+        )?;
+        let bits = raw.0 as u32;
+        Ok(Self::from_bits_retain(bits))
+    }
 }
 bitflags! {
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)] pub struct AdventureFlags : u32 {}
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)] pub struct AdventureFlags : u32 {
+    const ALLOW_FLIGHT = 64; const AUTO_JUMP = 32; const FLYING = 512; const MUTED =
+    1024; const NO_CLIP = 128; const NO_PVP = 2; const WORLD_BUILDER = 256; const
+    WORLD_IMMUTABLE = 1; }
+}
+impl crate::bedrock::codec::BedrockCodec for AdventureFlags {
+    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let val = self.bits();
+        crate::bedrock::codec::VarInt(val as i32).encode(buf)
+    }
+    fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+        let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+        )?;
+        let bits = raw.0 as u32;
+        Ok(Self::from_bits_retain(bits))
+    }
 }
 bitflags! {
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)] pub struct ArmorDamageType : u8 {}
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)] pub struct ArmorDamageType : u8 {
+    const CHEST = 2; const FEET = 8; const HEAD = 1; const LEGS = 4; }
+}
+impl crate::bedrock::codec::BedrockCodec for ArmorDamageType {
+    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let val = self.bits();
+        (val as u8).encode(buf)
+    }
+    fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+        let raw = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
+        let bits = raw as u8;
+        Ok(Self::from_bits_retain(bits))
+    }
 }
 pub type BehaviourPackInfos = Vec<BehaviourPackInfosItem>;
 pub type ByteArray = Vec<u8>;
@@ -53,7 +96,28 @@ impl crate::bedrock::codec::BedrockCodec for Experiment {
 }
 pub type Experiments = Vec<Experiment>;
 bitflags! {
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)] pub struct InputFlag : u32 {}
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)] pub struct InputFlag : u32 { const
+    ASCEND = 1; const ASCEND_SCAFFOLDING = 2097152; const AUTO_JUMPING_IN_WATER = 128;
+    const CHANGE_HEIGHT = 32; const DESCEND = 2; const DESCEND_SCAFFOLDING = 4194304;
+    const DOWN = 2048; const JUMP_DOWN = 8; const JUMPING = 64; const LEFT = 4096; const
+    NORTH_JUMP = 4; const PERSIST_SNEAK = 16777216; const RIGHT = 8192; const SNEAK_DOWN
+    = 512; const SNEAK_TOGGLE_DOWN = 8388608; const SNEAKING = 256; const SPRINT_DOWN =
+    16; const SPRINTING = 1048576; const UP = 1024; const UP_LEFT = 16384; const UP_RIGHT
+    = 32768; const WANT_DOWN = 131072; const WANT_DOWN_SLOW = 262144; const WANT_UP =
+    65536; const WANT_UP_SLOW = 524288; }
+}
+impl crate::bedrock::codec::BedrockCodec for InputFlag {
+    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let val = self.bits();
+        crate::bedrock::codec::VarInt(val as i32).encode(buf)
+    }
+    fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+        let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+        )?;
+        let bits = raw.0 as u32;
+        Ok(Self::from_bits_retain(bits))
+    }
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct StackRequestSlotInfo {
@@ -305,8 +369,8 @@ impl crate::bedrock::codec::BedrockCodec for Transaction {
         }
         self.transaction_type.encode(buf)?;
         self.network_ids.encode(buf)?;
-        let len = self.inventory_actions.len() as i32;
-        len.encode(buf)?;
+        let len = self.inventory_actions.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.inventory_actions {
             item.encode(buf)?;
         }
@@ -330,7 +394,7 @@ impl crate::bedrock::codec::BedrockCodec for Transaction {
             _ => {
                 Some({
                     let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
-                        as usize;
+                        .0 as usize;
                     let mut tmp_vec = Vec::with_capacity(len);
                     for _ in 0..len {
                         tmp_vec
@@ -349,7 +413,7 @@ impl crate::bedrock::codec::BedrockCodec for Transaction {
         )?;
         let network_ids = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let inventory_actions = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -363,8 +427,10 @@ impl crate::bedrock::codec::BedrockCodec for Transaction {
             tmp_vec
         };
         let transaction_data = match transaction_type {
-            _ => Some(TransactionTransactionData::InventoryMismatch),
-            _ => {
+            TransactionTransactionType::InventoryMismatch => {
+                Some(TransactionTransactionData::InventoryMismatch)
+            }
+            TransactionTransactionType::ItemRelease => {
                 Some(
                     TransactionTransactionData::ItemRelease(
                         Box::new(
@@ -375,7 +441,7 @@ impl crate::bedrock::codec::BedrockCodec for Transaction {
                     ),
                 )
             }
-            _ => {
+            TransactionTransactionType::ItemUse => {
                 Some(
                     TransactionTransactionData::ItemUse(
                         Box::new(
@@ -386,7 +452,7 @@ impl crate::bedrock::codec::BedrockCodec for Transaction {
                     ),
                 )
             }
-            _ => {
+            TransactionTransactionType::ItemUseOnEntity => {
                 Some(
                     TransactionTransactionData::ItemUseOnEntity(
                         Box::new(
@@ -397,7 +463,9 @@ impl crate::bedrock::codec::BedrockCodec for Transaction {
                     ),
                 )
             }
-            _ => Some(TransactionTransactionData::Normal),
+            TransactionTransactionType::Normal => {
+                Some(TransactionTransactionData::Normal)
+            }
             _ => None,
         };
         Ok(Self {

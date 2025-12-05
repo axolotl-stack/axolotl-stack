@@ -391,7 +391,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketCorrectPlayerMovePrediction {
         let position = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let delta = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let vehicle_rotation = match prediction_type {
-            _ => {
+            PacketCorrectPlayerMovePredictionPredictionType::Vehicle => {
                 Some(
                     <PacketCorrectPlayerMovePredictionVehicleRotationSome as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,

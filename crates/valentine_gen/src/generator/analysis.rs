@@ -64,7 +64,7 @@ pub fn should_box_variant(t: &Type, ctx: &Context, depth: usize) -> bool {
 
         Type::Switch { .. } => true,
 
-        Type::Enum { .. } | Type::Bitfield { .. } => false,
+        Type::Enum { .. } | Type::Bitfield { .. } | Type::Packed { .. } => false,
     }
 }
 
@@ -85,7 +85,7 @@ pub fn find_redundant_fields(container: &Container) -> HashSet<String> {
             let all_cases_void = fields
                 .iter()
                 .all(|(_, t)| matches!(t, Type::Primitive(Primitive::Void)));
-            
+
             if all_cases_void && !matches!(default.as_ref(), Type::Primitive(Primitive::Void)) {
                 // This switch becomes Option<Default>. It depends on `compare_to`.
                 // The `compare_to` field is the boolean flag we want to hide.

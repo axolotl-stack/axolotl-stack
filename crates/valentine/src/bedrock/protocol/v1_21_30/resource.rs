@@ -19,8 +19,8 @@ impl crate::bedrock::codec::BedrockCodec for PacketResourcePacksInfo {
         self.has_addons.encode(buf)?;
         self.has_scripts.encode(buf)?;
         self.texture_packs.encode(buf)?;
-        let len = self.resource_pack_links.len() as i32;
-        len.encode(buf)?;
+        let len = self.resource_pack_links.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.resource_pack_links {
             item.encode(buf)?;
         }
@@ -34,7 +34,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketResourcePacksInfo {
             buf,
         )?;
         let resource_pack_links = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {

@@ -515,7 +515,9 @@ impl crate::bedrock::codec::BedrockCodec for PacketSubchunk {
             buf,
         )?;
         let heightmap = match heightmap_type {
-            _ => Some(<Vec<u8> as crate::bedrock::codec::BedrockCodec>::decode(buf)?),
+            PacketSubchunkHeightmapType::HasData => {
+                Some(<Vec<u8> as crate::bedrock::codec::BedrockCodec>::decode(buf)?)
+            }
             _ => None,
         };
         Ok(Self {

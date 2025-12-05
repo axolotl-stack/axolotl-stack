@@ -49,8 +49,8 @@ impl crate::bedrock::codec::BedrockCodec for PacketAnimateEntity {
         self.stop_condition_version.encode(buf)?;
         self.controller.encode(buf)?;
         self.blend_out_time.encode(buf)?;
-        let len = self.runtime_entity_ids.len() as i32;
-        len.encode(buf)?;
+        let len = self.runtime_entity_ids.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.runtime_entity_ids {
             item.encode(buf)?;
         }
@@ -68,7 +68,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAnimateEntity {
         let controller = <String as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let blend_out_time = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let runtime_entity_ids = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {

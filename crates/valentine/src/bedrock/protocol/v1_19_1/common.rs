@@ -147,7 +147,20 @@ impl crate::bedrock::codec::BedrockCodec for DeviceOs {
 }
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)] pub struct RequestPermissions :
-    u16 {}
+    u16 { const ATTACK_MOBS = 32; const ATTACK_PLAYERS = 16; const BUILD = 1; const
+    DOORS_AND_SWITCHES = 4; const MINE = 2; const OPEN_CONTAINERS = 8; const OPERATOR =
+    64; const TELEPORT = 128; }
+}
+impl crate::bedrock::codec::BedrockCodec for RequestPermissions {
+    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let val = self.bits();
+        (val as u16).encode(buf)
+    }
+    fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+        let raw = <u16 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
+        let bits = raw as u16;
+        Ok(Self::from_bits_retain(bits))
+    }
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(i32)]

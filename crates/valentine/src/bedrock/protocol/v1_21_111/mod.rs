@@ -3,7 +3,7 @@
 pub use crate::bedrock::protocol::v1_21_100::common::AbilityLayers;
 pub use crate::bedrock::protocol::v1_21_100::common::AbilitySet;
 pub use crate::bedrock::protocol::v1_21_100::common::Action;
-pub use crate::bedrock::protocol::v1_16_201::common::ActionPermissions;
+pub use crate::bedrock::protocol::v1_16_210::common::ActionPermissions;
 pub use crate::bedrock::protocol::v1_16_201::common::AdventureFlags;
 pub use crate::bedrock::protocol::v1_21_100::world::BiomeCappedSurface;
 pub use crate::bedrock::protocol::v1_21_100::world::BiomeConsolidatedFeature;
@@ -24,7 +24,7 @@ pub use crate::bedrock::protocol::v1_16_220::world::BlockProperties;
 pub use crate::bedrock::protocol::v1_17_30::world::BlockUpdate;
 pub use crate::bedrock::protocol::v1_16_201::common::ByteArray;
 pub use crate::bedrock::protocol::v1_21_100::entity::CameraPresets;
-pub use crate::bedrock::protocol::v1_16_201::game::CommandFlags;
+pub use crate::bedrock::protocol::v1_18_0::game::CommandFlags;
 pub use crate::bedrock::protocol::v1_18_11::game::CommandOrigin;
 pub use crate::bedrock::protocol::v1_19_10::world::CommandPermissionLevel;
 pub use crate::bedrock::protocol::v1_19_10::world::CommandPermissionLevelVarint;

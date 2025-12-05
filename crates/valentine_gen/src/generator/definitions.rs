@@ -80,6 +80,15 @@ pub fn fingerprint_type(t: &Type) -> String {
             s.push(']');
             s
         }
+        Type::Packed { backing, fields } => {
+            let mut s = format!("PK:{:?}:[", backing);
+            for f in fields {
+                // We include name, shift, and mask to ensure uniqueness
+                s.push_str(&format!("{}={}&{},", f.name, f.shift, f.mask));
+            }
+            s.push(']');
+            s
+        }
     }
 }
 
@@ -230,6 +239,7 @@ pub fn resolve_type_to_tokens(
             let ident = format_ident!("{}", name);
             quote! { #ident }
         }
+        Type::Packed { backing, .. } => primitive_to_rust_tokens(backing),
     })
 }
 
@@ -413,13 +423,14 @@ pub fn define_type(
             flags,
             ..
         } => {
-            let storage_tokens = primitive_to_unsigned_tokens(storage_type);
+            let backing_type = primitive_to_unsigned_tokens(storage_type);
+            let wire_type = primitive_to_rust_tokens(storage_type);
+
             let mut flag_consts = Vec::new();
-
             for (flag_name, val) in flags.iter() {
-                let const_name = safe_camel_ident(flag_name).to_uppercase(); // ensure CONST_STYLE
+                let const_name = crate::generator::utils::to_screaming_snake_case(flag_name);
 
-                // Avoid starting with number
+                // Ensure constants don't start with numbers
                 let const_name = if const_name.chars().next().map_or(false, |c| c.is_numeric()) {
                     format!("_{}", const_name)
                 } else {
@@ -427,15 +438,68 @@ pub fn define_type(
                 };
 
                 let const_ident = format_ident!("{}", const_name);
-                let val_lit = proc_macro2::Literal::u64_unsuffixed(*val);
-                flag_consts.push(quote! { const #const_ident = #val_lit; });
+                let lit = proc_macro2::Literal::u64_unsuffixed(*val);
+                flag_consts.push(quote! { const #const_ident = #lit; });
             }
+
+            // FIX 1: Explicitly use Wrapper Types for decoding
+            let decode_logic = match storage_type {
+                Primitive::VarInt => quote! {
+                    let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
+                    let bits = raw.0 as #backing_type;
+                },
+                Primitive::VarLong => quote! {
+                    let raw = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
+                    let bits = raw.0 as #backing_type;
+                },
+                Primitive::ZigZag32 => quote! {
+                    let raw = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
+                    let bits = raw.0 as #backing_type;
+                },
+                Primitive::ZigZag64 => quote! {
+                    let raw = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
+                    let bits = raw.0 as #backing_type;
+                },
+                _ => quote! {
+                    let raw = <#wire_type as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
+                    let bits = raw as #backing_type;
+                },
+            };
+
+            // FIX 2: Ensure encoding wraps the value correctly
+            let encode_logic = match storage_type {
+                Primitive::VarInt => {
+                    quote! { crate::bedrock::codec::VarInt(val as i32).encode(buf) }
+                }
+                Primitive::VarLong => {
+                    quote! { crate::bedrock::codec::VarLong(val as i64).encode(buf) }
+                }
+                Primitive::ZigZag32 => {
+                    quote! { crate::bedrock::codec::ZigZag32(val as i32).encode(buf) }
+                }
+                Primitive::ZigZag64 => {
+                    quote! { crate::bedrock::codec::ZigZag64(val as i64).encode(buf) }
+                }
+                _ => quote! { (val as #wire_type).encode(buf) },
+            };
 
             quote! {
                 bitflags! {
                     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-                    pub struct #ident: #storage_tokens {
+                    pub struct #ident: #backing_type {
                         #(#flag_consts)*
+                    }
+                }
+
+                impl crate::bedrock::codec::BedrockCodec for #ident {
+                    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+                        let val = self.bits();
+                        #encode_logic
+                    }
+
+                    fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+                        #decode_logic
+                        Ok(Self::from_bits_retain(bits))
                     }
                 }
             }
@@ -471,6 +535,10 @@ pub fn define_type(
                 }
                 #codec_impl
             }
+        }
+        Type::Packed { backing, .. } => {
+            let rust_type = primitive_to_rust_tokens(backing);
+            quote! { pub type #ident = #rust_type; }
         }
     };
 

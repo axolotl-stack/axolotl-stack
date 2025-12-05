@@ -609,7 +609,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
     fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
         let name = <McpePacketName as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let params = match name {
-            _ => {
+            McpePacketName::AddEntity => {
                 Some(
                     McpePacketParams::AddEntity(
                         Box::new(
@@ -620,7 +620,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::AddItemEntity => {
                 Some(
                     McpePacketParams::AddItemEntity(
                         Box::new(
@@ -631,7 +631,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::AddPainting => {
                 Some(
                     McpePacketParams::AddPainting(
                         Box::new(
@@ -642,7 +642,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::AddPlayer => {
                 Some(
                     McpePacketParams::AddPlayer(
                         Box::new(
@@ -653,7 +653,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::AdventureSettings => {
                 Some(
                     McpePacketParams::AdventureSettings(
                         <PacketAdventureSettings as crate::bedrock::codec::BedrockCodec>::decode(
@@ -662,7 +662,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::Animate => {
                 Some(
                     McpePacketParams::Animate(
                         <PacketAnimate as crate::bedrock::codec::BedrockCodec>::decode(
@@ -671,7 +671,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::Batch => {
                 Some(
                     McpePacketParams::Batch(
                         <PacketBatch as crate::bedrock::codec::BedrockCodec>::decode(
@@ -680,7 +680,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::ChunkRadiusUpdate => {
                 Some(
                     McpePacketParams::ChunkRadiusUpdate(
                         <PacketChunkRadiusUpdate as crate::bedrock::codec::BedrockCodec>::decode(
@@ -689,7 +689,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::ContainerClose => {
                 Some(
                     McpePacketParams::ContainerClose(
                         <PacketContainerClose as crate::bedrock::codec::BedrockCodec>::decode(
@@ -698,7 +698,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::ContainerOpen => {
                 Some(
                     McpePacketParams::ContainerOpen(
                         Box::new(
@@ -709,7 +709,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::ContainerSetContent => {
                 Some(
                     McpePacketParams::ContainerSetContent(
                         Box::new(
@@ -720,7 +720,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::ContainerSetData => {
                 Some(
                     McpePacketParams::ContainerSetData(
                         <PacketContainerSetData as crate::bedrock::codec::BedrockCodec>::decode(
@@ -729,7 +729,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::ContainerSetSlot => {
                 Some(
                     McpePacketParams::ContainerSetSlot(
                         Box::new(
@@ -740,7 +740,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::CraftingData => {
                 Some(
                     McpePacketParams::CraftingData(
                         <PacketCraftingData as crate::bedrock::codec::BedrockCodec>::decode(
@@ -749,7 +749,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::CraftingEvent => {
                 Some(
                     McpePacketParams::CraftingEvent(
                         Box::new(
@@ -760,7 +760,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::Disconnect => {
                 Some(
                     McpePacketParams::Disconnect(
                         <PacketDisconnect as crate::bedrock::codec::BedrockCodec>::decode(
@@ -769,7 +769,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::DropItem => {
                 Some(
                     McpePacketParams::DropItem(
                         Box::new(
@@ -780,7 +780,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::EntityEvent => {
                 Some(
                     McpePacketParams::EntityEvent(
                         <PacketEntityEvent as crate::bedrock::codec::BedrockCodec>::decode(
@@ -789,7 +789,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::Explode => {
                 Some(
                     McpePacketParams::Explode(
                         Box::new(
@@ -800,7 +800,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::FullChunkData => {
                 Some(
                     McpePacketParams::FullChunkData(
                         Box::new(
@@ -811,7 +811,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::GameLogin => {
                 Some(
                     McpePacketParams::GameLogin(
                         Box::new(
@@ -822,7 +822,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::HurtArmor => {
                 Some(
                     McpePacketParams::HurtArmor(
                         <PacketHurtArmor as crate::bedrock::codec::BedrockCodec>::decode(
@@ -831,7 +831,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::IDConnectionBanned => {
                 Some(
                     McpePacketParams::IDConnectionBanned(
                         <PacketIDConnectionBanned as crate::bedrock::codec::BedrockCodec>::decode(
@@ -840,7 +840,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::IDDetectLostConnections => {
                 Some(
                     McpePacketParams::IDDetectLostConnections(
                         <PacketIDDetectLostConnections as crate::bedrock::codec::BedrockCodec>::decode(
@@ -849,7 +849,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::IDIpRecentlyConnected => {
                 Some(
                     McpePacketParams::IDIpRecentlyConnected(
                         <PacketIDIpRecentlyConnected as crate::bedrock::codec::BedrockCodec>::decode(
@@ -858,7 +858,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::IDNoFreeIncomingConnections => {
                 Some(
                     McpePacketParams::IDNoFreeIncomingConnections(
                         <PacketIDNoFreeIncomingConnections as crate::bedrock::codec::BedrockCodec>::decode(
@@ -867,7 +867,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::Interact => {
                 Some(
                     McpePacketParams::Interact(
                         <PacketInteract as crate::bedrock::codec::BedrockCodec>::decode(
@@ -876,7 +876,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::LevelEvent => {
                 Some(
                     McpePacketParams::LevelEvent(
                         Box::new(
@@ -887,7 +887,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::MobEffect => {
                 Some(
                     McpePacketParams::MobEffect(
                         Box::new(
@@ -898,7 +898,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::MoveEntity => {
                 Some(
                     McpePacketParams::MoveEntity(
                         <PacketMoveEntity as crate::bedrock::codec::BedrockCodec>::decode(
@@ -907,7 +907,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::MovePlayer => {
                 Some(
                     McpePacketParams::MovePlayer(
                         Box::new(
@@ -918,7 +918,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::PlayerAction => {
                 Some(
                     McpePacketParams::PlayerAction(
                         Box::new(
@@ -929,7 +929,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::PlayerArmorEquipment => {
                 Some(
                     McpePacketParams::PlayerArmorEquipment(
                         Box::new(
@@ -940,7 +940,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::PlayerEquipment => {
                 Some(
                     McpePacketParams::PlayerEquipment(
                         Box::new(
@@ -951,7 +951,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::PlayerList => {
                 Some(
                     McpePacketParams::PlayerList(
                         <PacketPlayerList as crate::bedrock::codec::BedrockCodec>::decode(
@@ -960,7 +960,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::PlayerStatus => {
                 Some(
                     McpePacketParams::PlayerStatus(
                         <PacketPlayerStatus as crate::bedrock::codec::BedrockCodec>::decode(
@@ -969,7 +969,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::RemoveBlock => {
                 Some(
                     McpePacketParams::RemoveBlock(
                         Box::new(
@@ -980,7 +980,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::RemoveEntity => {
                 Some(
                     McpePacketParams::RemoveEntity(
                         <PacketRemoveEntity as crate::bedrock::codec::BedrockCodec>::decode(
@@ -989,7 +989,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::RemovePlayer => {
                 Some(
                     McpePacketParams::RemovePlayer(
                         <PacketRemovePlayer as crate::bedrock::codec::BedrockCodec>::decode(
@@ -998,7 +998,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::RequestChunkRadius => {
                 Some(
                     McpePacketParams::RequestChunkRadius(
                         <PacketRequestChunkRadius as crate::bedrock::codec::BedrockCodec>::decode(
@@ -1007,7 +1007,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::Respawn => {
                 Some(
                     McpePacketParams::Respawn(
                         <PacketRespawn as crate::bedrock::codec::BedrockCodec>::decode(
@@ -1016,7 +1016,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::SetDifficulty => {
                 Some(
                     McpePacketParams::SetDifficulty(
                         <PacketSetDifficulty as crate::bedrock::codec::BedrockCodec>::decode(
@@ -1025,7 +1025,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::SetEntityData => {
                 Some(
                     McpePacketParams::SetEntityData(
                         <PacketSetEntityData as crate::bedrock::codec::BedrockCodec>::decode(
@@ -1034,7 +1034,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::SetEntityLink => {
                 Some(
                     McpePacketParams::SetEntityLink(
                         <PacketSetEntityLink as crate::bedrock::codec::BedrockCodec>::decode(
@@ -1043,7 +1043,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::SetEntityMotion => {
                 Some(
                     McpePacketParams::SetEntityMotion(
                         <PacketSetEntityMotion as crate::bedrock::codec::BedrockCodec>::decode(
@@ -1052,7 +1052,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::SetHealth => {
                 Some(
                     McpePacketParams::SetHealth(
                         <PacketSetHealth as crate::bedrock::codec::BedrockCodec>::decode(
@@ -1061,7 +1061,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::SetSpawnPosition => {
                 Some(
                     McpePacketParams::SetSpawnPosition(
                         <PacketSetSpawnPosition as crate::bedrock::codec::BedrockCodec>::decode(
@@ -1070,7 +1070,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::SetTime => {
                 Some(
                     McpePacketParams::SetTime(
                         <PacketSetTime as crate::bedrock::codec::BedrockCodec>::decode(
@@ -1079,7 +1079,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::SpawnExperienceOrb => {
                 Some(
                     McpePacketParams::SpawnExperienceOrb(
                         Box::new(
@@ -1090,7 +1090,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::StartGame => {
                 Some(
                     McpePacketParams::StartGame(
                         Box::new(
@@ -1101,7 +1101,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::TakeItemEntity => {
                 Some(
                     McpePacketParams::TakeItemEntity(
                         <PacketTakeItemEntity as crate::bedrock::codec::BedrockCodec>::decode(
@@ -1110,7 +1110,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::Text => {
                 Some(
                     McpePacketParams::Text(
                         Box::new(
@@ -1121,7 +1121,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::TileEntityData => {
                 Some(
                     McpePacketParams::TileEntityData(
                         Box::new(
@@ -1132,7 +1132,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::TileEvent => {
                 Some(
                     McpePacketParams::TileEvent(
                         Box::new(
@@ -1143,7 +1143,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::Transfer => {
                 Some(
                     McpePacketParams::Transfer(
                         <PacketTransfer as crate::bedrock::codec::BedrockCodec>::decode(
@@ -1152,7 +1152,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::UpdateAttributes => {
                 Some(
                     McpePacketParams::UpdateAttributes(
                         <PacketUpdateAttributes as crate::bedrock::codec::BedrockCodec>::decode(
@@ -1161,7 +1161,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::UpdateBlock => {
                 Some(
                     McpePacketParams::UpdateBlock(
                         <PacketUpdateBlock as crate::bedrock::codec::BedrockCodec>::decode(
@@ -1170,7 +1170,7 @@ impl crate::bedrock::codec::BedrockCodec for McpePacket {
                     ),
                 )
             }
-            _ => {
+            McpePacketName::UseItem => {
                 Some(
                     McpePacketParams::UseItem(
                         Box::new(
@@ -1204,7 +1204,9 @@ impl crate::bedrock::codec::BedrockCodec for EncapsulatedPacket {
             buf,
         )?;
         let params = match name {
-            _ => Some(<McpePacket as crate::bedrock::codec::BedrockCodec>::decode(buf)?),
+            EncapsulatedPacketName::Mcpe => {
+                Some(<McpePacket as crate::bedrock::codec::BedrockCodec>::decode(buf)?)
+            }
             _ => None,
         };
         Ok(Self { name, params })

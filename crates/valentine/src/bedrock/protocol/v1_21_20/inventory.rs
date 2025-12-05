@@ -323,7 +323,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackRequestActionsItem {
             buf,
         )?;
         let content = match type_id {
-            _ => {
+            ItemStackRequestActionsItemTypeID::BeaconPayment => {
                 Some(
                     ItemStackRequestActionsItemContent::BeaconPayment(
                         <ItemStackRequestActionsItemContentBeaconPayment as crate::bedrock::codec::BedrockCodec>::decode(
@@ -332,7 +332,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackRequestActionsItem {
                     ),
                 )
             }
-            _ => {
+            ItemStackRequestActionsItemTypeID::Consume => {
                 Some(
                     ItemStackRequestActionsItemContent::Consume(
                         <ItemStackRequestActionsItemContentConsume as crate::bedrock::codec::BedrockCodec>::decode(
@@ -341,7 +341,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackRequestActionsItem {
                     ),
                 )
             }
-            _ => {
+            ItemStackRequestActionsItemTypeID::CraftCreative => {
                 Some(
                     ItemStackRequestActionsItemContent::CraftCreative(
                         <ItemStackRequestActionsItemContentCraftCreative as crate::bedrock::codec::BedrockCodec>::decode(
@@ -350,7 +350,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackRequestActionsItem {
                     ),
                 )
             }
-            _ => {
+            ItemStackRequestActionsItemTypeID::CraftGrindstoneRequest => {
                 Some(
                     ItemStackRequestActionsItemContent::CraftGrindstoneRequest(
                         <ItemStackRequestActionsItemContentCraftGrindstoneRequest as crate::bedrock::codec::BedrockCodec>::decode(
@@ -359,7 +359,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackRequestActionsItem {
                     ),
                 )
             }
-            _ => {
+            ItemStackRequestActionsItemTypeID::CraftLoomRequest => {
                 Some(
                     ItemStackRequestActionsItemContent::CraftLoomRequest(
                         <ItemStackRequestActionsItemContentCraftLoomRequest as crate::bedrock::codec::BedrockCodec>::decode(
@@ -368,7 +368,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackRequestActionsItem {
                     ),
                 )
             }
-            _ => {
+            ItemStackRequestActionsItemTypeID::CraftRecipe => {
                 Some(
                     ItemStackRequestActionsItemContent::CraftRecipe(
                         <ItemStackRequestActionsItemContentCraftRecipe as crate::bedrock::codec::BedrockCodec>::decode(
@@ -377,7 +377,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackRequestActionsItem {
                     ),
                 )
             }
-            _ => {
+            ItemStackRequestActionsItemTypeID::CraftRecipeAuto => {
                 Some(
                     ItemStackRequestActionsItemContent::CraftRecipeAuto(
                         Box::new(
@@ -388,7 +388,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackRequestActionsItem {
                     ),
                 )
             }
-            _ => {
+            ItemStackRequestActionsItemTypeID::Create => {
                 Some(
                     ItemStackRequestActionsItemContent::Create(
                         <ItemStackRequestActionsItemContentCreate as crate::bedrock::codec::BedrockCodec>::decode(
@@ -397,7 +397,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackRequestActionsItem {
                     ),
                 )
             }
-            _ => {
+            ItemStackRequestActionsItemTypeID::Destroy => {
                 Some(
                     ItemStackRequestActionsItemContent::Destroy(
                         <ItemStackRequestActionsItemContentConsume as crate::bedrock::codec::BedrockCodec>::decode(
@@ -406,7 +406,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackRequestActionsItem {
                     ),
                 )
             }
-            _ => {
+            ItemStackRequestActionsItemTypeID::Drop => {
                 Some(
                     ItemStackRequestActionsItemContent::Drop(
                         <ItemStackRequestActionsItemContentDrop as crate::bedrock::codec::BedrockCodec>::decode(
@@ -415,7 +415,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackRequestActionsItem {
                     ),
                 )
             }
-            _ => {
+            ItemStackRequestActionsItemTypeID::MineBlock => {
                 Some(
                     ItemStackRequestActionsItemContent::MineBlock(
                         <ItemStackRequestActionsItemContentMineBlock as crate::bedrock::codec::BedrockCodec>::decode(
@@ -424,8 +424,10 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackRequestActionsItem {
                     ),
                 )
             }
-            _ => Some(ItemStackRequestActionsItemContent::NonImplemented),
-            _ => {
+            ItemStackRequestActionsItemTypeID::NonImplemented => {
+                Some(ItemStackRequestActionsItemContent::NonImplemented)
+            }
+            ItemStackRequestActionsItemTypeID::Optional => {
                 Some(
                     ItemStackRequestActionsItemContent::Optional(
                         <ItemStackRequestActionsItemContentOptional as crate::bedrock::codec::BedrockCodec>::decode(
@@ -434,7 +436,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackRequestActionsItem {
                     ),
                 )
             }
-            _ => {
+            ItemStackRequestActionsItemTypeID::Place => {
                 Some(
                     ItemStackRequestActionsItemContent::Place(
                         <ItemStackRequestActionsItemContentPlace as crate::bedrock::codec::BedrockCodec>::decode(
@@ -443,7 +445,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackRequestActionsItem {
                     ),
                 )
             }
-            _ => {
+            ItemStackRequestActionsItemTypeID::PlaceInContainer => {
                 Some(
                     ItemStackRequestActionsItemContent::PlaceInContainer(
                         <ItemStackRequestActionsItemContentPlace as crate::bedrock::codec::BedrockCodec>::decode(
@@ -452,7 +454,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackRequestActionsItem {
                     ),
                 )
             }
-            _ => {
+            ItemStackRequestActionsItemTypeID::ResultsDeprecated => {
                 Some(
                     ItemStackRequestActionsItemContent::ResultsDeprecated(
                         <ItemStackRequestActionsItemContentResultsDeprecated as crate::bedrock::codec::BedrockCodec>::decode(
@@ -461,7 +463,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackRequestActionsItem {
                     ),
                 )
             }
-            _ => {
+            ItemStackRequestActionsItemTypeID::Swap => {
                 Some(
                     ItemStackRequestActionsItemContent::Swap(
                         <ItemStackRequestActionsItemContentSwap as crate::bedrock::codec::BedrockCodec>::decode(
@@ -470,7 +472,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackRequestActionsItem {
                     ),
                 )
             }
-            _ => {
+            ItemStackRequestActionsItemTypeID::Take => {
                 Some(
                     ItemStackRequestActionsItemContent::Take(
                         <ItemStackRequestActionsItemContentPlace as crate::bedrock::codec::BedrockCodec>::decode(
@@ -479,7 +481,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackRequestActionsItem {
                     ),
                 )
             }
-            _ => {
+            ItemStackRequestActionsItemTypeID::TakeOutContainer => {
                 Some(
                     ItemStackRequestActionsItemContent::TakeOutContainer(
                         <ItemStackRequestActionsItemContentPlace as crate::bedrock::codec::BedrockCodec>::decode(
@@ -503,13 +505,13 @@ pub struct ItemStackRequest {
 impl crate::bedrock::codec::BedrockCodec for ItemStackRequest {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         self.request_id.encode(buf)?;
-        let len = self.actions.len() as i32;
-        len.encode(buf)?;
+        let len = self.actions.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.actions {
             item.encode(buf)?;
         }
-        let len = self.custom_names.len() as i32;
-        len.encode(buf)?;
+        let len = self.custom_names.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.custom_names {
             item.encode(buf)?;
         }
@@ -521,7 +523,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackRequest {
             buf,
         )?;
         let actions = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -535,7 +537,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackRequest {
             tmp_vec
         };
         let custom_names = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -564,8 +566,8 @@ impl crate::bedrock::codec::BedrockCodec
 for ItemStackResponsesItemContentSomeContainersItem {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         self.slot_type.encode(buf)?;
-        let len = self.slots.len() as i32;
-        len.encode(buf)?;
+        let len = self.slots.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.slots {
             item.encode(buf)?;
         }
@@ -576,7 +578,7 @@ for ItemStackResponsesItemContentSomeContainersItem {
             buf,
         )?;
         let slots = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -598,8 +600,8 @@ pub struct ItemStackResponsesItemContentSome {
 }
 impl crate::bedrock::codec::BedrockCodec for ItemStackResponsesItemContentSome {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let len = self.containers.len() as i32;
-        len.encode(buf)?;
+        let len = self.containers.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.containers {
             item.encode(buf)?;
         }
@@ -607,7 +609,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackResponsesItemContentSome {
     }
     fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
         let containers = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -646,7 +648,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackResponsesItem {
             buf,
         )?;
         let content = match status {
-            _ => {
+            ItemStackResponsesItemStatus::Ok => {
                 Some(
                     <ItemStackResponsesItemContentSome as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,

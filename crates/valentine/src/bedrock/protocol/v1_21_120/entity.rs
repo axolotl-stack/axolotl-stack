@@ -64,18 +64,18 @@ impl crate::bedrock::codec::BedrockCodec for CameraSplineInstruction {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         self.total_time.encode(buf)?;
         self.ease_type.encode(buf)?;
-        let len = self.curve.len() as i32;
-        len.encode(buf)?;
+        let len = self.curve.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.curve {
             item.encode(buf)?;
         }
-        let len = self.progress_key_frames.len() as i32;
-        len.encode(buf)?;
+        let len = self.progress_key_frames.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.progress_key_frames {
             item.encode(buf)?;
         }
-        let len = self.rotation_options.len() as i32;
-        len.encode(buf)?;
+        let len = self.rotation_options.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.rotation_options {
             item.encode(buf)?;
         }
@@ -87,7 +87,7 @@ impl crate::bedrock::codec::BedrockCodec for CameraSplineInstruction {
             buf,
         )?;
         let curve = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -97,7 +97,7 @@ impl crate::bedrock::codec::BedrockCodec for CameraSplineInstruction {
             tmp_vec
         };
         let progress_key_frames = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -107,7 +107,7 @@ impl crate::bedrock::codec::BedrockCodec for CameraSplineInstruction {
             tmp_vec
         };
         let rotation_options = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -177,7 +177,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAnimate {
         )?;
         let data = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let content = match action_id {
-            _ => {
+            PacketAnimateActionID::RowLeft => {
                 Some(
                     PacketAnimateContent::RowLeft(
                         <PacketAnimateContentRowLeft as crate::bedrock::codec::BedrockCodec>::decode(
@@ -186,7 +186,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAnimate {
                     ),
                 )
             }
-            _ => {
+            PacketAnimateActionID::RowRight => {
                 Some(
                     PacketAnimateContent::RowRight(
                         <PacketAnimateContentRowLeft as crate::bedrock::codec::BedrockCodec>::decode(

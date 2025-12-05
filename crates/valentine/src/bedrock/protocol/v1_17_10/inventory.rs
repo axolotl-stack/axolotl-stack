@@ -21,8 +21,8 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommandsCommandDataI
         self.flags.encode(buf)?;
         self.permission_level.encode(buf)?;
         self.alias.encode(buf)?;
-        let len = self.overloads.len() as i32;
-        len.encode(buf)?;
+        let len = self.overloads.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.overloads {
             item.encode(buf)?;
         }
@@ -35,7 +35,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommandsCommandDataI
         let permission_level = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let alias = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let overloads = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {

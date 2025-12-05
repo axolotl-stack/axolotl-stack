@@ -77,8 +77,8 @@ impl crate::bedrock::codec::BedrockCodec for PlayerRecords {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         self.type_.encode(buf)?;
         self.records_count.encode(buf)?;
-        let len = self.records.len() as i32;
-        len.encode(buf)?;
+        let len = self.records.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.records {
             if let Some(v) = &item {
                 match v {
@@ -98,14 +98,14 @@ impl crate::bedrock::codec::BedrockCodec for PlayerRecords {
         )?;
         let records_count = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let records = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec
                     .push(
                         match type_ {
-                            _ => {
+                            PlayerRecordsType::Add => {
                                 Some(
                                     PlayerRecordsRecordsItem::Add(
                                         Box::new(
@@ -116,7 +116,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerRecords {
                                     ),
                                 )
                             }
-                            _ => {
+                            PlayerRecordsType::Remove => {
                                 Some(
                                     PlayerRecordsRecordsItem::Remove(
                                         <PlayerRecordsRecordsItemRemove as crate::bedrock::codec::BedrockCodec>::decode(
@@ -132,10 +132,10 @@ impl crate::bedrock::codec::BedrockCodec for PlayerRecords {
             tmp_vec
         };
         let verified = match type_ {
-            _ => {
+            PlayerRecordsType::Add => {
                 Some({
                     let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
-                        as usize;
+                        .0 as usize;
                     let mut tmp_vec = Vec::with_capacity(len);
                     for _ in 0..len {
                         tmp_vec
@@ -226,12 +226,14 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerAuthInput {
             buf,
         )?;
         let gaze_direction = match play_mode {
-            _ => Some(<Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf)?),
+            PacketPlayerAuthInputPlayMode::Reality => {
+                Some(<Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf)?)
+            }
             _ => None,
         };
         let tick = <i64 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let delta = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
-        let transaction = match input_data_item_interact {
+        let transaction = match input_data.contains(InputFlag::ITEM_INTERACT) {
             true => {
                 Some(
                     <PacketPlayerAuthInputTransactionSome as crate::bedrock::codec::BedrockCodec>::decode(
@@ -241,7 +243,8 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerAuthInput {
             }
             _ => None,
         };
-        let item_stack_request = match input_data_item_stack_request {
+        let item_stack_request = match input_data.contains(InputFlag::ITEM_STACK_REQUEST)
+        {
             true => {
                 Some(
                     <ItemStackRequest as crate::bedrock::codec::BedrockCodec>::decode(
@@ -251,7 +254,9 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerAuthInput {
             }
             _ => None,
         };
-        let predicted_vehicle = match input_data_client_predicted_vehicle {
+        let predicted_vehicle = match input_data
+            .contains(InputFlag::CLIENT_PREDICTED_VEHICLE)
+        {
             true => {
                 Some(
                     <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -261,12 +266,13 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerAuthInput {
             }
             _ => None,
         };
-        let block_action = match input_data_block_action {
+        let block_action = match input_data.contains(InputFlag::BLOCK_ACTION) {
             true => {
                 Some({
                     let len = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                    )? as usize;
+                            buf,
+                        )?
+                        .0 as usize;
                     let mut tmp_vec = Vec::with_capacity(len);
                     for _ in 0..len {
                         tmp_vec

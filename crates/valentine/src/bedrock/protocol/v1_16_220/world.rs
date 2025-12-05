@@ -83,13 +83,13 @@ impl crate::bedrock::codec::BedrockCodec for ItemExtraDataWithoutBlockingTick {
         if let Some(v) = &self.nbt {
             v.encode(buf)?;
         }
-        let len = self.can_place_on.len() as i32;
-        len.encode(buf)?;
+        let len = self.can_place_on.len();
+        (len as i32).encode(buf)?;
         for item in &self.can_place_on {
             item.encode(buf)?;
         }
-        let len = self.can_destroy.len() as i32;
-        len.encode(buf)?;
+        let len = self.can_destroy.len();
+        (len as i32).encode(buf)?;
         for item in &self.can_destroy {
             item.encode(buf)?;
         }
@@ -189,13 +189,13 @@ impl crate::bedrock::codec::BedrockCodec for ItemExtraDataWithBlockingTick {
         if let Some(v) = &self.nbt {
             v.encode(buf)?;
         }
-        let len = self.can_place_on.len() as i32;
-        len.encode(buf)?;
+        let len = self.can_place_on.len();
+        (len as i32).encode(buf)?;
         for item in &self.can_place_on {
             item.encode(buf)?;
         }
-        let len = self.can_destroy.len() as i32;
-        len.encode(buf)?;
+        let len = self.can_destroy.len();
+        (len as i32).encode(buf)?;
         for item in &self.can_destroy {
             item.encode(buf)?;
         }
@@ -434,6 +434,19 @@ bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)] pub struct UpdateMapFlags : u32 {
     const VOID = 1; const TEXTURE = 2; const DECORATION = 4; const INITIALISATION = 8; }
 }
+impl crate::bedrock::codec::BedrockCodec for UpdateMapFlags {
+    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let val = self.bits();
+        crate::bedrock::codec::VarInt(val as i32).encode(buf)
+    }
+    fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+        let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+        )?;
+        let bits = raw.0 as u32;
+        Ok(Self::from_bits_retain(bits))
+    }
+}
 #[derive(Debug, Clone, PartialEq)]
 pub struct PacketClientboundMapItemDataTrackedSome {
     pub objects: Vec<TrackedObject>,
@@ -441,13 +454,13 @@ pub struct PacketClientboundMapItemDataTrackedSome {
 }
 impl crate::bedrock::codec::BedrockCodec for PacketClientboundMapItemDataTrackedSome {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let len = self.objects.len() as i32;
-        len.encode(buf)?;
+        let len = self.objects.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.objects {
             item.encode(buf)?;
         }
-        let len = self.decorations.len() as i32;
-        len.encode(buf)?;
+        let len = self.decorations.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.decorations {
             item.encode(buf)?;
         }
@@ -455,7 +468,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketClientboundMapItemDataTracked
     }
     fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
         let objects = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -469,7 +482,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketClientboundMapItemDataTracked
             tmp_vec
         };
         let decorations = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -525,11 +538,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketClientboundMapItemData {
         )?;
         let dimension = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let locked = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
-        let included_in = match update_flags_initialisation {
+        let included_in = match update_flags.contains(UpdateMapFlags::INITIALISATION) {
             true => {
                 Some({
                     let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
-                        as usize;
+                        .0 as usize;
                     let mut tmp_vec = Vec::with_capacity(len);
                     for _ in 0..len {
                         tmp_vec
@@ -544,11 +557,13 @@ impl crate::bedrock::codec::BedrockCodec for PacketClientboundMapItemData {
             }
             _ => None,
         };
-        let scale = match update_flags_initialisation_update_flags_decoration_update_flags_texture {
+        let scale = match update_flags
+            .contains(UpdateMapFlags::INITIALISATION_UPDATE_FLAGS)
+        {
             true => Some(<u8 as crate::bedrock::codec::BedrockCodec>::decode(buf)?),
             _ => None,
         };
-        let tracked = match update_flags_decoration {
+        let tracked = match update_flags.contains(UpdateMapFlags::DECORATION) {
             true => {
                 Some(
                     <PacketClientboundMapItemDataTrackedSome as crate::bedrock::codec::BedrockCodec>::decode(
@@ -558,7 +573,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketClientboundMapItemData {
             }
             _ => None,
         };
-        let texture = match update_flags_texture {
+        let texture = match update_flags.contains(UpdateMapFlags::TEXTURE) {
             true => {
                 Some(
                     <PacketClientboundMapItemDataTextureSome as crate::bedrock::codec::BedrockCodec>::decode(

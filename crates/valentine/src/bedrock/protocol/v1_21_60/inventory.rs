@@ -322,12 +322,12 @@ impl crate::bedrock::codec::BedrockCodec for MetadataDictionaryItem {
             buf,
         )?;
         let value = match key {
-            _ => {
+            MetadataDictionaryItemKey::Flags => {
                 MetadataDictionaryItemValue::Flags(
                     <MetadataFlags1 as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
                 )
             }
-            _ => {
+            MetadataDictionaryItemKey::FlagsExtended => {
                 MetadataDictionaryItemValue::FlagsExtended(
                     <MetadataFlags2 as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
                 )
@@ -336,14 +336,14 @@ impl crate::bedrock::codec::BedrockCodec for MetadataDictionaryItem {
                 MetadataDictionaryItemValue::Default(
                     Box::new(
                         match type_ {
-                            _ => {
+                            MetadataDictionaryItemType::Byte => {
                                 Some(
                                     MetadataDictionaryItemValueDefault::Byte(
                                         <i8 as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
                                     ),
                                 )
                             }
-                            _ => {
+                            MetadataDictionaryItemType::Compound => {
                                 Some(
                                     MetadataDictionaryItemValueDefault::Compound(
                                         <Vec<
@@ -352,14 +352,14 @@ impl crate::bedrock::codec::BedrockCodec for MetadataDictionaryItem {
                                     ),
                                 )
                             }
-                            _ => {
+                            MetadataDictionaryItemType::Float => {
                                 Some(
                                     MetadataDictionaryItemValueDefault::Float(
                                         <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
                                     ),
                                 )
                             }
-                            _ => {
+                            MetadataDictionaryItemType::Int => {
                                 Some(
                                     MetadataDictionaryItemValueDefault::Int(
                                         <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -368,7 +368,7 @@ impl crate::bedrock::codec::BedrockCodec for MetadataDictionaryItem {
                                     ),
                                 )
                             }
-                            _ => {
+                            MetadataDictionaryItemType::Long => {
                                 Some(
                                     MetadataDictionaryItemValueDefault::Long(
                                         <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -377,14 +377,14 @@ impl crate::bedrock::codec::BedrockCodec for MetadataDictionaryItem {
                                     ),
                                 )
                             }
-                            _ => {
+                            MetadataDictionaryItemType::Short => {
                                 Some(
                                     MetadataDictionaryItemValueDefault::Short(
                                         <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
                                     ),
                                 )
                             }
-                            _ => {
+                            MetadataDictionaryItemType::String => {
                                 Some(
                                     MetadataDictionaryItemValueDefault::String(
                                         <String as crate::bedrock::codec::BedrockCodec>::decode(
@@ -393,14 +393,14 @@ impl crate::bedrock::codec::BedrockCodec for MetadataDictionaryItem {
                                     ),
                                 )
                             }
-                            _ => {
+                            MetadataDictionaryItemType::Vec3F => {
                                 Some(
                                     MetadataDictionaryItemValueDefault::Vec3F(
                                         <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
                                     ),
                                 )
                             }
-                            _ => {
+                            MetadataDictionaryItemType::Vec3I => {
                                 Some(
                                     MetadataDictionaryItemValueDefault::Vec3I(
                                         <Vec3I as crate::bedrock::codec::BedrockCodec>::decode(buf)?,

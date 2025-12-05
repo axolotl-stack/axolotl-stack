@@ -129,7 +129,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipeIngredient {
             buf,
         )?;
         let content = match type_ {
-            _ => {
+            RecipeIngredientType::IntIDMeta => {
                 Some(
                     RecipeIngredientContent::IntIDMeta(
                         Box::new(
@@ -140,7 +140,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipeIngredient {
                     ),
                 )
             }
-            _ => {
+            RecipeIngredientType::ItemTag => {
                 Some(
                     RecipeIngredientContent::ItemTag(
                         <RecipeIngredientContentItemTag as crate::bedrock::codec::BedrockCodec>::decode(
@@ -149,7 +149,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipeIngredient {
                     ),
                 )
             }
-            _ => {
+            RecipeIngredientType::Molang => {
                 Some(
                     RecipeIngredientContent::Molang(
                         <RecipeIngredientContentMolang as crate::bedrock::codec::BedrockCodec>::decode(
@@ -158,7 +158,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipeIngredient {
                     ),
                 )
             }
-            _ => {
+            RecipeIngredientType::StringIDMeta => {
                 Some(
                     RecipeIngredientContent::StringIDMeta(
                         <RecipeIngredientContentStringIDMeta as crate::bedrock::codec::BedrockCodec>::decode(

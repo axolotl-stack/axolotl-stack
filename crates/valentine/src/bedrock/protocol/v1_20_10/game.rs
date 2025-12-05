@@ -8,7 +8,7 @@ use super::*;
 #[derive(Debug, Clone, PartialEq)]
 pub struct PacketAvailableCommands {
     pub values_len: i32,
-    pub enum_type: i32,
+    pub enum_type: Vec<u8>,
     pub enum_values: Vec<String>,
     pub chained_subcommand_values: Vec<String>,
     pub suffixes: Vec<String>,
@@ -22,43 +22,43 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommands {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         self.values_len.encode(buf)?;
         self.enum_type.encode(buf)?;
-        let len = self.enum_values.len() as i32;
-        len.encode(buf)?;
+        let len = self.enum_values.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.enum_values {
             item.encode(buf)?;
         }
-        let len = self.chained_subcommand_values.len() as i32;
-        len.encode(buf)?;
+        let len = self.chained_subcommand_values.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.chained_subcommand_values {
             item.encode(buf)?;
         }
-        let len = self.suffixes.len() as i32;
-        len.encode(buf)?;
+        let len = self.suffixes.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.suffixes {
             item.encode(buf)?;
         }
-        let len = self.enums.len() as i32;
-        len.encode(buf)?;
+        let len = self.enums.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.enums {
             item.encode(buf)?;
         }
-        let len = self.chained_subcommands.len() as i32;
-        len.encode(buf)?;
+        let len = self.chained_subcommands.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.chained_subcommands {
             item.encode(buf)?;
         }
-        let len = self.command_data.len() as i32;
-        len.encode(buf)?;
+        let len = self.command_data.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.command_data {
             item.encode(buf)?;
         }
-        let len = self.dynamic_enums.len() as i32;
-        len.encode(buf)?;
+        let len = self.dynamic_enums.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.dynamic_enums {
             item.encode(buf)?;
         }
-        let len = self.enum_constraints.len() as i32;
-        len.encode(buf)?;
+        let len = self.enum_constraints.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.enum_constraints {
             item.encode(buf)?;
         }
@@ -66,9 +66,9 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommands {
     }
     fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
         let values_len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
-        let enum_type = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
+        let enum_type = <Vec<u8> as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let enum_values = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -78,7 +78,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommands {
             tmp_vec
         };
         let chained_subcommand_values = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -88,7 +88,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommands {
             tmp_vec
         };
         let suffixes = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -98,7 +98,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommands {
             tmp_vec
         };
         let enums = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -112,7 +112,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommands {
             tmp_vec
         };
         let chained_subcommands = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -126,7 +126,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommands {
             tmp_vec
         };
         let command_data = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -140,7 +140,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommands {
             tmp_vec
         };
         let dynamic_enums = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -154,7 +154,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommands {
             tmp_vec
         };
         let enum_constraints = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {

@@ -511,8 +511,8 @@ pub struct PacketPlayerList {
 impl crate::bedrock::codec::BedrockCodec for PacketPlayerList {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         self.type_.encode(buf)?;
-        let len = self.entries.len() as i32;
-        len.encode(buf)?;
+        let len = self.entries.len();
+        (len as i32).encode(buf)?;
         for item in &self.entries {
             if let Some(v) = &item {
                 match v {

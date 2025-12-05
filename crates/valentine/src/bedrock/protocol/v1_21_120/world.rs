@@ -18,8 +18,8 @@ impl crate::bedrock::codec::BedrockCodec for BiomeReplacementData {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         self.biome.encode(buf)?;
         self.dimension.encode(buf)?;
-        let len = self.target_biomes.len() as i32;
-        len.encode(buf)?;
+        let len = self.target_biomes.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.target_biomes {
             item.encode(buf)?;
         }
@@ -32,7 +32,7 @@ impl crate::bedrock::codec::BedrockCodec for BiomeReplacementData {
         let biome = <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let dimension = <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let target_biomes = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -87,8 +87,8 @@ impl crate::bedrock::codec::BedrockCodec for BiomeChunkGeneration {
         match &self.consolidated_features {
             Some(v) => {
                 buf.put_u8(1);
-                let len = v.len() as i32;
-                len.encode(buf)?;
+                let len = v.len();
+                crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
                 for item in &v {
                     item.encode(buf)?;
                 }
@@ -105,8 +105,8 @@ impl crate::bedrock::codec::BedrockCodec for BiomeChunkGeneration {
         match &self.surface_material_adjustments {
             Some(v) => {
                 buf.put_u8(1);
-                let len = v.len() as i32;
-                len.encode(buf)?;
+                let len = v.len();
+                crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
                 for item in &v {
                     item.encode(buf)?;
                 }
@@ -161,8 +161,8 @@ impl crate::bedrock::codec::BedrockCodec for BiomeChunkGeneration {
         match &self.legacy_rules {
             Some(v) => {
                 buf.put_u8(1);
-                let len = v.len() as i32;
-                len.encode(buf)?;
+                let len = v.len();
+                crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
                 for item in &v {
                     item.encode(buf)?;
                 }
@@ -172,8 +172,8 @@ impl crate::bedrock::codec::BedrockCodec for BiomeChunkGeneration {
         match &self.replacements_data {
             Some(v) => {
                 buf.put_u8(1);
-                let len = v.len() as i32;
-                len.encode(buf)?;
+                let len = v.len();
+                crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
                 for item in &v {
                     item.encode(buf)?;
                 }
@@ -196,7 +196,7 @@ impl crate::bedrock::codec::BedrockCodec for BiomeChunkGeneration {
             if present != 0 {
                 Some({
                     let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
-                        as usize;
+                        .0 as usize;
                     let mut tmp_vec = Vec::with_capacity(len);
                     for _ in 0..len {
                         tmp_vec
@@ -229,7 +229,7 @@ impl crate::bedrock::codec::BedrockCodec for BiomeChunkGeneration {
             if present != 0 {
                 Some({
                     let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
-                        as usize;
+                        .0 as usize;
                     let mut tmp_vec = Vec::with_capacity(len);
                     for _ in 0..len {
                         tmp_vec
@@ -327,7 +327,7 @@ impl crate::bedrock::codec::BedrockCodec for BiomeChunkGeneration {
             if present != 0 {
                 Some({
                     let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
-                        as usize;
+                        .0 as usize;
                     let mut tmp_vec = Vec::with_capacity(len);
                     for _ in 0..len {
                         tmp_vec
@@ -348,7 +348,7 @@ impl crate::bedrock::codec::BedrockCodec for BiomeChunkGeneration {
             if present != 0 {
                 Some({
                     let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
-                        as usize;
+                        .0 as usize;
                     let mut tmp_vec = Vec::with_capacity(len);
                     for _ in 0..len {
                         tmp_vec

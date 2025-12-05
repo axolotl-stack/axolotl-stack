@@ -2,7 +2,7 @@
 
 pub use crate::bedrock::protocol::v1_19_40::common::AbilityLayers;
 pub use crate::bedrock::protocol::v1_19_10::common::AbilitySet;
-pub use crate::bedrock::protocol::v1_16_201::common::ActionPermissions;
+pub use crate::bedrock::protocol::v1_16_210::common::ActionPermissions;
 pub use crate::bedrock::protocol::v1_16_201::common::AdventureFlags;
 pub use crate::bedrock::protocol::v1_16_201::common::ArmorDamageType;
 pub use crate::bedrock::protocol::v1_16_201::common::BehaviourPackInfos;
@@ -11,7 +11,7 @@ pub use crate::bedrock::protocol::v1_16_201::world::BlockCoordinates;
 pub use crate::bedrock::protocol::v1_16_220::world::BlockProperties;
 pub use crate::bedrock::protocol::v1_17_30::world::BlockUpdate;
 pub use crate::bedrock::protocol::v1_16_201::common::ByteArray;
-pub use crate::bedrock::protocol::v1_16_201::game::CommandFlags;
+pub use crate::bedrock::protocol::v1_18_0::game::CommandFlags;
 pub use crate::bedrock::protocol::v1_18_11::game::CommandOrigin;
 pub use crate::bedrock::protocol::v1_19_10::world::CommandPermissionLevel;
 pub use crate::bedrock::protocol::v1_19_10::world::CommandPermissionLevelVarint;

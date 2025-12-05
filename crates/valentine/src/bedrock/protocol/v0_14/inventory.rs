@@ -3,8 +3,8 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 #![allow(dead_code)]
-use bitflags::bitflags;
 use super::*;
+use bitflags::bitflags;
 #[derive(Debug, Clone, PartialEq)]
 pub struct MetadatadictionaryItemValueT5 {
     pub blockid: i16,
@@ -106,76 +106,42 @@ impl crate::bedrock::codec::BedrockCodec for MetadatadictionaryItem {
     }
     fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
         let content = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
+        let type_ = (content >> 0u32) & 7;
+        let key = (content >> 3u32) & 31;
         let value = match compareto {
-            0 => {
-                Some(
-                    MetadatadictionaryItemValue::T0(
-                        <i8 as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
-                    ),
-                )
-            }
-            1 => {
-                Some(
-                    MetadatadictionaryItemValue::T1(
-                        <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
-                    ),
-                )
-            }
-            2 => {
-                Some(
-                    MetadatadictionaryItemValue::T2(
-                        <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
-                    ),
-                )
-            }
-            3 => {
-                Some(
-                    MetadatadictionaryItemValue::T3(
-                        <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
-                    ),
-                )
-            }
-            4 => {
-                Some(
-                    MetadatadictionaryItemValue::T4(
-                        <Lstring as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
-                    ),
-                )
-            }
-            5 => {
-                Some(
-                    MetadatadictionaryItemValue::T5(
-                        <MetadatadictionaryItemValueT5 as crate::bedrock::codec::BedrockCodec>::decode(
-                            buf,
-                        )?,
-                    ),
-                )
-            }
-            6 => {
-                Some(
-                    MetadatadictionaryItemValue::T6(
-                        <MetadatadictionaryItemValueT6 as crate::bedrock::codec::BedrockCodec>::decode(
-                            buf,
-                        )?,
-                    ),
-                )
-            }
-            7 => {
-                Some(
-                    MetadatadictionaryItemValue::T7(
-                        <MetadatadictionaryItemValueT7 as crate::bedrock::codec::BedrockCodec>::decode(
-                            buf,
-                        )?,
-                    ),
-                )
-            }
-            8 => {
-                Some(
-                    MetadatadictionaryItemValue::T8(
-                        <i64 as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
-                    ),
-                )
-            }
+            0 => Some(MetadatadictionaryItemValue::T0(
+                <i8 as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
+            )),
+            1 => Some(MetadatadictionaryItemValue::T1(
+                <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
+            )),
+            2 => Some(MetadatadictionaryItemValue::T2(
+                <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
+            )),
+            3 => Some(MetadatadictionaryItemValue::T3(
+                <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
+            )),
+            4 => Some(MetadatadictionaryItemValue::T4(
+                <Lstring as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
+            )),
+            5 => Some(MetadatadictionaryItemValue::T5(
+                <MetadatadictionaryItemValueT5 as crate::bedrock::codec::BedrockCodec>::decode(
+                    buf,
+                )?,
+            )),
+            6 => Some(MetadatadictionaryItemValue::T6(
+                <MetadatadictionaryItemValueT6 as crate::bedrock::codec::BedrockCodec>::decode(
+                    buf,
+                )?,
+            )),
+            7 => Some(MetadatadictionaryItemValue::T7(
+                <MetadatadictionaryItemValueT7 as crate::bedrock::codec::BedrockCodec>::decode(
+                    buf,
+                )?,
+            )),
+            8 => Some(MetadatadictionaryItemValue::T8(
+                <i64 as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
+            )),
             _ => None,
         };
         Ok(Self { content, value })
@@ -285,27 +251,22 @@ impl crate::bedrock::codec::BedrockCodec for PacketContainerSetContent {
         let windowid = <i8 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let slotdata = <Itemstacks as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let hotbardata = match windowid {
-            0 => {
-                PacketContainerSetContentHotbardata::T0({
-                    let len = <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
-                        as usize;
-                    let mut tmp_vec = Vec::with_capacity(len);
-                    for _ in 0..len {
-                        tmp_vec
+            0 => PacketContainerSetContentHotbardata::T0({
+                let len = <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf)? as usize;
+                let mut tmp_vec = Vec::with_capacity(len);
+                for _ in 0..len {
+                    tmp_vec
                             .push(
                                 <PacketContainerSetContentHotbardataT0Item as crate::bedrock::codec::BedrockCodec>::decode(
                                     buf,
                                 )?,
                             );
-                    }
-                    tmp_vec
-                })
-            }
-            _ => {
-                PacketContainerSetContentHotbardata::Default(
-                    <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
-                )
-            }
+                }
+                tmp_vec
+            }),
+            _ => PacketContainerSetContentHotbardata::Default(
+                <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
+            ),
         };
         Ok(Self {
             windowid,
@@ -331,7 +292,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketContainerSetData {
         let windowid = <i8 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let property = <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let value = <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
-        Ok(Self { windowid, property, value })
+        Ok(Self {
+            windowid,
+            property,
+            value,
+        })
     }
 }
 #[derive(Debug, Clone, PartialEq)]
@@ -379,8 +344,8 @@ pub struct PacketCraftingDataRecipes {
 impl crate::bedrock::codec::BedrockCodec for PacketCraftingDataRecipes {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         self.entrytype.encode(buf)?;
-        let len = self.recipe.len() as i32;
-        len.encode(buf)?;
+        let len = self.recipe.len();
+        (len as i32).encode(buf)?;
         for item in &self.recipe {
             if let Some(v) = &item {
                 match v {
@@ -397,61 +362,27 @@ impl crate::bedrock::codec::BedrockCodec for PacketCraftingDataRecipes {
     fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
         let entrytype = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let recipe = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
-                as usize;
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)? as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec
-                    .push(
-                        match entrytype {
-                            0 => {
-                                Some(
-                                    PacketCraftingDataRecipesRecipeItem::T0(
-                                        <ShapelessRecipe as crate::bedrock::codec::BedrockCodec>::decode(
-                                            buf,
-                                        )?,
-                                    ),
-                                )
-                            }
-                            1 => {
-                                Some(
-                                    PacketCraftingDataRecipesRecipeItem::T1(
-                                        <ShapedRecipe as crate::bedrock::codec::BedrockCodec>::decode(
-                                            buf,
-                                        )?,
-                                    ),
-                                )
-                            }
-                            2 => {
-                                Some(
-                                    PacketCraftingDataRecipesRecipeItem::T2(
-                                        <FurnaceRecipe as crate::bedrock::codec::BedrockCodec>::decode(
-                                            buf,
-                                        )?,
-                                    ),
-                                )
-                            }
-                            3 => {
-                                Some(
-                                    PacketCraftingDataRecipesRecipeItem::T3(
-                                        <FurnaceRecipeData as crate::bedrock::codec::BedrockCodec>::decode(
-                                            buf,
-                                        )?,
-                                    ),
-                                )
-                            }
-                            4 => {
-                                Some(
-                                    PacketCraftingDataRecipesRecipeItem::T4(
-                                        <EnchantList as crate::bedrock::codec::BedrockCodec>::decode(
-                                            buf,
-                                        )?,
-                                    ),
-                                )
-                            }
-                            _ => None,
-                        },
-                    );
+                tmp_vec.push(match entrytype {
+                    0 => Some(PacketCraftingDataRecipesRecipeItem::T0(
+                        <ShapelessRecipe as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
+                    )),
+                    1 => Some(PacketCraftingDataRecipesRecipeItem::T1(
+                        <ShapedRecipe as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
+                    )),
+                    2 => Some(PacketCraftingDataRecipesRecipeItem::T2(
+                        <FurnaceRecipe as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
+                    )),
+                    3 => Some(PacketCraftingDataRecipesRecipeItem::T3(
+                        <FurnaceRecipeData as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
+                    )),
+                    4 => Some(PacketCraftingDataRecipesRecipeItem::T4(
+                        <EnchantList as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
+                    )),
+                    _ => None,
+                });
             }
             tmp_vec
         };
@@ -470,11 +401,13 @@ impl crate::bedrock::codec::BedrockCodec for PacketCraftingData {
         Ok(())
     }
     fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
-        let recipes = <PacketCraftingDataRecipes as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-        )?;
+        let recipes =
+            <PacketCraftingDataRecipes as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let cleanrecipes = <i8 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
-        Ok(Self { recipes, cleanrecipes })
+        Ok(Self {
+            recipes,
+            cleanrecipes,
+        })
     }
 }
 #[derive(Debug, Clone, PartialEq)]
@@ -566,16 +499,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketUseItem {
         Ok(())
     }
     fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
-        let blockcoordinates = <Blockcoordinates as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-        )?;
+        let blockcoordinates =
+            <Blockcoordinates as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let face = <i8 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
-        let facecoordinates = <Vector3 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-        )?;
-        let playerposition = <Vector3 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-        )?;
+        let facecoordinates = <Vector3 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
+        let playerposition = <Vector3 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let slot = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let item = <Slot as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         Ok(Self {

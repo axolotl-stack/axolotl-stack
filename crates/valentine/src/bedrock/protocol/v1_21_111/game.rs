@@ -71,21 +71,21 @@ impl crate::bedrock::codec::BedrockCodec for GameRuleI32 {
             buf,
         )?;
         let value = match type_ {
-            _ => {
+            GameRuleI32Type::Bool => {
                 Some(
                     GameRuleI32Value::Bool(
                         <bool as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
                     ),
                 )
             }
-            _ => {
+            GameRuleI32Type::Float => {
                 Some(
                     GameRuleI32Value::Float(
                         <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
                     ),
                 )
             }
-            _ => {
+            GameRuleI32Type::Int => {
                 Some(
                     GameRuleI32Value::Int(
                         <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
@@ -168,21 +168,21 @@ impl crate::bedrock::codec::BedrockCodec for GameRuleVarint {
             buf,
         )?;
         let value = match type_ {
-            _ => {
+            GameRuleVarintType::Bool => {
                 Some(
                     GameRuleVarintValue::Bool(
                         <bool as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
                     ),
                 )
             }
-            _ => {
+            GameRuleVarintType::Float => {
                 Some(
                     GameRuleVarintValue::Float(
                         <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
                     ),
                 )
             }
-            _ => {
+            GameRuleVarintType::Int => {
                 Some(
                     GameRuleVarintValue::Int(
                         <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
@@ -205,8 +205,8 @@ pub struct PacketGameRulesChanged {
 }
 impl crate::bedrock::codec::BedrockCodec for PacketGameRulesChanged {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let len = self.rules.len() as i32;
-        len.encode(buf)?;
+        let len = self.rules.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.rules {
             item.encode(buf)?;
         }
@@ -214,7 +214,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketGameRulesChanged {
     }
     fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
         let rules = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -345,8 +345,8 @@ impl crate::bedrock::codec::BedrockCodec for PacketStartGame {
         self.platform_broadcast_mode.encode(buf)?;
         self.enable_commands.encode(buf)?;
         self.is_texturepacks_required.encode(buf)?;
-        let len = self.gamerules.len() as i32;
-        len.encode(buf)?;
+        let len = self.gamerules.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.gamerules {
             item.encode(buf)?;
         }
@@ -478,7 +478,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketStartGame {
             buf,
         )?;
         let gamerules = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {

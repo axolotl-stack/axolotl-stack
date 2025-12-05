@@ -166,13 +166,13 @@ impl crate::bedrock::codec::BedrockCodec for PacketUpdateSubchunkBlocks {
         self.x.encode(buf)?;
         self.y.encode(buf)?;
         self.z.encode(buf)?;
-        let len = self.blocks.len() as i32;
-        len.encode(buf)?;
+        let len = self.blocks.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.blocks {
             item.encode(buf)?;
         }
-        let len = self.extra.len() as i32;
-        len.encode(buf)?;
+        let len = self.extra.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.extra {
             item.encode(buf)?;
         }
@@ -189,7 +189,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketUpdateSubchunkBlocks {
             buf,
         )?;
         let blocks = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -203,7 +203,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketUpdateSubchunkBlocks {
             tmp_vec
         };
         let extra = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {

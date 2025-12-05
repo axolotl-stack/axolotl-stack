@@ -41,12 +41,23 @@ impl crate::bedrock::codec::BedrockCodec for AbilityLayersType {
 }
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)] pub struct AbilitySet : u32 {
-    const BUILD = 1; const MINE = 2; const DOORSANDSWITCHES = 4; const OPENCONTAINERS =
-    8; const ATTACKPLAYERS = 16; const ATTACKMOBS = 32; const OPERATORCOMMANDS = 64;
-    const TELEPORT = 128; const INVULNERABLE = 256; const FLYING = 512; const MAYFLY =
-    1024; const INSTANTBUILD = 2048; const LIGHTNING = 4096; const FLYSPEED = 8192; const
-    WALKSPEED = 16384; const MUTED = 32768; const WORLDBUILDER = 65536; const NOCLIP =
-    131072; const COUNT = 262144; }
+    const BUILD = 1; const MINE = 2; const DOORS_AND_SWITCHES = 4; const OPEN_CONTAINERS
+    = 8; const ATTACK_PLAYERS = 16; const ATTACK_MOBS = 32; const OPERATOR_COMMANDS = 64;
+    const TELEPORT = 128; const INVULNERABLE = 256; const FLYING = 512; const MAY_FLY =
+    1024; const INSTANT_BUILD = 2048; const LIGHTNING = 4096; const FLY_SPEED = 8192;
+    const WALK_SPEED = 16384; const MUTED = 32768; const WORLD_BUILDER = 65536; const
+    NO_CLIP = 131072; const COUNT = 262144; }
+}
+impl crate::bedrock::codec::BedrockCodec for AbilitySet {
+    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let val = self.bits();
+        (val as u32).encode(buf)
+    }
+    fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+        let raw = <u32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
+        let bits = raw as u32;
+        Ok(Self::from_bits_retain(bits))
+    }
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct AbilityLayers {

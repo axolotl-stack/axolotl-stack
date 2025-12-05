@@ -48,6 +48,8 @@ impl crate::bedrock::codec::BedrockCodec for BlockrecordsItem {
         let y = <i8 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let blockid = <i8 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let content = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
+        let blockdata = (content >> 0u32) & 15;
+        let flags = (content >> 4u32) & 15;
         Ok(Self { x, z, y, blockid, content })
     }
 }

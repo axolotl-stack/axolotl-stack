@@ -149,12 +149,14 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerAuthInput {
             buf,
         )?;
         let gaze_direction = match play_mode {
-            _ => Some(<Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf)?),
+            PacketPlayerAuthInputPlayMode::Reality => {
+                Some(<Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf)?)
+            }
             _ => None,
         };
         let tick = <i64 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let delta = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
-        let transaction = match input_data_item_interact {
+        let transaction = match input_data.contains(InputFlag::ITEM_INTERACT) {
             true => {
                 Some(
                     <PacketPlayerAuthInputTransactionSome as crate::bedrock::codec::BedrockCodec>::decode(
@@ -164,7 +166,8 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerAuthInput {
             }
             _ => None,
         };
-        let item_stack_request = match input_data_item_stack_request {
+        let item_stack_request = match input_data.contains(InputFlag::ITEM_STACK_REQUEST)
+        {
             true => {
                 Some(
                     <ItemStackRequest as crate::bedrock::codec::BedrockCodec>::decode(
@@ -174,7 +177,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerAuthInput {
             }
             _ => None,
         };
-        let content = match input_data_client_predicted_vehicle {
+        let content = match input_data.contains(InputFlag::CLIENT_PREDICTED_VEHICLE) {
             true => {
                 Some(
                     <PacketPlayerAuthInputContentSome as crate::bedrock::codec::BedrockCodec>::decode(
@@ -184,12 +187,13 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerAuthInput {
             }
             _ => None,
         };
-        let block_action = match input_data_block_action {
+        let block_action = match input_data.contains(InputFlag::BLOCK_ACTION) {
             true => {
                 Some({
                     let len = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                    )? as usize;
+                            buf,
+                        )?
+                        .0 as usize;
                     let mut tmp_vec = Vec::with_capacity(len);
                     for _ in 0..len {
                         tmp_vec

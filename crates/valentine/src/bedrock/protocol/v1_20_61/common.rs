@@ -54,21 +54,32 @@ impl crate::bedrock::codec::BedrockCodec for Element {
 }
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)] pub struct InputFlag : u64 { const
-    ASCEND = 1; const DESCEND = 2; const NORTHJUMP = 4; const JUMPDOWN = 8; const
-    SPRINTDOWN = 16; const CHANGEHEIGHT = 32; const JUMPING = 64; const
-    AUTOJUMPINGINWATER = 128; const SNEAKING = 256; const SNEAKDOWN = 512; const UP =
-    1024; const DOWN = 2048; const LEFT = 4096; const RIGHT = 8192; const UPLEFT = 16384;
-    const UPRIGHT = 32768; const WANTUP = 65536; const WANTDOWN = 131072; const
-    WANTDOWNSLOW = 262144; const WANTUPSLOW = 524288; const SPRINTING = 1048576; const
-    ASCENDBLOCK = 2097152; const DESCENDBLOCK = 4194304; const SNEAKTOGGLEDOWN = 8388608;
-    const PERSISTSNEAK = 16777216; const STARTSPRINTING = 33554432; const STOPSPRINTING =
-    67108864; const STARTSNEAKING = 134217728; const STOPSNEAKING = 268435456; const
-    STARTSWIMMING = 536870912; const STOPSWIMMING = 1073741824; const STARTJUMPING =
-    2147483648; const STARTGLIDING = 4294967296; const STOPGLIDING = 8589934592; const
-    ITEMINTERACT = 17179869184; const BLOCKACTION = 34359738368; const ITEMSTACKREQUEST =
-    68719476736; const HANDLEDTELEPORT = 137438953472; const EMOTING = 274877906944;
-    const MISSEDSWING = 549755813888; const STARTCRAWLING = 1099511627776; const
-    STOPCRAWLING = 2199023255552; const STARTFLYING = 4398046511104; const STOPFLYING =
-    8796093022208; const RECEIVEDSERVERDATA = 17592186044416; const
-    CLIENTPREDICTEDVEHICLE = 35184372088832; }
+    ASCEND = 1; const DESCEND = 2; const NORTH_JUMP = 4; const JUMP_DOWN = 8; const
+    SPRINT_DOWN = 16; const CHANGE_HEIGHT = 32; const JUMPING = 64; const
+    AUTO_JUMPING_IN_WATER = 128; const SNEAKING = 256; const SNEAK_DOWN = 512; const UP =
+    1024; const DOWN = 2048; const LEFT = 4096; const RIGHT = 8192; const UP_LEFT =
+    16384; const UP_RIGHT = 32768; const WANT_UP = 65536; const WANT_DOWN = 131072; const
+    WANT_DOWN_SLOW = 262144; const WANT_UP_SLOW = 524288; const SPRINTING = 1048576;
+    const ASCEND_BLOCK = 2097152; const DESCEND_BLOCK = 4194304; const SNEAK_TOGGLE_DOWN
+    = 8388608; const PERSIST_SNEAK = 16777216; const START_SPRINTING = 33554432; const
+    STOP_SPRINTING = 67108864; const START_SNEAKING = 134217728; const STOP_SNEAKING =
+    268435456; const START_SWIMMING = 536870912; const STOP_SWIMMING = 1073741824; const
+    START_JUMPING = 2147483648; const START_GLIDING = 4294967296; const STOP_GLIDING =
+    8589934592; const ITEM_INTERACT = 17179869184; const BLOCK_ACTION = 34359738368;
+    const ITEM_STACK_REQUEST = 68719476736; const HANDLED_TELEPORT = 137438953472; const
+    EMOTING = 274877906944; const MISSED_SWING = 549755813888; const START_CRAWLING =
+    1099511627776; const STOP_CRAWLING = 2199023255552; const START_FLYING =
+    4398046511104; const STOP_FLYING = 8796093022208; const RECEIVED_SERVER_DATA =
+    17592186044416; const CLIENT_PREDICTED_VEHICLE = 35184372088832; }
+}
+impl crate::bedrock::codec::BedrockCodec for InputFlag {
+    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let val = self.bits();
+        (val as i64).encode(buf)
+    }
+    fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+        let raw = <i64 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
+        let bits = raw as u64;
+        Ok(Self::from_bits_retain(bits))
+    }
 }

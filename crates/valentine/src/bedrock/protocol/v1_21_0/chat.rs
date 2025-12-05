@@ -81,7 +81,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketText {
             buf,
         )?;
         let content = match type_ {
-            _ => {
+            PacketTextType::Announcement => {
                 Some(
                     PacketTextContent::Announcement(
                         <PacketTextContentAnnouncement as crate::bedrock::codec::BedrockCodec>::decode(
@@ -90,7 +90,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketText {
                     ),
                 )
             }
-            _ => {
+            PacketTextType::Chat => {
                 Some(
                     PacketTextContent::Chat(
                         <PacketTextContentAnnouncement as crate::bedrock::codec::BedrockCodec>::decode(
@@ -99,7 +99,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketText {
                     ),
                 )
             }
-            _ => {
+            PacketTextType::Json => {
                 Some(
                     PacketTextContent::Json(
                         <PacketTextContentJson as crate::bedrock::codec::BedrockCodec>::decode(
@@ -108,7 +108,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketText {
                     ),
                 )
             }
-            _ => {
+            PacketTextType::JsonAnnouncement => {
                 Some(
                     PacketTextContent::JsonAnnouncement(
                         <PacketTextContentJson as crate::bedrock::codec::BedrockCodec>::decode(
@@ -117,7 +117,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketText {
                     ),
                 )
             }
-            _ => {
+            PacketTextType::JsonWhisper => {
                 Some(
                     PacketTextContent::JsonWhisper(
                         <PacketTextContentJson as crate::bedrock::codec::BedrockCodec>::decode(
@@ -126,7 +126,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketText {
                     ),
                 )
             }
-            _ => {
+            PacketTextType::JukeboxPopup => {
                 Some(
                     PacketTextContent::JukeboxPopup(
                         <PacketTextContentJukeboxPopup as crate::bedrock::codec::BedrockCodec>::decode(
@@ -135,7 +135,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketText {
                     ),
                 )
             }
-            _ => {
+            PacketTextType::Popup => {
                 Some(
                     PacketTextContent::Popup(
                         <PacketTextContentJukeboxPopup as crate::bedrock::codec::BedrockCodec>::decode(
@@ -144,7 +144,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketText {
                     ),
                 )
             }
-            _ => {
+            PacketTextType::Raw => {
                 Some(
                     PacketTextContent::Raw(
                         <PacketTextContentJson as crate::bedrock::codec::BedrockCodec>::decode(
@@ -153,7 +153,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketText {
                     ),
                 )
             }
-            _ => {
+            PacketTextType::System => {
                 Some(
                     PacketTextContent::System(
                         <PacketTextContentJson as crate::bedrock::codec::BedrockCodec>::decode(
@@ -162,7 +162,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketText {
                     ),
                 )
             }
-            _ => {
+            PacketTextType::Tip => {
                 Some(
                     PacketTextContent::Tip(
                         <PacketTextContentJson as crate::bedrock::codec::BedrockCodec>::decode(
@@ -171,7 +171,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketText {
                     ),
                 )
             }
-            _ => {
+            PacketTextType::Translation => {
                 Some(
                     PacketTextContent::Translation(
                         <PacketTextContentJukeboxPopup as crate::bedrock::codec::BedrockCodec>::decode(
@@ -180,7 +180,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketText {
                     ),
                 )
             }
-            _ => {
+            PacketTextType::Whisper => {
                 Some(
                     PacketTextContent::Whisper(
                         <PacketTextContentAnnouncement as crate::bedrock::codec::BedrockCodec>::decode(

@@ -433,8 +433,8 @@ pub struct PacketAvailableCommandsCommandDataItemOverloadsItem {
 impl crate::bedrock::codec::BedrockCodec
 for PacketAvailableCommandsCommandDataItemOverloadsItem {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let len = self.parameters.len() as i32;
-        len.encode(buf)?;
+        let len = self.parameters.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.parameters {
             item.encode(buf)?;
         }
@@ -442,7 +442,7 @@ for PacketAvailableCommandsCommandDataItemOverloadsItem {
     }
     fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
         let parameters = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -785,7 +785,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerArmorDamage {
         let type_ = <ArmorDamageType as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
         )?;
-        let helmet_damage = match type_head {
+        let helmet_damage = match type_.contains(ArmorDamageType::HEAD) {
             true => {
                 Some(
                     <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -795,7 +795,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerArmorDamage {
             }
             _ => None,
         };
-        let chestplate_damage = match type_chest {
+        let chestplate_damage = match type_.contains(ArmorDamageType::CHEST) {
             true => {
                 Some(
                     <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -805,7 +805,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerArmorDamage {
             }
             _ => None,
         };
-        let leggings_damage = match type_legs {
+        let leggings_damage = match type_.contains(ArmorDamageType::LEGS) {
             true => {
                 Some(
                     <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -815,7 +815,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerArmorDamage {
             }
             _ => None,
         };
-        let boots_damage = match type_feet {
+        let boots_damage = match type_.contains(ArmorDamageType::FEET) {
             true => {
                 Some(
                     <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -955,12 +955,14 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerAuthInput {
             buf,
         )?;
         let gaze_direction = match play_mode {
-            _ => Some(<Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf)?),
+            PacketPlayerAuthInputPlayMode::Reality => {
+                Some(<Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf)?)
+            }
             _ => None,
         };
         let tick = <i64 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let delta = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
-        let transaction = match input_data_item_interact {
+        let transaction = match input_data.contains(InputFlag::ITEM_INTERACT) {
             true => {
                 Some(
                     <PacketPlayerAuthInputTransactionSome as crate::bedrock::codec::BedrockCodec>::decode(
@@ -970,7 +972,8 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerAuthInput {
             }
             _ => None,
         };
-        let item_stack_request = match input_data_item_stack_request {
+        let item_stack_request = match input_data.contains(InputFlag::ITEM_STACK_REQUEST)
+        {
             true => {
                 Some(
                     <ItemStackRequest as crate::bedrock::codec::BedrockCodec>::decode(
@@ -980,12 +983,13 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerAuthInput {
             }
             _ => None,
         };
-        let block_action = match input_data_block_action {
+        let block_action = match input_data.contains(InputFlag::BLOCK_ACTION) {
             true => {
                 Some({
                     let len = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                    )? as usize;
+                            buf,
+                        )?
+                        .0 as usize;
                     let mut tmp_vec = Vec::with_capacity(len);
                     for _ in 0..len {
                         tmp_vec

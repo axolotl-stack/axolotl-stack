@@ -110,8 +110,8 @@ impl crate::bedrock::codec::BedrockCodec for PacketAddPlayer {
         self.unique_id.encode(buf)?;
         self.permission_level.encode(buf)?;
         self.command_permission.encode(buf)?;
-        let len = self.abilities.len() as u8;
-        len.encode(buf)?;
+        let len = self.abilities.len();
+        (len as u8).encode(buf)?;
         for item in &self.abilities {
             item.encode(buf)?;
         }

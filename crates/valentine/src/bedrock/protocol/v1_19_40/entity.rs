@@ -48,13 +48,13 @@ pub struct EntityProperties {
 }
 impl crate::bedrock::codec::BedrockCodec for EntityProperties {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let len = self.ints.len() as i32;
-        len.encode(buf)?;
+        let len = self.ints.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.ints {
             item.encode(buf)?;
         }
-        let len = self.floats.len() as i32;
-        len.encode(buf)?;
+        let len = self.floats.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.floats {
             item.encode(buf)?;
         }
@@ -62,7 +62,7 @@ impl crate::bedrock::codec::BedrockCodec for EntityProperties {
     }
     fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
         let ints = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -76,7 +76,7 @@ impl crate::bedrock::codec::BedrockCodec for EntityProperties {
             tmp_vec
         };
         let floats = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -205,8 +205,8 @@ impl crate::bedrock::codec::BedrockCodec for PacketAddPlayer {
         self.unique_id.encode(buf)?;
         self.permission_level.encode(buf)?;
         self.command_permission.encode(buf)?;
-        let len = self.abilities.len() as u8;
-        len.encode(buf)?;
+        let len = self.abilities.len();
+        (len as u8).encode(buf)?;
         for item in &self.abilities {
             item.encode(buf)?;
         }

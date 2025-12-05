@@ -85,20 +85,50 @@ impl crate::bedrock::codec::BedrockCodec for Action {
     }
 }
 bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)] pub struct ActionPermissions : u32
+    { const ATTACK_MOBS = 65552; const ATTACK_PLAYERS = 65544; const BUILD = 65792; const
+    DEFAULT = 66048; const DOORS_AND_SWITCHES = 65538; const MINE = 65537; const
+    OPEN_CONTAINERS = 65540; const OPERATOR = 65568; const TELEPORT = 65664; }
+}
+impl crate::bedrock::codec::BedrockCodec for ActionPermissions {
+    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let val = self.bits();
+        crate::bedrock::codec::VarInt(val as i32).encode(buf)
+    }
+    fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+        let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+        )?;
+        let bits = raw.0 as u32;
+        Ok(Self::from_bits_retain(bits))
+    }
+}
+bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)] pub struct InputFlag : u64 { const
-    ASCEND = 1; const DESCEND = 2; const NORTHJUMP = 4; const JUMPDOWN = 8; const
-    SPRINTDOWN = 16; const CHANGEHEIGHT = 32; const JUMPING = 64; const
-    AUTOJUMPINGINWATER = 128; const SNEAKING = 256; const SNEAKDOWN = 512; const UP =
-    1024; const DOWN = 2048; const LEFT = 4096; const RIGHT = 8192; const UPLEFT = 16384;
-    const UPRIGHT = 32768; const WANTUP = 65536; const WANTDOWN = 131072; const
-    WANTDOWNSLOW = 262144; const WANTUPSLOW = 524288; const SPRINTING = 1048576; const
-    ASCENDSCAFFOLDING = 2097152; const DESCENDSCAFFOLDING = 4194304; const
-    SNEAKTOGGLEDOWN = 8388608; const PERSISTSNEAK = 16777216; const STARTSPRINTING =
-    33554432; const STOPSPRINTING = 67108864; const STARTSNEAKING = 134217728; const
-    STOPSNEAKING = 268435456; const STARTSWIMMING = 536870912; const STOPSWIMMING =
-    1073741824; const STARTJUMPING = 2147483648; const STARTGLIDING = 4294967296; const
-    STOPGLIDING = 8589934592; const ITEMINTERACT = 17179869184; const BLOCKACTION =
-    34359738368; const ITEMSTACKREQUEST = 68719476736; }
+    ASCEND = 1; const DESCEND = 2; const NORTH_JUMP = 4; const JUMP_DOWN = 8; const
+    SPRINT_DOWN = 16; const CHANGE_HEIGHT = 32; const JUMPING = 64; const
+    AUTO_JUMPING_IN_WATER = 128; const SNEAKING = 256; const SNEAK_DOWN = 512; const UP =
+    1024; const DOWN = 2048; const LEFT = 4096; const RIGHT = 8192; const UP_LEFT =
+    16384; const UP_RIGHT = 32768; const WANT_UP = 65536; const WANT_DOWN = 131072; const
+    WANT_DOWN_SLOW = 262144; const WANT_UP_SLOW = 524288; const SPRINTING = 1048576;
+    const ASCEND_SCAFFOLDING = 2097152; const DESCEND_SCAFFOLDING = 4194304; const
+    SNEAK_TOGGLE_DOWN = 8388608; const PERSIST_SNEAK = 16777216; const START_SPRINTING =
+    33554432; const STOP_SPRINTING = 67108864; const START_SNEAKING = 134217728; const
+    STOP_SNEAKING = 268435456; const START_SWIMMING = 536870912; const STOP_SWIMMING =
+    1073741824; const START_JUMPING = 2147483648; const START_GLIDING = 4294967296; const
+    STOP_GLIDING = 8589934592; const ITEM_INTERACT = 17179869184; const BLOCK_ACTION =
+    34359738368; const ITEM_STACK_REQUEST = 68719476736; }
+}
+impl crate::bedrock::codec::BedrockCodec for InputFlag {
+    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let val = self.bits();
+        (val as i64).encode(buf)
+    }
+    fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+        let raw = <i64 as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
+        let bits = raw as u64;
+        Ok(Self::from_bits_retain(bits))
+    }
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct StackRequestSlotInfo {
@@ -129,42 +159,68 @@ bitflags! {
     const ONFIRE = 1; const SNEAKING = 2; const RIDING = 4; const SPRINTING = 8; const
     ACTION = 16; const INVISIBLE = 32; const TEMPTED = 64; const INLOVE = 128; const
     SADDLED = 256; const POWERED = 512; const IGNITED = 1024; const BABY = 2048; const
-    CONVERTING = 4096; const CRITICAL = 8192; const CANSHOWNAMETAG = 16384; const
-    ALWAYSSHOWNAMETAG = 32768; const NOAI = 65536; const SILENT = 131072; const
-    WALLCLIMBING = 262144; const CANCLIMB = 524288; const SWIMMER = 1048576; const CANFLY
-    = 2097152; const WALKER = 4194304; const RESTING = 8388608; const SITTING = 16777216;
-    const ANGRY = 33554432; const INTERESTED = 67108864; const CHARGED = 134217728; const
-    TAMED = 268435456; const ORPHANED = 536870912; const LEASHED = 1073741824; const
-    SHEARED = 2147483648; const GLIDING = 4294967296; const ELDER = 8589934592; const
-    MOVING = 17179869184; const BREATHING = 34359738368; const CHESTED = 68719476736;
-    const STACKABLE = 137438953472; const SHOWBASE = 274877906944; const REARING =
-    549755813888; const VIBRATING = 1099511627776; const IDLING = 2199023255552; const
-    EVOKERSPELL = 4398046511104; const CHARGEATTACK = 8796093022208; const WASDCONTROLLED
-    = 17592186044416; const CANPOWERJUMP = 35184372088832; const LINGER = 70368744177664;
-    const HASCOLLISION = 140737488355328; const AFFECTEDBYGRAVITY = 281474976710656;
-    const FIREIMMUNE = 562949953421312; const DANCING = 1125899906842624; const ENCHANTED
-    = 2251799813685248; const SHOWTRIDENTROPE = 4503599627370496; const CONTAINERPRIVATE
-    = 9007199254740992; const TRANSFORMING = 18014398509481984; const SPINATTACK =
-    36028797018963968; const SWIMMING = 72057594037927936; const BRIBED =
-    144115188075855872; const PREGNANT = 288230376151711744; const LAYINGEGG =
-    576460752303423488; const RIDERCANPICK = 1152921504606846976; const TRANSITIONSITTING
-    = 2305843009213693952; const EATING = 4611686018427387904; const LAYINGDOWN =
-    9223372036854775808; }
+    CONVERTING = 4096; const CRITICAL = 8192; const CAN_SHOW_NAMETAG = 16384; const
+    ALWAYS_SHOW_NAMETAG = 32768; const NO_AI = 65536; const SILENT = 131072; const
+    WALLCLIMBING = 262144; const CAN_CLIMB = 524288; const SWIMMER = 1048576; const
+    CAN_FLY = 2097152; const WALKER = 4194304; const RESTING = 8388608; const SITTING =
+    16777216; const ANGRY = 33554432; const INTERESTED = 67108864; const CHARGED =
+    134217728; const TAMED = 268435456; const ORPHANED = 536870912; const LEASHED =
+    1073741824; const SHEARED = 2147483648; const GLIDING = 4294967296; const ELDER =
+    8589934592; const MOVING = 17179869184; const BREATHING = 34359738368; const CHESTED
+    = 68719476736; const STACKABLE = 137438953472; const SHOWBASE = 274877906944; const
+    REARING = 549755813888; const VIBRATING = 1099511627776; const IDLING =
+    2199023255552; const EVOKER_SPELL = 4398046511104; const CHARGE_ATTACK =
+    8796093022208; const WASD_CONTROLLED = 17592186044416; const CAN_POWER_JUMP =
+    35184372088832; const LINGER = 70368744177664; const HAS_COLLISION = 140737488355328;
+    const AFFECTED_BY_GRAVITY = 281474976710656; const FIRE_IMMUNE = 562949953421312;
+    const DANCING = 1125899906842624; const ENCHANTED = 2251799813685248; const
+    SHOW_TRIDENT_ROPE = 4503599627370496; const CONTAINER_PRIVATE = 9007199254740992;
+    const TRANSFORMING = 18014398509481984; const SPIN_ATTACK = 36028797018963968; const
+    SWIMMING = 72057594037927936; const BRIBED = 144115188075855872; const PREGNANT =
+    288230376151711744; const LAYING_EGG = 576460752303423488; const RIDER_CAN_PICK =
+    1152921504606846976; const TRANSITION_SITTING = 2305843009213693952; const EATING =
+    4611686018427387904; const LAYING_DOWN = 9223372036854775808; }
+}
+impl crate::bedrock::codec::BedrockCodec for MetadataFlags1 {
+    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let val = self.bits();
+        crate::bedrock::codec::ZigZag64(val as i64).encode(buf)
+    }
+    fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+        let raw = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+        )?;
+        let bits = raw.0 as u64;
+        Ok(Self::from_bits_retain(bits))
+    }
 }
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)] pub struct MetadataFlags2 : u64 {
     const SNEEZING = 1; const TRUSTING = 2; const ROLLING = 4; const SCARED = 8; const
-    INSCAFFOLDING = 16; const OVERSCAFFOLDING = 32; const FALLTHROUGHSCAFFOLDING = 64;
-    const BLOCKING = 128; const TRANSITIONBLOCKING = 256; const BLOCKEDUSINGSHIELD = 512;
-    const BLOCKEDUSINGDAMAGEDSHIELD = 1024; const SLEEPING = 2048; const WANTSTOWAKE =
-    4096; const TRADEINTEREST = 8192; const DOORBREAKER = 16384; const
-    BREAKINGOBSTRUCTION = 32768; const DOOROPENER = 65536; const ILLAGERCAPTAIN = 131072;
-    const STUNNED = 262144; const ROARING = 524288; const DELAYEDATTACKING = 1048576;
-    const AVOIDINGMOBS = 2097152; const AVOIDINGBLOCK = 4194304; const
-    FACINGTARGETTORANGEATTACK = 8388608; const HIDDENWHENINVISIBLE = 16777216; const
-    ISINUI = 33554432; const STALKING = 67108864; const EMOTING = 134217728; const
-    CELEBRATING = 268435456; const ADMIRING = 536870912; const CELEBRATINGSPECIAL =
-    1073741824; }
+    IN_SCAFFOLDING = 16; const OVER_SCAFFOLDING = 32; const FALL_THROUGH_SCAFFOLDING =
+    64; const BLOCKING = 128; const TRANSITION_BLOCKING = 256; const BLOCKED_USING_SHIELD
+    = 512; const BLOCKED_USING_DAMAGED_SHIELD = 1024; const SLEEPING = 2048; const
+    WANTS_TO_WAKE = 4096; const TRADE_INTEREST = 8192; const DOOR_BREAKER = 16384; const
+    BREAKING_OBSTRUCTION = 32768; const DOOR_OPENER = 65536; const ILLAGER_CAPTAIN =
+    131072; const STUNNED = 262144; const ROARING = 524288; const DELAYED_ATTACKING =
+    1048576; const AVOIDING_MOBS = 2097152; const AVOIDING_BLOCK = 4194304; const
+    FACING_TARGET_TO_RANGE_ATTACK = 8388608; const HIDDEN_WHEN_INVISIBLE = 16777216;
+    const IS_IN_UI = 33554432; const STALKING = 67108864; const EMOTING = 134217728;
+    const CELEBRATING = 268435456; const ADMIRING = 536870912; const CELEBRATING_SPECIAL
+    = 1073741824; }
+}
+impl crate::bedrock::codec::BedrockCodec for MetadataFlags2 {
+    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let val = self.bits();
+        crate::bedrock::codec::ZigZag64(val as i64).encode(buf)
+    }
+    fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+        let raw = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+        )?;
+        let bits = raw.0 as u64;
+        Ok(Self::from_bits_retain(bits))
+    }
 }
 pub type MetadataDictionary = Vec<MetadataDictionaryItem>;
 pub type Recipes = Vec<RecipesItem>;
@@ -190,7 +246,7 @@ impl crate::bedrock::codec::BedrockCodec for TransactionLegacy {
             _ => {
                 Some({
                     let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
-                        as usize;
+                        .0 as usize;
                     let mut tmp_vec = Vec::with_capacity(len);
                     for _ in 0..len {
                         tmp_vec
@@ -215,8 +271,8 @@ pub struct TransactionActions {
 impl crate::bedrock::codec::BedrockCodec for TransactionActions {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         self.network_ids.encode(buf)?;
-        let len = self.actions.len() as i32;
-        len.encode(buf)?;
+        let len = self.actions.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.actions {
             item.encode(buf)?;
         }
@@ -225,7 +281,7 @@ impl crate::bedrock::codec::BedrockCodec for TransactionActions {
     fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
         let network_ids = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let actions = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?
+            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0
                 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
@@ -283,8 +339,10 @@ impl crate::bedrock::codec::BedrockCodec for Transaction {
             buf,
         )?;
         let transaction_data = match transaction_type {
-            _ => Some(TransactionTransactionData::InventoryMismatch),
-            _ => {
+            TransactionTransactionType::InventoryMismatch => {
+                Some(TransactionTransactionData::InventoryMismatch)
+            }
+            TransactionTransactionType::ItemRelease => {
                 Some(
                     TransactionTransactionData::ItemRelease(
                         Box::new(
@@ -295,7 +353,7 @@ impl crate::bedrock::codec::BedrockCodec for Transaction {
                     ),
                 )
             }
-            _ => {
+            TransactionTransactionType::ItemUse => {
                 Some(
                     TransactionTransactionData::ItemUse(
                         Box::new(
@@ -306,7 +364,7 @@ impl crate::bedrock::codec::BedrockCodec for Transaction {
                     ),
                 )
             }
-            _ => {
+            TransactionTransactionType::ItemUseOnEntity => {
                 Some(
                     TransactionTransactionData::ItemUseOnEntity(
                         Box::new(
@@ -317,7 +375,9 @@ impl crate::bedrock::codec::BedrockCodec for Transaction {
                     ),
                 )
             }
-            _ => Some(TransactionTransactionData::Normal),
+            TransactionTransactionType::Normal => {
+                Some(TransactionTransactionData::Normal)
+            }
             _ => None,
         };
         Ok(Self {

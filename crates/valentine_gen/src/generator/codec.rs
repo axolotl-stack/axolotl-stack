@@ -1,7 +1,10 @@
 use crate::generator::analysis::{find_redundant_fields, should_box_variant};
 use crate::generator::context::Context;
 use crate::generator::definitions::resolve_type_to_tokens;
-use crate::generator::primitives::enum_value_literal;
+use crate::generator::primitives::{
+    enum_value_literal, primitive_to_enum_repr_tokens, primitive_to_rust_tokens,
+    primitive_to_unsigned_tokens,
+};
 use crate::generator::utils::{
     camel_case, clean_field_name, clean_type_name, make_unique_names, safe_camel_ident,
 };
@@ -95,7 +98,6 @@ fn generate_inline_decode_for_container(
 }
 
 /// Core logic shared between Body and Inline decoding.
-/// Returns a list of statements (let x = ...) and a list of field identifiers to construct the struct.
 fn generate_container_decode_stmts(
     name: &str,
     container: &Container,
@@ -127,22 +129,36 @@ fn generate_container_decode_stmts_with_scope(
         let var_name = &unique_names[idx];
         let var_ident = format_ident!("{}", var_name);
 
-        // Clone Type to avoid borrowing `container` while using `ctx`
+        // CLONE TYPE: Crucial to avoid holding a borrow on `container` while mutating `ctx`
         let field_type = field.type_def.clone();
 
         let decode_expr = generate_field_decode_expr(
             name,
             var_name,
             &field_type,
-            container, // The container defining the field
+            container, // Defines the field
             scope_name,
-            scope_container, // The container used for "../" resolution
+            scope_container, // Defines the context for resolution
             ctx,
         )?;
 
         stmts.push(quote! {
             let #var_ident = #decode_expr;
         });
+
+        if let Type::Packed { fields, .. } = &field.type_def {
+            for pf in fields {
+                let sub_name = clean_field_name(&pf.name, "");
+                let sub_ident = format_ident!("{}", sub_name);
+
+                let shift = pf.shift;
+                let mask = proc_macro2::Literal::u64_unsuffixed(pf.mask);
+
+                stmts.push(quote! {
+                    let #sub_ident = (#var_ident >> #shift) & #mask;
+                });
+            }
+        }
 
         if !redundant_fields.contains(&field.name) {
             result_fields.push(var_ident);
@@ -180,6 +196,7 @@ fn generate_field_decode_expr(
                 ctx,
                 compare_expr,
                 resolve_cont,
+                resolve_name, // <--- PASS THE NAME HERE
             )
         }
         Type::Array {
@@ -189,7 +206,19 @@ fn generate_field_decode_expr(
             let count_read = match count_type.as_ref() {
                 Type::Primitive(p) => {
                     let t = crate::generator::primitives::primitive_to_rust_tokens(p);
-                    quote! { <#t as crate::bedrock::codec::BedrockCodec>::decode(buf)? }
+
+                    // FIX: Check if it's a wrapper type. If so, access .0 before usage.
+                    match p {
+                        Primitive::VarInt
+                        | Primitive::VarLong
+                        | Primitive::ZigZag32
+                        | Primitive::ZigZag64 => {
+                            quote! { <#t as crate::bedrock::codec::BedrockCodec>::decode(buf)?.0 }
+                        }
+                        _ => {
+                            quote! { <#t as crate::bedrock::codec::BedrockCodec>::decode(buf)? }
+                        }
+                    }
                 }
                 _ => quote! { 0 },
             };
@@ -206,6 +235,7 @@ fn generate_field_decode_expr(
             )?;
 
             Ok(quote! {{
+                // Now valid: ZigZag32(x).0 as usize -> i32 as usize
                 let len = #count_read as usize;
                 let mut tmp_vec = Vec::with_capacity(len);
                 for _ in 0..len {
@@ -215,8 +245,6 @@ fn generate_field_decode_expr(
             }})
         }
         Type::Option(inner) => {
-            // Handle Option logic (recursively call this function for the inner type)
-            // We map the option logic to: Read boolean ? Some(decode_inner) : None
             let inner_var_name = format!("{}_Some", var_name);
             let inner_decode = generate_field_decode_expr(
                 container_name,
@@ -239,6 +267,7 @@ fn generate_field_decode_expr(
         }
         Type::Reference(r) => {
             // Check if we need to inline this reference because it depends on outer scope
+            // Use immutable lookup first
             let needs_inline = if let Some(Type::Container(inner_c)) = ctx.type_lookup.get(r) {
                 container_has_external_compare(inner_c)
             } else {
@@ -258,7 +287,6 @@ fn generate_field_decode_expr(
                     unreachable!("Ref was not a container")
                 }
             } else {
-                // Standard named type decode
                 let type_tokens = resolve_type_to_tokens(
                     ty,
                     &format!("{}_{}", container_name, camel_case(var_name)),
@@ -268,7 +296,6 @@ fn generate_field_decode_expr(
             }
         }
         _ => {
-            // Primitive or simple type
             let type_tokens = resolve_type_to_tokens(
                 ty,
                 &format!("{}_{}", container_name, camel_case(var_name)),
@@ -332,9 +359,26 @@ fn generate_field_encode(
             count_type,
             inner_type,
         } => {
-            let count_ty_tokens = match count_type.as_ref() {
-                Type::Primitive(p) => crate::generator::primitives::primitive_to_rust_tokens(p),
-                _ => quote! { u32 },
+            let len_encode = match count_type.as_ref() {
+                Type::Primitive(p) => match p {
+                    Primitive::VarInt => {
+                        quote! { crate::bedrock::codec::VarInt(len as i32).encode(buf)?; }
+                    }
+                    Primitive::VarLong => {
+                        quote! { crate::bedrock::codec::VarLong(len as i64).encode(buf)?; }
+                    }
+                    Primitive::ZigZag32 => {
+                        quote! { crate::bedrock::codec::ZigZag32(len as i32).encode(buf)?; }
+                    }
+                    Primitive::ZigZag64 => {
+                        quote! { crate::bedrock::codec::ZigZag64(len as i64).encode(buf)?; }
+                    }
+                    _ => {
+                        let t = crate::generator::primitives::primitive_to_rust_tokens(p);
+                        quote! { (len as #t).encode(buf)?; }
+                    }
+                },
+                _ => quote! { (len as u32).encode(buf)?; },
             };
 
             let inner_name = format!("{}_Item", var_name);
@@ -347,8 +391,8 @@ fn generate_field_encode(
             )?;
 
             Ok(quote! {
-                let len = #access_expr.len() as #count_ty_tokens;
-                len.encode(buf)?;
+                let len = #access_expr.len();
+                #len_encode
                 for item in &#access_expr {
                     #loop_body
                 }
@@ -381,7 +425,6 @@ fn generate_redundant_encode(
     field: &crate::ir::Field,
     container: &Container,
 ) -> TokenStream {
-    // Logic to find what this field is controlling
     let mut target_field_name = None;
     for other in &container.fields {
         if let Type::Switch { compare_to, .. } = &other.type_def {
@@ -406,7 +449,7 @@ fn generate_redundant_encode(
 }
 
 // ==============================================================================
-//  SWITCH & UTILS (Cleaned up)
+//  SWITCH & UTILS
 // ==============================================================================
 
 fn generate_switch_decode_logic(
@@ -416,6 +459,7 @@ fn generate_switch_decode_logic(
     ctx: &mut Context,
     compare_expr: TokenStream,
     container: &Container,
+    container_scope_name: &str,
 ) -> Result<TokenStream, Box<dyn std::error::Error>> {
     if let Type::Switch {
         fields,
@@ -423,9 +467,10 @@ fn generate_switch_decode_logic(
         compare_to,
     } = switch_def
     {
-        // Resolve Comparer Type for Casting
+        // 1. Resolve Comparer Type/Enum
         let cmp_prim = resolve_path_primitive(compare_to, container, ctx);
         let cmp_enum_ident = resolve_path_type(compare_to, container, ctx).and_then(|t| match t {
+            // Check Named Reference
             Type::Reference(r) => ctx.type_lookup.get(&r).and_then(|t2| match t2 {
                 Type::Enum { .. } => {
                     let i = format_ident!("{}", clean_type_name(&r));
@@ -433,17 +478,27 @@ fn generate_switch_decode_logic(
                 }
                 _ => None,
             }),
+            // Check Inline Enum (reconstruct name)
+            Type::Enum { .. } => {
+                let simple_field = compare_to.replace("../", "");
+                let clean_field = clean_field_name(&simple_field, "");
+                let enum_name = format!("{}_{}", container_scope_name, camel_case(&clean_field));
+                let i = format_ident!("{}", clean_type_name(&enum_name));
+                Some(quote! { #i })
+            }
             _ => None,
         });
 
-        // 1. Optimize: Inverse Option (All fields void, default not void)
+        // 2. Pre-calculation
+        let default_is_void = matches!(default.as_ref(), Type::Primitive(Primitive::Void));
         let all_cases_void = fields
             .iter()
             .all(|(_, t)| matches!(t, Type::Primitive(Primitive::Void)));
-        let default_is_void = matches!(default.as_ref(), Type::Primitive(Primitive::Void));
 
+        // --- OPTIMIZATION 1: Inverse Option (All Cases Void, Default has Data) ---
+        // Generates: match x { CaseA | CaseB => None, _ => Some(Default) }
         if all_cases_void && !default_is_void {
-            let default_ty = default.clone(); // Clone to release borrow
+            let default_ty = default.clone();
             let inner_expr = generate_field_decode_expr(
                 name,
                 &format!("{}_Default", var_name),
@@ -464,7 +519,10 @@ fn generate_switch_decode_logic(
             return Ok(quote! { match #compare_expr { #(#match_arms)* } });
         }
 
-        // 2. Optimize: Single Option (Default void, 1 field not void)
+        // --- OPTIMIZATION 2: Single Option (Default Void, Only 1 Case has Data) ---
+        // Generates: match x { CaseA => Some(Data), _ => None }
+        // We ONLY do this if there is exactly 1 field total. If there are 2 fields (Add/Remove),
+        // we must use the Enum logic below to distinguish them.
         if default_is_void && fields.len() == 1 {
             let (case_name, case_type) = &fields[0];
             let val_lit = case_value_pattern(case_name, cmp_prim.as_ref(), cmp_enum_ident.as_ref());
@@ -488,56 +546,25 @@ fn generate_switch_decode_logic(
             });
         }
 
-        // 3. Standard Enum Switch
+        // --- 3. STANDARD ENUM MATCH ---
+        // Handles: PlayerRecordsRecordsItem (Add | Remove)
+
         let enum_name = clean_type_name(&format!("{}_{}", name, camel_case(var_name)));
         let enum_ident = format_ident!("{}", enum_name);
-        let mut match_arms = Vec::new();
 
-        for (case_name, case_type) in fields {
-            let variant_ident = format_ident!("{}", safe_camel_ident(case_name));
-            let val_lit = case_value_pattern(case_name, cmp_prim.as_ref(), cmp_enum_ident.as_ref());
-
-            if matches!(case_type, Type::Primitive(Primitive::Void)) {
-                match_arms.push(quote! { #val_lit => #enum_ident::#variant_ident, });
-            } else {
-                let case_ty_clone = case_type.clone();
-                let inner_expr = generate_field_decode_expr(
-                    name,
-                    &format!("{}_{}", var_name, case_name),
-                    &case_ty_clone,
-                    container,
-                    name,
-                    container,
-                    ctx,
-                )?;
-
-                let construct = if should_box_variant(&case_ty_clone, ctx, 0) {
-                    quote! { Box::new(#inner_expr) }
-                } else {
-                    quote! { #inner_expr }
-                };
-                match_arms.push(quote! { #val_lit => #enum_ident::#variant_ident(#construct), });
-            }
-        }
-
+        // A. Optional Enum (Default is Void -> Returns Option<Enum>)
         if default_is_void {
-            // Optional Enum (wrapped in Option)
-            // We need to map variants to Some(Enum::Variant)
-            // This logic needs to wrap the previous arms in Some()
-            // For brevity, assuming the caller handles the Option wrap if types align,
-            // but here we are generating the match expression itself.
-            // Usually, if default is void, it implies the whole field is Option<Enum>.
-            // We handle that by returning the Enum, and the `default` arm returns None?
-            // Actually, if default is void, the return type is Option<Enum>.
-            // Re-map arms:
             let mut opt_arms = Vec::new();
             for (case_name, case_type) in fields {
                 let variant_ident = format_ident!("{}", safe_camel_ident(case_name));
                 let val_lit =
                     case_value_pattern(case_name, cmp_prim.as_ref(), cmp_enum_ident.as_ref());
+
                 if matches!(case_type, Type::Primitive(Primitive::Void)) {
+                    // Variant with no data: Some(Enum::Variant)
                     opt_arms.push(quote! { #val_lit => Some(#enum_ident::#variant_ident), });
                 } else {
+                    // Variant with data: Some(Enum::Variant(Data))
                     let case_ty_clone = case_type.clone();
                     let inner = generate_field_decode_expr(
                         name,
@@ -553,15 +580,51 @@ fn generate_switch_decode_logic(
                     } else {
                         quote! {#inner}
                     };
+                    // HERE IS THE FIX: We explicitly wrap in the Enum Variant
                     opt_arms.push(
                         quote! { #val_lit => Some(#enum_ident::#variant_ident(#construct)), },
                     );
                 }
             }
             opt_arms.push(quote! { _ => None, });
+
             return Ok(quote! { match #compare_expr { #(#opt_arms)* } });
-        } else {
-            // Default arm with data
+        }
+        // B. Standard Enum (Default has Data -> Returns Enum)
+        else {
+            let mut match_arms = Vec::new();
+
+            // Handle Fields
+            for (case_name, case_type) in fields {
+                let variant_ident = format_ident!("{}", safe_camel_ident(case_name));
+                let val_lit =
+                    case_value_pattern(case_name, cmp_prim.as_ref(), cmp_enum_ident.as_ref());
+
+                if matches!(case_type, Type::Primitive(Primitive::Void)) {
+                    match_arms.push(quote! { #val_lit => #enum_ident::#variant_ident, });
+                } else {
+                    let case_ty_clone = case_type.clone();
+                    let inner_expr = generate_field_decode_expr(
+                        name,
+                        &format!("{}_{}", var_name, case_name),
+                        &case_ty_clone,
+                        container,
+                        name,
+                        container,
+                        ctx,
+                    )?;
+
+                    let construct = if should_box_variant(&case_ty_clone, ctx, 0) {
+                        quote! { Box::new(#inner_expr) }
+                    } else {
+                        quote! { #inner_expr }
+                    };
+                    match_arms
+                        .push(quote! { #val_lit => #enum_ident::#variant_ident(#construct), });
+                }
+            }
+
+            // Handle Default
             let default_ty_clone = default.clone();
             let inner = generate_field_decode_expr(
                 name,
@@ -572,12 +635,20 @@ fn generate_switch_decode_logic(
                 container,
                 ctx,
             )?;
+
             let construct = if should_box_variant(&default_ty_clone, ctx, 0) {
                 quote! {Box::new(#inner)}
             } else {
                 quote! {#inner}
             };
-            match_arms.push(quote! { _ => #enum_ident::Default(#construct), });
+
+            // Check if Default is Void or Data
+            if matches!(default.as_ref(), Type::Primitive(Primitive::Void)) {
+                match_arms.push(quote! { _ => #enum_ident::Default, });
+            } else {
+                match_arms.push(quote! { _ => #enum_ident::Default(#construct), });
+            }
+
             return Ok(quote! { match #compare_expr { #(#match_arms)* } });
         }
     }
@@ -624,7 +695,6 @@ fn generate_switch_encode_logic(
         }
 
         if default_is_void {
-            // Option<Enum>
             Ok(quote! {
                 if let Some(v) = &#access_expr {
                     match v { #(#match_arms)* }
@@ -649,56 +719,125 @@ fn resolve_path(
     path: &str,
     container_name: &str,
     container: &Container,
-    _ctx: &Context,
+    ctx: &Context,
 ) -> TokenStream {
     let clean_path = path.replace("../", "");
 
-    // Simple check if field is local
-    let is_local = container.fields.iter().any(|f| {
-        clean_field_name(&f.name, container_name) == clean_field_name(&clean_path, container_name)
-    });
+    // We treat '/' and '.' as separators to cover both schema styles
+    let parts: Vec<&str> = clean_path.split(|c| c == '/' || c == '.').collect();
 
-    if clean_path.contains('/') {
-        let parts: Vec<&str> = clean_path.split('/').collect();
-        let mut tokens = Vec::new();
-        for (i, part) in parts.iter().enumerate() {
-            let n = if i == 0 {
-                clean_field_name(part, container_name)
+    let mut current_type = Type::Container(container.clone());
+    let mut tokens = Vec::new();
+
+    for (i, part) in parts.iter().enumerate() {
+        // --- STEP A: RESOLVE REFERENCES ---
+        // Ensure we are looking at the definition, not just a reference wrapper
+        while let Type::Reference(ref_name) = &current_type {
+            if let Some(resolved) = ctx.type_lookup.get(ref_name) {
+                current_type = resolved.clone();
             } else {
-                clean_field_name(part, "")
-            };
-            let id = format_ident!("{}", n);
-            tokens.push(id);
+                break; // Stop if we can't find definition
+            }
         }
-        quote! { #(#tokens).* }
-    } else {
-        let n = clean_field_name(&clean_path, container_name);
-        let id = format_ident!("{}", n);
-        quote! { #id }
+
+        // --- STEP B: CHECK FOR BITFIELD FLAG ACCESS ---
+        // If current type is a Bitfield, 'part' is a FLAG name, not a field.
+        if let Type::Bitfield { name: bf_name, .. } = &current_type {
+            let flag_const_name = crate::generator::utils::to_screaming_snake_case(part);
+            let flag_ident = format_ident!("{}", flag_const_name);
+            let bf_type_ident = format_ident!("{}", clean_type_name(bf_name));
+
+            // Construct the parent expression (e.g. `self.flags` or `flags`)
+            let parent_expr = if tokens.is_empty() {
+                quote! { self }
+            } else {
+                quote! { #(#tokens).* }
+            };
+
+            // Return boolean check immediately
+            return quote! { #parent_expr.contains(#bf_type_ident::#flag_ident) };
+        }
+
+        // --- STEP C: RESOLVE STANDARD FIELD ACCESS ---
+        // Find the field in the container (or sub-field in Packed type)
+        let (next_type, part_ident) = match &current_type {
+            Type::Container(c) => {
+                // Use helper to find field (handles Packed sub-fields)
+                if let Some((clean_name, ty)) = find_field_type(c, part) {
+                    // Check if we need scope prefixing
+                    let ident_name = if i == 0 {
+                        // If it's a top-level var in current function scope, use strict name
+                        // (Usually clean_name matches clean_field_name(part, container_name))
+                        clean_name
+                    } else {
+                        clean_name
+                    };
+                    (Some(ty), format_ident!("{}", ident_name))
+                } else {
+                    // Fallback: Field not found (maybe magic var or bad schema)
+                    (None, format_ident!("{}", clean_field_name(part, "")))
+                }
+            }
+            Type::Reference(r) => {
+                // Should be handled by loop at top, but just in case
+                if let Some(Type::Container(c)) = ctx.type_lookup.get(r) {
+                    if let Some((clean_name, ty)) = find_field_type(c, part) {
+                        (Some(ty), format_ident!("{}", clean_name))
+                    } else {
+                        (None, format_ident!("{}", clean_field_name(part, "")))
+                    }
+                } else {
+                    (None, format_ident!("{}", clean_field_name(part, "")))
+                }
+            }
+            _ => (None, format_ident!("{}", clean_field_name(part, ""))),
+        };
+
+        tokens.push(part_ident);
+
+        if let Some(ty) = next_type {
+            current_type = ty;
+        } else {
+            // Lost type info, stop tracking
+            current_type = Type::Primitive(Primitive::Void);
+        }
     }
+
+    quote! { #(#tokens).* }
 }
 
-// Resolve to primitive, using cloning to avoid holding borrows on ctx
+// Resolve to primitive, recursively peeling references
 fn resolve_path_primitive(path: &str, container: &Container, ctx: &Context) -> Option<Primitive> {
     let ty = resolve_path_type(path, container, ctx)?;
-    match ty {
-        Type::Primitive(p) => Some(p),
-        Type::Enum { underlying, .. } => Some(underlying),
+
+    let mut current = &ty;
+    while let Type::Reference(r) = current {
+        if let Some(resolved) = ctx.type_lookup.get(r) {
+            current = resolved;
+        } else {
+            return None;
+        }
+    }
+
+    match current {
+        Type::Primitive(p) => Some(p.clone()),
+        Type::Enum { underlying, .. } => Some(underlying.clone()),
         _ => None,
     }
 }
 
+// Resolve to Type, stopping BEFORE resolving the final reference (to preserve Enum names)
 fn resolve_path_type(path: &str, container: &Container, ctx: &Context) -> Option<Type> {
     let clean_path = path.replace("../", "");
     let parts: Vec<String> = clean_path
-        .split('/')
+        .split(|c| c == '/' || c == '.')
         .map(|p| clean_field_name(p, ""))
         .collect();
 
     let mut current_ty = Type::Container(container.clone());
 
     for (i, part) in parts.iter().enumerate() {
-        // Clone to release borrow on previous current_ty
+        // Resolve intermediate references (we need to descend into them)
         let current_c = match &current_ty {
             Type::Container(c) => Some(c.clone()),
             Type::Reference(r) => ctx.type_lookup.get(r).and_then(|t| match t {
@@ -708,20 +847,46 @@ fn resolve_path_type(path: &str, container: &Container, ctx: &Context) -> Option
             _ => None,
         }?;
 
-        let field_ty = current_c
-            .fields
-            .iter()
-            .find(|f| clean_field_name(&f.name, "") == *part)
-            .map(|f| f.type_def.clone())?; // Clone!
+        // Use helper to find field definition
+        let field_ty = if let Some((_, ty)) = find_field_type(&current_c, part) {
+            ty
+        } else {
+            return None;
+        };
 
+        // FIX: Do NOT resolve the final reference.
+        // We need to return Type::Reference("Name") so the caller knows the struct/enum name.
         if i == parts.len() - 1 {
-            // Resolve final references
-            return match field_ty {
-                Type::Reference(r) => ctx.type_lookup.get(&r).cloned(),
-                _ => Some(field_ty),
-            };
+            return Some(field_ty);
         }
+
         current_ty = field_ty;
+    }
+    None
+}
+
+// Helper to find a field (or packed sub-field) in a container
+fn find_field_type(container: &Container, path_part: &str) -> Option<(String, Type)> {
+    let clean_part = clean_field_name(path_part, "");
+
+    for f in &container.fields {
+        let f_clean = clean_field_name(&f.name, "");
+
+        // 1. Check strict match
+        if f_clean == clean_part || f.name == path_part {
+            return Some((f_clean, f.type_def.clone()));
+        }
+
+        // 2. Check inside Packed types (Virtual fields)
+        if let Type::Packed { fields, .. } = &f.type_def {
+            for pf in fields {
+                let pf_clean = clean_field_name(&pf.name, "");
+                if pf_clean == clean_part || pf.name == path_part {
+                    // It exists! It's effectively an integer primitive (VarInt safe default).
+                    return Some((pf_clean, Type::Primitive(Primitive::VarInt)));
+                }
+            }
+        }
     }
     None
 }
@@ -779,13 +944,11 @@ pub fn generate_enum_type_codec(
     variants: &[(String, i64)],
 ) -> Result<TokenStream, Box<dyn std::error::Error>> {
     let struct_ident = format_ident!("{}", name);
-    // Get the Rust type for the underlying primitive (e.g., i32, u8)
     let repr_ty = crate::generator::primitives::primitive_to_enum_repr_tokens(underlying);
 
     let mut match_arms = Vec::new();
     for (var_name, val) in variants {
         let variant_ident = format_ident!("{}", safe_camel_ident(var_name));
-        // Use the helper to generate the correct literal (e.g. 1u8 or 5i32)
         let val_lit = enum_value_literal(underlying, *val)?;
         match_arms.push(quote! { #val_lit => Ok(#struct_ident::#variant_ident), });
     }
@@ -793,15 +956,12 @@ pub fn generate_enum_type_codec(
     Ok(quote! {
         impl crate::bedrock::codec::BedrockCodec for #struct_ident {
             fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-                // Since we generate #[repr(T)], we can cast self to T safely
                 let val = *self as #repr_ty;
                 val.encode(buf)
             }
 
             fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
-                // Decode the integer first
                 let val = <#repr_ty as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
-                // Match integer to Enum Variant
                 match val {
                     #(#match_arms)*
                     _ => Err(std::io::Error::new(

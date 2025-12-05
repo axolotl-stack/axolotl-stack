@@ -31,21 +31,21 @@ impl crate::bedrock::codec::BedrockCodec for GameRule {
         let editable = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let type_ = <GameRuleType as crate::bedrock::codec::BedrockCodec>::decode(buf)?;
         let value = match type_ {
-            _ => {
+            GameRuleType::Bool => {
                 Some(
                     GameRuleValue::Bool(
                         <bool as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
                     ),
                 )
             }
-            _ => {
+            GameRuleType::Float => {
                 Some(
                     GameRuleValue::Float(
                         <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf)?,
                     ),
                 )
             }
-            _ => {
+            GameRuleType::Int => {
                 Some(
                     GameRuleValue::Int(
                         <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(

@@ -65,6 +65,19 @@ pub enum Type {
         storage_type: Primitive,   // usually varint or i32
         flags: Vec<(String, u64)>, // "IsOnFire" -> bitmask value
     },
+
+    // A primitive (u8, u16) that contains bit-packed sub-variables
+    Packed {
+        backing: Primitive,       // e.g. U8
+        fields: Vec<PackedField>, // e.g. "type" -> mask 0x07
+    },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PackedField {
+    pub name: String,
+    pub shift: u32,
+    pub mask: u64,
 }
 
 /// Represents a Struct (Packet or nested object)
