@@ -14,6 +14,8 @@ pub enum Primitive {
     F64,
     VarInt,    // Maps to i32, encoded as varint
     VarLong,   // Maps to i64, encoded as varlong
+    ZigZag32,  // i32 encoded via zigzag varint
+    ZigZag64,  // i64 encoded via zigzag varlong
     McString,  // The 'pstring' or 'string' type
     Uuid,      // mcpe_uuid
     Void,      // explicitly nothing
@@ -39,6 +41,9 @@ pub enum Type {
         inner_type: Box<Type>, // The thing inside the array
     },
 
+    /// Optional value
+    Option(Box<Type>),
+
     /// The dreaded switch (Conditional fields)
     /// Maps to a Rust Enum.
     Switch {
@@ -47,11 +52,18 @@ pub enum Type {
         default: Box<Type>, // The fallback
     },
 
+    /// Numeric discriminator mapped to named variants (e.g., mapper { type: varint, mappings: {...} })
+    /// This becomes a C-like Rust enum with explicit discriminants.
+    Enum {
+        underlying: Primitive,
+        variants: Vec<(String, i64)>,
+    },
+
     /// Bitmasks (maps to bitflags!)
     Bitfield {
         name: String,
         storage_type: Primitive,   // usually varint or i32
-        flags: Vec<(String, u32)>, // "IsOnFire" -> 0x01
+        flags: Vec<(String, u64)>, // "IsOnFire" -> bitmask value
     },
 }
 

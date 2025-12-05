@@ -10,3 +10,4 @@ quote = "1.0"
 syn = { version = "2.0", features = ["full", "parsing"] }
 proc-macro2 = "1.0"
 prettyplease = "0.2"
+toml_edit = "0.22"
