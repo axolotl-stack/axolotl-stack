@@ -1,318 +1,199 @@
-// ----- Helper utilities for naming and type token resolution -----
-use crate::generator::definitions::fingerprint_type;
-use crate::ir::Type;
+use convert_case::{Case, Casing};
 
-pub fn compute_fingerprint(name: &str, t: &Type) -> String {
-    format!("{}::{}", name, fingerprint_type(t))
-}
+use crate::ir::{Container, Type};
 
-pub fn to_screaming_snake_case(s: &str) -> String {
-    let mut result = String::new();
-    let mut prev_is_upper = false;
-    let mut last_was_underscore = false;
-
-    for (i, c) in s.chars().enumerate() {
-        // 1. Handle Non-Alphanumeric characters (The Fix)
-        // This catches spaces, '|', '.', etc.
-        if !c.is_alphanumeric() {
-            if !last_was_underscore {
-                result.push('_');
-                last_was_underscore = true;
-            }
-            prev_is_upper = false;
-            continue;
-        }
-
-        // 2. Handle CamelCase boundaries (e.g. "HasX" -> "HAS_X")
-        if c.is_uppercase() {
-            if i > 0 && !prev_is_upper && !last_was_underscore {
-                result.push('_');
-            }
-            result.push(c);
-            prev_is_upper = true;
-            last_was_underscore = false;
-        } else {
-            result.push(c.to_ascii_uppercase());
-            prev_is_upper = false;
-            last_was_underscore = false;
-        }
-    }
-
-    // Clean up trailing/leading underscores or double underscores
-    let cleaned = result.replace("__", "_");
-    cleaned.trim_matches('_').to_string()
-}
-
-pub fn camel_case(s: &str) -> String {
-    // Split on non-alphanumeric and case transitions; preserve common acronyms.
-    fn split_segment(seg: &str) -> Vec<String> {
-        if seg.is_empty() {
-            return vec![];
-        }
-        let mut parts: Vec<String> = Vec::new();
-        let mut cur = String::new();
-        let mut chars = seg.chars().peekable();
-        let mut prev = '\0';
-        while let Some(ch) = chars.next() {
-            let is_boundary = if cur.is_empty() {
-                false
-            } else if ch.is_ascii_digit() && !prev.is_ascii_digit()
-                || !ch.is_ascii_digit() && prev.is_ascii_digit()
-                || ch.is_ascii_uppercase() && prev.is_ascii_lowercase()
-            {
-                true
-            } else {
-                // Handle transitions like "XMLHttp" -> XML + Http (keep acronym run)
-                // If prev and ch are uppercase but next is lowercase, split before current
-                if prev.is_ascii_uppercase() && ch.is_ascii_uppercase() {
-                    if let Some(nxt) = chars.peek() {
-                        nxt.is_ascii_lowercase()
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                }
-            };
-            if is_boundary {
-                parts.push(cur.clone());
-                cur.clear();
-            }
-            cur.push(ch);
-            prev = ch;
-        }
-        if !cur.is_empty() {
-            parts.push(cur);
-        }
-        parts
-    }
-
-    // 1) Split by non-alphanumeric
-    let mut raw_segs: Vec<String> = Vec::new();
-    let mut cur = String::new();
-    for ch in s.chars() {
-        if ch.is_ascii_alphanumeric() {
-            cur.push(ch)
-        } else if !cur.is_empty() {
-            raw_segs.push(cur.clone());
-            cur.clear();
-        }
-    }
-    if !cur.is_empty() {
-        raw_segs.push(cur);
-    }
-
-    // 2) Split each segment by case/digit boundaries
-    let mut tokens: Vec<String> = Vec::new();
-    for seg in raw_segs {
-        tokens.extend(split_segment(&seg));
-    }
-
-    // 3) Normalize tokens and build CamelCase
-    let acronyms = ["id", "uri", "uuid", "nbt", "url", "rgb", "rgba"];
-    let mut out = String::new();
-    for tok in tokens {
-        let lower = tok.to_ascii_lowercase();
-        if acronyms.contains(&lower.as_str()) {
-            out.push_str(&lower.to_ascii_uppercase());
-        } else {
-            let mut chars = lower.chars();
-            if let Some(first) = chars.next() {
-                out.extend(first.to_uppercase());
-                out.push_str(chars.as_str());
-            }
-        }
-    }
-    if out
-        .chars()
-        .next()
-        .map(|c| c.is_ascii_alphabetic())
-        .unwrap_or(false)
-    {
-        out
-    } else {
-        format!("T{}", out)
-    }
-}
-
-pub fn safe_camel_ident(s: &str) -> String {
-    let mut ident = camel_case(s);
-    // Avoid leading digits just in case camel_case kept them
-    if ident
-        .chars()
-        .next()
-        .map(|c| c.is_ascii_digit())
-        .unwrap_or(false)
-    {
-        ident = format!("V{}", ident);
-    }
-    ident
-}
-
-pub fn clean_type_name(s: &str) -> String {
-    // Build a valid Rust type identifier using CamelCase and stripping invalid chars
-    let base = camel_case(s);
-    base.chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+fn sanitize_identifier(s: &str) -> String {
+    s.chars()
+        .filter(|c| c.is_alphanumeric() || *c == '_')
         .collect()
 }
 
-pub fn clean_field_name(s: &str, _container: &str) -> String {
-    // Convert to snake_case-ish identifier safe for Rust fields
-    let mut out = String::new();
-    let mut prev_underscore = false;
-    for ch in s.chars() {
-        if ch.is_ascii_alphanumeric() {
-            let c = ch.to_ascii_lowercase();
-            out.push(c);
-            prev_underscore = false;
-        } else if !prev_underscore {
-            out.push('_');
-            prev_underscore = true;
-        }
-    }
-    if out.is_empty() {
-        out.push_str("field");
-    }
-    // Trim leading/trailing underscores
-    while out.starts_with('_') {
-        out.remove(0);
-    }
-    while out.ends_with('_') {
-        out.pop();
-    }
-    if out.is_empty() {
-        out.push_str("field");
-    }
-    // Avoid starting with digit
-    if out
-        .chars()
-        .next()
-        .map(|c| c.is_ascii_digit())
-        .unwrap_or(false)
-    {
-        out = format!("f_{}", out);
-    }
-    // Avoid Rust keywords by suffixing underscore
-    match out.as_str() {
-        "type" | "match" | "ref" | "box" | "self" | "super" | "crate" | "mod" | "fn" | "let"
-        | "enum" | "struct" | "trait" | "impl" | "use" | "as" | "in" | "where" | "for" | "loop"
-        | "while" | "if" | "else" | "continue" | "break" | "move" | "return" | "unsafe" | "pub"
-        | "async" | "await" | "dyn" | "static" | "const" | "mut" | "extern" | "false" | "true" => {
-            out.push('_');
-            out
-        }
-        _ => out,
+pub fn camel_case(s: &str) -> String {
+    s.to_case(Case::Pascal)
+}
+
+pub fn snake_case(s: &str) -> String {
+    s.to_case(Case::Snake)
+}
+
+pub fn to_screaming_snake_case(s: &str) -> String {
+    s.to_case(Case::UpperSnake)
+}
+
+pub fn safe_camel_ident(s: &str) -> String {
+    // 1. Handle Global Variables (e.g. "/ShieldItemID" -> "ShieldItemID")
+    let s = if s.starts_with('/') { &s[1..] } else { s };
+
+    // 2. Sanitize (Remove junk)
+    let sanitized = sanitize_identifier(s);
+    let res = camel_case(&sanitized);
+
+    // 3. Handle Numeric Start (e.g. "1_18" -> "T118")
+    if res.chars().next().map_or(false, |c| c.is_numeric()) {
+        format!("T{}", res)
+    } else if res.is_empty() {
+        "Unknown".to_string()
+    } else {
+        res
     }
 }
 
-// Generate unique names from a list of base names, preserving order.
-// First occurrence keeps its name; duplicates get a _2, _3, ... suffix.
-pub fn make_unique_names(bases: &[String]) -> Vec<String> {
-    use std::collections::HashMap;
-    let mut counts: HashMap<String, usize> = HashMap::new();
-    let mut out: Vec<String> = Vec::with_capacity(bases.len());
-    for b in bases {
-        let c = counts.entry(b.clone()).and_modify(|v| *v += 1).or_insert(1);
-        if *c == 1 {
-            out.push(b.clone());
+pub fn clean_const_name(name: &str) -> String {
+    let sanitized = sanitize_identifier(name);
+    let s = sanitized.to_case(Case::UpperSnake);
+
+    if s.chars().next().map_or(false, |c| c.is_numeric()) {
+        format!("_{}", s)
+    } else if s.is_empty() {
+        "UNKNOWN".to_string()
+    } else {
+        s
+    }
+}
+
+pub fn clean_field_name(name: &str, _context: &str) -> String {
+    let sanitized = sanitize_identifier(name);
+    let s = sanitized.to_case(Case::Snake);
+
+    // Handle empty result (e.g. input was just "||")
+    let s = if s.is_empty() {
+        "unknown_field".to_string()
+    } else {
+        s
+    };
+
+    // Handle Numeric Start
+    let s = if s.chars().next().map_or(false, |c| c.is_numeric()) {
+        format!("_{}", s)
+    } else {
+        s
+    };
+
+    match s.as_str() {
+        "type" => "type_".to_string(),
+        "box" => "box_".to_string(),
+        "use" => "use_".to_string(),
+        "ref" => "ref_".to_string(),
+        "self" => "self_".to_string(),
+        "enum" => "enum_".to_string(),
+        "struct" => "struct_".to_string(),
+        "match" => "match_".to_string(),
+        "impl" => "impl_".to_string(),
+        "trait" => "trait_".to_string(),
+        "fn" => "fn_".to_string(),
+        "pub" => "pub_".to_string(),
+        "where" => "where_".to_string(),
+        "return" => "return_".to_string(),
+        "crate" => "crate_".to_string(),
+        "super" => "super_".to_string(),
+        "loop" => "loop_".to_string(),
+        "while" => "while_".to_string(),
+        "for" => "for_".to_string(),
+        "in" => "in_".to_string(),
+        "if" => "if_".to_string(),
+        "else" => "else_".to_string(),
+        "break" => "break_".to_string(),
+        "continue" => "continue_".to_string(),
+        "const" => "const_".to_string(),
+        "static" => "static_".to_string(),
+        "extern" => "extern_".to_string(),
+        "unsafe" => "unsafe_".to_string(),
+        "move" => "move_".to_string(),
+        "mut" => "mut_".to_string(),
+        "abstract" => "abstract_".to_string(),
+        "async" => "async_".to_string(),
+        "await" => "await_".to_string(),
+        "dyn" => "dyn_".to_string(),
+        "virtual" => "virtual_".to_string(),
+        _ => s,
+    }
+}
+
+pub fn clean_type_name(name: &str) -> String {
+    let sanitized = sanitize_identifier(name);
+    let s = sanitized.to_case(Case::Pascal);
+
+    if s.chars().next().map_or(false, |c| c.is_numeric()) {
+        format!("T{}", s)
+    } else if s.is_empty() {
+        "UnknownType".to_string()
+    } else {
+        s
+    }
+}
+
+pub fn compute_fingerprint(
+    name: &str,
+    t: &crate::ir::Type,
+    ctx: &crate::generator::context::Context,
+) -> String {
+    use crate::generator::definitions::fingerprint_type;
+    // Include the name AND the module path (version) to differentiate identically structured types across versions
+    format!(
+        "{}::{}::{}",
+        ctx.current_module_path,
+        name,
+        fingerprint_type(t)
+    )
+}
+
+pub fn make_unique_names(base_names: &[String]) -> Vec<String> {
+    let mut counts = std::collections::HashMap::new();
+    let mut result = Vec::new();
+
+    for name in base_names {
+        let count = counts.entry(name.clone()).or_insert(0);
+        *count += 1;
+        if *count == 1 {
+            result.push(name.clone());
         } else {
-            out.push(format!("{}_{}", b, *c));
+            result.push(format!("{}_{}", name, count));
         }
     }
-    out
+    result
 }
 
-pub fn get_group_name(type_name: &str) -> String {
-    // Heuristic grouping based on type name
-    let lower = type_name.to_lowercase();
-
-    if lower.contains("login")
-        || lower.contains("handshake")
-        || lower.contains("disconnect")
-        || lower.contains("encryption")
-        || lower.contains("playstatus")
-        || lower.contains("clienttoserver")
-        || lower.contains("servertoclient")
-        || lower.contains("setlocalplayer")
-    {
-        return "connection".to_string();
+pub fn get_group_name(struct_name: &str) -> String {
+    if struct_name.starts_with("Packet") {
+        return "packets".to_string();
     }
-
-    if lower.contains("resource") || lower.contains("texture") || lower.contains("skin") {
-        return "resource".to_string();
-    }
-
-    if lower.contains("level")
-        || lower.contains("chunk")
-        || lower.contains("block")
-        || lower.contains("biome")
-        || lower.contains("structure")
-        || lower.contains("map")
-        || lower.contains("dimension")
-        || lower.contains("tick")
-        || lower.contains("piston")
-    {
-        return "world".to_string();
-    }
-
-    if lower.contains("entity")
-        || lower.contains("player")
-        || lower.contains("actor")
-        || lower.contains("move")
-        || lower.contains("animate")
-        || lower.contains("attribute")
-        || lower.contains("effect")
-        || lower.contains("mob")
-        || lower.contains("camera")
-        || lower.contains("npc")
-        || lower.contains("agent")
-        || lower.contains("motion")
-    {
-        return "entity".to_string();
-    }
-
-    if lower.contains("item")
-        || lower.contains("inventory")
-        || lower.contains("window")
-        || lower.contains("craft")
-        || lower.contains("trade")
-        || lower.contains("book")
-        || lower.contains("enchant")
-        || lower.contains("hotbar")
-        || lower.contains("container")
-    {
-        return "inventory".to_string();
-    }
-
-    if lower.contains("score") || lower.contains("objective") || lower.contains("display") {
-        return "score".to_string();
-    }
-
-    if lower.contains("command") || lower.contains("settings") || lower.contains("game") {
-        // "Game" catches StartGame, GameRules
-        return "game".to_string();
-    }
-
-    if lower.contains("text")
-        || lower.contains("chat")
-        || lower.contains("message")
-        || lower.contains("title")
-        || lower.contains("toast")
-    {
-        return "chat".to_string();
-    }
-
-    if lower.contains("packet") || lower.contains("network") || lower.contains("transfer") {
-        // Catch-all for packets not matched above
-        return "packet".to_string();
-    }
-
-    // Fallback for common types that aren't packets
-    "common".to_string()
+    "types".to_string()
 }
 
-// Append a `_ctx` suffix for dependency/context parameter names
-pub fn ctx_param_name(n: &str) -> String {
-    format!("{}_ctx", n)
+pub fn derive_field_names(container: &Container, struct_name: &str) -> Vec<String> {
+    let mut content_count = 0;
+
+    let base_names: Vec<String> = container
+        .fields
+        .iter()
+        .map(|f| {
+            let original = clean_field_name(&f.name, struct_name);
+
+            // HEURISTIC: If the name looks like "action_id" but it's a switch *on* action_id,
+            // it is likely the anonymous content field.
+            // OR if the parser explicitly named it "anon" or "content".
+
+            let is_switch_content = if let Type::Switch { compare_to, .. } = &f.type_def {
+                // If the field name matches the compare_to variable, it's likely a collision
+                // caused by the parser naming the switch after its target.
+                let target = clean_field_name(&compare_to.replace("../", ""), "");
+                original == target || original == "content" || original == "anon"
+            } else {
+                original == "content" || original == "anon"
+            };
+
+            if is_switch_content {
+                content_count += 1;
+                if content_count == 1 {
+                    return "content".to_string();
+                }
+                if content_count == 2 {
+                    return "extra".to_string();
+                }
+            }
+            original
+        })
+        .collect();
+
+    make_unique_names(&base_names)
 }

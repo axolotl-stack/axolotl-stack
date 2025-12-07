@@ -5,8 +5,18 @@ use crate::protocol::wire;
 
 /// Bedrock binary codec for encode/decode on the wire.
 pub trait BedrockCodec: Sized {
+    type Args;
+
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error>;
-    fn decode<B: Buf>(buf: &mut B) -> Result<Self, std::io::Error>;
+    fn decode<B: Buf>(buf: &mut B, args: Self::Args) -> Result<Self, std::io::Error>;
+}
+
+pub struct BedrockSession;
+
+#[derive(Clone)]
+pub struct ProtocolArgs<'a> {
+    pub shield_id: i32,
+    pub session: &'a BedrockSession,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -16,31 +26,34 @@ pub struct ZigZag32(pub i32);
 pub struct ZigZag64(pub i64);
 
 impl BedrockCodec for ZigZag32 {
+    type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         wire::write_zigzag32(buf, self.0);
         Ok(())
     }
-    fn decode<B: Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+    fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
         Ok(ZigZag32(wire::read_zigzag32(buf)?))
     }
 }
 
 impl BedrockCodec for ZigZag64 {
+    type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         wire::write_zigzag64(buf, self.0);
         Ok(())
     }
-    fn decode<B: Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+    fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
         Ok(ZigZag64(wire::read_zigzag64(buf)?))
     }
 }
 
 impl BedrockCodec for bool {
+    type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         buf.put_u8(u8::from(*self));
         Ok(())
     }
-    fn decode<B: Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+    fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
         if !buf.has_remaining() {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::UnexpectedEof,
@@ -52,11 +65,12 @@ impl BedrockCodec for bool {
 }
 
 impl BedrockCodec for u8 {
+    type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         buf.put_u8(*self);
         Ok(())
     }
-    fn decode<B: Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+    fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
         if !buf.has_remaining() {
             Err(std::io::Error::new(
                 std::io::ErrorKind::UnexpectedEof,
@@ -68,11 +82,12 @@ impl BedrockCodec for u8 {
     }
 }
 impl BedrockCodec for i8 {
+    type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         buf.put_i8(*self);
         Ok(())
     }
-    fn decode<B: Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+    fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
         if !buf.has_remaining() {
             Err(std::io::Error::new(
                 std::io::ErrorKind::UnexpectedEof,
@@ -84,11 +99,12 @@ impl BedrockCodec for i8 {
     }
 }
 impl BedrockCodec for u16 {
+    type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         buf.put_u16_le(*self);
         Ok(())
     }
-    fn decode<B: Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+    fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
         if buf.remaining() < 2 {
             Err(std::io::Error::new(
                 std::io::ErrorKind::UnexpectedEof,
@@ -100,11 +116,12 @@ impl BedrockCodec for u16 {
     }
 }
 impl BedrockCodec for i16 {
+    type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         buf.put_i16_le(*self);
         Ok(())
     }
-    fn decode<B: Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+    fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
         if buf.remaining() < 2 {
             Err(std::io::Error::new(
                 std::io::ErrorKind::UnexpectedEof,
@@ -116,11 +133,12 @@ impl BedrockCodec for i16 {
     }
 }
 impl BedrockCodec for u32 {
+    type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         buf.put_u32_le(*self);
         Ok(())
     }
-    fn decode<B: Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+    fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
         if buf.remaining() < 4 {
             Err(std::io::Error::new(
                 std::io::ErrorKind::UnexpectedEof,
@@ -132,11 +150,12 @@ impl BedrockCodec for u32 {
     }
 }
 impl BedrockCodec for i32 {
+    type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         buf.put_i32_le(*self);
         Ok(())
     }
-    fn decode<B: Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+    fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
         if buf.remaining() < 4 {
             Err(std::io::Error::new(
                 std::io::ErrorKind::UnexpectedEof,
@@ -148,11 +167,12 @@ impl BedrockCodec for i32 {
     }
 }
 impl BedrockCodec for u64 {
+    type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         buf.put_u64_le(*self);
         Ok(())
     }
-    fn decode<B: Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+    fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
         if buf.remaining() < 8 {
             Err(std::io::Error::new(
                 std::io::ErrorKind::UnexpectedEof,
@@ -164,11 +184,12 @@ impl BedrockCodec for u64 {
     }
 }
 impl BedrockCodec for i64 {
+    type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         buf.put_i64_le(*self);
         Ok(())
     }
-    fn decode<B: Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+    fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
         if buf.remaining() < 8 {
             Err(std::io::Error::new(
                 std::io::ErrorKind::UnexpectedEof,
@@ -181,11 +202,12 @@ impl BedrockCodec for i64 {
 }
 
 impl BedrockCodec for f32 {
+    type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         buf.put_f32_le(*self);
         Ok(())
     }
-    fn decode<B: Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+    fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
         if buf.remaining() < 4 {
             Err(std::io::Error::new(
                 std::io::ErrorKind::UnexpectedEof,
@@ -198,11 +220,12 @@ impl BedrockCodec for f32 {
 }
 
 impl BedrockCodec for f64 {
+    type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         buf.put_f64_le(*self);
         Ok(())
     }
-    fn decode<B: Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+    fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
         if buf.remaining() < 8 {
             Err(std::io::Error::new(
                 std::io::ErrorKind::UnexpectedEof,
@@ -215,13 +238,14 @@ impl BedrockCodec for f64 {
 }
 
 impl BedrockCodec for String {
+    type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let bytes = self.as_bytes();
         crate::protocol::wire::write_var_u32(buf, bytes.len() as u32);
         buf.put_slice(bytes);
         Ok(())
     }
-    fn decode<B: Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+    fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
         let len = crate::protocol::wire::read_var_u32(buf)? as usize;
         if buf.remaining() < len {
             return Err(std::io::Error::new(
@@ -235,7 +259,21 @@ impl BedrockCodec for String {
     }
 }
 
-impl<T: BedrockCodec> BedrockCodec for Vec<T> {
+impl<T: BedrockCodec> BedrockCodec for Box<T> {
+    type Args = T::Args;
+    fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        (**self).encode(buf)
+    }
+    fn decode<B: Buf>(buf: &mut B, args: Self::Args) -> Result<Self, std::io::Error> {
+        Ok(Box::new(T::decode(buf, args)?))
+    }
+}
+
+impl<T: BedrockCodec> BedrockCodec for Vec<T>
+where
+    T::Args: Clone,
+{
+    type Args = T::Args;
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         crate::protocol::wire::write_var_u32(buf, self.len() as u32);
         for item in self {
@@ -243,17 +281,18 @@ impl<T: BedrockCodec> BedrockCodec for Vec<T> {
         }
         Ok(())
     }
-    fn decode<B: Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+    fn decode<B: Buf>(buf: &mut B, args: Self::Args) -> Result<Self, std::io::Error> {
         let len = crate::protocol::wire::read_var_u32(buf)? as usize;
         let mut v = Vec::with_capacity(len);
         for _ in 0..len {
-            v.push(T::decode(buf)?);
+            v.push(T::decode(buf, args.clone())?);
         }
         Ok(v)
     }
 }
 
 impl<T: BedrockCodec> BedrockCodec for Option<T> {
+    type Args = T::Args;
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         match self {
             Some(v) => {
@@ -266,10 +305,10 @@ impl<T: BedrockCodec> BedrockCodec for Option<T> {
         }
         Ok(())
     }
-    fn decode<B: Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
-        let present = u8::decode(buf)?;
+    fn decode<B: Buf>(buf: &mut B, args: Self::Args) -> Result<Self, std::io::Error> {
+        let present = u8::decode(buf, ())?;
         if present != 0 {
-            Ok(Some(T::decode(buf)?))
+            Ok(Some(T::decode(buf, args)?))
         } else {
             Ok(None)
         }
@@ -277,12 +316,13 @@ impl<T: BedrockCodec> BedrockCodec for Option<T> {
 }
 
 impl BedrockCodec for uuid::Uuid {
+    type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         buf.put_slice(self.as_bytes());
         Ok(())
     }
 
-    fn decode<B: Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+    fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
         if buf.remaining() < 16 {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::UnexpectedEof,
@@ -299,6 +339,7 @@ impl BedrockCodec for uuid::Uuid {
 pub struct VarInt(pub i32);
 
 impl BedrockCodec for VarInt {
+    type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let mut x = self.0 as u32;
         loop {
@@ -315,7 +356,7 @@ impl BedrockCodec for VarInt {
         Ok(())
     }
 
-    fn decode<B: Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+    fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
         let mut result = 0;
         let mut shift = 0;
         loop {
@@ -346,6 +387,7 @@ impl BedrockCodec for VarInt {
 pub struct VarLong(pub i64);
 
 impl BedrockCodec for VarLong {
+    type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let mut x = self.0 as u64;
         loop {
@@ -362,7 +404,7 @@ impl BedrockCodec for VarLong {
         Ok(())
     }
 
-    fn decode<B: Buf>(buf: &mut B) -> Result<Self, std::io::Error> {
+    fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
         let mut result = 0;
         let mut shift = 0;
         loop {

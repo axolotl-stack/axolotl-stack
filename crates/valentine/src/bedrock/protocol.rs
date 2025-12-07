@@ -9,10 +9,6 @@
 //!
 //! One module per unique protocol version (some MC versions share one).
 //! Prefer using `bedrock::version::vX_Y_Z` which re-exports the right protocol.
-#[cfg(feature = "bedrock_0_14")]
-pub mod v0_14;
-#[cfg(feature = "bedrock_0_15")]
-pub mod v0_15;
 #[cfg(feature = "bedrock_1_16_201")]
 pub mod v1_16_201;
 #[cfg(feature = "bedrock_1_16_210")]

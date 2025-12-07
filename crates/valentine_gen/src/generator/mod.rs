@@ -6,9 +6,10 @@ pub mod primitives;
 pub mod structs;
 pub mod utils;
 
+use crate::generator::definitions::define_container;
 use crate::parser::ParseResult;
 use context::{Context, GlobalRegistry};
-use definitions::{define_container, define_type};
+use definitions::define_type;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use std::collections::{HashMap, HashSet};
@@ -24,6 +25,7 @@ pub fn generate_protocol_module(
     parse_result: &ParseResult,
     output_dir: &Path,
     global_registry: &mut GlobalRegistry,
+    _items_path: Option<std::path::PathBuf>,
 ) -> Result<HashSet<String>, Box<dyn std::error::Error>> {
     // Create directory for the version
     let version_dir = output_dir.join(protocol_module_name);
@@ -88,9 +90,12 @@ pub fn generate_protocol_module(
 
     // Write files
     let mut modules = Vec::new();
-    
+
     // Extract "inherited" items to put directly in mod.rs
-    let inherited_tokens = ctx.definitions_by_group.remove("inherited").unwrap_or_default();
+    let inherited_tokens = ctx
+        .definitions_by_group
+        .remove("inherited")
+        .unwrap_or_default();
 
     for (group, tokens) in ctx.definitions_by_group {
         let file_name = format!("{}.rs", group);
@@ -105,6 +110,7 @@ pub fn generate_protocol_module(
             // Import everything from the parent module (which re-exports everything)
             // This ensures cross-file type dependencies are resolved.
             use super::*;
+            use crate::bedrock::codec::BedrockCodec;
 
             #(#tokens)*
         };
@@ -129,7 +135,7 @@ pub fn generate_protocol_module(
     let mut mod_file = File::create(mod_rs_path)?;
 
     let mut mod_tokens = TokenStream::new();
-    
+
     // Add inherited re-exports directly at the top level of the module
     if !inherited_tokens.is_empty() {
         mod_tokens.extend(quote! {

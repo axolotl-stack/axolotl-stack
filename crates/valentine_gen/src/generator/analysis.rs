@@ -1,38 +1,167 @@
 use crate::generator::context::Context;
+use crate::generator::utils::clean_field_name;
 use crate::ir::{Container, Primitive, Type};
 use std::collections::HashSet;
 
-/// Determines if a type should be Boxed when used as an enum variant field
-/// to reduce the overall size of the enum.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum Dependency {
+    LocalField(String),
+    Global(String),
+}
+
+impl Dependency {
+    pub fn name(&self) -> &str {
+        match self {
+            Dependency::LocalField(n) => n,
+            Dependency::Global(n) => n,
+        }
+    }
+}
+
+pub type DepMap = HashSet<(Dependency, Primitive)>;
+
+pub fn get_deps(t: &Type, ctx: &Context) -> DepMap {
+    let mut deps = DepMap::new();
+    let mut visited = HashSet::new();
+    collect_deps_recursive(t, ctx, &mut visited, &mut deps);
+    deps
+}
+
+fn collect_deps_recursive(
+    t: &Type,
+    ctx: &Context,
+    visited: &mut HashSet<String>,
+    deps: &mut DepMap,
+) {
+    // Helper to clean dependency names consistent with codec.rs
+    let clean_dep_name = |p: &str| -> String {
+        let inner = if p.starts_with('/') { &p[1..] } else { p };
+        clean_field_name(inner.replace("../", "").as_str(), "")
+    };
+
+    match t {
+        Type::Container(c) => {
+            for field in &c.fields {
+                let mut child_deps = DepMap::new();
+                collect_deps_recursive(&field.type_def, ctx, visited, &mut child_deps);
+
+                for (dep, prim) in child_deps {
+                    match &dep {
+                        Dependency::LocalField(name) => {
+                            // Check if this container satisfies the dependency locally
+                            let is_satisfied_locally = c.fields.iter().any(|f| {
+                                let clean = clean_field_name(&f.name, "");
+                                clean == *name || f.name == *name
+                            });
+
+                            if !is_satisfied_locally {
+                                // Not satisfied locally -> Bubble up as a requirement for this container
+                                deps.insert((dep.clone(), prim));
+                            }
+                        }
+                        Dependency::Global(_) => {
+                            // Globals (like /ShieldItemID) ALWAYS bubble up.
+                            deps.insert((dep.clone(), prim));
+                        }
+                    }
+                }
+            }
+        }
+        Type::Switch {
+            compare_to,
+            fields,
+            default,
+        } => {
+            // Check if keys suggest a boolean type (explicit "true"/"false")
+            let has_bool_literal = fields.iter().any(|(k, _)| {
+                let k = k.to_lowercase();
+                k == "true" || k == "false"
+            });
+
+            // If explicit bool literals are present, we assume the dependency is boolean.
+            // If only "0"/"1" are present, we stick to VarInt to avoid treating Enums/Integers as bools prematurely.
+            let dependency_prim = if has_bool_literal {
+                Primitive::Bool
+            } else {
+                Primitive::VarInt
+            };
+
+            let parts: Vec<&str> = compare_to
+                .split(|c| c == '|' || c == '&' || c == ' ' || c == '(' || c == ')')
+                .filter(|s| !s.is_empty() && *s != "||" && *s != "&&")
+                .collect();
+
+            for part in parts {
+                // Handle property access like "flags.has_rot_x" -> depends on "flags"
+                // Or "../flags.has_rot_x" -> depends on "flags" (after cleanup)
+                
+                let clean_part_str = part.replace("../", "");
+                let base_name_str = clean_part_str.split('.').next().unwrap_or(&clean_part_str);
+                
+                if part.starts_with('/') {
+                    let name = clean_dep_name(base_name_str);
+                    // Boolean logic implies these are likely bools
+                    deps.insert((Dependency::Global(name), Primitive::Bool));
+                } else {
+                    let name = clean_dep_name(base_name_str);
+                    deps.insert((Dependency::LocalField(name), dependency_prim.clone())); 
+                }
+            }
+
+            // 2. Analyze Keys for Global Dependencies (Existing logic)
+            for (k, _) in fields {
+                if k.starts_with('/') {
+                    let name = clean_dep_name(k);
+                    deps.insert((Dependency::Global(name), Primitive::VarInt));
+                }
+            }
+
+            // 3. Recurse into Values (Existing logic)
+            for (_, type_def) in fields {
+                collect_deps_recursive(type_def, ctx, visited, deps);
+            }
+
+            // 4. Recurse into Default (Existing logic)
+            if !matches!(default.as_ref(), Type::Primitive(Primitive::Void)) {
+                collect_deps_recursive(default, ctx, visited, deps);
+            }
+        }
+        Type::Reference(r) => {
+            if !visited.contains(r) {
+                visited.insert(r.clone());
+                if let Some(resolved) = ctx.type_lookup.get(r) {
+                    collect_deps_recursive(resolved, ctx, visited, deps);
+                }
+                visited.remove(r);
+            }
+        }
+        Type::Array {
+            inner_type,
+            count_type,
+        } => {
+            collect_deps_recursive(inner_type, ctx, visited, deps);
+            // Also analyze count_type if it happens to be complex
+            if let Type::Container(_) = count_type.as_ref() {
+                let mut tmp = DepMap::new();
+                collect_deps_recursive(count_type, ctx, visited, &mut tmp);
+                deps.extend(tmp);
+            }
+        }
+        Type::Option(inner) => {
+            collect_deps_recursive(inner, ctx, visited, deps);
+        }
+        _ => {}
+    }
+}
 pub fn should_box_variant(t: &Type, ctx: &Context, depth: usize) -> bool {
     const MAX_DEPTH: usize = 8;
     if depth > MAX_DEPTH {
-        // Break potential recursion cycles or deep stacks by boxing
         return true;
     }
-
     match t {
         Type::Primitive(p) => match p {
-            // Heap-backed types are already small stack-wise (pointers/metadata)
             Primitive::McString | Primitive::ByteArray => false,
-            // Scalars are small
-            Primitive::Bool
-            | Primitive::U8
-            | Primitive::I8
-            | Primitive::U16
-            | Primitive::I16
-            | Primitive::U32
-            | Primitive::I32
-            | Primitive::F32
-            | Primitive::U64
-            | Primitive::I64
-            | Primitive::F64
-            | Primitive::VarInt
-            | Primitive::VarLong
-            | Primitive::ZigZag32
-            | Primitive::ZigZag64
-            | Primitive::Uuid
-            | Primitive::Void => false,
+            _ => false,
         },
         Type::Array { .. } => false,
         Type::Reference(r) => {
@@ -43,16 +172,12 @@ pub fn should_box_variant(t: &Type, ctx: &Context, depth: usize) -> bool {
             }
         }
         Type::Container(c) => {
-            // Empty or small structs are fine.
             if c.fields.is_empty() {
                 return false;
             }
             if c.fields.len() > 3 {
                 return true;
             }
-
-            // If any field is "large" (needs boxing), then this struct contains that large thing inline,
-            // making the struct large.
             for f in &c.fields {
                 if should_box_variant(&f.type_def, ctx, depth + 1) {
                     return true;
@@ -61,16 +186,11 @@ pub fn should_box_variant(t: &Type, ctx: &Context, depth: usize) -> bool {
             false
         }
         Type::Option(inner) => should_box_variant(inner, ctx, depth + 1),
-
         Type::Switch { .. } => true,
-
-        Type::Enum { .. } | Type::Bitfield { .. } | Type::Packed { .. } => false,
+        _ => false,
     }
 }
 
-/// Identifies boolean fields that are redundant because they control a Switch
-/// which has been optimized into an Option.
-/// Returns a set of field names (raw JSON names) that should be hidden.
 pub fn find_redundant_fields(container: &Container) -> HashSet<String> {
     let mut redundant = HashSet::new();
     for field in &container.fields {
@@ -80,18 +200,40 @@ pub fn find_redundant_fields(container: &Container) -> HashSet<String> {
             default,
         } = &field.type_def
         {
-            // Logic for Inverse Option optimization:
-            // Cases are Void, Default is Data.
-            let all_cases_void = fields
-                .iter()
-                .all(|(_, t)| matches!(t, Type::Primitive(Primitive::Void)));
+            // Check if keys are boolean
+            let keys_are_bool = fields.iter().all(|(k, _)| {
+                let k_lower = k.to_lowercase();
+                k_lower == "true" || k_lower == "false" || k_lower == "1" || k_lower == "0"
+            });
 
-            if all_cases_void && !matches!(default.as_ref(), Type::Primitive(Primitive::Void)) {
-                // This switch becomes Option<Default>. It depends on `compare_to`.
-                // The `compare_to` field is the boolean flag we want to hide.
-                // Handle simple relative paths like "../hidden_field" -> "hidden_field"
-                let target = compare_to.replace("../", "");
-                redundant.insert(target);
+            if keys_are_bool {
+                // Check outcomes
+                let mut has_void = false;
+                let mut has_data = false;
+
+                // Check default
+                if matches!(default.as_ref(), Type::Primitive(Primitive::Void)) {
+                    has_void = true;
+                } else {
+                    has_data = true;
+                }
+
+                // Check fields
+                for (_, t) in fields {
+                    if matches!(t, Type::Primitive(Primitive::Void)) {
+                        has_void = true;
+                    } else {
+                        has_data = true;
+                    }
+                }
+
+                // If we have both Void and Data (and nothing else), it's an Option<T>.
+                // The field we compare against is likely the discriminator and can be removed.
+                if has_void && has_data {
+                    let target = compare_to.replace("../", "");
+                    let clean_target = crate::generator::utils::clean_field_name(&target, "");
+                    redundant.insert(clean_target);
+                }
             }
         }
     }

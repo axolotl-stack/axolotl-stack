@@ -1,5 +1,5 @@
 /// Primitive types that map directly to simple Rust types or helper structs
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Primitive {
     Bool,
     U8,
@@ -23,7 +23,7 @@ pub enum Primitive {
 }
 
 /// The core logical types in the Bedrock protocol
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub enum Type {
     /// A simple primitive (e.g., "count": "varint")
     Primitive(Primitive),
@@ -73,7 +73,7 @@ pub enum Type {
     },
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub struct PackedField {
     pub name: String,
     pub shift: u32,
@@ -81,20 +81,20 @@ pub struct PackedField {
 }
 
 /// Represents a Struct (Packet or nested object)
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub struct Container {
     pub name: String, // "LoginPacket"
     pub fields: Vec<Field>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub struct Field {
     pub name: String, // "protocol_version"
     pub type_def: Type,
 }
 
 /// A top-level Packet definition
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct Packet {
     pub id: u32,
     pub name: String, // "Login"

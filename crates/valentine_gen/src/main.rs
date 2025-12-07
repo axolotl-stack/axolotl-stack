@@ -6,9 +6,9 @@ use std::path::Path;
 use generator::context::GlobalRegistry;
 use proc_macro2::Span;
 use quote::quote;
-use syn::{parse2, LitStr};
 use std::collections::HashSet;
 use std::io::Read;
+use syn::{LitStr, parse2};
 use toml_edit::{Array, DocumentMut};
 
 mod generator;
@@ -17,10 +17,15 @@ mod parser;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")?;
-    let root = Path::new(&manifest_dir); 
+    let root = Path::new(&manifest_dir);
     // output to ../valentine/src/bedrock
-    let output_dir = root.parent().unwrap().join("valentine").join("src").join("bedrock");
-    
+    let output_dir = root
+        .parent()
+        .unwrap()
+        .join("valentine")
+        .join("src")
+        .join("bedrock");
+
     if !output_dir.exists() {
         fs::create_dir_all(&output_dir)?;
     }
@@ -38,8 +43,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut protocol_map: HashMap<String, Vec<String>> = HashMap::new();
 
     for (version, data) in bedrock {
+        if version == "0.14" || version == "0.15" {
+            println!("Skipping broken legacy version: {}", version);
+            continue;
+        }
         if let Some(proto_path) = data.get("protocol").and_then(|v| v.as_str()) {
-             protocol_map.entry(proto_path.to_string()).or_default().push(version.clone());
+            protocol_map
+                .entry(proto_path.to_string())
+                .or_default()
+                .push(version.clone());
         }
     }
 
@@ -57,9 +69,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut protocol_decls: Vec<ProtocolDecl> = Vec::new();
     let mut alias_decls: Vec<(String, String, String)> = Vec::new(); // (version module, feature, protocol module)
     let mut all_features: HashSet<String> = HashSet::new();
-    
+
     let mut protocols: Vec<_> = protocol_map.keys().cloned().collect();
-    protocols.sort();
+    // Sort protocols by semver to ensure correct generation order (prevents older versions from importing from newer ones due to string sort "100" < "93")
+    protocols.sort_by(|a, b| {
+        let parse = |s: &str| -> Vec<u64> {
+            s.rsplit('/')
+                .next()
+                .unwrap_or(s)
+                .split('.')
+                .map(|x| x.parse().unwrap_or(0))
+                .collect()
+        };
+        parse(a).cmp(&parse(b))
+    });
 
     let mut global_registry = GlobalRegistry::new();
     let mut module_deps: HashMap<String, HashSet<String>> = HashMap::new();
@@ -73,8 +96,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             continue;
         }
 
-        println!("Generating protocol {} (versions: {:?})", proto_path, versions);
-        
+        println!(
+            "Generating protocol {} (versions: {:?})",
+            proto_path, versions
+        );
+
+        let mut items_path = None;
+        if let Some(first_version) = versions.first() {
+            if let Some(data) = bedrock.get(first_version).and_then(|v| v.as_object()) {
+                if let Some(p) = data.get("items").and_then(|v| v.as_str()) {
+                    let mut ip = root.join("minecraft-data/data").join(p);
+                    if !p.ends_with(".json") {
+                        ip = ip.join("items.json");
+                    }
+                    if ip.exists() {
+                        items_path = Some(ip);
+                    }
+                }
+            }
+        }
+
         match parser::parse(&protocol_file) {
             Ok(parse_result) => {
                 // Name protocol module by its version only (cleaner): e.g., v1_21_70
@@ -82,12 +123,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let protocol_module_name = format!("v{}", version_part.replace('.', "_"));
 
                 // Generate protocol module under bedrock/protocol/
-                match generator::generate_protocol_module(&protocol_module_name, &parse_result, &protocol_out_dir, &mut global_registry) {
+                match generator::generate_protocol_module(
+                    &protocol_module_name,
+                    &parse_result,
+                    &protocol_out_dir,
+                    &mut global_registry,
+                    items_path,
+                ) {
                     Ok(deps) => {
                         module_deps.insert(protocol_module_name.clone(), deps);
                     }
                     Err(e) => {
-                        eprintln!("  Error generating protocol module {}: {}", protocol_module_name, e);
+                        eprintln!(
+                            "  Error generating protocol module {}: {}",
+                            protocol_module_name, e
+                        );
                         continue;
                     }
                 }
@@ -98,13 +148,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     features.push(format!("bedrock_{}", v.replace(".", "_")));
                 }
                 features.sort(); // deterministic
-                protocol_decls.push(ProtocolDecl { module_name: protocol_module_name.clone(), features });
+                protocol_decls.push(ProtocolDecl {
+                    module_name: protocol_module_name.clone(),
+                    features,
+                });
 
                 // Record aliases (do not generate per-file; we'll emit them inline in version.rs)
                 for v in versions {
                     let version_module_name = format!("v{}", v.replace(".", "_"));
                     let feature = format!("bedrock_{}", v.replace(".", "_"));
-                    alias_decls.push((version_module_name, feature.clone(), protocol_module_name.clone()));
+                    alias_decls.push((
+                        version_module_name,
+                        feature.clone(),
+                        protocol_module_name.clone(),
+                    ));
                     all_features.insert(feature);
                 }
             }
@@ -119,45 +176,58 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     alias_decls.sort_by(|a, b| a.0.cmp(&b.0));
 
     // Build protocol.rs AST with #[cfg(...)] pub mod vX_Y_Z; per protocol
-    let protocol_items: Vec<_> = protocol_decls.iter().map(|pd| {
-        let ident = syn::Ident::new(&pd.module_name, Span::call_site());
-        if pd.features.len() == 1 {
-            let feat_lit = LitStr::new(&pd.features[0], Span::call_site());
-            quote! {
-                #[cfg(feature = #feat_lit)]
-                pub mod #ident;
+    let protocol_items: Vec<_> = protocol_decls
+        .iter()
+        .map(|pd| {
+            let ident = syn::Ident::new(&pd.module_name, Span::call_site());
+            if pd.features.len() == 1 {
+                let feat_lit = LitStr::new(&pd.features[0], Span::call_site());
+                quote! {
+                    #[cfg(feature = #feat_lit)]
+                    pub mod #ident;
+                }
+            } else {
+                let feat_lits: Vec<_> = pd
+                    .features
+                    .iter()
+                    .map(|f| LitStr::new(f, Span::call_site()))
+                    .collect();
+                quote! {
+                    #[cfg(any( #(feature = #feat_lits),* ))]
+                    pub mod #ident;
+                }
             }
-        } else {
-            let feat_lits: Vec<_> = pd.features.iter().map(|f| LitStr::new(f, Span::call_site())).collect();
-            quote! {
-                #[cfg(any( #(feature = #feat_lits),* ))]
-                pub mod #ident;
-            }
-        }
-    }).collect();
+        })
+        .collect();
 
     // Build version.rs content with inline alias modules re-exporting protocol modules
-    let version_items: Vec<_> = alias_decls.iter().map(|(module, feature, proto)| {
-        let version_ident = syn::Ident::new(module, Span::call_site());
-        let proto_ident = syn::Ident::new(proto, Span::call_site());
-        let feat_lit = LitStr::new(feature, Span::call_site());
-        quote! {
-            #[cfg(feature = #feat_lit)]
-            pub mod #version_ident {
-                pub use super::super::protocol::#proto_ident::*;
+    let version_items: Vec<_> = alias_decls
+        .iter()
+        .map(|(module, feature, proto)| {
+            let version_ident = syn::Ident::new(module, Span::call_site());
+            let proto_ident = syn::Ident::new(proto, Span::call_site());
+            let feat_lit = LitStr::new(feature, Span::call_site());
+            quote! {
+                #[cfg(feature = #feat_lit)]
+                pub mod #version_ident {
+                    pub use super::super::protocol::#proto_ident::*;
+                }
             }
-        }
-    }).collect();
+        })
+        .collect();
 
     // Top-level re-exports: bedrock::vX_Y_Z -> bedrock::version::vX_Y_Z
-    let reexport_items: Vec<_> = alias_decls.iter().map(|(module, feature, _)| {
-        let ident = syn::Ident::new(module, Span::call_site());
-        let feat_lit = LitStr::new(feature, Span::call_site());
-        quote! {
-            #[cfg(feature = #feat_lit)]
-            pub use self::version::#ident;
-        }
-    }).collect();
+    let reexport_items: Vec<_> = alias_decls
+        .iter()
+        .map(|(module, feature, _)| {
+            let ident = syn::Ident::new(module, Span::call_site());
+            let feat_lit = LitStr::new(feature, Span::call_site());
+            quote! {
+                #[cfg(feature = #feat_lit)]
+                pub use self::version::#ident;
+            }
+        })
+        .collect();
 
     let mod_tokens = quote! {
         #![allow(non_camel_case_types)]
@@ -173,17 +243,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         pub mod codec;
         pub mod protocol;
         pub mod version;
+        pub mod context;
 
         /// Convenience re-exports so users can do `bedrock::vX_Y_Z`.
         #(#reexport_items)*
     };
 
-    let syntax_tree = parse2(mod_tokens).map_err(|e| format!("Failed to parse mod.rs tokens: {}", e))?;
+    let syntax_tree =
+        parse2(mod_tokens).map_err(|e| format!("Failed to parse mod.rs tokens: {}", e))?;
     let formatted = prettyplease::unparse(&syntax_tree);
 
     let mod_rs_path = output_dir.join("mod.rs");
     let mut mod_file = File::create(mod_rs_path)?;
-    write!(mod_file, "// Generated by valentine_gen\n// Do not edit: see crates/valentine_gen for generator.\n\n{}", formatted)?;
+    write!(
+        mod_file,
+        "// Generated by valentine_gen\n// Do not edit: see crates/valentine_gen for generator.\n\n{}",
+        formatted
+    )?;
 
     // Write protocol.rs file that declares the protocol modules
     let protocol_tokens = quote! {
@@ -199,11 +275,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         #(#protocol_items)*
     };
-    let protocol_syntax = parse2(protocol_tokens).map_err(|e| format!("Failed to parse protocol.rs tokens: {}", e))?;
+    let protocol_syntax = parse2(protocol_tokens)
+        .map_err(|e| format!("Failed to parse protocol.rs tokens: {}", e))?;
     let protocol_formatted = prettyplease::unparse(&protocol_syntax);
     let protocol_rs_path = output_dir.join("protocol.rs");
     let mut protocol_file = File::create(protocol_rs_path)?;
-    write!(protocol_file, "// Generated by valentine_gen\n// Do not edit: see crates/valentine_gen for generator.\n\n{}", protocol_formatted)?;
+    write!(
+        protocol_file,
+        "// Generated by valentine_gen\n// Do not edit: see crates/valentine_gen for generator.\n\n{}",
+        protocol_formatted
+    )?;
 
     // Write version.rs inline alias modules
     let version_tokens = quote! {
@@ -220,11 +301,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         #(#version_items)*
     };
-    let version_syntax = parse2(version_tokens).map_err(|e| format!("Failed to parse version.rs tokens: {}", e))?;
+    let version_syntax =
+        parse2(version_tokens).map_err(|e| format!("Failed to parse version.rs tokens: {}", e))?;
     let version_formatted = prettyplease::unparse(&version_syntax);
     let version_rs_path = output_dir.join("version.rs");
     let mut version_file = File::create(version_rs_path)?;
-    write!(version_file, "// Generated by valentine_gen\n// Do not edit: see crates/valentine_gen for generator.\n\n{}", version_formatted)?;
+    write!(
+        version_file,
+        "// Generated by valentine_gen\n// Do not edit: see crates/valentine_gen for generator.\n\n{}",
+        version_formatted
+    )?;
 
     // Update features in crates/valentine/Cargo.toml
     update_valentine_features(root, &all_features, &module_deps)?;
@@ -232,7 +318,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn update_valentine_features(root: &Path, features: &HashSet<String>, deps: &HashMap<String, HashSet<String>>) -> Result<(), Box<dyn std::error::Error>> {
+fn update_valentine_features(
+    root: &Path,
+    features: &HashSet<String>,
+    deps: &HashMap<String, HashSet<String>>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let valentine_cargo = root.parent().unwrap().join("valentine").join("Cargo.toml");
     let mut contents = String::new();
     {
@@ -248,20 +338,23 @@ fn update_valentine_features(root: &Path, features: &HashSet<String>, deps: &Has
     // Ensure default = [] exists
     if !features_tbl.contains_key("default") {
         let arr = Array::new();
-        features_tbl.insert("default", toml_edit::Item::Value(toml_edit::Value::Array(arr)));
+        features_tbl.insert(
+            "default",
+            toml_edit::Item::Value(toml_edit::Value::Array(arr)),
+        );
     }
     // Insert each bedrock_* feature
     let mut names: Vec<_> = features.iter().cloned().collect();
     names.sort();
-    
+
     for name in names {
         let mut arr = Array::new();
-        
+
         // Determine implied features from dependencies
         // Feature name: bedrock_1_20_10
         // Corresponding module: v1_20_10
         let module_name = name.replace("bedrock_", "v");
-        
+
         if let Some(module_dependencies) = deps.get(&module_name) {
             let mut sorted_deps: Vec<_> = module_dependencies.iter().collect();
             sorted_deps.sort();
@@ -272,7 +365,7 @@ fn update_valentine_features(root: &Path, features: &HashSet<String>, deps: &Has
                 arr.push(dep_feat);
             }
         }
-        
+
         features_tbl.insert(&name, toml_edit::Item::Value(toml_edit::Value::Array(arr)));
     }
 

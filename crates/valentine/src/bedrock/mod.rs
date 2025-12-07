@@ -13,11 +13,8 @@
 pub mod codec;
 pub mod protocol;
 pub mod version;
+pub mod context;
 /// Convenience re-exports so users can do `bedrock::vX_Y_Z`.
-#[cfg(feature = "bedrock_0_14")]
-pub use self::version::v0_14;
-#[cfg(feature = "bedrock_0_15")]
-pub use self::version::v0_15;
 #[cfg(feature = "bedrock_1_16_201")]
 pub use self::version::v1_16_201;
 #[cfg(feature = "bedrock_1_16_210")]

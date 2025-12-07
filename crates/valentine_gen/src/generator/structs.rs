@@ -1,7 +1,7 @@
 use crate::generator::analysis::find_redundant_fields;
 use crate::generator::context::Context;
 use crate::generator::definitions::resolve_type_to_tokens;
-use crate::generator::utils::{camel_case, clean_field_name, make_unique_names};
+use crate::generator::utils::{camel_case, derive_field_names};
 use crate::ir::{Container, Type};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
@@ -16,24 +16,24 @@ pub fn build_container_struct(
 
     let redundant_fields = find_redundant_fields(container);
 
-    // Build unique field identifiers to avoid collisions (e.g., multiple "anon" fields)
-    let base_names: Vec<String> = container
-        .fields
-        .iter()
-        .map(|f| clean_field_name(&f.name, name))
-        .collect();
-    let unique_names = make_unique_names(&base_names);
+    // CHANGED: Use derive_field_names instead of manual mapping.
+    // This applies the "content" -> "extra" renaming logic.
+    let unique_names = derive_field_names(container, name);
 
     for (idx, field) in container.fields.iter().enumerate() {
         if redundant_fields.contains(&field.name) {
             continue;
         }
 
+        // unique_name will now be "extra" instead of "content_2"
         let unique_name = &unique_names[idx];
         let field_ident = format_ident!("{}", unique_name);
 
-        // Use the unique name to derive a stable, unique type hint for inline types
-        let field_type_hint = format!("{}_{}", name, camel_case(unique_name));
+        // This hint is crucial.
+        // Before: Item_Content_2 -> Type: ItemContent2
+        // After:  Item_Extra     -> Type: ItemExtra
+        let field_type_hint = format!("{}{}", name, camel_case(unique_name));
+
         let type_tokens = resolve_type_to_tokens(&field.type_def, &field_type_hint, ctx)?;
 
         fields.push(quote! {

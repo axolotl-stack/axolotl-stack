@@ -10,14 +10,6 @@
 //! Each `vX_Y_Z` re-exports the appropriate `protocol::vX_Y_Z` (or alias),
 //! allowing you to enable `--features bedrock_X_Y_Z` and import
 //! `valentine::bedrock::version::vX_Y_Z::*` without duplicating protocol code.
-#[cfg(feature = "bedrock_0_14")]
-pub mod v0_14 {
-    pub use super::super::protocol::v0_14::*;
-}
-#[cfg(feature = "bedrock_0_15")]
-pub mod v0_15 {
-    pub use super::super::protocol::v0_15::*;
-}
 #[cfg(feature = "bedrock_1_16_201")]
 pub mod v1_16_201 {
     pub use super::super::protocol::v1_16_201::*;
