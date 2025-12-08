@@ -39,6 +39,11 @@ pub fn parse(path: &Path) -> Result<ParseResult, Box<dyn std::error::Error>> {
     let mappings = find_packet_mappings(packet_mapper)
         .ok_or("Could not locate packet mappings in mcpe_packet")?;
 
+    println!("Found {} mappings.", mappings.len());
+    for (i, (k, v)) in mappings.iter().take(5).enumerate() {
+        println!("Mapping[{}]: {} -> {}", i, k, v);
+    }
+
     let mut types_map = HashMap::new();
     // Parse all types
     for (name, def) in &protocol.types {
@@ -52,7 +57,23 @@ pub fn parse(path: &Path) -> Result<ParseResult, Box<dyn std::error::Error>> {
         }
     }
 
-    let mut packets = Vec::new();
+    println!("Parsed {} types.", types_map.len());
+    println!("Type keys sample: {:?}", types_map.keys().take(5).collect::<Vec<_>>());
+
+    if let Some(login) = mappings.iter().find(|(_, v)| v.as_str() == Some("login")) {
+         println!("Mapping for login: {:?}", login);
+    } else {
+         println!("Mapping for login NOT FOUND");
+         // Maybe it has a different name?
+    }
+
+    // Check if "login_packet" or similar exists in types
+    let variants = ["login", "login_packet", "packet_login", "minecraft:login"];
+    for v in variants {
+        println!("Type '{}' exists: {}", v, types_map.contains_key(v));
+    }
+
+    let mut packets: Vec<Packet> = Vec::new();
     for (id_str, name_val) in mappings {
         let id: u32 = if let Some(hex) = id_str
             .strip_prefix("0x")
@@ -65,13 +86,28 @@ pub fn parse(path: &Path) -> Result<ParseResult, Box<dyn std::error::Error>> {
         let name = name_val.as_str().ok_or("Packet name is not a string")?;
 
         // Link the packet ID to its Body type
+        let mut found_packet = false;
         if let Some(Type::Container(container)) = types_map.get(name) {
             packets.push(Packet {
                 id,
                 name: name.to_string(),
                 body: container.clone(),
             });
+            found_packet = true;
         } else {
+            // Try with "packet_" prefix
+            let prefixed_name = format!("packet_{}", name);
+            if let Some(Type::Container(container)) = types_map.get(&prefixed_name) {
+                packets.push(Packet {
+                    id,
+                    name: prefixed_name.to_string(),
+                    body: container.clone(),
+                });
+                found_packet = true;
+            }
+        }
+
+        if !found_packet {
             // Fallback: Try parsing explicitly if not found in map (rare)
             if let Some(def) = protocol.types.get(name) {
                 if let Ok(container) = parse_container(name, def, &protocol.types) {
@@ -80,10 +116,30 @@ pub fn parse(path: &Path) -> Result<ParseResult, Box<dyn std::error::Error>> {
                         name: name.to_string(),
                         body: container,
                     });
+                    found_packet = true;
+                }
+            } else {
+                // Also try with prefixed name for fallback
+                let prefixed_name = format!("packet_{}", name);
+                if let Some(def) = protocol.types.get(&prefixed_name) {
+                     if let Ok(container) = parse_container(&prefixed_name, def, &protocol.types) {
+                         packets.push(Packet {
+                             id,
+                             name: prefixed_name.to_string(),
+                             body: container,
+                         });
+                         found_packet = true;
+                     }
                 }
             }
         }
+
+        if !found_packet {
+            println!("Failed to find packet body for ID {} Name '{}'", id, name);
+        }
     }
+    
+    println!("Populated {} packets.", packets.len());
 
     // Inject explicit definition for "enum_size_based_on_values_len" to replace "native" placeholder.
     // This allows us to treat it as a strongly typed Enum in the generated code.

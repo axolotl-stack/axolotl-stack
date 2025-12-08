@@ -3,6 +3,8 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 #![allow(dead_code)]
+#![allow(unused_parens)]
+#![allow(clippy::all)]
 use ::bitflags::bitflags;
 use super::*;
 use super::super::types::*;

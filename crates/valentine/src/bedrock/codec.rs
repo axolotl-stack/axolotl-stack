@@ -3,6 +3,7 @@ use uuid::Uuid;
 use std::mem;
 
 use crate::protocol::wire;
+use crate::bedrock::context::BedrockSession;
 
 /// Bedrock binary codec for encode/decode on the wire.
 pub trait BedrockCodec: Sized {
@@ -11,8 +12,6 @@ pub trait BedrockCodec: Sized {
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error>;
     fn decode<B: Buf>(buf: &mut B, args: Self::Args) -> Result<Self, std::io::Error>;
 }
-
-pub struct BedrockSession;
 
 #[derive(Clone)]
 pub struct ProtocolArgs<'a> {
@@ -486,4 +485,9 @@ impl BedrockCodec for VarLong {
             }
         }
     }
+}
+
+pub trait GamePacket: BedrockCodec {
+    type PacketId;
+    const PACKET_ID: Self::PacketId;
 }

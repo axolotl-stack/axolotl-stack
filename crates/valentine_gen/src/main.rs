@@ -13,6 +13,7 @@ mod ir;
 mod parser;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    std::fs::write("mcpe_gen_marker.txt", "start valentine_gen")?;
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")?;
     let root = Path::new(&manifest_dir);
     // output to ../valentine/src/bedrock

@@ -7,19 +7,20 @@ pub mod resolver;
 pub mod structs;
 pub mod utils;
 
-use crate::generator::definitions::define_container;
+use crate::generator::analysis::{get_deps, should_box_variant};
+use crate::generator::definitions::{define_container, resolve_type_to_tokens};
 use crate::parser::ParseResult;
 use context::{Context, GlobalRegistry};
 use definitions::define_type;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::Path;
 
 use self::primitives::is_primitive_name;
-use self::utils::camel_case;
+use self::utils::{camel_case, clean_field_name};
 
 #[derive(Debug, Clone)]
 pub struct VersionSnapshot {
@@ -68,6 +69,11 @@ pub fn generate_protocol_module(
     type_names.sort();
 
     for name in type_names {
+        // Skip generated mcpe meta types; we emit a custom frame-aware mcpe module instead.
+        let clean = name.to_ascii_lowercase();
+        if clean == "mcpe_packet" || clean == "mcpepacket" || clean == "mcpe_packet_name" {
+            continue;
+        }
         if let Some(t) = parse_result.types.get(name) {
             if is_primitive_name(name) {
                 continue;
@@ -79,7 +85,12 @@ pub fn generate_protocol_module(
     let mut packet_signatures = HashMap::new();
 
     for packet in &parse_result.packets {
-        let struct_name = format!("Packet{}", camel_case(&packet.name));
+        let base_name = camel_case(&packet.name);
+        let struct_name = if base_name.starts_with("Packet") {
+            base_name
+        } else {
+            format!("Packet{}", base_name)
+        };
         let signature = resolver::compute_packet_signature(&struct_name, &packet.body, &ctx);
 
         let should_alias = previous_snapshot
@@ -135,6 +146,21 @@ pub fn generate_protocol_module(
             .push(packet_id_enum);
     }
 
+    // 4. Override mcpe.rs with a frame-aware packet enum
+    if !parse_result.packets.is_empty() {
+        let mcpe_tokens = generate_mcpe_packet_module(parse_result, &mut ctx)?;
+        ctx.definitions_by_group
+            .insert("types/mcpe".to_string(), vec![mcpe_tokens]);
+        println!(
+            "mcpe override inserted: {}",
+            ctx.definitions_by_group.contains_key("types/mcpe")
+        );
+    } else {
+        println!("WARNING: parse_result.packets is empty!");
+    }
+
+    println!("All groups before writing: {:?}", ctx.definitions_by_group.keys());
+
     // Write files
     let mut modules = Vec::new();
 
@@ -170,6 +196,8 @@ pub fn generate_protocol_module(
                 #![allow(non_camel_case_types)]
                 #![allow(non_snake_case)]
                 #![allow(dead_code)]
+                #![allow(unused_parens)]
+                #![allow(clippy::all)]
                 use ::bitflags::bitflags;
                 // Pull siblings from packets::* and types::* at the version root.
                 use super::*;
@@ -179,10 +207,14 @@ pub fn generate_protocol_module(
                 #(#tokens)*
             }
         } else {
+            // Non-packet groups (types/*, misc/*)
+            // They need to see siblings (other types) and potentially packets.
             quote! {
                 #![allow(non_camel_case_types)]
                 #![allow(non_snake_case)]
                 #![allow(dead_code)]
+                #![allow(unused_parens)]
+                #![allow(clippy::all)]
                 use ::bitflags::bitflags;
                 // Import everything from the parent module (types::*) and packets::* at the version root.
                 use super::*;
@@ -241,6 +273,12 @@ pub fn generate_protocol_module(
     let mut mod_file = File::create(mod_rs_path)?;
     let mut mod_tokens = TokenStream::new();
 
+    // Add warning suppressions for the root mod.rs
+    mod_tokens.extend(quote! {
+        #![allow(ambiguous_glob_reexports)]
+        #![allow(unused_imports)]
+    });
+
     if !inherited_tokens.is_empty() {
         mod_tokens.extend(quote! { #(#inherited_tokens)* });
     }
@@ -272,4 +310,397 @@ pub fn generate_protocol_module(
     };
 
     Ok(GenerationOutcome { snapshot })
+}
+
+fn generate_mcpe_packet_module(
+    parse_result: &ParseResult,
+    ctx: &mut Context,
+) -> Result<TokenStream, Box<dyn std::error::Error>> {
+    let _ = std::fs::write(
+        "C:/Users/jvigu/OneDrive/Documents/rust/axolotl-stack/mcpe_gen_marker.txt",
+        "mcpe generator ran",
+    );
+    #[derive(Clone)]
+    struct PacketMeta {
+        id: u32,
+        variant_ident: proc_macro2::Ident,
+        payload_ident: proc_macro2::Ident,
+        payload_ty: TokenStream,
+        decode_args: TokenStream,
+        boxed: bool,
+    }
+
+    let mut arg_fields: BTreeMap<String, (TokenStream, bool)> = BTreeMap::new();
+    let mut metas = Vec::new();
+
+    for packet in &parse_result.packets {
+        let name_pascal = camel_case(&packet.name);
+        let variant_ident = format_ident!("{}", name_pascal);
+        let payload_ident = if name_pascal.starts_with("Packet") {
+            format_ident!("{}", name_pascal)
+        } else {
+            format_ident!("Packet{}", name_pascal)
+        };
+
+        let container_ty = crate::ir::Type::Container(packet.body.clone());
+        let needs_box = should_box_variant(&container_ty, ctx, 0);
+        let payload_ty = if needs_box {
+            quote! { Box<#payload_ident> }
+        } else {
+            quote! { #payload_ident }
+        };
+
+        let deps = get_deps(&container_ty, ctx);
+        let mut decode_args = quote! { () };
+        if !deps.is_empty() {
+            let args_ident = format_ident!("{}Args", payload_ident);
+            let mut fields = Vec::new();
+            for (dep, dep_ty) in deps {
+                let clean = clean_field_name(dep.name(), "");
+                let field_ident = format_ident!("{}", clean);
+                let hint = format!("{}{}", payload_ident, camel_case(dep.name()));
+                
+                let ty_tokens = if clean == "shield_item_id" {
+                    quote! { i32 }
+                } else {
+                    resolve_type_to_tokens(&dep_ty, &hint, ctx)?
+                };
+
+                arg_fields
+                    .entry(clean.clone())
+                    .or_insert((ty_tokens.clone(), matches!(dep, crate::generator::analysis::Dependency::LocalField(_))));
+                fields.push(quote! { #field_ident: args.#field_ident });
+            }
+            decode_args = quote! { #args_ident { #(#fields),* } };
+        }
+
+        metas.push(PacketMeta {
+            id: packet.id,
+            variant_ident,
+            payload_ident,
+            payload_ty,
+            decode_args,
+            boxed: needs_box,
+        });
+    }
+
+    let mut name_variants = Vec::new();
+    let mut name_from_raw = Vec::new();
+    for meta in &metas {
+        let ident = &meta.variant_ident;
+        let id = meta.id;
+        name_variants.push(quote! { #ident = #id });
+        name_from_raw.push(quote! { #id => Ok(McpePacketName::#ident) });
+    }
+
+    let mut game_packet_impls = Vec::new();
+    for meta in &metas {
+        let variant = &meta.variant_ident;
+        let payload_ident = &meta.payload_ident;
+        let wrap_packet = if meta.boxed {
+            quote! { Box::new(packet) }
+        } else {
+            quote! { packet }
+        };
+
+        game_packet_impls.push(quote! {
+            impl GamePacket for #payload_ident {
+                type PacketId = McpePacketName;
+                const PACKET_ID: McpePacketName = McpePacketName::#variant;
+            }
+
+            impl From<#payload_ident> for McpePacketData {
+                fn from(packet: #payload_ident) -> Self {
+                    McpePacketData::#variant(#wrap_packet)
+                }
+            }
+
+            impl From<#payload_ident> for McpePacket {
+                fn from(packet: #payload_ident) -> Self {
+                    McpePacket::from(McpePacketData::from(packet))
+                }
+            }
+        });
+    }
+
+    let mut enum_variants = Vec::new();
+    let mut packet_id_arms = Vec::new();
+    let mut encode_match_arms = Vec::new();
+    let mut decode_match_arms = Vec::new();
+
+    for meta in &metas {
+        let variant = &meta.variant_ident;
+        let payload_ty = &meta.payload_ty;
+        let payload_ident = &meta.payload_ident;
+        let decode_args = &meta.decode_args;
+
+        enum_variants.push(quote! { #variant(#payload_ty) });
+        packet_id_arms.push(quote! { McpePacketData::#variant(_) => McpePacketName::#variant });
+        encode_match_arms.push(quote! { McpePacketData::#variant(v) => {
+            v.encode(&mut payload_buf)?;
+        }});
+
+        let decode_expr = if meta.boxed {
+            quote! { McpePacketData::#variant(Box::new(<#payload_ident as crate::bedrock::codec::BedrockCodec>::decode(&mut payload_buf, #decode_args)?)) }
+        } else {
+            quote! { McpePacketData::#variant(<#payload_ident as crate::bedrock::codec::BedrockCodec>::decode(&mut payload_buf, #decode_args)?) }
+        };
+
+        decode_match_arms.push(quote! {
+            McpePacketName::#variant => {
+                let packet = #decode_expr;
+                packet
+            }
+        });
+    }
+
+    let mut args_struct = TokenStream::new();
+    let mut from_proto_impl = TokenStream::new();
+    if !arg_fields.is_empty() {
+        let mut field_defs = Vec::new();
+        let mut proto_fields = Vec::new();
+        let mut has_local = false;
+        for (name, (ty, is_local)) in &arg_fields {
+            let ident = format_ident!("{}", name);
+            field_defs.push(quote! { pub #ident: #ty });
+            if *is_local {
+                has_local = true;
+            } else {
+                proto_fields.push(quote! { #ident: source.#ident });
+            }
+        }
+
+        args_struct = quote! {
+            #[derive(Debug, Clone)]
+            pub struct McpePacketArgs {
+                #(#field_defs),*
+            }
+        };
+
+        if !has_local {
+            from_proto_impl = quote! {
+                impl<'a> From<&'a crate::bedrock::context::BedrockSession> for McpePacketArgs {
+                    fn from(source: &'a crate::bedrock::context::BedrockSession) -> Self {
+                        Self { #(#proto_fields),* }
+                    }
+                }
+            };
+        }
+    } else {
+        args_struct = quote! {
+            #[derive(Debug, Clone)]
+            pub struct McpePacketArgs;
+        };
+    }
+
+    let mcpe = quote! {
+        pub const GAME_PACKET_ID: u8 = 0xFE;
+
+        use crate::protocol::wire;
+        use crate::bedrock::codec::GamePacket;
+
+        /// The `McpePacketName` enum defines the unique identifier for each Minecraft Bedrock Edition
+        /// packet. Each variant corresponds to a specific packet type and its associated numeric ID.
+        ///
+        /// This enum is used for packet identification and dispatching.
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        #[repr(u32)]
+        pub enum McpePacketName {
+            #(#name_variants),*
+        }
+
+        impl McpePacketName {
+            /// Creates an `McpePacketName` from its raw numeric identifier.
+            ///
+            /// # Errors
+            /// Returns an `std::io::Error` if the provided `id` does not correspond to a known packet.
+            fn from_raw(id: u32) -> Result<Self, std::io::Error> {
+                match id {
+                    #(#name_from_raw),*,
+                    _ => Err(std::io::Error::new(std::io::ErrorKind::InvalidData, format!("Invalid enum value for {}: {}", stringify!(McpePacketName), id))),
+                }
+            }
+        }
+
+        impl crate::bedrock::codec::BedrockCodec for McpePacketName {
+            type Args = ();
+            fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+                wire::write_var_u32(buf, *self as u32);
+                Ok(())
+            }
+            fn decode<B: bytes::Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
+                let val = wire::read_var_u32(buf)?;
+                McpePacketName::from_raw(val)
+            }
+        }
+
+        #(#game_packet_impls)*
+
+        /// Represents the header information extracted from a Minecraft Bedrock Edition game packet.
+        ///
+        /// This includes the packet's unique ID and the source/destination subclient IDs.
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        pub struct GameHeader {
+            pub id: McpePacketName,
+            pub from_subclient: u32,
+            pub to_subclient: u32,
+        }
+
+        #args_struct
+        #from_proto_impl
+
+        /// The `McpePacketData` enum encapsulates the payload of all possible Minecraft Bedrock Edition game packets.
+        ///
+        /// Each variant holds a specific packet struct. This does not include the game packet header/framing.
+        #[derive(Debug, Clone, PartialEq)]
+        pub enum McpePacketData {
+            #(#enum_variants),*
+        }
+
+        impl McpePacketData {
+            /// Returns the `McpePacketName` (ID) for the current packet variant.
+            pub fn packet_id(&self) -> McpePacketName {
+                match self {
+                    #(#packet_id_arms),*
+                }
+            }
+
+            /// Encodes the packet payload into a game frame, including the game header and length prefix.
+            pub fn encode_game_frame<B: bytes::BufMut>(
+                &self,
+                buf: &mut B,
+                from_subclient: u32,
+                to_subclient: u32,
+            ) -> Result<(), std::io::Error> {
+                let mut payload_buf = bytes::BytesMut::new();
+                match self {
+                    #(#encode_match_arms)*
+                }
+                let header = (self.packet_id() as u32)
+                    | ((from_subclient & 0x3) << 10)
+                    | ((to_subclient & 0x3) << 12);
+
+                let mut header_buf = bytes::BytesMut::new();
+                wire::write_var_u32(&mut header_buf, header);
+                let total_len = header_buf.len() + payload_buf.len();
+
+                buf.put_u8(GAME_PACKET_ID);
+                wire::write_var_u32(buf, total_len as u32);
+                buf.put_slice(&header_buf);
+                buf.put_slice(&payload_buf);
+                Ok(())
+            }
+
+            /// Decodes a game frame from the provided buffer, returning the header and the packet payload.
+            pub fn decode_game_frame<B: bytes::Buf>(
+                buf: &mut B,
+                args: McpePacketArgs,
+            ) -> Result<(GameHeader, Self), std::io::Error> {
+                if !buf.has_remaining() {
+                    return Err(std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "game packet eof"));
+                }
+                let leading = buf.get_u8();
+                if leading != GAME_PACKET_ID {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        format!("expected GAME_PACKET_ID=0x{GAME_PACKET_ID:02x}, got 0x{leading:02x}"),
+                    ));
+                }
+
+                let declared_len = wire::read_var_u32(buf)? as usize;
+                if buf.remaining() < declared_len {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::UnexpectedEof,
+                        format!("declared game packet length {} exceeds available {}", declared_len, buf.remaining()),
+                    ));
+                }
+
+                let mut payload_buf = bytes::Buf::take(&mut *buf, declared_len);
+                let header_raw = wire::read_var_u32(&mut payload_buf)?;
+                let id_raw = header_raw & 0x3FF;
+                let from_subclient = (header_raw >> 10) & 0x3;
+                let to_subclient = (header_raw >> 12) & 0x3;
+                let packet_id = McpePacketName::from_raw(id_raw)?;
+
+                let packet = match packet_id {
+                    #(#decode_match_arms)*
+                };
+
+                Ok((
+                    GameHeader {
+                        id: packet_id,
+                        from_subclient,
+                        to_subclient,
+                    },
+                    packet,
+                ))
+            }
+        }
+
+        /// A complete Minecraft Bedrock Edition game packet, including its header and data.
+        #[derive(Debug, Clone, PartialEq)]
+        pub struct McpePacket {
+            pub header: GameHeader,
+            pub data: McpePacketData,
+        }
+
+        impl McpePacket {
+            pub fn new(header: GameHeader, data: McpePacketData) -> Self {
+                Self { header, data }
+            }
+
+            /// Creates a new `McpePacket` from a packet payload and explicit subclient IDs.
+            ///
+            /// This is a convenience constructor for cases where the default (0,0) subclient IDs
+            /// are not desired.
+            ///
+            /// # Arguments
+            /// * `payload` - The packet payload struct (e.g., `PacketLogin`).
+            /// * `from_subclient` - The ID of the sending subclient.
+            /// * `to_subclient` - The ID of the receiving subclient.
+            pub fn from_payload_with_subclients<P>(
+                payload: P,
+                from_subclient: u32,
+                to_subclient: u32,
+            ) -> Self
+            where
+                P: Into<McpePacketData> + GamePacket<PacketId = McpePacketName>,
+            {
+                Self {
+                    header: GameHeader {
+                        id: P::PACKET_ID,
+                        from_subclient,
+                        to_subclient,
+                    },
+                    data: payload.into(),
+                }
+            }
+        }
+
+        impl From<McpePacketData> for McpePacket {
+            fn from(data: McpePacketData) -> Self {
+                Self {
+                    header: GameHeader {
+                        id: data.packet_id(),
+                        from_subclient: 0,
+                        to_subclient: 0,
+                    },
+                    data,
+                }
+            }
+        }
+
+        impl crate::bedrock::codec::BedrockCodec for McpePacket {
+            type Args = McpePacketArgs;
+            fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+                self.data.encode_game_frame(buf, self.header.from_subclient, self.header.to_subclient)
+            }
+            fn decode<B: bytes::Buf>(buf: &mut B, args: Self::Args) -> Result<Self, std::io::Error> {
+                let (header, data) = McpePacketData::decode_game_frame(buf, args)?;
+                Ok(Self { header, data })
+            }
+        }
+    };
+
+    Ok(mcpe)
 }
