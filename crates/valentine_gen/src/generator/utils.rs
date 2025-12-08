@@ -136,11 +136,24 @@ pub fn make_unique_names(base_names: &[String]) -> Vec<String> {
     result
 }
 
+fn first_token_from_pascal(name: &str) -> String {
+    let snake = name.to_case(Case::Snake);
+    snake
+        .split('_')
+        .find(|s| !s.is_empty())
+        .unwrap_or("misc")
+        .to_string()
+}
+
+/// Returns a hierarchical group path like "packets/chat" or "types/entities"
 pub fn get_group_name(struct_name: &str) -> String {
     if struct_name.starts_with("Packet") {
-        return "packets".to_string();
+        let base = struct_name.trim_start_matches("Packet");
+        let token = first_token_from_pascal(base);
+        return format!("packets/{}", token);
     }
-    "types".to_string()
+    let token = first_token_from_pascal(struct_name);
+    format!("types/{}", token)
 }
 
 pub fn derive_field_names(container: &Container, struct_name: &str) -> Vec<String> {

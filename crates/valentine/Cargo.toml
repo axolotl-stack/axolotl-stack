@@ -9,8 +9,14 @@ bitflags = { version = "2", features = ["serde"] }
 bytes = "1"
 uuid = "1.8.0"
 
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "time"] }
+tokio-raknet = { path = "../../../tokio-raknet"}
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+flate2 = "1"
+
 [features]
-default = ["bedrock_1_16_201", "bedrock_1_16_210"]
+default = ["bedrock_1_21_124"]
 bedrock_1_16_201 = []
 bedrock_1_16_210 = []
 bedrock_1_16_220 = []

@@ -80,6 +80,21 @@ pub fn generate_codec_impl(
                 })
                 .unwrap_or(dep_type.clone());
 
+            // Special-case: SetScoreEntries discriminator should stay as the action enum.
+            if fname == "action" && name.starts_with("PacketSetScoreEntriesItem") {
+                final_arg_type = Type::Reference("PacketSetScoreAction".to_string());
+            }
+
+            // Special-case: SetScoreboardIdentity entries should use the action enum.
+            if fname == "action" && name.starts_with("PacketSetScoreboardIdentityEntriesItem") {
+                final_arg_type = Type::Reference("PacketSetScoreboardIdentityAction".to_string());
+            }
+
+            // Special-case: shield_item_id is a discriminator, not the payload.
+            if fname == "shield_item_id" || fname == "_shield_item_id" {
+                final_arg_type = Type::Primitive(Primitive::VarInt);
+            }
+
             // Heuristic: if still an int and the name suggests an enum discriminator, try to
             // map to a well-known "*Type" enum based on the container prefix.
             // If this looks like a discriminator, force it to the best-matching Enum we know.
