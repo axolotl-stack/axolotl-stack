@@ -4,6 +4,7 @@ use std::io::{BufReader, Write};
 use std::path::Path;
 
 use generator::context::GlobalRegistry;
+use generator::{GenerationOutcome, VersionSnapshot};
 use proc_macro2::Span;
 use quote::quote;
 use std::collections::HashSet;
@@ -88,6 +89,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut global_registry = GlobalRegistry::new();
     let mut module_deps: HashMap<String, HashSet<String>> = HashMap::new();
+    let mut previous_snapshot: Option<VersionSnapshot> = None;
 
     for proto_path in protocols {
         let versions = protocol_map.get(&proto_path).unwrap();
@@ -131,15 +133,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     &protocol_out_dir,
                     &mut global_registry,
                     items_path,
+                    previous_snapshot.as_ref(),
                 ) {
-                    Ok(deps) => {
-                        module_deps.insert(protocol_module_name.clone(), deps);
+                    Ok(GenerationOutcome {
+                        module_dependencies,
+                        snapshot,
+                    }) => {
+                        module_deps.insert(protocol_module_name.clone(), module_dependencies);
+                        previous_snapshot = Some(snapshot);
                     }
                     Err(e) => {
                         eprintln!(
                             "  Error generating protocol module {}: {}",
                             protocol_module_name, e
                         );
+                        previous_snapshot = None;
                         continue;
                     }
                 }
@@ -236,7 +244,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         #![allow(non_snake_case)]
         #![allow(dead_code)]
         #![allow(unused_imports)]
+        #![allow(clippy::redundant_field_names)]
         #![allow(clippy::manual_flatten)]
+
 
         /// Bedrock protocol surface.
         ///
@@ -270,6 +280,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         #![allow(non_snake_case)]
         #![allow(dead_code)]
         #![allow(unused_imports)]
+        #![allow(clippy::redundant_field_names)]
+        #![allow(clippy::manual_flatten)]
 
         //! Protocol modules
         //!

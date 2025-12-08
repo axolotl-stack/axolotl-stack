@@ -12,10 +12,6 @@ pub fn camel_case(s: &str) -> String {
     s.to_case(Case::Pascal)
 }
 
-pub fn snake_case(s: &str) -> String {
-    s.to_case(Case::Snake)
-}
-
 pub fn to_screaming_snake_case(s: &str) -> String {
     s.to_case(Case::UpperSnake)
 }
@@ -35,19 +31,6 @@ pub fn safe_camel_ident(s: &str) -> String {
         "Unknown".to_string()
     } else {
         res
-    }
-}
-
-pub fn clean_const_name(name: &str) -> String {
-    let sanitized = sanitize_identifier(name);
-    let s = sanitized.to_case(Case::UpperSnake);
-
-    if s.chars().next().map_or(false, |c| c.is_numeric()) {
-        format!("_{}", s)
-    } else if s.is_empty() {
-        "UNKNOWN".to_string()
-    } else {
-        s
     }
 }
 

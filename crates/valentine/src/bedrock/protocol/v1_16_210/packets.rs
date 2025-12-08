@@ -13,6 +13,7 @@ pub struct PacketAddBehaviorTree {
 impl crate::bedrock::codec::BedrockCodec for PacketAddBehaviorTree {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.behaviortree.encode(buf)?;
         Ok(())
     }
@@ -20,6 +21,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAddBehaviorTree {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let behaviortree = <String as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -34,6 +36,7 @@ pub struct PacketAddEcsEntity {
 impl crate::bedrock::codec::BedrockCodec for PacketAddEcsEntity {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarLong(self.network_id).encode(buf)?;
         Ok(())
     }
@@ -41,6 +44,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAddEcsEntity {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let network_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -70,6 +74,7 @@ pub struct PacketAddEntity {
 impl crate::bedrock::codec::BedrockCodec for PacketAddEntity {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::ZigZag64(self.entity_id_self).encode(buf)?;
         crate::bedrock::codec::VarLong(self.runtime_entity_id).encode(buf)?;
         self.entity_type.encode(buf)?;
@@ -91,6 +96,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAddEntity {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let entity_id_self = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -213,6 +219,7 @@ pub struct PacketAddItemEntity {
 impl crate::bedrock::codec::BedrockCodec for PacketAddItemEntity {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::ZigZag64(self.entity_id_self).encode(buf)?;
         crate::bedrock::codec::VarLong(self.runtime_entity_id).encode(buf)?;
         self.item.encode(buf)?;
@@ -230,6 +237,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAddItemEntity {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let entity_id_self = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -298,6 +306,7 @@ pub struct PacketAddPainting {
 impl crate::bedrock::codec::BedrockCodec for PacketAddPainting {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::ZigZag64(self.entity_id_self).encode(buf)?;
         crate::bedrock::codec::VarLong(self.runtime_entity_id).encode(buf)?;
         self.coordinates.encode(buf)?;
@@ -309,6 +318,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAddPainting {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let entity_id_self = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -369,6 +379,7 @@ pub struct PacketAddPlayer {
 impl crate::bedrock::codec::BedrockCodec for PacketAddPlayer {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.uuid.encode(buf)?;
         self.username.encode(buf)?;
         crate::bedrock::codec::ZigZag64(self.entity_id_self).encode(buf)?;
@@ -400,6 +411,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAddPlayer {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let uuid = <uuid::Uuid as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let username = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let entity_id_self = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -618,6 +630,7 @@ pub struct PacketAdventureSettings {
 impl crate::bedrock::codec::BedrockCodec for PacketAdventureSettings {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.flags.encode(buf)?;
         self.command_permission.encode(buf)?;
         self.action_permissions.encode(buf)?;
@@ -630,6 +643,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAdventureSettings {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let flags = <AdventureFlags as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -715,6 +729,7 @@ pub struct PacketAnimateContentRowLeft {
 impl crate::bedrock::codec::BedrockCodec for PacketAnimateContentRowLeft {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.boat_rowing_time.encode(buf)?;
         Ok(())
     }
@@ -722,6 +737,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAnimateContentRowLeft {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let boat_rowing_time = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -743,6 +759,7 @@ pub struct PacketAnimate {
 impl crate::bedrock::codec::BedrockCodec for PacketAnimate {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.action_id.encode(buf)?;
         crate::bedrock::codec::VarLong(self.runtime_entity_id).encode(buf)?;
         if let Some(v) = &self.content {
@@ -761,6 +778,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAnimate {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let action_id = <PacketAnimateActionId as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -812,6 +830,7 @@ pub struct PacketAnimateEntity {
 impl crate::bedrock::codec::BedrockCodec for PacketAnimateEntity {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.animation.encode(buf)?;
         self.next_state.encode(buf)?;
         self.stop_condition.encode(buf)?;
@@ -828,6 +847,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAnimateEntity {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let animation = <String as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -885,6 +905,7 @@ pub struct PacketAnvilDamage {
 impl crate::bedrock::codec::BedrockCodec for PacketAnvilDamage {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.damage.encode(buf)?;
         self.position.encode(buf)?;
         Ok(())
@@ -893,6 +914,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAnvilDamage {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let damage = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let position = <BlockCoordinates as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
@@ -914,11 +936,12 @@ pub struct PacketAvailableCommandsEnumsItem {
 }
 #[derive(Debug, Clone)]
 pub struct PacketAvailableCommandsEnumsItemArgs {
-    pub _enum_type: i32,
+    pub _enum_type: EnumSizeBasedOnValuesLen,
 }
 impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommandsEnumsItem {
     type Args = PacketAvailableCommandsEnumsItemArgs;
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.name.encode(buf)?;
         let len = self.values.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
@@ -943,6 +966,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommandsEnumsItem {
         buf: &mut B,
         args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let name = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let values = {
             let len = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
@@ -955,7 +979,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommandsEnumsItem {
                 tmp_vec
                     .push(
                         match args._enum_type {
-                            Byte => {
+                            EnumSizeBasedOnValuesLen::Byte => {
                                 Some(
                                     PacketAvailableCommandsEnumsItemValuesItem::Byte(
                                         <u8 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -965,7 +989,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommandsEnumsItem {
                                     ),
                                 )
                             }
-                            Int => {
+                            EnumSizeBasedOnValuesLen::Int => {
                                 Some(
                                     PacketAvailableCommandsEnumsItemValuesItem::Int(
                                         <u32 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -975,7 +999,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommandsEnumsItem {
                                     ),
                                 )
                             }
-                            Short => {
+                            EnumSizeBasedOnValuesLen::Short => {
                                 Some(
                                     PacketAvailableCommandsEnumsItemValuesItem::Short(
                                         <u16 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -985,7 +1009,6 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommandsEnumsItem {
                                     ),
                                 )
                             }
-                            _ => None,
                         },
                     );
             }
@@ -1172,6 +1195,7 @@ impl crate::bedrock::codec::BedrockCodec
 for PacketAvailableCommandsCommandDataItemOverloadsItemParametersItem {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.parameter_name.encode(buf)?;
         self.value_type.encode(buf)?;
         self.enum_type.encode(buf)?;
@@ -1183,6 +1207,7 @@ for PacketAvailableCommandsCommandDataItemOverloadsItemParametersItem {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let parameter_name = <String as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -1219,6 +1244,7 @@ impl crate::bedrock::codec::BedrockCodec
 for PacketAvailableCommandsCommandDataItemOverloadsItem {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         let len = self.parameters.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.parameters {
@@ -1230,6 +1256,7 @@ for PacketAvailableCommandsCommandDataItemOverloadsItem {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let parameters = {
             let len = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
@@ -1263,6 +1290,7 @@ pub struct PacketAvailableCommandsCommandDataItem {
 impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommandsCommandDataItem {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.name.encode(buf)?;
         self.description.encode(buf)?;
         self.flags.encode(buf)?;
@@ -1279,6 +1307,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommandsCommandDataI
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let name = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let description = <String as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
@@ -1326,6 +1355,7 @@ pub struct PacketAvailableCommandsDynamicEnumsItem {
 impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommandsDynamicEnumsItem {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.name.encode(buf)?;
         let len = self.values.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
@@ -1338,6 +1368,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommandsDynamicEnums
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let name = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let values = {
             let len = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
@@ -1403,6 +1434,7 @@ impl crate::bedrock::codec::BedrockCodec
 for PacketAvailableCommandsEnumConstraintsItemConstraintsItem {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.constraint.encode(buf)?;
         Ok(())
     }
@@ -1410,6 +1442,7 @@ for PacketAvailableCommandsEnumConstraintsItemConstraintsItem {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let constraint = <PacketAvailableCommandsEnumConstraintsItemConstraintsItemConstraint as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -1426,6 +1459,7 @@ pub struct PacketAvailableCommandsEnumConstraintsItem {
 impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommandsEnumConstraintsItem {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.value_index.encode(buf)?;
         self.enum_index.encode(buf)?;
         let len = self.constraints.len();
@@ -1439,6 +1473,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommandsEnumConstrai
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let value_index = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let enum_index = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let constraints = {
@@ -1480,6 +1515,7 @@ pub struct PacketAvailableCommands {
 impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommands {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarInt(self.values_len).encode(buf)?;
         {
             let len = self.values_len as usize;
@@ -1528,6 +1564,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommands {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let values_len = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -1591,7 +1628,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommands {
                         <PacketAvailableCommandsEnumsItem as crate::bedrock::codec::BedrockCodec>::decode(
                             buf,
                             PacketAvailableCommandsEnumsItemArgs {
-                                _enum_type: _enum_type as i32,
+                                _enum_type: _enum_type,
                             },
                         )?,
                     );
@@ -1671,6 +1708,7 @@ pub struct PacketAvailableEntityIdentifiers {
 impl crate::bedrock::codec::BedrockCodec for PacketAvailableEntityIdentifiers {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.nbt.encode(buf)?;
         Ok(())
     }
@@ -1678,6 +1716,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableEntityIdentifiers {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let nbt = <Vec<u8> as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self { nbt })
     }
@@ -1689,6 +1728,7 @@ pub struct PacketBiomeDefinitionList {
 impl crate::bedrock::codec::BedrockCodec for PacketBiomeDefinitionList {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.nbt.encode(buf)?;
         Ok(())
     }
@@ -1696,6 +1736,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketBiomeDefinitionList {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let nbt = <Vec<u8> as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self { nbt })
     }
@@ -1708,6 +1749,7 @@ pub struct PacketBlockEntityData {
 impl crate::bedrock::codec::BedrockCodec for PacketBlockEntityData {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.position.encode(buf)?;
         self.nbt.encode(buf)?;
         Ok(())
@@ -1716,6 +1758,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketBlockEntityData {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let position = <BlockCoordinates as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -1767,6 +1810,7 @@ pub struct PacketBlockEvent {
 impl crate::bedrock::codec::BedrockCodec for PacketBlockEvent {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.position.encode(buf)?;
         self.type_.encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.data).encode(buf)?;
@@ -1776,6 +1820,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketBlockEvent {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let position = <BlockCoordinates as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -1803,6 +1848,7 @@ pub struct PacketBlockPickRequest {
 impl crate::bedrock::codec::BedrockCodec for PacketBlockPickRequest {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::ZigZag32(self.x).encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.y).encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.z).encode(buf)?;
@@ -1814,6 +1860,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketBlockPickRequest {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let x = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -1895,6 +1942,7 @@ pub struct PacketBookEditContentAddPage {
 impl crate::bedrock::codec::BedrockCodec for PacketBookEditContentAddPage {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.page_number.encode(buf)?;
         self.text.encode(buf)?;
         self.photo_name.encode(buf)?;
@@ -1904,6 +1952,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketBookEditContentAddPage {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let page_number = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let text = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let photo_name = <String as crate::bedrock::codec::BedrockCodec>::decode(
@@ -1924,6 +1973,7 @@ pub struct PacketBookEditContentDeletePage {
 impl crate::bedrock::codec::BedrockCodec for PacketBookEditContentDeletePage {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.page_number.encode(buf)?;
         Ok(())
     }
@@ -1931,6 +1981,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketBookEditContentDeletePage {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let page_number = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self { page_number })
     }
@@ -1944,6 +1995,7 @@ pub struct PacketBookEditContentSign {
 impl crate::bedrock::codec::BedrockCodec for PacketBookEditContentSign {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.title.encode(buf)?;
         self.author.encode(buf)?;
         self.xuid.encode(buf)?;
@@ -1953,6 +2005,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketBookEditContentSign {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let title = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let author = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let xuid = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
@@ -1967,6 +2020,7 @@ pub struct PacketBookEditContentSwapPages {
 impl crate::bedrock::codec::BedrockCodec for PacketBookEditContentSwapPages {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.page_1.encode(buf)?;
         self.page_2.encode(buf)?;
         Ok(())
@@ -1975,6 +2029,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketBookEditContentSwapPages {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let page_1 = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let page_2 = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self { page_1, page_2 })
@@ -1997,6 +2052,7 @@ pub struct PacketBookEdit {
 impl crate::bedrock::codec::BedrockCodec for PacketBookEdit {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.type_.encode(buf)?;
         self.slot.encode(buf)?;
         if let Some(v) = &self.content {
@@ -2024,6 +2080,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketBookEdit {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let type_ = <PacketBookEditType as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -2080,7 +2137,6 @@ impl crate::bedrock::codec::BedrockCodec for PacketBookEdit {
                     ),
                 )
             }
-            _ => None,
         };
         Ok(Self { type_, slot, content })
     }
@@ -2138,6 +2194,7 @@ pub struct PacketBossEventContentRegisterPlayer {
 impl crate::bedrock::codec::BedrockCodec for PacketBossEventContentRegisterPlayer {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::ZigZag64(self.player_id).encode(buf)?;
         Ok(())
     }
@@ -2145,6 +2202,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketBossEventContentRegisterPlaye
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let player_id = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -2160,6 +2218,7 @@ pub struct PacketBossEventContentSetBarProgress {
 impl crate::bedrock::codec::BedrockCodec for PacketBossEventContentSetBarProgress {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.bar_progress.encode(buf)?;
         Ok(())
     }
@@ -2167,6 +2226,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketBossEventContentSetBarProgres
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let bar_progress = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -2181,6 +2241,7 @@ pub struct PacketBossEventContentSetBarTitle {
 impl crate::bedrock::codec::BedrockCodec for PacketBossEventContentSetBarTitle {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.title.encode(buf)?;
         Ok(())
     }
@@ -2188,6 +2249,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketBossEventContentSetBarTitle {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let title = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self { title })
     }
@@ -2200,6 +2262,7 @@ pub struct PacketBossEventContentShowBar {
 impl crate::bedrock::codec::BedrockCodec for PacketBossEventContentShowBar {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.title.encode(buf)?;
         self.bar_progress.encode(buf)?;
         Ok(())
@@ -2208,6 +2271,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketBossEventContentShowBar {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let title = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let bar_progress = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
@@ -2224,6 +2288,7 @@ pub struct PacketBossEventContentTexture {
 impl crate::bedrock::codec::BedrockCodec for PacketBossEventContentTexture {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarInt(self.color).encode(buf)?;
         crate::bedrock::codec::VarInt(self.overlay).encode(buf)?;
         Ok(())
@@ -2232,6 +2297,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketBossEventContentTexture {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let color = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -2252,6 +2318,7 @@ pub struct PacketBossEventContentUpdateProperties {
 impl crate::bedrock::codec::BedrockCodec for PacketBossEventContentUpdateProperties {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.darkness_factor.encode(buf)?;
         Ok(())
     }
@@ -2259,6 +2326,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketBossEventContentUpdatePropert
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let darkness_factor = <i16 as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -2285,6 +2353,7 @@ pub struct PacketBossEvent {
 impl crate::bedrock::codec::BedrockCodec for PacketBossEvent {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::ZigZag64(self.boss_entity_id).encode(buf)?;
         self.type_.encode(buf)?;
         if let Some(v) = &self.content {
@@ -2318,6 +2387,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketBossEvent {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let boss_entity_id = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -2415,6 +2485,7 @@ pub struct PacketCamera {
 impl crate::bedrock::codec::BedrockCodec for PacketCamera {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::ZigZag64(self.camera_entity_unique_id).encode(buf)?;
         crate::bedrock::codec::ZigZag64(self.target_player_unique_id).encode(buf)?;
         Ok(())
@@ -2423,6 +2494,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketCamera {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let camera_entity_unique_id = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -2483,6 +2555,7 @@ pub struct PacketCameraShake {
 impl crate::bedrock::codec::BedrockCodec for PacketCameraShake {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.intensity.encode(buf)?;
         self.duration.encode(buf)?;
         self.type_.encode(buf)?;
@@ -2493,6 +2566,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketCameraShake {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let intensity = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let duration = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let type_ = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
@@ -2517,6 +2591,7 @@ pub struct PacketChangeDimension {
 impl crate::bedrock::codec::BedrockCodec for PacketChangeDimension {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::ZigZag32(self.dimension).encode(buf)?;
         self.position.encode(buf)?;
         self.respawn.encode(buf)?;
@@ -2526,6 +2601,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketChangeDimension {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let dimension = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -2547,6 +2623,7 @@ pub struct PacketChunkRadiusUpdate {
 impl crate::bedrock::codec::BedrockCodec for PacketChunkRadiusUpdate {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::ZigZag32(self.chunk_radius).encode(buf)?;
         Ok(())
     }
@@ -2554,6 +2631,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketChunkRadiusUpdate {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let chunk_radius = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -2572,6 +2650,7 @@ pub struct PacketClientCacheBlobStatus {
 impl crate::bedrock::codec::BedrockCodec for PacketClientCacheBlobStatus {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarInt(self.misses).encode(buf)?;
         crate::bedrock::codec::VarInt(self.haves).encode(buf)?;
         let len = self.missing.len();
@@ -2590,6 +2669,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketClientCacheBlobStatus {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let misses = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -2645,6 +2725,7 @@ pub struct PacketClientCacheMissResponse {
 impl crate::bedrock::codec::BedrockCodec for PacketClientCacheMissResponse {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         let len = self.blobs.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.blobs {
@@ -2656,6 +2737,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketClientCacheMissResponse {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let blobs = {
             let len = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
@@ -2681,6 +2763,7 @@ pub struct PacketClientCacheStatus {
 impl crate::bedrock::codec::BedrockCodec for PacketClientCacheStatus {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.enabled.encode(buf)?;
         Ok(())
     }
@@ -2688,6 +2771,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketClientCacheStatus {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let enabled = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self { enabled })
     }
@@ -2697,12 +2781,14 @@ pub struct PacketClientToServerHandshake {}
 impl crate::bedrock::codec::BedrockCodec for PacketClientToServerHandshake {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         Ok(Self {})
     }
 }
@@ -2713,6 +2799,7 @@ pub struct PacketClientboundMapItemData {
 impl crate::bedrock::codec::BedrockCodec for PacketClientboundMapItemData {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.mapinfo.encode(buf)?;
         Ok(())
     }
@@ -2720,6 +2807,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketClientboundMapItemData {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let mapinfo = <MapInfo as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self { mapinfo })
     }
@@ -2732,6 +2820,7 @@ pub struct PacketCodeBuilder {
 impl crate::bedrock::codec::BedrockCodec for PacketCodeBuilder {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.url.encode(buf)?;
         self.should_open_code_builder.encode(buf)?;
         Ok(())
@@ -2740,6 +2829,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketCodeBuilder {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let url = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let should_open_code_builder = <bool as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
@@ -2758,6 +2848,7 @@ pub struct PacketCommandBlockUpdateContentFalse {
 impl crate::bedrock::codec::BedrockCodec for PacketCommandBlockUpdateContentFalse {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarLong(self.minecart_entity_runtime_id).encode(buf)?;
         Ok(())
     }
@@ -2765,6 +2856,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketCommandBlockUpdateContentFals
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let minecart_entity_runtime_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -2819,6 +2911,7 @@ pub struct PacketCommandBlockUpdateContentTrue {
 impl crate::bedrock::codec::BedrockCodec for PacketCommandBlockUpdateContentTrue {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.position.encode(buf)?;
         self.mode.encode(buf)?;
         self.needs_redstone.encode(buf)?;
@@ -2829,6 +2922,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketCommandBlockUpdateContentTrue
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let position = <BlockCoordinates as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -2871,6 +2965,7 @@ pub struct PacketCommandBlockUpdate {
 impl crate::bedrock::codec::BedrockCodec for PacketCommandBlockUpdate {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         let val = self.content.is_none();
         val.encode(buf)?;
         if let Some(v) = &self.content {
@@ -2895,6 +2990,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketCommandBlockUpdate {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let is_block = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let content = if is_block {
             Some(
@@ -2990,6 +3086,7 @@ pub struct PacketCommandOutputOutputItem {
 impl crate::bedrock::codec::BedrockCodec for PacketCommandOutputOutputItem {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.success.encode(buf)?;
         self.message_id.encode(buf)?;
         let len = self.parameters.len();
@@ -3003,6 +3100,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketCommandOutputOutputItem {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let success = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let message_id = <String as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
@@ -3041,6 +3139,7 @@ pub struct PacketCommandOutput {
 impl crate::bedrock::codec::BedrockCodec for PacketCommandOutput {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.origin.encode(buf)?;
         self.output_type.encode(buf)?;
         crate::bedrock::codec::VarInt(self.success_count).encode(buf)?;
@@ -3058,6 +3157,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketCommandOutput {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let origin = <CommandOrigin as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -3113,6 +3213,7 @@ pub struct PacketCommandRequest {
 impl crate::bedrock::codec::BedrockCodec for PacketCommandRequest {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.command.encode(buf)?;
         self.origin.encode(buf)?;
         self.internal.encode(buf)?;
@@ -3122,6 +3223,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketCommandRequest {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let command = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let origin = <CommandOrigin as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
@@ -3199,6 +3301,7 @@ pub struct PacketCompletedUsingItem {
 impl crate::bedrock::codec::BedrockCodec for PacketCompletedUsingItem {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.used_item_id.encode(buf)?;
         self.use_method.encode(buf)?;
         Ok(())
@@ -3207,6 +3310,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketCompletedUsingItem {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let used_item_id = <i16 as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -3226,6 +3330,7 @@ pub struct PacketContainerClose {
 impl crate::bedrock::codec::BedrockCodec for PacketContainerClose {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.window_id.encode(buf)?;
         self.server.encode(buf)?;
         Ok(())
@@ -3234,6 +3339,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketContainerClose {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let window_id = <WindowId as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -3252,6 +3358,7 @@ pub struct PacketContainerOpen {
 impl crate::bedrock::codec::BedrockCodec for PacketContainerOpen {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.window_id.encode(buf)?;
         self.window_type.encode(buf)?;
         self.coordinates.encode(buf)?;
@@ -3262,6 +3369,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketContainerOpen {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let window_id = <WindowId as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -3296,6 +3404,7 @@ pub struct PacketContainerSetData {
 impl crate::bedrock::codec::BedrockCodec for PacketContainerSetData {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.window_id.encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.property).encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.value).encode(buf)?;
@@ -3305,6 +3414,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketContainerSetData {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let window_id = <WindowId as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -3332,6 +3442,7 @@ pub struct PacketCorrectPlayerMovePrediction {
 impl crate::bedrock::codec::BedrockCodec for PacketCorrectPlayerMovePrediction {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.position.encode(buf)?;
         self.delta.encode(buf)?;
         self.on_ground.encode(buf)?;
@@ -3342,6 +3453,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketCorrectPlayerMovePrediction {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let position = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let delta = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let on_ground = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
@@ -3368,6 +3480,7 @@ pub struct PacketCraftingData {
 impl crate::bedrock::codec::BedrockCodec for PacketCraftingData {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.recipes.encode(buf)?;
         self.potion_type_recipes.encode(buf)?;
         self.potion_container_recipes.encode(buf)?;
@@ -3378,6 +3491,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketCraftingData {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let recipes = {
             let res: Recipes = {
                 let len = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
@@ -3497,6 +3611,7 @@ pub struct PacketCraftingEvent {
 impl crate::bedrock::codec::BedrockCodec for PacketCraftingEvent {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.window_id.encode(buf)?;
         self.recipe_type.encode(buf)?;
         self.recipe_id.encode(buf)?;
@@ -3516,6 +3631,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketCraftingEvent {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let window_id = <WindowId as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -3574,6 +3690,7 @@ pub struct PacketCreativeContent {
 impl crate::bedrock::codec::BedrockCodec for PacketCreativeContent {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.items.encode(buf)?;
         Ok(())
     }
@@ -3581,6 +3698,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketCreativeContent {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let items = {
             let res: ItemStacks = {
                 let len = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
@@ -3613,6 +3731,7 @@ pub struct PacketDebugInfo {
 impl crate::bedrock::codec::BedrockCodec for PacketDebugInfo {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::ZigZag64(self.player_unique_id).encode(buf)?;
         self.data.encode(buf)?;
         Ok(())
@@ -3621,6 +3740,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketDebugInfo {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let player_unique_id = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -3677,6 +3797,7 @@ pub struct PacketDebugRendererContentAddCube {
 impl crate::bedrock::codec::BedrockCodec for PacketDebugRendererContentAddCube {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.text.encode(buf)?;
         self.position.encode(buf)?;
         self.red.encode(buf)?;
@@ -3690,6 +3811,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketDebugRendererContentAddCube {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let text = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let position = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let red = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
@@ -3721,6 +3843,7 @@ pub struct PacketDebugRenderer {
 impl crate::bedrock::codec::BedrockCodec for PacketDebugRenderer {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.type_.encode(buf)?;
         if let Some(v) = &self.content {
             match v {
@@ -3736,6 +3859,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketDebugRenderer {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let type_ = <PacketDebugRendererType as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -3754,7 +3878,6 @@ impl crate::bedrock::codec::BedrockCodec for PacketDebugRenderer {
                 )
             }
             PacketDebugRendererType::Clear => Some(PacketDebugRendererContent::Clear),
-            _ => None,
         };
         Ok(Self { type_, content })
     }
@@ -3767,6 +3890,7 @@ pub struct PacketDisconnect {
 impl crate::bedrock::codec::BedrockCodec for PacketDisconnect {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.hide_disconnect_reason.encode(buf)?;
         self.message.encode(buf)?;
         Ok(())
@@ -3775,6 +3899,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketDisconnect {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let hide_disconnect_reason = <bool as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -3798,6 +3923,7 @@ pub struct PacketEducationSettings {
 impl crate::bedrock::codec::BedrockCodec for PacketEducationSettings {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.code_builder_default_uri.encode(buf)?;
         self.code_builder_title.encode(buf)?;
         self.can_resize_code_builder.encode(buf)?;
@@ -3812,6 +3938,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketEducationSettings {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let code_builder_default_uri = <String as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -3853,6 +3980,7 @@ pub struct PacketEmote {
 impl crate::bedrock::codec::BedrockCodec for PacketEmote {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarLong(self.entity_id).encode(buf)?;
         self.emote_id.encode(buf)?;
         self.flags.encode(buf)?;
@@ -3862,6 +3990,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketEmote {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let entity_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -3880,6 +4009,7 @@ pub struct PacketEmoteList {
 impl crate::bedrock::codec::BedrockCodec for PacketEmoteList {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarLong(self.player_id).encode(buf)?;
         let len = self.emote_pieces.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
@@ -3892,6 +4022,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketEmoteList {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let player_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -4065,6 +4196,7 @@ pub struct PacketEntityEvent {
 impl crate::bedrock::codec::BedrockCodec for PacketEntityEvent {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarLong(self.runtime_entity_id).encode(buf)?;
         self.event_id.encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.data).encode(buf)?;
@@ -4074,6 +4206,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketEntityEvent {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let runtime_entity_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -4103,6 +4236,7 @@ pub struct PacketEntityPickRequest {
 impl crate::bedrock::codec::BedrockCodec for PacketEntityPickRequest {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.runtime_entity_id.encode(buf)?;
         self.selected_slot.encode(buf)?;
         Ok(())
@@ -4111,6 +4245,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketEntityPickRequest {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let runtime_entity_id = <u64 as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -4215,6 +4350,7 @@ pub struct PacketEvent {
 impl crate::bedrock::codec::BedrockCodec for PacketEvent {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarLong(self.runtime_id).encode(buf)?;
         self.event_type.encode(buf)?;
         self.use_player_id.encode(buf)?;
@@ -4225,6 +4361,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketEvent {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let runtime_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -4257,6 +4394,7 @@ pub struct PacketFilterTextPacket {
 impl crate::bedrock::codec::BedrockCodec for PacketFilterTextPacket {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.text.encode(buf)?;
         self.from_server.encode(buf)?;
         Ok(())
@@ -4265,6 +4403,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketFilterTextPacket {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let text = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let from_server = <bool as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
@@ -4280,6 +4419,7 @@ pub struct PacketGameRulesChanged {
 impl crate::bedrock::codec::BedrockCodec for PacketGameRulesChanged {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.rules.encode(buf)?;
         Ok(())
     }
@@ -4287,6 +4427,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketGameRulesChanged {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let rules = {
             let res: GameRules = {
                 let len = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
@@ -4320,6 +4461,7 @@ pub struct PacketGuiDataPickItem {
 impl crate::bedrock::codec::BedrockCodec for PacketGuiDataPickItem {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.item_name.encode(buf)?;
         self.item_effects.encode(buf)?;
         self.hotbar_slot.encode(buf)?;
@@ -4329,6 +4471,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketGuiDataPickItem {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let item_name = <String as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -4352,6 +4495,7 @@ pub struct PacketHurtArmor {
 impl crate::bedrock::codec::BedrockCodec for PacketHurtArmor {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::ZigZag32(self.health).encode(buf)?;
         Ok(())
     }
@@ -4359,6 +4503,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketHurtArmor {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let health = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -4374,6 +4519,7 @@ pub struct PacketInitiateWebSocketConnection {
 impl crate::bedrock::codec::BedrockCodec for PacketInitiateWebSocketConnection {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.server.encode(buf)?;
         Ok(())
     }
@@ -4381,6 +4527,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketInitiateWebSocketConnection {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let server = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self { server })
     }
@@ -4437,6 +4584,7 @@ pub struct PacketInteract {
 impl crate::bedrock::codec::BedrockCodec for PacketInteract {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.action_id.encode(buf)?;
         crate::bedrock::codec::VarLong(self.target_entity_id).encode(buf)?;
         if let Some(v) = &self.position {
@@ -4455,6 +4603,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketInteract {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let action_id = <PacketInteractActionId as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -4496,6 +4645,7 @@ pub struct PacketInventoryContent {
 impl crate::bedrock::codec::BedrockCodec for PacketInventoryContent {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.window_id.encode(buf)?;
         self.input.encode(buf)?;
         Ok(())
@@ -4504,6 +4654,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketInventoryContent {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let window_id = <WindowIdVarint as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -4541,6 +4692,7 @@ pub struct PacketInventorySlot {
 impl crate::bedrock::codec::BedrockCodec for PacketInventorySlot {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.window_id.encode(buf)?;
         crate::bedrock::codec::VarInt(self.slot).encode(buf)?;
         self.item.encode(buf)?;
@@ -4550,6 +4702,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketInventorySlot {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let window_id = <WindowIdVarint as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -4570,6 +4723,7 @@ pub struct PacketInventoryTransaction {
 impl crate::bedrock::codec::BedrockCodec for PacketInventoryTransaction {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.transaction.encode(buf)?;
         Ok(())
     }
@@ -4577,6 +4731,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketInventoryTransaction {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let transaction = <Transaction as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -4591,6 +4746,7 @@ pub struct PacketItemComponent {
 impl crate::bedrock::codec::BedrockCodec for PacketItemComponent {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.entries.encode(buf)?;
         Ok(())
     }
@@ -4598,6 +4754,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketItemComponent {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let entries = {
             let res: ItemComponentList = {
                 let len = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
@@ -4629,6 +4786,7 @@ pub struct PacketItemFrameDropItem {
 impl crate::bedrock::codec::BedrockCodec for PacketItemFrameDropItem {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.coordinates.encode(buf)?;
         Ok(())
     }
@@ -4636,6 +4794,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketItemFrameDropItem {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let coordinates = <BlockCoordinates as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -4650,6 +4809,7 @@ pub struct PacketItemStackRequest {
 impl crate::bedrock::codec::BedrockCodec for PacketItemStackRequest {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         let len = self.requests.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.requests {
@@ -4661,6 +4821,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketItemStackRequest {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let requests = {
             let len = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
@@ -4689,6 +4850,7 @@ pub struct PacketItemStackResponse {
 impl crate::bedrock::codec::BedrockCodec for PacketItemStackResponse {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.responses.encode(buf)?;
         Ok(())
     }
@@ -4696,6 +4858,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketItemStackResponse {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let responses = {
             let res: ItemStackResponses = {
                 let len = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
@@ -4765,6 +4928,7 @@ pub struct PacketLabTable {
 impl crate::bedrock::codec::BedrockCodec for PacketLabTable {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.action_type.encode(buf)?;
         self.position.encode(buf)?;
         self.reaction_type.encode(buf)?;
@@ -4774,6 +4938,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketLabTable {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let action_type = <PacketLabTableActionType as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -4800,6 +4965,7 @@ pub struct PacketLecternUpdate {
 impl crate::bedrock::codec::BedrockCodec for PacketLecternUpdate {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.page.encode(buf)?;
         self.page_count.encode(buf)?;
         self.position.encode(buf)?;
@@ -4810,6 +4976,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketLecternUpdate {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let page = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let page_count = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let position = <Vec3I as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
@@ -4829,6 +4996,7 @@ pub struct PacketLevelChunkBlobs {
 impl crate::bedrock::codec::BedrockCodec for PacketLevelChunkBlobs {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         let len = self.hashes.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.hashes {
@@ -4840,6 +5008,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketLevelChunkBlobs {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let hashes = {
             let len = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
@@ -4869,6 +5038,7 @@ pub struct PacketLevelChunk {
 impl crate::bedrock::codec::BedrockCodec for PacketLevelChunk {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::ZigZag32(self.x).encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.z).encode(buf)?;
         crate::bedrock::codec::VarInt(self.sub_chunk_count).encode(buf)?;
@@ -4884,6 +5054,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketLevelChunk {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let x = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -5087,6 +5258,7 @@ pub struct PacketLevelEvent {
 impl crate::bedrock::codec::BedrockCodec for PacketLevelEvent {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.event.encode(buf)?;
         self.position.encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.data).encode(buf)?;
@@ -5096,6 +5268,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketLevelEvent {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let event = <PacketLevelEventEvent as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -5117,6 +5290,7 @@ pub struct PacketLevelEventGeneric {
 impl crate::bedrock::codec::BedrockCodec for PacketLevelEventGeneric {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarInt(self.event_id).encode(buf)?;
         self.nbt.encode(buf)?;
         Ok(())
@@ -5125,6 +5299,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketLevelEventGeneric {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let event_id = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -5146,6 +5321,7 @@ pub struct PacketLevelSoundEvent {
 impl crate::bedrock::codec::BedrockCodec for PacketLevelSoundEvent {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarInt(self.sound_id).encode(buf)?;
         self.position.encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.block_id).encode(buf)?;
@@ -5158,6 +5334,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketLevelSoundEvent {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let sound_id = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -5200,6 +5377,7 @@ pub struct PacketLevelSoundEventOld {
 impl crate::bedrock::codec::BedrockCodec for PacketLevelSoundEventOld {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.sound_id.encode(buf)?;
         self.position.encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.block_id).encode(buf)?;
@@ -5212,6 +5390,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketLevelSoundEventOld {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let sound_id = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let position = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let block_id = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -5251,6 +5430,7 @@ pub struct PacketLevelSoundEventV2 {
 impl crate::bedrock::codec::BedrockCodec for PacketLevelSoundEventV2 {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.sound_id.encode(buf)?;
         self.position.encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.block_id).encode(buf)?;
@@ -5263,6 +5443,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketLevelSoundEventV2 {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let sound_id = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let position = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let block_id = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -5297,6 +5478,7 @@ pub struct PacketLogin {
 impl crate::bedrock::codec::BedrockCodec for PacketLogin {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.protocol_version.encode(buf)?;
         self.tokens.encode(buf)?;
         Ok(())
@@ -5305,6 +5487,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketLogin {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let protocol_version = <i32 as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -5321,12 +5504,14 @@ pub struct PacketMapCreateLockedCopy {}
 impl crate::bedrock::codec::BedrockCodec for PacketMapCreateLockedCopy {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         Ok(Self {})
     }
 }
@@ -5337,6 +5522,7 @@ pub struct PacketMapInfoRequest {
 impl crate::bedrock::codec::BedrockCodec for PacketMapInfoRequest {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::ZigZag64(self.map_id).encode(buf)?;
         Ok(())
     }
@@ -5344,6 +5530,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketMapInfoRequest {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let map_id = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -5363,6 +5550,7 @@ pub struct PacketMobArmorEquipment {
 impl crate::bedrock::codec::BedrockCodec for PacketMobArmorEquipment {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarLong(self.runtime_entity_id).encode(buf)?;
         self.helmet.encode(buf)?;
         self.chestplate.encode(buf)?;
@@ -5374,6 +5562,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketMobArmorEquipment {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let runtime_entity_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -5440,6 +5629,7 @@ pub struct PacketMobEffect {
 impl crate::bedrock::codec::BedrockCodec for PacketMobEffect {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarLong(self.runtime_entity_id).encode(buf)?;
         self.event_id.encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.effect_id).encode(buf)?;
@@ -5452,6 +5642,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketMobEffect {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let runtime_entity_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -5498,6 +5689,7 @@ pub struct PacketMobEquipment {
 impl crate::bedrock::codec::BedrockCodec for PacketMobEquipment {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarLong(self.runtime_entity_id).encode(buf)?;
         self.item.encode(buf)?;
         self.slot.encode(buf)?;
@@ -5509,6 +5701,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketMobEquipment {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let runtime_entity_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -5541,6 +5734,7 @@ pub struct PacketModalFormRequest {
 impl crate::bedrock::codec::BedrockCodec for PacketModalFormRequest {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarInt(self.form_id).encode(buf)?;
         self.data.encode(buf)?;
         Ok(())
@@ -5549,6 +5743,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketModalFormRequest {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let form_id = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -5566,6 +5761,7 @@ pub struct PacketModalFormResponse {
 impl crate::bedrock::codec::BedrockCodec for PacketModalFormResponse {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarInt(self.form_id).encode(buf)?;
         self.data.encode(buf)?;
         Ok(())
@@ -5574,6 +5770,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketModalFormResponse {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let form_id = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -5592,6 +5789,7 @@ pub struct PacketMotionPredictionHints {
 impl crate::bedrock::codec::BedrockCodec for PacketMotionPredictionHints {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarLong(self.entity_runtime_id).encode(buf)?;
         self.velocity.encode(buf)?;
         self.on_ground.encode(buf)?;
@@ -5601,6 +5799,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketMotionPredictionHints {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let entity_runtime_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -5625,6 +5824,7 @@ pub struct PacketMoveEntity {
 impl crate::bedrock::codec::BedrockCodec for PacketMoveEntity {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarLong(self.runtime_entity_id).encode(buf)?;
         self.flags.encode(buf)?;
         self.position.encode(buf)?;
@@ -5635,6 +5835,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketMoveEntity {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let runtime_entity_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -5668,6 +5869,7 @@ pub struct PacketMoveEntityDelta {
 impl crate::bedrock::codec::BedrockCodec for PacketMoveEntityDelta {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarLong(self.runtime_entity_id).encode(buf)?;
         self.flags.encode(buf)?;
         if let Some(v) = &self.x {
@@ -5694,6 +5896,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketMoveEntityDelta {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let runtime_entity_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -5831,6 +6034,7 @@ pub struct PacketMovePlayerTeleport {
 impl crate::bedrock::codec::BedrockCodec for PacketMovePlayerTeleport {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.cause.encode(buf)?;
         self.source_entity_type.encode(buf)?;
         Ok(())
@@ -5839,6 +6043,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketMovePlayerTeleport {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let cause = <PacketMovePlayerTeleportCause as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -5866,6 +6071,7 @@ pub struct PacketMovePlayer {
 impl crate::bedrock::codec::BedrockCodec for PacketMovePlayer {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarInt(self.runtime_id).encode(buf)?;
         self.position.encode(buf)?;
         self.pitch.encode(buf)?;
@@ -5884,6 +6090,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketMovePlayer {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let runtime_id = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -5976,6 +6183,7 @@ pub struct PacketMultiplayerSettings {
 impl crate::bedrock::codec::BedrockCodec for PacketMultiplayerSettings {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.action_type.encode(buf)?;
         Ok(())
     }
@@ -5983,6 +6191,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketMultiplayerSettings {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let action_type = <PacketMultiplayerSettingsActionType as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -5998,6 +6207,7 @@ pub struct PacketNetworkChunkPublisherUpdate {
 impl crate::bedrock::codec::BedrockCodec for PacketNetworkChunkPublisherUpdate {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.coordinates.encode(buf)?;
         crate::bedrock::codec::VarInt(self.radius).encode(buf)?;
         Ok(())
@@ -6006,6 +6216,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketNetworkChunkPublisherUpdate {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let coordinates = <BlockCoordinates as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -6025,6 +6236,7 @@ pub struct PacketNetworkSettings {
 impl crate::bedrock::codec::BedrockCodec for PacketNetworkSettings {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.compression_threshold.encode(buf)?;
         Ok(())
     }
@@ -6032,6 +6244,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketNetworkSettings {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let compression_threshold = <u16 as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -6047,6 +6260,7 @@ pub struct PacketNetworkStackLatency {
 impl crate::bedrock::codec::BedrockCodec for PacketNetworkStackLatency {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.timestamp.encode(buf)?;
         self.unknown_flag.encode(buf)?;
         Ok(())
@@ -6055,6 +6269,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketNetworkStackLatency {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let timestamp = <u64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let unknown_flag = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self { timestamp, unknown_flag })
@@ -6070,6 +6285,7 @@ pub struct PacketNpcRequest {
 impl crate::bedrock::codec::BedrockCodec for PacketNpcRequest {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarLong(self.runtime_entity_id).encode(buf)?;
         self.unknown_0.encode(buf)?;
         self.unknown_1.encode(buf)?;
@@ -6080,6 +6296,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketNpcRequest {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let runtime_entity_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -6104,12 +6321,14 @@ pub struct PacketOnScreenTextureAnimation {}
 impl crate::bedrock::codec::BedrockCodec for PacketOnScreenTextureAnimation {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         Ok(Self {})
     }
 }
@@ -6191,6 +6410,7 @@ pub struct PacketPacketViolationWarning {
 impl crate::bedrock::codec::BedrockCodec for PacketPacketViolationWarning {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.violation_type.encode(buf)?;
         self.severity.encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.packet_id).encode(buf)?;
@@ -6201,6 +6421,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPacketViolationWarning {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let violation_type = <PacketPacketViolationWarningViolationType as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -6232,6 +6453,7 @@ pub struct PacketPhotoTransfer {
 impl crate::bedrock::codec::BedrockCodec for PacketPhotoTransfer {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.file_name.encode(buf)?;
         self.image_data.encode(buf)?;
         self.unknown_2.encode(buf)?;
@@ -6241,6 +6463,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPhotoTransfer {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let file_name = <String as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -6270,6 +6493,7 @@ pub struct PacketPlaySound {
 impl crate::bedrock::codec::BedrockCodec for PacketPlaySound {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.name.encode(buf)?;
         self.coordinates.encode(buf)?;
         self.volume.encode(buf)?;
@@ -6280,6 +6504,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlaySound {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let name = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let coordinates = <BlockCoordinates as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
@@ -6348,6 +6573,7 @@ pub struct PacketPlayStatus {
 impl crate::bedrock::codec::BedrockCodec for PacketPlayStatus {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.status.encode(buf)?;
         Ok(())
     }
@@ -6355,6 +6581,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayStatus {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let status = <PacketPlayStatusStatus as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -6372,6 +6599,7 @@ pub struct PacketPlayerAction {
 impl crate::bedrock::codec::BedrockCodec for PacketPlayerAction {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarLong(self.runtime_entity_id).encode(buf)?;
         self.action.encode(buf)?;
         self.position.encode(buf)?;
@@ -6382,6 +6610,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerAction {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let runtime_entity_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -6416,6 +6645,7 @@ pub struct PacketPlayerArmorDamage {
 impl crate::bedrock::codec::BedrockCodec for PacketPlayerArmorDamage {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.type_.encode(buf)?;
         if let Some(v) = &self.helmet_damage {
             v.encode(buf)?;
@@ -6435,6 +6665,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerArmorDamage {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let type_ = <ArmorDamageType as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -6591,6 +6822,7 @@ pub struct PacketPlayerAuthInputTransaction {
 impl crate::bedrock::codec::BedrockCodec for PacketPlayerAuthInputTransaction {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.legacy.encode(buf)?;
         self.actions.encode(buf)?;
         self.data.encode(buf)?;
@@ -6600,6 +6832,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerAuthInputTransaction {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let legacy = <TransactionLegacy as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -6624,6 +6857,7 @@ impl crate::bedrock::codec::BedrockCodec
 for PacketPlayerAuthInputBlockActionItemContentAbortBreak {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.position.encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.face).encode(buf)?;
         Ok(())
@@ -6632,6 +6866,7 @@ for PacketPlayerAuthInputBlockActionItemContentAbortBreak {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let position = <Vec3I as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let face = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
@@ -6657,6 +6892,7 @@ pub struct PacketPlayerAuthInputBlockActionItem {
 impl crate::bedrock::codec::BedrockCodec for PacketPlayerAuthInputBlockActionItem {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.action.encode(buf)?;
         if let Some(v) = &self.content {
             match v {
@@ -6683,6 +6919,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerAuthInputBlockActionIte
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let action = <Action as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let content = match action {
             Action::AbortBreak => {
@@ -6760,6 +6997,7 @@ pub struct PacketPlayerAuthInput {
 impl crate::bedrock::codec::BedrockCodec for PacketPlayerAuthInput {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.pitch.encode(buf)?;
         self.yaw.encode(buf)?;
         self.position.encode(buf)?;
@@ -6788,6 +7026,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerAuthInput {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let pitch = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let yaw = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let position = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
@@ -6889,6 +7128,7 @@ pub struct PacketPlayerEnchantOptions {
 impl crate::bedrock::codec::BedrockCodec for PacketPlayerEnchantOptions {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.enchant_options.encode(buf)?;
         Ok(())
     }
@@ -6896,6 +7136,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerEnchantOptions {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let enchant_options = {
             let res: EnchantOptions = {
                 let len = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
@@ -6927,6 +7168,7 @@ pub struct PacketPlayerFog {
 impl crate::bedrock::codec::BedrockCodec for PacketPlayerFog {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         let len = self.stack.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.stack {
@@ -6938,6 +7180,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerFog {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let stack = {
             let len = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
@@ -6965,6 +7208,7 @@ pub struct PacketPlayerHotbar {
 impl crate::bedrock::codec::BedrockCodec for PacketPlayerHotbar {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarInt(self.selected_slot).encode(buf)?;
         self.window_id.encode(buf)?;
         self.select_slot.encode(buf)?;
@@ -6974,6 +7218,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerHotbar {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let selected_slot = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -7004,6 +7249,7 @@ pub struct PacketPlayerInput {
 impl crate::bedrock::codec::BedrockCodec for PacketPlayerInput {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.motion_x.encode(buf)?;
         self.motion_z.encode(buf)?;
         self.jumping.encode(buf)?;
@@ -7014,6 +7260,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerInput {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let motion_x = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let motion_z = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let jumping = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
@@ -7033,6 +7280,7 @@ pub struct PacketPlayerList {
 impl crate::bedrock::codec::BedrockCodec for PacketPlayerList {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.records.encode(buf)?;
         Ok(())
     }
@@ -7040,6 +7288,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerList {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let records = <PlayerRecords as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -7058,6 +7307,7 @@ pub struct PacketPlayerSkin {
 impl crate::bedrock::codec::BedrockCodec for PacketPlayerSkin {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.uuid.encode(buf)?;
         self.skin.encode(buf)?;
         self.skin_name.encode(buf)?;
@@ -7069,6 +7319,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerSkin {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let uuid = <uuid::Uuid as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let skin = <Skin as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let skin_name = <String as crate::bedrock::codec::BedrockCodec>::decode(
@@ -7139,6 +7390,7 @@ pub struct PacketPositionTrackingDbBroadcast {
 impl crate::bedrock::codec::BedrockCodec for PacketPositionTrackingDbBroadcast {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.broadcast_action.encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.tracking_id).encode(buf)?;
         self.nbt.encode(buf)?;
@@ -7148,6 +7400,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPositionTrackingDbBroadcast {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let broadcast_action = <PacketPositionTrackingDbBroadcastBroadcastAction as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -7205,6 +7458,7 @@ pub struct PacketPositionTrackingDbRequest {
 impl crate::bedrock::codec::BedrockCodec for PacketPositionTrackingDbRequest {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.action.encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.tracking_id).encode(buf)?;
         Ok(())
@@ -7213,6 +7467,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPositionTrackingDbRequest {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let action = <PacketPositionTrackingDbRequestAction as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -7232,6 +7487,7 @@ pub struct PacketPurchaseReceipt {
 impl crate::bedrock::codec::BedrockCodec for PacketPurchaseReceipt {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         let len = self.receipts.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.receipts {
@@ -7243,6 +7499,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPurchaseReceipt {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let receipts = {
             let len = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
@@ -7268,6 +7525,7 @@ pub struct PacketRemoveEcsEntity {
 impl crate::bedrock::codec::BedrockCodec for PacketRemoveEcsEntity {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarLong(self.network_id).encode(buf)?;
         Ok(())
     }
@@ -7275,6 +7533,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketRemoveEcsEntity {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let network_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -7290,6 +7549,7 @@ pub struct PacketRemoveEntity {
 impl crate::bedrock::codec::BedrockCodec for PacketRemoveEntity {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::ZigZag64(self.entity_id_self).encode(buf)?;
         Ok(())
     }
@@ -7297,6 +7557,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketRemoveEntity {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let entity_id_self = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -7312,6 +7573,7 @@ pub struct PacketRemoveObjective {
 impl crate::bedrock::codec::BedrockCodec for PacketRemoveObjective {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.objective_name.encode(buf)?;
         Ok(())
     }
@@ -7319,6 +7581,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketRemoveObjective {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let objective_name = <String as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -7333,6 +7596,7 @@ pub struct PacketRequestChunkRadius {
 impl crate::bedrock::codec::BedrockCodec for PacketRequestChunkRadius {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::ZigZag32(self.chunk_radius).encode(buf)?;
         Ok(())
     }
@@ -7340,6 +7604,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketRequestChunkRadius {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let chunk_radius = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -7358,6 +7623,7 @@ pub struct PacketResourcePackChunkData {
 impl crate::bedrock::codec::BedrockCodec for PacketResourcePackChunkData {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.package_id.encode(buf)?;
         self.chunk_index.encode(buf)?;
         self.progress.encode(buf)?;
@@ -7368,6 +7634,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketResourcePackChunkData {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let package_id = <String as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -7394,6 +7661,7 @@ pub struct PacketResourcePackChunkRequest {
 impl crate::bedrock::codec::BedrockCodec for PacketResourcePackChunkRequest {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.package_id.encode(buf)?;
         self.chunk_index.encode(buf)?;
         Ok(())
@@ -7402,6 +7670,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketResourcePackChunkRequest {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let package_id = <String as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -7460,6 +7729,7 @@ pub struct PacketResourcePackClientResponse {
 impl crate::bedrock::codec::BedrockCodec for PacketResourcePackClientResponse {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.response_status.encode(buf)?;
         self.resourcepackids.encode(buf)?;
         Ok(())
@@ -7468,6 +7738,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketResourcePackClientResponse {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let response_status = <PacketResourcePackClientResponseResponseStatus as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -7509,6 +7780,7 @@ pub struct PacketResourcePackDataInfo {
 impl crate::bedrock::codec::BedrockCodec for PacketResourcePackDataInfo {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.package_id.encode(buf)?;
         self.max_chunk_size.encode(buf)?;
         self.chunk_count.encode(buf)?;
@@ -7522,6 +7794,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketResourcePackDataInfo {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let package_id = <String as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -7561,6 +7834,7 @@ pub struct PacketResourcePackStack {
 impl crate::bedrock::codec::BedrockCodec for PacketResourcePackStack {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.must_accept.encode(buf)?;
         self.behavior_packs.encode(buf)?;
         self.resource_packs.encode(buf)?;
@@ -7573,6 +7847,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketResourcePackStack {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let must_accept = <bool as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -7665,6 +7940,7 @@ pub struct PacketResourcePacksInfo {
 impl crate::bedrock::codec::BedrockCodec for PacketResourcePacksInfo {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.must_accept.encode(buf)?;
         self.has_scripts.encode(buf)?;
         self.behaviour_packs.encode(buf)?;
@@ -7675,6 +7951,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketResourcePacksInfo {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let must_accept = <bool as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -7738,6 +8015,7 @@ pub struct PacketRespawn {
 impl crate::bedrock::codec::BedrockCodec for PacketRespawn {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.x.encode(buf)?;
         self.y.encode(buf)?;
         self.z.encode(buf)?;
@@ -7749,6 +8027,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketRespawn {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let x = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let y = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let z = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
@@ -7774,6 +8053,7 @@ pub struct PacketRiderJump {
 impl crate::bedrock::codec::BedrockCodec for PacketRiderJump {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::ZigZag32(self.jump_strength).encode(buf)?;
         Ok(())
     }
@@ -7781,6 +8061,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketRiderJump {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let jump_strength = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -7797,6 +8078,7 @@ pub struct PacketScriptCustomEvent {
 impl crate::bedrock::codec::BedrockCodec for PacketScriptCustomEvent {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.event_name.encode(buf)?;
         self.event_data.encode(buf)?;
         Ok(())
@@ -7805,6 +8087,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketScriptCustomEvent {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let event_name = <String as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -7821,12 +8104,14 @@ pub struct PacketServerSettingsRequest {}
 impl crate::bedrock::codec::BedrockCodec for PacketServerSettingsRequest {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         Ok(Self {})
     }
 }
@@ -7838,6 +8123,7 @@ pub struct PacketServerSettingsResponse {
 impl crate::bedrock::codec::BedrockCodec for PacketServerSettingsResponse {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarInt(self.form_id).encode(buf)?;
         self.data.encode(buf)?;
         Ok(())
@@ -7846,6 +8132,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketServerSettingsResponse {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let form_id = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -7862,6 +8149,7 @@ pub struct PacketServerToClientHandshake {
 impl crate::bedrock::codec::BedrockCodec for PacketServerToClientHandshake {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.token.encode(buf)?;
         Ok(())
     }
@@ -7869,6 +8157,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketServerToClientHandshake {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let token = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self { token })
     }
@@ -7880,6 +8169,7 @@ pub struct PacketSetCommandsEnabled {
 impl crate::bedrock::codec::BedrockCodec for PacketSetCommandsEnabled {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.enabled.encode(buf)?;
         Ok(())
     }
@@ -7887,6 +8177,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketSetCommandsEnabled {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let enabled = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self { enabled })
     }
@@ -7898,6 +8189,7 @@ pub struct PacketSetDefaultGameType {
 impl crate::bedrock::codec::BedrockCodec for PacketSetDefaultGameType {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.gamemode.encode(buf)?;
         Ok(())
     }
@@ -7905,6 +8197,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketSetDefaultGameType {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let gamemode = <GameMode as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -7919,6 +8212,7 @@ pub struct PacketSetDifficulty {
 impl crate::bedrock::codec::BedrockCodec for PacketSetDifficulty {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarInt(self.difficulty).encode(buf)?;
         Ok(())
     }
@@ -7926,6 +8220,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketSetDifficulty {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let difficulty = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -7945,6 +8240,7 @@ pub struct PacketSetDisplayObjective {
 impl crate::bedrock::codec::BedrockCodec for PacketSetDisplayObjective {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.display_slot.encode(buf)?;
         self.objective_name.encode(buf)?;
         self.display_name.encode(buf)?;
@@ -7956,6 +8252,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketSetDisplayObjective {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let display_slot = <String as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -7995,6 +8292,7 @@ pub struct PacketSetEntityData {
 impl crate::bedrock::codec::BedrockCodec for PacketSetEntityData {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarLong(self.runtime_entity_id).encode(buf)?;
         self.metadata.encode(buf)?;
         crate::bedrock::codec::VarLong(self.tick).encode(buf)?;
@@ -8004,6 +8302,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketSetEntityData {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let runtime_entity_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -8049,6 +8348,7 @@ pub struct PacketSetEntityLink {
 impl crate::bedrock::codec::BedrockCodec for PacketSetEntityLink {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.link.encode(buf)?;
         Ok(())
     }
@@ -8056,6 +8356,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketSetEntityLink {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let link = <Link as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self { link })
     }
@@ -8068,6 +8369,7 @@ pub struct PacketSetEntityMotion {
 impl crate::bedrock::codec::BedrockCodec for PacketSetEntityMotion {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarLong(self.runtime_entity_id).encode(buf)?;
         self.velocity.encode(buf)?;
         Ok(())
@@ -8076,6 +8378,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketSetEntityMotion {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let runtime_entity_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -8095,6 +8398,7 @@ pub struct PacketSetHealth {
 impl crate::bedrock::codec::BedrockCodec for PacketSetHealth {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::ZigZag32(self.health).encode(buf)?;
         Ok(())
     }
@@ -8102,6 +8406,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketSetHealth {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let health = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -8117,6 +8422,7 @@ pub struct PacketSetLastHurtBy {
 impl crate::bedrock::codec::BedrockCodec for PacketSetLastHurtBy {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarInt(self.unknown).encode(buf)?;
         Ok(())
     }
@@ -8124,6 +8430,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketSetLastHurtBy {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let unknown = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -8139,6 +8446,7 @@ pub struct PacketSetLocalPlayerAsInitialized {
 impl crate::bedrock::codec::BedrockCodec for PacketSetLocalPlayerAsInitialized {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarLong(self.runtime_entity_id).encode(buf)?;
         Ok(())
     }
@@ -8146,6 +8454,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketSetLocalPlayerAsInitialized {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let runtime_entity_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -8161,6 +8470,7 @@ pub struct PacketSetPlayerGameType {
 impl crate::bedrock::codec::BedrockCodec for PacketSetPlayerGameType {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.gamemode.encode(buf)?;
         Ok(())
     }
@@ -8168,6 +8478,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketSetPlayerGameType {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let gamemode = <GameMode as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -8182,6 +8493,7 @@ pub struct PacketSetScore {
 impl crate::bedrock::codec::BedrockCodec for PacketSetScore {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.entries.encode(buf)?;
         Ok(())
     }
@@ -8189,6 +8501,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketSetScore {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let entries = <ScoreEntries as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -8203,6 +8516,7 @@ pub struct PacketSetScoreboardIdentity {
 impl crate::bedrock::codec::BedrockCodec for PacketSetScoreboardIdentity {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.entries.encode(buf)?;
         Ok(())
     }
@@ -8210,6 +8524,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketSetScoreboardIdentity {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let entries = <ScoreboardIdentityEntries as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -8261,6 +8576,7 @@ pub struct PacketSetSpawnPosition {
 impl crate::bedrock::codec::BedrockCodec for PacketSetSpawnPosition {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.spawn_type.encode(buf)?;
         self.player_position.encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.dimension).encode(buf)?;
@@ -8271,6 +8587,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketSetSpawnPosition {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let spawn_type = <PacketSetSpawnPositionSpawnType as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -8303,6 +8620,7 @@ pub struct PacketSetTime {
 impl crate::bedrock::codec::BedrockCodec for PacketSetTime {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::ZigZag32(self.time).encode(buf)?;
         Ok(())
     }
@@ -8310,6 +8628,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketSetTime {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let time = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -8377,6 +8696,7 @@ pub struct PacketSetTitle {
 impl crate::bedrock::codec::BedrockCodec for PacketSetTitle {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.type_.encode(buf)?;
         self.text.encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.fade_in_time).encode(buf)?;
@@ -8388,6 +8708,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketSetTitle {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let type_ = <PacketSetTitleType as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -8425,6 +8746,7 @@ pub struct PacketSettingsCommand {
 impl crate::bedrock::codec::BedrockCodec for PacketSettingsCommand {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.command_line.encode(buf)?;
         self.suppress_output.encode(buf)?;
         Ok(())
@@ -8433,6 +8755,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketSettingsCommand {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let command_line = <String as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -8455,6 +8778,7 @@ pub struct PacketShowCredits {
 impl crate::bedrock::codec::BedrockCodec for PacketShowCredits {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarLong(self.runtime_entity_id).encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.status).encode(buf)?;
         Ok(())
@@ -8463,6 +8787,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketShowCredits {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let runtime_entity_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -8483,6 +8808,7 @@ pub struct PacketShowProfile {
 impl crate::bedrock::codec::BedrockCodec for PacketShowProfile {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.xuid.encode(buf)?;
         Ok(())
     }
@@ -8490,6 +8816,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketShowProfile {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let xuid = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self { xuid })
     }
@@ -8502,6 +8829,7 @@ pub struct PacketShowStoreOffer {
 impl crate::bedrock::codec::BedrockCodec for PacketShowStoreOffer {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.unknown_0.encode(buf)?;
         self.unknown_1.encode(buf)?;
         Ok(())
@@ -8510,6 +8838,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketShowStoreOffer {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let unknown_0 = <String as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -8563,6 +8892,7 @@ pub struct PacketSimpleEvent {
 impl crate::bedrock::codec::BedrockCodec for PacketSimpleEvent {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.event_type.encode(buf)?;
         Ok(())
     }
@@ -8570,6 +8900,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketSimpleEvent {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let event_type = <PacketSimpleEventEventType as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -8585,6 +8916,7 @@ pub struct PacketSpawnExperienceOrb {
 impl crate::bedrock::codec::BedrockCodec for PacketSpawnExperienceOrb {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.position.encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.count).encode(buf)?;
         Ok(())
@@ -8593,6 +8925,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketSpawnExperienceOrb {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let position = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let count = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
@@ -8612,6 +8945,7 @@ pub struct PacketSpawnParticleEffect {
 impl crate::bedrock::codec::BedrockCodec for PacketSpawnParticleEffect {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.dimension_id.encode(buf)?;
         crate::bedrock::codec::ZigZag64(self.entity_id).encode(buf)?;
         self.position.encode(buf)?;
@@ -8622,6 +8956,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketSpawnParticleEffect {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let dimension_id = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let entity_id = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
@@ -8742,6 +9077,7 @@ pub struct PacketStartGame {
 impl crate::bedrock::codec::BedrockCodec for PacketStartGame {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::ZigZag64(self.entity_id).encode(buf)?;
         crate::bedrock::codec::VarLong(self.runtime_entity_id).encode(buf)?;
         self.player_gamemode.encode(buf)?;
@@ -8807,6 +9143,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketStartGame {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let entity_id = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -9177,6 +9514,7 @@ pub struct PacketStopSound {
 impl crate::bedrock::codec::BedrockCodec for PacketStopSound {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.name.encode(buf)?;
         self.stop_all.encode(buf)?;
         Ok(())
@@ -9185,6 +9523,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketStopSound {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let name = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let stop_all = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self { name, stop_all })
@@ -9195,12 +9534,14 @@ pub struct PacketStructureBlockUpdate {}
 impl crate::bedrock::codec::BedrockCodec for PacketStructureBlockUpdate {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         Ok(Self {})
     }
 }
@@ -9209,12 +9550,14 @@ pub struct PacketStructureTemplateDataExportRequest {}
 impl crate::bedrock::codec::BedrockCodec for PacketStructureTemplateDataExportRequest {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         Ok(Self {})
     }
 }
@@ -9223,12 +9566,14 @@ pub struct PacketStructureTemplateDataExportResponse {}
 impl crate::bedrock::codec::BedrockCodec for PacketStructureTemplateDataExportResponse {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         Ok(Self {})
     }
 }
@@ -9239,6 +9584,7 @@ pub struct PacketSubClientLogin {
 impl crate::bedrock::codec::BedrockCodec for PacketSubClientLogin {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.tokens.encode(buf)?;
         Ok(())
     }
@@ -9246,6 +9592,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketSubClientLogin {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let tokens = <LoginTokens as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -9261,6 +9608,7 @@ pub struct PacketTakeItemEntity {
 impl crate::bedrock::codec::BedrockCodec for PacketTakeItemEntity {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarLong(self.runtime_entity_id).encode(buf)?;
         crate::bedrock::codec::VarInt(self.target).encode(buf)?;
         Ok(())
@@ -9269,6 +9617,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketTakeItemEntity {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let runtime_entity_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -9342,6 +9691,7 @@ pub struct PacketTextContentAnnouncement {
 impl crate::bedrock::codec::BedrockCodec for PacketTextContentAnnouncement {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.source_name.encode(buf)?;
         self.message.encode(buf)?;
         Ok(())
@@ -9350,6 +9700,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketTextContentAnnouncement {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let source_name = <String as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -9365,6 +9716,7 @@ pub struct PacketTextContentJson {
 impl crate::bedrock::codec::BedrockCodec for PacketTextContentJson {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.message.encode(buf)?;
         Ok(())
     }
@@ -9372,6 +9724,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketTextContentJson {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let message = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self { message })
     }
@@ -9384,6 +9737,7 @@ pub struct PacketTextContentJukeboxPopup {
 impl crate::bedrock::codec::BedrockCodec for PacketTextContentJukeboxPopup {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.message.encode(buf)?;
         let len = self.parameters.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
@@ -9396,6 +9750,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketTextContentJukeboxPopup {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let message = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let parameters = {
             let len = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
@@ -9440,6 +9795,7 @@ pub struct PacketText {
 impl crate::bedrock::codec::BedrockCodec for PacketText {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.type_.encode(buf)?;
         self.needs_translation.encode(buf)?;
         if let Some(v) = &self.content {
@@ -9487,6 +9843,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketText {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let type_ = <PacketTextType as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -9606,7 +9963,6 @@ impl crate::bedrock::codec::BedrockCodec for PacketText {
                     ),
                 )
             }
-            _ => None,
         };
         let xuid = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let platform_chat_id = <String as crate::bedrock::codec::BedrockCodec>::decode(
@@ -9630,6 +9986,7 @@ pub struct PacketTickSync {
 impl crate::bedrock::codec::BedrockCodec for PacketTickSync {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.request_time.encode(buf)?;
         self.response_time.encode(buf)?;
         Ok(())
@@ -9638,6 +9995,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketTickSync {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let request_time = <i64 as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -9660,6 +10018,7 @@ pub struct PacketTransfer {
 impl crate::bedrock::codec::BedrockCodec for PacketTransfer {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.server_address.encode(buf)?;
         self.port.encode(buf)?;
         Ok(())
@@ -9668,6 +10027,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketTransfer {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let server_address = <String as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -9685,6 +10045,7 @@ pub struct PacketUpdateAttributes {
 impl crate::bedrock::codec::BedrockCodec for PacketUpdateAttributes {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         crate::bedrock::codec::VarLong(self.runtime_entity_id).encode(buf)?;
         self.attributes.encode(buf)?;
         crate::bedrock::codec::VarLong(self.tick).encode(buf)?;
@@ -9694,6 +10055,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketUpdateAttributes {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let runtime_entity_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -9742,6 +10104,7 @@ pub struct PacketUpdateBlock {
 impl crate::bedrock::codec::BedrockCodec for PacketUpdateBlock {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.position.encode(buf)?;
         crate::bedrock::codec::VarInt(self.block_runtime_id).encode(buf)?;
         self.flags.encode(buf)?;
@@ -9752,6 +10115,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketUpdateBlock {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let position = <BlockCoordinates as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -9785,6 +10149,7 @@ pub struct PacketUpdateBlockProperties {
 impl crate::bedrock::codec::BedrockCodec for PacketUpdateBlockProperties {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.nbt.encode(buf)?;
         Ok(())
     }
@@ -9792,6 +10157,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketUpdateBlockProperties {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let nbt = <Vec<u8> as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self { nbt })
     }
@@ -9844,6 +10210,7 @@ pub struct PacketUpdateBlockSynced {
 impl crate::bedrock::codec::BedrockCodec for PacketUpdateBlockSynced {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.position.encode(buf)?;
         crate::bedrock::codec::VarInt(self.block_runtime_id).encode(buf)?;
         self.flags.encode(buf)?;
@@ -9856,6 +10223,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketUpdateBlockSynced {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let position = <BlockCoordinates as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -9904,6 +10272,7 @@ pub struct PacketUpdateEquipment {
 impl crate::bedrock::codec::BedrockCodec for PacketUpdateEquipment {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.window_id.encode(buf)?;
         self.window_type.encode(buf)?;
         self.size.encode(buf)?;
@@ -9915,6 +10284,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketUpdateEquipment {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let window_id = <WindowId as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -9949,6 +10319,7 @@ pub struct PacketUpdatePlayerGameType {
 impl crate::bedrock::codec::BedrockCodec for PacketUpdatePlayerGameType {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.gamemode.encode(buf)?;
         crate::bedrock::codec::ZigZag64(self.player_unique_id).encode(buf)?;
         Ok(())
@@ -9957,6 +10328,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketUpdatePlayerGameType {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let gamemode = <GameMode as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -10014,6 +10386,7 @@ pub struct PacketUpdateSoftEnum {
 impl crate::bedrock::codec::BedrockCodec for PacketUpdateSoftEnum {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.enum_type.encode(buf)?;
         let len = self.options.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
@@ -10027,6 +10400,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketUpdateSoftEnum {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let enum_type = <String as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -10073,6 +10447,7 @@ pub struct PacketUpdateTrade {
 impl crate::bedrock::codec::BedrockCodec for PacketUpdateTrade {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.window_id.encode(buf)?;
         self.window_type.encode(buf)?;
         crate::bedrock::codec::VarInt(self.size).encode(buf)?;
@@ -10089,6 +10464,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketUpdateTrade {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let window_id = <WindowId as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -10189,6 +10565,7 @@ pub struct PacketVideoStreamConnect {
 impl crate::bedrock::codec::BedrockCodec for PacketVideoStreamConnect {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
         self.server_uri.encode(buf)?;
         self.frame_send_frequency.encode(buf)?;
         self.action.encode(buf)?;
@@ -10200,6 +10577,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketVideoStreamConnect {
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
+        let _ = buf;
         let server_uri = <String as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),

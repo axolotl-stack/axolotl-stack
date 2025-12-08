@@ -3,6 +3,7 @@ pub mod codec;
 pub mod context;
 pub mod definitions;
 pub mod primitives;
+pub mod resolver;
 pub mod structs;
 pub mod utils;
 
@@ -18,7 +19,19 @@ use std::io::Write;
 use std::path::Path;
 
 use self::primitives::is_primitive_name;
-use self::utils::{camel_case, get_group_name};
+use self::utils::camel_case;
+
+#[derive(Debug, Clone)]
+pub struct VersionSnapshot {
+    pub module_name: String,
+    pub packets: HashMap<String, resolver::PacketSignature>,
+}
+
+#[derive(Debug, Clone)]
+pub struct GenerationOutcome {
+    pub module_dependencies: HashSet<String>,
+    pub snapshot: VersionSnapshot,
+}
 
 pub fn generate_protocol_module(
     protocol_module_name: &str,
@@ -26,7 +39,8 @@ pub fn generate_protocol_module(
     output_dir: &Path,
     global_registry: &mut GlobalRegistry,
     _items_path: Option<std::path::PathBuf>,
-) -> Result<HashSet<String>, Box<dyn std::error::Error>> {
+    previous_snapshot: Option<&VersionSnapshot>,
+) -> Result<GenerationOutcome, Box<dyn std::error::Error>> {
     // Create directory for the version
     let version_dir = output_dir.join(protocol_module_name);
     if !version_dir.exists() {
@@ -58,10 +72,40 @@ pub fn generate_protocol_module(
             define_type(name, t, &mut ctx)?;
         }
     }
-    // 2. Emit Packets (top-level)
+    // 2. Emit Packets (top-level) with deduplication against the previous version
+    let mut packet_signatures = HashMap::new();
+
     for packet in &parse_result.packets {
         let struct_name = format!("Packet{}", camel_case(&packet.name));
-        define_container(&struct_name, &packet.body, &mut ctx)?;
+        let signature = resolver::compute_packet_signature(&struct_name, &packet.body, &ctx);
+
+        let should_alias = previous_snapshot
+            .and_then(|snap| snap.packets.get(&struct_name))
+            .map(|prev| prev == &signature)
+            .unwrap_or(false);
+
+        if should_alias {
+            if let Some(prev) = previous_snapshot {
+                let prev_ident = format_ident!("{}", prev.module_name);
+                let ident = format_ident!("{}", struct_name);
+                let mut inherited = Vec::new();
+                inherited.push(quote! { pub use super::#prev_ident::#ident; });
+                if !signature.args.is_empty() {
+                    let args_ident = format_ident!("{}Args", struct_name);
+                    inherited.push(quote! { pub use super::#prev_ident::#args_ident; });
+                }
+                ctx.definitions_by_group
+                    .entry("inherited".to_string())
+                    .or_default()
+                    .extend(inherited);
+                ctx.module_dependencies.insert(prev.module_name.clone());
+                ctx.emitted.insert(struct_name.clone());
+            }
+        } else {
+            define_container(&struct_name, &packet.body, &mut ctx)?;
+        }
+
+        packet_signatures.insert(struct_name, signature);
     }
 
     // 3. PacketId enum (Put in "common")
@@ -158,5 +202,13 @@ pub fn generate_protocol_module(
         mod_formatted
     )?;
 
-    Ok(ctx.module_dependencies)
+    let snapshot = VersionSnapshot {
+        module_name: protocol_module_name.to_string(),
+        packets: packet_signatures,
+    };
+
+    Ok(GenerationOutcome {
+        module_dependencies: ctx.module_dependencies,
+        snapshot,
+    })
 }

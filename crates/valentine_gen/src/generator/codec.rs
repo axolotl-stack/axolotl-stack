@@ -4,36 +4,14 @@ use crate::generator::definitions::resolve_type_to_tokens;
 use crate::generator::primitives::{
     enum_value_literal, primitive_to_enum_repr_tokens, primitive_to_rust_tokens,
 };
+use crate::generator::resolver::ResolvedContainer;
 use crate::generator::utils::{
-    camel_case, clean_field_name, clean_type_name, make_unique_names, safe_camel_ident,
+    camel_case, clean_field_name, clean_type_name, derive_field_names, safe_camel_ident,
 };
 use crate::ir::{Container, Primitive, Type};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use std::collections::{HashMap, HashSet};
-
-// Helper from before
-fn derive_field_names(container: &Container, struct_name: &str) -> Vec<String> {
-    let mut content_count = 0;
-    let base_names: Vec<String> = container
-        .fields
-        .iter()
-        .map(|f| {
-            let original = clean_field_name(&f.name, struct_name);
-            if original == "content" {
-                content_count += 1;
-                if content_count == 1 {
-                    return "content".to_string();
-                }
-                if content_count == 2 {
-                    return "extra".to_string();
-                }
-            }
-            original
-        })
-        .collect();
-    make_unique_names(&base_names)
-}
 
 pub fn generate_codec_impl(
     name: &str,
@@ -42,6 +20,10 @@ pub fn generate_codec_impl(
 ) -> Result<TokenStream, Box<dyn std::error::Error>> {
     let struct_ident = format_ident!("{}", name);
 
+    // PASS 1: Resolve every type/argument for this container
+    let resolved = ResolvedContainer::analyze(container, ctx);
+
+    // Keep the raw dependency list to know which args are global vs local
     let deps = get_deps(&Type::Container(container.clone()), ctx);
 
     let args_ident = format_ident!("{}Args", name);
@@ -49,15 +31,16 @@ pub fn generate_codec_impl(
     let mut args_type_def = quote! { () };
     let mut args_usage = quote! { _args };
     let mut from_proto_impl = TokenStream::new();
-    let mut arg_types = std::collections::HashMap::new();
+    let mut arg_idents: HashMap<String, proc_macro2::Ident> = HashMap::new();
 
-    if !deps.is_empty() {
+    if !resolved.args.is_empty() {
         let mut fields = Vec::new();
         let mut proto_fields = Vec::new();
         let mut has_local_deps = false;
 
-        // Map dependency names to container fields to resolve strong types
-        let unique_names = derive_field_names(container, name);
+        // Map dependency names to their resolved strong type
+        let resolved_arg_map: std::collections::HashMap<_, _> =
+            resolved.args.iter().cloned().collect();
 
         let mut sorted_deps: Vec<_> = deps.into_iter().collect();
         sorted_deps.sort_by(|a, b| match (&a.0, &b.0) {
@@ -74,28 +57,114 @@ pub fn generate_codec_impl(
             let f_ident = format_ident!("{}", fname);
 
             let hint = format!("{}{}", name, camel_case(fname));
-            let f_ty =
-                resolve_type_to_tokens(&dep_type, &hint, ctx).unwrap_or_else(|_| quote! { i32 }); // Fallback if resolution fails
+            // Prefer the resolved strong type from analysis; fall back to the raw dep type.
+            // Also try common cleaned variants of the name (e.g., "type" vs "type_").
+            let mut name_keys = Vec::new();
+            name_keys.push(fname.to_string());
+            if let Some(stripped) = fname.strip_prefix('_') {
+                name_keys.push(stripped.to_string());
+            } else {
+                name_keys.push(format!("_{}", fname));
+            }
+
+            // CRITICAL: dep_type (from get_deps) is already the "best known" type for this dep.
+            // Use it directly when present in resolved_arg_map; otherwise pull from variable_types.
+            // Do NOT degrade to primitive unless nothing better is known.
+            let mut final_arg_type = resolved_arg_map
+                .get(fname)
+                .cloned()
+                .or_else(|| {
+                    name_keys
+                        .iter()
+                        .find_map(|k| resolved.variable_types.get(k).cloned())
+                })
+                .unwrap_or(dep_type.clone());
+
+            // Heuristic: if still an int and the name suggests an enum discriminator, try to
+            // map to a well-known "*Type" enum based on the container prefix.
+            // If this looks like a discriminator, force it to the best-matching Enum we know.
+            let mut forced_enum_ident: Option<proc_macro2::Ident> = None;
+            // Derive a deterministic candidate enum name from the container name.
+            let mut base_from_container = name.to_string();
+            for suf in ["EntriesItem", "Entries", "Entry", "Item", "Content"] {
+                if let Some(stripped) = base_from_container.strip_suffix(suf) {
+                    base_from_container = stripped.to_string();
+                    break;
+                }
+            }
+            let container_candidate = format!("{}Type", base_from_container);
+
+            if fname.contains("type") {
+                if fname.contains("enum_type") {
+                    let clean =
+                        format_ident!("{}", clean_type_name("enum_size_based_on_values_len"));
+                    final_arg_type = Type::Reference("enum_size_based_on_values_len".to_string());
+                    forced_enum_ident = Some(clean);
+                } else {
+                    // Find the best enum name: prefer prefix match, then suffix match.
+                    let mut best_name: Option<String> = None;
+                    let mut best_score: usize = 0;
+                    for (ename, ety) in &ctx.type_lookup {
+                        if !matches!(ety, Type::Enum { .. }) {
+                            continue;
+                        }
+                        let base = ename.trim_end_matches("Type");
+                        let mut score = 0;
+                        if !base.is_empty() && name.starts_with(base) {
+                            score = base.len() * 2; // weight prefix higher
+                        } else if ename.ends_with(&container_candidate) {
+                            score = container_candidate.len();
+                        }
+                        if score > best_score {
+                            best_score = score;
+                            best_name = Some(ename.clone());
+                        }
+                    }
+
+                    if best_score > 0 {
+                        let chosen = best_name.unwrap_or(container_candidate.clone());
+                        let clean = clean_type_name(&chosen);
+                        final_arg_type = Type::Reference(clean.clone());
+                        forced_enum_ident = Some(format_ident!("{}", clean));
+                    } else {
+                        // Last-resort: use the container-derived candidate even if missing in lookup.
+                        let clean = clean_type_name(&container_candidate);
+                        final_arg_type = Type::Reference(clean.clone());
+                        forced_enum_ident = Some(format_ident!("{}", clean));
+                    }
+                }
+            }
+
+            // Heuristic: known bool discriminator that was parsed as int.
+            if matches!(
+                final_arg_type,
+                Type::Primitive(Primitive::VarInt | Primitive::ZigZag32 | Primitive::VarLong)
+            ) && (fname == "network_ids" || fname == "_network_ids")
+            {
+                final_arg_type = Type::Primitive(Primitive::Bool);
+            }
+
+            if let Some(en) = forced_enum_ident.clone() {
+                arg_idents.insert(fname.to_string(), en);
+            } else if let Type::Reference(r) = &final_arg_type {
+                let ident = format_ident!("{}", clean_type_name(r));
+                arg_idents.insert(fname.to_string(), ident);
+            }
+            let f_ty = if let Some(en) = forced_enum_ident {
+                quote! { #en }
+            } else {
+                resolve_type_to_tokens(&final_arg_type, &hint, ctx).unwrap_or_else(|_| {
+                    // If resolution failed but we have a reference name, still emit it; otherwise i32.
+                    if let Type::Reference(r) = &final_arg_type {
+                        let ident = format_ident!("{}", clean_type_name(r));
+                        quote! { #ident }
+                    } else {
+                        quote! { i32 }
+                    }
+                })
+            };
 
             fields.push(quote! { pub #f_ident: #f_ty });
-
-            // Store the Type definition for the decode logic to use later.
-            // We prioritize the type found in the container if it's a local field dependency.
-            let resolved_arg_type =
-                if let crate::generator::analysis::Dependency::LocalField(_) = dep {
-                    if let Some(idx) = unique_names.iter().position(|n| n == fname) {
-                        // Grab the REAL type from the container field definition
-                        container.fields.get(idx).map(|f| f.type_def.clone())
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                };
-
-            // If we found a local field match, use that. Otherwise use the type from the dependency map.
-            let final_arg_type = resolved_arg_type.unwrap_or(dep_type.clone());
-            arg_types.insert(fname.to_string(), final_arg_type);
             match dep {
                 crate::generator::analysis::Dependency::Global(_) => {
                     proto_fields.push(quote! { #f_ident: source.#f_ident });
@@ -129,13 +198,7 @@ pub fn generate_codec_impl(
     }
 
     let encode_body = generate_encode_body(name, container, ctx)?;
-    let decode_body = generate_decode_body(
-        name,
-        container,
-        ctx,
-        !args_struct_def.is_empty(),
-        &arg_types,
-    )?;
+    let decode_body = generate_decode_body(name, &resolved, ctx, &arg_idents)?;
 
     Ok(quote! {
         #args_struct_def
@@ -145,11 +208,13 @@ pub fn generate_codec_impl(
             type Args = #args_type_def;
 
             fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+                let _ = buf;
                 #encode_body
                 Ok(())
             }
 
             fn decode<B: bytes::Buf>(buf: &mut B, #args_usage: Self::Args) -> Result<Self, std::io::Error> {
+                let _ = buf;
                 #decode_body
             }
         }
@@ -158,13 +223,11 @@ pub fn generate_codec_impl(
 
 fn generate_decode_body(
     name: &str,
-    container: &Container,
+    resolved: &ResolvedContainer,
     ctx: &mut Context,
-    has_args: bool,
-    arg_types: &HashMap<String, Type>,
+    arg_idents: &HashMap<String, proc_macro2::Ident>,
 ) -> Result<TokenStream, Box<dyn std::error::Error>> {
-    let (stmts, field_names) =
-        generate_container_decode_stmts(name, container, ctx, has_args, arg_types)?;
+    let (stmts, field_names) = generate_container_decode_stmts(name, resolved, ctx, arg_idents)?;
     Ok(quote! {
         #(#stmts)*
         Ok(Self {
@@ -175,15 +238,15 @@ fn generate_decode_body(
 
 fn generate_container_decode_stmts(
     name: &str,
-    container: &Container,
+    resolved: &ResolvedContainer,
     ctx: &mut Context,
-    has_args: bool,
-    arg_types: &HashMap<String, Type>,
+    arg_idents: &HashMap<String, proc_macro2::Ident>,
 ) -> Result<(Vec<TokenStream>, Vec<proc_macro2::Ident>), Box<dyn std::error::Error>> {
     let mut stmts = Vec::new();
     let mut result_fields = Vec::new();
     let mut locals = HashSet::new();
 
+    let container = &resolved.raw;
     let redundant_fields = find_redundant_fields(container);
     let unique_names = derive_field_names(container, name);
 
@@ -198,9 +261,8 @@ fn generate_container_decode_stmts(
             &field_type,
             ctx,
             &locals,
-            has_args,
-            container,
-            arg_types,
+            resolved,
+            arg_idents,
         )?;
 
         stmts.push(quote! {
@@ -235,9 +297,8 @@ fn generate_field_decode_expr(
     ty: &Type,
     ctx: &mut Context,
     locals: &HashSet<String>,
-    has_args: bool,
-    current_container: &Container,
-    arg_types: &HashMap<String, Type>,
+    resolved: &ResolvedContainer,
+    arg_idents: &HashMap<String, proc_macro2::Ident>,
 ) -> Result<TokenStream, Box<dyn std::error::Error>> {
     match ty {
         Type::Primitive(p) => match p {
@@ -259,14 +320,7 @@ fn generate_field_decode_expr(
             }
         },
         Type::Switch { compare_to, .. } => {
-            let (compare_expr, compare_type) = resolve_path(
-                compare_to,
-                locals,
-                has_args,
-                current_container,
-                ctx,
-                arg_types,
-            );
+            let (compare_expr, compare_type) = resolve_path(compare_to, locals, resolved, ctx);
             generate_switch_decode_logic(
                 container_name,
                 var_name,
@@ -275,9 +329,8 @@ fn generate_field_decode_expr(
                 compare_expr,
                 compare_type,
                 locals,
-                has_args,
-                current_container,
-                arg_types,
+                resolved,
+                arg_idents,
             )
         }
         Type::Array {
@@ -313,9 +366,8 @@ fn generate_field_decode_expr(
                 inner_type,
                 ctx,
                 locals,
-                has_args,
-                current_container,
-                arg_types,
+                resolved,
+                arg_idents,
             )?;
 
             Ok(quote! {{
@@ -335,9 +387,8 @@ fn generate_field_decode_expr(
                 inner,
                 ctx,
                 locals,
-                has_args,
-                current_container,
-                arg_types,
+                resolved,
+                arg_idents,
             )?;
             Ok(quote! {{
                 let present = u8::decode(buf, ())?;
@@ -369,20 +420,19 @@ fn generate_field_decode_expr(
 
             // If the reference points to an Array or Option, we MUST inline the decoding logic
             // because the typedef (Vec<T> or Option<T>) does not implement BedrockCodec with the specific args we might need.
-            let resolved = resolve_type(ty, ctx);
-            if matches!(resolved, Type::Array { .. } | Type::Option(_)) {
+            let resolved_ty = resolve_type(ty, ctx);
+            if matches!(resolved_ty, Type::Array { .. } | Type::Option(_)) {
                 let hint = format!("{}{}", container_name, camel_case(var_name));
                 let type_tokens = resolve_type_to_tokens(ty, &hint, ctx)?;
 
                 let val = generate_field_decode_expr(
                     container_name,
                     var_name,
-                    &resolved,
+                    &resolved_ty,
                     ctx,
                     locals,
-                    has_args,
-                    current_container,
-                    arg_types,
+                    resolved,
+                    arg_idents,
                 )?;
 
                 return Ok(quote! {{
@@ -393,15 +443,7 @@ fn generate_field_decode_expr(
 
             let hint = format!("{}{}", container_name, camel_case(var_name));
             let type_tokens = resolve_type_to_tokens(ty, &hint, ctx)?;
-            let arg_expr = construct_args_expr(
-                ty,
-                container_name,
-                var_name,
-                ctx,
-                locals,
-                has_args,
-                current_container,
-            );
+            let arg_expr = construct_args_expr(ty, container_name, var_name, ctx, locals, resolved);
 
             Ok(quote! {
                 <#type_tokens as crate::bedrock::codec::BedrockCodec>::decode(buf, #arg_expr)?
@@ -410,15 +452,7 @@ fn generate_field_decode_expr(
         Type::Container(_) => {
             let hint = format!("{}{}", container_name, camel_case(var_name));
             let type_tokens = resolve_type_to_tokens(ty, &hint, ctx)?;
-            let arg_expr = construct_args_expr(
-                ty,
-                container_name,
-                var_name,
-                ctx,
-                locals,
-                has_args,
-                current_container,
-            );
+            let arg_expr = construct_args_expr(ty, container_name, var_name, ctx, locals, resolved);
 
             Ok(quote! {
                 <#type_tokens as crate::bedrock::codec::BedrockCodec>::decode(buf, #arg_expr)?
@@ -441,10 +475,12 @@ fn construct_args_expr(
     var_name: &str,
     ctx: &Context,
     locals: &HashSet<String>,
-    has_args: bool,
-    current_container: &Container,
+    resolved: &ResolvedContainer,
 ) -> TokenStream {
-    let resolved = match ty {
+    let has_args = !resolved.args.is_empty();
+    let arg_type_lookup: std::collections::HashMap<_, _> = resolved.args.iter().cloned().collect();
+
+    let resolved_ty = match ty {
         Type::Reference(r) => ctx
             .type_lookup
             .get(r)
@@ -454,7 +490,7 @@ fn construct_args_expr(
         _ => ty.clone(),
     };
 
-    let deps = crate::generator::analysis::get_deps(&resolved, ctx);
+    let deps = crate::generator::analysis::get_deps(&resolved_ty, ctx);
 
     if deps.is_empty() {
         return quote! { () };
@@ -490,20 +526,26 @@ fn construct_args_expr(
     for (dep, target_type) in sorted_deps {
         let n = dep.name();
         let f_ident = format_ident!("{}", n);
+        // Prefer resolved variable/arg types over the raw dependency default.
+        let final_target_type = arg_type_lookup
+            .get(n)
+            .cloned()
+            .or_else(|| resolved.variable_types.get(n).cloned())
+            .unwrap_or(target_type.clone());
 
         let value_expr = match dep {
             crate::generator::analysis::Dependency::LocalField(_) => {
                 if locals.contains(n) {
                     // Check if we need to cast the local variable
-                    let field_type = find_field_type_in_container(current_container, n);
+                    let field_type = resolved.variable_types.get(n).cloned();
 
                     // FIX: Check the Type enum, not the Primitive enum
                     let should_cast_to_i32 = matches!(
-                        target_type,
+                        final_target_type,
                         Type::Primitive(Primitive::VarInt | Primitive::ZigZag32)
                     );
                     let should_cast_to_i64 = matches!(
-                        target_type,
+                        final_target_type,
                         Type::Primitive(Primitive::VarLong | Primitive::ZigZag64)
                     );
 
@@ -858,11 +900,10 @@ fn generate_redundant_encode(
 fn resolve_path(
     path: &str,
     locals: &HashSet<String>,
-    has_args: bool,
-    container: &Container,
-    ctx: &mut Context,
-    arg_types: &HashMap<String, Type>,
+    resolved: &ResolvedContainer,
+    ctx: &Context,
 ) -> (TokenStream, Option<Type>) {
+    let has_args = !resolved.args.is_empty();
     // Heuristic: If it contains parentheses or square brackets, or a dot and looks like a method call (not just a path)
     // assume it's a direct Rust expression that evaluates to a boolean.
     let path_looks_like_expression = path.contains('(')
@@ -888,7 +929,7 @@ fn resolve_path(
         let tokens: Vec<TokenStream> = parts
             .iter()
             .map(|p| {
-                let (t, ty) = resolve_path(p.trim(), locals, has_args, container, ctx, arg_types);
+                let (t, ty) = resolve_path(p.trim(), locals, resolved, ctx);
                 if matches!(ty, Some(Type::Primitive(crate::ir::Primitive::Bool))) {
                     quote! { #t }
                 } else {
@@ -907,7 +948,7 @@ fn resolve_path(
         let tokens: Vec<TokenStream> = parts
             .iter()
             .map(|p| {
-                let (t, ty) = resolve_path(p.trim(), locals, has_args, container, ctx, arg_types);
+                let (t, ty) = resolve_path(p.trim(), locals, resolved, ctx);
                 if matches!(ty, Some(Type::Primitive(crate::ir::Primitive::Bool))) {
                     quote! { #t }
                 } else {
@@ -930,17 +971,20 @@ fn resolve_path(
         let field_name = crate::generator::utils::clean_field_name(clean, "");
         let field_ident = format_ident!("{}", field_name);
 
-        let ty = if locals.contains(&field_name) {
-            find_field_type_in_container(container, &field_name)
-        } else {
-            None
-        };
+        let ty = resolved.variable_types.get(&field_name).cloned();
 
         if locals.contains(&field_name) {
             return (quote! { #field_ident }, ty);
         }
         if has_args {
-            return (quote! { args.#field_ident }, None);
+            let arg_ty = ty.or_else(|| {
+                resolved
+                    .args
+                    .iter()
+                    .find(|(n, _)| n == &field_name)
+                    .map(|(_, t)| t.clone())
+            });
+            return (quote! { args.#field_ident }, arg_ty);
         }
         return (
             quote! { 0 },
@@ -961,10 +1005,16 @@ fn resolve_path(
             let s_ident = part_ident.to_string();
             if locals.contains(&s_ident) {
                 tokens.push(quote! { #part_ident });
-                current_type = find_field_type_in_container(container, &part_name);
+                current_type = resolved.variable_types.get(&s_ident).cloned();
             } else if has_args {
                 tokens.push(quote! { args.#part_ident });
-                current_type = arg_types.get(&s_ident).cloned();
+                current_type = resolved.variable_types.get(&s_ident).cloned().or_else(|| {
+                    resolved
+                        .args
+                        .iter()
+                        .find(|(n, _)| n == &s_ident)
+                        .map(|(_, t)| t.clone())
+                });
             } else {
                 tokens.push(quote! { #part_ident });
                 current_type = None;
@@ -1046,12 +1096,113 @@ fn find_discriminator_field<'a>(
 
 fn case_value_pattern(
     case_name: &str,
+    switch_field_name: &str,
+    compare_field_name: &str,
     discriminator_field: Option<&crate::ir::Field>,
     container_name: &str,
-    ctx: &Context,
+    resolved: &ResolvedContainer,
+    compare_type: Option<&Type>,
+    ctx: &mut Context,
+    arg_idents: &HashMap<String, proc_macro2::Ident>,
 ) -> TokenStream {
     if case_name == "_" || case_name.eq_ignore_ascii_case("default") {
         return quote! { _ };
+    }
+
+    // Try to resolve the discriminator's enum type to an already-known identifier.
+    // We only emit a typed pattern when we can prove the enum was (or will be) emitted;
+    // otherwise we fall back to literal patterns to avoid referencing missing helper types.
+    let mut enum_ident: Option<proc_macro2::Ident> = None;
+    let try_set_enum_ident = |ty: &Type, enum_ident: &mut Option<proc_macro2::Ident>| {
+        if enum_ident.is_some() {
+            return;
+        }
+        let resolved_ty = resolve_type(ty, ctx);
+        let candidate = match resolved_ty {
+            Type::Reference(r) => Some(clean_type_name(&r)),
+            Type::Enum { .. } => Some(clean_type_name(&format!(
+                "{}{}",
+                container_name,
+                camel_case(compare_field_name)
+            ))),
+            _ => None,
+        };
+
+        if let Some(name) = candidate {
+            if ctx.type_lookup.contains_key(&name)
+                || ctx.emitted.contains(&name)
+                || ctx.in_progress.contains(&name)
+            {
+                *enum_ident = Some(format_ident!("{}", name));
+            }
+        }
+    };
+
+    if let Some(enum_type) = resolved.switch_resolutions.get(switch_field_name) {
+        try_set_enum_ident(enum_type, &mut enum_ident);
+    }
+
+    if enum_ident.is_none() {
+        // Prefer the resolved discriminator type if available (strongly typed path).
+        let mut discriminator_keys = Vec::new();
+        discriminator_keys.push(compare_field_name.to_string());
+        if let Some(stripped) = compare_field_name.strip_prefix('_') {
+            discriminator_keys.push(stripped.to_string());
+        } else {
+            discriminator_keys.push(format!("_{}", compare_field_name));
+        }
+
+        for key in discriminator_keys {
+            if let Some(t) = resolved.variable_types.get(&key) {
+                try_set_enum_ident(t, &mut enum_ident);
+            }
+            if enum_ident.is_some() {
+                break;
+            }
+        }
+    }
+
+    if enum_ident.is_none() {
+        if let Some(ct) = compare_type {
+            try_set_enum_ident(ct, &mut enum_ident);
+        }
+    }
+
+    if let Some(enum_ident) = enum_ident {
+        let variant_ident = format_ident!("{}", safe_camel_ident(case_name));
+        return quote! { #enum_ident::#variant_ident };
+    }
+
+    if let Some(enum_ident) = arg_idents.get(compare_field_name).cloned().or_else(|| {
+        compare_field_name
+            .strip_prefix('_')
+            .and_then(|k| arg_idents.get(k).cloned())
+    }) {
+        let variant_ident = format_ident!("{}", safe_camel_ident(case_name));
+        return quote! { #enum_ident::#variant_ident };
+    }
+
+    // If we still don't have a known enum, but the discriminator type is a reference,
+    // prefer using that path over emitting a bare variant (which would not be in scope).
+    if let Some(Type::Reference(r)) = compare_type {
+        let type_ident = format_ident!("{}", clean_type_name(r));
+        let variant_ident = format_ident!("{}", safe_camel_ident(case_name));
+        return quote! { #type_ident::#variant_ident };
+    }
+
+    // Final attempt: check resolved argument metadata for a matching discriminator.
+    if let Some((_, arg_ty)) = resolved.args.iter().find(|(n, _)| {
+        n == compare_field_name
+            || n.strip_prefix('_')
+                .map(|s| s == compare_field_name)
+                .unwrap_or(false)
+    }) {
+        if matches!(arg_ty, Type::Reference(_) | Type::Enum { .. })
+            && let Ok(type_tokens) = resolve_type_to_tokens(arg_ty, compare_field_name, ctx)
+        {
+            let variant_ident = format_ident!("{}", safe_camel_ident(case_name));
+            return quote! { #type_tokens::#variant_ident };
+        }
     }
 
     if case_name.starts_with('/') {
@@ -1140,9 +1291,17 @@ fn case_value_pattern(
                     // It's a switch behaving as an Enum
                     let enum_type_name =
                         clean_type_name(&format!("{}{}", container_name, camel_case(&field.name)));
-                    let type_ident = format_ident!("{}", enum_type_name);
-                    let variant_ident = format_ident!("{}", safe_camel_ident(case_name));
-                    return quote! { #type_ident::#variant_ident };
+                    if ctx.type_lookup.contains_key(&enum_type_name)
+                        || ctx.emitted.contains(&enum_type_name)
+                        || ctx.in_progress.contains(&enum_type_name)
+                    {
+                        let type_ident = format_ident!("{}", enum_type_name);
+                        let variant_ident = format_ident!("{}", safe_camel_ident(case_name));
+                        return quote! { #type_ident::#variant_ident };
+                    } else {
+                        let variant_ident = format_ident!("{}", safe_camel_ident(case_name));
+                        return quote! { #variant_ident };
+                    }
                 }
             }
             _ => {}
@@ -1156,14 +1315,20 @@ fn case_value_pattern(
                 _ => None,
             };
 
+            let variant_ident = format_ident!("{}", safe_camel_ident(case_name));
             if let Some(name) = enum_type_name {
-                let type_ident = format_ident!("{}", name);
-                let variant_ident = format_ident!("{}", safe_camel_ident(case_name));
-                return quote! { #type_ident::#variant_ident };
+                if ctx.type_lookup.contains_key(&name)
+                    || ctx.emitted.contains(&name)
+                    || ctx.in_progress.contains(&name)
+                {
+                    let type_ident = format_ident!("{}", name);
+                    return quote! { #type_ident::#variant_ident };
+                } else {
+                    return quote! { #variant_ident };
+                }
             } else {
                 // If no reference, but we have a name, emit it as an identifier.
                 // This handles cases where the schema uses string keys for a numeric type (implicit enum).
-                let variant_ident = format_ident!("{}", safe_camel_ident(case_name));
                 return quote! { #variant_ident };
             }
         }
@@ -1194,9 +1359,8 @@ fn generate_switch_decode_logic(
     compare_expr: TokenStream,
     compare_type: Option<Type>,
     locals: &HashSet<String>,
-    has_args: bool,
-    current_container: &Container,
-    arg_types: &HashMap<String, Type>,
+    resolved: &ResolvedContainer,
+    arg_idents: &HashMap<String, proc_macro2::Ident>,
 ) -> Result<TokenStream, Box<dyn std::error::Error>> {
     if let Type::Switch {
         compare_to,
@@ -1205,7 +1369,39 @@ fn generate_switch_decode_logic(
         ..
     } = switch_def
     {
-        let discriminator_field = find_discriminator_field(compare_to, current_container);
+        let discriminator_field = find_discriminator_field(compare_to, &resolved.raw);
+        let compare_ty_hint = {
+            let clean = crate::generator::utils::clean_field_name(
+                &compare_to.replace("../", "").replace('/', "."),
+                "",
+            );
+            let mut keys = Vec::new();
+            keys.push(clean.clone());
+            if let Some(stripped) = clean.strip_prefix('_') {
+                keys.push(stripped.to_string());
+            } else {
+                keys.push(format!("_{}", clean));
+            }
+            let mut ty = keys
+                .iter()
+                .find_map(|k| resolved.variable_types.get(k).cloned())
+                .or(compare_type.clone());
+            if ty.is_none() {
+                // fallback to args map
+                let args_map: std::collections::HashMap<_, _> =
+                    resolved.args.iter().cloned().collect();
+                ty = keys.iter().find_map(|k| args_map.get(k).cloned());
+            }
+            ty
+        };
+        let compare_field_name = crate::generator::utils::clean_field_name(
+            compare_to
+                .replace("../", "")
+                .split('.')
+                .next()
+                .unwrap_or(compare_to),
+            "",
+        );
 
         // Helper to check if a type resolves to a Rust bool
         let check_is_bool = |t: &Type| -> bool {
@@ -1262,6 +1458,30 @@ fn generate_switch_decode_logic(
             .iter()
             .all(|(_, t)| matches!(t, Type::Primitive(Primitive::Void)));
 
+        // Helper: check if enum fully covered by case keys (to avoid unreachable default/_ arms)
+        fn enum_fully_covered(ty: Option<&Type>, fields: &[(String, Type)], ctx: &Context) -> bool {
+            let resolved_enum = ty.map(|t| resolve_type(t, ctx));
+            if let Some(Type::Reference(r)) = resolved_enum.as_ref() {
+                if let Some(inner) = ctx.type_lookup.get(r) {
+                    return enum_fully_covered(Some(inner), fields, ctx);
+                }
+            }
+            if let Some(Type::Enum { variants, .. }) = resolved_enum {
+                let case_names: std::collections::HashSet<String> = fields
+                    .iter()
+                    .map(|(k, _)| crate::generator::utils::safe_camel_ident(k))
+                    .filter(|k| !k.is_empty() && k != "_" && !k.eq_ignore_ascii_case("default"))
+                    .collect();
+                let variant_names: std::collections::HashSet<String> = variants
+                    .iter()
+                    .map(|(n, _)| crate::generator::utils::safe_camel_ident(n))
+                    .collect();
+                return variant_names.iter().all(|v| case_names.contains(v));
+            }
+            false
+        }
+        let compare_enum_covered = enum_fully_covered(compare_ty_hint.as_ref(), fields, ctx);
+
         // Helper for robust condition
         let mk_cond = |expr: &TokenStream| -> TokenStream {
             if is_bool_type {
@@ -1276,14 +1496,7 @@ fn generate_switch_decode_logic(
 
         if all_cases_void && !default_is_void {
             let inner_expr = generate_field_decode_expr(
-                name,
-                var_name,
-                default,
-                ctx,
-                locals,
-                has_args,
-                current_container,
-                arg_types,
+                name, var_name, default, ctx, locals, resolved, arg_idents,
             )?;
 
             let construct = if should_box_variant(default, ctx, 0) {
@@ -1313,10 +1526,22 @@ fn generate_switch_decode_logic(
 
             let mut match_arms = Vec::new();
             for (k, _) in fields {
-                let pat = case_value_pattern(k, discriminator_field, name, ctx);
+                let pat = case_value_pattern(
+                    k,
+                    var_name,
+                    &compare_field_name,
+                    discriminator_field,
+                    name,
+                    resolved,
+                    compare_ty_hint.as_ref(),
+                    ctx,
+                    arg_idents,
+                );
                 match_arms.push(quote! { #pat => None, });
             }
-            match_arms.push(quote! { _ => Some(#construct), });
+            if !compare_enum_covered {
+                match_arms.push(quote! { _ => Some(#construct), });
+            }
             return Ok(quote! { match #compare_expr { #(#match_arms)* } });
         }
 
@@ -1329,9 +1554,8 @@ fn generate_switch_decode_logic(
                 case_type,
                 ctx,
                 locals,
-                has_args,
-                current_container,
-                arg_types,
+                resolved,
+                arg_idents,
             )?;
             let construct = if should_box_variant(case_type, ctx, 0) {
                 quote! { Box::new(#inner) }
@@ -1349,13 +1573,31 @@ fn generate_switch_decode_logic(
                 }
             }
 
-            let pat = case_value_pattern(case_name, discriminator_field, name, ctx);
-            return Ok(quote! {
-                match #compare_expr {
-                    #pat => Some(#construct),
-                    _ => None
-                }
-            });
+            let pat = case_value_pattern(
+                case_name,
+                var_name,
+                &compare_field_name,
+                discriminator_field,
+                name,
+                resolved,
+                compare_ty_hint.as_ref(),
+                ctx,
+                arg_idents,
+            );
+            if compare_enum_covered {
+                return Ok(quote! {
+                    match #compare_expr {
+                        #pat => Some(#construct)
+                    }
+                });
+            } else {
+                return Ok(quote! {
+                    match #compare_expr {
+                        #pat => Some(#construct),
+                        _ => None
+                    }
+                });
+            }
         }
 
         let enum_name = clean_type_name(&format!("{}{}", name, camel_case(var_name)));
@@ -1397,9 +1639,8 @@ fn generate_switch_decode_logic(
                         c_type,
                         ctx,
                         locals,
-                        has_args,
-                        current_container,
-                        arg_types,
+                        resolved,
+                        arg_idents,
                     )?;
                     let construct = if should_box_variant(c_type, ctx, 0) {
                         quote! { Box::new(#inner) }
@@ -1449,7 +1690,17 @@ fn generate_switch_decode_logic(
 
         for (case_name, case_type) in fields {
             let variant_ident = format_ident!("{}", safe_camel_ident(case_name));
-            let val_lit = case_value_pattern(case_name, discriminator_field, name, ctx);
+            let val_lit = case_value_pattern(
+                case_name,
+                var_name,
+                &compare_field_name,
+                discriminator_field,
+                name,
+                resolved,
+                compare_ty_hint.as_ref(),
+                ctx,
+                arg_idents,
+            );
             if matches!(case_type, Type::Primitive(Primitive::Void)) {
                 if default_is_void {
                     match_arms.push(quote! { #val_lit => Some(#enum_ident::#variant_ident), });
@@ -1464,9 +1715,8 @@ fn generate_switch_decode_logic(
                     case_type,
                     ctx,
                     locals,
-                    has_args,
-                    current_container,
-                    arg_types,
+                    resolved,
+                    arg_idents,
                 )?;
                 let construct = if should_box_variant(case_type, ctx, 0) {
                     quote! { Box::new(#inner) }
@@ -1485,7 +1735,9 @@ fn generate_switch_decode_logic(
         }
 
         if default_is_void {
-            match_arms.push(quote! { _ => None, });
+            if !compare_enum_covered {
+                match_arms.push(quote! { _ => None, });
+            }
         } else {
             let inner_name = format!("{}Default", var_name);
             let inner = generate_field_decode_expr(
@@ -1494,9 +1746,8 @@ fn generate_switch_decode_logic(
                 default,
                 ctx,
                 locals,
-                has_args,
-                current_container,
-                arg_types,
+                resolved,
+                arg_idents,
             )?;
             let construct = if should_box_variant(default.as_ref(), ctx, 0) {
                 quote! { Box::new(#inner) }

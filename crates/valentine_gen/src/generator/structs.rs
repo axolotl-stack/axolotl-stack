@@ -2,7 +2,7 @@ use crate::generator::analysis::find_redundant_fields;
 use crate::generator::context::Context;
 use crate::generator::definitions::resolve_type_to_tokens;
 use crate::generator::utils::{camel_case, derive_field_names};
-use crate::ir::{Container, Type};
+use crate::ir::Container;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 

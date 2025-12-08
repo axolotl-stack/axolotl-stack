@@ -69,20 +69,7 @@ fn collect_deps_recursive(
             fields,
             default,
         } => {
-            // Check if keys suggest a boolean type (explicit "true"/"false")
-            let has_bool_literal = fields.iter().any(|(k, _)| {
-                let k = k.to_lowercase();
-                k == "true" || k == "false"
-            });
-
-            // If explicit bool literals are present, we assume the dependency is boolean.
-            // If only "0"/"1" are present, we stick to VarInt to avoid treating Enums/Integers as bools prematurely.
-            let dependency_prim = if has_bool_literal {
-                Primitive::Bool
-            } else {
-                Primitive::VarInt
-            };
-
+            let dependency_type = Type::Primitive(Primitive::VarInt);
             let parts: Vec<&str> = compare_to
                 .split(|c| c == '|' || c == '&' || c == ' ' || c == '(' || c == ')')
                 .filter(|s| !s.is_empty() && *s != "||" && *s != "&&")
@@ -97,17 +84,10 @@ fn collect_deps_recursive(
 
                 if part.starts_with('/') {
                     let name = clean_dep_name(base_name_str);
-                    // Boolean logic implies these are likely bools
-                    deps.insert((
-                        Dependency::Global(name),
-                        Type::Primitive(dependency_prim.clone()),
-                    ));
+                    deps.insert((Dependency::Global(name), dependency_type.clone()));
                 } else {
                     let name = clean_dep_name(base_name_str);
-                    deps.insert((
-                        Dependency::LocalField(name),
-                        Type::Primitive(dependency_prim.clone()),
-                    ));
+                    deps.insert((Dependency::LocalField(name), dependency_type.clone()));
                 }
             }
 

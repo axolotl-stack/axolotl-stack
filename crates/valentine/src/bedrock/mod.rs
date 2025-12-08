@@ -5,6 +5,7 @@
 #![allow(non_snake_case)]
 #![allow(dead_code)]
 #![allow(unused_imports)]
+#![allow(clippy::redundant_field_names)]
 #![allow(clippy::manual_flatten)]
 /// Bedrock protocol surface.
 ///
