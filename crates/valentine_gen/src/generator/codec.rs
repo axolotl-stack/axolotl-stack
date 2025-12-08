@@ -10,7 +10,7 @@ use crate::generator::utils::{
 use crate::ir::{Container, Primitive, Type};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 // Helper from before
 fn derive_field_names(container: &Container, struct_name: &str) -> Vec<String> {
@@ -49,6 +49,7 @@ pub fn generate_codec_impl(
     let mut args_type_def = quote! { () };
     let mut args_usage = quote! { _args };
     let mut from_proto_impl = TokenStream::new();
+    let mut arg_types = std::collections::HashMap::new();
 
     if !deps.is_empty() {
         let mut fields = Vec::new();
@@ -68,31 +69,33 @@ pub fn generate_codec_impl(
             ) => sa.cmp(sb),
         });
 
-        for (dep, prim) in sorted_deps {
+        for (dep, dep_type) in sorted_deps {
             let fname = dep.name();
             let f_ident = format_ident!("{}", fname);
-            
-            // Default to primitive mapping
-            let mut f_ty = match prim {
-                Primitive::VarInt | Primitive::ZigZag32 => quote! { i32 },
-                Primitive::VarLong | Primitive::ZigZag64 => quote! { i64 },
-                _ => primitive_to_rust_tokens(&prim),
-            };
 
-            // Try to resolve strong type from container
-            if let crate::generator::analysis::Dependency::LocalField(_) = dep {
-                if let Some(idx) = unique_names.iter().position(|n| n == fname) {
-                    if let Some(field) = container.fields.get(idx) {
-                        let hint = format!("{}{}", name, camel_case(fname));
-                        if let Ok(tokens) = resolve_type_to_tokens(&field.type_def, &hint, ctx) {
-                            f_ty = tokens;
-                        }
-                    }
-                }
-            }
+            let hint = format!("{}{}", name, camel_case(fname));
+            let f_ty =
+                resolve_type_to_tokens(&dep_type, &hint, ctx).unwrap_or_else(|_| quote! { i32 }); // Fallback if resolution fails
 
             fields.push(quote! { pub #f_ident: #f_ty });
 
+            // Store the Type definition for the decode logic to use later.
+            // We prioritize the type found in the container if it's a local field dependency.
+            let resolved_arg_type =
+                if let crate::generator::analysis::Dependency::LocalField(_) = dep {
+                    if let Some(idx) = unique_names.iter().position(|n| n == fname) {
+                        // Grab the REAL type from the container field definition
+                        container.fields.get(idx).map(|f| f.type_def.clone())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
+            // If we found a local field match, use that. Otherwise use the type from the dependency map.
+            let final_arg_type = resolved_arg_type.unwrap_or(dep_type.clone());
+            arg_types.insert(fname.to_string(), final_arg_type);
             match dep {
                 crate::generator::analysis::Dependency::Global(_) => {
                     proto_fields.push(quote! { #f_ident: source.#f_ident });
@@ -126,7 +129,13 @@ pub fn generate_codec_impl(
     }
 
     let encode_body = generate_encode_body(name, container, ctx)?;
-    let decode_body = generate_decode_body(name, container, ctx, !args_struct_def.is_empty())?;
+    let decode_body = generate_decode_body(
+        name,
+        container,
+        ctx,
+        !args_struct_def.is_empty(),
+        &arg_types,
+    )?;
 
     Ok(quote! {
         #args_struct_def
@@ -152,8 +161,10 @@ fn generate_decode_body(
     container: &Container,
     ctx: &mut Context,
     has_args: bool,
+    arg_types: &HashMap<String, Type>,
 ) -> Result<TokenStream, Box<dyn std::error::Error>> {
-    let (stmts, field_names) = generate_container_decode_stmts(name, container, ctx, has_args)?;
+    let (stmts, field_names) =
+        generate_container_decode_stmts(name, container, ctx, has_args, arg_types)?;
     Ok(quote! {
         #(#stmts)*
         Ok(Self {
@@ -167,6 +178,7 @@ fn generate_container_decode_stmts(
     container: &Container,
     ctx: &mut Context,
     has_args: bool,
+    arg_types: &HashMap<String, Type>,
 ) -> Result<(Vec<TokenStream>, Vec<proc_macro2::Ident>), Box<dyn std::error::Error>> {
     let mut stmts = Vec::new();
     let mut result_fields = Vec::new();
@@ -188,6 +200,7 @@ fn generate_container_decode_stmts(
             &locals,
             has_args,
             container,
+            arg_types,
         )?;
 
         stmts.push(quote! {
@@ -224,14 +237,21 @@ fn generate_field_decode_expr(
     locals: &HashSet<String>,
     has_args: bool,
     current_container: &Container,
+    arg_types: &HashMap<String, Type>,
 ) -> Result<TokenStream, Box<dyn std::error::Error>> {
     match ty {
         Type::Primitive(p) => match p {
-            Primitive::VarInt | Primitive::ZigZag32 => Ok(
-                quote! { <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 as i32 },
+            Primitive::VarInt => Ok(
+                quote! { <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 },
             ),
-            Primitive::VarLong | Primitive::ZigZag64 => Ok(
-                quote! { <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 as i64 },
+            Primitive::VarLong => Ok(
+                quote! { <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 },
+            ),
+            Primitive::ZigZag32 => Ok(
+                quote! { <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 },
+            ),
+            Primitive::ZigZag64 => Ok(
+                quote! { <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0},
             ),
             _ => {
                 let t = primitive_to_rust_tokens(p);
@@ -239,8 +259,14 @@ fn generate_field_decode_expr(
             }
         },
         Type::Switch { compare_to, .. } => {
-            let (compare_expr, compare_type) =
-                resolve_path(compare_to, locals, has_args, current_container, ctx);
+            let (compare_expr, compare_type) = resolve_path(
+                compare_to,
+                locals,
+                has_args,
+                current_container,
+                ctx,
+                arg_types,
+            );
             generate_switch_decode_logic(
                 container_name,
                 var_name,
@@ -251,6 +277,7 @@ fn generate_field_decode_expr(
                 locals,
                 has_args,
                 current_container,
+                arg_types,
             )
         }
         Type::Array {
@@ -288,6 +315,7 @@ fn generate_field_decode_expr(
                 locals,
                 has_args,
                 current_container,
+                arg_types,
             )?;
 
             Ok(quote! {{
@@ -309,6 +337,7 @@ fn generate_field_decode_expr(
                 locals,
                 has_args,
                 current_container,
+                arg_types,
             )?;
             Ok(quote! {{
                 let present = u8::decode(buf, ())?;
@@ -353,6 +382,7 @@ fn generate_field_decode_expr(
                     locals,
                     has_args,
                     current_container,
+                    arg_types,
                 )?;
 
                 return Ok(quote! {{
@@ -456,7 +486,8 @@ fn construct_args_expr(
 
     let mut field_assigns = Vec::new();
 
-    for (dep, target_prim) in sorted_deps {
+    // FIX: destructure `target_type` (Type) instead of `target_prim` (Primitive)
+    for (dep, target_type) in sorted_deps {
         let n = dep.name();
         let f_ident = format_ident!("{}", n);
 
@@ -465,13 +496,24 @@ fn construct_args_expr(
                 if locals.contains(n) {
                     // Check if we need to cast the local variable
                     let field_type = find_field_type_in_container(current_container, n);
-                    let should_cast_to_i32 = matches!(target_prim, Primitive::VarInt | Primitive::ZigZag32);
-                    let should_cast_to_i64 = matches!(target_prim, Primitive::VarLong | Primitive::ZigZag64);
-                    
+
+                    // FIX: Check the Type enum, not the Primitive enum
+                    let should_cast_to_i32 = matches!(
+                        target_type,
+                        Type::Primitive(Primitive::VarInt | Primitive::ZigZag32)
+                    );
+                    let should_cast_to_i64 = matches!(
+                        target_type,
+                        Type::Primitive(Primitive::VarLong | Primitive::ZigZag64)
+                    );
+
                     if let Some(ft) = field_type {
                         let resolved_ft = resolve_type(&ft, ctx);
-                         match resolved_ft {
-                            Type::Enum { .. } | Type::Switch { .. } | Type::Primitive(Primitive::Bool) => {
+                        match resolved_ft {
+                            // If our local variable is an Enum/Bool/Switch, but the target expects a raw int, we must cast.
+                            Type::Enum { .. }
+                            | Type::Switch { .. }
+                            | Type::Primitive(Primitive::Bool) => {
                                 if should_cast_to_i32 {
                                     quote! { #f_ident as i32 }
                                 } else if should_cast_to_i64 {
@@ -479,9 +521,9 @@ fn construct_args_expr(
                                 } else {
                                     quote! { #f_ident }
                                 }
-                            },
-                             _ => quote! { #f_ident }
-                         }
+                            }
+                            _ => quote! { #f_ident },
+                        }
                     } else {
                         quote! { #f_ident }
                     }
@@ -595,7 +637,7 @@ fn generate_field_encode(
                 quote! { item },
                 container,
                 ctx,
-                true, 
+                true,
             )?;
 
             let iter_expr = if is_ref {
@@ -641,31 +683,31 @@ fn generate_field_encode(
             })
         }
         Type::Primitive(p) => {
-            let val_expr = match p {
-                Primitive::McString | Primitive::ByteArray => quote! { #access_expr },
-                _ => {
-                    if is_ref {
-                        quote! { (*#access_expr) }
-                    } else {
-                        quote! { #access_expr }
-                    }
-                }
+            let access_expr = if is_ref {
+                quote! { *#access_expr }
+            } else {
+                access_expr
             };
-
             match p {
                 Primitive::VarInt => {
-                    Ok(quote! { crate::bedrock::codec::VarInt(#val_expr as i32).encode(buf)?; })
+                    Ok(quote! { crate::bedrock::codec::VarInt(#access_expr).encode(buf)?; })
                 }
                 Primitive::VarLong => {
-                    Ok(quote! { crate::bedrock::codec::VarLong(#val_expr as i64).encode(buf)?; })
+                    Ok(quote! { crate::bedrock::codec::VarLong(#access_expr).encode(buf)?; })
                 }
                 Primitive::ZigZag32 => {
-                    Ok(quote! { crate::bedrock::codec::ZigZag32(#val_expr as i32).encode(buf)?; })
+                    Ok(quote! { crate::bedrock::codec::ZigZag32(#access_expr).encode(buf)?; })
                 }
                 Primitive::ZigZag64 => {
-                    Ok(quote! { crate::bedrock::codec::ZigZag64(#val_expr as i64).encode(buf)?; })
+                    Ok(quote! { crate::bedrock::codec::ZigZag64(#access_expr).encode(buf)?; })
                 }
-                _ => Ok(quote! { #val_expr.encode(buf)?; }),
+                _ => {
+                    if is_ref {
+                        Ok(quote! { (#access_expr).encode(buf)?; })
+                    } else {
+                        Ok(quote! { #access_expr.encode(buf)?; })
+                    }
+                }
             }
         }
         Type::Reference(r) => {
@@ -748,17 +790,11 @@ fn generate_switch_encode_logic(
             if matches!(case_type, Type::Primitive(Primitive::Void)) {
                 match_arms.push(quote! { #enum_ident::#variant_ident => {}, });
             } else {
-                let is_boxed = should_box_variant(case_type, ctx, 0);
-                let inner_access = if is_boxed {
-                    quote! { (&**v) }
-                } else {
-                    quote! { v }
-                };
                 let encode_stmt = generate_field_encode(
                     name,
                     &format!("{}{}", var_name, case_name),
                     case_type,
-                    inner_access,
+                    quote! { v },
                     container,
                     ctx,
                     true,
@@ -800,12 +836,12 @@ fn generate_redundant_encode(
 ) -> TokenStream {
     let mut target_field_name = None;
     for other in &container.fields {
-        if let Type::Switch { compare_to, .. } = &other.type_def {
-            if compare_to.replace("../", "") == field.name {
-                let other_clean = clean_field_name(&other.name, name);
-                target_field_name = Some(format_ident!("{}", other_clean));
-                break;
-            }
+        if let Type::Switch { compare_to, .. } = &other.type_def
+            && compare_to.replace("../", "") == field.name
+        {
+            let other_clean = clean_field_name(&other.name, name);
+            target_field_name = Some(format_ident!("{}", other_clean));
+            break;
         }
     }
 
@@ -825,6 +861,7 @@ fn resolve_path(
     has_args: bool,
     container: &Container,
     ctx: &mut Context,
+    arg_types: &HashMap<String, Type>,
 ) -> (TokenStream, Option<Type>) {
     // Heuristic: If it contains parentheses or square brackets, or a dot and looks like a method call (not just a path)
     // assume it's a direct Rust expression that evaluates to a boolean.
@@ -832,11 +869,17 @@ fn resolve_path(
         || path.contains(')')
         || path.contains('[')
         || path.contains(']')
-        || (path.contains('.') && !path.starts_with('.') && path.split('.').count() > 1 && path.split('.').last().map_or(false, |s| s.contains('('))); // Heuristic for method calls like `foo.bar()`
+        || (path.contains('.')
+            && !path.starts_with('.')
+            && path.split('.').count() > 1
+            && path.split('.').last().map_or(false, |s| s.contains('('))); // Heuristic for method calls like `foo.bar()`
 
     if path_looks_like_expression {
         if let Ok(expr_tokens) = syn::parse_str(path) {
-            return (expr_tokens, Some(Type::Primitive(crate::ir::Primitive::Bool)));
+            return (
+                expr_tokens,
+                Some(Type::Primitive(crate::ir::Primitive::Bool)),
+            );
         }
     }
 
@@ -845,7 +888,7 @@ fn resolve_path(
         let tokens: Vec<TokenStream> = parts
             .iter()
             .map(|p| {
-                let (t, ty) = resolve_path(p.trim(), locals, has_args, container, ctx);
+                let (t, ty) = resolve_path(p.trim(), locals, has_args, container, ctx, arg_types);
                 if matches!(ty, Some(Type::Primitive(crate::ir::Primitive::Bool))) {
                     quote! { #t }
                 } else {
@@ -864,7 +907,7 @@ fn resolve_path(
         let tokens: Vec<TokenStream> = parts
             .iter()
             .map(|p| {
-                let (t, ty) = resolve_path(p.trim(), locals, has_args, container, ctx);
+                let (t, ty) = resolve_path(p.trim(), locals, has_args, container, ctx, arg_types);
                 if matches!(ty, Some(Type::Primitive(crate::ir::Primitive::Bool))) {
                     quote! { #t }
                 } else {
@@ -899,7 +942,10 @@ fn resolve_path(
         if has_args {
             return (quote! { args.#field_ident }, None);
         }
-        return (quote! { 0 }, Some(Type::Primitive(crate::ir::Primitive::I32)));
+        return (
+            quote! { 0 },
+            Some(Type::Primitive(crate::ir::Primitive::I32)),
+        );
     }
 
     let clean_path = path.replace("../", "");
@@ -918,7 +964,7 @@ fn resolve_path(
                 current_type = find_field_type_in_container(container, &part_name);
             } else if has_args {
                 tokens.push(quote! { args.#part_ident });
-                current_type = None;
+                current_type = arg_types.get(&s_ident).cloned();
             } else {
                 tokens.push(quote! { #part_ident });
                 current_type = None;
@@ -977,9 +1023,7 @@ fn find_member_type(parent: &Type, member: &str, ctx: &Context) -> Option<Type> 
     let resolved = resolve_type(parent, ctx);
     match resolved {
         Type::Container(c) => find_field_type_in_container(&c, member),
-        Type::Bitfield { .. } => {
-            Some(Type::Primitive(crate::ir::Primitive::Bool))
-        }
+        Type::Bitfield { .. } => Some(Type::Primitive(crate::ir::Primitive::Bool)),
         _ => None,
     }
 }
@@ -1019,26 +1063,34 @@ fn case_value_pattern(
 
     if let Some(field) = discriminator_field {
         let resolved_type = resolve_type(&field.type_def, ctx);
-        
+
         match resolved_type {
             Type::Enum { ref variants, .. } => {
                 let variant_name = if let Ok(val) = case_name.parse::<i64>() {
-                    variants.iter().find(|(_, v)| *v == val).map(|(n, _)| n.clone())
+                    variants
+                        .iter()
+                        .find(|(_, v)| *v == val)
+                        .map(|(n, _)| n.clone())
                 } else {
                     let target = safe_camel_ident(case_name);
-                    variants.iter().find(|(n, _)| safe_camel_ident(n) == target).map(|(n, _)| n.clone())
+                    variants
+                        .iter()
+                        .find(|(n, _)| safe_camel_ident(n) == target)
+                        .map(|(n, _)| n.clone())
                         .or_else(|| Some(case_name.to_string()))
                 };
 
                 if let Some(v_name) = variant_name {
                     let type_name = match &field.type_def {
                         Type::Reference(r) => clean_type_name(r),
-                        Type::Enum { .. } => {
-                             clean_type_name(&format!("{}{}", container_name, camel_case(&field.name)))
-                        }
+                        Type::Enum { .. } => clean_type_name(&format!(
+                            "{}{}",
+                            container_name,
+                            camel_case(&field.name)
+                        )),
                         _ => "UnknownEnum".to_string(),
                     };
-                    
+
                     let final_type_name = if let Type::Reference(r) = &field.type_def {
                         clean_type_name(r)
                     } else {
@@ -1049,7 +1101,7 @@ fn case_value_pattern(
                     let variant_ident = format_ident!("{}", safe_camel_ident(&v_name));
                     return quote! { #type_ident::#variant_ident };
                 }
-            },
+            }
             Type::Bitfield { .. } | Type::Primitive(Primitive::Bool) => {
                 let cn = case_name.to_lowercase();
                 if cn == "true" || cn == "1" {
@@ -1086,11 +1138,8 @@ fn case_value_pattern(
                     // default/_ are handled at the top of the function
                 } else {
                     // It's a switch behaving as an Enum
-                    let enum_type_name = clean_type_name(&format!(
-                        "{}{}",
-                        container_name,
-                        camel_case(&field.name)
-                    ));
+                    let enum_type_name =
+                        clean_type_name(&format!("{}{}", container_name, camel_case(&field.name)));
                     let type_ident = format_ident!("{}", enum_type_name);
                     let variant_ident = format_ident!("{}", safe_camel_ident(case_name));
                     return quote! { #type_ident::#variant_ident };
@@ -1136,6 +1185,7 @@ fn case_value_pattern(
     quote! { #variant_ident }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn generate_switch_decode_logic(
     name: &str,
     var_name: &str,
@@ -1146,6 +1196,7 @@ fn generate_switch_decode_logic(
     locals: &HashSet<String>,
     has_args: bool,
     current_container: &Container,
+    arg_types: &HashMap<String, Type>,
 ) -> Result<TokenStream, Box<dyn std::error::Error>> {
     if let Type::Switch {
         compare_to,
@@ -1158,22 +1209,24 @@ fn generate_switch_decode_logic(
 
         // Helper to check if a type resolves to a Rust bool
         let check_is_bool = |t: &Type| -> bool {
-             let resolved = resolve_type(t, ctx);
-             match resolved {
-                 Type::Primitive(Primitive::Bool) => true,
-                 Type::Enum { variants, .. } => {
-                      let has_true = variants.iter().any(|(n, _)| n.eq_ignore_ascii_case("true"));
-                      let has_false = variants.iter().any(|(n, _)| n.eq_ignore_ascii_case("false"));
-                      variants.len() == 2 && has_true && has_false
-                 },
-                 _ => false
-             }
+            let resolved = resolve_type(t, ctx);
+            match resolved {
+                Type::Primitive(Primitive::Bool) => true,
+                Type::Enum { variants, .. } => {
+                    let has_true = variants.iter().any(|(n, _)| n.eq_ignore_ascii_case("true"));
+                    let has_false = variants
+                        .iter()
+                        .any(|(n, _)| n.eq_ignore_ascii_case("false"));
+                    variants.len() == 2 && has_true && has_false
+                }
+                _ => false,
+            }
         };
 
         // Check if boolean optimization is possible
         // We check compare_type from resolve_path, AND fallback to looking up the field in the container
-        let mut is_bool_type = compare_type.as_ref().map_or(false, |t| check_is_bool(t))
-            || discriminator_field.map_or(false, |f| check_is_bool(&f.type_def));
+        let mut is_bool_type = compare_type.as_ref().is_none_or(check_is_bool)
+            || discriminator_field.is_none_or(|f| check_is_bool(&f.type_def));
 
         // Also check if keys are boolean-compatible
         let keys_are_bool = fields.iter().all(|(k, _)| {
@@ -1182,17 +1235,22 @@ fn generate_switch_decode_logic(
         });
 
         // Check if we have strong evidence it is NOT bool (e.g. it resolved to U8 or Enum)
-        let seems_numeric = compare_type.as_ref().map_or(false, |t| !matches!(t, Type::Primitive(Primitive::Bool)))
-             || discriminator_field.map_or(false, |f| !matches!(f.type_def, Type::Primitive(Primitive::Bool)));
+        let seems_numeric = compare_type
+            .as_ref()
+            .is_none_or(|t| !matches!(t, Type::Primitive(Primitive::Bool)))
+            || discriminator_field
+                .is_none_or(|f| !matches!(f.type_def, Type::Primitive(Primitive::Bool)));
 
         // Heuristic: If keys are bool, and the field name sounds boolean, assume it is boolean.
         // This avoids the ugly cast for fields where we missed the type inference but the name is obvious.
         if !is_bool_type && keys_are_bool {
             let path = compare_to.replace("../", "");
-            let name = path.split('.').last().unwrap_or(&path);
-            
-            if !seems_numeric && (name.starts_with("has_") || name.starts_with("is_") || name.starts_with("can_")) {
-                 is_bool_type = true;
+            let name = path.split('.').next_back().unwrap_or(&path);
+
+            if !seems_numeric
+                && (name.starts_with("has_") || name.starts_with("is_") || name.starts_with("can_"))
+            {
+                is_bool_type = true;
             }
         }
 
@@ -1225,6 +1283,7 @@ fn generate_switch_decode_logic(
                 locals,
                 has_args,
                 current_container,
+                arg_types,
             )?;
 
             let construct = if should_box_variant(default, ctx, 0) {
@@ -1272,6 +1331,7 @@ fn generate_switch_decode_logic(
                 locals,
                 has_args,
                 current_container,
+                arg_types,
             )?;
             let construct = if should_box_variant(case_type, ctx, 0) {
                 quote! { Box::new(#inner) }
@@ -1339,6 +1399,7 @@ fn generate_switch_decode_logic(
                         locals,
                         has_args,
                         current_container,
+                        arg_types,
                     )?;
                     let construct = if should_box_variant(c_type, ctx, 0) {
                         quote! { Box::new(#inner) }
@@ -1405,6 +1466,7 @@ fn generate_switch_decode_logic(
                     locals,
                     has_args,
                     current_container,
+                    arg_types,
                 )?;
                 let construct = if should_box_variant(case_type, ctx, 0) {
                     quote! { Box::new(#inner) }
@@ -1434,6 +1496,7 @@ fn generate_switch_decode_logic(
                 locals,
                 has_args,
                 current_container,
+                arg_types,
             )?;
             let construct = if should_box_variant(default.as_ref(), ctx, 0) {
                 quote! { Box::new(#inner) }

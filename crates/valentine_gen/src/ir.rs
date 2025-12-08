@@ -23,7 +23,7 @@ pub enum Primitive {
 }
 
 /// The core logical types in the Bedrock protocol
-#[derive(Debug, Clone, PartialEq, Hash)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum Type {
     /// A simple primitive (e.g., "count": "varint")
     Primitive(Primitive),
@@ -73,7 +73,7 @@ pub enum Type {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Hash)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct PackedField {
     pub name: String,
     pub shift: u32,
@@ -81,13 +81,13 @@ pub struct PackedField {
 }
 
 /// Represents a Struct (Packet or nested object)
-#[derive(Debug, Clone, PartialEq, Hash)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct Container {
     pub name: String, // "LoginPacket"
     pub fields: Vec<Field>,
 }
 
-#[derive(Debug, Clone, PartialEq, Hash)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct Field {
     pub name: String, // "protocol_version"
     pub type_def: Type,

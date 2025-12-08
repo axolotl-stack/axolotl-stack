@@ -10,7 +10,7 @@ bytes = "1"
 uuid = "1.8.0"
 
 [features]
-default = ["bedrock_1_21_124"]
+default = ["bedrock_1_16_201", "bedrock_1_16_210"]
 bedrock_1_16_201 = []
 bedrock_1_16_210 = []
 bedrock_1_16_220 = []

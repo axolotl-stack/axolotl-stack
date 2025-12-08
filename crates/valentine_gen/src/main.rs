@@ -47,11 +47,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Skipping broken legacy version: {}", version);
             continue;
         }
-        if let Some(proto_path) = data.get("protocol").and_then(|v| v.as_str()) {
-            protocol_map
-                .entry(proto_path.to_string())
-                .or_default()
-                .push(version.clone());
+        if version == "1.16.201" || version == "1.16.210" {
+            if let Some(proto_path) = data.get("protocol").and_then(|v| v.as_str()) {
+                protocol_map
+                    .entry(proto_path.to_string())
+                    .or_default()
+                    .push(version.clone());
+            }
         }
     }
 
@@ -234,6 +236,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         #![allow(non_snake_case)]
         #![allow(dead_code)]
         #![allow(unused_imports)]
+        #![allow(clippy::manual_flatten)]
 
         /// Bedrock protocol surface.
         ///

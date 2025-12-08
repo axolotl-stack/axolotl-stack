@@ -18,7 +18,7 @@ impl Dependency {
     }
 }
 
-pub type DepMap = HashSet<(Dependency, Primitive)>;
+pub type DepMap = HashSet<(Dependency, Type)>;
 
 pub fn get_deps(t: &Type, ctx: &Context) -> DepMap {
     let mut deps = DepMap::new();
@@ -45,23 +45,20 @@ fn collect_deps_recursive(
                 let mut child_deps = DepMap::new();
                 collect_deps_recursive(&field.type_def, ctx, visited, &mut child_deps);
 
-                for (dep, prim) in child_deps {
+                for (dep, dep_type) in child_deps {
                     match &dep {
                         Dependency::LocalField(name) => {
-                            // Check if this container satisfies the dependency locally
                             let is_satisfied_locally = c.fields.iter().any(|f| {
-                                let clean = clean_field_name(&f.name, "");
+                                let clean = crate::generator::utils::clean_field_name(&f.name, "");
                                 clean == *name || f.name == *name
                             });
 
                             if !is_satisfied_locally {
-                                // Not satisfied locally -> Bubble up as a requirement for this container
-                                deps.insert((dep.clone(), prim));
+                                deps.insert((dep.clone(), dep_type));
                             }
                         }
                         Dependency::Global(_) => {
-                            // Globals (like /ShieldItemID) ALWAYS bubble up.
-                            deps.insert((dep.clone(), prim));
+                            deps.insert((dep.clone(), dep_type));
                         }
                     }
                 }
@@ -94,25 +91,31 @@ fn collect_deps_recursive(
             for part in parts {
                 // Handle property access like "flags.has_rot_x" -> depends on "flags"
                 // Or "../flags.has_rot_x" -> depends on "flags" (after cleanup)
-                
+
                 let clean_part_str = part.replace("../", "");
                 let base_name_str = clean_part_str.split('.').next().unwrap_or(&clean_part_str);
-                
+
                 if part.starts_with('/') {
                     let name = clean_dep_name(base_name_str);
                     // Boolean logic implies these are likely bools
-                    deps.insert((Dependency::Global(name), Primitive::Bool));
+                    deps.insert((
+                        Dependency::Global(name),
+                        Type::Primitive(dependency_prim.clone()),
+                    ));
                 } else {
                     let name = clean_dep_name(base_name_str);
-                    deps.insert((Dependency::LocalField(name), dependency_prim.clone())); 
+                    deps.insert((
+                        Dependency::LocalField(name),
+                        Type::Primitive(dependency_prim.clone()),
+                    ));
                 }
             }
 
             // 2. Analyze Keys for Global Dependencies (Existing logic)
-            for (k, _) in fields {
+            for (k, t) in fields {
                 if k.starts_with('/') {
                     let name = clean_dep_name(k);
-                    deps.insert((Dependency::Global(name), Primitive::VarInt));
+                    deps.insert((Dependency::Global(name), t.clone()));
                 }
             }
 
