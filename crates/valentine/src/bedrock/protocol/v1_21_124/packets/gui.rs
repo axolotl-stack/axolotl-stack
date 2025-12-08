@@ -19,7 +19,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketGuiDataPickItem {
         let _ = buf;
         self.item_name.encode(buf)?;
         self.item_effects.encode(buf)?;
-        self.hotbar_slot.encode(buf)?;
+        crate::bedrock::codec::I32LE(self.hotbar_slot).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -35,7 +35,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketGuiDataPickItem {
             buf,
             (),
         )?;
-        let hotbar_slot = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let hotbar_slot = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             item_name,
             item_effects,

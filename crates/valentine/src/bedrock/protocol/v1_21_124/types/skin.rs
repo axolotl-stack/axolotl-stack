@@ -17,8 +17,8 @@ impl crate::bedrock::codec::BedrockCodec for SkinImage {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.width.encode(buf)?;
-        self.height.encode(buf)?;
+        crate::bedrock::codec::I32LE(self.width).encode(buf)?;
+        crate::bedrock::codec::I32LE(self.height).encode(buf)?;
         self.data.encode(buf)?;
         Ok(())
     }
@@ -27,8 +27,16 @@ impl crate::bedrock::codec::BedrockCodec for SkinImage {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let width = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let height = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let width = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let height = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let data = <ByteArray as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self { width, height, data })
     }
@@ -45,9 +53,9 @@ impl crate::bedrock::codec::BedrockCodec for SkinAnimationsItem {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
         self.skin_image.encode(buf)?;
-        self.animation_type.encode(buf)?;
-        self.animation_frames.encode(buf)?;
-        self.expression_type.encode(buf)?;
+        crate::bedrock::codec::I32LE(self.animation_type).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.animation_frames).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.expression_type).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -59,18 +67,21 @@ impl crate::bedrock::codec::BedrockCodec for SkinAnimationsItem {
             buf,
             (),
         )?;
-        let animation_type = <i32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let animation_frames = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let expression_type = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let animation_type = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let animation_frames = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let expression_type = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             skin_image,
             animation_type,
@@ -137,7 +148,7 @@ impl crate::bedrock::codec::BedrockCodec for SkinPieceTintColorsItem {
         let _ = buf;
         self.piece_type.encode(buf)?;
         let len = self.colors.len();
-        (len as i32).encode(buf)?;
+        crate::bedrock::codec::I32LE(len as i32).encode(buf)?;
         for item in &self.colors {
             (*item).encode(buf)?;
         }
@@ -153,8 +164,11 @@ impl crate::bedrock::codec::BedrockCodec for SkinPieceTintColorsItem {
             (),
         )?;
         let colors = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                as usize;
+            let len = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                    buf,
+                    (),
+                )?
+                .0 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec
@@ -199,7 +213,7 @@ impl crate::bedrock::codec::BedrockCodec for Skin {
         self.skin_resource_pack.encode(buf)?;
         self.skin_data.encode(buf)?;
         let len = self.animations.len();
-        (len as i32).encode(buf)?;
+        crate::bedrock::codec::I32LE(len as i32).encode(buf)?;
         for item in &self.animations {
             item.encode(buf)?;
         }
@@ -212,12 +226,12 @@ impl crate::bedrock::codec::BedrockCodec for Skin {
         self.arm_size.encode(buf)?;
         self.skin_color.encode(buf)?;
         let len = self.personal_pieces.len();
-        (len as i32).encode(buf)?;
+        crate::bedrock::codec::I32LE(len as i32).encode(buf)?;
         for item in &self.personal_pieces {
             item.encode(buf)?;
         }
         let len = self.piece_tint_colors.len();
-        (len as i32).encode(buf)?;
+        crate::bedrock::codec::I32LE(len as i32).encode(buf)?;
         for item in &self.piece_tint_colors {
             item.encode(buf)?;
         }
@@ -247,8 +261,11 @@ impl crate::bedrock::codec::BedrockCodec for Skin {
             (),
         )?;
         let animations = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                as usize;
+            let len = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                    buf,
+                    (),
+                )?
+                .0 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec
@@ -288,8 +305,11 @@ impl crate::bedrock::codec::BedrockCodec for Skin {
             (),
         )?;
         let personal_pieces = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                as usize;
+            let len = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                    buf,
+                    (),
+                )?
+                .0 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec
@@ -303,8 +323,11 @@ impl crate::bedrock::codec::BedrockCodec for Skin {
             tmp_vec
         };
         let piece_tint_colors = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                as usize;
+            let len = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                    buf,
+                    (),
+                )?
+                .0 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec

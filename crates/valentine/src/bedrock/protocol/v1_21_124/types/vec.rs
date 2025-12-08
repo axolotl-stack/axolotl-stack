@@ -20,21 +20,21 @@ impl crate::bedrock::codec::BedrockCodec for Vec3Fopts {
         match &self.x {
             Some(v) => {
                 buf.put_u8(1);
-                (*v).encode(buf)?;
+                crate::bedrock::codec::F32LE(*v).encode(buf)?;
             }
             None => buf.put_u8(0),
         }
         match &self.y {
             Some(v) => {
                 buf.put_u8(1);
-                (*v).encode(buf)?;
+                crate::bedrock::codec::F32LE(*v).encode(buf)?;
             }
             None => buf.put_u8(0),
         }
         match &self.z {
             Some(v) => {
                 buf.put_u8(1);
-                (*v).encode(buf)?;
+                crate::bedrock::codec::F32LE(*v).encode(buf)?;
             }
             None => buf.put_u8(0),
         }
@@ -48,7 +48,13 @@ impl crate::bedrock::codec::BedrockCodec for Vec3Fopts {
         let x = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
             } else {
                 None
             }
@@ -56,7 +62,13 @@ impl crate::bedrock::codec::BedrockCodec for Vec3Fopts {
         let y = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
             } else {
                 None
             }
@@ -64,7 +76,13 @@ impl crate::bedrock::codec::BedrockCodec for Vec3Fopts {
         let z = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
             } else {
                 None
             }
@@ -84,14 +102,14 @@ impl crate::bedrock::codec::BedrockCodec for Vec2Fopts {
         match &self.x {
             Some(v) => {
                 buf.put_u8(1);
-                (*v).encode(buf)?;
+                crate::bedrock::codec::F32LE(*v).encode(buf)?;
             }
             None => buf.put_u8(0),
         }
         match &self.y {
             Some(v) => {
                 buf.put_u8(1);
-                (*v).encode(buf)?;
+                crate::bedrock::codec::F32LE(*v).encode(buf)?;
             }
             None => buf.put_u8(0),
         }
@@ -105,7 +123,13 @@ impl crate::bedrock::codec::BedrockCodec for Vec2Fopts {
         let x = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
             } else {
                 None
             }
@@ -113,7 +137,13 @@ impl crate::bedrock::codec::BedrockCodec for Vec2Fopts {
         let y = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
             } else {
                 None
             }
@@ -130,8 +160,8 @@ impl crate::bedrock::codec::BedrockCodec for Vec2F {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.x.encode(buf)?;
-        self.z.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.x).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.z).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -139,8 +169,16 @@ impl crate::bedrock::codec::BedrockCodec for Vec2F {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let x = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let z = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let x = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let z = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self { x, z })
     }
 }
@@ -154,9 +192,9 @@ impl crate::bedrock::codec::BedrockCodec for Vec3F {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.x.encode(buf)?;
-        self.y.encode(buf)?;
-        self.z.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.x).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.y).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.z).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -164,9 +202,21 @@ impl crate::bedrock::codec::BedrockCodec for Vec3F {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let x = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let y = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let z = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let x = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let y = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let z = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self { x, y, z })
     }
 }
@@ -218,9 +268,9 @@ impl crate::bedrock::codec::BedrockCodec for Vec3Li {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.x.encode(buf)?;
-        self.y.encode(buf)?;
-        self.z.encode(buf)?;
+        crate::bedrock::codec::I32LE(self.x).encode(buf)?;
+        crate::bedrock::codec::I32LE(self.y).encode(buf)?;
+        crate::bedrock::codec::I32LE(self.z).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -228,9 +278,21 @@ impl crate::bedrock::codec::BedrockCodec for Vec3Li {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let x = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let y = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let z = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let x = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let y = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let z = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self { x, y, z })
     }
 }

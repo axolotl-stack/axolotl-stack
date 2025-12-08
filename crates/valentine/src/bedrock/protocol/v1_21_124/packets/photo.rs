@@ -50,7 +50,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPhotoTransfer {
         self.book_id.encode(buf)?;
         self.photo_type.encode(buf)?;
         self.source_type.encode(buf)?;
-        self.owner_entity_unique_id.encode(buf)?;
+        crate::bedrock::codec::I64LE(self.owner_entity_unique_id).encode(buf)?;
         self.new_photo_name.encode(buf)?;
         Ok(())
     }
@@ -70,10 +70,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketPhotoTransfer {
         let book_id = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let photo_type = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let source_type = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let owner_entity_unique_id = <i64 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let owner_entity_unique_id = <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let new_photo_name = <String as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),

@@ -55,10 +55,10 @@ impl crate::bedrock::codec::BedrockCodec for PacketAddEntity {
         self.entity_type.encode(buf)?;
         self.position.encode(buf)?;
         self.velocity.encode(buf)?;
-        self.pitch.encode(buf)?;
-        self.yaw.encode(buf)?;
-        self.head_yaw.encode(buf)?;
-        self.body_yaw.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.pitch).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.yaw).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.head_yaw).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.body_yaw).encode(buf)?;
         self.attributes.encode(buf)?;
         self.metadata.encode(buf)?;
         self.properties.encode(buf)?;
@@ -86,10 +86,26 @@ impl crate::bedrock::codec::BedrockCodec for PacketAddEntity {
         )?;
         let position = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let velocity = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let pitch = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let yaw = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let head_yaw = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let body_yaw = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let pitch = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let yaw = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let head_yaw = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let body_yaw = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let attributes = {
             let res: EntityAttributes = {
                 let len = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
@@ -364,14 +380,14 @@ impl crate::bedrock::codec::BedrockCodec for PacketAddPlayer {
         self.platform_chat_id.encode(buf)?;
         self.position.encode(buf)?;
         self.velocity.encode(buf)?;
-        self.pitch.encode(buf)?;
-        self.yaw.encode(buf)?;
-        self.head_yaw.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.pitch).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.yaw).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.head_yaw).encode(buf)?;
         self.held_item.encode(buf)?;
         self.gamemode.encode(buf)?;
         self.metadata.encode(buf)?;
         self.properties.encode(buf)?;
-        self.unique_id.encode(buf)?;
+        crate::bedrock::codec::I64LE(self.unique_id).encode(buf)?;
         self.permission_level.encode(buf)?;
         self.command_permission.encode(buf)?;
         let len = self.abilities.len();
@@ -402,9 +418,21 @@ impl crate::bedrock::codec::BedrockCodec for PacketAddPlayer {
         )?;
         let position = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let velocity = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let pitch = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let yaw = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let head_yaw = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let pitch = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let yaw = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let head_yaw = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let held_item = <Item as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             ItemArgs {
@@ -440,7 +468,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketAddPlayer {
             buf,
             (),
         )?;
-        let unique_id = <i64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let unique_id = <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let permission_level = <PermissionLevel as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),

@@ -124,7 +124,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketCameraAimAssist {
         let _ = buf;
         self.preset_id.encode(buf)?;
         self.view_angle.encode(buf)?;
-        self.distance.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.distance).encode(buf)?;
         self.target_mode.encode(buf)?;
         self.action.encode(buf)?;
         self.show_debug_render.encode(buf)?;
@@ -143,7 +143,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketCameraAimAssist {
             buf,
             (),
         )?;
-        let distance = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let distance = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let target_mode = <PacketCameraAimAssistTargetMode as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -177,7 +181,7 @@ for PacketCameraAimAssistPresetsCategoriesItemEntityPrioritiesItem {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
         self.id.encode(buf)?;
-        self.priority.encode(buf)?;
+        crate::bedrock::codec::I32LE(self.priority).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -186,7 +190,11 @@ for PacketCameraAimAssistPresetsCategoriesItemEntityPrioritiesItem {
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
         let id = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let priority = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let priority = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self { id, priority })
     }
 }
@@ -220,14 +228,14 @@ impl crate::bedrock::codec::BedrockCodec for PacketCameraAimAssistPresetsCategor
         match &self.entity_default {
             Some(v) => {
                 buf.put_u8(1);
-                (*v).encode(buf)?;
+                crate::bedrock::codec::I32LE(*v).encode(buf)?;
             }
             None => buf.put_u8(0),
         }
         match &self.block_default {
             Some(v) => {
                 buf.put_u8(1);
-                (*v).encode(buf)?;
+                crate::bedrock::codec::I32LE(*v).encode(buf)?;
             }
             None => buf.put_u8(0),
         }
@@ -278,7 +286,13 @@ impl crate::bedrock::codec::BedrockCodec for PacketCameraAimAssistPresetsCategor
         let entity_default = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
             } else {
                 None
             }
@@ -286,7 +300,13 @@ impl crate::bedrock::codec::BedrockCodec for PacketCameraAimAssistPresetsCategor
         let block_default = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
             } else {
                 None
             }
@@ -569,7 +589,7 @@ for PacketCameraInstructionInstructionSetEaseData {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
         self.type_.encode(buf)?;
-        self.duration.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.duration).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -578,7 +598,11 @@ for PacketCameraInstructionInstructionSetEaseData {
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
         let type_ = <EaseType as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let duration = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let duration = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self { type_, duration })
     }
 }
@@ -598,7 +622,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketCameraInstructionInstructionS
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.runtime_id.encode(buf)?;
+        crate::bedrock::codec::I32LE(self.runtime_id).encode(buf)?;
         match &self.ease_data {
             Some(v) => {
                 buf.put_u8(1);
@@ -656,7 +680,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketCameraInstructionInstructionS
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let runtime_id = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let runtime_id = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let ease_data = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
@@ -746,9 +774,9 @@ impl crate::bedrock::codec::BedrockCodec for PacketCameraInstructionFade {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.fade_in_duration.encode(buf)?;
-        self.wait_duration.encode(buf)?;
-        self.fade_out_duration.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.fade_in_duration).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.wait_duration).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.fade_out_duration).encode(buf)?;
         self.color_rgb.encode(buf)?;
         Ok(())
     }
@@ -757,18 +785,21 @@ impl crate::bedrock::codec::BedrockCodec for PacketCameraInstructionFade {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let fade_in_duration = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let wait_duration = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let fade_out_duration = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let fade_in_duration = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let wait_duration = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let fade_out_duration = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let color_rgb = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self {
             fade_in_duration,
@@ -794,7 +825,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketCameraInstructionTarget {
             }
             None => buf.put_u8(0),
         }
-        self.entity_unique_id.encode(buf)?;
+        crate::bedrock::codec::I64LE(self.entity_unique_id).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -810,10 +841,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketCameraInstructionTarget {
                 None
             }
         };
-        let entity_unique_id = <i64 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let entity_unique_id = <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self { offset, entity_unique_id })
     }
 }
@@ -828,8 +860,8 @@ impl crate::bedrock::codec::BedrockCodec for PacketCameraInstructionFov {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.field_of_view.encode(buf)?;
-        self.ease_time.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.field_of_view).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.ease_time).encode(buf)?;
         self.ease_type.encode(buf)?;
         self.clear.encode(buf)?;
         Ok(())
@@ -839,11 +871,16 @@ impl crate::bedrock::codec::BedrockCodec for PacketCameraInstructionFov {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let field_of_view = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let ease_time = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let field_of_view = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let ease_time = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let ease_type = <EaseType as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -925,7 +962,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketCameraInstruction {
         match &self.attach_to_entity {
             Some(v) => {
                 buf.put_u8(1);
-                (*v).encode(buf)?;
+                crate::bedrock::codec::I64LE(*v).encode(buf)?;
             }
             None => buf.put_u8(0),
         }
@@ -1027,7 +1064,13 @@ impl crate::bedrock::codec::BedrockCodec for PacketCameraInstruction {
         let attach_to_entity = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<i64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
             } else {
                 None
             }
@@ -1139,8 +1182,8 @@ impl crate::bedrock::codec::BedrockCodec for PacketCameraShake {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.intensity.encode(buf)?;
-        self.duration.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.intensity).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.duration).encode(buf)?;
         self.type_.encode(buf)?;
         self.action.encode(buf)?;
         Ok(())
@@ -1150,8 +1193,16 @@ impl crate::bedrock::codec::BedrockCodec for PacketCameraShake {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let intensity = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let duration = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let intensity = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let duration = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let type_ = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let action = <PacketCameraShakeAction as crate::bedrock::codec::BedrockCodec>::decode(
             buf,

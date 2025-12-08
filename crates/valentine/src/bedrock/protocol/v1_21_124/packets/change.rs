@@ -24,7 +24,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketChangeDimension {
         match &self.loading_screen_id {
             Some(v) => {
                 buf.put_u8(1);
-                (*v).encode(buf)?;
+                crate::bedrock::codec::U32LE(*v).encode(buf)?;
             }
             None => buf.put_u8(0),
         }
@@ -45,7 +45,13 @@ impl crate::bedrock::codec::BedrockCodec for PacketChangeDimension {
         let loading_screen_id = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<u32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
             } else {
                 None
             }
@@ -76,7 +82,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketChangeMobProperty {
         self.bool_value.encode(buf)?;
         self.string_value.encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.int_value).encode(buf)?;
-        self.float_value.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.float_value).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -100,7 +106,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketChangeMobProperty {
                 (),
             )?
             .0;
-        let float_value = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let float_value = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             entity_unique_id,
             property,

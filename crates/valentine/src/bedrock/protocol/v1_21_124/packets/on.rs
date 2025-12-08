@@ -15,7 +15,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketOnScreenTextureAnimation {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.animation_type.encode(buf)?;
+        crate::bedrock::codec::U32LE(self.animation_type).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -23,10 +23,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketOnScreenTextureAnimation {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let animation_type = <u32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let animation_type = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self { animation_type })
     }
 }

@@ -19,9 +19,9 @@ impl crate::bedrock::codec::BedrockCodec for EntityAttributesItem {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
         self.name.encode(buf)?;
-        self.min.encode(buf)?;
-        self.value.encode(buf)?;
-        self.max.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.min).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.value).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.max).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -30,9 +30,21 @@ impl crate::bedrock::codec::BedrockCodec for EntityAttributesItem {
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
         let name = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let min = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let value = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let max = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let min = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let value = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let max = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self { name, min, value, max })
     }
 }
@@ -78,7 +90,7 @@ impl crate::bedrock::codec::BedrockCodec for EntityPropertiesFloatsItem {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
         crate::bedrock::codec::VarInt(self.index).encode(buf)?;
-        self.value.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.value).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -91,7 +103,11 @@ impl crate::bedrock::codec::BedrockCodec for EntityPropertiesFloatsItem {
                 (),
             )?
             .0;
-        let value = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let value = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self { index, value })
     }
 }

@@ -83,7 +83,7 @@ impl crate::bedrock::codec::BedrockCodec for SubChunkEntryWithCachingItem {
         if let Some(v) = &self.render_heightmap {
             v.encode(buf)?;
         }
-        self.blob_id.encode(buf)?;
+        crate::bedrock::codec::U64LE(self.blob_id).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -126,7 +126,11 @@ impl crate::bedrock::codec::BedrockCodec for SubChunkEntryWithCachingItem {
             }
             _ => None,
         };
-        let blob_id = <u64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let blob_id = <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             dx,
             dy,

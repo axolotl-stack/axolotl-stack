@@ -50,8 +50,8 @@ impl crate::bedrock::codec::BedrockCodec for PacketMapInfoRequestClientPixelsIte
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.rgba.encode(buf)?;
-        self.index.encode(buf)?;
+        crate::bedrock::codec::I32LE(self.rgba).encode(buf)?;
+        crate::bedrock::codec::U16LE(self.index).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -59,8 +59,16 @@ impl crate::bedrock::codec::BedrockCodec for PacketMapInfoRequestClientPixelsIte
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let rgba = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let index = <u16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let rgba = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let index = <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self { rgba, index })
     }
 }
@@ -75,7 +83,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketMapInfoRequest {
         let _ = buf;
         crate::bedrock::codec::ZigZag64(self.map_id).encode(buf)?;
         let len = self.client_pixels.len();
-        (len as u32).encode(buf)?;
+        crate::bedrock::codec::U32LE(len as u32).encode(buf)?;
         for item in &self.client_pixels {
             item.encode(buf)?;
         }
@@ -92,8 +100,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketMapInfoRequest {
             )?
             .0;
         let client_pixels = {
-            let len = <u32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                as usize;
+            let len = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                    buf,
+                    (),
+                )?
+                .0 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec

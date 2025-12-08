@@ -80,7 +80,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketCompletedUsingItem {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.used_item_id.encode(buf)?;
+        crate::bedrock::codec::I16LE(self.used_item_id).encode(buf)?;
         self.use_method.encode(buf)?;
         Ok(())
     }
@@ -89,10 +89,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketCompletedUsingItem {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let used_item_id = <i16 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let used_item_id = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let use_method = <PacketCompletedUsingItemUseMethod as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),

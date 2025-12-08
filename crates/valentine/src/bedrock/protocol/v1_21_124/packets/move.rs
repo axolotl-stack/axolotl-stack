@@ -100,17 +100,35 @@ impl crate::bedrock::codec::BedrockCodec for PacketMoveEntityDelta {
             (),
         )?;
         let x = if flags.contains(DeltaMoveFlags::HAS_X) {
-            Some(<f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+            Some(
+                <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                        buf,
+                        (),
+                    )?
+                    .0,
+            )
         } else {
             None
         };
         let y = if flags.contains(DeltaMoveFlags::HAS_Y) {
-            Some(<f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+            Some(
+                <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                        buf,
+                        (),
+                    )?
+                    .0,
+            )
         } else {
             None
         };
         let z = if flags.contains(DeltaMoveFlags::HAS_Z) {
-            Some(<f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+            Some(
+                <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                        buf,
+                        (),
+                    )?
+                    .0,
+            )
         } else {
             None
         };
@@ -267,9 +285,9 @@ impl crate::bedrock::codec::BedrockCodec for PacketMovePlayer {
         let _ = buf;
         crate::bedrock::codec::VarInt(self.runtime_id).encode(buf)?;
         self.position.encode(buf)?;
-        self.pitch.encode(buf)?;
-        self.yaw.encode(buf)?;
-        self.head_yaw.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.pitch).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.yaw).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.head_yaw).encode(buf)?;
         self.mode.encode(buf)?;
         self.on_ground.encode(buf)?;
         crate::bedrock::codec::VarInt(self.ridden_runtime_id).encode(buf)?;
@@ -290,9 +308,21 @@ impl crate::bedrock::codec::BedrockCodec for PacketMovePlayer {
             )?
             .0;
         let position = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let pitch = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let yaw = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let head_yaw = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let pitch = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let yaw = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let head_yaw = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let mode = <PacketMovePlayerMode as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),

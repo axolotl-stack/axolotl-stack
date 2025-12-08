@@ -54,10 +54,10 @@ impl crate::bedrock::codec::BedrockCodec for PacketVideoStreamConnect {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
         self.server_uri.encode(buf)?;
-        self.frame_send_frequency.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.frame_send_frequency).encode(buf)?;
         self.action.encode(buf)?;
-        self.resolution_x.encode(buf)?;
-        self.resolution_y.encode(buf)?;
+        crate::bedrock::codec::I32LE(self.resolution_x).encode(buf)?;
+        crate::bedrock::codec::I32LE(self.resolution_y).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -69,22 +69,25 @@ impl crate::bedrock::codec::BedrockCodec for PacketVideoStreamConnect {
             buf,
             (),
         )?;
-        let frame_send_frequency = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let frame_send_frequency = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let action = <PacketVideoStreamConnectAction as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
         )?;
-        let resolution_x = <i32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let resolution_y = <i32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let resolution_x = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let resolution_y = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             server_uri,
             frame_send_frequency,

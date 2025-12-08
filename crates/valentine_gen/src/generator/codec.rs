@@ -329,6 +329,30 @@ fn generate_field_decode_expr(
             Primitive::ZigZag64 => Ok(
                 quote! { <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0},
             ),
+            Primitive::U16LE => Ok(
+                quote! { <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 },
+            ),
+            Primitive::I16LE => Ok(
+                quote! { <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 },
+            ),
+            Primitive::U32LE => Ok(
+                quote! { <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 },
+            ),
+            Primitive::I32LE => Ok(
+                quote! { <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 },
+            ),
+            Primitive::U64LE => Ok(
+                quote! { <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 },
+            ),
+            Primitive::I64LE => Ok(
+                quote! { <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 },
+            ),
+            Primitive::F32LE => Ok(
+                quote! { <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 },
+            ),
+            Primitive::F64LE => Ok(
+                quote! { <crate::bedrock::codec::F64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 },
+            ),
             _ => {
                 let t = primitive_to_rust_tokens(p);
                 Ok(quote! { <#t as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? })
@@ -365,6 +389,30 @@ fn generate_field_decode_expr(
                     }
                     Primitive::ZigZag64 => {
                         quote! { <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::U16LE => {
+                        quote! { <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::I16LE => {
+                        quote! { <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::U32LE => {
+                        quote! { <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::I32LE => {
+                        quote! { <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::U64LE => {
+                        quote! { <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::I64LE => {
+                        quote! { <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::F32LE => {
+                        quote! { <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::F64LE => {
+                        quote! { <crate::bedrock::codec::F64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
                     }
                     _ => {
                         let t = primitive_to_rust_tokens(p);
@@ -678,6 +726,30 @@ fn generate_field_encode(
                     Primitive::ZigZag64 => {
                         quote! { crate::bedrock::codec::ZigZag64(len as i64).encode(buf)?; }
                     }
+                    Primitive::U16LE => {
+                        quote! { crate::bedrock::codec::U16LE(len as u16).encode(buf)?; }
+                    }
+                    Primitive::I16LE => {
+                        quote! { crate::bedrock::codec::I16LE(len as i16).encode(buf)?; }
+                    }
+                    Primitive::U32LE => {
+                        quote! { crate::bedrock::codec::U32LE(len as u32).encode(buf)?; }
+                    }
+                    Primitive::I32LE => {
+                        quote! { crate::bedrock::codec::I32LE(len as i32).encode(buf)?; }
+                    }
+                    Primitive::U64LE => {
+                        quote! { crate::bedrock::codec::U64LE(len as u64).encode(buf)?; }
+                    }
+                    Primitive::I64LE => {
+                        quote! { crate::bedrock::codec::I64LE(len as i64).encode(buf)?; }
+                    }
+                    Primitive::F32LE => {
+                        quote! { crate::bedrock::codec::F32LE(len as f32).encode(buf)?; }
+                    }
+                    Primitive::F64LE => {
+                        quote! { crate::bedrock::codec::F64LE(len as f64).encode(buf)?; }
+                    }
                     _ => {
                         let t = primitive_to_rust_tokens(p);
                         quote! { (len as #t).encode(buf)?; }
@@ -757,6 +829,30 @@ fn generate_field_encode(
                 }
                 Primitive::ZigZag64 => {
                     Ok(quote! { crate::bedrock::codec::ZigZag64(#access_expr).encode(buf)?; })
+                }
+                Primitive::U16LE => {
+                    Ok(quote! { crate::bedrock::codec::U16LE(#access_expr).encode(buf)?; })
+                }
+                Primitive::I16LE => {
+                    Ok(quote! { crate::bedrock::codec::I16LE(#access_expr).encode(buf)?; })
+                }
+                Primitive::U32LE => {
+                    Ok(quote! { crate::bedrock::codec::U32LE(#access_expr).encode(buf)?; })
+                }
+                Primitive::I32LE => {
+                    Ok(quote! { crate::bedrock::codec::I32LE(#access_expr).encode(buf)?; })
+                }
+                Primitive::U64LE => {
+                    Ok(quote! { crate::bedrock::codec::U64LE(#access_expr).encode(buf)?; })
+                }
+                Primitive::I64LE => {
+                    Ok(quote! { crate::bedrock::codec::I64LE(#access_expr).encode(buf)?; })
+                }
+                Primitive::F32LE => {
+                    Ok(quote! { crate::bedrock::codec::F32LE(#access_expr).encode(buf)?; })
+                }
+                Primitive::F64LE => {
+                    Ok(quote! { crate::bedrock::codec::F64LE(#access_expr).encode(buf)?; })
                 }
                 _ => {
                     if is_ref {

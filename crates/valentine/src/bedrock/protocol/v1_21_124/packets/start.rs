@@ -208,8 +208,8 @@ impl crate::bedrock::codec::BedrockCodec for PacketStartGame {
         self.player_gamemode.encode(buf)?;
         self.player_position.encode(buf)?;
         self.rotation.encode(buf)?;
-        self.seed.encode(buf)?;
-        self.biome_type.encode(buf)?;
+        crate::bedrock::codec::U64LE(self.seed).encode(buf)?;
+        crate::bedrock::codec::I16LE(self.biome_type).encode(buf)?;
         self.biome_name.encode(buf)?;
         self.dimension.encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.generator).encode(buf)?;
@@ -225,8 +225,8 @@ impl crate::bedrock::codec::BedrockCodec for PacketStartGame {
         crate::bedrock::codec::ZigZag32(self.edu_offer).encode(buf)?;
         self.edu_features_enabled.encode(buf)?;
         self.edu_product_uuid.encode(buf)?;
-        self.rain_level.encode(buf)?;
-        self.lightning_level.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.rain_level).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.lightning_level).encode(buf)?;
         self.has_confirmed_platform_locked_content.encode(buf)?;
         self.is_multiplayer.encode(buf)?;
         self.broadcast_to_lan.encode(buf)?;
@@ -244,7 +244,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketStartGame {
         self.bonus_chest.encode(buf)?;
         self.map_enabled.encode(buf)?;
         self.permission_level.encode(buf)?;
-        self.server_chunk_tick_range.encode(buf)?;
+        crate::bedrock::codec::I32LE(self.server_chunk_tick_range).encode(buf)?;
         self.has_locked_behavior_pack.encode(buf)?;
         self.has_locked_resource_pack.encode(buf)?;
         self.is_from_locked_world_template.encode(buf)?;
@@ -256,8 +256,8 @@ impl crate::bedrock::codec::BedrockCodec for PacketStartGame {
         self.custom_skins_disabled.encode(buf)?;
         self.emote_chat_muted.encode(buf)?;
         self.game_version.encode(buf)?;
-        self.limited_world_width.encode(buf)?;
-        self.limited_world_length.encode(buf)?;
+        crate::bedrock::codec::I32LE(self.limited_world_width).encode(buf)?;
+        crate::bedrock::codec::I32LE(self.limited_world_length).encode(buf)?;
         self.is_new_nether.encode(buf)?;
         self.edu_resource_uri.encode(buf)?;
         self.experimental_gameplay_override.encode(buf)?;
@@ -273,14 +273,14 @@ impl crate::bedrock::codec::BedrockCodec for PacketStartGame {
         self.is_trial.encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.rewind_history_size).encode(buf)?;
         self.server_authoritative_block_breaking.encode(buf)?;
-        self.current_tick.encode(buf)?;
+        crate::bedrock::codec::I64LE(self.current_tick).encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.enchantment_seed).encode(buf)?;
         self.block_properties.encode(buf)?;
         self.multiplayer_correlation_id.encode(buf)?;
         self.server_authoritative_inventory.encode(buf)?;
         self.engine.encode(buf)?;
         self.property_data.encode(buf)?;
-        self.block_pallette_checksum.encode(buf)?;
+        crate::bedrock::codec::U64LE(self.block_pallette_checksum).encode(buf)?;
         self.world_template_id.encode(buf)?;
         self.client_side_generation.encode(buf)?;
         self.block_network_ids_are_hashes.encode(buf)?;
@@ -312,8 +312,16 @@ impl crate::bedrock::codec::BedrockCodec for PacketStartGame {
             (),
         )?;
         let rotation = <Vec2F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let seed = <u64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let biome_type = <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let seed = <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let biome_type = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let biome_name = <String as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -375,11 +383,16 @@ impl crate::bedrock::codec::BedrockCodec for PacketStartGame {
             buf,
             (),
         )?;
-        let rain_level = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let lightning_level = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let rain_level = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let lightning_level = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let has_confirmed_platform_locked_content = <bool as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -430,8 +443,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketStartGame {
         };
         let experiments = {
             let res: Experiments = {
-                let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                    as usize;
+                let len = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                        buf,
+                        (),
+                    )?
+                    .0 as usize;
                 let mut tmp_vec = Vec::with_capacity(len);
                 for _ in 0..len {
                     tmp_vec
@@ -462,10 +478,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketStartGame {
             buf,
             (),
         )?;
-        let server_chunk_tick_range = <i32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let server_chunk_tick_range = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let has_locked_behavior_pack = <bool as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -510,14 +527,16 @@ impl crate::bedrock::codec::BedrockCodec for PacketStartGame {
             buf,
             (),
         )?;
-        let limited_world_width = <i32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let limited_world_length = <i32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let limited_world_width = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let limited_world_length = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let is_new_nether = <bool as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -573,10 +592,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketStartGame {
             buf,
             (),
         )?;
-        let current_tick = <i64 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let current_tick = <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let enchantment_seed = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -615,10 +635,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketStartGame {
         let property_data = <Vec<
             u8,
         > as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let block_pallette_checksum = <u64 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let block_pallette_checksum = <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let world_template_id = <uuid::Uuid as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),

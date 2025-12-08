@@ -467,6 +467,38 @@ pub fn define_type(
                      let raw = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
                      let bits = raw.0 as #backing_type;
                 },
+                Primitive::U16LE => quote! {
+                     let raw = <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+                     let bits = raw.0 as #backing_type;
+                },
+                Primitive::I16LE => quote! {
+                     let raw = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+                     let bits = raw.0 as #backing_type;
+                },
+                Primitive::U32LE => quote! {
+                     let raw = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+                     let bits = raw.0 as #backing_type;
+                },
+                Primitive::I32LE => quote! {
+                     let raw = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+                     let bits = raw.0 as #backing_type;
+                },
+                Primitive::U64LE => quote! {
+                     let raw = <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+                     let bits = raw.0 as #backing_type;
+                },
+                Primitive::I64LE => quote! {
+                     let raw = <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+                     let bits = raw.0 as #backing_type;
+                },
+                Primitive::F32LE => quote! {
+                     let raw = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+                     let bits = raw.0 as #backing_type;
+                },
+                Primitive::F64LE => quote! {
+                     let raw = <crate::bedrock::codec::F64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+                     let bits = raw.0 as #backing_type;
+                },
                 _ => quote! {
                     let raw = <#wire_type as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
                     let bits = raw as #backing_type;
@@ -485,6 +517,30 @@ pub fn define_type(
                 },
                 Primitive::ZigZag64 => quote! {
                     crate::bedrock::codec::ZigZag64(val as i64).encode(buf)
+                },
+                Primitive::U16LE => quote! {
+                    crate::bedrock::codec::U16LE(val as u16).encode(buf)
+                },
+                Primitive::I16LE => quote! {
+                    crate::bedrock::codec::I16LE(val as i16).encode(buf)
+                },
+                Primitive::U32LE => quote! {
+                    crate::bedrock::codec::U32LE(val as u32).encode(buf)
+                },
+                Primitive::I32LE => quote! {
+                    crate::bedrock::codec::I32LE(val as i32).encode(buf)
+                },
+                Primitive::U64LE => quote! {
+                    crate::bedrock::codec::U64LE(val as u64).encode(buf)
+                },
+                Primitive::I64LE => quote! {
+                    crate::bedrock::codec::I64LE(val as i64).encode(buf)
+                },
+                Primitive::F32LE => quote! {
+                    crate::bedrock::codec::F32LE(val as f32).encode(buf)
+                },
+                Primitive::F64LE => quote! {
+                    crate::bedrock::codec::F64LE(val as f64).encode(buf)
                 },
                 _ => quote! { (val as #wire_type).encode(buf) },
             };

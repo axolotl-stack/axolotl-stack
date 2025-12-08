@@ -63,14 +63,17 @@ impl crate::bedrock::codec::BedrockCodec for AbilitySet {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let val = self.bits();
-        (val as u32).encode(buf)
+        crate::bedrock::codec::U32LE(val as u32).encode(buf)
     }
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
-        let raw = <u32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let bits = raw as u32;
+        let raw = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let bits = raw.0 as u32;
         Ok(Self::from_bits_retain(bits))
     }
 }
@@ -90,9 +93,9 @@ impl crate::bedrock::codec::BedrockCodec for AbilityLayers {
         self.type_.encode(buf)?;
         self.allowed.encode(buf)?;
         self.enabled.encode(buf)?;
-        self.fly_speed.encode(buf)?;
-        self.vertical_fly_speed.encode(buf)?;
-        self.walk_speed.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.fly_speed).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.vertical_fly_speed).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.walk_speed).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -112,12 +115,21 @@ impl crate::bedrock::codec::BedrockCodec for AbilityLayers {
             buf,
             (),
         )?;
-        let fly_speed = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let vertical_fly_speed = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let walk_speed = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let fly_speed = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let vertical_fly_speed = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let walk_speed = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             type_,
             allowed,

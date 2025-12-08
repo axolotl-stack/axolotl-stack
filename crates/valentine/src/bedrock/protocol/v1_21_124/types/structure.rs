@@ -150,9 +150,9 @@ impl crate::bedrock::codec::BedrockCodec for StructureBlockSettings {
         self.rotation.encode(buf)?;
         self.mirror.encode(buf)?;
         self.animation_mode.encode(buf)?;
-        self.animation_duration.encode(buf)?;
-        self.integrity.encode(buf)?;
-        self.seed.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.animation_duration).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.integrity).encode(buf)?;
+        crate::bedrock::codec::U32LE(self.seed).encode(buf)?;
         self.pivot.encode(buf)?;
         Ok(())
     }
@@ -202,12 +202,21 @@ impl crate::bedrock::codec::BedrockCodec for StructureBlockSettings {
             buf,
             (),
         )?;
-        let animation_duration = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let integrity = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let seed = <u32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let animation_duration = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let integrity = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let seed = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let pivot = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self {
             palette_name,

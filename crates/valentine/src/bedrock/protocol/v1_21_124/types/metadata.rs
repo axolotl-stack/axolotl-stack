@@ -489,10 +489,10 @@ impl crate::bedrock::codec::BedrockCodec for MetadataDictionaryItem {
                 v.encode(buf)?;
             }
             MetadataDictionaryItemValue::SeatCameraRelaxDistanceSmoothing(v) => {
-                (*v).encode(buf)?;
+                crate::bedrock::codec::F32LE(*v).encode(buf)?;
             }
             MetadataDictionaryItemValue::SeatThirdPersonCameraRadius(v) => {
-                (*v).encode(buf)?;
+                crate::bedrock::codec::F32LE(*v).encode(buf)?;
             }
             MetadataDictionaryItemValue::Default(v) => {
                 if let Some(v) = (&**v) {
@@ -504,7 +504,7 @@ impl crate::bedrock::codec::BedrockCodec for MetadataDictionaryItem {
                             (*v).encode(buf)?;
                         }
                         MetadataDictionaryItemValueDefault::Float(v) => {
-                            (*v).encode(buf)?;
+                            crate::bedrock::codec::F32LE(*v).encode(buf)?;
                         }
                         MetadataDictionaryItemValueDefault::Int(v) => {
                             crate::bedrock::codec::ZigZag32(*v).encode(buf)?;
@@ -513,7 +513,7 @@ impl crate::bedrock::codec::BedrockCodec for MetadataDictionaryItem {
                             crate::bedrock::codec::ZigZag64(*v).encode(buf)?;
                         }
                         MetadataDictionaryItemValueDefault::Short(v) => {
-                            (*v).encode(buf)?;
+                            crate::bedrock::codec::I16LE(*v).encode(buf)?;
                         }
                         MetadataDictionaryItemValueDefault::String(v) => {
                             (*v).encode(buf)?;
@@ -562,12 +562,20 @@ impl crate::bedrock::codec::BedrockCodec for MetadataDictionaryItem {
             }
             MetadataDictionaryItemKey::SeatCameraRelaxDistanceSmoothing => {
                 MetadataDictionaryItemValue::SeatCameraRelaxDistanceSmoothing(
-                    <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
+                    <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
                 )
             }
             MetadataDictionaryItemKey::SeatThirdPersonCameraRadius => {
                 MetadataDictionaryItemValue::SeatThirdPersonCameraRadius(
-                    <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
+                    <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
                 )
             }
             _ => {
@@ -596,10 +604,11 @@ impl crate::bedrock::codec::BedrockCodec for MetadataDictionaryItem {
                             MetadataDictionaryItemType::Float => {
                                 Some(
                                     MetadataDictionaryItemValueDefault::Float(
-                                        <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-                                            buf,
-                                            (),
-                                        )?,
+                                        <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                                                buf,
+                                                (),
+                                            )?
+                                            .0,
                                     ),
                                 )
                             }
@@ -628,10 +637,11 @@ impl crate::bedrock::codec::BedrockCodec for MetadataDictionaryItem {
                             MetadataDictionaryItemType::Short => {
                                 Some(
                                     MetadataDictionaryItemValueDefault::Short(
-                                        <i16 as crate::bedrock::codec::BedrockCodec>::decode(
-                                            buf,
-                                            (),
-                                        )?,
+                                        <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                                                buf,
+                                                (),
+                                            )?
+                                            .0,
                                     ),
                                 )
                             }

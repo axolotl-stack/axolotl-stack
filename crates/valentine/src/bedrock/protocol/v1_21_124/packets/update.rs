@@ -18,7 +18,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketUpdateAbilities {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.entity_unique_id.encode(buf)?;
+        crate::bedrock::codec::I64LE(self.entity_unique_id).encode(buf)?;
         self.permission_level.encode(buf)?;
         self.command_permission.encode(buf)?;
         let len = self.abilities.len();
@@ -33,10 +33,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketUpdateAbilities {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let entity_unique_id = <i64 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let entity_unique_id = <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let permission_level = <PermissionLevel as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),

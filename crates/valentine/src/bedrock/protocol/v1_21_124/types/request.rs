@@ -17,14 +17,17 @@ impl crate::bedrock::codec::BedrockCodec for RequestPermissions {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let val = self.bits();
-        (val as u16).encode(buf)
+        crate::bedrock::codec::U16LE(val as u16).encode(buf)
     }
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
-        let raw = <u16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let bits = raw as u16;
+        let raw = <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let bits = raw.0 as u16;
         Ok(Self::from_bits_retain(bits))
     }
 }

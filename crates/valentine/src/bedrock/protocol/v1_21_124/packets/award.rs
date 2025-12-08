@@ -15,7 +15,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAwardAchievement {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.achievement_id.encode(buf)?;
+        crate::bedrock::codec::I32LE(self.achievement_id).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -23,10 +23,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketAwardAchievement {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let achievement_id = <i32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let achievement_id = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self { achievement_id })
     }
 }

@@ -20,8 +20,8 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlaySound {
         let _ = buf;
         self.name.encode(buf)?;
         self.coordinates.encode(buf)?;
-        self.volume.encode(buf)?;
-        self.pitch.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.volume).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.pitch).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -34,8 +34,16 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlaySound {
             buf,
             (),
         )?;
-        let volume = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let pitch = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let volume = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let pitch = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             name,
             coordinates,

@@ -109,7 +109,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketServerScriptDebugDrawerShapes
         match &self.scale {
             Some(v) => {
                 buf.put_u8(1);
-                (*v).encode(buf)?;
+                crate::bedrock::codec::F32LE(*v).encode(buf)?;
             }
             None => buf.put_u8(0),
         }
@@ -123,14 +123,14 @@ impl crate::bedrock::codec::BedrockCodec for PacketServerScriptDebugDrawerShapes
         match &self.time_left {
             Some(v) => {
                 buf.put_u8(1);
-                (*v).encode(buf)?;
+                crate::bedrock::codec::F32LE(*v).encode(buf)?;
             }
             None => buf.put_u8(0),
         }
         match &self.color {
             Some(v) => {
                 buf.put_u8(1);
-                (*v).encode(buf)?;
+                crate::bedrock::codec::I32LE(*v).encode(buf)?;
             }
             None => buf.put_u8(0),
         }
@@ -158,14 +158,14 @@ impl crate::bedrock::codec::BedrockCodec for PacketServerScriptDebugDrawerShapes
         match &self.arrow_head_length {
             Some(v) => {
                 buf.put_u8(1);
-                (*v).encode(buf)?;
+                crate::bedrock::codec::F32LE(*v).encode(buf)?;
             }
             None => buf.put_u8(0),
         }
         match &self.arrow_head_radius {
             Some(v) => {
                 buf.put_u8(1);
-                (*v).encode(buf)?;
+                crate::bedrock::codec::F32LE(*v).encode(buf)?;
             }
             None => buf.put_u8(0),
         }
@@ -212,7 +212,13 @@ impl crate::bedrock::codec::BedrockCodec for PacketServerScriptDebugDrawerShapes
         let scale = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
             } else {
                 None
             }
@@ -228,7 +234,13 @@ impl crate::bedrock::codec::BedrockCodec for PacketServerScriptDebugDrawerShapes
         let time_left = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
             } else {
                 None
             }
@@ -236,7 +248,13 @@ impl crate::bedrock::codec::BedrockCodec for PacketServerScriptDebugDrawerShapes
         let color = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
             } else {
                 None
             }
@@ -268,7 +286,13 @@ impl crate::bedrock::codec::BedrockCodec for PacketServerScriptDebugDrawerShapes
         let arrow_head_length = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
             } else {
                 None
             }
@@ -276,7 +300,13 @@ impl crate::bedrock::codec::BedrockCodec for PacketServerScriptDebugDrawerShapes
         let arrow_head_radius = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
             } else {
                 None
             }
@@ -399,8 +429,8 @@ impl crate::bedrock::codec::BedrockCodec for PacketServerStats {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.server_time.encode(buf)?;
-        self.network_time.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.server_time).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.network_time).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -408,11 +438,16 @@ impl crate::bedrock::codec::BedrockCodec for PacketServerStats {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let server_time = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let network_time = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let server_time = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let network_time = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self { server_time, network_time })
     }
 }

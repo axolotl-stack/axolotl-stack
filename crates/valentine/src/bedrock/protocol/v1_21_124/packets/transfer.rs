@@ -18,7 +18,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketTransfer {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
         self.server_address.encode(buf)?;
-        self.port.encode(buf)?;
+        crate::bedrock::codec::U16LE(self.port).encode(buf)?;
         self.reload_world.encode(buf)?;
         Ok(())
     }
@@ -31,7 +31,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketTransfer {
             buf,
             (),
         )?;
-        let port = <u16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let port = <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let reload_world = <bool as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),

@@ -25,7 +25,7 @@ impl crate::bedrock::codec::BedrockCodec for Link {
         self.type_.encode(buf)?;
         self.immediate.encode(buf)?;
         self.rider_initiated.encode(buf)?;
-        self.angular_velocity.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.angular_velocity).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -49,10 +49,11 @@ impl crate::bedrock::codec::BedrockCodec for Link {
             buf,
             (),
         )?;
-        let angular_velocity = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let angular_velocity = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             ridden_entity_id,
             rider_entity_id,

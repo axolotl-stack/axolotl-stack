@@ -22,9 +22,9 @@ impl crate::bedrock::codec::BedrockCodec for PlayerAttributesItemModifiersItem {
         let _ = buf;
         self.id.encode(buf)?;
         self.name.encode(buf)?;
-        self.amount.encode(buf)?;
-        self.operation.encode(buf)?;
-        self.operand.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.amount).encode(buf)?;
+        crate::bedrock::codec::I32LE(self.operation).encode(buf)?;
+        crate::bedrock::codec::I32LE(self.operand).encode(buf)?;
         self.serializable.encode(buf)?;
         Ok(())
     }
@@ -35,9 +35,21 @@ impl crate::bedrock::codec::BedrockCodec for PlayerAttributesItemModifiersItem {
         let _ = buf;
         let id = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let name = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let amount = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let operation = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let operand = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let amount = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let operation = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let operand = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let serializable = <bool as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -67,12 +79,12 @@ impl crate::bedrock::codec::BedrockCodec for PlayerAttributesItem {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.min.encode(buf)?;
-        self.max.encode(buf)?;
-        self.current.encode(buf)?;
-        self.default_min.encode(buf)?;
-        self.default_max.encode(buf)?;
-        self.default.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.min).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.max).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.current).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.default_min).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.default_max).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.default).encode(buf)?;
         self.name.encode(buf)?;
         let len = self.modifiers.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
@@ -86,12 +98,36 @@ impl crate::bedrock::codec::BedrockCodec for PlayerAttributesItem {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let min = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let max = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let current = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let default_min = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let default_max = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let default = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let min = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let max = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let current = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let default_min = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let default_max = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let default = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let name = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let modifiers = {
             let len = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
@@ -181,12 +217,12 @@ impl crate::bedrock::codec::BedrockCodec for PlayerRecordsRecordsItemAdd {
         self.username.encode(buf)?;
         self.xbox_user_id.encode(buf)?;
         self.platform_chat_id.encode(buf)?;
-        self.build_platform.encode(buf)?;
+        crate::bedrock::codec::I32LE(self.build_platform).encode(buf)?;
         self.skin_data.encode(buf)?;
         self.is_teacher.encode(buf)?;
         self.is_host.encode(buf)?;
         self.is_subclient.encode(buf)?;
-        self.player_color.encode(buf)?;
+        crate::bedrock::codec::I32LE(self.player_color).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -209,10 +245,11 @@ impl crate::bedrock::codec::BedrockCodec for PlayerRecordsRecordsItemAdd {
             buf,
             (),
         )?;
-        let build_platform = <i32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let build_platform = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let skin_data = <Skin as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let is_teacher = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let is_host = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
@@ -220,10 +257,11 @@ impl crate::bedrock::codec::BedrockCodec for PlayerRecordsRecordsItemAdd {
             buf,
             (),
         )?;
-        let player_color = <i32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let player_color = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             uuid,
             entity_unique_id,

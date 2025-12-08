@@ -54,7 +54,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketNpcDialogue {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.entity_id.encode(buf)?;
+        crate::bedrock::codec::U64LE(self.entity_id).encode(buf)?;
         self.action_type.encode(buf)?;
         self.dialogue.encode(buf)?;
         self.screen_name.encode(buf)?;
@@ -67,7 +67,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketNpcDialogue {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let entity_id = <u64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let entity_id = <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let action_type = <PacketNpcDialogueActionType as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),

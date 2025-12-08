@@ -45,7 +45,7 @@ impl crate::bedrock::codec::BedrockCodec for EnchantOption {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
         crate::bedrock::codec::VarInt(self.cost).encode(buf)?;
-        self.slot_flags.encode(buf)?;
+        crate::bedrock::codec::I32LE(self.slot_flags).encode(buf)?;
         let len = self.equip_enchants.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.equip_enchants {
@@ -75,7 +75,11 @@ impl crate::bedrock::codec::BedrockCodec for EnchantOption {
                 (),
             )?
             .0;
-        let slot_flags = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let slot_flags = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let equip_enchants = {
             let len = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,

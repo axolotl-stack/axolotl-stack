@@ -150,7 +150,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketCommandBlockUpdate {
         self.name.encode(buf)?;
         self.filtered_name.encode(buf)?;
         self.should_track_output.encode(buf)?;
-        self.tick_delay.encode(buf)?;
+        crate::bedrock::codec::I32LE(self.tick_delay).encode(buf)?;
         self.execute_on_first_tick.encode(buf)?;
         Ok(())
     }
@@ -195,7 +195,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketCommandBlockUpdate {
             buf,
             (),
         )?;
-        let tick_delay = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let tick_delay = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let execute_on_first_tick = <bool as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),

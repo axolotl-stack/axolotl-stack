@@ -46,12 +46,12 @@ impl crate::bedrock::codec::BedrockCodec for ItemExtraDataWithoutBlockingTick {
             v.encode(buf)?;
         }
         let len = self.can_place_on.len();
-        (len as i32).encode(buf)?;
+        crate::bedrock::codec::I32LE(len as i32).encode(buf)?;
         for item in &self.can_place_on {
             item.encode(buf)?;
         }
         let len = self.can_destroy.len();
-        (len as i32).encode(buf)?;
+        crate::bedrock::codec::I32LE(len as i32).encode(buf)?;
         for item in &self.can_destroy {
             item.encode(buf)?;
         }
@@ -74,8 +74,11 @@ impl crate::bedrock::codec::BedrockCodec for ItemExtraDataWithoutBlockingTick {
             None
         };
         let can_place_on = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                as usize;
+            let len = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                    buf,
+                    (),
+                )?
+                .0 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec
@@ -89,8 +92,11 @@ impl crate::bedrock::codec::BedrockCodec for ItemExtraDataWithoutBlockingTick {
             tmp_vec
         };
         let can_destroy = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                as usize;
+            let len = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                    buf,
+                    (),
+                )?
+                .0 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec
@@ -127,16 +133,16 @@ impl crate::bedrock::codec::BedrockCodec for ItemExtraDataWithBlockingTick {
             v.encode(buf)?;
         }
         let len = self.can_place_on.len();
-        (len as i32).encode(buf)?;
+        crate::bedrock::codec::I32LE(len as i32).encode(buf)?;
         for item in &self.can_place_on {
             item.encode(buf)?;
         }
         let len = self.can_destroy.len();
-        (len as i32).encode(buf)?;
+        crate::bedrock::codec::I32LE(len as i32).encode(buf)?;
         for item in &self.can_destroy {
             item.encode(buf)?;
         }
-        self.blocking_tick.encode(buf)?;
+        crate::bedrock::codec::I64LE(self.blocking_tick).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -156,8 +162,11 @@ impl crate::bedrock::codec::BedrockCodec for ItemExtraDataWithBlockingTick {
             None
         };
         let can_place_on = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                as usize;
+            let len = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                    buf,
+                    (),
+                )?
+                .0 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec
@@ -171,8 +180,11 @@ impl crate::bedrock::codec::BedrockCodec for ItemExtraDataWithBlockingTick {
             tmp_vec
         };
         let can_destroy = {
-            let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                as usize;
+            let len = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                    buf,
+                    (),
+                )?
+                .0 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec
@@ -185,10 +197,11 @@ impl crate::bedrock::codec::BedrockCodec for ItemExtraDataWithBlockingTick {
             }
             tmp_vec
         };
-        let blocking_tick = <i64 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let blocking_tick = <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             nbt,
             can_place_on,
@@ -219,7 +232,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemContent {
     type Args = ItemContentArgs;
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.count.encode(buf)?;
+        crate::bedrock::codec::U16LE(self.count).encode(buf)?;
         crate::bedrock::codec::VarInt(self.metadata).encode(buf)?;
         let val = self.stack_id.is_none();
         val.encode(buf)?;
@@ -242,7 +255,11 @@ impl crate::bedrock::codec::BedrockCodec for ItemContent {
         args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let count = <u16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let count = <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let metadata = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -371,7 +388,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemLegacyContent {
     type Args = ItemLegacyContentArgs;
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.count.encode(buf)?;
+        crate::bedrock::codec::U16LE(self.count).encode(buf)?;
         crate::bedrock::codec::VarInt(self.metadata).encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.block_runtime_id).encode(buf)?;
         match &self.extra {
@@ -389,7 +406,11 @@ impl crate::bedrock::codec::BedrockCodec for ItemLegacyContent {
         args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let count = <u16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let count = <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let metadata = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -920,7 +941,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackRequestActionsItemContentO
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
         crate::bedrock::codec::VarInt(self.recipe_network_id).encode(buf)?;
-        self.filtered_string_index.encode(buf)?;
+        crate::bedrock::codec::I32LE(self.filtered_string_index).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -933,10 +954,11 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackRequestActionsItemContentO
                 (),
             )?
             .0;
-        let filtered_string_index = <i32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let filtered_string_index = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             recipe_network_id,
             filtered_string_index,

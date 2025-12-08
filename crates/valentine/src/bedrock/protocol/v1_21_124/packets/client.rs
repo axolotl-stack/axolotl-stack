@@ -23,12 +23,12 @@ impl crate::bedrock::codec::BedrockCodec for PacketClientCacheBlobStatus {
         let len = self.missing.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.missing {
-            (*item).encode(buf)?;
+            crate::bedrock::codec::U64LE(*item).encode(buf)?;
         }
         let len = self.have.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.have {
-            (*item).encode(buf)?;
+            crate::bedrock::codec::U64LE(*item).encode(buf)?;
         }
         Ok(())
     }
@@ -57,7 +57,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketClientCacheBlobStatus {
             for _ in 0..len {
                 tmp_vec
                     .push(
-                        <u64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
+                        <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                                buf,
+                                (),
+                            )?
+                            .0,
                     );
             }
             tmp_vec
@@ -72,7 +76,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketClientCacheBlobStatus {
             for _ in 0..len {
                 tmp_vec
                     .push(
-                        <u64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
+                        <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                                buf,
+                                (),
+                            )?
+                            .0,
                     );
             }
             tmp_vec
@@ -227,7 +235,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketClientCheatAbility {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.entity_unique_id.encode(buf)?;
+        crate::bedrock::codec::I64LE(self.entity_unique_id).encode(buf)?;
         self.permission_level.encode(buf)?;
         self.command_permission.encode(buf)?;
         let len = self.abilities.len();
@@ -242,10 +250,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketClientCheatAbility {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let entity_unique_id = <i64 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let entity_unique_id = <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let permission_level = <PermissionLevel as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -288,9 +297,9 @@ for PacketClientMovementPredictionSyncBoundingBox {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.scale.encode(buf)?;
-        self.width.encode(buf)?;
-        self.height.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.scale).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.width).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.height).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -298,9 +307,21 @@ for PacketClientMovementPredictionSyncBoundingBox {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let scale = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let width = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let height = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let scale = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let width = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let height = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self { scale, width, height })
     }
 }
@@ -323,12 +344,12 @@ impl crate::bedrock::codec::BedrockCodec for PacketClientMovementPredictionSync 
         let _ = buf;
         crate::bedrock::codec::VarLong(self.data_flags).encode(buf)?;
         self.bounding_box.encode(buf)?;
-        self.movement_speed.encode(buf)?;
-        self.underwater_movement_speed.encode(buf)?;
-        self.lava_movement_speed.encode(buf)?;
-        self.jump_strength.encode(buf)?;
-        self.health.encode(buf)?;
-        self.hunger.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.movement_speed).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.underwater_movement_speed).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.lava_movement_speed).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.jump_strength).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.health).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.hunger).encode(buf)?;
         crate::bedrock::codec::VarLong(self.entity_runtime_id).encode(buf)?;
         self.is_flying.encode(buf)?;
         Ok(())
@@ -347,24 +368,36 @@ impl crate::bedrock::codec::BedrockCodec for PacketClientMovementPredictionSync 
             buf,
             (),
         )?;
-        let movement_speed = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let underwater_movement_speed = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let lava_movement_speed = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let jump_strength = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let health = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let hunger = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let movement_speed = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let underwater_movement_speed = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let lava_movement_speed = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let jump_strength = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let health = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let hunger = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let entity_runtime_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),

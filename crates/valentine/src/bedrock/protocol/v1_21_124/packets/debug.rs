@@ -84,11 +84,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketDebugRendererContentAddCube {
         let _ = buf;
         self.text.encode(buf)?;
         self.position.encode(buf)?;
-        self.red.encode(buf)?;
-        self.green.encode(buf)?;
-        self.blue.encode(buf)?;
-        self.alpha.encode(buf)?;
-        self.duration.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.red).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.green).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.blue).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.alpha).encode(buf)?;
+        crate::bedrock::codec::I64LE(self.duration).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -98,11 +98,31 @@ impl crate::bedrock::codec::BedrockCodec for PacketDebugRendererContentAddCube {
         let _ = buf;
         let text = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let position = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let red = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let green = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let blue = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let alpha = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let duration = <i64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let red = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let green = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let blue = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let alpha = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let duration = <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             text,
             position,

@@ -87,7 +87,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketBossEventContentSetBarProgres
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.progress.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.progress).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -95,7 +95,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketBossEventContentSetBarProgres
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let progress = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let progress = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self { progress })
     }
 }
@@ -140,8 +144,8 @@ impl crate::bedrock::codec::BedrockCodec for PacketBossEventContentShowBar {
         let _ = buf;
         self.title.encode(buf)?;
         self.filtered_title.encode(buf)?;
-        self.progress.encode(buf)?;
-        self.screen_darkening.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.progress).encode(buf)?;
+        crate::bedrock::codec::I16LE(self.screen_darkening).encode(buf)?;
         crate::bedrock::codec::VarInt(self.color).encode(buf)?;
         crate::bedrock::codec::VarInt(self.overlay).encode(buf)?;
         Ok(())
@@ -156,11 +160,16 @@ impl crate::bedrock::codec::BedrockCodec for PacketBossEventContentShowBar {
             buf,
             (),
         )?;
-        let progress = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let screen_darkening = <i16 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let progress = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let screen_darkening = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let color = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
@@ -222,7 +231,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketBossEventContentUpdatePropert
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.screen_darkening.encode(buf)?;
+        crate::bedrock::codec::I16LE(self.screen_darkening).encode(buf)?;
         crate::bedrock::codec::VarInt(self.color).encode(buf)?;
         crate::bedrock::codec::VarInt(self.overlay).encode(buf)?;
         Ok(())
@@ -232,10 +241,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketBossEventContentUpdatePropert
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let screen_darkening = <i16 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let screen_darkening = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let color = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),

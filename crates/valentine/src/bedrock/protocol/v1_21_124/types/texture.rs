@@ -26,7 +26,7 @@ impl crate::bedrock::codec::BedrockCodec for TexturePackInfosItem {
         let _ = buf;
         self.uuid.encode(buf)?;
         self.version.encode(buf)?;
-        self.size.encode(buf)?;
+        crate::bedrock::codec::U64LE(self.size).encode(buf)?;
         self.content_key.encode(buf)?;
         self.sub_pack_name.encode(buf)?;
         self.content_identity.encode(buf)?;
@@ -43,7 +43,11 @@ impl crate::bedrock::codec::BedrockCodec for TexturePackInfosItem {
         let _ = buf;
         let uuid = <uuid::Uuid as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let version = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let size = <u64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let size = <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let content_key = <String as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),

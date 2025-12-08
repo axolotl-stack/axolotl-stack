@@ -16,7 +16,7 @@ impl crate::bedrock::codec::BedrockCodec for ParameterKeyframeValue {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.time.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.time).encode(buf)?;
         self.value.encode(buf)?;
         Ok(())
     }
@@ -25,7 +25,11 @@ impl crate::bedrock::codec::BedrockCodec for ParameterKeyframeValue {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let time = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let time = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let value = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self { time, value })
     }

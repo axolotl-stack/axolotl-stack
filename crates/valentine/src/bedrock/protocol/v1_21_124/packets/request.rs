@@ -123,7 +123,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketRequestAbility {
         self.ability.encode(buf)?;
         self.value_type.encode(buf)?;
         self.bool_value.encode(buf)?;
-        self.float_val.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.float_val).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -140,7 +140,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketRequestAbility {
             (),
         )?;
         let bool_value = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let float_val = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let float_val = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             ability,
             value_type,
@@ -209,7 +213,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketRequestPermissions {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.entity_unique_id.encode(buf)?;
+        crate::bedrock::codec::I64LE(self.entity_unique_id).encode(buf)?;
         self.permission_level.encode(buf)?;
         self.requested_permissions.encode(buf)?;
         Ok(())
@@ -219,10 +223,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketRequestPermissions {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let entity_unique_id = <i64 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let entity_unique_id = <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let permission_level = <PermissionLevel as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),

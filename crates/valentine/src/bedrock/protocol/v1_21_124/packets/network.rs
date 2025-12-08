@@ -52,7 +52,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketNetworkChunkPublisherUpdate {
         self.coordinates.encode(buf)?;
         crate::bedrock::codec::VarInt(self.radius).encode(buf)?;
         let len = self.saved_chunks.len();
-        (len as u32).encode(buf)?;
+        crate::bedrock::codec::U32LE(len as u32).encode(buf)?;
         for item in &self.saved_chunks {
             item.encode(buf)?;
         }
@@ -73,8 +73,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketNetworkChunkPublisherUpdate {
             )?
             .0;
         let saved_chunks = {
-            let len = <u32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                as usize;
+            let len = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                    buf,
+                    (),
+                )?
+                .0 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec
@@ -140,11 +143,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketNetworkSettings {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.compression_threshold.encode(buf)?;
+        crate::bedrock::codec::U16LE(self.compression_threshold).encode(buf)?;
         self.compression_algorithm.encode(buf)?;
         self.client_throttle.encode(buf)?;
         self.client_throttle_threshold.encode(buf)?;
-        self.client_throttle_scalar.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.client_throttle_scalar).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -152,10 +155,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketNetworkSettings {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let compression_threshold = <u16 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let compression_threshold = <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let compression_algorithm = <PacketNetworkSettingsCompressionAlgorithm as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -168,10 +172,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketNetworkSettings {
             buf,
             (),
         )?;
-        let client_throttle_scalar = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let client_throttle_scalar = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             compression_threshold,
             compression_algorithm,
@@ -190,7 +195,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketNetworkStackLatency {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.timestamp.encode(buf)?;
+        crate::bedrock::codec::U64LE(self.timestamp).encode(buf)?;
         self.needs_response.encode(buf)?;
         Ok(())
     }
@@ -199,7 +204,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketNetworkStackLatency {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let timestamp = <u64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let timestamp = <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let needs_response = <u8 as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),

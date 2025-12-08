@@ -206,7 +206,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketEntityPickRequest {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.runtime_entity_id.encode(buf)?;
+        crate::bedrock::codec::U64LE(self.runtime_entity_id).encode(buf)?;
         self.selected_slot.encode(buf)?;
         self.with_data.encode(buf)?;
         Ok(())
@@ -216,10 +216,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketEntityPickRequest {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let runtime_entity_id = <u64 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let runtime_entity_id = <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let selected_slot = <u8 as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),

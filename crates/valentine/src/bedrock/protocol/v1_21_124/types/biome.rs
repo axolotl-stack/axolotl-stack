@@ -22,31 +22,31 @@ impl crate::bedrock::codec::BedrockCodec for BiomeCappedSurface {
         let len = self.floor_blocks.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.floor_blocks {
-            (*item).encode(buf)?;
+            crate::bedrock::codec::I32LE(*item).encode(buf)?;
         }
         let len = self.ceiling_blocks.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.ceiling_blocks {
-            (*item).encode(buf)?;
+            crate::bedrock::codec::I32LE(*item).encode(buf)?;
         }
         match &self.sea_block {
             Some(v) => {
                 buf.put_u8(1);
-                (*v).encode(buf)?;
+                crate::bedrock::codec::U32LE(*v).encode(buf)?;
             }
             None => buf.put_u8(0),
         }
         match &self.foundation_block {
             Some(v) => {
                 buf.put_u8(1);
-                (*v).encode(buf)?;
+                crate::bedrock::codec::U32LE(*v).encode(buf)?;
             }
             None => buf.put_u8(0),
         }
         match &self.beach_block {
             Some(v) => {
                 buf.put_u8(1);
-                (*v).encode(buf)?;
+                crate::bedrock::codec::U32LE(*v).encode(buf)?;
             }
             None => buf.put_u8(0),
         }
@@ -67,7 +67,11 @@ impl crate::bedrock::codec::BedrockCodec for BiomeCappedSurface {
             for _ in 0..len {
                 tmp_vec
                     .push(
-                        <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
+                        <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                                buf,
+                                (),
+                            )?
+                            .0,
                     );
             }
             tmp_vec
@@ -82,7 +86,11 @@ impl crate::bedrock::codec::BedrockCodec for BiomeCappedSurface {
             for _ in 0..len {
                 tmp_vec
                     .push(
-                        <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
+                        <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                                buf,
+                                (),
+                            )?
+                            .0,
                     );
             }
             tmp_vec
@@ -90,7 +98,13 @@ impl crate::bedrock::codec::BedrockCodec for BiomeCappedSurface {
         let sea_block = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<u32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
             } else {
                 None
             }
@@ -98,7 +112,13 @@ impl crate::bedrock::codec::BedrockCodec for BiomeCappedSurface {
         let foundation_block = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<u32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
             } else {
                 None
             }
@@ -106,7 +126,13 @@ impl crate::bedrock::codec::BedrockCodec for BiomeCappedSurface {
         let beach_block = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<u32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
             } else {
                 None
             }
@@ -131,10 +157,10 @@ impl crate::bedrock::codec::BedrockCodec for BiomeClimate {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.temperature.encode(buf)?;
-        self.downfall.encode(buf)?;
-        self.snow_accumulation_min.encode(buf)?;
-        self.snow_accumulation_max.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.temperature).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.downfall).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.snow_accumulation_min).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.snow_accumulation_max).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -142,16 +168,26 @@ impl crate::bedrock::codec::BedrockCodec for BiomeClimate {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let temperature = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let downfall = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let snow_accumulation_min = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let snow_accumulation_max = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let temperature = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let downfall = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let snow_accumulation_min = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let snow_accumulation_max = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             temperature,
             downfall,
@@ -219,11 +255,11 @@ impl crate::bedrock::codec::BedrockCodec for BiomeCoordinate {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
         crate::bedrock::codec::ZigZag32(self.min_value_type).encode(buf)?;
-        self.min_value.encode(buf)?;
+        crate::bedrock::codec::I16LE(self.min_value).encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.max_value_type).encode(buf)?;
-        self.max_value.encode(buf)?;
-        self.grid_offset.encode(buf)?;
-        self.grid_step_size.encode(buf)?;
+        crate::bedrock::codec::I16LE(self.max_value).encode(buf)?;
+        crate::bedrock::codec::U32LE(self.grid_offset).encode(buf)?;
+        crate::bedrock::codec::U32LE(self.grid_step_size).encode(buf)?;
         self.distribution.encode(buf)?;
         Ok(())
     }
@@ -237,18 +273,31 @@ impl crate::bedrock::codec::BedrockCodec for BiomeCoordinate {
                 (),
             )?
             .0;
-        let min_value = <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let min_value = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let max_value_type = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let max_value = <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let grid_offset = <u32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let grid_step_size = <u32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let max_value = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let grid_offset = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let grid_step_size = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let distribution = <BiomeCoordinateDistribution as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -328,11 +377,11 @@ impl crate::bedrock::codec::BedrockCodec for BiomeScatterParameter {
         }
         self.evaluation_order.encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.chance_percent_type).encode(buf)?;
-        self.chance_percent.encode(buf)?;
-        self.chance_numerator.encode(buf)?;
-        self.chance_denominator.encode(buf)?;
+        crate::bedrock::codec::I16LE(self.chance_percent).encode(buf)?;
+        crate::bedrock::codec::I32LE(self.chance_numerator).encode(buf)?;
+        crate::bedrock::codec::I32LE(self.chance_denominator).encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.iterations_type).encode(buf)?;
-        self.iterations.encode(buf)?;
+        crate::bedrock::codec::I16LE(self.iterations).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -367,24 +416,31 @@ impl crate::bedrock::codec::BedrockCodec for BiomeScatterParameter {
                 (),
             )?
             .0;
-        let chance_percent = <i16 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let chance_numerator = <i32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let chance_denominator = <i32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let chance_percent = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let chance_numerator = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let chance_denominator = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let iterations_type = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let iterations = <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let iterations = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             coordinates,
             evaluation_order,
@@ -410,9 +466,9 @@ impl crate::bedrock::codec::BedrockCodec for BiomeConsolidatedFeature {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
         self.scatter.encode(buf)?;
-        self.feature.encode(buf)?;
-        self.identifier.encode(buf)?;
-        self.pass.encode(buf)?;
+        crate::bedrock::codec::I16LE(self.feature).encode(buf)?;
+        crate::bedrock::codec::I16LE(self.identifier).encode(buf)?;
+        crate::bedrock::codec::I16LE(self.pass).encode(buf)?;
         self.can_use_internal.encode(buf)?;
         Ok(())
     }
@@ -425,9 +481,21 @@ impl crate::bedrock::codec::BedrockCodec for BiomeConsolidatedFeature {
             buf,
             (),
         )?;
-        let feature = <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let identifier = <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let pass = <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let feature = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let identifier = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let pass = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let can_use_internal = <bool as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -454,7 +522,7 @@ impl crate::bedrock::codec::BedrockCodec for BiomeMountainParameters {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.steep_block.encode(buf)?;
+        crate::bedrock::codec::I32LE(self.steep_block).encode(buf)?;
         self.north_slopes.encode(buf)?;
         self.south_slopes.encode(buf)?;
         self.west_slopes.encode(buf)?;
@@ -467,7 +535,11 @@ impl crate::bedrock::codec::BedrockCodec for BiomeMountainParameters {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let steep_block = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let steep_block = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let north_slopes = <bool as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -511,12 +583,12 @@ impl crate::bedrock::codec::BedrockCodec for BiomeSurfaceMaterial {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.top_block.encode(buf)?;
-        self.mid_block.encode(buf)?;
-        self.sea_floor_block.encode(buf)?;
-        self.foundation_block.encode(buf)?;
-        self.sea_block.encode(buf)?;
-        self.sea_floor_depth.encode(buf)?;
+        crate::bedrock::codec::I32LE(self.top_block).encode(buf)?;
+        crate::bedrock::codec::I32LE(self.mid_block).encode(buf)?;
+        crate::bedrock::codec::I32LE(self.sea_floor_block).encode(buf)?;
+        crate::bedrock::codec::I32LE(self.foundation_block).encode(buf)?;
+        crate::bedrock::codec::I32LE(self.sea_block).encode(buf)?;
+        crate::bedrock::codec::I32LE(self.sea_floor_depth).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -524,21 +596,36 @@ impl crate::bedrock::codec::BedrockCodec for BiomeSurfaceMaterial {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let top_block = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let mid_block = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let sea_floor_block = <i32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let foundation_block = <i32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let sea_block = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let sea_floor_depth = <i32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let top_block = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let mid_block = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let sea_floor_block = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let foundation_block = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let sea_block = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let sea_floor_depth = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             top_block,
             mid_block,
@@ -564,13 +651,13 @@ impl crate::bedrock::codec::BedrockCodec for BiomeElementData {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.noise_frequency_scale.encode(buf)?;
-        self.noise_lower_bound.encode(buf)?;
-        self.noise_upper_bound.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.noise_frequency_scale).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.noise_lower_bound).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.noise_upper_bound).encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.height_min_type).encode(buf)?;
-        self.height_min.encode(buf)?;
+        crate::bedrock::codec::I16LE(self.height_min).encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.height_max_type).encode(buf)?;
-        self.height_max.encode(buf)?;
+        crate::bedrock::codec::I16LE(self.height_max).encode(buf)?;
         self.adjusted_materials.encode(buf)?;
         Ok(())
     }
@@ -579,30 +666,41 @@ impl crate::bedrock::codec::BedrockCodec for BiomeElementData {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let noise_frequency_scale = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let noise_lower_bound = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let noise_upper_bound = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let noise_frequency_scale = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let noise_lower_bound = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let noise_upper_bound = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let height_min_type = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let height_min = <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let height_min = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let height_max_type = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let height_max = <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let height_max = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let adjusted_materials = <BiomeSurfaceMaterial as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -630,8 +728,8 @@ impl crate::bedrock::codec::BedrockCodec for BiomeMesaSurface {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.clay_material.encode(buf)?;
-        self.hard_clay_material.encode(buf)?;
+        crate::bedrock::codec::U32LE(self.clay_material).encode(buf)?;
+        crate::bedrock::codec::U32LE(self.hard_clay_material).encode(buf)?;
         self.bryce_pillars.encode(buf)?;
         self.has_forest.encode(buf)?;
         Ok(())
@@ -641,14 +739,16 @@ impl crate::bedrock::codec::BedrockCodec for BiomeMesaSurface {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let clay_material = <u32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let hard_clay_material = <u32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let clay_material = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let hard_clay_material = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let bryce_pillars = <bool as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -671,8 +771,8 @@ impl crate::bedrock::codec::BedrockCodec for BiomeWeight {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.biome.encode(buf)?;
-        self.weight.encode(buf)?;
+        crate::bedrock::codec::I16LE(self.biome).encode(buf)?;
+        crate::bedrock::codec::U32LE(self.weight).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -680,8 +780,16 @@ impl crate::bedrock::codec::BedrockCodec for BiomeWeight {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let biome = <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let weight = <u32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let biome = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let weight = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self { biome, weight })
     }
 }
@@ -700,8 +808,8 @@ impl crate::bedrock::codec::BedrockCodec for BiomeConditionalTransformation {
         for item in &self.weighted_biomes {
             item.encode(buf)?;
         }
-        self.condition_json.encode(buf)?;
-        self.min_passing_neighbours.encode(buf)?;
+        crate::bedrock::codec::I16LE(self.condition_json).encode(buf)?;
+        crate::bedrock::codec::U32LE(self.min_passing_neighbours).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -727,14 +835,16 @@ impl crate::bedrock::codec::BedrockCodec for BiomeConditionalTransformation {
             }
             tmp_vec
         };
-        let condition_json = <i16 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let min_passing_neighbours = <u32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let condition_json = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let min_passing_neighbours = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             weighted_biomes,
             condition_json,
@@ -752,7 +862,7 @@ impl crate::bedrock::codec::BedrockCodec for BiomeTemperatureWeight {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
         crate::bedrock::codec::ZigZag32(self.temperature).encode(buf)?;
-        self.weight.encode(buf)?;
+        crate::bedrock::codec::U32LE(self.weight).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -765,7 +875,11 @@ impl crate::bedrock::codec::BedrockCodec for BiomeTemperatureWeight {
                 (),
             )?
             .0;
-        let weight = <u32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let weight = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self { temperature, weight })
     }
 }
@@ -974,11 +1088,11 @@ impl crate::bedrock::codec::BedrockCodec for BiomeMultiNoiseRules {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.temperature.encode(buf)?;
-        self.humidity.encode(buf)?;
-        self.altitude.encode(buf)?;
-        self.weirdness.encode(buf)?;
-        self.weight.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.temperature).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.humidity).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.altitude).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.weirdness).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.weight).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -986,11 +1100,31 @@ impl crate::bedrock::codec::BedrockCodec for BiomeMultiNoiseRules {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let temperature = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let humidity = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let altitude = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let weirdness = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let weight = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let temperature = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let humidity = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let altitude = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let weirdness = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let weight = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             temperature,
             humidity,
@@ -1013,16 +1147,16 @@ impl crate::bedrock::codec::BedrockCodec for BiomeReplacementData {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.biome.encode(buf)?;
-        self.dimension.encode(buf)?;
+        crate::bedrock::codec::I16LE(self.biome).encode(buf)?;
+        crate::bedrock::codec::I16LE(self.dimension).encode(buf)?;
         let len = self.target_biomes.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.target_biomes {
-            (*item).encode(buf)?;
+            crate::bedrock::codec::I16LE(*item).encode(buf)?;
         }
-        self.amount.encode(buf)?;
-        self.noise_frequency_scale.encode(buf)?;
-        self.replacement_index.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.amount).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.noise_frequency_scale).encode(buf)?;
+        crate::bedrock::codec::U32LE(self.replacement_index).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -1030,8 +1164,16 @@ impl crate::bedrock::codec::BedrockCodec for BiomeReplacementData {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let biome = <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let dimension = <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let biome = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let dimension = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let target_biomes = {
             let len = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
@@ -1042,20 +1184,30 @@ impl crate::bedrock::codec::BedrockCodec for BiomeReplacementData {
             for _ in 0..len {
                 tmp_vec
                     .push(
-                        <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
+                        <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                                buf,
+                                (),
+                            )?
+                            .0,
                     );
             }
             tmp_vec
         };
-        let amount = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let noise_frequency_scale = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let replacement_index = <u32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let amount = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let noise_frequency_scale = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let replacement_index = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             biome,
             dimension,
@@ -1446,14 +1598,14 @@ impl crate::bedrock::codec::BedrockCodec for BiomeDefinition {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.name_index.encode(buf)?;
-        self.biome_id.encode(buf)?;
-        self.temperature.encode(buf)?;
-        self.downfall.encode(buf)?;
-        self.snow_foliage.encode(buf)?;
-        self.depth.encode(buf)?;
-        self.scale.encode(buf)?;
-        self.map_water_colour.encode(buf)?;
+        crate::bedrock::codec::I16LE(self.name_index).encode(buf)?;
+        crate::bedrock::codec::U16LE(self.biome_id).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.temperature).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.downfall).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.snow_foliage).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.depth).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.scale).encode(buf)?;
+        crate::bedrock::codec::I32LE(self.map_water_colour).encode(buf)?;
         self.rain.encode(buf)?;
         match &self.tags {
             Some(v) => {
@@ -1461,7 +1613,7 @@ impl crate::bedrock::codec::BedrockCodec for BiomeDefinition {
                 let len = v.len();
                 crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
                 for item in v {
-                    (*item).encode(buf)?;
+                    crate::bedrock::codec::U16LE(*item).encode(buf)?;
                 }
             }
             None => buf.put_u8(0),
@@ -1480,20 +1632,46 @@ impl crate::bedrock::codec::BedrockCodec for BiomeDefinition {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let name_index = <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let biome_id = <u16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let temperature = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let downfall = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let snow_foliage = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let depth = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let scale = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let map_water_colour = <i32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let name_index = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let biome_id = <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let temperature = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let downfall = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let snow_foliage = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let depth = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let scale = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let map_water_colour = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let rain = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let tags = {
             let present = u8::decode(buf, ())?;
@@ -1508,10 +1686,11 @@ impl crate::bedrock::codec::BedrockCodec for BiomeDefinition {
                     for _ in 0..len {
                         tmp_vec
                             .push(
-                                <u16 as crate::bedrock::codec::BedrockCodec>::decode(
-                                    buf,
-                                    (),
-                                )?,
+                                <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                                        buf,
+                                        (),
+                                    )?
+                                    .0,
                             );
                     }
                     tmp_vec

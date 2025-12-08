@@ -56,7 +56,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemstatesItem {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
         self.name.encode(buf)?;
-        self.runtime_id.encode(buf)?;
+        crate::bedrock::codec::I16LE(self.runtime_id).encode(buf)?;
         self.component_based.encode(buf)?;
         self.version.encode(buf)?;
         self.nbt.encode(buf)?;
@@ -68,7 +68,11 @@ impl crate::bedrock::codec::BedrockCodec for ItemstatesItem {
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
         let name = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let runtime_id = <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let runtime_id = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let component_based = <bool as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),

@@ -16,8 +16,8 @@ impl crate::bedrock::codec::BedrockCodec for PacketTickSync {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.request_time.encode(buf)?;
-        self.response_time.encode(buf)?;
+        crate::bedrock::codec::I64LE(self.request_time).encode(buf)?;
+        crate::bedrock::codec::I64LE(self.response_time).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -25,14 +25,16 @@ impl crate::bedrock::codec::BedrockCodec for PacketTickSync {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let request_time = <i64 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let response_time = <i64 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let request_time = <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let response_time = <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             request_time,
             response_time,

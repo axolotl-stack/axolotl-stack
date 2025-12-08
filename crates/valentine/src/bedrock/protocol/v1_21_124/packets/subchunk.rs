@@ -57,10 +57,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketSubchunk {
             Some(
                 PacketSubchunkEntries::True({
                     let res: SubChunkEntryWithCaching = {
-                        let len = <u32 as crate::bedrock::codec::BedrockCodec>::decode(
-                            buf,
-                            (),
-                        )? as usize;
+                        let len = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                                buf,
+                                (),
+                            )?
+                            .0 as usize;
                         let mut tmp_vec = Vec::with_capacity(len);
                         for _ in 0..len {
                             tmp_vec
@@ -80,10 +81,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketSubchunk {
             Some(
                 PacketSubchunkEntries::False({
                     let res: SubChunkEntryWithoutCaching = {
-                        let len = <u32 as crate::bedrock::codec::BedrockCodec>::decode(
-                            buf,
-                            (),
-                        )? as usize;
+                        let len = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                                buf,
+                                (),
+                            )?
+                            .0 as usize;
                         let mut tmp_vec = Vec::with_capacity(len);
                         for _ in 0..len {
                             tmp_vec
@@ -142,7 +144,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketSubchunkRequest {
         crate::bedrock::codec::ZigZag32(self.dimension).encode(buf)?;
         self.origin.encode(buf)?;
         let len = self.requests.len();
-        (len as u32).encode(buf)?;
+        crate::bedrock::codec::U32LE(len as u32).encode(buf)?;
         for item in &self.requests {
             item.encode(buf)?;
         }
@@ -160,8 +162,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketSubchunkRequest {
             .0;
         let origin = <Vec3I as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let requests = {
-            let len = <u32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                as usize;
+            let len = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                    buf,
+                    (),
+                )?
+                .0 as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec

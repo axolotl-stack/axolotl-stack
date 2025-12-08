@@ -1,5 +1,6 @@
 use bytes::{Buf, BufMut};
 use uuid::Uuid;
+use std::mem;
 
 use crate::protocol::wire;
 
@@ -24,6 +25,63 @@ pub struct ZigZag32(pub i32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ZigZag64(pub i64);
+
+macro_rules! le_int_newtype {
+    ($name:ident, $inner:ty, $put:ident, $get:ident) => {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        pub struct $name(pub $inner);
+
+        impl BedrockCodec for $name {
+            type Args = ();
+            fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+                buf.$put(self.0);
+                Ok(())
+            }
+            fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
+                if buf.remaining() < mem::size_of::<$inner>() {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::UnexpectedEof,
+                        concat!(stringify!($name), " eof"),
+                    ));
+                }
+                Ok(Self(buf.$get()))
+            }
+        }
+    };
+}
+
+macro_rules! le_float_newtype {
+    ($name:ident, $inner:ty, $put:ident, $get:ident) => {
+        #[derive(Debug, Clone, Copy, PartialEq)]
+        pub struct $name(pub $inner);
+
+        impl BedrockCodec for $name {
+            type Args = ();
+            fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+                buf.$put(self.0);
+                Ok(())
+            }
+            fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
+                if buf.remaining() < mem::size_of::<$inner>() {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::UnexpectedEof,
+                        concat!(stringify!($name), " eof"),
+                    ));
+                }
+                Ok(Self(buf.$get()))
+            }
+        }
+    };
+}
+
+le_int_newtype!(U16LE, u16, put_u16_le, get_u16_le);
+le_int_newtype!(I16LE, i16, put_i16_le, get_i16_le);
+le_int_newtype!(U32LE, u32, put_u32_le, get_u32_le);
+le_int_newtype!(I32LE, i32, put_i32_le, get_i32_le);
+le_int_newtype!(U64LE, u64, put_u64_le, get_u64_le);
+le_int_newtype!(I64LE, i64, put_i64_le, get_i64_le);
+le_float_newtype!(F32LE, f32, put_f32_le, get_f32_le);
+le_float_newtype!(F64LE, f64, put_f64_le, get_f64_le);
 
 impl BedrockCodec for ZigZag32 {
     type Args = ();
@@ -101,7 +159,7 @@ impl BedrockCodec for i8 {
 impl BedrockCodec for u16 {
     type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        buf.put_u16_le(*self);
+        buf.put_u16(*self);
         Ok(())
     }
     fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
@@ -111,14 +169,14 @@ impl BedrockCodec for u16 {
                 "u16 eof",
             ))
         } else {
-            Ok(buf.get_u16_le())
+            Ok(buf.get_u16())
         }
     }
 }
 impl BedrockCodec for i16 {
     type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        buf.put_i16_le(*self);
+        buf.put_i16(*self);
         Ok(())
     }
     fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
@@ -128,14 +186,14 @@ impl BedrockCodec for i16 {
                 "i16 eof",
             ))
         } else {
-            Ok(buf.get_i16_le())
+            Ok(buf.get_i16())
         }
     }
 }
 impl BedrockCodec for u32 {
     type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        buf.put_u32_le(*self);
+        buf.put_u32(*self);
         Ok(())
     }
     fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
@@ -145,14 +203,14 @@ impl BedrockCodec for u32 {
                 "u32 eof",
             ))
         } else {
-            Ok(buf.get_u32_le())
+            Ok(buf.get_u32())
         }
     }
 }
 impl BedrockCodec for i32 {
     type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        buf.put_i32_le(*self);
+        buf.put_i32(*self);
         Ok(())
     }
     fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
@@ -162,14 +220,14 @@ impl BedrockCodec for i32 {
                 "i32 eof",
             ))
         } else {
-            Ok(buf.get_i32_le())
+            Ok(buf.get_i32())
         }
     }
 }
 impl BedrockCodec for u64 {
     type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        buf.put_u64_le(*self);
+        buf.put_u64(*self);
         Ok(())
     }
     fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
@@ -179,14 +237,14 @@ impl BedrockCodec for u64 {
                 "u64 eof",
             ))
         } else {
-            Ok(buf.get_u64_le())
+            Ok(buf.get_u64())
         }
     }
 }
 impl BedrockCodec for i64 {
     type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        buf.put_i64_le(*self);
+        buf.put_i64(*self);
         Ok(())
     }
     fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
@@ -196,7 +254,7 @@ impl BedrockCodec for i64 {
                 "i64 eof",
             ))
         } else {
-            Ok(buf.get_i64_le())
+            Ok(buf.get_i64())
         }
     }
 }
@@ -204,7 +262,7 @@ impl BedrockCodec for i64 {
 impl BedrockCodec for f32 {
     type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        buf.put_f32_le(*self);
+        buf.put_f32(*self);
         Ok(())
     }
     fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
@@ -214,7 +272,7 @@ impl BedrockCodec for f32 {
                 "f32 eof",
             ))
         } else {
-            Ok(buf.get_f32_le())
+            Ok(buf.get_f32())
         }
     }
 }
@@ -222,7 +280,7 @@ impl BedrockCodec for f32 {
 impl BedrockCodec for f64 {
     type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        buf.put_f64_le(*self);
+        buf.put_f64(*self);
         Ok(())
     }
     fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
@@ -232,7 +290,7 @@ impl BedrockCodec for f64 {
                 "f64 eof",
             ))
         } else {
-            Ok(buf.get_f64_le())
+            Ok(buf.get_f64())
         }
     }
 }

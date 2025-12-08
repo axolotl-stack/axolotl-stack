@@ -57,7 +57,7 @@ impl crate::bedrock::codec::BedrockCodec for ArmorDamageEntry {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
         self.armor_slot.encode(buf)?;
-        self.damage.encode(buf)?;
+        crate::bedrock::codec::I16LE(self.damage).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -69,7 +69,11 @@ impl crate::bedrock::codec::BedrockCodec for ArmorDamageEntry {
             buf,
             (),
         )?;
-        let damage = <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let damage = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self { armor_slot, damage })
     }
 }

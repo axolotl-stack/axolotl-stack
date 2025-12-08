@@ -112,10 +112,10 @@ impl crate::bedrock::codec::BedrockCodec for GameRuleI32 {
                     (*v).encode(buf)?;
                 }
                 GameRuleI32Value::Float(v) => {
-                    (*v).encode(buf)?;
+                    crate::bedrock::codec::F32LE(*v).encode(buf)?;
                 }
                 GameRuleI32Value::Int(v) => {
-                    (*v).encode(buf)?;
+                    crate::bedrock::codec::I32LE(*v).encode(buf)?;
                 }
             }
         }
@@ -143,14 +143,22 @@ impl crate::bedrock::codec::BedrockCodec for GameRuleI32 {
             GameRuleI32Type::Float => {
                 Some(
                     GameRuleI32Value::Float(
-                        <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
+                        <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                                buf,
+                                (),
+                            )?
+                            .0,
                     ),
                 )
             }
             GameRuleI32Type::Int => {
                 Some(
                     GameRuleI32Value::Int(
-                        <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
+                        <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                                buf,
+                                (),
+                            )?
+                            .0,
                     ),
                 )
             }
@@ -225,7 +233,7 @@ impl crate::bedrock::codec::BedrockCodec for GameRuleVarint {
                     (*v).encode(buf)?;
                 }
                 GameRuleVarintValue::Float(v) => {
-                    (*v).encode(buf)?;
+                    crate::bedrock::codec::F32LE(*v).encode(buf)?;
                 }
                 GameRuleVarintValue::Int(v) => {
                     crate::bedrock::codec::VarInt(*v).encode(buf)?;
@@ -256,7 +264,11 @@ impl crate::bedrock::codec::BedrockCodec for GameRuleVarint {
             GameRuleVarintType::Float => {
                 Some(
                     GameRuleVarintValue::Float(
-                        <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
+                        <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                                buf,
+                                (),
+                            )?
+                            .0,
                     ),
                 )
             }

@@ -36,10 +36,10 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommandsEnumsItem {
                         (*v).encode(buf)?;
                     }
                     PacketAvailableCommandsEnumsItemValuesItem::Int(v) => {
-                        (*v).encode(buf)?;
+                        crate::bedrock::codec::U32LE(*v).encode(buf)?;
                     }
                     PacketAvailableCommandsEnumsItemValuesItem::Short(v) => {
-                        (*v).encode(buf)?;
+                        crate::bedrock::codec::U16LE(*v).encode(buf)?;
                     }
                 }
             }
@@ -76,20 +76,22 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommandsEnumsItem {
                             EnumSizeBasedOnValuesLen::Int => {
                                 Some(
                                     PacketAvailableCommandsEnumsItemValuesItem::Int(
-                                        <u32 as crate::bedrock::codec::BedrockCodec>::decode(
-                                            buf,
-                                            (),
-                                        )?,
+                                        <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                                                buf,
+                                                (),
+                                            )?
+                                            .0,
                                     ),
                                 )
                             }
                             EnumSizeBasedOnValuesLen::Short => {
                                 Some(
                                     PacketAvailableCommandsEnumsItemValuesItem::Short(
-                                        <u16 as crate::bedrock::codec::BedrockCodec>::decode(
-                                            buf,
-                                            (),
-                                        )?,
+                                        <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                                                buf,
+                                                (),
+                                            )?
+                                            .0,
                                     ),
                                 )
                             }
@@ -111,8 +113,8 @@ for PacketAvailableCommandsChainedSubcommandsItemValuesItem {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.index.encode(buf)?;
-        self.value.encode(buf)?;
+        crate::bedrock::codec::U16LE(self.index).encode(buf)?;
+        crate::bedrock::codec::U16LE(self.value).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -120,8 +122,16 @@ for PacketAvailableCommandsChainedSubcommandsItemValuesItem {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let index = <u16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let value = <u16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let index = <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let value = <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self { index, value })
     }
 }
@@ -486,13 +496,13 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommandsCommandDataI
         let _ = buf;
         self.name.encode(buf)?;
         self.description.encode(buf)?;
-        self.flags.encode(buf)?;
+        crate::bedrock::codec::U16LE(self.flags).encode(buf)?;
         self.permission_level.encode(buf)?;
-        self.alias.encode(buf)?;
+        crate::bedrock::codec::I32LE(self.alias).encode(buf)?;
         let len = self.chained_subcommand_offsets.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.chained_subcommand_offsets {
-            (*item).encode(buf)?;
+            crate::bedrock::codec::U16LE(*item).encode(buf)?;
         }
         let len = self.overloads.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
@@ -511,12 +521,20 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommandsCommandDataI
             buf,
             (),
         )?;
-        let flags = <u16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let flags = <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let permission_level = <u8 as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
         )?;
-        let alias = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let alias = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let chained_subcommand_offsets = {
             let len = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
@@ -527,7 +545,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommandsCommandDataI
             for _ in 0..len {
                 tmp_vec
                     .push(
-                        <u16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
+                        <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                                buf,
+                                (),
+                            )?
+                            .0,
                     );
             }
             tmp_vec
@@ -686,8 +708,8 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommandsEnumConstrai
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.value_index.encode(buf)?;
-        self.enum_index.encode(buf)?;
+        crate::bedrock::codec::I32LE(self.value_index).encode(buf)?;
+        crate::bedrock::codec::I32LE(self.enum_index).encode(buf)?;
         let len = self.constraints.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.constraints {
@@ -700,8 +722,16 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommandsEnumConstrai
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let value_index = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let enum_index = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let value_index = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let enum_index = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let constraints = {
             let len = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,

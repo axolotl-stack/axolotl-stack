@@ -61,7 +61,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAnimateContentRowLeft {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.rowing_time.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.rowing_time).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -69,7 +69,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketAnimateContentRowLeft {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let rowing_time = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let rowing_time = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self { rowing_time })
     }
 }
@@ -91,7 +95,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAnimate {
         let _ = buf;
         self.action_id.encode(buf)?;
         crate::bedrock::codec::VarLong(self.runtime_entity_id).encode(buf)?;
-        self.data.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.data).encode(buf)?;
         if let Some(v) = &self.content {
             match v {
                 PacketAnimateContent::RowLeft(v) => {
@@ -118,7 +122,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketAnimate {
                 (),
             )?
             .0;
-        let data = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let data = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let content = match action_id {
             PacketAnimateActionId::RowLeft => {
                 Some(
@@ -167,9 +175,9 @@ impl crate::bedrock::codec::BedrockCodec for PacketAnimateEntity {
         self.animation.encode(buf)?;
         self.next_state.encode(buf)?;
         self.stop_condition.encode(buf)?;
-        self.stop_condition_version.encode(buf)?;
+        crate::bedrock::codec::I32LE(self.stop_condition_version).encode(buf)?;
         self.controller.encode(buf)?;
-        self.blend_out_time.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.blend_out_time).encode(buf)?;
         let len = self.runtime_entity_ids.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.runtime_entity_ids {
@@ -194,18 +202,20 @@ impl crate::bedrock::codec::BedrockCodec for PacketAnimateEntity {
             buf,
             (),
         )?;
-        let stop_condition_version = <i32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let stop_condition_version = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let controller = <String as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
         )?;
-        let blend_out_time = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let blend_out_time = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let runtime_entity_ids = {
             let len = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,

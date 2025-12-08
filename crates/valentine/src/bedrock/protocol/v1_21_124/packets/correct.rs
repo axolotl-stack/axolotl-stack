@@ -64,7 +64,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketCorrectPlayerMovePrediction {
         match &self.angular_velocity {
             Some(v) => {
                 buf.put_u8(1);
-                (*v).encode(buf)?;
+                crate::bedrock::codec::F32LE(*v).encode(buf)?;
             }
             None => buf.put_u8(0),
         }
@@ -87,7 +87,13 @@ impl crate::bedrock::codec::BedrockCodec for PacketCorrectPlayerMovePrediction {
         let angular_velocity = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
             } else {
                 None
             }

@@ -5,13 +5,21 @@ pub enum Primitive {
     U8,
     I8,
     U16,
+    U16LE,
     I16,
+    I16LE,
     U32,
+    U32LE,
     I32,
+    I32LE,
     U64,
+    U64LE,
     I64,
+    I64LE,
     F32,
+    F32LE,
     F64,
+    F64LE,
     VarInt,    // Maps to i32, encoded as varint
     VarLong,   // Maps to i64, encoded as varlong
     ZigZag32,  // i32 encoded via zigzag varint

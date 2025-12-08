@@ -18,7 +18,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketLevelChunkBlobs {
         let len = self.hashes.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.hashes {
-            (*item).encode(buf)?;
+            crate::bedrock::codec::U64LE(*item).encode(buf)?;
         }
         Ok(())
     }
@@ -37,7 +37,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketLevelChunkBlobs {
             for _ in 0..len {
                 tmp_vec
                     .push(
-                        <u64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
+                        <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                                buf,
+                                (),
+                            )?
+                            .0,
                     );
             }
             tmp_vec
@@ -100,7 +104,15 @@ impl crate::bedrock::codec::BedrockCodec for PacketLevelChunk {
             )?
             .0;
         let highest_subchunk_count = match sub_chunk_count {
-            -2 => Some(<u16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?),
+            -2 => {
+                Some(
+                    <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
+            }
             _ => None,
         };
         let cache_enabled = <bool as crate::bedrock::codec::BedrockCodec>::decode(
@@ -648,7 +660,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketLevelSoundEvent {
         self.entity_type.encode(buf)?;
         self.is_baby_mob.encode(buf)?;
         self.is_global.encode(buf)?;
-        self.entity_unique_id.encode(buf)?;
+        crate::bedrock::codec::I64LE(self.entity_unique_id).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -675,10 +687,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketLevelSoundEvent {
             (),
         )?;
         let is_global = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let entity_unique_id = <i64 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let entity_unique_id = <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             sound_id,
             position,

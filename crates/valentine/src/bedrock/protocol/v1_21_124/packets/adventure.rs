@@ -25,7 +25,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketAdventureSettings {
         self.action_permissions.encode(buf)?;
         self.permission_level.encode(buf)?;
         crate::bedrock::codec::VarInt(self.custom_stored_permissions).encode(buf)?;
-        self.user_id.encode(buf)?;
+        crate::bedrock::codec::I64LE(self.user_id).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -54,7 +54,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketAdventureSettings {
                 (),
             )?
             .0;
-        let user_id = <i64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let user_id = <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             flags,
             command_permission,

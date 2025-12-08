@@ -494,11 +494,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerAuthInput {
     type Args = PacketPlayerAuthInputArgs;
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.pitch.encode(buf)?;
-        self.yaw.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.pitch).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.yaw).encode(buf)?;
         self.position.encode(buf)?;
         self.move_vector.encode(buf)?;
-        self.head_yaw.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.head_yaw).encode(buf)?;
         self.input_data.encode(buf)?;
         self.input_mode.encode(buf)?;
         self.play_mode.encode(buf)?;
@@ -528,14 +528,26 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerAuthInput {
         args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let pitch = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let yaw = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let pitch = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let yaw = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let position = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let move_vector = <Vec2F as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
         )?;
-        let head_yaw = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let head_yaw = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let input_data = <InputFlag as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -787,8 +799,8 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerInput {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.motion_x.encode(buf)?;
-        self.motion_z.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.motion_x).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.motion_z).encode(buf)?;
         self.jumping.encode(buf)?;
         self.sneaking.encode(buf)?;
         Ok(())
@@ -798,8 +810,16 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerInput {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let motion_x = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let motion_z = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let motion_x = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let motion_z = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let jumping = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let sneaking = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self {
@@ -1018,10 +1038,10 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerUpdateEntityOverrides {
         if let Some(v) = &self.value {
             match v {
                 PacketPlayerUpdateEntityOverridesValue::SetFloat(v) => {
-                    (*v).encode(buf)?;
+                    crate::bedrock::codec::F32LE(*v).encode(buf)?;
                 }
                 PacketPlayerUpdateEntityOverridesValue::SetInt(v) => {
-                    (*v).encode(buf)?;
+                    crate::bedrock::codec::I32LE(*v).encode(buf)?;
                 }
             }
         }
@@ -1050,14 +1070,22 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerUpdateEntityOverrides {
             PacketPlayerUpdateEntityOverridesType::SetFloat => {
                 Some(
                     PacketPlayerUpdateEntityOverridesValue::SetFloat(
-                        <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
+                        <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                                buf,
+                                (),
+                            )?
+                            .0,
                     ),
                 )
             }
             PacketPlayerUpdateEntityOverridesType::SetInt => {
                 Some(
                     PacketPlayerUpdateEntityOverridesValue::SetInt(
-                        <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
+                        <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                                buf,
+                                (),
+                            )?
+                            .0,
                     ),
                 )
             }
@@ -1114,7 +1142,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerVideoCaptureContent {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.frame_rate.encode(buf)?;
+        crate::bedrock::codec::I32LE(self.frame_rate).encode(buf)?;
         self.file_prefix.encode(buf)?;
         Ok(())
     }
@@ -1123,7 +1151,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketPlayerVideoCaptureContent {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let frame_rate = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let frame_rate = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let file_prefix = <String as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),

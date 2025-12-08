@@ -862,7 +862,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketSetScoreEntriesItem {
         let _ = buf;
         crate::bedrock::codec::ZigZag64(self.scoreboard_id).encode(buf)?;
         self.objective_name.encode(buf)?;
-        self.score.encode(buf)?;
+        crate::bedrock::codec::I32LE(self.score).encode(buf)?;
         if let Some(v) = &self.content {
             v.encode(buf)?;
         }
@@ -882,7 +882,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketSetScoreEntriesItem {
             buf,
             (),
         )?;
-        let score = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let score = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let content = match args.action {
             PacketSetScoreAction::Change => {
                 Some(

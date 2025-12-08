@@ -23,15 +23,15 @@ impl crate::bedrock::codec::BedrockCodec for PacketServerboundDiagnostics {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.average_frames_per_second.encode(buf)?;
-        self.average_server_sim_tick_time.encode(buf)?;
-        self.average_client_sim_tick_time.encode(buf)?;
-        self.average_begin_frame_time.encode(buf)?;
-        self.average_input_time.encode(buf)?;
-        self.average_render_time.encode(buf)?;
-        self.average_end_frame_time.encode(buf)?;
-        self.average_remainder_time_percent.encode(buf)?;
-        self.average_unaccounted_time_percent.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.average_frames_per_second).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.average_server_sim_tick_time).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.average_client_sim_tick_time).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.average_begin_frame_time).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.average_input_time).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.average_render_time).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.average_end_frame_time).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.average_remainder_time_percent).encode(buf)?;
+        crate::bedrock::codec::F32LE(self.average_unaccounted_time_percent).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -39,42 +39,51 @@ impl crate::bedrock::codec::BedrockCodec for PacketServerboundDiagnostics {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let average_frames_per_second = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let average_server_sim_tick_time = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let average_client_sim_tick_time = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let average_begin_frame_time = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let average_input_time = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let average_render_time = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let average_end_frame_time = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let average_remainder_time_percent = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let average_unaccounted_time_percent = <f32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let average_frames_per_second = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let average_server_sim_tick_time = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let average_client_sim_tick_time = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let average_begin_frame_time = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let average_input_time = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let average_render_time = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let average_end_frame_time = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let average_remainder_time_percent = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let average_unaccounted_time_percent = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             average_frames_per_second,
             average_server_sim_tick_time,
@@ -101,7 +110,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketServerboundLoadingScreen {
         match &self.loading_screen_id {
             Some(v) => {
                 buf.put_u8(1);
-                (*v).encode(buf)?;
+                crate::bedrock::codec::U32LE(*v).encode(buf)?;
             }
             None => buf.put_u8(0),
         }
@@ -120,7 +129,13 @@ impl crate::bedrock::codec::BedrockCodec for PacketServerboundLoadingScreen {
         let loading_screen_id = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<u32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
             } else {
                 None
             }
@@ -191,7 +206,7 @@ for PacketServerboundPackSettingChangePackSetting {
                     (*v).encode(buf)?;
                 }
                 PacketServerboundPackSettingChangePackSettingValue::Float(v) => {
-                    (*v).encode(buf)?;
+                    crate::bedrock::codec::F32LE(*v).encode(buf)?;
                 }
                 PacketServerboundPackSettingChangePackSettingValue::String(v) => {
                     (*v).encode(buf)?;
@@ -221,7 +236,11 @@ for PacketServerboundPackSettingChangePackSetting {
             PacketServerboundPackSettingChangePackSettingType::Float => {
                 Some(
                     PacketServerboundPackSettingChangePackSettingValue::Float(
-                        <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
+                        <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                                buf,
+                                (),
+                            )?
+                            .0,
                     ),
                 )
             }

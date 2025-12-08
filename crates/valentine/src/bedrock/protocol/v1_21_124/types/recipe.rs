@@ -89,9 +89,19 @@ impl crate::bedrock::codec::BedrockCodec for RecipeIngredientContentIntIdMeta {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let network_id = <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let network_id = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let metadata = if (network_id) != 0 {
-            Some(<i16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+            Some(
+                <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                        buf,
+                        (),
+                    )?
+                    .0,
+            )
         } else {
             None
         };
@@ -154,7 +164,7 @@ impl crate::bedrock::codec::BedrockCodec for RecipeIngredientContentStringIdMeta
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
         self.name.encode(buf)?;
-        self.metadata.encode(buf)?;
+        crate::bedrock::codec::I16LE(self.metadata).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -163,7 +173,11 @@ impl crate::bedrock::codec::BedrockCodec for RecipeIngredientContentStringIdMeta
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
         let name = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let metadata = <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let metadata = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self { name, metadata })
     }
 }

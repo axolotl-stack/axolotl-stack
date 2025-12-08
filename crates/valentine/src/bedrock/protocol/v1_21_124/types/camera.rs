@@ -76,7 +76,7 @@ impl crate::bedrock::codec::BedrockCodec for CameraPresetsAimAssist {
         match &self.distance {
             Some(v) => {
                 buf.put_u8(1);
-                (*v).encode(buf)?;
+                crate::bedrock::codec::F32LE(*v).encode(buf)?;
             }
             None => buf.put_u8(0),
         }
@@ -119,7 +119,13 @@ impl crate::bedrock::codec::BedrockCodec for CameraPresetsAimAssist {
         let distance = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
             } else {
                 None
             }
@@ -205,7 +211,7 @@ impl crate::bedrock::codec::BedrockCodec for CameraPresets {
         match &self.rotation_speed {
             Some(v) => {
                 buf.put_u8(1);
-                (*v).encode(buf)?;
+                crate::bedrock::codec::F32LE(*v).encode(buf)?;
             }
             None => buf.put_u8(0),
         }
@@ -240,7 +246,7 @@ impl crate::bedrock::codec::BedrockCodec for CameraPresets {
         match &self.tracking_radius {
             Some(v) => {
                 buf.put_u8(1);
-                (*v).encode(buf)?;
+                crate::bedrock::codec::F32LE(*v).encode(buf)?;
             }
             None => buf.put_u8(0),
         }
@@ -261,21 +267,21 @@ impl crate::bedrock::codec::BedrockCodec for CameraPresets {
         match &self.radius {
             Some(v) => {
                 buf.put_u8(1);
-                (*v).encode(buf)?;
+                crate::bedrock::codec::F32LE(*v).encode(buf)?;
             }
             None => buf.put_u8(0),
         }
         match &self.yaw_limit_min {
             Some(v) => {
                 buf.put_u8(1);
-                (*v).encode(buf)?;
+                crate::bedrock::codec::F32LE(*v).encode(buf)?;
             }
             None => buf.put_u8(0),
         }
         match &self.yaw_limit_max {
             Some(v) => {
                 buf.put_u8(1);
-                (*v).encode(buf)?;
+                crate::bedrock::codec::F32LE(*v).encode(buf)?;
             }
             None => buf.put_u8(0),
         }
@@ -327,7 +333,13 @@ impl crate::bedrock::codec::BedrockCodec for CameraPresets {
         let rotation_speed = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
             } else {
                 None
             }
@@ -367,7 +379,13 @@ impl crate::bedrock::codec::BedrockCodec for CameraPresets {
         let tracking_radius = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
             } else {
                 None
             }
@@ -391,7 +409,13 @@ impl crate::bedrock::codec::BedrockCodec for CameraPresets {
         let radius = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
             } else {
                 None
             }
@@ -399,7 +423,13 @@ impl crate::bedrock::codec::BedrockCodec for CameraPresets {
         let yaw_limit_min = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
             } else {
                 None
             }
@@ -407,7 +437,13 @@ impl crate::bedrock::codec::BedrockCodec for CameraPresets {
         let yaw_limit_max = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0,
+                )
             } else {
                 None
             }
@@ -487,7 +523,7 @@ impl crate::bedrock::codec::BedrockCodec for CameraRotationOption {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
         self.value.encode(buf)?;
-        self.time.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.time).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -496,7 +532,11 @@ impl crate::bedrock::codec::BedrockCodec for CameraRotationOption {
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
         let value = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let time = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let time = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self { value, time })
     }
 }
@@ -546,7 +586,7 @@ impl crate::bedrock::codec::BedrockCodec for CameraSplineInstruction {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.total_time.encode(buf)?;
+        crate::bedrock::codec::F32LE(self.total_time).encode(buf)?;
         self.ease_type.encode(buf)?;
         let len = self.curve.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
@@ -570,7 +610,11 @@ impl crate::bedrock::codec::BedrockCodec for CameraSplineInstruction {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let total_time = <f32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let total_time = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let ease_type = <CameraSplineEaseType as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),

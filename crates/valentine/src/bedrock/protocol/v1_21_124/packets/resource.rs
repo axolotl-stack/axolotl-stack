@@ -19,8 +19,8 @@ impl crate::bedrock::codec::BedrockCodec for PacketResourcePackChunkData {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
         self.pack_id.encode(buf)?;
-        self.chunk_index.encode(buf)?;
-        self.progress.encode(buf)?;
+        crate::bedrock::codec::U32LE(self.chunk_index).encode(buf)?;
+        crate::bedrock::codec::U64LE(self.progress).encode(buf)?;
         self.payload.encode(buf)?;
         Ok(())
     }
@@ -30,8 +30,16 @@ impl crate::bedrock::codec::BedrockCodec for PacketResourcePackChunkData {
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
         let pack_id = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let chunk_index = <u32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let progress = <u64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let chunk_index = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let progress = <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let payload = <ByteArray as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -54,7 +62,7 @@ impl crate::bedrock::codec::BedrockCodec for PacketResourcePackChunkRequest {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
         self.pack_id.encode(buf)?;
-        self.chunk_index.encode(buf)?;
+        crate::bedrock::codec::U32LE(self.chunk_index).encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -63,7 +71,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketResourcePackChunkRequest {
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
         let pack_id = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let chunk_index = <u32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let chunk_index = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self { pack_id, chunk_index })
     }
 }
@@ -133,8 +145,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketResourcePackClientResponse {
         )?;
         let resourcepackids = {
             let res: ResourcePackIds = {
-                let len = <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                    as usize;
+                let len = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                        buf,
+                        (),
+                    )?
+                    .0 as usize;
                 let mut tmp_vec = Vec::with_capacity(len);
                 for _ in 0..len {
                     tmp_vec
@@ -216,9 +231,9 @@ impl crate::bedrock::codec::BedrockCodec for PacketResourcePackDataInfo {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
         self.pack_id.encode(buf)?;
-        self.max_chunk_size.encode(buf)?;
-        self.chunk_count.encode(buf)?;
-        self.size.encode(buf)?;
+        crate::bedrock::codec::U32LE(self.max_chunk_size).encode(buf)?;
+        crate::bedrock::codec::U32LE(self.chunk_count).encode(buf)?;
+        crate::bedrock::codec::U64LE(self.size).encode(buf)?;
         self.hash.encode(buf)?;
         self.is_premium.encode(buf)?;
         self.pack_type.encode(buf)?;
@@ -230,12 +245,21 @@ impl crate::bedrock::codec::BedrockCodec for PacketResourcePackDataInfo {
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
         let pack_id = <String as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let max_chunk_size = <u32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let chunk_count = <u32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let size = <u64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let max_chunk_size = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let chunk_count = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let size = <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let hash = <ByteArray as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let is_premium = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let pack_type = <PacketResourcePackDataInfoPackType as crate::bedrock::codec::BedrockCodec>::decode(
@@ -333,8 +357,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketResourcePackStack {
         )?;
         let experiments = {
             let res: Experiments = {
-                let len = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                    as usize;
+                let len = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                        buf,
+                        (),
+                    )?
+                    .0 as usize;
                 let mut tmp_vec = Vec::with_capacity(len);
                 for _ in 0..len {
                     tmp_vec
@@ -436,8 +463,11 @@ impl crate::bedrock::codec::BedrockCodec for PacketResourcePacksInfo {
         )?;
         let texture_packs = {
             let res: TexturePackInfos = {
-                let len = <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                    as usize;
+                let len = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                        buf,
+                        (),
+                    )?
+                    .0 as usize;
                 let mut tmp_vec = Vec::with_capacity(len);
                 for _ in 0..len {
                     tmp_vec

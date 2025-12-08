@@ -16,7 +16,7 @@ impl crate::bedrock::codec::BedrockCodec for Blob {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.hash.encode(buf)?;
+        crate::bedrock::codec::U64LE(self.hash).encode(buf)?;
         self.payload.encode(buf)?;
         Ok(())
     }
@@ -25,7 +25,11 @@ impl crate::bedrock::codec::BedrockCodec for Blob {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let hash = <u64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let hash = <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let payload = <ByteArray as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
