@@ -10,36 +10,7 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketNetworkStackLatency {
-    pub timestamp: u64,
-    pub needs_response: u8,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketNetworkStackLatency {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::U64LE(self.timestamp).encode(buf)?;
-        self.needs_response.encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let timestamp = <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let needs_response = <u8 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        Ok(Self { timestamp, needs_response })
-    }
-}
+pub use crate::bedrock::protocol::v1_16_220::PacketNetworkStackLatency as PacketNetworkStackLatency;
 #[derive(Debug, Clone, PartialEq)]
 pub struct PacketNetworkChunkPublisherUpdateSavedChunksItem {
     pub x: i32,
@@ -130,26 +101,4 @@ impl crate::bedrock::codec::BedrockCodec for PacketNetworkChunkPublisherUpdate {
         })
     }
 }
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketNetworkSettings {
-    pub compression_threshold: u16,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketNetworkSettings {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        self.compression_threshold.encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let compression_threshold = <u16 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        Ok(Self { compression_threshold })
-    }
-}
+pub use crate::bedrock::protocol::v1_16_201::PacketNetworkSettings as PacketNetworkSettings;

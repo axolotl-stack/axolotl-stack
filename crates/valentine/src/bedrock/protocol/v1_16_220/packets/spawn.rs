@@ -10,33 +10,7 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketSpawnExperienceOrb {
-    pub position: Vec3F,
-    pub count: i32,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketSpawnExperienceOrb {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        self.position.encode(buf)?;
-        crate::bedrock::codec::ZigZag32(self.count).encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let position = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let count = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        Ok(Self { position, count })
-    }
-}
+pub use crate::bedrock::protocol::v1_16_201::PacketSpawnExperienceOrb as PacketSpawnExperienceOrb;
 #[derive(Debug, Clone, PartialEq)]
 pub struct PacketSpawnParticleEffect {
     pub dimension: u8,

@@ -10,27 +10,4 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketAwardAchievement {
-    pub achievement_id: i32,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketAwardAchievement {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::I32LE(self.achievement_id).encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let achievement_id = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        Ok(Self { achievement_id })
-    }
-}
+pub use crate::bedrock::protocol::v1_21_0::PacketAwardAchievement as PacketAwardAchievement;

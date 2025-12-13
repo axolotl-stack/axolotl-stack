@@ -10,55 +10,6 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
+pub use crate::bedrock::protocol::v1_18_30::PacketDimensionData as PacketDimensionData;
 pub use crate::bedrock::protocol::v1_18_30::PacketDimensionDataDefinitionsItem as PacketDimensionDataDefinitionsItem;
 pub use crate::bedrock::protocol::v1_18_30::PacketDimensionDataDefinitionsItemGenerator as PacketDimensionDataDefinitionsItemGenerator;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketDimensionData {
-    pub definitions: Vec<PacketDimensionDataDefinitionsItem>,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketDimensionData {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        let len = self.definitions.len();
-        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
-        for item in &self.definitions {
-            item.encode(buf)?;
-        }
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let definitions = {
-            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?
-                .0 as i64;
-            if raw < 0 {
-                return Err(
-                    std::io::Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        "array length cannot be negative",
-                    ),
-                );
-            }
-            let len = raw as usize;
-            let mut tmp_vec = Vec::with_capacity(len);
-            for _ in 0..len {
-                tmp_vec
-                    .push(
-                        <PacketDimensionDataDefinitionsItem as crate::bedrock::codec::BedrockCodec>::decode(
-                            buf,
-                            (),
-                        )?,
-                    );
-            }
-            tmp_vec
-        };
-        Ok(Self { definitions })
-    }
-}

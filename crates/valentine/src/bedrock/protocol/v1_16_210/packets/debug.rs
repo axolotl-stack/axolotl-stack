@@ -10,63 +10,7 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketDebugInfo {
-    pub player_unique_id: i64,
-    pub data: ByteArray,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketDebugInfo {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::ZigZag64(self.player_unique_id).encode(buf)?;
-        let len = self.data.len();
-        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
-        for item in &self.data {
-            (*item).encode(buf)?;
-        }
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let player_unique_id = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let data = {
-            let res: ByteArray = {
-                let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?
-                    .0 as i64;
-                if raw < 0 {
-                    return Err(
-                        std::io::Error::new(
-                            std::io::ErrorKind::InvalidData,
-                            "array length cannot be negative",
-                        ),
-                    );
-                }
-                let len = raw as usize;
-                let mut tmp_vec = Vec::with_capacity(len);
-                for _ in 0..len {
-                    tmp_vec
-                        .push(
-                            <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
-                        );
-                }
-                tmp_vec
-            };
-            res
-        };
-        Ok(Self { player_unique_id, data })
-    }
-}
+pub use crate::bedrock::protocol::v1_16_201::PacketDebugInfo as PacketDebugInfo;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(i32)]
 pub enum PacketDebugRendererType {

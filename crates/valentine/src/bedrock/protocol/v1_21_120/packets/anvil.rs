@@ -10,29 +10,4 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketAnvilDamage {
-    pub damage: u8,
-    pub position: BlockCoordinates,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketAnvilDamage {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        self.damage.encode(buf)?;
-        self.position.encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let damage = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let position = <BlockCoordinates as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        Ok(Self { damage, position })
-    }
-}
+pub use crate::bedrock::protocol::v1_16_201::PacketAnvilDamage as PacketAnvilDamage;

@@ -10,47 +10,5 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-pub use crate::bedrock::protocol::v1_21_20::PacketDisconnectContent as PacketDisconnectContent;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketDisconnect {
-    pub reason: DisconnectFailReason,
-    pub content: Option<PacketDisconnectContent>,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketDisconnect {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        self.reason.encode(buf)?;
-        let val = self.content.is_none();
-        val.encode(buf)?;
-        if let Some(v) = &self.content {
-            v.encode(buf)?;
-        }
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let reason = <DisconnectFailReason as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let hide_disconnect_reason = <bool as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let content = if hide_disconnect_reason {
-            None
-        } else {
-            Some(
-                <PacketDisconnectContent as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?,
-            )
-        };
-        Ok(Self { reason, content })
-    }
-}
+pub use crate::bedrock::protocol::v1_21_30::PacketDisconnect as PacketDisconnect;
+pub use crate::bedrock::protocol::v1_21_30::PacketDisconnectContent as PacketDisconnectContent;

@@ -10,81 +10,10 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
+pub use crate::bedrock::protocol::v1_16_201::PacketAnimate as PacketAnimate;
 pub use crate::bedrock::protocol::v1_16_201::PacketAnimateActionId as PacketAnimateActionId;
+pub use crate::bedrock::protocol::v1_16_201::PacketAnimateContent as PacketAnimateContent;
 pub use crate::bedrock::protocol::v1_16_201::PacketAnimateContentRowLeft as PacketAnimateContentRowLeft;
-#[derive(Debug, Clone, PartialEq)]
-pub enum PacketAnimateContent {
-    RowLeft(PacketAnimateContentRowLeft),
-    RowRight(PacketAnimateContentRowLeft),
-}
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketAnimate {
-    pub action_id: PacketAnimateActionId,
-    pub runtime_entity_id: i64,
-    pub content: Option<PacketAnimateContent>,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketAnimate {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        self.action_id.encode(buf)?;
-        crate::bedrock::codec::VarLong(self.runtime_entity_id).encode(buf)?;
-        if let Some(v) = &self.content {
-            match v {
-                PacketAnimateContent::RowLeft(v) => {
-                    v.encode(buf)?;
-                }
-                PacketAnimateContent::RowRight(v) => {
-                    v.encode(buf)?;
-                }
-            }
-        }
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let action_id = <PacketAnimateActionId as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let runtime_entity_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let content = match action_id {
-            PacketAnimateActionId::RowLeft => {
-                Some(
-                    PacketAnimateContent::RowLeft(
-                        <PacketAnimateContentRowLeft as crate::bedrock::codec::BedrockCodec>::decode(
-                            buf,
-                            (),
-                        )?,
-                    ),
-                )
-            }
-            PacketAnimateActionId::RowRight => {
-                Some(
-                    PacketAnimateContent::RowRight(
-                        <PacketAnimateContentRowLeft as crate::bedrock::codec::BedrockCodec>::decode(
-                            buf,
-                            (),
-                        )?,
-                    ),
-                )
-            }
-            _ => None,
-        };
-        Ok(Self {
-            action_id,
-            runtime_entity_id,
-            content,
-        })
-    }
-}
 #[derive(Debug, Clone, PartialEq)]
 pub struct PacketAnimateEntity {
     pub animation: String,

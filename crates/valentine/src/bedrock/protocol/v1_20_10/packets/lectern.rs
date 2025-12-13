@@ -10,37 +10,4 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketLecternUpdate {
-    pub page: u8,
-    pub page_count: u8,
-    pub position: Vec3I,
-    pub drop_book: bool,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketLecternUpdate {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        self.page.encode(buf)?;
-        self.page_count.encode(buf)?;
-        self.position.encode(buf)?;
-        self.drop_book.encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let page = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let page_count = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let position = <Vec3I as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let drop_book = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        Ok(Self {
-            page,
-            page_count,
-            position,
-            drop_book,
-        })
-    }
-}
+pub use crate::bedrock::protocol::v1_16_201::PacketLecternUpdate as PacketLecternUpdate;

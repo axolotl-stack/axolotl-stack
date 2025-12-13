@@ -10,29 +10,4 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketOpenSign {
-    pub position: BlockCoordinates,
-    pub is_front: bool,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketOpenSign {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        self.position.encode(buf)?;
-        self.is_front.encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let position = <BlockCoordinates as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let is_front = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        Ok(Self { position, is_front })
-    }
-}
+pub use crate::bedrock::protocol::v1_19_80::PacketOpenSign as PacketOpenSign;

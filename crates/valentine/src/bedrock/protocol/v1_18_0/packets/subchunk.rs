@@ -169,48 +169,4 @@ impl crate::bedrock::codec::BedrockCodec for PacketSubchunk {
         })
     }
 }
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketSubchunkRequest {
-    pub dimension: i32,
-    pub x: i32,
-    pub y: i32,
-    pub z: i32,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketSubchunkRequest {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::ZigZag32(self.dimension).encode(buf)?;
-        crate::bedrock::codec::ZigZag32(self.x).encode(buf)?;
-        crate::bedrock::codec::ZigZag32(self.y).encode(buf)?;
-        crate::bedrock::codec::ZigZag32(self.z).encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let dimension = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let x = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let y = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let z = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        Ok(Self { dimension, x, y, z })
-    }
-}
+pub use crate::bedrock::protocol::v1_17_40::PacketSubchunkRequest as PacketSubchunkRequest;

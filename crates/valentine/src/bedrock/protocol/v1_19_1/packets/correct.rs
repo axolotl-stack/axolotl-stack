@@ -10,41 +10,4 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketCorrectPlayerMovePrediction {
-    pub position: Vec3F,
-    pub delta: Vec3F,
-    pub on_ground: bool,
-    pub tick: i64,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketCorrectPlayerMovePrediction {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        self.position.encode(buf)?;
-        self.delta.encode(buf)?;
-        self.on_ground.encode(buf)?;
-        crate::bedrock::codec::VarLong(self.tick).encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let position = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let delta = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let on_ground = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let tick = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        Ok(Self {
-            position,
-            delta,
-            on_ground,
-            tick,
-        })
-    }
-}
+pub use crate::bedrock::protocol::v1_16_201::PacketCorrectPlayerMovePrediction as PacketCorrectPlayerMovePrediction;

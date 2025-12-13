@@ -958,23 +958,4 @@ impl crate::bedrock::codec::BedrockCodec for PacketAvailableCommands {
         })
     }
 }
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketAvailableEntityIdentifiers {
-    pub nbt: Vec<u8>,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketAvailableEntityIdentifiers {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        self.nbt.encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let nbt = <Vec<u8> as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        Ok(Self { nbt })
-    }
-}
+pub use crate::bedrock::protocol::v1_16_201::PacketAvailableEntityIdentifiers as PacketAvailableEntityIdentifiers;

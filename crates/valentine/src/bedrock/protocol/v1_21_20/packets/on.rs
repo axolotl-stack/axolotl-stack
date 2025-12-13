@@ -10,27 +10,4 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketOnScreenTextureAnimation {
-    pub animation_type: u32,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketOnScreenTextureAnimation {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::U32LE(self.animation_type).encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let animation_type = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        Ok(Self { animation_type })
-    }
-}
+pub use crate::bedrock::protocol::v1_16_220::PacketOnScreenTextureAnimation as PacketOnScreenTextureAnimation;

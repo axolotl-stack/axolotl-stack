@@ -10,37 +10,4 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketRespawn {
-    pub position: Vec3F,
-    pub state: u8,
-    pub runtime_entity_id: i64,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketRespawn {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        self.position.encode(buf)?;
-        self.state.encode(buf)?;
-        crate::bedrock::codec::VarLong(self.runtime_entity_id).encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let position = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let state = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let runtime_entity_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        Ok(Self {
-            position,
-            state,
-            runtime_entity_id,
-        })
-    }
-}
+pub use crate::bedrock::protocol::v1_16_220::PacketRespawn as PacketRespawn;

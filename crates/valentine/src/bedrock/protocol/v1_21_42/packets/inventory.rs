@@ -10,43 +10,8 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketInventoryTransaction {
-    pub transaction: Transaction,
-}
-#[derive(Debug, Clone)]
-pub struct PacketInventoryTransactionArgs {
-    pub shield_item_id: i32,
-}
-impl<'a> From<&'a crate::bedrock::context::BedrockSession>
-for PacketInventoryTransactionArgs {
-    fn from(source: &'a crate::bedrock::context::BedrockSession) -> Self {
-        Self {
-            shield_item_id: source.shield_item_id,
-        }
-    }
-}
-impl crate::bedrock::codec::BedrockCodec for PacketInventoryTransaction {
-    type Args = PacketInventoryTransactionArgs;
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        self.transaction.encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let transaction = <Transaction as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            TransactionArgs {
-                shield_item_id: args.shield_item_id,
-            },
-        )?;
-        Ok(Self { transaction })
-    }
-}
+pub use crate::bedrock::protocol::v1_21_20::PacketInventoryTransaction as PacketInventoryTransaction;
+pub use crate::bedrock::protocol::v1_21_20::PacketInventoryTransactionArgs as PacketInventoryTransactionArgs;
 #[derive(Debug, Clone, PartialEq)]
 pub struct PacketInventoryContent {
     pub window_id: WindowIdVarint,

@@ -10,37 +10,4 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketMotionPredictionHints {
-    pub entity_runtime_id: i64,
-    pub velocity: Vec3F,
-    pub on_ground: bool,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketMotionPredictionHints {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::VarLong(self.entity_runtime_id).encode(buf)?;
-        self.velocity.encode(buf)?;
-        self.on_ground.encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let entity_runtime_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let velocity = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let on_ground = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        Ok(Self {
-            entity_runtime_id,
-            velocity,
-            on_ground,
-        })
-    }
-}
+pub use crate::bedrock::protocol::v1_16_201::PacketMotionPredictionHints as PacketMotionPredictionHints;

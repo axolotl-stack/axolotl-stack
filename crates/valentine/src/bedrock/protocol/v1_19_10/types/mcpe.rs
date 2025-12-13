@@ -12,7 +12,6 @@ use super::super::packets::*;
 use crate::bedrock::codec::BedrockCodec;
 pub const GAME_PACKET_ID: u8 = 0xFE;
 use crate::protocol::wire;
-use crate::bedrock::codec::GamePacket;
 /// The `McpePacketName` enum defines the unique identifier for each Minecraft Bedrock Edition
 /// packet. Each variant corresponds to a specific packet type and its associated numeric ID.
 ///
@@ -430,10 +429,6 @@ impl crate::bedrock::codec::BedrockCodec for McpePacketName {
         McpePacketName::from_raw(val)
     }
 }
-impl GamePacket for PacketLogin {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketLogin;
-}
 impl From<PacketLogin> for McpePacketData {
     fn from(packet: PacketLogin) -> Self {
         McpePacketData::PacketLogin(packet)
@@ -443,10 +438,6 @@ impl From<PacketLogin> for McpePacket {
     fn from(packet: PacketLogin) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketPlayStatus {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketPlayStatus;
 }
 impl From<PacketPlayStatus> for McpePacketData {
     fn from(packet: PacketPlayStatus) -> Self {
@@ -458,10 +449,6 @@ impl From<PacketPlayStatus> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketServerToClientHandshake {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketServerToClientHandshake;
-}
 impl From<PacketServerToClientHandshake> for McpePacketData {
     fn from(packet: PacketServerToClientHandshake) -> Self {
         McpePacketData::PacketServerToClientHandshake(packet)
@@ -471,10 +458,6 @@ impl From<PacketServerToClientHandshake> for McpePacket {
     fn from(packet: PacketServerToClientHandshake) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketClientToServerHandshake {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketClientToServerHandshake;
 }
 impl From<PacketClientToServerHandshake> for McpePacketData {
     fn from(packet: PacketClientToServerHandshake) -> Self {
@@ -486,10 +469,6 @@ impl From<PacketClientToServerHandshake> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketDisconnect {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketDisconnect;
-}
 impl From<PacketDisconnect> for McpePacketData {
     fn from(packet: PacketDisconnect) -> Self {
         McpePacketData::PacketDisconnect(packet)
@@ -499,10 +478,6 @@ impl From<PacketDisconnect> for McpePacket {
     fn from(packet: PacketDisconnect) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketResourcePacksInfo {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketResourcePacksInfo;
 }
 impl From<PacketResourcePacksInfo> for McpePacketData {
     fn from(packet: PacketResourcePacksInfo) -> Self {
@@ -514,10 +489,6 @@ impl From<PacketResourcePacksInfo> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketResourcePackStack {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketResourcePackStack;
-}
 impl From<PacketResourcePackStack> for McpePacketData {
     fn from(packet: PacketResourcePackStack) -> Self {
         McpePacketData::PacketResourcePackStack(Box::new(packet))
@@ -527,10 +498,6 @@ impl From<PacketResourcePackStack> for McpePacket {
     fn from(packet: PacketResourcePackStack) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketResourcePackClientResponse {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketResourcePackClientResponse;
 }
 impl From<PacketResourcePackClientResponse> for McpePacketData {
     fn from(packet: PacketResourcePackClientResponse) -> Self {
@@ -542,10 +509,6 @@ impl From<PacketResourcePackClientResponse> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketText {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketText;
-}
 impl From<PacketText> for McpePacketData {
     fn from(packet: PacketText) -> Self {
         McpePacketData::PacketText(Box::new(packet))
@@ -555,10 +518,6 @@ impl From<PacketText> for McpePacket {
     fn from(packet: PacketText) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketSetTime {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketSetTime;
 }
 impl From<PacketSetTime> for McpePacketData {
     fn from(packet: PacketSetTime) -> Self {
@@ -570,10 +529,6 @@ impl From<PacketSetTime> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketStartGame {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketStartGame;
-}
 impl From<PacketStartGame> for McpePacketData {
     fn from(packet: PacketStartGame) -> Self {
         McpePacketData::PacketStartGame(Box::new(packet))
@@ -583,10 +538,6 @@ impl From<PacketStartGame> for McpePacket {
     fn from(packet: PacketStartGame) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketAddPlayer {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketAddPlayer;
 }
 impl From<PacketAddPlayer> for McpePacketData {
     fn from(packet: PacketAddPlayer) -> Self {
@@ -598,10 +549,6 @@ impl From<PacketAddPlayer> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketAddEntity {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketAddEntity;
-}
 impl From<PacketAddEntity> for McpePacketData {
     fn from(packet: PacketAddEntity) -> Self {
         McpePacketData::PacketAddEntity(Box::new(packet))
@@ -611,10 +558,6 @@ impl From<PacketAddEntity> for McpePacket {
     fn from(packet: PacketAddEntity) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketRemoveEntity {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketRemoveEntity;
 }
 impl From<PacketRemoveEntity> for McpePacketData {
     fn from(packet: PacketRemoveEntity) -> Self {
@@ -626,10 +569,6 @@ impl From<PacketRemoveEntity> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketAddItemEntity {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketAddItemEntity;
-}
 impl From<PacketAddItemEntity> for McpePacketData {
     fn from(packet: PacketAddItemEntity) -> Self {
         McpePacketData::PacketAddItemEntity(Box::new(packet))
@@ -639,10 +578,6 @@ impl From<PacketAddItemEntity> for McpePacket {
     fn from(packet: PacketAddItemEntity) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketTakeItemEntity {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketTakeItemEntity;
 }
 impl From<PacketTakeItemEntity> for McpePacketData {
     fn from(packet: PacketTakeItemEntity) -> Self {
@@ -654,10 +589,6 @@ impl From<PacketTakeItemEntity> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketMoveEntity {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketMoveEntity;
-}
 impl From<PacketMoveEntity> for McpePacketData {
     fn from(packet: PacketMoveEntity) -> Self {
         McpePacketData::PacketMoveEntity(Box::new(packet))
@@ -667,10 +598,6 @@ impl From<PacketMoveEntity> for McpePacket {
     fn from(packet: PacketMoveEntity) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketMovePlayer {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketMovePlayer;
 }
 impl From<PacketMovePlayer> for McpePacketData {
     fn from(packet: PacketMovePlayer) -> Self {
@@ -682,10 +609,6 @@ impl From<PacketMovePlayer> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketRiderJump {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketRiderJump;
-}
 impl From<PacketRiderJump> for McpePacketData {
     fn from(packet: PacketRiderJump) -> Self {
         McpePacketData::PacketRiderJump(packet)
@@ -695,10 +618,6 @@ impl From<PacketRiderJump> for McpePacket {
     fn from(packet: PacketRiderJump) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketUpdateBlock {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketUpdateBlock;
 }
 impl From<PacketUpdateBlock> for McpePacketData {
     fn from(packet: PacketUpdateBlock) -> Self {
@@ -710,10 +629,6 @@ impl From<PacketUpdateBlock> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketAddPainting {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketAddPainting;
-}
 impl From<PacketAddPainting> for McpePacketData {
     fn from(packet: PacketAddPainting) -> Self {
         McpePacketData::PacketAddPainting(Box::new(packet))
@@ -723,10 +638,6 @@ impl From<PacketAddPainting> for McpePacket {
     fn from(packet: PacketAddPainting) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketTickSync {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketTickSync;
 }
 impl From<PacketTickSync> for McpePacketData {
     fn from(packet: PacketTickSync) -> Self {
@@ -738,10 +649,6 @@ impl From<PacketTickSync> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketLevelSoundEventOld {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketLevelSoundEventOld;
-}
 impl From<PacketLevelSoundEventOld> for McpePacketData {
     fn from(packet: PacketLevelSoundEventOld) -> Self {
         McpePacketData::PacketLevelSoundEventOld(Box::new(packet))
@@ -751,10 +658,6 @@ impl From<PacketLevelSoundEventOld> for McpePacket {
     fn from(packet: PacketLevelSoundEventOld) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketLevelEvent {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketLevelEvent;
 }
 impl From<PacketLevelEvent> for McpePacketData {
     fn from(packet: PacketLevelEvent) -> Self {
@@ -766,10 +669,6 @@ impl From<PacketLevelEvent> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketBlockEvent {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketBlockEvent;
-}
 impl From<PacketBlockEvent> for McpePacketData {
     fn from(packet: PacketBlockEvent) -> Self {
         McpePacketData::PacketBlockEvent(packet)
@@ -779,10 +678,6 @@ impl From<PacketBlockEvent> for McpePacket {
     fn from(packet: PacketBlockEvent) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketEntityEvent {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketEntityEvent;
 }
 impl From<PacketEntityEvent> for McpePacketData {
     fn from(packet: PacketEntityEvent) -> Self {
@@ -794,10 +689,6 @@ impl From<PacketEntityEvent> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketMobEffect {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketMobEffect;
-}
 impl From<PacketMobEffect> for McpePacketData {
     fn from(packet: PacketMobEffect) -> Self {
         McpePacketData::PacketMobEffect(Box::new(packet))
@@ -807,10 +698,6 @@ impl From<PacketMobEffect> for McpePacket {
     fn from(packet: PacketMobEffect) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketUpdateAttributes {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketUpdateAttributes;
 }
 impl From<PacketUpdateAttributes> for McpePacketData {
     fn from(packet: PacketUpdateAttributes) -> Self {
@@ -822,10 +709,6 @@ impl From<PacketUpdateAttributes> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketInventoryTransaction {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketInventoryTransaction;
-}
 impl From<PacketInventoryTransaction> for McpePacketData {
     fn from(packet: PacketInventoryTransaction) -> Self {
         McpePacketData::PacketInventoryTransaction(Box::new(packet))
@@ -835,10 +718,6 @@ impl From<PacketInventoryTransaction> for McpePacket {
     fn from(packet: PacketInventoryTransaction) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketMobEquipment {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketMobEquipment;
 }
 impl From<PacketMobEquipment> for McpePacketData {
     fn from(packet: PacketMobEquipment) -> Self {
@@ -850,10 +729,6 @@ impl From<PacketMobEquipment> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketMobArmorEquipment {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketMobArmorEquipment;
-}
 impl From<PacketMobArmorEquipment> for McpePacketData {
     fn from(packet: PacketMobArmorEquipment) -> Self {
         McpePacketData::PacketMobArmorEquipment(Box::new(packet))
@@ -863,10 +738,6 @@ impl From<PacketMobArmorEquipment> for McpePacket {
     fn from(packet: PacketMobArmorEquipment) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketInteract {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketInteract;
 }
 impl From<PacketInteract> for McpePacketData {
     fn from(packet: PacketInteract) -> Self {
@@ -878,10 +749,6 @@ impl From<PacketInteract> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketBlockPickRequest {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketBlockPickRequest;
-}
 impl From<PacketBlockPickRequest> for McpePacketData {
     fn from(packet: PacketBlockPickRequest) -> Self {
         McpePacketData::PacketBlockPickRequest(Box::new(packet))
@@ -891,10 +758,6 @@ impl From<PacketBlockPickRequest> for McpePacket {
     fn from(packet: PacketBlockPickRequest) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketEntityPickRequest {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketEntityPickRequest;
 }
 impl From<PacketEntityPickRequest> for McpePacketData {
     fn from(packet: PacketEntityPickRequest) -> Self {
@@ -906,10 +769,6 @@ impl From<PacketEntityPickRequest> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketPlayerAction {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketPlayerAction;
-}
 impl From<PacketPlayerAction> for McpePacketData {
     fn from(packet: PacketPlayerAction) -> Self {
         McpePacketData::PacketPlayerAction(Box::new(packet))
@@ -919,10 +778,6 @@ impl From<PacketPlayerAction> for McpePacket {
     fn from(packet: PacketPlayerAction) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketHurtArmor {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketHurtArmor;
 }
 impl From<PacketHurtArmor> for McpePacketData {
     fn from(packet: PacketHurtArmor) -> Self {
@@ -934,10 +789,6 @@ impl From<PacketHurtArmor> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketSetEntityData {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketSetEntityData;
-}
 impl From<PacketSetEntityData> for McpePacketData {
     fn from(packet: PacketSetEntityData) -> Self {
         McpePacketData::PacketSetEntityData(packet)
@@ -947,10 +798,6 @@ impl From<PacketSetEntityData> for McpePacket {
     fn from(packet: PacketSetEntityData) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketSetEntityMotion {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketSetEntityMotion;
 }
 impl From<PacketSetEntityMotion> for McpePacketData {
     fn from(packet: PacketSetEntityMotion) -> Self {
@@ -962,10 +809,6 @@ impl From<PacketSetEntityMotion> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketSetEntityLink {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketSetEntityLink;
-}
 impl From<PacketSetEntityLink> for McpePacketData {
     fn from(packet: PacketSetEntityLink) -> Self {
         McpePacketData::PacketSetEntityLink(Box::new(packet))
@@ -975,10 +818,6 @@ impl From<PacketSetEntityLink> for McpePacket {
     fn from(packet: PacketSetEntityLink) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketSetHealth {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketSetHealth;
 }
 impl From<PacketSetHealth> for McpePacketData {
     fn from(packet: PacketSetHealth) -> Self {
@@ -990,10 +829,6 @@ impl From<PacketSetHealth> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketSetSpawnPosition {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketSetSpawnPosition;
-}
 impl From<PacketSetSpawnPosition> for McpePacketData {
     fn from(packet: PacketSetSpawnPosition) -> Self {
         McpePacketData::PacketSetSpawnPosition(Box::new(packet))
@@ -1003,10 +838,6 @@ impl From<PacketSetSpawnPosition> for McpePacket {
     fn from(packet: PacketSetSpawnPosition) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketAnimate {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketAnimate;
 }
 impl From<PacketAnimate> for McpePacketData {
     fn from(packet: PacketAnimate) -> Self {
@@ -1018,10 +849,6 @@ impl From<PacketAnimate> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketRespawn {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketRespawn;
-}
 impl From<PacketRespawn> for McpePacketData {
     fn from(packet: PacketRespawn) -> Self {
         McpePacketData::PacketRespawn(packet)
@@ -1031,10 +858,6 @@ impl From<PacketRespawn> for McpePacket {
     fn from(packet: PacketRespawn) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketContainerOpen {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketContainerOpen;
 }
 impl From<PacketContainerOpen> for McpePacketData {
     fn from(packet: PacketContainerOpen) -> Self {
@@ -1046,10 +869,6 @@ impl From<PacketContainerOpen> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketContainerClose {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketContainerClose;
-}
 impl From<PacketContainerClose> for McpePacketData {
     fn from(packet: PacketContainerClose) -> Self {
         McpePacketData::PacketContainerClose(packet)
@@ -1059,10 +878,6 @@ impl From<PacketContainerClose> for McpePacket {
     fn from(packet: PacketContainerClose) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketPlayerHotbar {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketPlayerHotbar;
 }
 impl From<PacketPlayerHotbar> for McpePacketData {
     fn from(packet: PacketPlayerHotbar) -> Self {
@@ -1074,10 +889,6 @@ impl From<PacketPlayerHotbar> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketInventoryContent {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketInventoryContent;
-}
 impl From<PacketInventoryContent> for McpePacketData {
     fn from(packet: PacketInventoryContent) -> Self {
         McpePacketData::PacketInventoryContent(packet)
@@ -1087,10 +898,6 @@ impl From<PacketInventoryContent> for McpePacket {
     fn from(packet: PacketInventoryContent) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketInventorySlot {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketInventorySlot;
 }
 impl From<PacketInventorySlot> for McpePacketData {
     fn from(packet: PacketInventorySlot) -> Self {
@@ -1102,10 +909,6 @@ impl From<PacketInventorySlot> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketContainerSetData {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketContainerSetData;
-}
 impl From<PacketContainerSetData> for McpePacketData {
     fn from(packet: PacketContainerSetData) -> Self {
         McpePacketData::PacketContainerSetData(packet)
@@ -1115,10 +918,6 @@ impl From<PacketContainerSetData> for McpePacket {
     fn from(packet: PacketContainerSetData) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketCraftingData {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketCraftingData;
 }
 impl From<PacketCraftingData> for McpePacketData {
     fn from(packet: PacketCraftingData) -> Self {
@@ -1130,10 +929,6 @@ impl From<PacketCraftingData> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketCraftingEvent {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketCraftingEvent;
-}
 impl From<PacketCraftingEvent> for McpePacketData {
     fn from(packet: PacketCraftingEvent) -> Self {
         McpePacketData::PacketCraftingEvent(Box::new(packet))
@@ -1143,10 +938,6 @@ impl From<PacketCraftingEvent> for McpePacket {
     fn from(packet: PacketCraftingEvent) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketGuiDataPickItem {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketGuiDataPickItem;
 }
 impl From<PacketGuiDataPickItem> for McpePacketData {
     fn from(packet: PacketGuiDataPickItem) -> Self {
@@ -1158,10 +949,6 @@ impl From<PacketGuiDataPickItem> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketAdventureSettings {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketAdventureSettings;
-}
 impl From<PacketAdventureSettings> for McpePacketData {
     fn from(packet: PacketAdventureSettings) -> Self {
         McpePacketData::PacketAdventureSettings(Box::new(packet))
@@ -1171,10 +958,6 @@ impl From<PacketAdventureSettings> for McpePacket {
     fn from(packet: PacketAdventureSettings) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketBlockEntityData {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketBlockEntityData;
 }
 impl From<PacketBlockEntityData> for McpePacketData {
     fn from(packet: PacketBlockEntityData) -> Self {
@@ -1186,10 +969,6 @@ impl From<PacketBlockEntityData> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketPlayerInput {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketPlayerInput;
-}
 impl From<PacketPlayerInput> for McpePacketData {
     fn from(packet: PacketPlayerInput) -> Self {
         McpePacketData::PacketPlayerInput(Box::new(packet))
@@ -1199,10 +978,6 @@ impl From<PacketPlayerInput> for McpePacket {
     fn from(packet: PacketPlayerInput) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketLevelChunk {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketLevelChunk;
 }
 impl From<PacketLevelChunk> for McpePacketData {
     fn from(packet: PacketLevelChunk) -> Self {
@@ -1214,10 +989,6 @@ impl From<PacketLevelChunk> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketSetCommandsEnabled {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketSetCommandsEnabled;
-}
 impl From<PacketSetCommandsEnabled> for McpePacketData {
     fn from(packet: PacketSetCommandsEnabled) -> Self {
         McpePacketData::PacketSetCommandsEnabled(packet)
@@ -1227,10 +998,6 @@ impl From<PacketSetCommandsEnabled> for McpePacket {
     fn from(packet: PacketSetCommandsEnabled) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketSetDifficulty {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketSetDifficulty;
 }
 impl From<PacketSetDifficulty> for McpePacketData {
     fn from(packet: PacketSetDifficulty) -> Self {
@@ -1242,10 +1009,6 @@ impl From<PacketSetDifficulty> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketChangeDimension {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketChangeDimension;
-}
 impl From<PacketChangeDimension> for McpePacketData {
     fn from(packet: PacketChangeDimension) -> Self {
         McpePacketData::PacketChangeDimension(packet)
@@ -1255,10 +1018,6 @@ impl From<PacketChangeDimension> for McpePacket {
     fn from(packet: PacketChangeDimension) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketSetPlayerGameType {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketSetPlayerGameType;
 }
 impl From<PacketSetPlayerGameType> for McpePacketData {
     fn from(packet: PacketSetPlayerGameType) -> Self {
@@ -1270,10 +1029,6 @@ impl From<PacketSetPlayerGameType> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketPlayerList {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketPlayerList;
-}
 impl From<PacketPlayerList> for McpePacketData {
     fn from(packet: PacketPlayerList) -> Self {
         McpePacketData::PacketPlayerList(Box::new(packet))
@@ -1283,10 +1038,6 @@ impl From<PacketPlayerList> for McpePacket {
     fn from(packet: PacketPlayerList) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketSimpleEvent {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketSimpleEvent;
 }
 impl From<PacketSimpleEvent> for McpePacketData {
     fn from(packet: PacketSimpleEvent) -> Self {
@@ -1298,10 +1049,6 @@ impl From<PacketSimpleEvent> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketEvent {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketEvent;
-}
 impl From<PacketEvent> for McpePacketData {
     fn from(packet: PacketEvent) -> Self {
         McpePacketData::PacketEvent(Box::new(packet))
@@ -1311,10 +1058,6 @@ impl From<PacketEvent> for McpePacket {
     fn from(packet: PacketEvent) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketSpawnExperienceOrb {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketSpawnExperienceOrb;
 }
 impl From<PacketSpawnExperienceOrb> for McpePacketData {
     fn from(packet: PacketSpawnExperienceOrb) -> Self {
@@ -1326,10 +1069,6 @@ impl From<PacketSpawnExperienceOrb> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketClientboundMapItemData {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketClientboundMapItemData;
-}
 impl From<PacketClientboundMapItemData> for McpePacketData {
     fn from(packet: PacketClientboundMapItemData) -> Self {
         McpePacketData::PacketClientboundMapItemData(Box::new(packet))
@@ -1339,10 +1078,6 @@ impl From<PacketClientboundMapItemData> for McpePacket {
     fn from(packet: PacketClientboundMapItemData) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketMapInfoRequest {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketMapInfoRequest;
 }
 impl From<PacketMapInfoRequest> for McpePacketData {
     fn from(packet: PacketMapInfoRequest) -> Self {
@@ -1354,10 +1089,6 @@ impl From<PacketMapInfoRequest> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketRequestChunkRadius {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketRequestChunkRadius;
-}
 impl From<PacketRequestChunkRadius> for McpePacketData {
     fn from(packet: PacketRequestChunkRadius) -> Self {
         McpePacketData::PacketRequestChunkRadius(packet)
@@ -1367,10 +1098,6 @@ impl From<PacketRequestChunkRadius> for McpePacket {
     fn from(packet: PacketRequestChunkRadius) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketChunkRadiusUpdate {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketChunkRadiusUpdate;
 }
 impl From<PacketChunkRadiusUpdate> for McpePacketData {
     fn from(packet: PacketChunkRadiusUpdate) -> Self {
@@ -1382,10 +1109,6 @@ impl From<PacketChunkRadiusUpdate> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketItemFrameDropItem {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketItemFrameDropItem;
-}
 impl From<PacketItemFrameDropItem> for McpePacketData {
     fn from(packet: PacketItemFrameDropItem) -> Self {
         McpePacketData::PacketItemFrameDropItem(packet)
@@ -1395,10 +1118,6 @@ impl From<PacketItemFrameDropItem> for McpePacket {
     fn from(packet: PacketItemFrameDropItem) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketGameRulesChanged {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketGameRulesChanged;
 }
 impl From<PacketGameRulesChanged> for McpePacketData {
     fn from(packet: PacketGameRulesChanged) -> Self {
@@ -1410,10 +1129,6 @@ impl From<PacketGameRulesChanged> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketCamera {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketCamera;
-}
 impl From<PacketCamera> for McpePacketData {
     fn from(packet: PacketCamera) -> Self {
         McpePacketData::PacketCamera(packet)
@@ -1423,10 +1138,6 @@ impl From<PacketCamera> for McpePacket {
     fn from(packet: PacketCamera) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketBossEvent {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketBossEvent;
 }
 impl From<PacketBossEvent> for McpePacketData {
     fn from(packet: PacketBossEvent) -> Self {
@@ -1438,10 +1149,6 @@ impl From<PacketBossEvent> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketShowCredits {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketShowCredits;
-}
 impl From<PacketShowCredits> for McpePacketData {
     fn from(packet: PacketShowCredits) -> Self {
         McpePacketData::PacketShowCredits(packet)
@@ -1451,10 +1158,6 @@ impl From<PacketShowCredits> for McpePacket {
     fn from(packet: PacketShowCredits) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketAvailableCommands {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketAvailableCommands;
 }
 impl From<PacketAvailableCommands> for McpePacketData {
     fn from(packet: PacketAvailableCommands) -> Self {
@@ -1466,10 +1169,6 @@ impl From<PacketAvailableCommands> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketCommandRequest {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketCommandRequest;
-}
 impl From<PacketCommandRequest> for McpePacketData {
     fn from(packet: PacketCommandRequest) -> Self {
         McpePacketData::PacketCommandRequest(Box::new(packet))
@@ -1479,10 +1178,6 @@ impl From<PacketCommandRequest> for McpePacket {
     fn from(packet: PacketCommandRequest) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketCommandBlockUpdate {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketCommandBlockUpdate;
 }
 impl From<PacketCommandBlockUpdate> for McpePacketData {
     fn from(packet: PacketCommandBlockUpdate) -> Self {
@@ -1494,10 +1189,6 @@ impl From<PacketCommandBlockUpdate> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketCommandOutput {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketCommandOutput;
-}
 impl From<PacketCommandOutput> for McpePacketData {
     fn from(packet: PacketCommandOutput) -> Self {
         McpePacketData::PacketCommandOutput(Box::new(packet))
@@ -1507,10 +1198,6 @@ impl From<PacketCommandOutput> for McpePacket {
     fn from(packet: PacketCommandOutput) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketUpdateTrade {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketUpdateTrade;
 }
 impl From<PacketUpdateTrade> for McpePacketData {
     fn from(packet: PacketUpdateTrade) -> Self {
@@ -1522,10 +1209,6 @@ impl From<PacketUpdateTrade> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketUpdateEquipment {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketUpdateEquipment;
-}
 impl From<PacketUpdateEquipment> for McpePacketData {
     fn from(packet: PacketUpdateEquipment) -> Self {
         McpePacketData::PacketUpdateEquipment(Box::new(packet))
@@ -1535,10 +1218,6 @@ impl From<PacketUpdateEquipment> for McpePacket {
     fn from(packet: PacketUpdateEquipment) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketResourcePackDataInfo {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketResourcePackDataInfo;
 }
 impl From<PacketResourcePackDataInfo> for McpePacketData {
     fn from(packet: PacketResourcePackDataInfo) -> Self {
@@ -1550,10 +1229,6 @@ impl From<PacketResourcePackDataInfo> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketResourcePackChunkData {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketResourcePackChunkData;
-}
 impl From<PacketResourcePackChunkData> for McpePacketData {
     fn from(packet: PacketResourcePackChunkData) -> Self {
         McpePacketData::PacketResourcePackChunkData(Box::new(packet))
@@ -1563,10 +1238,6 @@ impl From<PacketResourcePackChunkData> for McpePacket {
     fn from(packet: PacketResourcePackChunkData) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketResourcePackChunkRequest {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketResourcePackChunkRequest;
 }
 impl From<PacketResourcePackChunkRequest> for McpePacketData {
     fn from(packet: PacketResourcePackChunkRequest) -> Self {
@@ -1578,10 +1249,6 @@ impl From<PacketResourcePackChunkRequest> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketTransfer {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketTransfer;
-}
 impl From<PacketTransfer> for McpePacketData {
     fn from(packet: PacketTransfer) -> Self {
         McpePacketData::PacketTransfer(packet)
@@ -1591,10 +1258,6 @@ impl From<PacketTransfer> for McpePacket {
     fn from(packet: PacketTransfer) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketPlaySound {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketPlaySound;
 }
 impl From<PacketPlaySound> for McpePacketData {
     fn from(packet: PacketPlaySound) -> Self {
@@ -1606,10 +1269,6 @@ impl From<PacketPlaySound> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketStopSound {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketStopSound;
-}
 impl From<PacketStopSound> for McpePacketData {
     fn from(packet: PacketStopSound) -> Self {
         McpePacketData::PacketStopSound(packet)
@@ -1619,10 +1278,6 @@ impl From<PacketStopSound> for McpePacket {
     fn from(packet: PacketStopSound) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketSetTitle {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketSetTitle;
 }
 impl From<PacketSetTitle> for McpePacketData {
     fn from(packet: PacketSetTitle) -> Self {
@@ -1634,10 +1289,6 @@ impl From<PacketSetTitle> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketAddBehaviorTree {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketAddBehaviorTree;
-}
 impl From<PacketAddBehaviorTree> for McpePacketData {
     fn from(packet: PacketAddBehaviorTree) -> Self {
         McpePacketData::PacketAddBehaviorTree(packet)
@@ -1647,10 +1298,6 @@ impl From<PacketAddBehaviorTree> for McpePacket {
     fn from(packet: PacketAddBehaviorTree) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketStructureBlockUpdate {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketStructureBlockUpdate;
 }
 impl From<PacketStructureBlockUpdate> for McpePacketData {
     fn from(packet: PacketStructureBlockUpdate) -> Self {
@@ -1662,10 +1309,6 @@ impl From<PacketStructureBlockUpdate> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketShowStoreOffer {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketShowStoreOffer;
-}
 impl From<PacketShowStoreOffer> for McpePacketData {
     fn from(packet: PacketShowStoreOffer) -> Self {
         McpePacketData::PacketShowStoreOffer(packet)
@@ -1675,10 +1318,6 @@ impl From<PacketShowStoreOffer> for McpePacket {
     fn from(packet: PacketShowStoreOffer) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketPurchaseReceipt {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketPurchaseReceipt;
 }
 impl From<PacketPurchaseReceipt> for McpePacketData {
     fn from(packet: PacketPurchaseReceipt) -> Self {
@@ -1690,10 +1329,6 @@ impl From<PacketPurchaseReceipt> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketPlayerSkin {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketPlayerSkin;
-}
 impl From<PacketPlayerSkin> for McpePacketData {
     fn from(packet: PacketPlayerSkin) -> Self {
         McpePacketData::PacketPlayerSkin(Box::new(packet))
@@ -1703,10 +1338,6 @@ impl From<PacketPlayerSkin> for McpePacket {
     fn from(packet: PacketPlayerSkin) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketSubClientLogin {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketSubClientLogin;
 }
 impl From<PacketSubClientLogin> for McpePacketData {
     fn from(packet: PacketSubClientLogin) -> Self {
@@ -1718,10 +1349,6 @@ impl From<PacketSubClientLogin> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketInitiateWebSocketConnection {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketInitiateWebSocketConnection;
-}
 impl From<PacketInitiateWebSocketConnection> for McpePacketData {
     fn from(packet: PacketInitiateWebSocketConnection) -> Self {
         McpePacketData::PacketInitiateWebSocketConnection(packet)
@@ -1731,10 +1358,6 @@ impl From<PacketInitiateWebSocketConnection> for McpePacket {
     fn from(packet: PacketInitiateWebSocketConnection) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketSetLastHurtBy {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketSetLastHurtBy;
 }
 impl From<PacketSetLastHurtBy> for McpePacketData {
     fn from(packet: PacketSetLastHurtBy) -> Self {
@@ -1746,10 +1369,6 @@ impl From<PacketSetLastHurtBy> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketBookEdit {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketBookEdit;
-}
 impl From<PacketBookEdit> for McpePacketData {
     fn from(packet: PacketBookEdit) -> Self {
         McpePacketData::PacketBookEdit(Box::new(packet))
@@ -1759,10 +1378,6 @@ impl From<PacketBookEdit> for McpePacket {
     fn from(packet: PacketBookEdit) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketNpcRequest {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketNpcRequest;
 }
 impl From<PacketNpcRequest> for McpePacketData {
     fn from(packet: PacketNpcRequest) -> Self {
@@ -1774,10 +1389,6 @@ impl From<PacketNpcRequest> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketPhotoTransfer {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketPhotoTransfer;
-}
 impl From<PacketPhotoTransfer> for McpePacketData {
     fn from(packet: PacketPhotoTransfer) -> Self {
         McpePacketData::PacketPhotoTransfer(Box::new(packet))
@@ -1787,10 +1398,6 @@ impl From<PacketPhotoTransfer> for McpePacket {
     fn from(packet: PacketPhotoTransfer) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketModalFormRequest {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketModalFormRequest;
 }
 impl From<PacketModalFormRequest> for McpePacketData {
     fn from(packet: PacketModalFormRequest) -> Self {
@@ -1802,10 +1409,6 @@ impl From<PacketModalFormRequest> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketModalFormResponse {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketModalFormResponse;
-}
 impl From<PacketModalFormResponse> for McpePacketData {
     fn from(packet: PacketModalFormResponse) -> Self {
         McpePacketData::PacketModalFormResponse(packet)
@@ -1815,10 +1418,6 @@ impl From<PacketModalFormResponse> for McpePacket {
     fn from(packet: PacketModalFormResponse) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketServerSettingsRequest {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketServerSettingsRequest;
 }
 impl From<PacketServerSettingsRequest> for McpePacketData {
     fn from(packet: PacketServerSettingsRequest) -> Self {
@@ -1830,10 +1429,6 @@ impl From<PacketServerSettingsRequest> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketServerSettingsResponse {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketServerSettingsResponse;
-}
 impl From<PacketServerSettingsResponse> for McpePacketData {
     fn from(packet: PacketServerSettingsResponse) -> Self {
         McpePacketData::PacketServerSettingsResponse(packet)
@@ -1843,10 +1438,6 @@ impl From<PacketServerSettingsResponse> for McpePacket {
     fn from(packet: PacketServerSettingsResponse) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketShowProfile {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketShowProfile;
 }
 impl From<PacketShowProfile> for McpePacketData {
     fn from(packet: PacketShowProfile) -> Self {
@@ -1858,10 +1449,6 @@ impl From<PacketShowProfile> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketSetDefaultGameType {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketSetDefaultGameType;
-}
 impl From<PacketSetDefaultGameType> for McpePacketData {
     fn from(packet: PacketSetDefaultGameType) -> Self {
         McpePacketData::PacketSetDefaultGameType(packet)
@@ -1871,10 +1458,6 @@ impl From<PacketSetDefaultGameType> for McpePacket {
     fn from(packet: PacketSetDefaultGameType) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketRemoveObjective {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketRemoveObjective;
 }
 impl From<PacketRemoveObjective> for McpePacketData {
     fn from(packet: PacketRemoveObjective) -> Self {
@@ -1886,10 +1469,6 @@ impl From<PacketRemoveObjective> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketSetDisplayObjective {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketSetDisplayObjective;
-}
 impl From<PacketSetDisplayObjective> for McpePacketData {
     fn from(packet: PacketSetDisplayObjective) -> Self {
         McpePacketData::PacketSetDisplayObjective(Box::new(packet))
@@ -1899,10 +1478,6 @@ impl From<PacketSetDisplayObjective> for McpePacket {
     fn from(packet: PacketSetDisplayObjective) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketSetScore {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketSetScore;
 }
 impl From<PacketSetScore> for McpePacketData {
     fn from(packet: PacketSetScore) -> Self {
@@ -1914,10 +1489,6 @@ impl From<PacketSetScore> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketLabTable {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketLabTable;
-}
 impl From<PacketLabTable> for McpePacketData {
     fn from(packet: PacketLabTable) -> Self {
         McpePacketData::PacketLabTable(packet)
@@ -1927,10 +1498,6 @@ impl From<PacketLabTable> for McpePacket {
     fn from(packet: PacketLabTable) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketUpdateBlockSynced {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketUpdateBlockSynced;
 }
 impl From<PacketUpdateBlockSynced> for McpePacketData {
     fn from(packet: PacketUpdateBlockSynced) -> Self {
@@ -1942,10 +1509,6 @@ impl From<PacketUpdateBlockSynced> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketMoveEntityDelta {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketMoveEntityDelta;
-}
 impl From<PacketMoveEntityDelta> for McpePacketData {
     fn from(packet: PacketMoveEntityDelta) -> Self {
         McpePacketData::PacketMoveEntityDelta(Box::new(packet))
@@ -1955,10 +1518,6 @@ impl From<PacketMoveEntityDelta> for McpePacket {
     fn from(packet: PacketMoveEntityDelta) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketSetScoreboardIdentity {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketSetScoreboardIdentity;
 }
 impl From<PacketSetScoreboardIdentity> for McpePacketData {
     fn from(packet: PacketSetScoreboardIdentity) -> Self {
@@ -1970,10 +1529,6 @@ impl From<PacketSetScoreboardIdentity> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketSetLocalPlayerAsInitialized {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketSetLocalPlayerAsInitialized;
-}
 impl From<PacketSetLocalPlayerAsInitialized> for McpePacketData {
     fn from(packet: PacketSetLocalPlayerAsInitialized) -> Self {
         McpePacketData::PacketSetLocalPlayerAsInitialized(packet)
@@ -1983,10 +1538,6 @@ impl From<PacketSetLocalPlayerAsInitialized> for McpePacket {
     fn from(packet: PacketSetLocalPlayerAsInitialized) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketUpdateSoftEnum {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketUpdateSoftEnum;
 }
 impl From<PacketUpdateSoftEnum> for McpePacketData {
     fn from(packet: PacketUpdateSoftEnum) -> Self {
@@ -1998,10 +1549,6 @@ impl From<PacketUpdateSoftEnum> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketNetworkStackLatency {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketNetworkStackLatency;
-}
 impl From<PacketNetworkStackLatency> for McpePacketData {
     fn from(packet: PacketNetworkStackLatency) -> Self {
         McpePacketData::PacketNetworkStackLatency(packet)
@@ -2011,10 +1558,6 @@ impl From<PacketNetworkStackLatency> for McpePacket {
     fn from(packet: PacketNetworkStackLatency) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketScriptCustomEvent {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketScriptCustomEvent;
 }
 impl From<PacketScriptCustomEvent> for McpePacketData {
     fn from(packet: PacketScriptCustomEvent) -> Self {
@@ -2026,10 +1569,6 @@ impl From<PacketScriptCustomEvent> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketSpawnParticleEffect {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketSpawnParticleEffect;
-}
 impl From<PacketSpawnParticleEffect> for McpePacketData {
     fn from(packet: PacketSpawnParticleEffect) -> Self {
         McpePacketData::PacketSpawnParticleEffect(Box::new(packet))
@@ -2039,10 +1578,6 @@ impl From<PacketSpawnParticleEffect> for McpePacket {
     fn from(packet: PacketSpawnParticleEffect) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketAvailableEntityIdentifiers {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketAvailableEntityIdentifiers;
 }
 impl From<PacketAvailableEntityIdentifiers> for McpePacketData {
     fn from(packet: PacketAvailableEntityIdentifiers) -> Self {
@@ -2054,10 +1589,6 @@ impl From<PacketAvailableEntityIdentifiers> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketLevelSoundEventV2 {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketLevelSoundEventV2;
-}
 impl From<PacketLevelSoundEventV2> for McpePacketData {
     fn from(packet: PacketLevelSoundEventV2) -> Self {
         McpePacketData::PacketLevelSoundEventV2(Box::new(packet))
@@ -2067,10 +1598,6 @@ impl From<PacketLevelSoundEventV2> for McpePacket {
     fn from(packet: PacketLevelSoundEventV2) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketNetworkChunkPublisherUpdate {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketNetworkChunkPublisherUpdate;
 }
 impl From<PacketNetworkChunkPublisherUpdate> for McpePacketData {
     fn from(packet: PacketNetworkChunkPublisherUpdate) -> Self {
@@ -2082,10 +1609,6 @@ impl From<PacketNetworkChunkPublisherUpdate> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketBiomeDefinitionList {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketBiomeDefinitionList;
-}
 impl From<PacketBiomeDefinitionList> for McpePacketData {
     fn from(packet: PacketBiomeDefinitionList) -> Self {
         McpePacketData::PacketBiomeDefinitionList(packet)
@@ -2095,10 +1618,6 @@ impl From<PacketBiomeDefinitionList> for McpePacket {
     fn from(packet: PacketBiomeDefinitionList) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketLevelSoundEvent {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketLevelSoundEvent;
 }
 impl From<PacketLevelSoundEvent> for McpePacketData {
     fn from(packet: PacketLevelSoundEvent) -> Self {
@@ -2110,10 +1629,6 @@ impl From<PacketLevelSoundEvent> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketLevelEventGeneric {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketLevelEventGeneric;
-}
 impl From<PacketLevelEventGeneric> for McpePacketData {
     fn from(packet: PacketLevelEventGeneric) -> Self {
         McpePacketData::PacketLevelEventGeneric(packet)
@@ -2123,10 +1638,6 @@ impl From<PacketLevelEventGeneric> for McpePacket {
     fn from(packet: PacketLevelEventGeneric) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketLecternUpdate {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketLecternUpdate;
 }
 impl From<PacketLecternUpdate> for McpePacketData {
     fn from(packet: PacketLecternUpdate) -> Self {
@@ -2138,10 +1649,6 @@ impl From<PacketLecternUpdate> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketVideoStreamConnect {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketVideoStreamConnect;
-}
 impl From<PacketVideoStreamConnect> for McpePacketData {
     fn from(packet: PacketVideoStreamConnect) -> Self {
         McpePacketData::PacketVideoStreamConnect(Box::new(packet))
@@ -2151,10 +1658,6 @@ impl From<PacketVideoStreamConnect> for McpePacket {
     fn from(packet: PacketVideoStreamConnect) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketAddEcsEntity {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketAddEcsEntity;
 }
 impl From<PacketAddEcsEntity> for McpePacketData {
     fn from(packet: PacketAddEcsEntity) -> Self {
@@ -2166,10 +1669,6 @@ impl From<PacketAddEcsEntity> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketRemoveEcsEntity {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketRemoveEcsEntity;
-}
 impl From<PacketRemoveEcsEntity> for McpePacketData {
     fn from(packet: PacketRemoveEcsEntity) -> Self {
         McpePacketData::PacketRemoveEcsEntity(packet)
@@ -2179,10 +1678,6 @@ impl From<PacketRemoveEcsEntity> for McpePacket {
     fn from(packet: PacketRemoveEcsEntity) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketClientCacheStatus {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketClientCacheStatus;
 }
 impl From<PacketClientCacheStatus> for McpePacketData {
     fn from(packet: PacketClientCacheStatus) -> Self {
@@ -2194,10 +1689,6 @@ impl From<PacketClientCacheStatus> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketOnScreenTextureAnimation {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketOnScreenTextureAnimation;
-}
 impl From<PacketOnScreenTextureAnimation> for McpePacketData {
     fn from(packet: PacketOnScreenTextureAnimation) -> Self {
         McpePacketData::PacketOnScreenTextureAnimation(packet)
@@ -2207,10 +1698,6 @@ impl From<PacketOnScreenTextureAnimation> for McpePacket {
     fn from(packet: PacketOnScreenTextureAnimation) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketMapCreateLockedCopy {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketMapCreateLockedCopy;
 }
 impl From<PacketMapCreateLockedCopy> for McpePacketData {
     fn from(packet: PacketMapCreateLockedCopy) -> Self {
@@ -2222,10 +1709,6 @@ impl From<PacketMapCreateLockedCopy> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketStructureTemplateDataExportRequest {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketStructureTemplateDataExportRequest;
-}
 impl From<PacketStructureTemplateDataExportRequest> for McpePacketData {
     fn from(packet: PacketStructureTemplateDataExportRequest) -> Self {
         McpePacketData::PacketStructureTemplateDataExportRequest(Box::new(packet))
@@ -2235,10 +1718,6 @@ impl From<PacketStructureTemplateDataExportRequest> for McpePacket {
     fn from(packet: PacketStructureTemplateDataExportRequest) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketStructureTemplateDataExportResponse {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketStructureTemplateDataExportResponse;
 }
 impl From<PacketStructureTemplateDataExportResponse> for McpePacketData {
     fn from(packet: PacketStructureTemplateDataExportResponse) -> Self {
@@ -2250,10 +1729,6 @@ impl From<PacketStructureTemplateDataExportResponse> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketUpdateBlockProperties {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketUpdateBlockProperties;
-}
 impl From<PacketUpdateBlockProperties> for McpePacketData {
     fn from(packet: PacketUpdateBlockProperties) -> Self {
         McpePacketData::PacketUpdateBlockProperties(packet)
@@ -2263,10 +1738,6 @@ impl From<PacketUpdateBlockProperties> for McpePacket {
     fn from(packet: PacketUpdateBlockProperties) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketClientCacheBlobStatus {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketClientCacheBlobStatus;
 }
 impl From<PacketClientCacheBlobStatus> for McpePacketData {
     fn from(packet: PacketClientCacheBlobStatus) -> Self {
@@ -2278,10 +1749,6 @@ impl From<PacketClientCacheBlobStatus> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketClientCacheMissResponse {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketClientCacheMissResponse;
-}
 impl From<PacketClientCacheMissResponse> for McpePacketData {
     fn from(packet: PacketClientCacheMissResponse) -> Self {
         McpePacketData::PacketClientCacheMissResponse(packet)
@@ -2291,10 +1758,6 @@ impl From<PacketClientCacheMissResponse> for McpePacket {
     fn from(packet: PacketClientCacheMissResponse) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketEducationSettings {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketEducationSettings;
 }
 impl From<PacketEducationSettings> for McpePacketData {
     fn from(packet: PacketEducationSettings) -> Self {
@@ -2306,10 +1769,6 @@ impl From<PacketEducationSettings> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketEmote {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketEmote;
-}
 impl From<PacketEmote> for McpePacketData {
     fn from(packet: PacketEmote) -> Self {
         McpePacketData::PacketEmote(packet)
@@ -2319,10 +1778,6 @@ impl From<PacketEmote> for McpePacket {
     fn from(packet: PacketEmote) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketMultiplayerSettings {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketMultiplayerSettings;
 }
 impl From<PacketMultiplayerSettings> for McpePacketData {
     fn from(packet: PacketMultiplayerSettings) -> Self {
@@ -2334,10 +1789,6 @@ impl From<PacketMultiplayerSettings> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketSettingsCommand {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketSettingsCommand;
-}
 impl From<PacketSettingsCommand> for McpePacketData {
     fn from(packet: PacketSettingsCommand) -> Self {
         McpePacketData::PacketSettingsCommand(packet)
@@ -2347,10 +1798,6 @@ impl From<PacketSettingsCommand> for McpePacket {
     fn from(packet: PacketSettingsCommand) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketAnvilDamage {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketAnvilDamage;
 }
 impl From<PacketAnvilDamage> for McpePacketData {
     fn from(packet: PacketAnvilDamage) -> Self {
@@ -2362,10 +1809,6 @@ impl From<PacketAnvilDamage> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketCompletedUsingItem {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketCompletedUsingItem;
-}
 impl From<PacketCompletedUsingItem> for McpePacketData {
     fn from(packet: PacketCompletedUsingItem) -> Self {
         McpePacketData::PacketCompletedUsingItem(packet)
@@ -2375,10 +1818,6 @@ impl From<PacketCompletedUsingItem> for McpePacket {
     fn from(packet: PacketCompletedUsingItem) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketNetworkSettings {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketNetworkSettings;
 }
 impl From<PacketNetworkSettings> for McpePacketData {
     fn from(packet: PacketNetworkSettings) -> Self {
@@ -2390,10 +1829,6 @@ impl From<PacketNetworkSettings> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketPlayerAuthInput {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketPlayerAuthInput;
-}
 impl From<PacketPlayerAuthInput> for McpePacketData {
     fn from(packet: PacketPlayerAuthInput) -> Self {
         McpePacketData::PacketPlayerAuthInput(Box::new(packet))
@@ -2403,10 +1838,6 @@ impl From<PacketPlayerAuthInput> for McpePacket {
     fn from(packet: PacketPlayerAuthInput) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketCreativeContent {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketCreativeContent;
 }
 impl From<PacketCreativeContent> for McpePacketData {
     fn from(packet: PacketCreativeContent) -> Self {
@@ -2418,10 +1849,6 @@ impl From<PacketCreativeContent> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketPlayerEnchantOptions {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketPlayerEnchantOptions;
-}
 impl From<PacketPlayerEnchantOptions> for McpePacketData {
     fn from(packet: PacketPlayerEnchantOptions) -> Self {
         McpePacketData::PacketPlayerEnchantOptions(packet)
@@ -2431,10 +1858,6 @@ impl From<PacketPlayerEnchantOptions> for McpePacket {
     fn from(packet: PacketPlayerEnchantOptions) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketItemStackRequest {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketItemStackRequest;
 }
 impl From<PacketItemStackRequest> for McpePacketData {
     fn from(packet: PacketItemStackRequest) -> Self {
@@ -2446,10 +1869,6 @@ impl From<PacketItemStackRequest> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketItemStackResponse {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketItemStackResponse;
-}
 impl From<PacketItemStackResponse> for McpePacketData {
     fn from(packet: PacketItemStackResponse) -> Self {
         McpePacketData::PacketItemStackResponse(packet)
@@ -2459,10 +1878,6 @@ impl From<PacketItemStackResponse> for McpePacket {
     fn from(packet: PacketItemStackResponse) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketPlayerArmorDamage {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketPlayerArmorDamage;
 }
 impl From<PacketPlayerArmorDamage> for McpePacketData {
     fn from(packet: PacketPlayerArmorDamage) -> Self {
@@ -2474,10 +1889,6 @@ impl From<PacketPlayerArmorDamage> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketCodeBuilder {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketCodeBuilder;
-}
 impl From<PacketCodeBuilder> for McpePacketData {
     fn from(packet: PacketCodeBuilder) -> Self {
         McpePacketData::PacketCodeBuilder(packet)
@@ -2487,10 +1898,6 @@ impl From<PacketCodeBuilder> for McpePacket {
     fn from(packet: PacketCodeBuilder) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketUpdatePlayerGameType {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketUpdatePlayerGameType;
 }
 impl From<PacketUpdatePlayerGameType> for McpePacketData {
     fn from(packet: PacketUpdatePlayerGameType) -> Self {
@@ -2502,10 +1909,6 @@ impl From<PacketUpdatePlayerGameType> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketEmoteList {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketEmoteList;
-}
 impl From<PacketEmoteList> for McpePacketData {
     fn from(packet: PacketEmoteList) -> Self {
         McpePacketData::PacketEmoteList(packet)
@@ -2515,10 +1918,6 @@ impl From<PacketEmoteList> for McpePacket {
     fn from(packet: PacketEmoteList) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketPositionTrackingDbBroadcast {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketPositionTrackingDbBroadcast;
 }
 impl From<PacketPositionTrackingDbBroadcast> for McpePacketData {
     fn from(packet: PacketPositionTrackingDbBroadcast) -> Self {
@@ -2530,10 +1929,6 @@ impl From<PacketPositionTrackingDbBroadcast> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketPositionTrackingDbRequest {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketPositionTrackingDbRequest;
-}
 impl From<PacketPositionTrackingDbRequest> for McpePacketData {
     fn from(packet: PacketPositionTrackingDbRequest) -> Self {
         McpePacketData::PacketPositionTrackingDbRequest(packet)
@@ -2543,10 +1938,6 @@ impl From<PacketPositionTrackingDbRequest> for McpePacket {
     fn from(packet: PacketPositionTrackingDbRequest) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketDebugInfo {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketDebugInfo;
 }
 impl From<PacketDebugInfo> for McpePacketData {
     fn from(packet: PacketDebugInfo) -> Self {
@@ -2558,10 +1949,6 @@ impl From<PacketDebugInfo> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketPacketViolationWarning {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketPacketViolationWarning;
-}
 impl From<PacketPacketViolationWarning> for McpePacketData {
     fn from(packet: PacketPacketViolationWarning) -> Self {
         McpePacketData::PacketPacketViolationWarning(Box::new(packet))
@@ -2571,10 +1958,6 @@ impl From<PacketPacketViolationWarning> for McpePacket {
     fn from(packet: PacketPacketViolationWarning) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketMotionPredictionHints {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketMotionPredictionHints;
 }
 impl From<PacketMotionPredictionHints> for McpePacketData {
     fn from(packet: PacketMotionPredictionHints) -> Self {
@@ -2586,10 +1969,6 @@ impl From<PacketMotionPredictionHints> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketAnimateEntity {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketAnimateEntity;
-}
 impl From<PacketAnimateEntity> for McpePacketData {
     fn from(packet: PacketAnimateEntity) -> Self {
         McpePacketData::PacketAnimateEntity(Box::new(packet))
@@ -2599,10 +1978,6 @@ impl From<PacketAnimateEntity> for McpePacket {
     fn from(packet: PacketAnimateEntity) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketCameraShake {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketCameraShake;
 }
 impl From<PacketCameraShake> for McpePacketData {
     fn from(packet: PacketCameraShake) -> Self {
@@ -2614,10 +1989,6 @@ impl From<PacketCameraShake> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketPlayerFog {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketPlayerFog;
-}
 impl From<PacketPlayerFog> for McpePacketData {
     fn from(packet: PacketPlayerFog) -> Self {
         McpePacketData::PacketPlayerFog(packet)
@@ -2627,10 +1998,6 @@ impl From<PacketPlayerFog> for McpePacket {
     fn from(packet: PacketPlayerFog) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketCorrectPlayerMovePrediction {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketCorrectPlayerMovePrediction;
 }
 impl From<PacketCorrectPlayerMovePrediction> for McpePacketData {
     fn from(packet: PacketCorrectPlayerMovePrediction) -> Self {
@@ -2642,10 +2009,6 @@ impl From<PacketCorrectPlayerMovePrediction> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketItemComponent {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketItemComponent;
-}
 impl From<PacketItemComponent> for McpePacketData {
     fn from(packet: PacketItemComponent) -> Self {
         McpePacketData::PacketItemComponent(packet)
@@ -2655,10 +2018,6 @@ impl From<PacketItemComponent> for McpePacket {
     fn from(packet: PacketItemComponent) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketFilterTextPacket {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketFilterTextPacket;
 }
 impl From<PacketFilterTextPacket> for McpePacketData {
     fn from(packet: PacketFilterTextPacket) -> Self {
@@ -2670,10 +2029,6 @@ impl From<PacketFilterTextPacket> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketDebugRenderer {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketDebugRenderer;
-}
 impl From<PacketDebugRenderer> for McpePacketData {
     fn from(packet: PacketDebugRenderer) -> Self {
         McpePacketData::PacketDebugRenderer(Box::new(packet))
@@ -2683,10 +2038,6 @@ impl From<PacketDebugRenderer> for McpePacket {
     fn from(packet: PacketDebugRenderer) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketSyncEntityProperty {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketSyncEntityProperty;
 }
 impl From<PacketSyncEntityProperty> for McpePacketData {
     fn from(packet: PacketSyncEntityProperty) -> Self {
@@ -2698,10 +2049,6 @@ impl From<PacketSyncEntityProperty> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketAddVolumeEntity {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketAddVolumeEntity;
-}
 impl From<PacketAddVolumeEntity> for McpePacketData {
     fn from(packet: PacketAddVolumeEntity) -> Self {
         McpePacketData::PacketAddVolumeEntity(Box::new(packet))
@@ -2711,10 +2058,6 @@ impl From<PacketAddVolumeEntity> for McpePacket {
     fn from(packet: PacketAddVolumeEntity) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketRemoveVolumeEntity {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketRemoveVolumeEntity;
 }
 impl From<PacketRemoveVolumeEntity> for McpePacketData {
     fn from(packet: PacketRemoveVolumeEntity) -> Self {
@@ -2726,10 +2069,6 @@ impl From<PacketRemoveVolumeEntity> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketSimulationType {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketSimulationType;
-}
 impl From<PacketSimulationType> for McpePacketData {
     fn from(packet: PacketSimulationType) -> Self {
         McpePacketData::PacketSimulationType(packet)
@@ -2739,10 +2078,6 @@ impl From<PacketSimulationType> for McpePacket {
     fn from(packet: PacketSimulationType) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketNpcDialogue {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketNpcDialogue;
 }
 impl From<PacketNpcDialogue> for McpePacketData {
     fn from(packet: PacketNpcDialogue) -> Self {
@@ -2754,10 +2089,6 @@ impl From<PacketNpcDialogue> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketEduUriResourcePacket {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketEduUriResourcePacket;
-}
 impl From<PacketEduUriResourcePacket> for McpePacketData {
     fn from(packet: PacketEduUriResourcePacket) -> Self {
         McpePacketData::PacketEduUriResourcePacket(packet)
@@ -2767,10 +2098,6 @@ impl From<PacketEduUriResourcePacket> for McpePacket {
     fn from(packet: PacketEduUriResourcePacket) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketCreatePhoto {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketCreatePhoto;
 }
 impl From<PacketCreatePhoto> for McpePacketData {
     fn from(packet: PacketCreatePhoto) -> Self {
@@ -2782,10 +2109,6 @@ impl From<PacketCreatePhoto> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketUpdateSubchunkBlocks {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketUpdateSubchunkBlocks;
-}
 impl From<PacketUpdateSubchunkBlocks> for McpePacketData {
     fn from(packet: PacketUpdateSubchunkBlocks) -> Self {
         McpePacketData::PacketUpdateSubchunkBlocks(Box::new(packet))
@@ -2795,10 +2118,6 @@ impl From<PacketUpdateSubchunkBlocks> for McpePacket {
     fn from(packet: PacketUpdateSubchunkBlocks) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketPhotoInfoRequest {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketPhotoInfoRequest;
 }
 impl From<PacketPhotoInfoRequest> for McpePacketData {
     fn from(packet: PacketPhotoInfoRequest) -> Self {
@@ -2810,10 +2129,6 @@ impl From<PacketPhotoInfoRequest> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketSubchunk {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketSubchunk;
-}
 impl From<PacketSubchunk> for McpePacketData {
     fn from(packet: PacketSubchunk) -> Self {
         McpePacketData::PacketSubchunk(Box::new(packet))
@@ -2823,10 +2138,6 @@ impl From<PacketSubchunk> for McpePacket {
     fn from(packet: PacketSubchunk) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketSubchunkRequest {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketSubchunkRequest;
 }
 impl From<PacketSubchunkRequest> for McpePacketData {
     fn from(packet: PacketSubchunkRequest) -> Self {
@@ -2838,10 +2149,6 @@ impl From<PacketSubchunkRequest> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketClientStartItemCooldown {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketClientStartItemCooldown;
-}
 impl From<PacketClientStartItemCooldown> for McpePacketData {
     fn from(packet: PacketClientStartItemCooldown) -> Self {
         McpePacketData::PacketClientStartItemCooldown(packet)
@@ -2851,10 +2158,6 @@ impl From<PacketClientStartItemCooldown> for McpePacket {
     fn from(packet: PacketClientStartItemCooldown) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketScriptMessage {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketScriptMessage;
 }
 impl From<PacketScriptMessage> for McpePacketData {
     fn from(packet: PacketScriptMessage) -> Self {
@@ -2866,10 +2169,6 @@ impl From<PacketScriptMessage> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketCodeBuilderSource {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketCodeBuilderSource;
-}
 impl From<PacketCodeBuilderSource> for McpePacketData {
     fn from(packet: PacketCodeBuilderSource) -> Self {
         McpePacketData::PacketCodeBuilderSource(packet)
@@ -2879,10 +2178,6 @@ impl From<PacketCodeBuilderSource> for McpePacket {
     fn from(packet: PacketCodeBuilderSource) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketTickingAreasLoadStatus {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketTickingAreasLoadStatus;
 }
 impl From<PacketTickingAreasLoadStatus> for McpePacketData {
     fn from(packet: PacketTickingAreasLoadStatus) -> Self {
@@ -2894,10 +2189,6 @@ impl From<PacketTickingAreasLoadStatus> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketDimensionData {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketDimensionData;
-}
 impl From<PacketDimensionData> for McpePacketData {
     fn from(packet: PacketDimensionData) -> Self {
         McpePacketData::PacketDimensionData(packet)
@@ -2907,10 +2198,6 @@ impl From<PacketDimensionData> for McpePacket {
     fn from(packet: PacketDimensionData) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketAgentAction {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketAgentAction;
 }
 impl From<PacketAgentAction> for McpePacketData {
     fn from(packet: PacketAgentAction) -> Self {
@@ -2922,10 +2209,6 @@ impl From<PacketAgentAction> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketChangeMobProperty {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketChangeMobProperty;
-}
 impl From<PacketChangeMobProperty> for McpePacketData {
     fn from(packet: PacketChangeMobProperty) -> Self {
         McpePacketData::PacketChangeMobProperty(Box::new(packet))
@@ -2935,10 +2218,6 @@ impl From<PacketChangeMobProperty> for McpePacket {
     fn from(packet: PacketChangeMobProperty) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketLessonProgress {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketLessonProgress;
 }
 impl From<PacketLessonProgress> for McpePacketData {
     fn from(packet: PacketLessonProgress) -> Self {
@@ -2950,10 +2229,6 @@ impl From<PacketLessonProgress> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketRequestAbility {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketRequestAbility;
-}
 impl From<PacketRequestAbility> for McpePacketData {
     fn from(packet: PacketRequestAbility) -> Self {
         McpePacketData::PacketRequestAbility(Box::new(packet))
@@ -2963,10 +2238,6 @@ impl From<PacketRequestAbility> for McpePacket {
     fn from(packet: PacketRequestAbility) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketRequestPermissions {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketRequestPermissions;
 }
 impl From<PacketRequestPermissions> for McpePacketData {
     fn from(packet: PacketRequestPermissions) -> Self {
@@ -2978,10 +2249,6 @@ impl From<PacketRequestPermissions> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketToastRequest {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketToastRequest;
-}
 impl From<PacketToastRequest> for McpePacketData {
     fn from(packet: PacketToastRequest) -> Self {
         McpePacketData::PacketToastRequest(packet)
@@ -2991,10 +2258,6 @@ impl From<PacketToastRequest> for McpePacket {
     fn from(packet: PacketToastRequest) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketUpdateAbilities {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketUpdateAbilities;
 }
 impl From<PacketUpdateAbilities> for McpePacketData {
     fn from(packet: PacketUpdateAbilities) -> Self {
@@ -3006,10 +2269,6 @@ impl From<PacketUpdateAbilities> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketUpdateAdventureSettings {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketUpdateAdventureSettings;
-}
 impl From<PacketUpdateAdventureSettings> for McpePacketData {
     fn from(packet: PacketUpdateAdventureSettings) -> Self {
         McpePacketData::PacketUpdateAdventureSettings(Box::new(packet))
@@ -3020,10 +2279,6 @@ impl From<PacketUpdateAdventureSettings> for McpePacket {
         McpePacket::from(McpePacketData::from(packet))
     }
 }
-impl GamePacket for PacketDeathInfo {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketDeathInfo;
-}
 impl From<PacketDeathInfo> for McpePacketData {
     fn from(packet: PacketDeathInfo) -> Self {
         McpePacketData::PacketDeathInfo(packet)
@@ -3033,10 +2288,6 @@ impl From<PacketDeathInfo> for McpePacket {
     fn from(packet: PacketDeathInfo) -> Self {
         McpePacket::from(McpePacketData::from(packet))
     }
-}
-impl GamePacket for PacketEditorNetwork {
-    type PacketId = McpePacketName;
-    const PACKET_ID: McpePacketName = McpePacketName::PacketEditorNetwork;
 }
 impl From<PacketEditorNetwork> for McpePacketData {
     fn from(packet: PacketEditorNetwork) -> Self {
@@ -6209,15 +5460,17 @@ impl McpePacket {
         to_subclient: u32,
     ) -> Self
     where
-        P: Into<McpePacketData> + GamePacket<PacketId = McpePacketName>,
+        P: Into<McpePacketData>,
     {
+        let data: McpePacketData = payload.into();
+        let id = data.packet_id();
         Self {
             header: GameHeader {
-                id: P::PACKET_ID,
+                id,
                 from_subclient,
                 to_subclient,
             },
-            data: payload.into(),
+            data,
         }
     }
 }

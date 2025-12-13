@@ -10,48 +10,8 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-pub use crate::bedrock::protocol::v1_16_201::PacketEntityEventEventId as PacketEntityEventEventId;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketEntityEvent {
-    pub runtime_entity_id: i64,
-    pub event_id: PacketEntityEventEventId,
-    pub data: i32,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketEntityEvent {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::VarLong(self.runtime_entity_id).encode(buf)?;
-        self.event_id.encode(buf)?;
-        crate::bedrock::codec::ZigZag32(self.data).encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let runtime_entity_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let event_id = <PacketEntityEventEventId as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let data = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        Ok(Self {
-            runtime_entity_id,
-            event_id,
-            data,
-        })
-    }
-}
+pub use crate::bedrock::protocol::v1_16_210::PacketEntityEvent as PacketEntityEvent;
+pub use crate::bedrock::protocol::v1_16_210::PacketEntityEventEventId as PacketEntityEventEventId;
 #[derive(Debug, Clone, PartialEq)]
 pub struct PacketEntityPickRequest {
     pub runtime_entity_id: u64,

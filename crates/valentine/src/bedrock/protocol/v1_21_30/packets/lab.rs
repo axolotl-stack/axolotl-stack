@@ -10,40 +10,5 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
+pub use crate::bedrock::protocol::v1_16_201::PacketLabTable as PacketLabTable;
 pub use crate::bedrock::protocol::v1_16_201::PacketLabTableActionType as PacketLabTableActionType;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketLabTable {
-    pub action_type: PacketLabTableActionType,
-    pub position: Vec3I,
-    pub reaction_type: u8,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketLabTable {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        self.action_type.encode(buf)?;
-        self.position.encode(buf)?;
-        self.reaction_type.encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let action_type = <PacketLabTableActionType as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let position = <Vec3I as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let reaction_type = <u8 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        Ok(Self {
-            action_type,
-            position,
-            reaction_type,
-        })
-    }
-}

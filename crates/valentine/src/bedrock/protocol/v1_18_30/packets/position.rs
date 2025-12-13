@@ -10,72 +10,7 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
+pub use crate::bedrock::protocol::v1_16_201::PacketPositionTrackingDbBroadcast as PacketPositionTrackingDbBroadcast;
 pub use crate::bedrock::protocol::v1_16_201::PacketPositionTrackingDbBroadcastBroadcastAction as PacketPositionTrackingDbBroadcastBroadcastAction;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketPositionTrackingDbBroadcast {
-    pub broadcast_action: PacketPositionTrackingDbBroadcastBroadcastAction,
-    pub tracking_id: i32,
-    pub nbt: Vec<u8>,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketPositionTrackingDbBroadcast {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        self.broadcast_action.encode(buf)?;
-        crate::bedrock::codec::ZigZag32(self.tracking_id).encode(buf)?;
-        self.nbt.encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let broadcast_action = <PacketPositionTrackingDbBroadcastBroadcastAction as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let tracking_id = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let nbt = <Vec<u8> as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        Ok(Self {
-            broadcast_action,
-            tracking_id,
-            nbt,
-        })
-    }
-}
+pub use crate::bedrock::protocol::v1_16_201::PacketPositionTrackingDbRequest as PacketPositionTrackingDbRequest;
 pub use crate::bedrock::protocol::v1_16_201::PacketPositionTrackingDbRequestAction as PacketPositionTrackingDbRequestAction;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketPositionTrackingDbRequest {
-    pub action: PacketPositionTrackingDbRequestAction,
-    pub tracking_id: i32,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketPositionTrackingDbRequest {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        self.action.encode(buf)?;
-        crate::bedrock::codec::ZigZag32(self.tracking_id).encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let action = <PacketPositionTrackingDbRequestAction as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let tracking_id = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        Ok(Self { action, tracking_id })
-    }
-}

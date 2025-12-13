@@ -10,41 +10,4 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketHurtArmor {
-    pub cause: i32,
-    pub damage: i32,
-    pub armor_slots: i64,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketHurtArmor {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::ZigZag32(self.cause).encode(buf)?;
-        crate::bedrock::codec::ZigZag32(self.damage).encode(buf)?;
-        crate::bedrock::codec::ZigZag64(self.armor_slots).encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let cause = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let damage = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let armor_slots = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        Ok(Self { cause, damage, armor_slots })
-    }
-}
+pub use crate::bedrock::protocol::v1_17_30::PacketHurtArmor as PacketHurtArmor;

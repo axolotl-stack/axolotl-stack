@@ -10,37 +10,4 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketTickSync {
-    pub request_time: i64,
-    pub response_time: i64,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketTickSync {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::I64LE(self.request_time).encode(buf)?;
-        crate::bedrock::codec::I64LE(self.response_time).encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let request_time = <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let response_time = <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        Ok(Self {
-            request_time,
-            response_time,
-        })
-    }
-}
+pub use crate::bedrock::protocol::v1_16_201::PacketTickSync as PacketTickSync;

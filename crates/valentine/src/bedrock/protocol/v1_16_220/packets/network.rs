@@ -40,56 +40,5 @@ impl crate::bedrock::codec::BedrockCodec for PacketNetworkStackLatency {
         Ok(Self { timestamp, needs_response })
     }
 }
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketNetworkChunkPublisherUpdate {
-    pub coordinates: BlockCoordinates,
-    pub radius: i32,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketNetworkChunkPublisherUpdate {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        self.coordinates.encode(buf)?;
-        crate::bedrock::codec::VarInt(self.radius).encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let coordinates = <BlockCoordinates as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let radius = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        Ok(Self { coordinates, radius })
-    }
-}
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketNetworkSettings {
-    pub compression_threshold: u16,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketNetworkSettings {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        self.compression_threshold.encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let compression_threshold = <u16 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        Ok(Self { compression_threshold })
-    }
-}
+pub use crate::bedrock::protocol::v1_16_201::PacketNetworkChunkPublisherUpdate as PacketNetworkChunkPublisherUpdate;
+pub use crate::bedrock::protocol::v1_16_201::PacketNetworkSettings as PacketNetworkSettings;

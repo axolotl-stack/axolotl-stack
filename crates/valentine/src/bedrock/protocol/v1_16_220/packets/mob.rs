@@ -10,68 +10,8 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-pub use crate::bedrock::protocol::v1_16_201::PacketMobEffectEventId as PacketMobEffectEventId;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketMobEffect {
-    pub runtime_entity_id: i64,
-    pub event_id: PacketMobEffectEventId,
-    pub effect_id: i32,
-    pub amplifier: i32,
-    pub particles: bool,
-    pub duration: i32,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketMobEffect {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::VarLong(self.runtime_entity_id).encode(buf)?;
-        self.event_id.encode(buf)?;
-        crate::bedrock::codec::ZigZag32(self.effect_id).encode(buf)?;
-        crate::bedrock::codec::ZigZag32(self.amplifier).encode(buf)?;
-        self.particles.encode(buf)?;
-        crate::bedrock::codec::ZigZag32(self.duration).encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let runtime_entity_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let event_id = <PacketMobEffectEventId as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let effect_id = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let amplifier = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let particles = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let duration = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        Ok(Self {
-            runtime_entity_id,
-            event_id,
-            effect_id,
-            amplifier,
-            particles,
-            duration,
-        })
-    }
-}
+pub use crate::bedrock::protocol::v1_16_210::PacketMobEffect as PacketMobEffect;
+pub use crate::bedrock::protocol::v1_16_210::PacketMobEffectEventId as PacketMobEffectEventId;
 #[derive(Debug, Clone, PartialEq)]
 pub struct PacketMobEquipment {
     pub runtime_entity_id: i64,

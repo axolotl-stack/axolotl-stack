@@ -10,34 +10,5 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
+pub use crate::bedrock::protocol::v1_21_0::PacketCompletedUsingItem as PacketCompletedUsingItem;
 pub use crate::bedrock::protocol::v1_21_0::PacketCompletedUsingItemUseMethod as PacketCompletedUsingItemUseMethod;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketCompletedUsingItem {
-    pub used_item_id: i16,
-    pub use_method: PacketCompletedUsingItemUseMethod,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketCompletedUsingItem {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::I16LE(self.used_item_id).encode(buf)?;
-        self.use_method.encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let used_item_id = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let use_method = <PacketCompletedUsingItemUseMethod as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        Ok(Self { used_item_id, use_method })
-    }
-}

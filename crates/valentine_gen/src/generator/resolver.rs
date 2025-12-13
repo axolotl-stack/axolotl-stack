@@ -646,10 +646,10 @@ pub fn compute_packet_signature(
         fields.push((fname, ftype));
     }
 
+    let resolved = ResolvedContainer::analyze(container, ctx);
     let mut args_vec = Vec::new();
-    let raw_deps = get_deps(&Type::Container(container.clone()), ctx);
-    for (dep, ty) in raw_deps {
-        args_vec.push((dep.name().to_string(), canonical_type_signature(&ty, ctx)));
+    for (name, ty) in &resolved.args {
+        args_vec.push((name.clone(), canonical_type_signature(ty, ctx)));
     }
     args_vec.sort_by(|a, b| a.0.cmp(&b.0));
 

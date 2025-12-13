@@ -10,54 +10,5 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
+pub use crate::bedrock::protocol::v1_19_20::PacketFeatureRegistry as PacketFeatureRegistry;
 pub use crate::bedrock::protocol::v1_19_20::PacketFeatureRegistryFeaturesItem as PacketFeatureRegistryFeaturesItem;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketFeatureRegistry {
-    pub features: Vec<PacketFeatureRegistryFeaturesItem>,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketFeatureRegistry {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        let len = self.features.len();
-        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
-        for item in &self.features {
-            item.encode(buf)?;
-        }
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let features = {
-            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?
-                .0 as i64;
-            if raw < 0 {
-                return Err(
-                    std::io::Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        "array length cannot be negative",
-                    ),
-                );
-            }
-            let len = raw as usize;
-            let mut tmp_vec = Vec::with_capacity(len);
-            for _ in 0..len {
-                tmp_vec
-                    .push(
-                        <PacketFeatureRegistryFeaturesItem as crate::bedrock::codec::BedrockCodec>::decode(
-                            buf,
-                            (),
-                        )?,
-                    );
-            }
-            tmp_vec
-        };
-        Ok(Self { features })
-    }
-}

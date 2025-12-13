@@ -10,43 +10,5 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketMapInfoRequest {
-    pub map_id: i64,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketMapInfoRequest {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::ZigZag64(self.map_id).encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let map_id = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        Ok(Self { map_id })
-    }
-}
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketMapCreateLockedCopy {}
-impl crate::bedrock::codec::BedrockCodec for PacketMapCreateLockedCopy {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        Ok(Self {})
-    }
-}
+pub use crate::bedrock::protocol::v1_16_201::PacketMapInfoRequest as PacketMapInfoRequest;
+pub use crate::bedrock::protocol::v1_16_201::PacketMapCreateLockedCopy as PacketMapCreateLockedCopy;

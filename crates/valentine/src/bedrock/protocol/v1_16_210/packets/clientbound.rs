@@ -10,23 +10,4 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketClientboundMapItemData {
-    pub mapinfo: MapInfo,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketClientboundMapItemData {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        self.mapinfo.encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let mapinfo = <MapInfo as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        Ok(Self { mapinfo })
-    }
-}
+pub use crate::bedrock::protocol::v1_16_201::PacketClientboundMapItemData as PacketClientboundMapItemData;

@@ -52,36 +52,4 @@ impl crate::bedrock::codec::BedrockCodec for PacketEntityEvent {
         })
     }
 }
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketEntityPickRequest {
-    pub runtime_entity_id: u64,
-    pub selected_slot: u8,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketEntityPickRequest {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::U64LE(self.runtime_entity_id).encode(buf)?;
-        self.selected_slot.encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let runtime_entity_id = <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let selected_slot = <u8 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        Ok(Self {
-            runtime_entity_id,
-            selected_slot,
-        })
-    }
-}
+pub use crate::bedrock::protocol::v1_16_201::PacketEntityPickRequest as PacketEntityPickRequest;

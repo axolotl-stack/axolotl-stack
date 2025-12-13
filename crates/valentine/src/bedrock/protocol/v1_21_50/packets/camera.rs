@@ -10,86 +10,9 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketCamera {
-    pub camera_entity_unique_id: i64,
-    pub target_player_unique_id: i64,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketCamera {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::ZigZag64(self.camera_entity_unique_id).encode(buf)?;
-        crate::bedrock::codec::ZigZag64(self.target_player_unique_id).encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let camera_entity_unique_id = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let target_player_unique_id = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        Ok(Self {
-            camera_entity_unique_id,
-            target_player_unique_id,
-        })
-    }
-}
+pub use crate::bedrock::protocol::v1_16_201::PacketCamera as PacketCamera;
+pub use crate::bedrock::protocol::v1_16_210::PacketCameraShake as PacketCameraShake;
 pub use crate::bedrock::protocol::v1_16_210::PacketCameraShakeAction as PacketCameraShakeAction;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketCameraShake {
-    pub intensity: f32,
-    pub duration: f32,
-    pub type_: u8,
-    pub action: PacketCameraShakeAction,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketCameraShake {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::F32LE(self.intensity).encode(buf)?;
-        crate::bedrock::codec::F32LE(self.duration).encode(buf)?;
-        self.type_.encode(buf)?;
-        self.action.encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let intensity = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let duration = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let type_ = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let action = <PacketCameraShakeAction as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        Ok(Self {
-            intensity,
-            duration,
-            type_,
-            action,
-        })
-    }
-}
 #[derive(Debug, Clone, PartialEq)]
 pub struct PacketCameraPresets {
     pub presets: Vec<CameraPresets>,
@@ -140,129 +63,12 @@ impl crate::bedrock::codec::BedrockCodec for PacketCameraPresets {
         Ok(Self { presets })
     }
 }
+pub use crate::bedrock::protocol::v1_21_42::PacketCameraInstruction as PacketCameraInstruction;
+pub use crate::bedrock::protocol::v1_21_42::PacketCameraInstructionFade as PacketCameraInstructionFade;
 pub use crate::bedrock::protocol::v1_21_42::PacketCameraInstructionInstructionSet as PacketCameraInstructionInstructionSet;
-pub use crate::bedrock::protocol::v1_20_30::PacketCameraInstructionInstructionSetEaseData as PacketCameraInstructionInstructionSetEaseData;
-pub use crate::bedrock::protocol::v1_20_30::PacketCameraInstructionInstructionSetEaseDataType as PacketCameraInstructionInstructionSetEaseDataType;
-pub use crate::bedrock::protocol::v1_20_30::PacketCameraInstructionFade as PacketCameraInstructionFade;
-pub use crate::bedrock::protocol::v1_21_20::PacketCameraInstructionTarget as PacketCameraInstructionTarget;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketCameraInstruction {
-    pub instruction_set: Option<PacketCameraInstructionInstructionSet>,
-    pub clear: Option<bool>,
-    pub fade: Option<PacketCameraInstructionFade>,
-    pub target: Option<PacketCameraInstructionTarget>,
-    pub remove_target: Option<bool>,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketCameraInstruction {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        match &self.instruction_set {
-            Some(v) => {
-                buf.put_u8(1);
-                v.encode(buf)?;
-            }
-            None => buf.put_u8(0),
-        }
-        match &self.clear {
-            Some(v) => {
-                buf.put_u8(1);
-                (*v).encode(buf)?;
-            }
-            None => buf.put_u8(0),
-        }
-        match &self.fade {
-            Some(v) => {
-                buf.put_u8(1);
-                v.encode(buf)?;
-            }
-            None => buf.put_u8(0),
-        }
-        match &self.target {
-            Some(v) => {
-                buf.put_u8(1);
-                v.encode(buf)?;
-            }
-            None => buf.put_u8(0),
-        }
-        match &self.remove_target {
-            Some(v) => {
-                buf.put_u8(1);
-                (*v).encode(buf)?;
-            }
-            None => buf.put_u8(0),
-        }
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let instruction_set = {
-            let present = u8::decode(buf, ())?;
-            if present != 0 {
-                Some(
-                    <PacketCameraInstructionInstructionSet as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                )
-            } else {
-                None
-            }
-        };
-        let clear = {
-            let present = u8::decode(buf, ())?;
-            if present != 0 {
-                Some(<bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
-            } else {
-                None
-            }
-        };
-        let fade = {
-            let present = u8::decode(buf, ())?;
-            if present != 0 {
-                Some(
-                    <PacketCameraInstructionFade as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                )
-            } else {
-                None
-            }
-        };
-        let target = {
-            let present = u8::decode(buf, ())?;
-            if present != 0 {
-                Some(
-                    <PacketCameraInstructionTarget as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                )
-            } else {
-                None
-            }
-        };
-        let remove_target = {
-            let present = u8::decode(buf, ())?;
-            if present != 0 {
-                Some(<bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
-            } else {
-                None
-            }
-        };
-        Ok(Self {
-            instruction_set,
-            clear,
-            fade,
-            target,
-            remove_target,
-        })
-    }
-}
+pub use crate::bedrock::protocol::v1_21_42::PacketCameraInstructionInstructionSetEaseData as PacketCameraInstructionInstructionSetEaseData;
+pub use crate::bedrock::protocol::v1_21_42::PacketCameraInstructionInstructionSetEaseDataType as PacketCameraInstructionInstructionSetEaseDataType;
+pub use crate::bedrock::protocol::v1_21_42::PacketCameraInstructionTarget as PacketCameraInstructionTarget;
 #[derive(Debug, Clone, PartialEq)]
 pub struct PacketCameraAimAssist {
     pub preset_id: String,

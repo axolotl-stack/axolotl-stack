@@ -10,95 +10,9 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketNetworkStackLatency {
-    pub timestamp: u64,
-    pub needs_response: u8,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketNetworkStackLatency {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::U64LE(self.timestamp).encode(buf)?;
-        self.needs_response.encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let timestamp = <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let needs_response = <u8 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        Ok(Self { timestamp, needs_response })
-    }
-}
+pub use crate::bedrock::protocol::v1_16_220::PacketNetworkStackLatency as PacketNetworkStackLatency;
+pub use crate::bedrock::protocol::v1_19_20::PacketNetworkChunkPublisherUpdate as PacketNetworkChunkPublisherUpdate;
 pub use crate::bedrock::protocol::v1_19_20::PacketNetworkChunkPublisherUpdateSavedChunksItem as PacketNetworkChunkPublisherUpdateSavedChunksItem;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketNetworkChunkPublisherUpdate {
-    pub coordinates: BlockCoordinates,
-    pub radius: i32,
-    pub saved_chunks: Vec<PacketNetworkChunkPublisherUpdateSavedChunksItem>,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketNetworkChunkPublisherUpdate {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        self.coordinates.encode(buf)?;
-        crate::bedrock::codec::VarInt(self.radius).encode(buf)?;
-        let len = self.saved_chunks.len();
-        crate::bedrock::codec::U32LE(len as u32).encode(buf)?;
-        for item in &self.saved_chunks {
-            item.encode(buf)?;
-        }
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let coordinates = <BlockCoordinates as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let radius = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let saved_chunks = {
-            let len = (<crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?
-                .0) as usize;
-            let mut tmp_vec = Vec::with_capacity(len);
-            for _ in 0..len {
-                tmp_vec
-                    .push(
-                        <PacketNetworkChunkPublisherUpdateSavedChunksItem as crate::bedrock::codec::BedrockCodec>::decode(
-                            buf,
-                            (),
-                        )?,
-                    );
-            }
-            tmp_vec
-        };
-        Ok(Self {
-            coordinates,
-            radius,
-            saved_chunks,
-        })
-    }
-}
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u16)]
 pub enum PacketNetworkSettingsCompressionAlgorithm {

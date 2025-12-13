@@ -10,34 +10,4 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketTakeItemEntity {
-    pub runtime_entity_id: i64,
-    pub target: i32,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketTakeItemEntity {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::VarLong(self.runtime_entity_id).encode(buf)?;
-        crate::bedrock::codec::VarInt(self.target).encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let runtime_entity_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let target = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        Ok(Self { runtime_entity_id, target })
-    }
-}
+pub use crate::bedrock::protocol::v1_16_210::PacketTakeItemEntity as PacketTakeItemEntity;

@@ -10,51 +10,6 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketStructureBlockUpdate {}
-impl crate::bedrock::codec::BedrockCodec for PacketStructureBlockUpdate {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        Ok(Self {})
-    }
-}
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketStructureTemplateDataExportRequest {}
-impl crate::bedrock::codec::BedrockCodec for PacketStructureTemplateDataExportRequest {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        Ok(Self {})
-    }
-}
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketStructureTemplateDataExportResponse {}
-impl crate::bedrock::codec::BedrockCodec for PacketStructureTemplateDataExportResponse {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        Ok(Self {})
-    }
-}
+pub use crate::bedrock::protocol::v1_16_201::PacketStructureBlockUpdate as PacketStructureBlockUpdate;
+pub use crate::bedrock::protocol::v1_16_201::PacketStructureTemplateDataExportRequest as PacketStructureTemplateDataExportRequest;
+pub use crate::bedrock::protocol::v1_16_201::PacketStructureTemplateDataExportResponse as PacketStructureTemplateDataExportResponse;

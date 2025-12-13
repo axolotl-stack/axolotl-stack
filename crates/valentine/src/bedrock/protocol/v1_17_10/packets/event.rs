@@ -10,50 +10,5 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
+pub use crate::bedrock::protocol::v1_17_0::PacketEvent as PacketEvent;
 pub use crate::bedrock::protocol::v1_17_0::PacketEventEventType as PacketEventEventType;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketEvent {
-    pub runtime_id: i64,
-    pub event_type: PacketEventEventType,
-    pub use_player_id: u8,
-    pub event_data: Vec<u8>,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketEvent {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::VarLong(self.runtime_id).encode(buf)?;
-        self.event_type.encode(buf)?;
-        self.use_player_id.encode(buf)?;
-        self.event_data.encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let runtime_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let event_type = <PacketEventEventType as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let use_player_id = <u8 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let event_data = <Vec<
-            u8,
-        > as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        Ok(Self {
-            runtime_id,
-            event_type,
-            use_player_id,
-            event_data,
-        })
-    }
-}

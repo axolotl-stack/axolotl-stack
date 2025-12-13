@@ -1,10 +1,11 @@
 use crate::generator::analysis::{get_deps, should_box_variant};
 use crate::generator::codec::{generate_codec_impl, generate_enum_type_codec};
-use crate::generator::context::Context;
+use crate::generator::context::{Context, PacketSymbol};
 use crate::generator::primitives::{
     enum_value_literal, primitive_to_enum_repr_tokens, primitive_to_rust_tokens,
     primitive_to_unsigned_tokens,
 };
+use crate::generator::resolver::PacketSignature;
 use crate::generator::structs::build_container_struct;
 use crate::generator::utils::{
     camel_case, clean_type_name, compute_fingerprint, get_group_name, safe_camel_ident,
@@ -322,6 +323,10 @@ pub fn define_type(
     // FIX: Check dependencies immediately.
     let deps = get_deps(t, ctx);
     let has_args = !deps.is_empty();
+
+    if has_args && matches!(t, Type::Container(_)) {
+        ctx.argful_types.insert(safe_name_str.clone());
+    }
 
     let group = get_group_name(&safe_name_str);
     let fingerprint = compute_fingerprint(&safe_name_str, t, ctx);
@@ -764,9 +769,54 @@ pub fn define_type(
 //  DEFINE CONTAINER (Top-Level Packets)
 // ==============================================================================
 
+fn record_module_dependency_from_canonical_path(canonical_path: &str, ctx: &mut Context) {
+    if let Some(start) = canonical_path.find("::protocol::") {
+        let rest = &canonical_path[start + 12..];
+        if let Some(end) = rest.find("::") {
+            let dep_mod = &rest[..end];
+            if !ctx.current_module_path.ends_with(dep_mod) {
+                ctx.module_dependencies.insert(dep_mod.to_string());
+            }
+        }
+    }
+}
+
+fn parse_canonical_path(canonical_path: &str) -> syn::Path {
+    syn::parse_str::<syn::Path>(canonical_path).unwrap_or_else(|_| {
+        let parts: Vec<_> = canonical_path
+            .split("::")
+            .map(|s| format_ident!("{}", s))
+            .collect();
+        syn::parse_quote! { #(#parts)::* }
+    })
+}
+
+fn compute_packet_fingerprint(name: &str, signature: &PacketSignature) -> String {
+    let mut out = String::new();
+    out.push_str("packet::");
+    out.push_str(name);
+    out.push_str("::fields:[");
+    for (fname, fty) in &signature.fields {
+        out.push_str(fname);
+        out.push(':');
+        out.push_str(fty);
+        out.push(';');
+    }
+    out.push_str("]::args:[");
+    for (aname, aty) in &signature.args {
+        out.push_str(aname);
+        out.push(':');
+        out.push_str(aty);
+        out.push(';');
+    }
+    out.push(']');
+    out
+}
+
 pub fn define_container(
     name: &str,
     container: &Container,
+    signature: &PacketSignature,
     ctx: &mut Context,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let safe_name_str = clean_type_name(name);
@@ -774,14 +824,118 @@ pub fn define_container(
         return Ok(());
     }
 
+    let group = get_group_name(&safe_name_str);
+    let fingerprint = compute_packet_fingerprint(&safe_name_str, signature);
+
+    if let Some(canonical) = ctx.global_registry.get_packet(&fingerprint).cloned() {
+        record_module_dependency_from_canonical_path(&canonical.packet_path, ctx);
+        let path_ident = parse_canonical_path(&canonical.packet_path);
+        let local_ident = format_ident!("{}", safe_name_str);
+        ctx.definitions_by_group
+            .entry(group.clone())
+            .or_default()
+            .push(quote! { pub use #path_ident as #local_ident; });
+
+        if let Some(args_path) = &canonical.args_path {
+            record_module_dependency_from_canonical_path(args_path, ctx);
+            let args_path_ident = parse_canonical_path(args_path);
+            let local_args_ident = format_ident!("{}Args", safe_name_str);
+            ctx.definitions_by_group
+                .entry(group.clone())
+                .or_default()
+                .push(quote! { pub use #args_path_ident as #local_args_ident; });
+        }
+
+        let canonical_module_path = canonical
+            .packet_path
+            .rsplit_once("::")
+            .map(|(m, _)| m)
+            .unwrap_or(canonical.packet_path.as_str());
+
+        let mut seen = std::collections::HashSet::<String>::new();
+        for symbol in canonical.extra_symbols {
+            if symbol.name == safe_name_str {
+                continue;
+            }
+            if symbol.is_type && ctx.emitted.contains(&symbol.name) {
+                continue;
+            }
+            if !seen.insert(symbol.name.clone()) {
+                continue;
+            }
+
+            let canonical_symbol_path = format!("{canonical_module_path}::{}", symbol.name);
+            record_module_dependency_from_canonical_path(&canonical_symbol_path, ctx);
+            let sym_path_ident = parse_canonical_path(&canonical_symbol_path);
+            let local_sym_ident = format_ident!("{}", symbol.name);
+            let sym_group = get_group_name(&symbol.name);
+            ctx.definitions_by_group
+                .entry(sym_group)
+                .or_default()
+                .push(quote! { pub use #sym_path_ident as #local_sym_ident; });
+
+            if symbol.is_type {
+                ctx.emitted.insert(symbol.name);
+            }
+        }
+
+        ctx.emitted.insert(safe_name_str);
+        return Ok(());
+    }
+
+    let before_emitted = ctx.emitted.clone();
     ctx.emitted.insert(safe_name_str.clone());
 
     let def = build_container_struct(&safe_name_str, container, ctx)?;
     let codec = generate_codec_impl(&safe_name_str, container, ctx)?;
 
-    let group = get_group_name(&safe_name_str);
     let entry = ctx.definitions_by_group.entry(group.clone()).or_default();
     entry.push(def);
     entry.push(codec);
+
+    let canonical_packet_path = format!("{}::{}", ctx.current_module_path, safe_name_str);
+    let canonical_args_path = if signature.args.is_empty() {
+        None
+    } else {
+        Some(format!(
+            "{}::{}Args",
+            ctx.current_module_path, safe_name_str
+        ))
+    };
+
+    let mut extra_symbols: Vec<PacketSymbol> = Vec::new();
+    let mut seen = std::collections::HashSet::<String>::new();
+    for name in ctx.emitted.difference(&before_emitted) {
+        if name == &safe_name_str {
+            continue;
+        }
+        if !name.starts_with(&safe_name_str) {
+            continue;
+        }
+
+        if seen.insert(name.clone()) {
+            extra_symbols.push(PacketSymbol {
+                name: name.clone(),
+                is_type: true,
+            });
+        }
+
+        if ctx.argful_types.contains(name) {
+            let args_name = format!("{name}Args");
+            if seen.insert(args_name.clone()) {
+                extra_symbols.push(PacketSymbol {
+                    name: args_name,
+                    is_type: false,
+                });
+            }
+        }
+    }
+    extra_symbols.sort_by(|a, b| a.name.cmp(&b.name));
+    ctx.global_registry.register_packet(
+        fingerprint,
+        canonical_packet_path,
+        canonical_args_path,
+        extra_symbols,
+    );
     Ok(())
 }

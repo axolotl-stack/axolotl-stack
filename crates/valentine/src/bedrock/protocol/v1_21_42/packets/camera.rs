@@ -10,86 +10,9 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketCamera {
-    pub camera_entity_unique_id: i64,
-    pub target_player_unique_id: i64,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketCamera {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::ZigZag64(self.camera_entity_unique_id).encode(buf)?;
-        crate::bedrock::codec::ZigZag64(self.target_player_unique_id).encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let camera_entity_unique_id = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let target_player_unique_id = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        Ok(Self {
-            camera_entity_unique_id,
-            target_player_unique_id,
-        })
-    }
-}
+pub use crate::bedrock::protocol::v1_16_201::PacketCamera as PacketCamera;
+pub use crate::bedrock::protocol::v1_16_210::PacketCameraShake as PacketCameraShake;
 pub use crate::bedrock::protocol::v1_16_210::PacketCameraShakeAction as PacketCameraShakeAction;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketCameraShake {
-    pub intensity: f32,
-    pub duration: f32,
-    pub type_: u8,
-    pub action: PacketCameraShakeAction,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketCameraShake {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::F32LE(self.intensity).encode(buf)?;
-        crate::bedrock::codec::F32LE(self.duration).encode(buf)?;
-        self.type_.encode(buf)?;
-        self.action.encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let intensity = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let duration = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let type_ = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let action = <PacketCameraShakeAction as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        Ok(Self {
-            intensity,
-            duration,
-            type_,
-            action,
-        })
-    }
-}
 #[derive(Debug, Clone, PartialEq)]
 pub struct PacketCameraPresets {
     pub presets: Vec<CameraPresets>,
@@ -412,44 +335,4 @@ impl crate::bedrock::codec::BedrockCodec for PacketCameraInstruction {
         })
     }
 }
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketCameraAimAssist {
-    pub view_angle: Vec2F,
-    pub distance: f32,
-    pub target_mode: u8,
-    pub action: u8,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketCameraAimAssist {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        self.view_angle.encode(buf)?;
-        crate::bedrock::codec::F32LE(self.distance).encode(buf)?;
-        self.target_mode.encode(buf)?;
-        self.action.encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let view_angle = <Vec2F as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let distance = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let target_mode = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let action = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        Ok(Self {
-            view_angle,
-            distance,
-            target_mode,
-            action,
-        })
-    }
-}
+pub use crate::bedrock::protocol::v1_21_30::PacketCameraAimAssist as PacketCameraAimAssist;

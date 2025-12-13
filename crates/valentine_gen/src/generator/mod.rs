@@ -63,6 +63,7 @@ pub fn generate_protocol_module(
         global_registry,
         current_module_path,
         module_dependencies: HashSet::new(),
+        argful_types: HashSet::new(),
     };
 
     // 1. Emit named types
@@ -104,7 +105,7 @@ pub fn generate_protocol_module(
             format!("Packet{}", base_name)
         };
         let signature = resolver::compute_packet_signature(&struct_name, &packet.body, &ctx);
-        define_container(&struct_name, &packet.body, &mut ctx)?;
+        define_container(&struct_name, &packet.body, &signature, &mut ctx)?;
 
         packet_signatures.insert(struct_name, signature);
     }
@@ -393,7 +394,7 @@ fn generate_mcpe_packet_module(
         name_from_raw.push(quote! { #id => Ok(McpePacketName::#ident) });
     }
 
-    let mut game_packet_impls = Vec::new();
+    let mut payload_conversions = Vec::new();
     for meta in &metas {
         let variant = &meta.variant_ident;
         let payload_ident = &meta.payload_ident;
@@ -403,12 +404,7 @@ fn generate_mcpe_packet_module(
             quote! { packet }
         };
 
-        game_packet_impls.push(quote! {
-            impl GamePacket for #payload_ident {
-                type PacketId = McpePacketName;
-                const PACKET_ID: McpePacketName = McpePacketName::#variant;
-            }
-
+        payload_conversions.push(quote! {
             impl From<#payload_ident> for McpePacketData {
                 fn from(packet: #payload_ident) -> Self {
                     McpePacketData::#variant(#wrap_packet)
@@ -497,8 +493,6 @@ fn generate_mcpe_packet_module(
         pub const GAME_PACKET_ID: u8 = 0xFE;
 
         use crate::protocol::wire;
-        use crate::bedrock::codec::GamePacket;
-
         /// The `McpePacketName` enum defines the unique identifier for each Minecraft Bedrock Edition
         /// packet. Each variant corresponds to a specific packet type and its associated numeric ID.
         ///
@@ -534,7 +528,7 @@ fn generate_mcpe_packet_module(
             }
         }
 
-        #(#game_packet_impls)*
+        #(#payload_conversions)*
 
         /// Represents the header information extracted from a Minecraft Bedrock Edition game packet.
         ///
@@ -683,15 +677,17 @@ fn generate_mcpe_packet_module(
                 to_subclient: u32,
             ) -> Self
             where
-                P: Into<McpePacketData> + GamePacket<PacketId = McpePacketName>,
+                P: Into<McpePacketData>,
             {
+                let data: McpePacketData = payload.into();
+                let id = data.packet_id();
                 Self {
                     header: GameHeader {
-                        id: P::PACKET_ID,
+                        id,
                         from_subclient,
                         to_subclient,
                     },
-                    data: payload.into(),
+                    data,
                 }
             }
         }

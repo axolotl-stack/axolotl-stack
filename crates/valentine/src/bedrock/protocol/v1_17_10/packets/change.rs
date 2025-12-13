@@ -10,37 +10,4 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketChangeDimension {
-    pub dimension: i32,
-    pub position: Vec3F,
-    pub respawn: bool,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketChangeDimension {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::ZigZag32(self.dimension).encode(buf)?;
-        self.position.encode(buf)?;
-        self.respawn.encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let dimension = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        let position = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let respawn = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        Ok(Self {
-            dimension,
-            position,
-            respawn,
-        })
-    }
-}
+pub use crate::bedrock::protocol::v1_16_201::PacketChangeDimension as PacketChangeDimension;

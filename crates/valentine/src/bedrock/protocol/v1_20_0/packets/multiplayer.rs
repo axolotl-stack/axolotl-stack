@@ -10,27 +10,5 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
+pub use crate::bedrock::protocol::v1_16_201::PacketMultiplayerSettings as PacketMultiplayerSettings;
 pub use crate::bedrock::protocol::v1_16_201::PacketMultiplayerSettingsActionType as PacketMultiplayerSettingsActionType;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketMultiplayerSettings {
-    pub action_type: PacketMultiplayerSettingsActionType,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketMultiplayerSettings {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        self.action_type.encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let action_type = <PacketMultiplayerSettingsActionType as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        Ok(Self { action_type })
-    }
-}

@@ -10,25 +10,4 @@ use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketJigsawStructureData {
-    pub structure_data: Vec<u8>,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketJigsawStructureData {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        self.structure_data.encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let structure_data = <Vec<
-            u8,
-        > as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        Ok(Self { structure_data })
-    }
-}
+pub use crate::bedrock::protocol::v1_21_20::PacketJigsawStructureData as PacketJigsawStructureData;
