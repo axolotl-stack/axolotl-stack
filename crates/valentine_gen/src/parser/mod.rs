@@ -39,12 +39,15 @@ pub fn parse(path: &Path) -> Result<ParseResult, Box<dyn std::error::Error>> {
     let mappings = find_packet_mappings(packet_mapper)
         .ok_or("Could not locate packet mappings in mcpe_packet")?;
 
-    println!("Found {} mappings.", mappings.len());
-    for (i, (k, v)) in mappings.iter().take(5).enumerate() {
-        println!("Mapping[{}]: {} -> {}", i, k, v);
+    if crate::debug_enabled() {
+        println!("Found {} mappings.", mappings.len());
+        for (i, (k, v)) in mappings.iter().take(5).enumerate() {
+            println!("Mapping[{}]: {} -> {}", i, k, v);
+        }
     }
 
     let mut types_map = HashMap::new();
+    let mut type_parse_failures: usize = 0;
     // Parse all types
     for (name, def) in &protocol.types {
         match parse_type(def, &protocol.types, Some(name)) {
@@ -52,28 +55,49 @@ pub fn parse(path: &Path) -> Result<ParseResult, Box<dyn std::error::Error>> {
                 types_map.insert(name.clone(), t);
             }
             Err(e) => {
-                println!("Warning: Failed to parse type {}: {}", name, e);
+                type_parse_failures += 1;
+                if crate::debug_enabled() {
+                    println!("Warning: Failed to parse type {}: {}", name, e);
+                }
             }
         }
     }
 
-    println!("Parsed {} types.", types_map.len());
-    println!("Type keys sample: {:?}", types_map.keys().take(5).collect::<Vec<_>>());
+    if type_parse_failures > 0 && crate::debug_enabled() {
+        eprintln!(
+            "Note: {} types failed to parse for {}",
+            type_parse_failures,
+            path.display()
+        );
+    }
 
-    if let Some(login) = mappings.iter().find(|(_, v)| v.as_str() == Some("login")) {
-         println!("Mapping for login: {:?}", login);
-    } else {
-         println!("Mapping for login NOT FOUND");
-         // Maybe it has a different name?
+    if crate::debug_enabled() {
+        println!("Parsed {} types.", types_map.len());
+        println!(
+            "Type keys sample: {:?}",
+            types_map.keys().take(5).collect::<Vec<_>>()
+        );
+    }
+
+    if crate::debug_enabled() {
+        if let Some(login) = mappings.iter().find(|(_, v)| v.as_str() == Some("login")) {
+            println!("Mapping for login: {:?}", login);
+        } else {
+            println!("Mapping for login NOT FOUND");
+            // Maybe it has a different name?
+        }
     }
 
     // Check if "login_packet" or similar exists in types
     let variants = ["login", "login_packet", "packet_login", "minecraft:login"];
-    for v in variants {
-        println!("Type '{}' exists: {}", v, types_map.contains_key(v));
+    if crate::debug_enabled() {
+        for v in variants {
+            println!("Type '{}' exists: {}", v, types_map.contains_key(v));
+        }
     }
 
     let mut packets: Vec<Packet> = Vec::new();
+    let mut missing_packet_bodies: usize = 0;
     for (id_str, name_val) in mappings {
         let id: u32 = if let Some(hex) = id_str
             .strip_prefix("0x")
@@ -122,24 +146,37 @@ pub fn parse(path: &Path) -> Result<ParseResult, Box<dyn std::error::Error>> {
                 // Also try with prefixed name for fallback
                 let prefixed_name = format!("packet_{}", name);
                 if let Some(def) = protocol.types.get(&prefixed_name) {
-                     if let Ok(container) = parse_container(&prefixed_name, def, &protocol.types) {
-                         packets.push(Packet {
-                             id,
-                             name: prefixed_name.to_string(),
-                             body: container,
-                         });
-                         found_packet = true;
-                     }
+                    if let Ok(container) = parse_container(&prefixed_name, def, &protocol.types) {
+                        packets.push(Packet {
+                            id,
+                            name: prefixed_name.to_string(),
+                            body: container,
+                        });
+                        found_packet = true;
+                    }
                 }
             }
         }
 
         if !found_packet {
-            println!("Failed to find packet body for ID {} Name '{}'", id, name);
+            missing_packet_bodies += 1;
+            if crate::debug_enabled() {
+                println!("Failed to find packet body for ID {} Name '{}'", id, name);
+            }
         }
     }
-    
-    println!("Populated {} packets.", packets.len());
+
+    if missing_packet_bodies > 0 {
+        eprintln!(
+            "Warning: {} packets had no body for {}",
+            missing_packet_bodies,
+            path.display()
+        );
+    }
+
+    if crate::debug_enabled() {
+        println!("Populated {} packets.", packets.len());
+    }
 
     // Inject explicit definition for "enum_size_based_on_values_len" to replace "native" placeholder.
     // This allows us to treat it as a strongly typed Enum in the generated code.
@@ -431,12 +468,34 @@ fn parse_complex_type(
             }
         }
         "encapsulated" => {
+            let length_type = options
+                .get("lengthType")
+                .and_then(|v| v.as_str())
+                .unwrap_or("varint");
+            let length_ty = match parse_primitive_or_ref(length_type)? {
+                Type::Primitive(p) => Type::Primitive(p),
+                other => {
+                    return Err(format!(
+                        "encapsulated lengthType must be primitive, got {:?}",
+                        other
+                    ));
+                }
+            };
+
             if let Some(inner) = options.get("type") {
                 let inner_def: JsonTypeDef = serde_json::from_value(inner.clone())
                     .map_err(|e| format!("encapsulated inner error: {}", e))?;
-                parse_type(&inner_def, types_map, name_hint)
+                let inner_ty = parse_type(&inner_def, types_map, name_hint)?;
+                Ok(Type::Encapsulated {
+                    length_type: Box::new(length_ty),
+                    inner: Box::new(inner_ty),
+                })
             } else {
-                Ok(Type::Primitive(Primitive::ByteArray))
+                // Default to raw buffer with the given length prefix.
+                Ok(Type::Encapsulated {
+                    length_type: Box::new(length_ty),
+                    inner: Box::new(Type::Primitive(Primitive::ByteArray)),
+                })
             }
         }
         "option" => {
@@ -451,8 +510,48 @@ fn parse_complex_type(
                 &inner_def, types_map, None,
             )?)))
         }
-        "pstring" => Ok(Type::Primitive(Primitive::McString)),
-        "buffer" => Ok(Type::Primitive(Primitive::ByteArray)),
+        "pstring" => {
+            let count_type = options
+                .get("countType")
+                .and_then(|v| v.as_str())
+                .unwrap_or("varint");
+            let encoding = options
+                .get("encoding")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let count_ty = match parse_primitive_or_ref(count_type)? {
+                Type::Primitive(p) => Type::Primitive(p),
+                other => {
+                    return Err(format!(
+                        "pstring countType must be primitive, got {:?}",
+                        other
+                    ));
+                }
+            };
+            Ok(Type::String {
+                count_type: Box::new(count_ty),
+                encoding,
+            })
+        }
+        "buffer" => {
+            let count_type = options
+                .get("countType")
+                .and_then(|v| v.as_str())
+                .unwrap_or("varint");
+            let count_ty = match parse_primitive_or_ref(count_type)? {
+                Type::Primitive(p) => Type::Primitive(p),
+                other => {
+                    return Err(format!(
+                        "buffer countType must be primitive, got {:?}",
+                        other
+                    ));
+                }
+            };
+            Ok(Type::Array {
+                count_type: Box::new(count_ty),
+                inner_type: Box::new(Type::Primitive(Primitive::U8)),
+            })
+        }
         "enum_size_based_on_values_len" => Ok(Type::Reference(kind.to_string())),
         _ => {
             if kind == "native" {
@@ -565,7 +664,10 @@ fn parse_primitive_or_ref(s: &str) -> Result<Type, String> {
         "varlong" | "varint64" | "Varint64" => Ok(Type::Primitive(Primitive::VarLong)),
         "zigzag32" | "Zigzag32" => Ok(Type::Primitive(Primitive::ZigZag32)),
         "zigzag64" | "Zigzag64" => Ok(Type::Primitive(Primitive::ZigZag64)),
-        "string" | "pstring" | "mcpe_string" => Ok(Type::Primitive(Primitive::McString)),
+        "string" | "pstring" | "mcpe_string" => Ok(Type::String {
+            count_type: Box::new(Type::Primitive(Primitive::VarInt)),
+            encoding: None,
+        }),
         "uuid" | "mcpe_uuid" => Ok(Type::Primitive(Primitive::Uuid)),
         "void" => Ok(Type::Primitive(Primitive::Void)),
         "restBuffer" | "RestBuffer" => Ok(Type::Primitive(Primitive::ByteArray)),

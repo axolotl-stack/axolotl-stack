@@ -30,6 +30,7 @@ pub struct VersionSnapshot {
 
 #[derive(Debug, Clone)]
 pub struct GenerationOutcome {
+    pub module_dependencies: HashSet<String>,
     pub snapshot: VersionSnapshot,
 }
 
@@ -39,7 +40,7 @@ pub fn generate_protocol_module(
     output_dir: &Path,
     global_registry: &mut GlobalRegistry,
     _items_path: Option<std::path::PathBuf>,
-    previous_snapshot: Option<&VersionSnapshot>,
+    _previous_snapshot: Option<&VersionSnapshot>,
 ) -> Result<GenerationOutcome, Box<dyn std::error::Error>> {
     // Create directory for the version (or root if empty)
     let version_dir = if protocol_module_name.is_empty() {
@@ -68,10 +69,21 @@ pub fn generate_protocol_module(
     let mut type_names: Vec<_> = parse_result.types.keys().collect();
     type_names.sort();
 
+    // Packet bodies are defined as named types in the protocol schema (often `packet_*`), but we
+    // always generate them in the packet pass so we can keep packet structs version-local.
+    let packet_type_names: HashSet<&str> = parse_result
+        .packets
+        .iter()
+        .map(|p| p.name.as_str())
+        .collect();
+
     for name in type_names {
         // Skip generated mcpe meta types; we emit a custom frame-aware mcpe module instead.
         let clean = name.to_ascii_lowercase();
         if clean == "mcpe_packet" || clean == "mcpepacket" || clean == "mcpe_packet_name" {
+            continue;
+        }
+        if packet_type_names.contains(name.as_str()) {
             continue;
         }
         if let Some(t) = parse_result.types.get(name) {
@@ -81,7 +93,7 @@ pub fn generate_protocol_module(
             define_type(name, t, &mut ctx)?;
         }
     }
-    // 2. Emit Packets (top-level) with deduplication against the previous version
+    // 2. Emit Packets (top-level)
     let mut packet_signatures = HashMap::new();
 
     for packet in &parse_result.packets {
@@ -92,32 +104,7 @@ pub fn generate_protocol_module(
             format!("Packet{}", base_name)
         };
         let signature = resolver::compute_packet_signature(&struct_name, &packet.body, &ctx);
-
-        let should_alias = previous_snapshot
-            .and_then(|snap| snap.packets.get(&struct_name))
-            .map(|prev| prev == &signature)
-            .unwrap_or(false);
-
-        if should_alias {
-            if let Some(prev) = previous_snapshot {
-                let prev_ident = format_ident!("{}", prev.module_name);
-                let ident = format_ident!("{}", struct_name);
-                let mut inherited = Vec::new();
-                inherited.push(quote! { pub use super::#prev_ident::#ident; });
-                if !signature.args.is_empty() {
-                    let args_ident = format_ident!("{}Args", struct_name);
-                    inherited.push(quote! { pub use super::#prev_ident::#args_ident; });
-                }
-                ctx.definitions_by_group
-                    .entry("inherited".to_string())
-                    .or_default()
-                    .extend(inherited);
-                ctx.module_dependencies.insert(prev.module_name.clone());
-                ctx.emitted.insert(struct_name.clone());
-            }
-        } else {
-            define_container(&struct_name, &packet.body, &mut ctx)?;
-        }
+        define_container(&struct_name, &packet.body, &mut ctx)?;
 
         packet_signatures.insert(struct_name, signature);
     }
@@ -151,17 +138,28 @@ pub fn generate_protocol_module(
         let mcpe_tokens = generate_mcpe_packet_module(parse_result, &mut ctx)?;
         ctx.definitions_by_group
             .insert("types/mcpe".to_string(), vec![mcpe_tokens]);
-        println!(
-            "mcpe override inserted: {}",
-            ctx.definitions_by_group.contains_key("types/mcpe")
-        );
+        if crate::debug_enabled() {
+            println!(
+                "mcpe override inserted: {}",
+                ctx.definitions_by_group.contains_key("types/mcpe")
+            );
+        }
     } else {
-        println!("WARNING: parse_result.packets is empty!");
+        eprintln!(
+            "WARNING: parse_result.packets is empty for {}",
+            protocol_module_name
+        );
     }
 
-    println!("All groups before writing: {:?}", ctx.definitions_by_group.keys());
+    if crate::debug_enabled() {
+        println!(
+            "All groups before writing: {:?}",
+            ctx.definitions_by_group.keys()
+        );
+    }
 
     // Write files
+    let module_dependencies = ctx.module_dependencies.clone();
     let mut modules = Vec::new();
 
     // Extract "inherited" items to put directly in mod.rs
@@ -199,6 +197,7 @@ pub fn generate_protocol_module(
                 #![allow(unused_parens)]
                 #![allow(clippy::all)]
                 use ::bitflags::bitflags;
+                use bytes::{Buf, BufMut};
                 // Pull siblings from packets::* and types::* at the version root.
                 use super::*;
                 use super::super::types::*;
@@ -216,6 +215,7 @@ pub fn generate_protocol_module(
                 #![allow(unused_parens)]
                 #![allow(clippy::all)]
                 use ::bitflags::bitflags;
+                use bytes::{Buf, BufMut};
                 // Import everything from the parent module (types::*) and packets::* at the version root.
                 use super::*;
                 use super::super::packets::*;
@@ -309,17 +309,16 @@ pub fn generate_protocol_module(
         packets: packet_signatures,
     };
 
-    Ok(GenerationOutcome { snapshot })
+    Ok(GenerationOutcome {
+        module_dependencies,
+        snapshot,
+    })
 }
 
 fn generate_mcpe_packet_module(
     parse_result: &ParseResult,
     ctx: &mut Context,
 ) -> Result<TokenStream, Box<dyn std::error::Error>> {
-    let _ = std::fs::write(
-        "C:/Users/jvigu/OneDrive/Documents/rust/axolotl-stack/mcpe_gen_marker.txt",
-        "mcpe generator ran",
-    );
     #[derive(Clone)]
     struct PacketMeta {
         id: u32,
@@ -359,17 +358,18 @@ fn generate_mcpe_packet_module(
                 let clean = clean_field_name(dep.name(), "");
                 let field_ident = format_ident!("{}", clean);
                 let hint = format!("{}{}", payload_ident, camel_case(dep.name()));
-                
+
                 let ty_tokens = if clean == "shield_item_id" {
                     quote! { i32 }
                 } else {
                     resolve_type_to_tokens(&dep_ty, &hint, ctx)?
                 };
 
-                arg_fields
-                    .entry(clean.clone())
-                    .or_insert((ty_tokens.clone(), matches!(dep, crate::generator::analysis::Dependency::LocalField(_))));
-                fields.push(quote! { #field_ident: args.#field_ident });
+                arg_fields.entry(clean.clone()).or_insert((
+                    ty_tokens.clone(),
+                    matches!(dep, crate::generator::analysis::Dependency::LocalField(_)),
+                ));
+                fields.push(quote! { #field_ident: _args.#field_ident });
             }
             decode_args = quote! { #args_ident { #(#fields),* } };
         }
@@ -565,8 +565,9 @@ fn generate_mcpe_packet_module(
                 }
             }
 
-            /// Encodes the packet payload into a game frame, including the game header and length prefix.
-            pub fn encode_game_frame<B: bytes::BufMut>(
+            /// Encodes the packet payload as a batch entry: `[Length] [Header] [Body]`.
+            /// This is used inside Batch packets.
+            pub fn encode_inner<B: bytes::BufMut>(
                 &self,
                 buf: &mut B,
                 from_subclient: u32,
@@ -584,29 +585,29 @@ fn generate_mcpe_packet_module(
                 wire::write_var_u32(&mut header_buf, header);
                 let total_len = header_buf.len() + payload_buf.len();
 
-                buf.put_u8(GAME_PACKET_ID);
                 wire::write_var_u32(buf, total_len as u32);
                 buf.put_slice(&header_buf);
                 buf.put_slice(&payload_buf);
                 Ok(())
             }
 
-            /// Decodes a game frame from the provided buffer, returning the header and the packet payload.
-            pub fn decode_game_frame<B: bytes::Buf>(
+            /// Encodes the packet payload into a game frame: `[0xFE] [Length] [Header] [Body]`.
+            pub fn encode_game_frame<B: bytes::BufMut>(
+                &self,
                 buf: &mut B,
-                args: McpePacketArgs,
-            ) -> Result<(GameHeader, Self), std::io::Error> {
-                if !buf.has_remaining() {
-                    return Err(std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "game packet eof"));
-                }
-                let leading = buf.get_u8();
-                if leading != GAME_PACKET_ID {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        format!("expected GAME_PACKET_ID=0x{GAME_PACKET_ID:02x}, got 0x{leading:02x}"),
-                    ));
-                }
+                from_subclient: u32,
+                to_subclient: u32,
+            ) -> Result<(), std::io::Error> {
+                buf.put_u8(GAME_PACKET_ID);
+                self.encode_inner(buf, from_subclient, to_subclient)
+            }
 
+            /// Decodes a batch entry from the provided buffer: `[Length] [Header] [Body]`.
+            /// Returns the header and the packet payload.
+            pub fn decode_inner<B: bytes::Buf>(
+                buf: &mut B,
+                _args: McpePacketArgs,
+            ) -> Result<(GameHeader, Self), std::io::Error> {
                 let declared_len = wire::read_var_u32(buf)? as usize;
                 if buf.remaining() < declared_len {
                     return Err(std::io::Error::new(
@@ -634,6 +635,24 @@ fn generate_mcpe_packet_module(
                     },
                     packet,
                 ))
+            }
+
+            /// Decodes a game frame from the provided buffer: `[0xFE] [Length] [Header] [Body]`.
+            pub fn decode_game_frame<B: bytes::Buf>(
+                buf: &mut B,
+                _args: McpePacketArgs,
+            ) -> Result<(GameHeader, Self), std::io::Error> {
+                if !buf.has_remaining() {
+                    return Err(std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "game packet eof"));
+                }
+                let leading = buf.get_u8();
+                if leading != GAME_PACKET_ID {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        format!("expected GAME_PACKET_ID=0x{GAME_PACKET_ID:02x}, got 0x{leading:02x}"),
+                    ));
+                }
+                Self::decode_inner(buf, _args)
             }
         }
 

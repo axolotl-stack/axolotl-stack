@@ -33,9 +33,13 @@ pub fn primitive_to_unsigned_tokens(p: &Primitive) -> TokenStream {
         Primitive::U16 | Primitive::U16LE => quote! { u16 },
         Primitive::I16 | Primitive::I16LE => quote! { u16 },
         Primitive::U32 | Primitive::U32LE => quote! { u32 },
-        Primitive::I32 | Primitive::I32LE | Primitive::VarInt | Primitive::ZigZag32 => quote! { u32 },
+        Primitive::I32 | Primitive::I32LE | Primitive::VarInt | Primitive::ZigZag32 => {
+            quote! { u32 }
+        }
         Primitive::U64 | Primitive::U64LE => quote! { u64 },
-        Primitive::I64 | Primitive::I64LE | Primitive::VarLong | Primitive::ZigZag64 => quote! { u64 },
+        Primitive::I64 | Primitive::I64LE | Primitive::VarLong | Primitive::ZigZag64 => {
+            quote! { u64 }
+        }
         _ => quote! { u64 },
     }
 }
@@ -47,9 +51,13 @@ pub fn primitive_to_enum_repr_tokens(p: &Primitive) -> TokenStream {
         Primitive::U16 | Primitive::U16LE => quote! { u16 },
         Primitive::I16 | Primitive::I16LE => quote! { i16 },
         Primitive::U32 | Primitive::U32LE => quote! { u32 },
-        Primitive::I32 | Primitive::I32LE | Primitive::VarInt | Primitive::ZigZag32 => quote! { i32 },
+        Primitive::I32 | Primitive::I32LE | Primitive::VarInt | Primitive::ZigZag32 => {
+            quote! { i32 }
+        }
         Primitive::U64 | Primitive::U64LE => quote! { u64 },
-        Primitive::I64 | Primitive::I64LE | Primitive::VarLong | Primitive::ZigZag64 => quote! { i64 },
+        Primitive::I64 | Primitive::I64LE | Primitive::VarLong | Primitive::ZigZag64 => {
+            quote! { i64 }
+        }
         _ => quote! { i32 },
     }
 }

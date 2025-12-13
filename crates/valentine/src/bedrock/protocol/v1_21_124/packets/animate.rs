@@ -6,79 +6,12 @@
 #![allow(unused_parens)]
 #![allow(clippy::all)]
 use ::bitflags::bitflags;
+use bytes::{Buf, BufMut};
 use super::*;
 use super::super::types::*;
 use crate::bedrock::codec::BedrockCodec;
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[repr(i32)]
-pub enum PacketAnimateActionId {
-    None = 0,
-    SwingArm = 1,
-    Unknown = 2,
-    WakeUp = 3,
-    CriticalHit = 4,
-    MagicCriticalHit = 5,
-    RowRight = 128,
-    RowLeft = 129,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketAnimateActionId {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let val = *self as i32;
-        val.encode(buf)
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let val = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        match val {
-            0 => Ok(PacketAnimateActionId::None),
-            1 => Ok(PacketAnimateActionId::SwingArm),
-            2 => Ok(PacketAnimateActionId::Unknown),
-            3 => Ok(PacketAnimateActionId::WakeUp),
-            4 => Ok(PacketAnimateActionId::CriticalHit),
-            5 => Ok(PacketAnimateActionId::MagicCriticalHit),
-            128 => Ok(PacketAnimateActionId::RowRight),
-            129 => Ok(PacketAnimateActionId::RowLeft),
-            _ => {
-                Err(
-                    std::io::Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        format!(
-                            "Invalid enum value for {}: {}",
-                            stringify!(PacketAnimateActionId), val
-                        ),
-                    ),
-                )
-            }
-        }
-    }
-}
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketAnimateContentRowLeft {
-    pub rowing_time: f32,
-}
-impl crate::bedrock::codec::BedrockCodec for PacketAnimateContentRowLeft {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::F32LE(self.rowing_time).encode(buf)?;
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let _ = buf;
-        let rowing_time = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
-        Ok(Self { rowing_time })
-    }
-}
+pub use crate::bedrock::protocol::v1_16_201::PacketAnimateActionId as PacketAnimateActionId;
+pub use crate::bedrock::protocol::v1_21_120::PacketAnimateContentRowLeft as PacketAnimateContentRowLeft;
 #[derive(Debug, Clone, PartialEq)]
 pub enum PacketAnimateContent {
     RowLeft(PacketAnimateContentRowLeft),
@@ -174,11 +107,63 @@ impl crate::bedrock::codec::BedrockCodec for PacketAnimateEntity {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        self.animation.encode(buf)?;
-        self.next_state.encode(buf)?;
-        self.stop_condition.encode(buf)?;
+        let bytes: Vec<u8> = if "".eq_ignore_ascii_case("latin1") {
+            (&self.animation)
+                .chars()
+                .map(|ch| {
+                    let code = ch as u32;
+                    if code <= 0xFF { code as u8 } else { b'?' }
+                })
+                .collect()
+        } else {
+            (&self.animation).as_bytes().to_vec()
+        };
+        let len = bytes.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
+        buf.put_slice(&bytes);
+        let bytes: Vec<u8> = if "".eq_ignore_ascii_case("latin1") {
+            (&self.next_state)
+                .chars()
+                .map(|ch| {
+                    let code = ch as u32;
+                    if code <= 0xFF { code as u8 } else { b'?' }
+                })
+                .collect()
+        } else {
+            (&self.next_state).as_bytes().to_vec()
+        };
+        let len = bytes.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
+        buf.put_slice(&bytes);
+        let bytes: Vec<u8> = if "".eq_ignore_ascii_case("latin1") {
+            (&self.stop_condition)
+                .chars()
+                .map(|ch| {
+                    let code = ch as u32;
+                    if code <= 0xFF { code as u8 } else { b'?' }
+                })
+                .collect()
+        } else {
+            (&self.stop_condition).as_bytes().to_vec()
+        };
+        let len = bytes.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
+        buf.put_slice(&bytes);
         crate::bedrock::codec::I32LE(self.stop_condition_version).encode(buf)?;
-        self.controller.encode(buf)?;
+        let bytes: Vec<u8> = if "".eq_ignore_ascii_case("latin1") {
+            (&self.controller)
+                .chars()
+                .map(|ch| {
+                    let code = ch as u32;
+                    if code <= 0xFF { code as u8 } else { b'?' }
+                })
+                .collect()
+        } else {
+            (&self.controller).as_bytes().to_vec()
+        };
+        let len = bytes.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
+        buf.put_slice(&bytes);
         crate::bedrock::codec::F32LE(self.blend_out_time).encode(buf)?;
         let len = self.runtime_entity_ids.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
@@ -192,38 +177,171 @@ impl crate::bedrock::codec::BedrockCodec for PacketAnimateEntity {
         _args: Self::Args,
     ) -> Result<Self, std::io::Error> {
         let _ = buf;
-        let animation = <String as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let next_state = <String as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
-        let stop_condition = <String as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let animation = {
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+                    buf,
+                    (),
+                )?
+                .0) as i64;
+            if len_raw < 0 {
+                return Err(
+                    std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "string length cannot be negative",
+                    ),
+                );
+            }
+            let len = len_raw as usize;
+            if buf.remaining() < len {
+                return Err(
+                    std::io::Error::new(
+                        std::io::ErrorKind::UnexpectedEof,
+                        format!(
+                            "string declared length {} exceeds remaining {}", len, buf
+                            .remaining()
+                        ),
+                    ),
+                );
+            }
+            let mut bytes = vec![0u8; len];
+            buf.copy_to_slice(&mut bytes);
+            let s = if "".eq_ignore_ascii_case("latin1") {
+                bytes.into_iter().map(|b| b as char).collect::<String>()
+            } else {
+                String::from_utf8_lossy(&bytes).into_owned()
+            };
+            s
+        };
+        let next_state = {
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+                    buf,
+                    (),
+                )?
+                .0) as i64;
+            if len_raw < 0 {
+                return Err(
+                    std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "string length cannot be negative",
+                    ),
+                );
+            }
+            let len = len_raw as usize;
+            if buf.remaining() < len {
+                return Err(
+                    std::io::Error::new(
+                        std::io::ErrorKind::UnexpectedEof,
+                        format!(
+                            "string declared length {} exceeds remaining {}", len, buf
+                            .remaining()
+                        ),
+                    ),
+                );
+            }
+            let mut bytes = vec![0u8; len];
+            buf.copy_to_slice(&mut bytes);
+            let s = if "".eq_ignore_ascii_case("latin1") {
+                bytes.into_iter().map(|b| b as char).collect::<String>()
+            } else {
+                String::from_utf8_lossy(&bytes).into_owned()
+            };
+            s
+        };
+        let stop_condition = {
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+                    buf,
+                    (),
+                )?
+                .0) as i64;
+            if len_raw < 0 {
+                return Err(
+                    std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "string length cannot be negative",
+                    ),
+                );
+            }
+            let len = len_raw as usize;
+            if buf.remaining() < len {
+                return Err(
+                    std::io::Error::new(
+                        std::io::ErrorKind::UnexpectedEof,
+                        format!(
+                            "string declared length {} exceeds remaining {}", len, buf
+                            .remaining()
+                        ),
+                    ),
+                );
+            }
+            let mut bytes = vec![0u8; len];
+            buf.copy_to_slice(&mut bytes);
+            let s = if "".eq_ignore_ascii_case("latin1") {
+                bytes.into_iter().map(|b| b as char).collect::<String>()
+            } else {
+                String::from_utf8_lossy(&bytes).into_owned()
+            };
+            s
+        };
         let stop_condition_version = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let controller = <String as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?;
+        let controller = {
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+                    buf,
+                    (),
+                )?
+                .0) as i64;
+            if len_raw < 0 {
+                return Err(
+                    std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "string length cannot be negative",
+                    ),
+                );
+            }
+            let len = len_raw as usize;
+            if buf.remaining() < len {
+                return Err(
+                    std::io::Error::new(
+                        std::io::ErrorKind::UnexpectedEof,
+                        format!(
+                            "string declared length {} exceeds remaining {}", len, buf
+                            .remaining()
+                        ),
+                    ),
+                );
+            }
+            let mut bytes = vec![0u8; len];
+            buf.copy_to_slice(&mut bytes);
+            let s = if "".eq_ignore_ascii_case("latin1") {
+                bytes.into_iter().map(|b| b as char).collect::<String>()
+            } else {
+                String::from_utf8_lossy(&bytes).into_owned()
+            };
+            s
+        };
         let blend_out_time = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
         let runtime_entity_ids = {
-            let len = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
-                .0 as usize;
+                .0 as i64;
+            if raw < 0 {
+                return Err(
+                    std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "array length cannot be negative",
+                    ),
+                );
+            }
+            let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec

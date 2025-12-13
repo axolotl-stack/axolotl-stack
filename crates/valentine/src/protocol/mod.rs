@@ -3,4 +3,3 @@
 //! Low-level binary helpers live in `wire`.
 
 pub mod wire;
-

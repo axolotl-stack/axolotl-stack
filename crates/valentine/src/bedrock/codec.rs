@@ -1,9 +1,9 @@
 use bytes::{Buf, BufMut};
-use uuid::Uuid;
 use std::mem;
+use uuid::Uuid;
 
-use crate::protocol::wire;
 use crate::bedrock::context::BedrockSession;
+use crate::protocol::wire;
 
 /// Bedrock binary codec for encode/decode on the wire.
 pub trait BedrockCodec: Sized {
@@ -312,7 +312,8 @@ impl BedrockCodec for String {
         }
         let mut v = vec![0u8; len];
         buf.copy_to_slice(&mut v);
-        String::from_utf8(v).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+        // Bedrock strings may contain arbitrary bytes; tolerate invalid UTF-8 by lossily decoding.
+        Ok(String::from_utf8_lossy(&v).into_owned())
     }
 }
 

@@ -130,6 +130,21 @@ fn collect_deps_recursive(
                 deps.extend(tmp);
             }
         }
+        Type::String { count_type, .. } => {
+            if let Type::Container(_) = count_type.as_ref() {
+                let mut tmp = DepMap::new();
+                collect_deps_recursive(count_type, ctx, visited, &mut tmp);
+                deps.extend(tmp);
+            }
+        }
+        Type::Encapsulated { length_type, inner } => {
+            collect_deps_recursive(inner, ctx, visited, deps);
+            if let Type::Container(_) = length_type.as_ref() {
+                let mut tmp = DepMap::new();
+                collect_deps_recursive(length_type, ctx, visited, &mut tmp);
+                deps.extend(tmp);
+            }
+        }
         Type::Option(inner) => {
             collect_deps_recursive(inner, ctx, visited, deps);
         }
@@ -147,6 +162,8 @@ pub fn should_box_variant(t: &Type, ctx: &Context, depth: usize) -> bool {
             _ => false,
         },
         Type::Array { .. } => false,
+        Type::String { .. } => false,
+        Type::Encapsulated { .. } => false,
         Type::Reference(r) => {
             if let Some(inner) = ctx.type_lookup.get(r) {
                 should_box_variant(inner, ctx, depth + 1)

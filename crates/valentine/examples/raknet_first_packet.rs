@@ -8,7 +8,7 @@ use tokio_raknet::transport::RaknetStream;
 use valentine::bedrock::{
     codec::BedrockCodec,
     context::BedrockSession,
-    protocol::v1_21_124::{
+    protocol::v1_21_130::{
         packets::PacketRequestNetworkSettings,
         types::mcpe::McpePacket,
         types::mcpe::McpePacketData, // Still need McpePacketData for matching

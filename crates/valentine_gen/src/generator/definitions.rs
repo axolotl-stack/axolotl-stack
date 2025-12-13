@@ -14,6 +14,49 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use std::collections::HashSet;
 
+fn emit_inline_types_for_dedup(
+    parent_name: &str,
+    t: &Type,
+    ctx: &mut Context,
+) -> Result<(), Box<dyn std::error::Error>> {
+    match t {
+        Type::Primitive(_)
+        | Type::Reference(_)
+        | Type::Enum { .. }
+        | Type::Bitfield { .. }
+        | Type::Packed { .. } => Ok(()),
+        Type::String { .. } => Ok(()),
+        Type::Encapsulated { inner, .. } => {
+            let _ = resolve_type_to_tokens(inner.as_ref(), parent_name, ctx)?;
+            Ok(())
+        }
+        Type::Container(c) => {
+            let _ = build_container_struct(parent_name, c, ctx)?;
+            Ok(())
+        }
+        Type::Array { inner_type, .. } => {
+            let _ =
+                resolve_type_to_tokens(inner_type.as_ref(), &format!("{parent_name}Item"), ctx)?;
+            Ok(())
+        }
+        Type::Option(inner) => {
+            let _ = resolve_type_to_tokens(inner.as_ref(), parent_name, ctx)?;
+            Ok(())
+        }
+        Type::Switch {
+            fields, default, ..
+        } => {
+            for (case_name, case_type) in fields.iter() {
+                let hint = format!("{parent_name}{}", camel_case(case_name));
+                let _ = resolve_type_to_tokens(case_type, &hint, ctx)?;
+            }
+            let _ =
+                resolve_type_to_tokens(default.as_ref(), &format!("{parent_name}Default"), ctx)?;
+            Ok(())
+        }
+    }
+}
+
 // ==============================================================================
 //  FINGERPRINTING (For Deduplication)
 // ==============================================================================
@@ -21,6 +64,15 @@ use std::collections::HashSet;
 pub fn fingerprint_type(t: &Type) -> String {
     match t {
         Type::Primitive(p) => format!("P:{:?}", p),
+        Type::String {
+            count_type,
+            encoding,
+        } => format!("S:{:?}:{}", encoding, fingerprint_type(count_type.as_ref())),
+        Type::Encapsulated { length_type, inner } => format!(
+            "E:encap:{}:{}",
+            fingerprint_type(length_type.as_ref()),
+            fingerprint_type(inner.as_ref())
+        ),
         Type::Reference(r) => format!("R:{}", clean_type_name(r)),
         Type::Container(c) => {
             let mut s = String::from("C:[");
@@ -105,8 +157,15 @@ pub fn resolve_type_to_tokens(
             Primitive::VarLong | Primitive::ZigZag64 => quote! { i64 },
             _ => primitive_to_rust_tokens(p),
         },
+        Type::String { .. } => quote! { String },
+        Type::Encapsulated { inner, .. } => resolve_type_to_tokens(inner, hint, ctx)?,
         Type::Reference(r) => {
             let name = clean_type_name(r);
+
+            // Expose LittleString as String to consumers; we still use the wire codec in encode/decode.
+            if name == "LittleString" {
+                return Ok(quote! { String });
+            }
 
             // OPTIMIZATION: Check for "Inverse Option"
             if let Some(found) = ctx.type_lookup.get(r).cloned() {
@@ -264,6 +323,7 @@ pub fn define_type(
     let deps = get_deps(t, ctx);
     let has_args = !deps.is_empty();
 
+    let group = get_group_name(&safe_name_str);
     let fingerprint = compute_fingerprint(&safe_name_str, t, ctx);
 
     // Only attempt deduplication if there are NO arguments.
@@ -291,11 +351,84 @@ pub fn define_type(
             let local_ident = format_ident!("{}", safe_name_str);
             let def = quote! { pub use #path_ident as #local_ident; };
 
-            let group = "inherited".to_string();
-            ctx.definitions_by_group.entry(group).or_default().push(def);
-            ctx.emitted.insert(safe_name_str);
+            ctx.definitions_by_group
+                .entry(group.clone())
+                .or_default()
+                .push(def);
+            ctx.emitted.insert(safe_name_str.clone());
+            emit_inline_types_for_dedup(&safe_name_str, t, ctx)?;
             return Ok(());
         }
+    }
+
+    // Special-case: LittleString custom implementation (length as little-endian u32).
+    if safe_name_str == "LittleString" {
+        ctx.in_progress.insert(safe_name_str.clone());
+        let def = quote! {
+            #[derive(Debug, Clone, PartialEq)]
+            pub struct LittleString(pub String);
+
+            impl From<LittleString> for String {
+                fn from(value: LittleString) -> Self {
+                    value.0
+                }
+            }
+
+            impl std::ops::Deref for LittleString {
+                type Target = String;
+                fn deref(&self) -> &Self::Target {
+                    &self.0
+                }
+            }
+
+            impl AsRef<str> for LittleString {
+                fn as_ref(&self) -> &str {
+                    &self.0
+                }
+            }
+
+            impl AsRef<[u8]> for LittleString {
+                fn as_ref(&self) -> &[u8] {
+                    self.0.as_bytes()
+                }
+            }
+
+            impl crate::bedrock::codec::BedrockCodec for LittleString {
+                type Args = ();
+                fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+                    let bytes = self.0.as_bytes();
+                    let len = bytes.len() as u32;
+                    crate::bedrock::codec::U32LE(len).encode(buf)?;
+                    buf.put_slice(bytes);
+                    Ok(())
+                }
+
+                fn decode<B: bytes::Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
+                    let len_raw = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0;
+                    let len = len_raw as usize;
+                    if buf.remaining() < len {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::UnexpectedEof,
+                            "little string eof",
+                        ));
+                    }
+                    let mut v = vec![0u8; len];
+                    buf.copy_to_slice(&mut v);
+                    Ok(LittleString(String::from_utf8_lossy(&v).into_owned()))
+                }
+            }
+        };
+        ctx.definitions_by_group
+            .entry(group.clone())
+            .or_default()
+            .push(def);
+        ctx.in_progress.remove(&safe_name_str);
+        ctx.emitted.insert(safe_name_str.clone());
+        if !has_args {
+            let canonical_path = format!("{}::{}", ctx.current_module_path, safe_name_str);
+            ctx.global_registry.register(fingerprint, canonical_path);
+        }
+        return Ok(());
     }
 
     ctx.in_progress.insert(safe_name_str.clone());
@@ -314,12 +447,22 @@ pub fn define_type(
             let ref_ident = format_ident!("{}", clean_type_name(r));
             quote! { pub type #ident = #ref_ident; }
         }
+        Type::String { .. } => {
+            quote! { pub type #ident = String; }
+        }
+        Type::Encapsulated { inner, .. } => {
+            let inner_tokens = resolve_type_to_tokens(inner, &safe_name_str, ctx)?;
+            quote! { pub type #ident = #inner_tokens; }
+        }
         Type::Container(c) => {
             let struct_def = build_container_struct(&safe_name_str, c, ctx)?;
             let codec_def = generate_codec_impl(&safe_name_str, c, ctx)?;
             quote! { #struct_def #codec_def }
         }
-        Type::Array { inner_type, .. } => {
+        Type::Array {
+            inner_type,
+            count_type: _,
+        } => {
             let inner_tokens =
                 resolve_type_to_tokens(inner_type, &format!("{}Item", safe_name_str), ctx)?;
             quote! { pub type #ident = Vec<#inner_tokens>; }
@@ -600,7 +743,6 @@ pub fn define_type(
         }
     };
 
-    let group = get_group_name(&safe_name_str);
     ctx.definitions_by_group
         .entry(group.clone())
         .or_default()
@@ -611,7 +753,7 @@ pub fn define_type(
 
     // Only register for deduplication if we did NOT have args.
     if !has_args {
-        let canonical_path = format!("{}::{}::{}", ctx.current_module_path, group, safe_name_str);
+        let canonical_path = format!("{}::{}", ctx.current_module_path, safe_name_str);
         ctx.global_registry.register(fingerprint, canonical_path);
     }
 
@@ -632,43 +774,6 @@ pub fn define_container(
         return Ok(());
     }
 
-    // FIX: Check dependencies first
-    let deps = get_deps(&Type::Container(container.clone()), ctx);
-    let has_args = !deps.is_empty();
-
-    let fingerprint = compute_fingerprint(&safe_name_str, &Type::Container(container.clone()), ctx);
-
-    // Only deduplicate if NO args
-    if !has_args {
-        if let Some(canonical_path) = ctx.global_registry.get(&fingerprint) {
-            if let Some(start) = canonical_path.find("::protocol::") {
-                let rest = &canonical_path[start + 12..];
-                if let Some(end) = rest.find("::") {
-                    let dep_mod = &rest[..end];
-                    if !ctx.current_module_path.ends_with(dep_mod) {
-                        ctx.module_dependencies.insert(dep_mod.to_string());
-                    }
-                }
-            }
-            let path_ident = syn::parse_str::<syn::Path>(canonical_path).unwrap_or_else(|_| {
-                let parts: Vec<_> = canonical_path
-                    .split("::")
-                    .map(|s| format_ident!("{}", s))
-                    .collect();
-                syn::parse_quote! { #(#parts)::* }
-            });
-
-            // CHANGED: Use `as` renaming for packets too, just in case
-            let local_ident = format_ident!("{}", safe_name_str);
-            let def = quote! { pub use #path_ident as #local_ident; };
-
-            let group = "inherited".to_string();
-            ctx.definitions_by_group.entry(group).or_default().push(def);
-            ctx.emitted.insert(safe_name_str);
-            return Ok(());
-        }
-    }
-
     ctx.emitted.insert(safe_name_str.clone());
 
     let def = build_container_struct(&safe_name_str, container, ctx)?;
@@ -678,11 +783,5 @@ pub fn define_container(
     let entry = ctx.definitions_by_group.entry(group.clone()).or_default();
     entry.push(def);
     entry.push(codec);
-
-    // Only register if no args
-    if !has_args {
-        let canonical_path = format!("{}::{}::{}", ctx.current_module_path, group, safe_name_str);
-        ctx.global_registry.register(fingerprint, canonical_path);
-    }
     Ok(())
 }

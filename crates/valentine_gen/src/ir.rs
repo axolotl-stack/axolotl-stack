@@ -20,13 +20,14 @@ pub enum Primitive {
     F32LE,
     F64,
     F64LE,
-    VarInt,    // Maps to i32, encoded as varint
-    VarLong,   // Maps to i64, encoded as varlong
-    ZigZag32,  // i32 encoded via zigzag varint
-    ZigZag64,  // i64 encoded via zigzag varlong
-    McString,  // The 'pstring' or 'string' type
-    Uuid,      // mcpe_uuid
-    Void,      // explicitly nothing
+    VarInt,   // Maps to i32, encoded as varint
+    VarLong,  // Maps to i64, encoded as varlong
+    ZigZag32, // i32 encoded via zigzag varint
+    ZigZag64, // i64 encoded via zigzag varlong
+    #[allow(dead_code)]
+    McString, // The 'pstring' or 'string' type
+    Uuid,     // mcpe_uuid
+    Void,     // explicitly nothing
     ByteArray, // 'restBuffer' or raw byte arrays
 }
 
@@ -35,6 +36,18 @@ pub enum Primitive {
 pub enum Type {
     /// A simple primitive (e.g., "count": "varint")
     Primitive(Primitive),
+
+    /// A length-prefixed string with an explicit length encoding and optional charset hint
+    String {
+        count_type: Box<Type>,
+        encoding: Option<String>,
+    },
+
+    /// An encapsulated (length-prefixed) inner type
+    Encapsulated {
+        length_type: Box<Type>,
+        inner: Box<Type>,
+    },
 
     /// A reference to a named type defined elsewhere (e.g., "type": "Item")
     /// The generator will treat this as a struct name.

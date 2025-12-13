@@ -110,14 +110,8 @@ pub fn compute_fingerprint(
     t: &crate::ir::Type,
     ctx: &crate::generator::context::Context,
 ) -> String {
-    use crate::generator::definitions::fingerprint_type;
-    // Include the name AND the module path (version) to differentiate identically structured types across versions
-    format!(
-        "{}::{}::{}",
-        ctx.current_module_path,
-        name,
-        fingerprint_type(t)
-    )
+    let sig = crate::generator::resolver::canonical_type_signature(t, ctx);
+    format!("{name}::{sig}")
 }
 
 pub fn make_unique_names(base_names: &[String]) -> Vec<String> {

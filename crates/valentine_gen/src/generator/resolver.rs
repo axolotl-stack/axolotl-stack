@@ -1,6 +1,8 @@
 use crate::generator::analysis::{find_redundant_fields, get_deps};
 use crate::generator::context::Context;
-use crate::generator::utils::{clean_field_name, clean_type_name, derive_field_names, safe_camel_ident};
+use crate::generator::utils::{
+    clean_field_name, clean_type_name, derive_field_names, safe_camel_ident,
+};
 use crate::ir::{Container, Type};
 use std::collections::{HashMap, HashSet};
 
@@ -500,13 +502,26 @@ fn clean_path(path: &str) -> String {
     clean_field_name(base, "")
 }
 
-fn canonical_type_signature(ty: &Type, ctx: &Context) -> String {
+pub fn canonical_type_signature(ty: &Type, ctx: &Context) -> String {
     canonical_type_signature_inner(ty, ctx, &mut HashSet::new())
 }
 
 fn canonical_type_signature_inner(ty: &Type, ctx: &Context, seen: &mut HashSet<String>) -> String {
     match ty {
         Type::Primitive(p) => format!("P:{:?}", p),
+        Type::String {
+            count_type,
+            encoding,
+        } => format!(
+            "PS:{:?}:{}",
+            encoding,
+            canonical_type_signature_inner(count_type, ctx, seen)
+        ),
+        Type::Encapsulated { length_type, inner } => format!(
+            "ENC:{}:{}",
+            canonical_type_signature_inner(length_type, ctx, seen),
+            canonical_type_signature_inner(inner, ctx, seen)
+        ),
         Type::Reference(r) => {
             let clean = clean_type_name(r);
             if seen.contains(&clean) {

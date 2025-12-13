@@ -15,7 +15,10 @@ pub fn read_var_u32<B: Buf>(buf: &mut B) -> Result<u32, std::io::Error> {
     let mut shift = 0u32;
     loop {
         if !buf.has_remaining() {
-            return Err(std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "varu32 eof"));
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::UnexpectedEof,
+                "varu32 eof",
+            ));
         }
         let byte = buf.get_u8();
         result |= ((byte & 0x7F) as u32) << shift;
@@ -24,7 +27,10 @@ pub fn read_var_u32<B: Buf>(buf: &mut B) -> Result<u32, std::io::Error> {
         }
         shift += 7;
         if shift >= 35 {
-            return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "varu32 too long"));
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "varu32 too long",
+            ));
         }
     }
     Ok(result)
@@ -45,7 +51,10 @@ pub fn read_var_u64<B: Buf>(buf: &mut B) -> Result<u64, std::io::Error> {
     let mut shift = 0u32;
     loop {
         if !buf.has_remaining() {
-            return Err(std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "varu64 eof"));
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::UnexpectedEof,
+                "varu64 eof",
+            ));
         }
         let byte = buf.get_u8();
         result |= ((byte & 0x7F) as u64) << shift;
@@ -54,7 +63,10 @@ pub fn read_var_u64<B: Buf>(buf: &mut B) -> Result<u64, std::io::Error> {
         }
         shift += 7;
         if shift >= 70 {
-            return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "varu64 too long"));
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "varu64 too long",
+            ));
         }
     }
     Ok(result)
@@ -99,4 +111,3 @@ pub fn write_zigzag64<B: BufMut>(buf: &mut B, v: i64) {
 pub fn read_zigzag64<B: Buf>(buf: &mut B) -> Result<i64, std::io::Error> {
     Ok(zigzag64_decode(read_var_u64(buf)?))
 }
-

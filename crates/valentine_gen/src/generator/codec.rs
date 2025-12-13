@@ -433,13 +433,245 @@ fn generate_field_decode_expr(
                 arg_idents,
             )?;
 
+            let array_len_signed = matches!(
+                count_type.as_ref(),
+                Type::Primitive(
+                    Primitive::VarInt
+                        | Primitive::VarLong
+                        | Primitive::ZigZag32
+                        | Primitive::ZigZag64
+                        | Primitive::I16LE
+                        | Primitive::I32LE
+                        | Primitive::I64LE
+                )
+            );
+            let len_logic = if array_len_signed {
+                quote! {
+                    let raw = #count_read as i64;
+                    if raw < 0 {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            "array length cannot be negative",
+                        ));
+                    }
+                    let len = raw as usize;
+                }
+            } else {
+                quote! {
+                    let len = (#count_read) as usize;
+                }
+            };
+
             Ok(quote! {{
-                let len = #count_read as usize;
+                #len_logic
                 let mut tmp_vec = Vec::with_capacity(len);
                 for _ in 0..len {
                     tmp_vec.push(#inner_decode);
                 }
                 tmp_vec
+            }})
+        }
+        Type::String {
+            count_type,
+            encoding,
+        } => {
+            let len_read = match count_type.as_ref() {
+                Type::Primitive(p) => match p {
+                    Primitive::VarInt => {
+                        quote! { <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::VarLong => {
+                        quote! { <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::ZigZag32 => {
+                        quote! { <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::ZigZag64 => {
+                        quote! { <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::U16LE => {
+                        quote! { <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::I16LE => {
+                        quote! { <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::U32LE => {
+                        quote! { <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::I32LE => {
+                        quote! { <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::U64LE => {
+                        quote! { <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::I64LE => {
+                        quote! { <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::F32LE => {
+                        quote! { <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::F64LE => {
+                        quote! { <crate::bedrock::codec::F64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    _ => {
+                        let t = primitive_to_rust_tokens(p);
+                        quote! { <#t as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? }
+                    }
+                },
+                _ => quote! { 0 },
+            };
+
+            let decode_encoding = encoding.clone().unwrap_or_default();
+            let string_len_signed = matches!(
+                count_type.as_ref(),
+                Type::Primitive(
+                    Primitive::VarInt
+                        | Primitive::VarLong
+                        | Primitive::ZigZag32
+                        | Primitive::ZigZag64
+                        | Primitive::I16LE
+                        | Primitive::I32LE
+                        | Primitive::I64LE
+                )
+            );
+            let len_logic = if string_len_signed {
+                quote! {
+                    let len_raw = (#len_read) as i64;
+                    if len_raw < 0 {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            "string length cannot be negative",
+                        ));
+                    }
+                    let len = len_raw as usize;
+                }
+            } else {
+                quote! {
+                    let len = (#len_read) as usize;
+                }
+            };
+
+            Ok(quote! {{
+                #len_logic
+                if buf.remaining() < len {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::UnexpectedEof,
+                        format!("string declared length {} exceeds remaining {}", len, buf.remaining()),
+                    ));
+                }
+                let mut bytes = vec![0u8; len];
+                buf.copy_to_slice(&mut bytes);
+                let s = if #decode_encoding.eq_ignore_ascii_case("latin1") {
+                    bytes.into_iter().map(|b| b as char).collect::<String>()
+                } else {
+                    String::from_utf8_lossy(&bytes).into_owned()
+                };
+                s
+            }})
+        }
+        Type::Encapsulated { length_type, inner } => {
+            let len_read = match length_type.as_ref() {
+                Type::Primitive(p) => match p {
+                    Primitive::VarInt => {
+                        quote! { <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::VarLong => {
+                        quote! { <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::ZigZag32 => {
+                        quote! { <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::ZigZag64 => {
+                        quote! { <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::U16LE => {
+                        quote! { <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::I16LE => {
+                        quote! { <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::U32LE => {
+                        quote! { <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::I32LE => {
+                        quote! { <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::U64LE => {
+                        quote! { <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::I64LE => {
+                        quote! { <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::F32LE => {
+                        quote! { <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::F64LE => {
+                        quote! { <crate::bedrock::codec::F64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    _ => {
+                        let t = primitive_to_rust_tokens(p);
+                        quote! { <#t as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? }
+                    }
+                },
+                _ => quote! { 0 },
+            };
+
+            let encap_len_signed = matches!(
+                length_type.as_ref(),
+                Type::Primitive(
+                    Primitive::VarInt
+                        | Primitive::VarLong
+                        | Primitive::ZigZag32
+                        | Primitive::ZigZag64
+                        | Primitive::I16LE
+                        | Primitive::I32LE
+                        | Primitive::I64LE
+                )
+            );
+            let len_logic = if encap_len_signed {
+                quote! {
+                    let len_raw = (#len_read) as i64;
+                    if len_raw < 0 {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            "encapsulated length cannot be negative",
+                        ));
+                    }
+                    let len = len_raw as usize;
+                }
+            } else {
+                quote! {
+                    let len = (#len_read) as usize;
+                }
+            };
+
+            let inner_var_name = format!("{}Inner", var_name);
+            let inner_decode = generate_field_decode_expr(
+                container_name,
+                &inner_var_name,
+                inner,
+                ctx,
+                locals,
+                resolved,
+                arg_idents,
+            )?;
+
+            Ok(quote! {{
+                #len_logic
+                if buf.remaining() < len {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::UnexpectedEof,
+                        format!("encapsulated declared length {} exceeds remaining {}", len, buf.remaining()),
+                    ));
+                }
+                let mut slice = bytes::Buf::take(&mut *buf, len);
+                let value = {
+                    let buf = &mut slice;
+                    #inner_decode
+                };
+                // ensure the underlying buffer advances by the declared length
+                let _ = slice.remaining();
+                value
             }})
         }
         Type::Option(inner) => {
@@ -481,22 +713,44 @@ fn generate_field_decode_expr(
                 }});
             }
 
-            // If the reference points to an Array or Option, we MUST inline the decoding logic
+            let clean = clean_type_name(r);
+            if clean == "LittleString" {
+                return Ok(quote! {{
+                    let tmp = <LittleString as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+                    tmp.0
+                }});
+            }
+
+            // If the reference points to an Array, String, or Option, we MUST inline the decoding logic
             // because the typedef (Vec<T> or Option<T>) does not implement BedrockCodec with the specific args we might need.
             let resolved_ty = resolve_type(ty, ctx);
-            if matches!(resolved_ty, Type::Array { .. } | Type::Option(_)) {
+            if matches!(
+                resolved_ty,
+                Type::Array { .. } | Type::Option(_) | Type::String { .. }
+            ) {
                 let hint = format!("{}{}", container_name, camel_case(var_name));
                 let type_tokens = resolve_type_to_tokens(ty, &hint, ctx)?;
 
-                let val = generate_field_decode_expr(
-                    container_name,
-                    var_name,
-                    &resolved_ty,
-                    ctx,
-                    locals,
-                    resolved,
-                    arg_idents,
-                )?;
+                let val = match &resolved_ty {
+                    Type::Array { .. } => generate_field_decode_expr(
+                        &clean,
+                        "",
+                        &resolved_ty,
+                        ctx,
+                        locals,
+                        resolved,
+                        arg_idents,
+                    )?,
+                    _ => generate_field_decode_expr(
+                        container_name,
+                        var_name,
+                        &resolved_ty,
+                        ctx,
+                        locals,
+                        resolved,
+                        arg_idents,
+                    )?,
+                };
 
                 return Ok(quote! {{
                     let res: #type_tokens = #val;
@@ -783,6 +1037,149 @@ fn generate_field_encode(
                 }
             })
         }
+        Type::String {
+            count_type,
+            encoding,
+        } => {
+            let len_encode = match count_type.as_ref() {
+                Type::Primitive(p) => match p {
+                    Primitive::VarInt => {
+                        quote! { crate::bedrock::codec::VarInt(len as i32).encode(buf)?; }
+                    }
+                    Primitive::VarLong => {
+                        quote! { crate::bedrock::codec::VarLong(len as i64).encode(buf)?; }
+                    }
+                    Primitive::ZigZag32 => {
+                        quote! { crate::bedrock::codec::ZigZag32(len as i32).encode(buf)?; }
+                    }
+                    Primitive::ZigZag64 => {
+                        quote! { crate::bedrock::codec::ZigZag64(len as i64).encode(buf)?; }
+                    }
+                    Primitive::U16LE => {
+                        quote! { crate::bedrock::codec::U16LE(len as u16).encode(buf)?; }
+                    }
+                    Primitive::I16LE => {
+                        quote! { crate::bedrock::codec::I16LE(len as i16).encode(buf)?; }
+                    }
+                    Primitive::U32LE => {
+                        quote! { crate::bedrock::codec::U32LE(len as u32).encode(buf)?; }
+                    }
+                    Primitive::I32LE => {
+                        quote! { crate::bedrock::codec::I32LE(len as i32).encode(buf)?; }
+                    }
+                    Primitive::U64LE => {
+                        quote! { crate::bedrock::codec::U64LE(len as u64).encode(buf)?; }
+                    }
+                    Primitive::I64LE => {
+                        quote! { crate::bedrock::codec::I64LE(len as i64).encode(buf)?; }
+                    }
+                    Primitive::F32LE => {
+                        quote! { crate::bedrock::codec::F32LE(len as f32).encode(buf)?; }
+                    }
+                    Primitive::F64LE => {
+                        quote! { crate::bedrock::codec::F64LE(len as f64).encode(buf)?; }
+                    }
+                    _ => {
+                        let t = primitive_to_rust_tokens(p);
+                        quote! { (len as #t).encode(buf)?; }
+                    }
+                },
+                _ => quote! { (len as u32).encode(buf)?; },
+            };
+
+            let encode_encoding = encoding.clone().unwrap_or_default();
+            let val_expr = if is_ref {
+                quote! { #access_expr }
+            } else {
+                quote! { &#access_expr }
+            };
+
+            Ok(quote! {
+                let bytes: Vec<u8> = if #encode_encoding.eq_ignore_ascii_case("latin1") {
+                    (#val_expr)
+                        .chars()
+                        .map(|ch| {
+                            let code = ch as u32;
+                            if code <= 0xFF { code as u8 } else { b'?' }
+                        })
+                        .collect()
+                } else {
+                    (#val_expr).as_bytes().to_vec()
+                };
+                let len = bytes.len();
+                #len_encode
+                buf.put_slice(&bytes);
+            })
+        }
+        Type::Encapsulated { length_type, inner } => {
+            let len_encode = match length_type.as_ref() {
+                Type::Primitive(p) => match p {
+                    Primitive::VarInt => {
+                        quote! { crate::bedrock::codec::VarInt(len as i32).encode(buf)?; }
+                    }
+                    Primitive::VarLong => {
+                        quote! { crate::bedrock::codec::VarLong(len as i64).encode(buf)?; }
+                    }
+                    Primitive::ZigZag32 => {
+                        quote! { crate::bedrock::codec::ZigZag32(len as i32).encode(buf)?; }
+                    }
+                    Primitive::ZigZag64 => {
+                        quote! { crate::bedrock::codec::ZigZag64(len as i64).encode(buf)?; }
+                    }
+                    Primitive::U16LE => {
+                        quote! { crate::bedrock::codec::U16LE(len as u16).encode(buf)?; }
+                    }
+                    Primitive::I16LE => {
+                        quote! { crate::bedrock::codec::I16LE(len as i16).encode(buf)?; }
+                    }
+                    Primitive::U32LE => {
+                        quote! { crate::bedrock::codec::U32LE(len as u32).encode(buf)?; }
+                    }
+                    Primitive::I32LE => {
+                        quote! { crate::bedrock::codec::I32LE(len as i32).encode(buf)?; }
+                    }
+                    Primitive::U64LE => {
+                        quote! { crate::bedrock::codec::U64LE(len as u64).encode(buf)?; }
+                    }
+                    Primitive::I64LE => {
+                        quote! { crate::bedrock::codec::I64LE(len as i64).encode(buf)?; }
+                    }
+                    Primitive::F32LE => {
+                        quote! { crate::bedrock::codec::F32LE(len as f32).encode(buf)?; }
+                    }
+                    Primitive::F64LE => {
+                        quote! { crate::bedrock::codec::F64LE(len as f64).encode(buf)?; }
+                    }
+                    _ => {
+                        let t = primitive_to_rust_tokens(p);
+                        quote! { (len as #t).encode(buf)?; }
+                    }
+                },
+                _ => quote! { (len as u32).encode(buf)?; },
+            };
+
+            let inner_name = format!("{}Encap", var_name);
+            let inner_body = generate_field_encode(
+                container_name,
+                &inner_name,
+                inner,
+                access_expr.clone(),
+                container,
+                ctx,
+                is_ref,
+            )?;
+
+            Ok(quote! {
+                let mut __encap_tmp = bytes::BytesMut::new();
+                {
+                    let buf = &mut __encap_tmp;
+                    #inner_body
+                }
+                let len = __encap_tmp.len();
+                #len_encode
+                buf.put_slice(&__encap_tmp);
+            })
+        }
         Type::Option(inner) => {
             let inner_name = format!("{}Some", var_name);
             let inner_body = generate_field_encode(
@@ -883,6 +1280,36 @@ fn generate_field_encode(
                     }
                 }});
             }
+
+            let clean = clean_type_name(r);
+            if clean == "LittleString" {
+                let owned = if is_ref {
+                    quote! { (#access_expr).to_string() }
+                } else {
+                    quote! { (#access_expr).clone() }
+                };
+                return Ok(quote! {
+                    LittleString(#owned).encode(buf)?;
+                });
+            }
+
+            let resolved_ty = resolve_type(ty, ctx);
+            if matches!(
+                resolved_ty,
+                Type::Array { .. } | Type::Option(_) | Type::String { .. }
+            ) {
+                // Inline encoding so we honor custom length encodings and argument propagation.
+                return generate_field_encode(
+                    container_name,
+                    var_name,
+                    &resolved_ty,
+                    access_expr,
+                    container,
+                    ctx,
+                    is_ref,
+                );
+            }
+
             Ok(quote! { #access_expr.encode(buf)?; })
         }
         _ => Ok(quote! { #access_expr.encode(buf)?; }),

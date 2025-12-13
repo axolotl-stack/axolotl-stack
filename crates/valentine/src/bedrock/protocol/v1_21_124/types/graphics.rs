@@ -6,38 +6,8 @@
 #![allow(unused_parens)]
 #![allow(clippy::all)]
 use ::bitflags::bitflags;
+use bytes::{Buf, BufMut};
 use super::*;
 use super::super::packets::*;
 use crate::bedrock::codec::BedrockCodec;
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[repr(u8)]
-pub enum GraphicsOverrideParameterType {
-    SkyZenithColor = 0,
-}
-impl crate::bedrock::codec::BedrockCodec for GraphicsOverrideParameterType {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let val = *self as u8;
-        val.encode(buf)
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, std::io::Error> {
-        let val = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        match val {
-            0 => Ok(GraphicsOverrideParameterType::SkyZenithColor),
-            _ => {
-                Err(
-                    std::io::Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        format!(
-                            "Invalid enum value for {}: {}",
-                            stringify!(GraphicsOverrideParameterType), val
-                        ),
-                    ),
-                )
-            }
-        }
-    }
-}
+pub use crate::bedrock::protocol::v1_21_120::GraphicsOverrideParameterType as GraphicsOverrideParameterType;
