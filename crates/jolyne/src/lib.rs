@@ -10,8 +10,7 @@ pub use config::BedrockListenerConfig;
 pub use error::JolyneError;
 pub use listener::BedrockListener;
 pub use stream::{
-    BedrockStream, Client, Login, Play, Server,
-    ServerLogin, ServerPlay, ClientLogin, ClientPlay
+    BedrockStream, Client, ClientLogin, ClientPlay, Login, Play, Server, ServerLogin, ServerPlay,
 };
 
 pub use protocol::{GAME_VERSION, PROTOCOL_VERSION};

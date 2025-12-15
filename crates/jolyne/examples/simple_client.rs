@@ -1,8 +1,8 @@
-use jolyne::stream::client::ClientHandshakeConfig;
-use jolyne::stream::BedrockStream;
 use jolyne::protocol::McpePacket;
-use std::error::Error;
+use jolyne::stream::BedrockStream;
+use jolyne::stream::client::ClientHandshakeConfig;
 use p384::SecretKey;
+use std::error::Error;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -23,7 +23,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         server_addr: addr,
         identity_key: key,
     };
-    
+
     let secure_pending = login_stream.send_login(&config).await?;
     println!("Login sent, waiting for handshake...");
 

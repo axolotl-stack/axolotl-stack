@@ -1,13 +1,13 @@
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use transport::BedrockTransport;
+use crate::config::BedrockListenerConfig;
 use crate::protocol::types::{
     block::BlockCoordinates,
     game::GameMode,
     vec::{Vec2F, Vec3F},
 };
-use crate::config::BedrockListenerConfig;
+use transport::BedrockTransport;
 
 pub mod client;
 pub mod server;
@@ -103,7 +103,7 @@ impl State for Login {}
 
 /// State: Authenticated, negotiating encryption (ServerToClient/ClientToServer).
 pub struct SecurePending {
-     pub config: Option<Arc<BedrockListenerConfig>>,
+    pub config: Option<Arc<BedrockListenerConfig>>,
 }
 impl State for SecurePending {}
 

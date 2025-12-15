@@ -310,7 +310,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let crate_dir = bedrock_versions_dir.join(&module_name);
         let crate_src_dir = crate_dir.join("src");
-        
+
         let should_generate = generate_versions.contains(version);
         let lib_rs_exists = crate_src_dir.join("lib.rs").exists();
 

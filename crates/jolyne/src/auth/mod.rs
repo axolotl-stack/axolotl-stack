@@ -3,10 +3,7 @@ pub mod openid;
 pub mod types;
 mod util;
 
-pub use legacy::{
-    MOJANG_PUBLIC_KEY_BASE64, MOJANG_PUBLIC_KEY_BASE64_V2, MOJANG_PUBLIC_KEYS, parse_login_chain,
-    validate_chain,
-};
+pub use legacy::{MOJANG_PUBLIC_KEY_BASE64, parse_login_chain, validate_chain};
 pub use types::ValidatedIdentity;
 
 use crate::error::{AuthError, JolyneError};
@@ -46,12 +43,7 @@ pub async fn authenticate_login(
                 .certificate
                 .as_ref()
                 .and_then(legacy::chain_from_value)
-                .or_else(|| {
-                    auth_info
-                        .chain
-                        .as_ref()
-                        .and_then(legacy::chain_from_value)
-                });
+                .or_else(|| auth_info.chain.as_ref().and_then(legacy::chain_from_value));
 
             if let Some(chain) = chain_opt {
                 let identity = validate_chain(chain, online_mode)?;
