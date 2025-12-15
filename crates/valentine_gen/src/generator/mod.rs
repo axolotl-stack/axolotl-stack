@@ -18,6 +18,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::Path;
+use tracing::{debug, warn};
 
 use self::primitives::is_primitive_name;
 use self::utils::{camel_case, clean_field_name};
@@ -52,12 +53,17 @@ pub fn generate_protocol_module(
         fs::create_dir_all(&version_dir)?;
     }
 
-    let current_module_path = format!("crate::bedrock::protocol::{}", protocol_module_name);
+    let current_module_path = if protocol_module_name.is_empty() {
+        "crate".to_string()
+    } else {
+        format!("crate::bedrock::protocol::{}", protocol_module_name)
+    };
 
     let mut ctx = Context {
         definitions_by_group: HashMap::new(),
         emitted: HashSet::new(),
         in_progress: HashSet::new(),
+        aliases_emitted: HashSet::new(),
         inline_cache: HashMap::new(),
         type_lookup: parse_result.types.clone(),
         global_registry,
@@ -139,25 +145,21 @@ pub fn generate_protocol_module(
         let mcpe_tokens = generate_mcpe_packet_module(parse_result, &mut ctx)?;
         ctx.definitions_by_group
             .insert("types/mcpe".to_string(), vec![mcpe_tokens]);
-        if crate::debug_enabled() {
-            println!(
-                "mcpe override inserted: {}",
-                ctx.definitions_by_group.contains_key("types/mcpe")
-            );
-        }
+        debug!(
+            inserted = ctx.definitions_by_group.contains_key("types/mcpe"),
+            "mcpe override inserted"
+        );
     } else {
-        eprintln!(
-            "WARNING: parse_result.packets is empty for {}",
-            protocol_module_name
+        warn!(
+            protocol_module_name = %protocol_module_name,
+            "parse_result.packets is empty"
         );
     }
 
-    if crate::debug_enabled() {
-        println!(
-            "All groups before writing: {:?}",
-            ctx.definitions_by_group.keys()
-        );
-    }
+    debug!(
+        group_count = ctx.definitions_by_group.len(),
+        "preparing to write groups"
+    );
 
     // Write files
     let module_dependencies = ctx.module_dependencies.clone();
@@ -269,12 +271,12 @@ pub fn generate_protocol_module(
         )?;
     }
 
-    // Write root mod.rs
-    let mod_rs_path = version_dir.join("mod.rs");
+    // Write root lib.rs (was mod.rs)
+    let mod_rs_path = version_dir.join("lib.rs");
     let mut mod_file = File::create(mod_rs_path)?;
     let mut mod_tokens = TokenStream::new();
 
-    // Add warning suppressions for the root mod.rs
+    // Add warning suppressions for the root lib.rs
     mod_tokens.extend(quote! {
         #![allow(ambiguous_glob_reexports)]
         #![allow(unused_imports)]
@@ -297,6 +299,19 @@ pub fn generate_protocol_module(
             });
         }
     }
+
+    // Re-export core bedrock/protocol modules so generated code can refer to crate::bedrock::...
+    mod_tokens.extend(quote! {
+        pub mod bedrock {
+            pub use valentine_bedrock_core::bedrock::codec;
+            pub use valentine_bedrock_core::bedrock::context;
+            pub use valentine_bedrock_core::bedrock::version;
+        }
+
+        pub mod protocol {
+            pub use valentine_bedrock_core::protocol::wire;
+        }
+    });
 
     let mod_formatted = prettyplease::unparse(&syn::parse2(mod_tokens)?);
     write!(

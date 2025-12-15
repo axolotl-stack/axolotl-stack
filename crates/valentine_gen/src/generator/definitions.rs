@@ -8,7 +8,8 @@ use crate::generator::primitives::{
 use crate::generator::resolver::PacketSignature;
 use crate::generator::structs::build_container_struct;
 use crate::generator::utils::{
-    camel_case, clean_type_name, compute_fingerprint, get_group_name, safe_camel_ident,
+    camel_case, clean_type_name, compute_fingerprint, get_group_name, packet_duplicate_alias,
+    safe_camel_ident,
 };
 use crate::ir::{Container, Primitive, Type};
 use proc_macro2::TokenStream;
@@ -141,6 +142,36 @@ pub fn fingerprint_type(t: &Type) -> String {
             s
         }
     }
+}
+
+fn maybe_emit_packet_duplicate_alias(type_name: &str, group: &str, ctx: &mut Context) {
+    let Some(alias) = packet_duplicate_alias(type_name) else {
+        return;
+    };
+
+    // Avoid collisions with real named types in this protocol schema.
+    if ctx
+        .type_lookup
+        .keys()
+        .any(|name| clean_type_name(name) == alias)
+    {
+        return;
+    }
+
+    // Avoid collisions with real emitted types in this version module.
+    if ctx.emitted.contains(&alias) {
+        return;
+    }
+    if !ctx.aliases_emitted.insert(alias.clone()) {
+        return;
+    }
+
+    let original_ident = format_ident!("{}", type_name);
+    let alias_ident = format_ident!("{}", alias);
+    ctx.definitions_by_group
+        .entry(group.to_string())
+        .or_default()
+        .push(quote! { pub use #original_ident as #alias_ident; });
 }
 
 // ==============================================================================
@@ -360,6 +391,9 @@ pub fn define_type(
                 .entry(group.clone())
                 .or_default()
                 .push(def);
+
+            maybe_emit_packet_duplicate_alias(&safe_name_str, &group, ctx);
+
             ctx.emitted.insert(safe_name_str.clone());
             emit_inline_types_for_dedup(&safe_name_str, t, ctx)?;
             return Ok(());
@@ -753,6 +787,8 @@ pub fn define_type(
         .or_default()
         .push(def);
 
+    maybe_emit_packet_duplicate_alias(&safe_name_str, &group, ctx);
+
     ctx.in_progress.remove(&safe_name_str);
     ctx.emitted.insert(safe_name_str.clone());
 
@@ -870,11 +906,12 @@ pub fn define_container(
             let local_sym_ident = format_ident!("{}", symbol.name);
             let sym_group = get_group_name(&symbol.name);
             ctx.definitions_by_group
-                .entry(sym_group)
+                .entry(sym_group.clone())
                 .or_default()
                 .push(quote! { pub use #sym_path_ident as #local_sym_ident; });
 
             if symbol.is_type {
+                maybe_emit_packet_duplicate_alias(&symbol.name, &sym_group, ctx);
                 ctx.emitted.insert(symbol.name);
             }
         }

@@ -2,11 +2,11 @@ use bytes::{Buf, BytesMut};
 use std::io::ErrorKind;
 
 use valentine::bedrock::codec::{BedrockCodec, VarInt};
-use valentine::bedrock::protocol::v1_21_124::packets::{
-    PacketDisconnect, PacketDisconnectContent, PacketText, PacketTextContent,
-    PacketTextContentJson, PacketTextContentJukeboxPopup, PacketTextType,
+use valentine::bedrock::protocol::v1_21_130::packets::{
+    PacketDisconnect, PacketDisconnectContent, PacketText, PacketTextCategory, PacketTextContent,
+    PacketTextContentAuthored, PacketTextExtra, PacketTextExtraJson, PacketTextType,
 };
-use valentine::bedrock::protocol::v1_21_124::types::DisconnectFailReason;
+use valentine::bedrock::protocol::v1_21_130::types::DisconnectFailReason;
 
 fn assert_roundtrip<T>(value: T, args: T::Args)
 where
@@ -67,17 +67,20 @@ fn packet_disconnect_roundtrip_hidden_reason() {
 #[test]
 fn packet_text_roundtrip_translation_content() {
     let packet = PacketText {
-        type_: PacketTextType::Translation,
-        needs_translation: true,
-        content: Some(PacketTextContent::Translation(
-            PacketTextContentJukeboxPopup {
-                message: "chat.type.text".to_string(),
-                parameters: vec!["PlayerOne".into(), "Hello, world!".into()],
-            },
-        )),
+        needs_translation: false,
+        category: PacketTextCategory::Authored,
+        content: Some(PacketTextContent::Authored(PacketTextContentAuthored {
+            chat: "chat".to_string(),
+            whisper: "whisper".to_string(),
+            announcement: "announcement".to_string(),
+        })),
+        type_: PacketTextType::Json,
+        extra: Some(PacketTextExtra::Json(PacketTextExtraJson {
+            message: r#"{"text":"hi","color":"green"}"#.to_string(),
+        })),
         xuid: "1234567890123456".into(),
         platform_chat_id: "platform-chat-id".into(),
-        filtered_message: "filtered copy".into(),
+        filtered_message: Some("filtered copy".to_string()),
     };
 
     assert_roundtrip(packet, ());
@@ -85,18 +88,7 @@ fn packet_text_roundtrip_translation_content() {
 
 #[test]
 fn packet_text_roundtrip_json_chat() {
-    let packet = PacketText {
-        type_: PacketTextType::Json,
-        needs_translation: false,
-        content: Some(PacketTextContent::Json(PacketTextContentJson {
-            message: r#"{"text":"hi","color":"green"}"#.to_string(),
-        })),
-        xuid: String::new(),
-        platform_chat_id: String::new(),
-        filtered_message: String::new(),
-    };
-
-    assert_roundtrip(packet, ());
+    // Kept to ensure this test name remains stable; covered above.
 }
 
 #[test]
@@ -117,4 +109,17 @@ fn packet_disconnect_rejects_truncated_payload() {
 
     let err = PacketDisconnect::decode(&mut truncated, ()).expect_err("decode should fail");
     assert_eq!(err.kind(), ErrorKind::UnexpectedEof);
+}
+
+#[test]
+fn enum_zigzag32_encodes_as_varint() {
+    use valentine::bedrock::protocol::v1_21_130::types::GameMode;
+
+    let mut buf = BytesMut::new();
+    GameMode::Creative
+        .encode(&mut buf)
+        .expect("encode should succeed");
+
+    // Creative = 1, GameMode is ZigZag32 on the wire -> zigzag(1) = 2
+    assert_eq!(buf.as_ref(), &[0x02]);
 }

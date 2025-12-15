@@ -64,6 +64,7 @@ pub struct Context<'a> {
     pub definitions_by_group: HashMap<String, Vec<TokenStream>>,
     pub emitted: HashSet<String>,
     pub in_progress: HashSet<String>,
+    pub aliases_emitted: HashSet<String>,
     pub inline_cache: HashMap<String, String>,
     pub type_lookup: HashMap<String, Type>,
     pub global_registry: &'a mut GlobalRegistry,

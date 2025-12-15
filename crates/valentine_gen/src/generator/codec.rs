@@ -1415,23 +1415,56 @@ fn generate_redundant_encode(
     container: &Container,
 ) -> TokenStream {
     let mut target_field_name = None;
+    let mut target_switch: Option<&Type> = None;
     for other in &container.fields {
         if let Type::Switch { compare_to, .. } = &other.type_def
             && compare_to.replace("../", "") == field.name
         {
             let other_clean = clean_field_name(&other.name, name);
             target_field_name = Some(format_ident!("{}", other_clean));
+            target_switch = Some(&other.type_def);
             break;
         }
     }
 
-    if let Some(target) = target_field_name {
-        quote! {
-            let val = self.#target.is_none();
-            val.encode(buf)?;
+    let (
+        Some(target),
+        Some(Type::Switch {
+            fields, default, ..
+        }),
+    ) = (target_field_name, target_switch)
+    else {
+        return quote! { false.encode(buf)?; };
+    };
+
+    let is_void = |ty: &Type| matches!(ty, Type::Primitive(Primitive::Void));
+
+    let mut true_ty: Option<&Type> = None;
+    let mut false_ty: Option<&Type> = None;
+    for (case_name, case_ty) in fields {
+        match case_name.to_ascii_lowercase().as_str() {
+            "true" | "1" => true_ty = Some(case_ty),
+            "false" | "0" => false_ty = Some(case_ty),
+            _ => {}
         }
+    }
+
+    let default_ty = default.as_ref();
+    let true_is_void = is_void(true_ty.unwrap_or(default_ty));
+    let false_is_void = is_void(false_ty.unwrap_or(default_ty));
+
+    let val_expr = if true_is_void && !false_is_void {
+        quote! { self.#target.is_none() }
+    } else if !true_is_void && false_is_void {
+        quote! { self.#target.is_some() }
     } else {
-        quote! { false.encode(buf)?; }
+        // Fall back to the common Bedrock convention: "has_*" implies `Some`.
+        quote! { self.#target.is_some() }
+    };
+
+    quote! {
+        let val = #val_expr;
+        val.encode(buf)?;
     }
 }
 
@@ -2313,15 +2346,86 @@ pub fn generate_enum_type_codec(
         let val_lit = enum_value_literal(underlying, *val)?;
         match_arms.push(quote! { #val_lit => Ok(#struct_ident::#variant_ident), });
     }
+
+    let encode_logic = match underlying {
+        Primitive::VarInt => quote! { crate::bedrock::codec::VarInt(val as i32).encode(buf) },
+        Primitive::VarLong => quote! { crate::bedrock::codec::VarLong(val as i64).encode(buf) },
+        Primitive::ZigZag32 => quote! { crate::bedrock::codec::ZigZag32(val as i32).encode(buf) },
+        Primitive::ZigZag64 => quote! { crate::bedrock::codec::ZigZag64(val as i64).encode(buf) },
+        Primitive::U16LE => quote! { crate::bedrock::codec::U16LE(val as u16).encode(buf) },
+        Primitive::I16LE => quote! { crate::bedrock::codec::I16LE(val as i16).encode(buf) },
+        Primitive::U32LE => quote! { crate::bedrock::codec::U32LE(val as u32).encode(buf) },
+        Primitive::I32LE => quote! { crate::bedrock::codec::I32LE(val as i32).encode(buf) },
+        Primitive::U64LE => quote! { crate::bedrock::codec::U64LE(val as u64).encode(buf) },
+        Primitive::I64LE => quote! { crate::bedrock::codec::I64LE(val as i64).encode(buf) },
+        Primitive::F32LE => quote! { crate::bedrock::codec::F32LE(val as f32).encode(buf) },
+        Primitive::F64LE => quote! { crate::bedrock::codec::F64LE(val as f64).encode(buf) },
+        _ => quote! { val.encode(buf) },
+    };
+
+    let decode_logic = match underlying {
+        Primitive::VarInt => quote! {
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+            let val = raw.0 as #repr_ty;
+        },
+        Primitive::VarLong => quote! {
+            let raw = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+            let val = raw.0 as #repr_ty;
+        },
+        Primitive::ZigZag32 => quote! {
+            let raw = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+            let val = raw.0 as #repr_ty;
+        },
+        Primitive::ZigZag64 => quote! {
+            let raw = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+            let val = raw.0 as #repr_ty;
+        },
+        Primitive::U16LE => quote! {
+            let raw = <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+            let val = raw.0 as #repr_ty;
+        },
+        Primitive::I16LE => quote! {
+            let raw = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+            let val = raw.0 as #repr_ty;
+        },
+        Primitive::U32LE => quote! {
+            let raw = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+            let val = raw.0 as #repr_ty;
+        },
+        Primitive::I32LE => quote! {
+            let raw = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+            let val = raw.0 as #repr_ty;
+        },
+        Primitive::U64LE => quote! {
+            let raw = <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+            let val = raw.0 as #repr_ty;
+        },
+        Primitive::I64LE => quote! {
+            let raw = <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+            let val = raw.0 as #repr_ty;
+        },
+        Primitive::F32LE => quote! {
+            let raw = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+            let val = raw.0 as #repr_ty;
+        },
+        Primitive::F64LE => quote! {
+            let raw = <crate::bedrock::codec::F64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+            let val = raw.0 as #repr_ty;
+        },
+        _ => quote! {
+            let val = <#repr_ty as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        },
+    };
+
     Ok(quote! {
         impl crate::bedrock::codec::BedrockCodec for #struct_ident {
             type Args = ();
             fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
                 let val = *self as #repr_ty;
-                val.encode(buf)
+                #encode_logic
             }
             fn decode<B: bytes::Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
-                let val = <#repr_ty as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+                #decode_logic
                 match val {
                     #(#match_arms)*
                     _ => Err(std::io::Error::new(

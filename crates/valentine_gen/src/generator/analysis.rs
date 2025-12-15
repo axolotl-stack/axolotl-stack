@@ -35,7 +35,11 @@ fn collect_deps_recursive(
 ) {
     // Helper to clean dependency names consistent with codec.rs
     let clean_dep_name = |p: &str| -> String {
-        let inner = if p.starts_with('/') { &p[1..] } else { p };
+        let inner = if let Some(stripped) = p.strip_prefix('/') {
+            stripped
+        } else {
+            p
+        };
         clean_field_name(inner.replace("../", "").as_str(), "")
     };
 

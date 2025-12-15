@@ -51,6 +51,11 @@ pub enum ProtocolError {
     InvalidBatchId(String),
     #[error("Decompression failed: {0}")]
     DecompressionFailed(String),
+    #[error("Incompatible protocol version: client {client_protocol}, server {server_protocol}")]
+    IncompatibleProtocol {
+        client_protocol: i32,
+        server_protocol: i32,
+    },
     #[error("Unexpected packet during handshake: {0}")]
     UnexpectedHandshake(String),
     #[error("Missing expected Login packet after NetworkSettings")]

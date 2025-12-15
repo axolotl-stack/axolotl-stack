@@ -2,7 +2,7 @@ use crate::auth::types::{ChainClaims, ValidatedIdentity};
 use crate::auth::util::key_from_base64;
 use crate::error::{AuthError, JolyneError};
 use base64::Engine as _;
-use base64::engine::general_purpose::STANDARD;
+use base64::engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD};
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 use serde_json::Value;
 use tracing::debug;
@@ -15,11 +15,37 @@ const MAX_TOKEN_BYTES: usize = 8 * 1024;
 // This key is used to verify the first JWT in the chain (the one signed by Mojang).
 // It validates the identity of the XBL token.
 pub const MOJANG_PUBLIC_KEY_BASE64: &str = "MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAECRXueJeTDqNRRgJi/vlRufByu/2G0i2Ebt6YMar5QX/R0DIIyrJMcUpruK4QveTfJSTp3Shlq4Gk34cD/4GUWwkv0DVuzeuB+tXija7HBxii03NHDbPAD0AKnLr2wdAp";
-// Observed newer Mojang root key (from Bedrock 1.21.120+).
-pub const MOJANG_PUBLIC_KEY_BASE64_V2: &str = "MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEAt2GuR+vHAmIt7r0K6hm6mpq+b3setnqVfVxNqxQjLfWuPWfInnDLOEDo7kARxinshTmtU6Mgyd8xoLKwxLsN50Z1bRnq9jldjYyCyNrruVAaKlDKGBWspf50o5sqZxh";
-pub const MOJANG_PUBLIC_KEYS: &[&str] = &[MOJANG_PUBLIC_KEY_BASE64, MOJANG_PUBLIC_KEY_BASE64_V2];
 
 pub(crate) fn chain_from_value(v: &Value) -> Option<Vec<String>> {
+    // 0. Value IS the chain array.
+    if let Some(arr) = v.as_array() {
+        let mut out = Vec::with_capacity(arr.len());
+        let mut all_strings = true;
+        for item in arr {
+            if let Some(s) = item.as_str() {
+                out.push(s.to_string());
+            } else {
+                all_strings = false;
+                break;
+            }
+        }
+        if all_strings {
+            return Some(out);
+        }
+    }
+
+    // 0.5 Value is a JSON string (recurse).
+    if let Some(s) = v.as_str()
+        && let Ok(nested_val) = serde_json::from_str::<Value>(s)
+        // Avoid infinite recursion if the string parses back to a string that is identical.
+        // (serde_json::from_str of "\"foo\"" is Value::String("foo")).
+        // But usually we expect an Object or Array inside.
+        && !nested_val.is_string()
+        && let Some(chain) = chain_from_value(&nested_val)
+    {
+        return Some(chain);
+    }
+
     // Direct chain array.
     if let Some(arr) = v.get("chain").and_then(|c| c.as_array()) {
         let mut out = Vec::with_capacity(arr.len());
@@ -49,12 +75,11 @@ pub(crate) fn chain_from_value(v: &Value) -> Option<Vec<String>> {
                 return Some(out);
             }
             // certificate as escaped JSON string
-            if let Some(s) = cert_obj.as_str() {
-                if let Ok(cert_val) = serde_json::from_str::<Value>(s) {
-                    if let Some(chain) = chain_from_value(&cert_val) {
-                        return Some(chain);
-                    }
-                }
+            if let Some(s) = cert_obj.as_str()
+                && let Ok(cert_val) = serde_json::from_str::<Value>(s)
+                && let Some(chain) = chain_from_value(&cert_val)
+            {
+                return Some(chain);
             }
         }
     }
@@ -213,7 +238,7 @@ fn verify_chain_with_key(
             .identity_public_key
             .clone()
             .or(header_key_b64.clone())
-            .ok_or_else(|| AuthError::MissingIdentityKey)?;
+            .ok_or(AuthError::MissingIdentityKey)?;
 
         let is_last = idx + 1 == chain.len();
         if let Some(extra) = claims.extra_data.as_ref() {
@@ -248,10 +273,8 @@ pub fn validate_chain(
 
     // The chain is expected root->leaf. Verify signatures when online_mode is true.
     if online_mode {
-        let root_keys: Vec<DecodingKey> = MOJANG_PUBLIC_KEYS
-            .iter()
-            .filter_map(|k| key_from_base64(k).ok())
-            .collect();
+        let root_key: DecodingKey = key_from_base64(MOJANG_PUBLIC_KEY_BASE64)
+            .expect("Shouldn't occur mojang pub key invalid, hard coded const.");
         let header_keys = header_keys_from_chain(&chain);
         debug!(
             chain_len = chain.len(),
@@ -262,19 +285,17 @@ pub fn validate_chain(
         let mut reversed = chain.clone();
         reversed.reverse();
 
-        for root in &root_keys {
-            // Try provided order with each Mojang root key.
-            if let Ok(id) = verify_chain_with_key(&chain, root.clone()) {
-                debug!("validated login chain using mojang root");
-                return Ok(id);
-            }
-            // Try reversed with each root key.
-            if reversed != chain {
-                if let Ok(id) = verify_chain_with_key(&reversed, root.clone()) {
-                    debug!("validated login chain after reversing order (mojang root)");
-                    return Ok(id);
-                }
-            }
+        // Try provided order with each Mojang root key.
+        if let Ok(id) = verify_chain_with_key(&chain, root_key.clone()) {
+            debug!("validated login chain using mojang root");
+            return Ok(id);
+        }
+        // Try reversed with each root key.
+        if reversed != chain
+            && let Ok(id) = verify_chain_with_key(&reversed, root_key)
+        {
+            debug!("validated login chain after reversing order (mojang root)");
+            return Ok(id);
         }
 
         // Fallback: allow any presented header x5u key as an anchor (common self-signed or reordered chains).
@@ -286,14 +307,14 @@ pub fn validate_chain(
                 );
                 return Ok(id);
             }
-            if reversed != chain {
-                if let Ok(id) = verify_chain_with_key(&reversed, k.clone()) {
-                    debug!(
-                        header_key_index = idx,
-                        "validated login chain after reversing order (header x5u key)"
-                    );
-                    return Ok(id);
-                }
+            if reversed != chain
+                && let Ok(id) = verify_chain_with_key(&reversed, k.clone())
+            {
+                debug!(
+                    header_key_index = idx,
+                    "validated login chain after reversing order (header x5u key)"
+                );
+                return Ok(id);
             }
         }
 
@@ -312,15 +333,18 @@ pub fn validate_chain(
         if parts.len() < 2 {
             return Err(AuthError::BadSignature("Invalid JWT format".to_string()).into());
         }
-        let payload_bytes = STANDARD
+
+        let payload_bytes = URL_SAFE_NO_PAD
             .decode(parts[1])
+            .or_else(|_| STANDARD.decode(parts[1]))
             .map_err(|e| AuthError::BadSignature(format!("Invalid offline JWT b64: {e}")))?;
+
         let claims: ChainClaims =
             serde_json::from_slice(&payload_bytes).map_err(|_| AuthError::InvalidJson)?;
         let pub_key_b64 = claims
             .identity_public_key
             .or(header_key_b64)
-            .ok_or_else(|| AuthError::MissingIdentityKey)?;
+            .ok_or(AuthError::MissingIdentityKey)?;
         if let Some(extra) = claims.extra_data {
             Ok(ValidatedIdentity {
                 xuid: extra.xuid,
@@ -331,5 +355,45 @@ pub fn validate_chain(
         } else {
             Err(AuthError::MissingExtraData.into())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn chain_from_value_handles_direct_array() {
+        let json = serde_json::json!(["jwt1", "jwt2"]);
+        let chain = chain_from_value(&json).expect("should extract chain from array");
+        assert_eq!(chain, vec!["jwt1", "jwt2"]);
+    }
+
+    #[test]
+    fn chain_from_value_handles_json_string() {
+        // Simulates `certificate: "{\"chain\":[\"jwt1\"]}"`
+        let inner_json = r#"{"chain":["jwt1"]}"#;
+        let val = Value::String(inner_json.to_string());
+        let chain = chain_from_value(&val).expect("should recurse into string");
+        assert_eq!(chain, vec!["jwt1"]);
+    }
+
+    #[test]
+    fn validate_chain_handles_padded_offline_jwt() {
+        // Construct a dummy payload.
+        let payload = serde_json::json!({
+            "identityPublicKey": "key",
+            "extraData": {
+                "XUID": "123",
+                "displayName": "User",
+                "identity": "uuid"
+            }
+        });
+        // Encode with standard padding.
+        let payload_b64 = STANDARD.encode(serde_json::to_vec(&payload).unwrap());
+        let jwt = format!("header.{}.sig", payload_b64);
+
+        let identity = validate_chain(vec![jwt], false).expect("should accept padded offline jwt");
+        assert_eq!(identity.display_name.as_deref(), Some("User"));
     }
 }

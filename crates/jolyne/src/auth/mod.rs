@@ -11,6 +11,7 @@ pub use types::ValidatedIdentity;
 
 use crate::error::{AuthError, JolyneError};
 use openid::fill_identity_from_client_data;
+use tracing::warn;
 use types::{AuthInfo, AuthenticationType};
 
 /// Parse the Bedrock `LoginPacket` authentication fields.
@@ -40,16 +41,24 @@ pub async fn authenticate_login(
             if !allow_legacy {
                 return Err(AuthError::LegacyAuthDisabled.into());
             }
-            if let Some(chain) = auth_info
+
+            let chain_opt = auth_info
                 .certificate
                 .as_ref()
-                .or(auth_info.chain.as_ref())
                 .and_then(legacy::chain_from_value)
-            {
+                .or_else(|| {
+                    auth_info
+                        .chain
+                        .as_ref()
+                        .and_then(legacy::chain_from_value)
+                });
+
+            if let Some(chain) = chain_opt {
                 let identity = validate_chain(chain, online_mode)?;
                 let identity = fill_identity_from_client_data(identity, client_data_jwt);
                 Ok(identity)
             } else {
+                warn!(?auth_info, "failed to extract chain from auth info");
                 Err(AuthError::MissingCertificate.into())
             }
         }

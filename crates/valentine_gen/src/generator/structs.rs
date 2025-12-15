@@ -1,8 +1,10 @@
 use crate::generator::analysis::find_redundant_fields;
 use crate::generator::context::Context;
 use crate::generator::definitions::resolve_type_to_tokens;
-use crate::generator::utils::{camel_case, derive_field_names};
-use crate::ir::Container;
+use crate::generator::utils::{
+    camel_case, clean_type_name, derive_field_names, packet_duplicate_alias,
+};
+use crate::ir::{Container, Type};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
@@ -34,7 +36,19 @@ pub fn build_container_struct(
         // After:  Item_Extra     -> Type: ItemExtra
         let field_type_hint = format!("{}{}", name, camel_case(unique_name));
 
-        let type_tokens = resolve_type_to_tokens(&field.type_def, &field_type_hint, ctx)?;
+        let mut type_tokens = resolve_type_to_tokens(&field.type_def, &field_type_hint, ctx)?;
+
+        // Prefer nicer packet-local aliases for duplicated suffix enums/bitfields, e.g.
+        // `PacketPlayStatusStatus` -> `PlayStatus`.
+        if matches!(field.type_def, Type::Enum { .. } | Type::Bitfield { .. }) {
+            let internal_name = clean_type_name(&field_type_hint);
+            if let Some(alias) = packet_duplicate_alias(&internal_name) {
+                if ctx.aliases_emitted.contains(&alias) {
+                    let alias_ident = format_ident!("{}", alias);
+                    type_tokens = quote! { #alias_ident };
+                }
+            }
+        }
 
         fields.push(quote! {
             pub #field_ident: #type_tokens

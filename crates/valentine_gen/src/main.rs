@@ -1,15 +1,16 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::fs::{self, File};
 use std::io::{BufReader, Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use generator::GenerationOutcome;
 use generator::context::GlobalRegistry;
 use proc_macro2::Span;
 use quote::quote;
 use serde::Deserialize;
 use syn::{LitStr, parse2};
 use toml_edit::{Array, DocumentMut};
+use tracing::{error, info, warn};
+use tracing_subscriber::{EnvFilter, fmt};
 
 mod generator;
 mod ir;
@@ -27,11 +28,118 @@ struct BedrockVersionJson {
     release_type: String,
 }
 
-pub(crate) fn debug_enabled() -> bool {
-    match std::env::var("VALENTINE_GEN_DEBUG") {
-        Ok(v) => matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"),
-        Err(_) => false,
+#[derive(Debug, Clone)]
+struct VersionDecl {
+    module_name: String,
+    feature: String,
+    crate_name: String,
+    meta: BedrockVersionJson,
+}
+
+#[derive(Debug, Clone)]
+struct CliArgs {
+    versions: Vec<String>,
+    all: bool,
+    latest: bool,
+    list_versions: bool,
+    log_filter: String,
+    minecraft_data: Option<PathBuf>,
+}
+
+fn print_usage() {
+    println!(
+        r#"valentine-gen - generate Bedrock protocol crates for Valentine
+
+USAGE:
+  cargo run -p valentine_gen -- [OPTIONS]
+
+OPTIONS:
+  --latest                Generate only the latest Bedrock version (default)
+  --all                   Generate all supported Bedrock versions
+  --versions <LIST>       Generate a comma-separated list, e.g. "1.21.130,1.20.80"
+  --list-versions         Print available Bedrock versions and exit
+  --minecraft-data <DIR>  Path to a minecraft-data checkout (defaults to ./minecraft-data)
+  --log <FILTER>          tracing filter (default: "info"), e.g. "debug" or "valentine_gen=debug"
+  -h, --help              Print help and exit
+"#
+    );
+}
+
+fn parse_args() -> Result<CliArgs, String> {
+    let mut versions: Vec<String> = Vec::new();
+    let mut all = false;
+    let mut latest = false;
+    let mut list_versions = false;
+    let mut log_filter = "info".to_string();
+    let mut minecraft_data: Option<PathBuf> = None;
+
+    let mut it = std::env::args().skip(1).peekable();
+    while let Some(arg) = it.next() {
+        match arg.as_str() {
+            "-h" | "--help" => {
+                print_usage();
+                std::process::exit(0);
+            }
+            "--all" => all = true,
+            "--latest" => latest = true,
+            "--list-versions" | "--list" => list_versions = true,
+            "--versions" | "--version" | "-v" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--versions expects a value".to_string())?;
+                for v in raw.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {
+                    versions.push(v.to_string());
+                }
+            }
+            "--log" | "--log-level" => {
+                log_filter = it
+                    .next()
+                    .ok_or_else(|| "--log expects a value".to_string())?;
+            }
+            "--minecraft-data" | "--data" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--minecraft-data expects a path".to_string())?;
+                minecraft_data = Some(PathBuf::from(raw));
+            }
+            _ if arg.starts_with("--versions=") => {
+                let raw = arg.trim_start_matches("--versions=");
+                for v in raw.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {
+                    versions.push(v.to_string());
+                }
+            }
+            _ if arg.starts_with("--log=") => {
+                log_filter = arg.trim_start_matches("--log=").to_string();
+            }
+            _ if arg.starts_with("--minecraft-data=") => {
+                minecraft_data = Some(PathBuf::from(arg.trim_start_matches("--minecraft-data=")));
+            }
+            _ => return Err(format!("Unknown argument: {arg}")),
+        }
     }
+
+    if all && (latest || !versions.is_empty()) {
+        return Err("Use either --all, --latest, or --versions (not multiple)".to_string());
+    }
+    if latest && !versions.is_empty() {
+        return Err("Use either --latest or --versions (not both)".to_string());
+    }
+
+    Ok(CliArgs {
+        versions,
+        all,
+        latest,
+        list_versions,
+        log_filter,
+        minecraft_data,
+    })
+}
+
+fn init_tracing(filter: &str) {
+    let env_filter = EnvFilter::try_new(filter)
+        .or_else(|_| EnvFilter::try_new(format!("valentine_gen={filter}")))
+        .unwrap_or_else(|_| EnvFilter::new("info"));
+    fmt().with_env_filter(env_filter).init();
 }
 
 fn version_to_feature(version: &str) -> String {
@@ -40,6 +148,10 @@ fn version_to_feature(version: &str) -> String {
 
 fn version_to_module(version: &str) -> String {
     format!("v{}", version.replace('.', "_"))
+}
+
+fn version_to_crate(version: &str) -> String {
+    format!("valentine_bedrock_{}", version.replace('.', "_"))
 }
 
 fn parse_version(version: &str) -> Vec<u64> {
@@ -57,11 +169,10 @@ fn latest_version(versions: &[String]) -> Option<String> {
 }
 
 fn read_bedrock_version_json(
-    root: &Path,
+    minecraft_data_root: &Path,
     version: &str,
 ) -> Result<BedrockVersionJson, Box<dyn std::error::Error>> {
-    let path = root
-        .join("minecraft-data")
+    let path = minecraft_data_root
         .join("data")
         .join("bedrock")
         .join(version)
@@ -75,22 +186,36 @@ fn read_bedrock_version_json(
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args = match parse_args() {
+        Ok(args) => args,
+        Err(e) => {
+            eprintln!("{e}");
+            print_usage();
+            return Err(e.into());
+        }
+    };
+
+    init_tracing(&args.log_filter);
+
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")?;
     let root = Path::new(&manifest_dir);
 
-    // output to ../valentine/src/bedrock
-    let output_dir = root
-        .parent()
-        .unwrap()
-        .join("valentine")
-        .join("src")
-        .join("bedrock");
+    let minecraft_data_root = args
+        .minecraft_data
+        .clone()
+        .map(|p| if p.is_relative() { root.join(p) } else { p })
+        .unwrap_or_else(|| root.join("minecraft-data"));
 
-    if !output_dir.exists() {
-        fs::create_dir_all(&output_dir)?;
-    }
+    let valentine_root = root.parent().unwrap().join("valentine");
+    let bedrock_src_dir = valentine_root.join("src").join("bedrock");
+    let protocol_mod_dir = bedrock_src_dir.join("protocol");
+    let bedrock_versions_dir = valentine_root.join("bedrock_versions");
 
-    let data_paths = root.join("minecraft-data/data/dataPaths.json");
+    fs::create_dir_all(&bedrock_src_dir)?;
+    fs::create_dir_all(&protocol_mod_dir)?;
+    fs::create_dir_all(&bedrock_versions_dir)?;
+
+    let data_paths = minecraft_data_root.join("data").join("dataPaths.json");
     let file = File::open(&data_paths)?;
     let reader = BufReader::new(file);
     let paths: serde_json::Value = serde_json::from_reader(reader)?;
@@ -100,202 +225,188 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .and_then(|v| v.as_object())
         .ok_or("Missing bedrock section")?;
 
-    let versions_path = root.join("minecraft-data/data/bedrock/common/versions.json");
+    let versions_path = minecraft_data_root
+        .join("data")
+        .join("bedrock")
+        .join("common")
+        .join("versions.json");
     let file = File::open(&versions_path)?;
     let reader = BufReader::new(file);
     let all_versions: Vec<String> = serde_json::from_reader(reader)?;
 
-    let wanted_env = std::env::var("VALENTINE_GEN_VERSIONS").ok();
-    let wanted: Option<HashSet<String>> = wanted_env.as_ref().map(|raw| {
-        raw.split(',')
-            .map(|s| s.trim())
-            .filter(|s| !s.is_empty())
-            .map(|s| s.to_string())
-            .collect()
-    });
-
-    let versions: Vec<String> = all_versions
+    let supported_versions: Vec<String> = all_versions
         .into_iter()
         .filter(|v| v != "0.14" && v != "0.15" && v != "1.0")
-        .filter(|v| wanted.as_ref().map_or(true, |set| set.contains(v)))
         .collect();
 
-    if versions.is_empty() {
-        return Err("No versions selected (check VALENTINE_GEN_VERSIONS)".into());
+    if args.list_versions {
+        for v in &supported_versions {
+            println!("{v}");
+        }
+        return Ok(());
     }
 
-    let default_version = latest_version(&versions).ok_or("No versions for default")?;
-    let default_feature = version_to_feature(&default_version);
+    let generate_versions: HashSet<String> = if args.all {
+        supported_versions.iter().cloned().collect()
+    } else if !args.versions.is_empty() {
+        let wanted: HashSet<String> = args.versions.iter().cloned().collect();
+        for v in &wanted {
+            if !supported_versions.iter().any(|known| known == v) {
+                warn!(version = %v, "Requested version not found in minecraft-data");
+            }
+        }
+        wanted
+    } else if args.latest {
+        HashSet::from([latest_version(&supported_versions).ok_or("No versions available")?])
+    } else {
+        // Default to generating only the latest Bedrock version.
+        HashSet::from([latest_version(&supported_versions).ok_or("No versions available")?])
+    };
 
-    let mut protocol_map: HashMap<String, Vec<String>> = HashMap::new();
-    for version in &versions {
-        let data = bedrock
-            .get(version)
-            .and_then(|v| v.as_object())
-            .ok_or_else(|| format!("Missing bedrock version data for {}", version))?;
+    if generate_versions.is_empty() {
+        return Err("No versions selected for generation".into());
+    }
 
-        let Some(proto_path) = data.get("protocol").and_then(|v| v.as_str()) else {
-            eprintln!("Skipping {}: no protocol path", version);
+    let mut version_decls: Vec<VersionDecl> = Vec::new();
+
+    for version in &supported_versions {
+        let Some(data) = bedrock.get(version).and_then(|v| v.as_object()) else {
+            warn!(version = %version, "Skipping version missing bedrock data");
             continue;
         };
 
-        protocol_map
-            .entry(proto_path.to_string())
-            .or_default()
-            .push(version.clone());
-    }
-
-    // Prepare nested protocol dir structure
-    let protocol_out_dir = output_dir.join("protocol");
-    if !protocol_out_dir.exists() {
-        fs::create_dir_all(&protocol_out_dir)?;
-    }
-
-    struct ProtocolDecl {
-        module_name: String,
-        features: Vec<String>,
-    }
-
-    struct VersionDecl {
-        module_name: String,
-        feature: String,
-        protocol_module: String,
-        meta: BedrockVersionJson,
-    }
-
-    let mut protocol_decls: Vec<ProtocolDecl> = Vec::new();
-    let mut version_decls: Vec<VersionDecl> = Vec::new();
-    let mut all_features: HashSet<String> = HashSet::new();
-    let mut feature_to_protocol: HashMap<String, String> = HashMap::new();
-
-    let mut protocols: Vec<_> = protocol_map.keys().cloned().collect();
-    protocols.sort_by(|a, b| {
-        let parse = |s: &str| -> Vec<u64> {
-            s.rsplit('/')
-                .next()
-                .unwrap_or(s)
-                .split('.')
-                .map(|x| x.parse().unwrap_or(0))
-                .collect()
+        let Some(proto_path) = data.get("protocol").and_then(|v| v.as_str()) else {
+            warn!(version = %version, "Skipping version with no protocol path");
+            continue;
         };
-        parse(a).cmp(&parse(b))
-    });
 
-    let mut global_registry = GlobalRegistry::new();
-    let mut module_deps: HashMap<String, HashSet<String>> = HashMap::new();
-
-    for proto_path in protocols {
-        let versions = protocol_map.get(&proto_path).unwrap();
-        let proto_input_dir = root.join("minecraft-data/data").join(&proto_path);
-        let protocol_file = proto_input_dir.join("protocol.json");
+        let protocol_file = {
+            let mut p = minecraft_data_root.join("data").join(proto_path);
+            if !proto_path.ends_with(".json") {
+                p = p.join("protocol.json");
+            }
+            p
+        };
 
         if !protocol_file.exists() {
-            eprintln!("Skipping missing protocol file: {}", proto_path);
+            warn!(
+                version = %version,
+                path = %protocol_file.display(),
+                "Skipping version with missing protocol file"
+            );
             continue;
         }
 
-        println!(
-            "Generating protocol {} (versions: {:?})",
-            proto_path, versions
-        );
+        let meta = match read_bedrock_version_json(&minecraft_data_root, version) {
+            Ok(meta) => meta,
+            Err(e) => {
+                error!(version = %version, error = %e, "Failed to read version metadata");
+                continue;
+            }
+        };
+        let module_name = version_to_module(version);
+        let feature = version_to_feature(version);
+        let crate_name = version_to_crate(version);
 
-        let mut items_path = None;
-        if let Some(first_version) = versions.first() {
-            if let Some(data) = bedrock.get(first_version).and_then(|v| v.as_object()) {
-                if let Some(p) = data.get("items").and_then(|v| v.as_str()) {
-                    let mut ip = root.join("minecraft-data/data").join(p);
+        let crate_dir = bedrock_versions_dir.join(&module_name);
+        let crate_src_dir = crate_dir.join("src");
+        
+        let should_generate = generate_versions.contains(version);
+        let lib_rs_exists = crate_src_dir.join("lib.rs").exists();
+
+        if !should_generate && !lib_rs_exists {
+            // Version is not requested for generation and does not exist on disk.
+            // Skip it (this effectively removes it from the manifest if it was deleted).
+            continue;
+        }
+
+        // Ensure directories exist (idempotent)
+        fs::create_dir_all(&crate_src_dir)?;
+
+        // Update the crate's Cargo.toml (ensures dependencies are synced even if not regenerating code)
+        write_version_crate(&crate_dir, &crate_src_dir, &crate_name)?;
+
+        if should_generate {
+            info!(
+                minecraft_version = %version,
+                module = %module_name,
+                crate_name = %crate_name,
+                "Generating Bedrock protocol sources"
+            );
+
+            let items_path = data
+                .get("items")
+                .and_then(|v| v.as_str())
+                .map(|p| {
+                    let mut ip = minecraft_data_root.join("data").join(p);
                     if !p.ends_with(".json") {
                         ip = ip.join("items.json");
                     }
-                    if ip.exists() {
-                        items_path = Some(ip);
-                    }
+                    ip
+                })
+                .filter(|p| p.exists());
+
+            let parse_result = match parser::parse(&protocol_file) {
+                Ok(parse_result) => parse_result,
+                Err(e) => {
+                    error!(
+                        path = %protocol_file.display(),
+                        error = %e,
+                        "Error parsing protocol file"
+                    );
+                    continue;
                 }
+            };
+
+            // Use a fresh global registry per MC version to avoid cross-version dedup dependencies.
+            let mut global_registry = GlobalRegistry::new();
+            if let Err(e) = generator::generate_protocol_module(
+                "",
+                &parse_result,
+                &crate_src_dir,
+                &mut global_registry,
+                items_path,
+                None,
+            ) {
+                error!(minecraft_version = %version, error = %e, "Error generating version");
+                continue;
             }
         }
 
-        match parser::parse(&protocol_file) {
-            Ok(parse_result) => {
-                let version_part = proto_path.rsplit('/').next().unwrap_or(&proto_path);
-                let protocol_module_name = format!("v{}", version_part.replace('.', "_"));
-
-                match generator::generate_protocol_module(
-                    &protocol_module_name,
-                    &parse_result,
-                    &protocol_out_dir,
-                    &mut global_registry,
-                    items_path,
-                    None,
-                ) {
-                    Ok(GenerationOutcome {
-                        module_dependencies,
-                        snapshot: _,
-                    }) => {
-                        module_deps.insert(protocol_module_name.clone(), module_dependencies);
-                    }
-                    Err(e) => {
-                        eprintln!(
-                            "  Error generating protocol module {}: {}",
-                            protocol_module_name, e
-                        );
-                        continue;
-                    }
-                }
-
-                // Record protocol decl + features (for protocol/mod.rs)
-                let mut features: Vec<String> =
-                    versions.iter().map(|v| version_to_feature(v)).collect();
-                features.sort();
-                protocol_decls.push(ProtocolDecl {
-                    module_name: protocol_module_name.clone(),
-                    features: features.clone(),
-                });
-
-                for v in versions {
-                    let meta = read_bedrock_version_json(root, v)?;
-                    let version_module_name = version_to_module(v);
-                    let feature = version_to_feature(v);
-                    version_decls.push(VersionDecl {
-                        module_name: version_module_name,
-                        feature: feature.clone(),
-                        protocol_module: protocol_module_name.clone(),
-                        meta,
-                    });
-                    all_features.insert(feature.clone());
-                    feature_to_protocol.insert(feature, protocol_module_name.clone());
-                }
-            }
-            Err(e) => {
-                eprintln!("  Error parsing {}: {}", proto_path, e);
-            }
-        }
+        version_decls.push(VersionDecl {
+            module_name,
+            feature: feature.clone(),
+            crate_name,
+            meta,
+        });
     }
 
+    if version_decls.is_empty() {
+        return Err("No versions could be generated from minecraft-data".into());
+    }
+
+    let default_version = latest_version(
+        &version_decls
+            .iter()
+            .map(|vd| vd.meta.minecraft_version.clone())
+            .collect::<Vec<_>>(),
+    )
+    .ok_or("No versions for default")?;
+    let default_feature = version_to_feature(&default_version);
+
     // Deterministic ordering in output
-    protocol_decls.sort_by(|a, b| a.module_name.cmp(&b.module_name));
     version_decls.sort_by(|a, b| a.module_name.cmp(&b.module_name));
 
-    // Build protocol/mod.rs AST with #[cfg(...)] pub mod vX_Y_Z; per protocol
-    let protocol_items: Vec<_> = protocol_decls
+    // Build bedrock/protocol/mod.rs AST with `pub use valentine_bedrock_X_Y_Z as vX_Y_Z;`.
+    let protocol_items: Vec<_> = version_decls
         .iter()
-        .map(|pd| {
-            let ident = syn::Ident::new(&pd.module_name, Span::call_site());
-            if pd.features.len() == 1 {
-                let feat_lit = LitStr::new(&pd.features[0], Span::call_site());
-                quote! {
-                    #[cfg(feature = #feat_lit)]
-                    pub mod #ident;
-                }
-            } else {
-                let feat_lits: Vec<_> = pd
-                    .features
-                    .iter()
-                    .map(|f| LitStr::new(f, Span::call_site()))
-                    .collect();
-                quote! {
-                    #[cfg(any( #(feature = #feat_lits),* ))]
-                    pub mod #ident;
-                }
+        .map(|vd| {
+            let module_ident = syn::Ident::new(&vd.module_name, Span::call_site());
+            let crate_ident = syn::Ident::new(&vd.crate_name, Span::call_site());
+            let feat_lit = LitStr::new(&vd.feature, Span::call_site());
+            quote! {
+                #[cfg(feature = #feat_lit)]
+                pub use #crate_ident as #module_ident;
             }
         })
         .collect();
@@ -305,7 +416,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .iter()
         .map(|vd| {
             let version_ident = syn::Ident::new(&vd.module_name, Span::call_site());
-            let proto_ident = syn::Ident::new(&vd.protocol_module, Span::call_site());
             let feat_lit = LitStr::new(&vd.feature, Span::call_site());
             let game_version = LitStr::new(&vd.meta.minecraft_version, Span::call_site());
             let major_version = LitStr::new(&vd.meta.major_version, Span::call_site());
@@ -314,7 +424,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             quote! {
                 #[cfg(feature = #feat_lit)]
                 pub mod #version_ident {
-                    pub use super::super::protocol::#proto_ident::*;
+                    pub use super::super::protocol::#version_ident::*;
 
                     pub const GAME_VERSION: &str = #game_version;
                     pub const PROTOCOL_VERSION: i32 = #protocol_version;
@@ -371,7 +481,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         parse2(mod_tokens).map_err(|e| format!("Failed to parse mod.rs tokens: {}", e))?;
     let formatted = prettyplease::unparse(&syntax_tree);
 
-    let mod_rs_path = output_dir.join("mod.rs");
+    let mod_rs_path = bedrock_src_dir.join("mod.rs");
     let mut mod_file = File::create(mod_rs_path)?;
     write!(
         mod_file,
@@ -398,7 +508,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let protocol_syntax = parse2(protocol_tokens)
         .map_err(|e| format!("Failed to parse protocol mod.rs tokens: {}", e))?;
     let protocol_formatted = prettyplease::unparse(&protocol_syntax);
-    let protocol_mod_path = protocol_out_dir.join("mod.rs");
+    let protocol_mod_path = protocol_mod_dir.join("mod.rs");
     let mut protocol_file = File::create(protocol_mod_path)?;
     write!(
         protocol_file,
@@ -419,20 +529,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         //! allowing you to enable `--features bedrock_X_Y_Z` and import
         //! `valentine::bedrock::version::vX_Y_Z::*` without duplicating protocol code.
 
-        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-        pub struct BedrockVersionInfo {
-            pub minecraft_version: &'static str,
-            pub protocol_version: i32,
-            pub major_version: &'static str,
-            pub release_type: &'static str,
-        }
+        pub use valentine_bedrock_core::bedrock::version::BedrockVersionInfo;
 
         #(#version_items)*
     };
     let version_syntax =
         parse2(version_tokens).map_err(|e| format!("Failed to parse version.rs tokens: {}", e))?;
     let version_formatted = prettyplease::unparse(&version_syntax);
-    let version_rs_path = output_dir.join("version.rs");
+    let version_rs_path = bedrock_src_dir.join("version.rs");
     let mut version_file = File::create(version_rs_path)?;
     write!(
         version_file,
@@ -440,23 +544,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         version_formatted
     )?;
 
-    update_valentine_features(
-        root,
-        &default_feature,
-        &all_features,
-        &feature_to_protocol,
-        &module_deps,
-    )?;
+    update_valentine_manifest(root, &default_feature, &version_decls)?;
 
     Ok(())
 }
 
-fn update_valentine_features(
+fn update_valentine_manifest(
     root: &Path,
     default_feature: &str,
-    features: &HashSet<String>,
-    feature_to_protocol: &HashMap<String, String>,
-    deps: &HashMap<String, HashSet<String>>,
+    versions: &[VersionDecl],
 ) -> Result<(), Box<dyn std::error::Error>> {
     let valentine_cargo = root.parent().unwrap().join("valentine").join("Cargo.toml");
     let mut contents = String::new();
@@ -466,46 +562,66 @@ fn update_valentine_features(
     }
     let mut doc: DocumentMut = contents.parse()?;
 
+    // Ensure tables exist (do this before borrowing them mutably).
+    if !doc.as_table().contains_key("dependencies") {
+        doc["dependencies"] = toml_edit::table();
+    }
     if !doc.as_table().contains_key("features") {
         doc["features"] = toml_edit::table();
     }
-    let features_tbl = doc["features"].as_table_mut().unwrap();
 
-    // Remove stale generated features before re-inserting.
-    let existing_keys: Vec<String> = features_tbl.iter().map(|(k, _)| k.to_string()).collect();
-    for key in existing_keys {
-        if key == "default" || key.starts_with("bedrock_") {
-            features_tbl.remove(&key);
-        }
-    }
+    // Dependencies: remove stale generated crates then insert current set.
+    {
+        let deps_tbl = doc["dependencies"].as_table_mut().unwrap();
 
-    // Set default = [latest]
-    let mut default_arr = Array::new();
-    default_arr.push(default_feature);
-    features_tbl.insert(
-        "default",
-        toml_edit::Item::Value(toml_edit::Value::Array(default_arr)),
-    );
-
-    let mut names: Vec<_> = features.iter().cloned().collect();
-    names.sort();
-
-    for name in names {
-        let proto = feature_to_protocol
-            .get(&name)
-            .ok_or_else(|| format!("missing protocol mapping for feature {}", name))?;
-
-        let mut arr = Array::new();
-        if let Some(module_dependencies) = deps.get(proto) {
-            let mut sorted_deps: Vec<_> = module_dependencies.iter().collect();
-            sorted_deps.sort();
-            for dep_mod in sorted_deps {
-                let dep_feat = format!("bedrock_{}", dep_mod.trim_start_matches('v'));
-                arr.push(dep_feat);
+        let existing_deps: Vec<String> = deps_tbl.iter().map(|(k, _)| k.to_string()).collect();
+        for key in existing_deps {
+            if key.starts_with("valentine_bedrock_") && key != "valentine_bedrock_core" {
+                deps_tbl.remove(&key);
             }
         }
 
-        features_tbl.insert(&name, toml_edit::Item::Value(toml_edit::Value::Array(arr)));
+        for vd in versions {
+            let mut dep = toml_edit::InlineTable::new();
+            dep.insert(
+                "path",
+                toml_edit::Value::from(format!("bedrock_versions/{}", vd.module_name)),
+            );
+            dep.insert("optional", toml_edit::Value::from(true));
+            deps_tbl.insert(
+                &vd.crate_name,
+                toml_edit::Item::Value(toml_edit::Value::InlineTable(dep)),
+            );
+        }
+    }
+
+    // Features: remove stale generated entries then insert current set.
+    {
+        let features_tbl = doc["features"].as_table_mut().unwrap();
+
+        let existing_keys: Vec<String> = features_tbl.iter().map(|(k, _)| k.to_string()).collect();
+        for key in existing_keys {
+            if key == "default" || key.starts_with("bedrock_") {
+                features_tbl.remove(&key);
+            }
+        }
+
+        // Set default = [latest]
+        let mut default_arr = Array::new();
+        default_arr.push(default_feature);
+        features_tbl.insert(
+            "default",
+            toml_edit::Item::Value(toml_edit::Value::Array(default_arr)),
+        );
+
+        for vd in versions {
+            let mut arr = Array::new();
+            arr.push(format!("dep:{}", vd.crate_name));
+            features_tbl.insert(
+                &vd.feature,
+                toml_edit::Item::Value(toml_edit::Value::Array(arr)),
+            );
+        }
     }
 
     let new_contents = doc.to_string();
@@ -518,3 +634,30 @@ fn update_valentine_features(
 }
 
 // Note: No cleanup logic here; assume old generated files are managed manually.
+
+fn write_version_crate(
+    crate_dir: &Path,
+    crate_src_dir: &Path,
+    crate_name: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    fs::create_dir_all(crate_dir)?;
+    fs::create_dir_all(crate_src_dir)?;
+
+    let cargo_toml = format!(
+        r#"[package]
+name = "{crate_name}"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bitflags = "2"
+bytes = "1"
+uuid = "1.8.0"
+valentine_bedrock_core = {{ path = "../../bedrock_core" }}
+"#
+    );
+    let mut cargo_file = File::create(crate_dir.join("Cargo.toml"))?;
+    cargo_file.write_all(cargo_toml.as_bytes())?;
+
+    Ok(())
+}

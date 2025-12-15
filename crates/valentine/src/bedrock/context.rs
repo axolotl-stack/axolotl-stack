@@ -1,3 +1,1 @@
-pub struct BedrockSession {
-    pub shield_item_id: i32,
-}
+pub use valentine_bedrock_core::bedrock::context::*;

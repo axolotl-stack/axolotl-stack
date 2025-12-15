@@ -42,6 +42,14 @@ pub struct BedrockListenerConfig {
     /// Whether to send a block palette/update when starting the game. Default: false (minimal empty palette).
     pub send_block_palette: bool,
 
+    /// Number of bytes to skip at the beginning of the packet during encryption/decryption.
+    ///
+    /// Bedrock RakNet packets usually start with a Packet ID (0xFE for GamePackets) which is
+    /// kept in cleartext, while the rest of the payload is encrypted.
+    ///
+    /// Default: `1` (Preserves 0xFE)
+    pub encryption_header_len: usize,
+
     /// Optional guard to cap decompressed batch payloads.
     ///
     /// If set, any batch whose decompressed size exceeds this limit will be rejected.
@@ -60,6 +68,7 @@ impl Default for BedrockListenerConfig {
             require_resource_packs: false,
             handle_client_cache_status: true,
             send_block_palette: false,
+            encryption_header_len: 1,
             max_decompressed_batch_size: None,
         }
     }

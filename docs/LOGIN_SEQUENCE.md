@@ -49,16 +49,20 @@ sequenceDiagram
     Server->>Client: StartGame
     Server->>Client: ItemRegistry
     Note right of Server: Required for items to exist
+
+    Client->>Server: RequestChunkRadius
+    Note right of Client: Client requests view distance
+
+    Server->>Client: ChunkRadiusUpdated
+    Server->>Client: NetworkChunkPublisherUpdate
+
     Server->>Client: BiomeDefinitionList
     Note right of Server: Fixes crashes on 1.21.80+
     Server->>Client: AvailableEntityIdentifiers
     Server->>Client: CreativeContent
     Note right of Server: Required for Creative Inventory
-    
-    Server->>Client: ChunkRadiusUpdated
-    Server->>Client: NetworkChunkPublisherUpdate
-    
-    Server->>Client: PlayStatus (PlayerSpawn)
+
+    Server->>Client: PlayStatus (Spawned)
     
     Client->>Server: SetLocalPlayerAsInitialized
     Note right of Client: Client is done loading and ready to play
@@ -81,7 +85,8 @@ sequenceDiagram
 ### 3. Spawn Sequence
 - `StartGame`: Contains world settings, basic level info, and player position.
 - `ItemRegistry`: Defines all custom and vanilla items for the session.
+- `RequestChunkRadius`: Sent by the **Client** after receiving `ItemRegistry`.
 - `BiomeDefinitionList`: **CRITICAL** for newer clients.
 - `CreativeContent`: Populates the creative inventory.
-- `PlayStatus(PlayerSpawn)`: Tells the client to remove the loading screen.
+- `PlayStatus(Spawned)`: Sent by the **Server** after `RequestChunkRadius` to remove the loading screen.
 - `SetLocalPlayerAsInitialized`: Sent by the **Client** to confirm they are ready.

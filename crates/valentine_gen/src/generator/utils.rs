@@ -105,6 +105,35 @@ pub fn clean_type_name(name: &str) -> String {
     }
 }
 
+/// For packet-local helper types we sometimes end up with duplicated suffixes like
+/// `PacketPlayStatusStatus`. This derives a nicer alias name (e.g., `PlayStatus`) by:
+/// 1) stripping the leading `Packet`
+/// 2) collapsing repeated trailing tokens (`*_status_status` -> `*_status`)
+///
+/// Returns `None` when no collapse would occur.
+pub fn packet_duplicate_alias(type_name: &str) -> Option<String> {
+    let stripped = type_name.strip_prefix("Packet")?;
+    if stripped.is_empty() {
+        return None;
+    }
+
+    let snake = stripped.to_case(Case::Snake);
+    let mut parts: Vec<&str> = snake.split('_').filter(|s| !s.is_empty()).collect();
+
+    let mut changed = false;
+    while parts.len() >= 2 && parts[parts.len() - 1] == parts[parts.len() - 2] {
+        parts.pop();
+        changed = true;
+    }
+
+    if !changed || parts.is_empty() {
+        return None;
+    }
+
+    let aliased = parts.join("_").to_case(Case::Pascal);
+    Some(clean_type_name(&aliased))
+}
+
 pub fn compute_fingerprint(
     name: &str,
     t: &crate::ir::Type,
@@ -186,4 +215,33 @@ pub fn derive_field_names(container: &Container, struct_name: &str) -> Vec<Strin
         .collect();
 
     make_unique_names(&base_names)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::packet_duplicate_alias;
+
+    #[test]
+    fn packet_duplicate_alias_collapses_suffix() {
+        assert_eq!(
+            packet_duplicate_alias("PacketPlayStatusStatus").as_deref(),
+            Some("PlayStatus")
+        );
+    }
+
+    #[test]
+    fn packet_duplicate_alias_none_when_not_duplicated() {
+        assert_eq!(
+            packet_duplicate_alias("PacketNetworkSettingsCompressionAlgorithm"),
+            None
+        );
+    }
+
+    #[test]
+    fn packet_duplicate_alias_collapses_multiple() {
+        assert_eq!(
+            packet_duplicate_alias("PacketFooTypeTypeType").as_deref(),
+            Some("FooType")
+        );
+    }
 }

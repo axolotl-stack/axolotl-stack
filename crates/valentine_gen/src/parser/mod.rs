@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
+use tracing::{debug, warn};
 
 #[derive(Debug, Deserialize)]
 struct Protocol {
@@ -39,12 +40,7 @@ pub fn parse(path: &Path) -> Result<ParseResult, Box<dyn std::error::Error>> {
     let mappings = find_packet_mappings(packet_mapper)
         .ok_or("Could not locate packet mappings in mcpe_packet")?;
 
-    if crate::debug_enabled() {
-        println!("Found {} mappings.", mappings.len());
-        for (i, (k, v)) in mappings.iter().take(5).enumerate() {
-            println!("Mapping[{}]: {} -> {}", i, k, v);
-        }
-    }
+    debug!(mapping_count = mappings.len(), "Found packet ID mappings");
 
     let mut types_map = HashMap::new();
     let mut type_parse_failures: usize = 0;
@@ -56,45 +52,20 @@ pub fn parse(path: &Path) -> Result<ParseResult, Box<dyn std::error::Error>> {
             }
             Err(e) => {
                 type_parse_failures += 1;
-                if crate::debug_enabled() {
-                    println!("Warning: Failed to parse type {}: {}", name, e);
-                }
+                debug!(type_name = %name, error = %e, "Failed to parse type");
             }
         }
     }
 
-    if type_parse_failures > 0 && crate::debug_enabled() {
-        eprintln!(
-            "Note: {} types failed to parse for {}",
-            type_parse_failures,
-            path.display()
+    if type_parse_failures > 0 {
+        warn!(
+            failed = type_parse_failures,
+            path = %path.display(),
+            "Some types failed to parse"
         );
     }
 
-    if crate::debug_enabled() {
-        println!("Parsed {} types.", types_map.len());
-        println!(
-            "Type keys sample: {:?}",
-            types_map.keys().take(5).collect::<Vec<_>>()
-        );
-    }
-
-    if crate::debug_enabled() {
-        if let Some(login) = mappings.iter().find(|(_, v)| v.as_str() == Some("login")) {
-            println!("Mapping for login: {:?}", login);
-        } else {
-            println!("Mapping for login NOT FOUND");
-            // Maybe it has a different name?
-        }
-    }
-
-    // Check if "login_packet" or similar exists in types
-    let variants = ["login", "login_packet", "packet_login", "minecraft:login"];
-    if crate::debug_enabled() {
-        for v in variants {
-            println!("Type '{}' exists: {}", v, types_map.contains_key(v));
-        }
-    }
+    debug!(type_count = types_map.len(), "Parsed protocol types");
 
     let mut packets: Vec<Packet> = Vec::new();
     let mut missing_packet_bodies: usize = 0;
@@ -160,23 +131,19 @@ pub fn parse(path: &Path) -> Result<ParseResult, Box<dyn std::error::Error>> {
 
         if !found_packet {
             missing_packet_bodies += 1;
-            if crate::debug_enabled() {
-                println!("Failed to find packet body for ID {} Name '{}'", id, name);
-            }
+            debug!(packet_id = id, packet_name = %name, "Missing packet body");
         }
     }
 
     if missing_packet_bodies > 0 {
-        eprintln!(
-            "Warning: {} packets had no body for {}",
-            missing_packet_bodies,
-            path.display()
+        warn!(
+            missing = missing_packet_bodies,
+            path = %path.display(),
+            "Some packets had no body"
         );
     }
 
-    if crate::debug_enabled() {
-        println!("Populated {} packets.", packets.len());
-    }
+    debug!(packet_count = packets.len(), "Populated packets");
 
     // Inject explicit definition for "enum_size_based_on_values_len" to replace "native" placeholder.
     // This allows us to treat it as a strongly typed Enum in the generated code.

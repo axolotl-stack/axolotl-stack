@@ -698,9 +698,11 @@ checksum = "4a5f13b858c8d314ee3e8f639011f7ccefe71f97f96e50151fb991f267928e2c"
 name = "jolyne"
 version = "0.1.0"
 dependencies = [
+ "aes",
  "aes-gcm",
  "base64",
  "bytes",
+ "ctr",
  "flate2",
  "jsonwebtoken",
  "once_cell",
@@ -1873,6 +1875,26 @@ dependencies = [
  "tokio-raknet",
  "tracing-subscriber",
  "uuid",
+ "valentine_bedrock_1_21_130",
+ "valentine_bedrock_core",
+]
+
+[[package]]
+name = "valentine_bedrock_1_21_130"
+version = "0.1.0"
+dependencies = [
+ "bitflags",
+ "bytes",
+ "uuid",
+ "valentine_bedrock_core",
+]
+
+[[package]]
+name = "valentine_bedrock_core"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "uuid",
 ]
 
 [[package]]
@@ -1887,6 +1909,8 @@ dependencies = [
  "serde_json",
  "syn",
  "toml_edit",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
