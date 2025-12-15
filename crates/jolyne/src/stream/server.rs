@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use aes_gcm::Aes256Gcm;
 use base64::Engine;
-use base64::engine::general_purpose::STANDARD;
+use base64::engine::general_purpose::{STANDARD, STANDARD_NO_PAD};
 use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use p384::{
     PublicKey, SecretKey,
@@ -246,7 +246,9 @@ impl BedrockStream<SecurePending, Server> {
             salt: String,
         }
         let claims = SaltClaims {
-            salt: STANDARD.encode(salt),
+            // BDS encodes the salt using raw base64 (no '=' padding). The vanilla client appears to
+            // expect this exact format.
+            salt: STANDARD_NO_PAD.encode(salt),
         };
 
         let server_priv_der = server_key.to_pkcs8_der().unwrap();

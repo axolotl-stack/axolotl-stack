@@ -7,7 +7,7 @@ edition = "2024"
 tokio = { version = "1.41.1", features = ["full"] }
 bytes = "1.8.0"
 thiserror = "1.0"
-tokio-raknet = { path = "../../../tokio-raknet" }
+tokio-raknet = { git = "https://github.com/axolotl-stack/tokio-raknet", rev = "7f50527"}
 valentine = { path = "../valentine", default-features = false, features = ["bedrock_1_21_130"] }
 flate2 = "1.0"
 jsonwebtoken = "9.3"

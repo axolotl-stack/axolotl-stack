@@ -714,7 +714,7 @@ dependencies = [
  "sha2",
  "thiserror 1.0.69",
  "tokio",
- "tokio-raknet",
+ "tokio-raknet 0.2.0 (git+https://github.com/axolotl-stack/tokio-raknet?rev=7f50527)",
  "tracing",
  "tracing-subscriber",
  "uuid",
@@ -1650,6 +1650,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-raknet"
+version = "0.2.0"
+source = "git+https://github.com/axolotl-stack/tokio-raknet?rev=7f50527#7f505279e36dc3f45e474f9ac5b44c25cf083d63"
+dependencies = [
+ "bitflags",
+ "bytes",
+ "thiserror 2.0.17",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "tokio-rustls"
 version = "0.26.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1872,7 +1884,7 @@ dependencies = [
  "flate2",
  "serde",
  "tokio",
- "tokio-raknet",
+ "tokio-raknet 0.2.0",
  "tracing-subscriber",
  "uuid",
  "valentine_bedrock_1_21_130",

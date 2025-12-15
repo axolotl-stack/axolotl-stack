@@ -114,10 +114,10 @@ impl AuthKeyProvider {
         kid: &str,
     ) -> Result<Option<(DecodingKey, String)>, JolyneError> {
         // Cache hit and still fresh.
-        if let Some(kr) = &self.keyring {
-            if let Some(k) = kr.get(kid) {
-                return Ok(Some((k, kr.issuer.clone())));
-            }
+        if let Some(kr) = &self.keyring
+            && let Some(k) = kr.get(kid)
+        {
+            return Ok(Some((k, kr.issuer.clone())));
         }
 
         // Only refresh if we don't know the key or cache is stale.
@@ -147,15 +147,15 @@ static AUTH_KEY_PROVIDER: Lazy<Mutex<AuthKeyProvider>> =
 static DISCOVERY_CACHE: Lazy<Mutex<Option<(Instant, String)>>> = Lazy::new(|| Mutex::new(None));
 
 fn key_from_header(header: &jsonwebtoken::Header, alg: Algorithm) -> Option<DecodingKey> {
-    if let Some(x5u) = header.x5u.as_ref() {
-        if let Ok(k) = key_from_base64_for_alg(x5u, alg) {
-            return Some(k);
-        }
+    if let Some(x5u) = header.x5u.as_ref()
+        && let Ok(k) = key_from_base64_for_alg(x5u, alg)
+    {
+        return Some(k);
     }
-    if let Some(x5c) = header.x5c.as_ref().and_then(|v| v.first()) {
-        if let Ok(k) = key_from_base64_for_alg(x5c, alg) {
-            return Some(k);
-        }
+    if let Some(x5c) = header.x5c.as_ref().and_then(|v| v.first())
+        && let Ok(k) = key_from_base64_for_alg(x5c, alg)
+    {
+        return Some(k);
     }
     None
 }
@@ -176,10 +176,10 @@ pub(crate) fn fill_identity_from_client_data(
     client_data_jwt: &str,
 ) -> ValidatedIdentity {
     if let Some(cd) = decode_client_data_claims(client_data_jwt) {
-        if identity.identity_public_key.is_empty() {
-            if let Some(pk) = cd.identity_public_key {
-                identity.identity_public_key = pk;
-            }
+        if identity.identity_public_key.is_empty()
+            && let Some(pk) = cd.identity_public_key
+        {
+            identity.identity_public_key = pk;
         }
         if identity.display_name.is_none() {
             identity.display_name = cd.display_name.or(cd.third_party_name);
@@ -218,10 +218,10 @@ async fn fetch_auth_keys() -> Result<AuthKeyring, JolyneError> {
 
     async fn discover_auth_service_uri() -> String {
         let mut cache = DISCOVERY_CACHE.lock().await;
-        if let Some((ts, uri)) = cache.as_ref() {
-            if ts.elapsed() < DISCOVERY_TTL {
-                return uri.clone();
-            }
+        if let Some((ts, uri)) = cache.as_ref()
+            && ts.elapsed() < DISCOVERY_TTL
+        {
+            return uri.clone();
         }
         let discovery_url =
             format!("{MINECRAFT_SERVICES_DISCOVERY_URL}{MINECRAFT_VERSION_NETWORK}");
@@ -300,11 +300,13 @@ pub async fn validate_open_id(
         .clone()
         .or_else(|| header.x5c.as_ref().and_then(|v| v.first().cloned()));
     let mut provider_key: Option<(DecodingKey, String)> = None;
-    if online_mode && header.kid.is_some() && header_key_b64.is_none() {
-        if let Some(kid) = header.kid.as_deref() {
-            let mut provider = AUTH_KEY_PROVIDER.lock().await;
-            provider_key = provider.resolve_key(kid).await?;
-        }
+    if online_mode
+        && header.kid.is_some()
+        && header_key_b64.is_none()
+        && let Some(kid) = header.kid.as_deref()
+    {
+        let mut provider = AUTH_KEY_PROVIDER.lock().await;
+        provider_key = provider.resolve_key(kid).await?;
     }
 
     let decoded = if online_mode {
@@ -350,27 +352,41 @@ pub async fn validate_open_id(
         } else {
             // If the token does not embed a key (kid/x5u/x5c), fall back to unverified parsing.
             let claims = decode_unverified_claims::<OpenIdClaims>(token)
-                .ok_or_else(|| AuthError::MissingIdentityKey)?;
+                .ok_or(AuthError::MissingIdentityKey)?;
             jsonwebtoken::TokenData { header, claims }
         }
     } else {
         let claims = decode_unverified_claims::<OpenIdClaims>(token)
-            .ok_or_else(|| AuthError::BadSignature("Invalid JWT format".to_string()))?;
+            .ok_or(AuthError::BadSignature("Invalid JWT format".to_string()))?;
         jsonwebtoken::TokenData { header, claims }
     };
 
     let claims = decoded.claims;
     let header_for_debug = decoded.header.clone();
     let token_identity_key = claims.identity_public_key.clone();
-    let pub_key_b64 = claims
-        .identity_public_key
+    let client_identity_key = client_claims
+        .as_ref()
+        .and_then(|cd| cd.identity_public_key.clone());
+
+    // The key used for the Bedrock encryption handshake is the client's identity key (the one that signs the
+    // client data JWT). Some OpenID tokens also repeat it as `identityPublicKey` / `cpk`.
+    // Do NOT fall back to the OpenID JWT header key (x5u/x5c), as that is the provider signing key.
+    if let (Some(token_key), Some(client_key)) = (&token_identity_key, &client_identity_key)
+        && !token_key.is_empty()
+        && !client_key.is_empty()
+        && token_key != client_key
+    {
+        warn!(
+            token_key_len = token_key.len(),
+            client_key_len = client_key.len(),
+            "openid identityPublicKey/cpk differs from clientData IdentityPublicKey"
+        );
+    }
+
+    let pub_key_b64 = client_identity_key
         .clone()
-        .or_else(|| {
-            client_claims
-                .as_ref()
-                .and_then(|cd| cd.identity_public_key.clone())
-        })
-        .or(header_key_b64.clone())
+        .filter(|k| !k.is_empty())
+        .or_else(|| token_identity_key.clone().filter(|k| !k.is_empty()))
         .ok_or_else(|| {
             warn!(
                 kid = ?decoded.header.kid,
