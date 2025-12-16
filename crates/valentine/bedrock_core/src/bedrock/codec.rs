@@ -1,4 +1,5 @@
-use bytes::{Buf, BufMut};
+use bytes::{Buf, BufMut, Bytes};
+use std::io::Cursor;
 use std::mem;
 
 use crate::bedrock::context::BedrockSession;
@@ -490,4 +491,152 @@ impl BedrockCodec for VarLong {
 pub trait GamePacket: BedrockCodec {
     type PacketId;
     const PACKET_ID: Self::PacketId;
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Nbt(pub Bytes);
+
+impl Default for Nbt {
+    fn default() -> Self {
+        // NetworkLittleEndian empty compound:
+        // 0x0a (Tag Compound)
+        // 0x00 (Name Length = 0, VarInt)
+        // 0x00 (Tag End)
+        Self(vec![0x0a, 0x00, 0x00].into())
+    }
+}
+
+impl super::codec::BedrockCodec for Nbt {
+    type Args = ();
+
+    fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        // Just write the blob.
+        buf.put_slice(&self.0);
+        Ok(())
+    }
+
+    fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
+        let chunk = buf.chunk();
+
+        let mut cursor = Cursor::new(chunk);
+
+        let root_tag = read_u8(&mut cursor)?;
+
+        // 2. Read the Root Name
+        // Even if empty, the root tag has a name field (2 bytes for length 0)
+        skip_string(&mut cursor)?;
+
+        // 3. Scan ONLY the payload of the root tag
+        // If root is Compound (10), this calls scan_compound recursively
+        // to handle the inner list, which is correct.
+        scan_payload(root_tag, &mut cursor)?;
+        // --- FIXED LOGIC END ---
+
+        let len = cursor.position() as usize;
+        let data = Bytes::copy_from_slice(&chunk[..len]);
+
+        buf.advance(len);
+        Ok(Nbt(data))
+    }
+}
+
+// --- The Scanner Logic (Little Endian) ---
+
+fn scan_compound(cursor: &mut Cursor<&[u8]>) -> Result<(), std::io::Error> {
+    // A Compound is just a list of tags terminated by End (0x00)
+    loop {
+        let tag_id = read_u8(cursor)?;
+        if tag_id == 0 {
+            // Tag_End
+            break;
+        }
+
+        // Tags in a compound are named.
+        // Read Name (Short Length + Bytes)
+        skip_string(cursor)?;
+
+        // Skip the payload based on ID
+        scan_payload(tag_id, cursor)?;
+    }
+    Ok(())
+}
+
+fn scan_payload(tag_id: u8, cursor: &mut Cursor<&[u8]>) -> Result<(), std::io::Error> {
+    use crate::protocol::wire;
+    match tag_id {
+        1 => skip(cursor, 1), // Byte
+        2 => skip(cursor, 2), // Short
+        3 => {
+            // Int (ZigZag32)
+            wire::read_zigzag32(cursor)?;
+            Ok(())
+        }
+        4 => {
+            // Long (ZigZag64)
+            wire::read_zigzag64(cursor)?;
+            Ok(())
+        }
+        5 => skip(cursor, 4), // Float
+        6 => skip(cursor, 8), // Double
+        7 => {
+            // Byte Array (ZigZag32 Length + Bytes)
+            let len = wire::read_zigzag32(cursor)?;
+            skip(cursor, len as usize)
+        }
+        8 => skip_string(cursor), // String
+        9 => {
+            // List (TagId + ZigZag32 Length + Payloads)
+            let inner_id = read_u8(cursor)?;
+            let count = wire::read_zigzag32(cursor)?;
+            if count > 0 {
+                for _ in 0..count {
+                    scan_payload(inner_id, cursor)?;
+                }
+            }
+            Ok(())
+        }
+        10 => scan_compound(cursor), // Compound (Recursion)
+        11 => {
+            // Int Array (ZigZag32 Length + ZigZag32s)
+            let len = wire::read_zigzag32(cursor)?;
+            for _ in 0..len {
+                wire::read_zigzag32(cursor)?;
+            }
+            Ok(())
+        }
+        12 => {
+            // Long Array (ZigZag32 Length + ZigZag64s)
+            let len = wire::read_zigzag32(cursor)?;
+            for _ in 0..len {
+                wire::read_zigzag64(cursor)?;
+            }
+            Ok(())
+        }
+        _ => Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!("Unknown NBT Tag: {}", tag_id),
+        )),
+    }
+}
+
+// --- Low Level Helpers ---
+
+fn read_u8(cursor: &mut Cursor<&[u8]>) -> Result<u8, std::io::Error> {
+    if !cursor.has_remaining() {
+        return Err(std::io::Error::from(std::io::ErrorKind::UnexpectedEof));
+    }
+    Ok(cursor.get_u8())
+}
+
+fn skip_string(cursor: &mut Cursor<&[u8]>) -> Result<(), std::io::Error> {
+    let len = crate::protocol::wire::read_var_u32(cursor)? as usize;
+    skip(cursor, len)
+}
+
+fn skip(cursor: &mut Cursor<&[u8]>, n: usize) -> Result<(), std::io::Error> {
+    if cursor.remaining() < n {
+        return Err(std::io::Error::from(std::io::ErrorKind::UnexpectedEof));
+    }
+    cursor.advance(n);
+    Ok(())
 }

@@ -5,7 +5,8 @@ use aes_gcm::{Aes256Gcm, Key};
 use bytes::BytesMut;
 use ctr::cipher::{KeyIvInit, StreamCipher};
 use sha2::{Digest, Sha256};
-use tokio_raknet::transport::RaknetStream;
+use tokio_raknet::protocol::reliability::Reliability;
+use tokio_raknet::transport::{Message, RaknetStream};
 use tracing::{debug, instrument};
 
 use crate::batch::{decode_batch, encode_batch_multi};
@@ -34,6 +35,8 @@ pub struct BedrockTransport {
 
     // Packet Buffering
     recv_queue: VecDeque<McpePacket>,
+    write_buffer: Vec<McpePacket>,
+    auto_flush: bool,
 
     // Encryption State (Bedrock: AES-256-CTR + SHA256 checksum)
     pub(crate) encryption_enabled: bool,
@@ -56,6 +59,8 @@ impl BedrockTransport {
             inner,
             session: BedrockSession { shield_item_id: 0 },
             recv_queue: VecDeque::new(),
+            write_buffer: Vec::new(),
+            auto_flush: true, // Default to immediate send (like TCP/Proxy)
             encryption_enabled: false,
             send_cipher: None,
             recv_cipher: None,
@@ -71,6 +76,7 @@ impl BedrockTransport {
 
     /// Enable encryption with the derived keys.
     /// This should be called immediately after the handshake key derivation.
+    #[instrument(skip_all, level = "debug", fields(peer_addr = %self.peer_addr()))]
     pub fn enable_encryption(&mut self, key: Key<Aes256Gcm>, iv: [u8; 12]) {
         let key_bytes = key.to_vec();
 
@@ -88,7 +94,7 @@ impl BedrockTransport {
         self.send_counter = 0;
         self.recv_counter = 0;
         self.encryption_enabled = true;
-        debug!("Transport encryption enabled");
+        debug!("encryption enabled");
     }
 
     /// Sets compression parameters.
@@ -96,6 +102,116 @@ impl BedrockTransport {
         self.compression_enabled = enabled;
         self.compression_level = level;
         self.compression_threshold = threshold;
+    }
+
+    /// Configures the flushing strategy.
+    ///
+    /// - `true` (Default): `send()` sends packets immediately (low latency, high overhead).
+    /// - `false`: `send()` queues packets. You MUST call `flush()` to send them (high throughput).
+    pub fn set_auto_flush(&mut self, auto: bool) {
+        self.auto_flush = auto;
+    }
+
+    /// Sends a packet. Behavior depends on `set_auto_flush`.
+    pub async fn send(&mut self, packet: McpePacket) -> Result<(), JolyneError> {
+        if self.auto_flush {
+            self.send_batch(&[packet]).await
+        } else {
+            self.write_buffer.push(packet);
+            Ok(())
+        }
+    }
+
+    /// Flushes all buffered packets as a single batch (ReliableOrdered).
+    /// Does nothing if the buffer is empty.
+    pub async fn flush(&mut self) -> Result<(), JolyneError> {
+        if self.write_buffer.is_empty() {
+            return Ok(());
+        }
+        let packets: Vec<McpePacket> = self.write_buffer.drain(..).collect();
+        self.send_batch(&packets).await
+    }
+
+    /// Sends a list of packets as a single batch using `ReliableOrdered` reliability.
+    #[instrument(skip_all, level = "trace", fields(peer_addr = %self.peer_addr()))]
+    pub async fn send_batch(&mut self, packets: &[McpePacket]) -> Result<(), JolyneError> {
+        self.send_batch_with_reliability(packets, Reliability::ReliableOrdered)
+            .await
+    }
+
+    /// Sends a list of packets as a single batch with specified reliability.
+    ///
+    /// This bypasses the internal `write_buffer` and sends immediately.
+    /// Useful for streaming data (e.g. video/maps) that should use `Unreliable` or `ReliableSequenced`.
+    ///
+    /// # Safety
+    ///
+    /// If encryption is enabled, you **MUST** use `Reliability::ReliableOrdered`.
+    /// Bedrock uses a stream cipher (AES-CTR) which requires strict ordering and no gaps.
+    /// Using any other reliability will desynchronize the cipher and break the connection.
+    /// This method returns an error if you attempt to violate this rule.
+    #[instrument(skip_all, level = "trace", fields(peer_addr = %self.peer_addr(), reliability = ?reliability))]
+    pub async fn send_batch_with_reliability(
+        &mut self,
+        packets: &[McpePacket],
+        reliability: Reliability,
+    ) -> Result<(), JolyneError> {
+        if self.encryption_enabled && reliability != Reliability::ReliableOrdered {
+            return Err(JolyneError::Protocol(ProtocolError::UnexpectedHandshake(
+                "Cannot use unreliable/unordered networking when encryption is active".into(),
+            )));
+        }
+
+        if packets.is_empty() {
+            return Ok(());
+        }
+
+        // 1. Encode Batch (Handles Compression)
+        let batch_buffer = encode_batch_multi(
+            packets,
+            self.compression_enabled,
+            self.compression_level,
+            self.compression_threshold,
+        )?;
+
+        // 2. Encrypt & Send
+        if self.encryption_enabled {
+            let mut bm = BytesMut::from(batch_buffer.as_ref());
+            self.encrypt_outgoing(&mut bm)?;
+            self.inner
+                .send(Message::new(bm.freeze()).reliability(reliability))
+                .await?;
+        } else {
+            self.inner
+                .send(Message::new(batch_buffer).reliability(reliability))
+                .await?;
+        }
+
+        Ok(())
+    }
+
+    /// Raw send for handshake packets that cannot be batched (e.g., NetworkSettings).
+    #[instrument(skip_all, level = "trace", fields(peer_addr = %self.peer_addr()))]
+    pub async fn send_raw(&mut self, packet: McpePacket) -> Result<(), JolyneError> {
+        let mut buf = BytesMut::new();
+        // Manual framing: [0xFE] [Len] [Header] [Body]
+        // McpePacket::encode writes [Len] [Header] [Body].
+        // send_raw is mostly for uncompressed/unencrypted initial handshake packets.
+        // Let's rely on the crate::protocol::packets::McpePacket implementation.
+
+        // However, raw packets in Bedrock (like RequestNetworkSettings) are still framed
+        // but just NOT batched/compressed.
+        use valentine::bedrock::codec::BedrockCodec;
+        packet.encode(&mut buf)?;
+
+        if self.encryption_enabled {
+            self.encrypt_outgoing(&mut buf)?;
+        }
+
+        self.inner
+            .send(Message::new(buf.freeze()).reliability(Reliability::ReliableOrdered))
+            .await?;
+        Ok(())
     }
 
     /// Returns the next single packet, reading a new batch if necessary.
@@ -122,7 +238,7 @@ impl BedrockTransport {
     /// 3. Decodes the batch (decompresses and splits).
     ///
     /// If the packet is NOT a batch (does not start with 0xFE), it is treated as a raw packet.
-    #[instrument(skip(self), level = "trace")]
+    #[instrument(skip_all, level = "trace", fields(peer_addr = %self.peer_addr()))]
     pub async fn recv_batch(&mut self) -> Result<Vec<McpePacket>, JolyneError> {
         // 1. Read Raw Frame
         let mut packet_bytes = self
@@ -164,61 +280,6 @@ impl BedrockTransport {
             let packet = McpePacket::decode(&mut buf, (&self.session).into())?;
             Ok(vec![packet])
         }
-    }
-
-    /// Sends a list of packets as a single batch.
-    ///
-    /// This method:
-    /// 1. Encodes the packets into a batch buffer (compressing if needed).
-    /// 2. Encrypts the batch (if encryption is active).
-    /// 3. Sends it over RakNet.
-    #[instrument(skip(self, packets), level = "trace")]
-    pub async fn send_batch(&mut self, packets: &[McpePacket]) -> Result<(), JolyneError> {
-        if packets.is_empty() {
-            return Ok(());
-        }
-
-        // 1. Encode Batch (Handles Compression)
-        let batch_buffer = encode_batch_multi(
-            packets,
-            self.compression_enabled,
-            self.compression_level,
-            self.compression_threshold,
-        )?;
-
-        // 2. Encrypt & Send
-        if self.encryption_enabled {
-            let mut bm = BytesMut::from(batch_buffer.as_ref());
-            self.encrypt_outgoing(&mut bm)?;
-            self.inner.send(bm.freeze()).await?;
-        } else {
-            self.inner.send(batch_buffer).await?;
-        }
-
-        Ok(())
-    }
-
-    /// Raw send for handshake packets that cannot be batched (e.g., NetworkSettings).
-    pub async fn send_raw(&mut self, packet: McpePacket) -> Result<(), JolyneError> {
-        let mut buf = BytesMut::new();
-        // Manual framing: [0xFE] [Len] [Header] [Body]
-        // McpePacket::encode writes [Len] [Header] [Body].
-        // We assume the caller handles the 0xFE if needed, OR we trust encode_game_frame.
-        // Actually, send_raw is mostly for uncompressed/unencrypted initial handshake packets.
-        // The old stream.rs implementation of `send` handled this via `encode_game_frame`.
-        // Let's rely on the crate::protocol::packets::McpePacket implementation.
-
-        // However, raw packets in Bedrock (like RequestNetworkSettings) are still framed
-        // but just NOT batched/compressed.
-        use valentine::bedrock::codec::BedrockCodec;
-        packet.encode(&mut buf)?;
-
-        if self.encryption_enabled {
-            self.encrypt_outgoing(&mut buf)?;
-        }
-
-        self.inner.send(buf.freeze()).await?;
-        Ok(())
     }
 
     // --- Crypto Helpers ---

@@ -1,0 +1,5 @@
+# Generated Bedrock protocol sources (generated locally by `valentine_gen`).
+/bedrock_versions/**/src/packets/
+/bedrock_versions/**/src/types/
+/bedrock_versions/**/src/misc/
+/bedrock_versions/**/src/mod.rs

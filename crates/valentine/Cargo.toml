@@ -13,7 +13,7 @@ valentine_bedrock_1_21_130 = { path = "bedrock_versions/v1_21_130", optional = t
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "time"] }
-tokio-raknet = { path = "../../../tokio-raknet"}
+tokio-raknet = { path = "../tokio-raknet"}
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 flate2 = "1"
 anyhow = "1.0.100"

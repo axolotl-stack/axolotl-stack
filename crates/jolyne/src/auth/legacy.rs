@@ -358,7 +358,7 @@ pub fn validate_chain(
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "server"))]
 mod tests {
     use super::*;
 

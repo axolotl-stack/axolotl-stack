@@ -46,6 +46,12 @@ pub fn parse(path: &Path) -> Result<ParseResult, Box<dyn std::error::Error>> {
     let mut type_parse_failures: usize = 0;
     // Parse all types
     for (name, def) in &protocol.types {
+        // Special Case: Force NBT types to our primitive, ignoring "native" mapping in yml
+        if name == "nbt" || name == "lnbt" || name == "nbtLoop" {
+            types_map.insert(name.clone(), Type::Primitive(Primitive::Nbt));
+            continue;
+        }
+
         match parse_type(def, &protocol.types, Some(name)) {
             Ok(t) => {
                 types_map.insert(name.clone(), t);
@@ -638,7 +644,7 @@ fn parse_primitive_or_ref(s: &str) -> Result<Type, String> {
         "uuid" | "mcpe_uuid" => Ok(Type::Primitive(Primitive::Uuid)),
         "void" => Ok(Type::Primitive(Primitive::Void)),
         "restBuffer" | "RestBuffer" => Ok(Type::Primitive(Primitive::ByteArray)),
-        "nbt" | "lnbt" | "Lnbt" => Ok(Type::Primitive(Primitive::ByteArray)),
+        "nbt" | "lnbt" | "Lnbt" => Ok(Type::Primitive(Primitive::Nbt)),
         // common native aliases
         "Varint128" | "varint128" => Ok(Type::Primitive(Primitive::VarLong)),
         _ => Ok(Type::Reference(s.to_string())),

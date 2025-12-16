@@ -1,4 +1,4 @@
-#[instrument(skip(cursor, session), level = "debug")]
+#[instrument(skip(cursor, session), level = "trace")]
 fn decode_packets(
     mut cursor: Bytes,
     session: &BedrockSession,
@@ -19,7 +19,7 @@ use flate2::read::DeflateDecoder;
 use flate2::write::DeflateEncoder;
 use std::io::{ErrorKind, Read};
 use std::slice;
-use tracing::{debug, instrument, warn};
+use tracing::{instrument, trace, warn};
 use valentine::bedrock::context::BedrockSession;
 use valentine::protocol::wire as bedrock_wire;
 
@@ -57,13 +57,13 @@ fn decompress_with_guard<R: Read>(
             break;
         }
         let new_len = out.len() + n;
-        if let Some(max) = max_decompressed_size {
-            if new_len > max {
-                return Err(std::io::Error::new(
-                    ErrorKind::InvalidData,
-                    format!("decompressed data exceeds max size of {max} bytes"),
-                ));
-            }
+        if let Some(max) = max_decompressed_size
+            && new_len > max
+        {
+            return Err(std::io::Error::new(
+                ErrorKind::InvalidData,
+                format!("decompressed data exceeds max size of {max} bytes"),
+            ));
         }
         out.extend_from_slice(&buf[..n]);
     }
@@ -77,7 +77,7 @@ fn log_payload_probe(compressed_len: Option<usize>, payload: &Bytes) {
         let mut tmp = payload.clone();
         bedrock_wire::read_var_u32(&mut tmp).ok()
     };
-    debug!(
+    trace!(
         compressed_len,
         decompressed_len = payload.len(),
         first_bytes = ?preview,
@@ -100,7 +100,7 @@ fn decode_payload(
 }
 
 /// Decodes a Batch Packet (0xFE) payload into a list of McpePackets.
-#[instrument(skip(buf, session), level = "debug")]
+#[instrument(skip_all, level = "trace")]
 pub fn decode_batch(
     buf: &mut Bytes,
     session: &BedrockSession,

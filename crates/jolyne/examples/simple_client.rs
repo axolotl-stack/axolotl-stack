@@ -1,5 +1,5 @@
+use jolyne::BedrockStream;
 use jolyne::protocol::McpePacket;
-use jolyne::stream::BedrockStream;
 use jolyne::stream::client::ClientHandshakeConfig;
 use p384::SecretKey;
 use std::error::Error;
@@ -21,14 +21,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let key = SecretKey::random(&mut rand::thread_rng());
     let config = ClientHandshakeConfig {
         server_addr: addr,
-        identity_key: key,
+        identity_key: key.clone(),
+        display_name: "Steve".to_string(),
+        uuid: uuid::Uuid::new_v4(),
     };
 
     let secure_pending = login_stream.send_login(&config).await?;
     println!("Login sent, waiting for handshake...");
 
     // 4. Secure Handshake
-    let packs_stream = secure_pending.await_handshake().await?;
+    let packs_stream = secure_pending.await_handshake(&key).await?;
     println!("Logged in, negotiating packs...");
 
     // 5. Resource Packs

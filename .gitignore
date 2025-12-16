@@ -1,6 +1,5 @@
 /target
-# Generated Bedrock protocol sources (generated locally by `valentine_gen`).
-crates/valentine/bedrock_versions/**/src/packets/
-crates/valentine/bedrock_versions/**/src/types/
-crates/valentine/bedrock_versions/**/src/misc/
-crates/valentine/bedrock_versions/**/src/mod.rs
+**/*.rs.bk
+
+/.idea
+/.zed

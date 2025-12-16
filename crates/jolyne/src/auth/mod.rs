@@ -1,19 +1,39 @@
+#[cfg(feature = "client")]
+pub mod client;
+
+#[cfg(feature = "server")]
 pub mod legacy;
+#[cfg(feature = "server")]
 pub mod openid;
+#[cfg(feature = "server")]
 pub mod types;
+#[cfg(feature = "server")]
 mod util;
 
+#[cfg(feature = "server")]
 pub use legacy::{MOJANG_PUBLIC_KEY_BASE64, parse_login_chain, validate_chain};
+#[cfg(feature = "server")]
 pub use types::ValidatedIdentity;
 
-use crate::error::{AuthError, JolyneError};
+#[cfg(feature = "server")]
+use crate::error::AuthError;
+#[cfg(feature = "server")]
+use crate::error::JolyneError;
+#[cfg(feature = "server")]
 use openid::fill_identity_from_client_data;
+#[cfg(feature = "server")]
 use tracing::warn;
+#[cfg(feature = "server")]
 use types::{AuthInfo, AuthenticationType};
+
+#[cfg(feature = "server")]
+use tracing::instrument;
 
 /// Parse the Bedrock `LoginPacket` authentication fields.
 /// `auth_info_json` is the LoginPacket.identity field (AuthenticationInfo JSON).
 /// `client_data_jwt` is the LoginPacket.client field.
+#[cfg(feature = "server")]
+#[instrument(skip_all, level = "trace")]
 pub async fn authenticate_login(
     auth_info_json: &str,
     client_data_jwt: &str,
@@ -24,9 +44,11 @@ pub async fn authenticate_login(
     let auth_info: AuthInfo =
         serde_json::from_str(auth_info_json).map_err(|_| AuthError::InvalidJson)?;
 
+    // Default to SelfSigned (2) if not specified, to support standard Bedrock chains
     let auth_type_raw = auth_info
         .authentication_type
         .ok_or(AuthError::MissingAuthType)?;
+
     let auth_type = AuthenticationType::try_from(auth_type_raw)?;
     match auth_type {
         AuthenticationType::Full => {
@@ -36,6 +58,7 @@ pub async fn authenticate_login(
         }
         AuthenticationType::SelfSigned | AuthenticationType::Guest => {
             if !allow_legacy {
+                tracing::warn!("Client attempted legacy auth but it is disabled");
                 return Err(AuthError::LegacyAuthDisabled.into());
             }
 
@@ -50,14 +73,14 @@ pub async fn authenticate_login(
                 let identity = fill_identity_from_client_data(identity, client_data_jwt);
                 Ok(identity)
             } else {
-                warn!(?auth_info, "failed to extract chain from auth info");
+                warn!(?auth_type, "failed to extract chain from auth info");
                 Err(AuthError::MissingCertificate.into())
             }
         }
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "server"))]
 mod tests {
     use super::*;
     use base64::Engine as _;

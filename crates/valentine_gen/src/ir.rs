@@ -29,6 +29,7 @@ pub enum Primitive {
     Uuid,     // mcpe_uuid
     Void,     // explicitly nothing
     ByteArray, // 'restBuffer' or raw byte arrays
+    Nbt,      // NBT blob (Network Little Endian)
 }
 
 /// The core logical types in the Bedrock protocol

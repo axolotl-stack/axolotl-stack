@@ -19,10 +19,9 @@ pub struct BedrockListenerConfig {
     pub compression_level: u32,
 
     /// Whether to enable the Bedrock encryption handshake (ServerToClientHandshake / ClientToServerHandshake).
-    /// When enabled, clients are expected to complete the handshake; we currently only exchange tokens and
-    /// do not yet apply a cryptographic stream layer.
+    /// When enabled, clients are expected to complete the handshake;
     ///
-    /// Default: `false`
+    /// Default: `true`
     pub encryption_enabled: bool,
 
     /// Whether to allow legacy/self-signed authentication chains (guest/self-signed).
@@ -61,9 +60,9 @@ impl Default for BedrockListenerConfig {
     fn default() -> Self {
         Self {
             online_mode: true,
-            compression_threshold: 256,
+            compression_threshold: 512,
             compression_level: 7,
-            encryption_enabled: false,
+            encryption_enabled: true,
             allow_legacy_auth: true,
             require_resource_packs: false,
             handle_client_cache_status: true,

@@ -2,16 +2,17 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use crate::config::BedrockListenerConfig;
-use crate::protocol::types::{
-    block::BlockCoordinates,
-    game::GameMode,
-    vec::{Vec2F, Vec3F},
-};
+use crate::error::JolyneError;
+use crate::protocol::McpePacket;
+use tokio_raknet::protocol::reliability::Reliability;
 use transport::BedrockTransport;
 
-pub mod client;
-pub mod server;
 pub mod transport;
+
+#[cfg(feature = "client")]
+pub mod client;
+#[cfg(feature = "server")]
+pub mod server;
 
 /// A strongly-typed, state-aware Bedrock protocol stream.
 ///
@@ -24,63 +25,43 @@ pub struct BedrockStream<S: State, R: Role> {
     pub(crate) _role: PhantomData<R>,
 }
 
-/// Configuration for the StartGame packet.
-#[derive(Debug, Clone)]
-pub struct StartGameConfig {
-    pub entity_id: i64,
-    pub runtime_entity_id: i64,
-    pub spawn_position: BlockCoordinates,
-    pub player_position: Vec3F,
-    pub rotation: Vec2F,
-    pub world_name: String,
-    pub level_id: String,
-    pub world_identifier: String,
-    pub game_version: String,
-    pub seed: u64,
-    pub generator: i32,
-    pub dimension: crate::protocol::packets::start::PacketStartGameDimension,
-    pub player_gamemode: GameMode,
-    pub world_gamemode: GameMode,
-    pub difficulty: i32,
-    pub server_authoritative_inventory: bool,
-    pub server_authoritative_block_breaking: bool,
-    pub block_network_ids_are_hashes: bool,
-    pub block_palette_checksum: u64,
-}
-
-impl Default for StartGameConfig {
-    fn default() -> Self {
-        Self {
-            entity_id: 1,
-            runtime_entity_id: 1,
-            spawn_position: BlockCoordinates { x: 0, y: 64, z: 0 },
-            player_position: Vec3F {
-                x: 0.5,
-                y: 65.0,
-                z: 0.5,
-            },
-            rotation: Vec2F { x: 0.0, z: 0.0 },
-            world_name: "world".to_string(),
-            level_id: "world".to_string(),
-            world_identifier: "world".to_string(),
-            game_version: crate::protocol::GAME_VERSION.to_string(),
-            seed: 0,
-            generator: 1,
-            dimension: crate::protocol::packets::start::PacketStartGameDimension::Overworld,
-            player_gamemode: GameMode::Survival,
-            world_gamemode: GameMode::Survival,
-            difficulty: 1,
-            server_authoritative_inventory: false,
-            server_authoritative_block_breaking: false,
-            block_network_ids_are_hashes: false,
-            block_palette_checksum: 0,
-        }
-    }
-}
-
 impl<S: State, R: Role> BedrockStream<S, R> {
     pub fn peer_addr(&self) -> std::net::SocketAddr {
         self.transport.peer_addr()
+    }
+
+    /// Consumes the stream and returns the underlying transport.
+    /// This allows bypassing the state machine for proxying or raw access.
+    pub fn into_transport(self) -> BedrockTransport {
+        self.transport
+    }
+
+    /// Configures the flushing strategy.
+    ///
+    /// - `true` (Default): `send()` sends packets immediately (low latency, high overhead).
+    /// - `false`: `send()` queues packets. You MUST call `flush()` to send them (high throughput).
+    pub fn set_auto_flush(&mut self, auto: bool) {
+        self.transport.set_auto_flush(auto);
+    }
+
+    /// Flushes all buffered packets as a single batch (ReliableOrdered).
+    /// Does nothing if the buffer is empty.
+    pub async fn flush(&mut self) -> Result<(), JolyneError> {
+        self.transport.flush().await
+    }
+
+    /// Sends a list of packets as a single batch with specified reliability.
+    ///
+    /// This bypasses the internal `write_buffer` and sends immediately.
+    /// Useful for streaming data (e.g. video/maps) that should use `Unreliable` or `ReliableSequenced`.
+    pub async fn send_batch_with_reliability(
+        &mut self,
+        packets: &[McpePacket],
+        reliability: Reliability,
+    ) -> Result<(), JolyneError> {
+        self.transport
+            .send_batch_with_reliability(packets, reliability)
+            .await
     }
 }
 
@@ -138,8 +119,14 @@ impl Role for Client {}
 
 /// Entry point for Server connection.
 pub type ServerLogin = BedrockStream<Handshake, Server>;
+pub type ServerSecurePending = BedrockStream<SecurePending, Server>;
+pub type ServerResourcePacks = BedrockStream<ResourcePacks, Server>;
+pub type ServerStartGame = BedrockStream<StartGame, Server>;
 pub type ServerPlay = BedrockStream<Play, Server>;
 
 /// Entry point for Client connection.
 pub type ClientLogin = BedrockStream<Handshake, Client>;
+pub type ClientSecurePending = BedrockStream<SecurePending, Client>;
+pub type ClientResourcePacks = BedrockStream<ResourcePacks, Client>;
+pub type ClientStartGame = BedrockStream<StartGame, Client>;
 pub type ClientPlay = BedrockStream<Play, Client>;
