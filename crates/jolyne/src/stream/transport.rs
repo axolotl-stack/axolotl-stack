@@ -4,6 +4,7 @@ use aes::Aes256;
 use aes_gcm::{Aes256Gcm, Key};
 use bytes::BytesMut;
 use ctr::cipher::{KeyIvInit, StreamCipher};
+use futures::{SinkExt, StreamExt};
 use sha2::{Digest, Sha256};
 use tokio_raknet::protocol::reliability::Reliability;
 use tokio_raknet::transport::{Message, RaknetStream};
@@ -243,7 +244,7 @@ impl BedrockTransport {
         // 1. Read Raw Frame
         let mut packet_bytes = self
             .inner
-            .recv()
+            .next()
             .await
             .ok_or(JolyneError::ConnectionClosed)??;
 

@@ -38,6 +38,7 @@ Connecting to a server is straightforward. The client handles the offline handsh
 ```rust,no_run
 use tokio_raknet::transport::RaknetStream;
 use bytes::Bytes;
+use futures::StreamExt;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -47,10 +48,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Connected!");
 
     // Send a message (defaults to ReliableOrdered)
-    client.send("Hello, Server!").await?;
+    client.send_encoded("Hello, Server!").await?;
 
     // Receive packets
-    while let Some(result) = client.recv().await {
+    while let Some(result) = client.next().await {
         match result {
             Ok(packet) => println!("Received: {:?}", packet),
             Err(e) => {
@@ -70,6 +71,7 @@ The `RaknetListener` works similarly to a `TcpListener`, providing a stream of i
 
 ```rust,no_run
 use tokio_raknet::transport::RaknetListener;
+use futures::StreamExt;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -83,11 +85,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("New connection from {}", conn.peer_addr());
 
             // Echo loop
-            while let Some(result) = conn.recv().await {
+            while let Some(result) = conn.next().await {
                 match result {
                     Ok(packet) => {
                         // Echo back
-                        if let Err(_) = conn.send(packet).await {
+                        if let Err(_) = conn.send_encoded(packet).await {
                             break;
                         }
                     }
@@ -157,10 +159,11 @@ For games and real-time applications, you often need fine-grained control over h
 use tokio_raknet::transport::RaknetStream;
 use tokio_raknet::protocol::{reliability::Reliability, state::RakPriority};
 use tokio_raknet::transport::Message;
+use futures::SinkExt;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = RaknetStream::connect("127.0.0.1:19132".parse()?).await?;
+    let mut client = RaknetStream::connect("127.0.0.1:19132".parse()?).await?;
 
     // Send a packet that can be lost (Unreliable), but is immediate
     let movement_update = Message::new(vec![0x01, 0x02])
@@ -202,3 +205,39 @@ Contributions are welcome! Please ensure that any changes pass existing tests an
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
+
+## 🔮 Roadmap
+
+### Optimization
+- **Zero-Copy**: Refactor packet handling to minimize allocations and copying, passing `Bytes` slices all the way from the socket to the application.
+- **Max Speed**: Tune the sliding window and congestion control algorithms for maximum throughput on high-latency connections.
+
+### Abstraction
+- **Framed Stream**: Abstract the transport into a `Framed<Vec<u8>>` style interface. This will allow upper layers (like `Jolyne`) to accept any byte stream, making `tokio-raknet` just one of many supported transports (alongside TCP, WebSocket, etc.).
+
+### Observability
+- **Better Logging**: Enhance `tracing` instrumentation to provide visualizable packet flow and congestion graphs.
+- **Metrics**: Expose Prometheus-compatible metrics for packet loss, RTT, and bandwidth usage.
+
+## Security & Tuning
+
+### Memory Usage
+Defaults are chosen to be safe for general-purpose use to prevent Denial of Service (DoS) via memory exhaustion:
+- `max_pending_connections`: **256** (was 1024)
+- `max_queued_reliable_bytes`: **1MB** per session (was 4MB)
+
+For high-performance servers (e.g., dedicated game servers) with ample RAM, use `RaknetListenerConfig::high_performance()` or tune these values manually.
+
+### Ticking
+The main muxer loop runs at **50Hz (20ms)**. This is by design to aggregate ACKs and manage retransmissions efficiently without causing excessive CPU usage from tight-loop polling.
+
+## Benchmarks
+Performance is a priority. Benchmarks (Ryzen 7 7800x3d):
+- **Datagram Decode**: ~63ns (zero-copy where possible)
+- **ACK Processing**: Optimized to minimize allocations via `AckQueue` vector reuse.
+
+Run benchmarks locally with:
+```bash
+cargo bench -p tokio-raknet
+```
+

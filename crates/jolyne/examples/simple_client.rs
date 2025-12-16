@@ -1,7 +1,6 @@
 use jolyne::BedrockStream;
 use jolyne::protocol::McpePacket;
 use jolyne::stream::client::ClientHandshakeConfig;
-use p384::SecretKey;
 use std::error::Error;
 
 #[tokio::main]
@@ -9,36 +8,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let addr = "127.0.0.1:19133".parse()?;
     println!("Connecting to {}...", addr);
 
-    // 1. Connect (Returns BedrockStream<Handshake, Client>)
+    // 1. Connect
     let handshake_stream = BedrockStream::connect(addr).await?;
     println!("Connected!");
 
-    // 2. Negotiate Settings
-    let login_stream = handshake_stream.request_settings().await?;
-    println!("Settings negotiated, sending login...");
+    // 2. Configure & Join
+    let config = ClientHandshakeConfig::random(addr, "Steve");
 
-    // 3. Login
-    let key = SecretKey::random(&mut rand::thread_rng());
-    let config = ClientHandshakeConfig {
-        server_addr: addr,
-        identity_key: key.clone(),
-        display_name: "Steve".to_string(),
-        uuid: uuid::Uuid::new_v4(),
-    };
-
-    let secure_pending = login_stream.send_login(&config).await?;
-    println!("Login sent, waiting for handshake...");
-
-    // 4. Secure Handshake
-    let packs_stream = secure_pending.await_handshake(&key).await?;
-    println!("Logged in, negotiating packs...");
-
-    // 5. Resource Packs
-    let start_stream = packs_stream.handle_packs().await?;
-    println!("Packs negotiated, waiting for StartGame...");
-
-    // 6. Start Game
-    let mut play_stream = start_stream.await_start_game().await?;
+    // The join() helper handles settings, auth, encryption, packs, and start game.
+    let mut play_stream = handshake_stream.join(config).await?;
     println!("Joined Game!");
 
     // Send a chunk radius request

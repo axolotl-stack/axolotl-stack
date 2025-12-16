@@ -83,7 +83,7 @@ impl Datagram {
         let sequence = Sequence24::decode_raknet(src)?;
         let header = DatagramHeader { flags, sequence };
 
-        let mut packets = Vec::new();
+        let mut packets = Vec::with_capacity(1);
         while src.has_remaining() {
             packets.push(EncapsulatedPacket::decode_raknet(src)?);
         }

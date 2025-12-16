@@ -2,9 +2,13 @@ use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
 use bytes::{BufMut, Bytes, BytesMut};
+use futures::{Sink, SinkExt, Stream};
+use std::pin::Pin;
+use std::task::{Context, Poll};
 use tokio::net::UdpSocket;
 use tokio::sync::{mpsc, oneshot};
 use tokio::time::{self, MissedTickBehavior, timeout};
+use tokio_util::sync::PollSender;
 
 use crate::protocol::{
     constants::{
@@ -17,7 +21,8 @@ use crate::protocol::{
 };
 use crate::session::manager::{ConnectionState, ManagedSession, SessionConfig, SessionRole};
 
-use super::{OutboundMsg, ReceivedMessage};
+use super::{OutboundMsg, ReceivedMessage}; // removed Message import from super? No, used in Sink.
+use crate::transport::Message;
 
 use crate::protocol::constants::{self};
 
@@ -65,7 +70,8 @@ impl Default for RaknetStreamConfig {
             split_timeout: Duration::from_secs(30),
             reliable_window: constants::MAX_ACK_SEQUENCES as u32,
             max_split_parts: 8192,
-            max_concurrent_splits: 4096,
+
+            max_concurrent_splits: 32, // Reduced from 4096 to prevent OOM DOS
         }
     }
 }
@@ -78,7 +84,7 @@ pub struct RaknetStream {
     local: SocketAddr,
     peer: SocketAddr,
     incoming: mpsc::Receiver<Result<ReceivedMessage, crate::RaknetError>>,
-    outbound_tx: mpsc::Sender<OutboundMsg>,
+    outbound_tx: PollSender<OutboundMsg>,
 }
 
 impl RaknetStream {
@@ -93,7 +99,7 @@ impl RaknetStream {
             local,
             peer,
             incoming,
-            outbound_tx,
+            outbound_tx: PollSender::new(outbound_tx),
         }
     }
 
@@ -152,7 +158,7 @@ impl RaknetStream {
                 local,
                 peer: server,
                 incoming: to_app_rx,
-                outbound_tx,
+                outbound_tx: PollSender::new(outbound_tx),
             }),
             Ok(Err(e)) => Err(e),
             Err(_) => Err(crate::RaknetError::ConnectionAborted),
@@ -169,35 +175,74 @@ impl RaknetStream {
         self.peer
     }
 
-    pub async fn recv(&mut self) -> Option<Result<Bytes, crate::RaknetError>> {
-        match self.recv_msg().await? {
-            Ok(msg) => Some(Ok(msg.buffer)),
-            Err(e) => Some(Err(e)),
+    /// Sends a message using reliability preferences.
+    ///
+    /// This is a convenience wrapper around the `Sink` trait.
+    /// Sends a message using reliability preferences.
+    ///
+    /// This is a convenience wrapper around the `Sink` trait.
+    pub async fn send_encoded(
+        &mut self,
+        msg: impl Into<super::Message>,
+    ) -> Result<(), crate::RaknetError> {
+        let msg = msg.into();
+        self.send(msg).await
+    }
+}
+
+impl Stream for RaknetStream {
+    type Item = Result<Bytes, crate::RaknetError>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        match self.incoming.poll_recv(cx) {
+            Poll::Ready(Some(Ok(msg))) => Poll::Ready(Some(Ok(msg.buffer))),
+            Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(e))),
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Pending => Poll::Pending,
         }
     }
+}
 
-    pub async fn recv_msg(&mut self) -> Option<Result<ReceivedMessage, crate::RaknetError>> {
-        self.incoming.recv().await
+impl Sink<Message> for RaknetStream {
+    type Error = crate::RaknetError;
+
+    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Pin::new(&mut self.get_mut().outbound_tx)
+            .poll_ready(cx)
+            .map_err(|_| crate::RaknetError::ConnectionClosed)
     }
 
-    pub async fn send(&self, msg: impl Into<super::Message>) -> Result<(), crate::RaknetError> {
-        let msg = msg.into();
-        let bytes = msg.buffer;
-
+    fn start_send(self: Pin<&mut Self>, item: Message) -> Result<(), Self::Error> {
+        let peer = self.peer;
+        let bytes = item.buffer;
         if bytes.is_empty() {
             return Ok(());
         }
         let id = bytes[0];
         let body = bytes.slice(1..);
-        self.outbound_tx
-            .send(OutboundMsg {
-                peer: self.peer,
-                packet: RaknetPacket::UserData { id, payload: body },
-                reliability: msg.reliability,
-                channel: msg.channel,
-                priority: msg.priority,
-            })
-            .await
+
+        let msg = OutboundMsg {
+            peer,
+            packet: RaknetPacket::UserData { id, payload: body },
+            reliability: item.reliability,
+            channel: item.channel,
+            priority: item.priority,
+        };
+
+        Pin::new(&mut self.get_mut().outbound_tx)
+            .start_send(msg)
+            .map_err(|_| crate::RaknetError::ConnectionClosed)
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Pin::new(&mut self.get_mut().outbound_tx)
+            .poll_flush(cx)
+            .map_err(|_| crate::RaknetError::ConnectionClosed)
+    }
+
+    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Pin::new(&mut self.get_mut().outbound_tx)
+            .poll_close(cx)
             .map_err(|_| crate::RaknetError::ConnectionClosed)
     }
 }
@@ -224,7 +269,7 @@ struct ClientMuxerContext {
 
 #[tracing::instrument(skip(socket, context), fields(server = %context.server, mtu = context.config.mtu), level = "debug")]
 async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
-    let mut buf = vec![0u8; context.config.mtu as usize + UDP_HEADER_SIZE + 64];
+    let mut buf = BytesMut::with_capacity(context.config.mtu as usize + UDP_HEADER_SIZE + 64);
     let mut managed: Option<ManagedSession> = None;
     let mut handshake_started = false;
     // We move the `ready` sender into a local Option
@@ -256,6 +301,22 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
     }
 
     loop {
+        // Ensure sufficient capacity for the next packet.
+        // We reuse the buffer logic: if we split_to(len), the buffer is effectively consumed.
+        // Ensure sufficient capacity
+        if buf.capacity() < context.config.mtu as usize + UDP_HEADER_SIZE {
+            buf.reserve(context.config.mtu as usize + UDP_HEADER_SIZE);
+        }
+
+        // Safety: We need to provide a mutable slice to recv_from.
+        // Expanding the buffer with zeros is safe but has a small cost.
+        // For true zero-copy without initialization, specific Poll/ReadBuf logic is needed,
+        // but resize(..., 0) is a standard safe way to use BytesMut with UdpSocket::recv_from.
+        let required = context.config.mtu as usize + UDP_HEADER_SIZE;
+        if buf.len() < required {
+            buf.resize(required, 0);
+        }
+
         tokio::select! {
             res = socket.recv_from(&mut buf) => {
                 let (len, peer) = match res {
@@ -274,21 +335,25 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
 
                 if peer != context.server {
                     tracing::debug!("ignoring packet from unknown peer");
+                    buf.clear(); // Discard data
                     continue;
                 }
 
                 if len == 0 {
-                    continue;
+                    continue; // Should not happen with recv_buf_from unless 0-byte packet
                 }
+
+                // Split off the received packet to get an owned zero-copy Bytes handle
+                let mut packet = buf.split_to(len).freeze();
 
                 // Filter out non-datagram packets (offline packets, e.g. OpenConnectionReply2)
                 // Valid datagrams must have VALID (0x80), ACK (0x40), or NACK (0x20) flags.
                 // Offline packets are typically ID < 0x20.
-                let header_byte = buf[0];
+                let header_byte = packet[0];
                 if header_byte < 0x80 && (header_byte & 0x60) == 0 {
                     // Try to decode as a control packet to see if it's a connection failure
-                    let mut slice = &buf[..len];
-                    match RaknetPacket::decode(&mut slice) {
+                    // `packet` implements Buf
+                    match RaknetPacket::decode(&mut packet) {
                         Ok(pkt) => {
                             let error = match pkt {
                                 RaknetPacket::ConnectionRequestFailed(_) => {
@@ -329,8 +394,7 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
                     continue;
                 }
 
-                let mut slice = &buf[..len];
-                if let Ok(dgram) = Datagram::decode(&mut slice) {
+                if let Ok(dgram) = Datagram::decode(&mut packet) {
                     let now = Instant::now();
                     // Use context fields
                     let ms = ensure_client_session(
@@ -358,6 +422,7 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
                                 if let RaknetPacket::UserData { id, payload } = p.packet {
                                     tracing::trace!("received user packet");
                                     // Reconstruct full packet: [ID] + [Payload]
+                                    // payload is Bytes.
                                     let mut full = BytesMut::with_capacity(1 + payload.len());
                                     full.put_u8(id);
                                     full.extend_from_slice(&payload);
@@ -666,8 +731,10 @@ async fn flush_built_datagrams(
         for d in managed.on_tick(now) {
             tracing::trace!("send_tick_datagram");
             let mut out = BytesMut::new();
-            d.encode(&mut out)
-                .expect("Bad datagram made it into queue.");
+            if let Err(e) = d.encode(&mut out) {
+                tracing::error!(error = ?e, "failed to encode tick datagram - dropping");
+                continue;
+            }
             let _ = socket.send_to(&out, peer).await;
         }
     }
@@ -675,8 +742,10 @@ async fn flush_built_datagrams(
     while let Some(d) = managed.build_datagram(now) {
         tracing::trace!("send_datagram");
         let mut out = BytesMut::new();
-        d.encode(&mut out)
-            .expect("Bad datagram made it into queue.");
+        if let Err(e) = d.encode(&mut out) {
+            tracing::error!(error = ?e, "failed to encode datagram - dropping");
+            continue;
+        }
         let _ = socket.send_to(&out, peer).await;
     }
 

@@ -50,20 +50,25 @@ impl AckQueue {
 
     /// Pop a set of ranges whose encoded size (plus base_overhead bytes)
     /// fits within the provided MTU.
-    pub fn pop_for_mtu(&mut self, mtu: usize, base_overhead: usize) -> Vec<SequenceRange> {
-        let mut ranges = Vec::new();
+    pub fn pop_for_mtu(
+        &mut self,
+        mtu: usize,
+        base_overhead: usize,
+        ranges: &mut Vec<SequenceRange>,
+    ) {
         let mut used = base_overhead;
 
         while let Some(front) = self.queue.front() {
             let size = front.encoded_size();
+            // Check if adding this range would exceed MTU
+            // But if ranges is empty, we MUST add at least one if possible (though base_overhead might be large)
+            // The original logic allowed breaking early.
             if !ranges.is_empty() && used + size > mtu {
                 break;
             }
             used += size;
             ranges.push(self.queue.pop_front().unwrap());
         }
-
-        ranges
     }
 }
 
@@ -84,7 +89,8 @@ mod tests {
             end: Sequence24::new(2),
         });
 
-        let out = q.pop_for_mtu(1024, 0);
+        let mut out = Vec::new();
+        q.pop_for_mtu(1024, 0, &mut out);
         assert_eq!(out.len(), 1);
         assert_eq!(out[0].start.value(), 1);
         assert_eq!(out[0].end.value(), 2);
@@ -102,7 +108,8 @@ mod tests {
 
         // Each single range encodes to 4 bytes, so with base_overhead 2,
         // mtu 6 only allows one.
-        let out = q.pop_for_mtu(6, 2);
+        let mut out = Vec::new();
+        q.pop_for_mtu(6, 2, &mut out);
         assert_eq!(out.len(), 1);
     }
 }

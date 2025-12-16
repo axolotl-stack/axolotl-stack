@@ -1,4 +1,5 @@
 use bytes::Bytes;
+use futures::StreamExt;
 use std::{error::Error, net::SocketAddr};
 use tokio_raknet::{
     // We no longer need the full RaknetPacket enum at this layer
@@ -13,21 +14,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     println!("connecting to {server_addr}");
 
-    let client = RaknetStream::connect(server_addr).await?;
+    let mut client = RaknetStream::connect(server_addr).await?;
 
     println!("Succesfully connected!");
 
     let message_payload = make_user_payload("hello server");
 
     client
-        .send(message_payload)
+        .send_encoded(message_payload)
         .await
         .expect("send should succeed");
     println!("client sent: hello server");
 
-    let mut client = client;
-
-    while let Some(result) = client.recv().await {
+    while let Some(result) = client.next().await {
         let payload = result?;
         if let Some(text) = read_user_payload(&payload) {
             println!("client received: {text}");

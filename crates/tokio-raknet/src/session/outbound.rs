@@ -119,9 +119,11 @@ impl Session {
     }
 
     pub(crate) fn build_ack_datagram(&mut self, _now: Instant) -> Option<Datagram> {
-        let mut ranges = self.outgoing_acks.pop_for_mtu(
+        let mut ranges = Vec::new(); // TODO: Cache this in Session if allocation is still hot
+        self.outgoing_acks.pop_for_mtu(
             self.mtu,
             constants::IPV4_HEADER_SIZE + constants::UDP_HEADER_SIZE + 2 + 1,
+            &mut ranges,
         );
         if ranges.is_empty() {
             return None;
@@ -146,9 +148,11 @@ impl Session {
     }
 
     pub(crate) fn build_nak_datagram(&mut self) -> Option<Datagram> {
-        let mut ranges = self.outgoing_naks.pop_for_mtu(
+        let mut ranges = Vec::new(); // TODO: Cache this in Session if allocation is still hot
+        self.outgoing_naks.pop_for_mtu(
             self.mtu,
             constants::IPV4_HEADER_SIZE + constants::UDP_HEADER_SIZE + 2 + 1,
+            &mut ranges,
         );
         if ranges.is_empty() {
             return None;
@@ -579,8 +583,17 @@ mod tests {
         };
 
         assert_eq!(pkts.len(), 1);
-        assert!(pkts[0].sequence_index.is_some(), "sequence index should be set");
-        assert!(pkts[0].ordering_index.is_some(), "ordering index should be set for sequenced reliabilities");
-        assert!(pkts[0].ordering_channel.is_some(), "ordering channel should be set for sequenced reliabilities");
+        assert!(
+            pkts[0].sequence_index.is_some(),
+            "sequence index should be set"
+        );
+        assert!(
+            pkts[0].ordering_index.is_some(),
+            "ordering index should be set for sequenced reliabilities"
+        );
+        assert!(
+            pkts[0].ordering_channel.is_some(),
+            "ordering channel should be set for sequenced reliabilities"
+        );
     }
 }

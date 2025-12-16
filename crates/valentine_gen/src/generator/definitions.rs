@@ -541,9 +541,25 @@ pub fn define_type(
                             variants.push(quote! { #case_variant_ident(#case_type_tokens) });
                         }
                     }
+
+                    // Default impl: pick first variant
+                    let (first_name, first_type) = fields.iter().next().unwrap();
+                    let first_ident = format_ident!("{}", safe_camel_ident(first_name));
+                    let default_val = if matches!(first_type, Type::Primitive(Primitive::Void)) {
+                        quote! { Self::#first_ident }
+                    } else {
+                        quote! { Self::#first_ident(Default::default()) }
+                    };
+
                     quote! {
                         #[derive(Debug, Clone, PartialEq)]
                         pub enum #ident { #(#variants),* }
+
+                        impl Default for #ident {
+                            fn default() -> Self {
+                                #default_val
+                            }
+                        }
                     }
                 }
             } else if fields
@@ -606,9 +622,23 @@ pub fn define_type(
                         variants.push(quote! { #case_variant_ident(#case_type_tokens) });
                     }
                 }
+
+                // Default impl using Self::Default
+                let default_val = if matches!(default.as_ref(), Type::Primitive(Primitive::Void)) {
+                    quote! { Self::Default }
+                } else {
+                    quote! { Self::Default(Default::default()) }
+                };
+
                 quote! {
                     #[derive(Debug, Clone, PartialEq)]
                     pub enum #ident { #(#variants),* }
+
+                    impl Default for #ident {
+                        fn default() -> Self {
+                            #default_val
+                        }
+                    }
                 }
             }
         }
@@ -729,7 +759,7 @@ pub fn define_type(
 
             quote! {
                 bitflags! {
-                    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+                    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
                     pub struct #ident: #backing_type { #(#flag_consts)* }
                 }
                 impl crate::bedrock::codec::BedrockCodec for #ident {
@@ -765,11 +795,26 @@ pub fn define_type(
             }
             let repr_ty = primitive_to_enum_repr_tokens(underlying);
             let codec_impl = generate_enum_type_codec(&safe_name_str, underlying, variants)?;
+            
+            let default_impl = if let Some((first_name, _)) = variants.first() {
+                let first_ident = format_ident!("{}", safe_camel_ident(first_name));
+                quote! {
+                    impl Default for #ident {
+                        fn default() -> Self {
+                            Self::#first_ident
+                        }
+                    }
+                }
+            } else {
+                quote! {}
+            };
+
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
                 #[repr(#repr_ty)]
                 pub enum #ident { #(#variant_tokens),* }
                 #codec_impl
+                #default_impl
             }
         }
         Type::Packed { backing, .. } => {

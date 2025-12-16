@@ -12,9 +12,15 @@ valentine_bedrock_core = { path = "bedrock_core" }
 valentine_bedrock_1_21_130 = { path = "bedrock_versions/v1_21_130", optional = true }
 
 [dev-dependencies]
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "time"] }
-tokio-raknet = { path = "../tokio-raknet"}
+tokio = { version = "1", features = [
+    "macros",
+    "rt-multi-thread",
+    "net",
+    "time",
+] }
+tokio-raknet = { path = "../tokio-raknet", version = "0.3" }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+futures = "0.3"
 flate2 = "1"
 anyhow = "1.0.100"
 

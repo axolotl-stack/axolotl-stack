@@ -18,3 +18,15 @@ cargo run -p valentine_gen -- --latest
 - Enable a version feature, e.g. `--features bedrock_1_21_130`.
 - Import via `valentine::bedrock::protocol::v1_21_130::...` or `valentine::bedrock::version::v1_21_130::*`.
 
+## 🔮 Roadmap
+
+### Expanded Data Coverage
+Currently, Valentine focuses on packet definitions. We aim to expand this to include:
+- **Block States**: Complete mapping of block state permutations and their serialization.
+- **Collision Geometry**: AABB and complex collision data for blocks.
+- **Entity Metadata**: Strong typing for entity metadata fields and flags.
+
+### Generator Improvements
+- **Goal**: Automate the generation of `Block` and `Item` enums from `minecraft-data`.
+- **Goal**: Integrate `Nbt` schema validation directly into the generator.
+

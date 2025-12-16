@@ -1,4 +1,4 @@
-use bytes::{Buf, BufMut, BytesMut};
+use bytes::{Buf, BufMut};
 
 use crate::protocol::packet::{DecodeError, Packet};
 
@@ -42,9 +42,8 @@ macro_rules! define_raknet_packets {
                         }
                     )+
                     other => {
-                        let mut tmp = BytesMut::with_capacity(src.remaining());
-                        tmp.put(src);
-                        RaknetPacket::UserData { id: other, payload: tmp.freeze() }
+                        let payload = src.copy_to_bytes(src.remaining());
+                        RaknetPacket::UserData { id: other, payload }
                     }
                 })
             }

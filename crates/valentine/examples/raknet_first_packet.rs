@@ -1,3 +1,4 @@
+use futures::StreamExt;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
@@ -53,7 +54,7 @@ async fn main() -> Result<()> {
     let mut buf = BytesMut::new();
     network_settings_req.encode(&mut buf)?; // Uses encode_game_frame internally with default header
 
-    if let Err(e) = client.send(Bytes::from(buf)).await {
+    if let Err(e) = client.send_encoded(Bytes::from(buf)).await {
         println!("Send failed: {e:?}");
     }
     println!("Waiting for NetworkSettings response (15s timeout)...");
@@ -66,7 +67,7 @@ async fn main() -> Result<()> {
             println!("Timeout waiting for packets (expected if server drops handshake).");
         }
         _ = async {
-            while let Some(result) = client.recv().await {
+            while let Some(result) = client.next().await {
                 match result {
                     Ok(bytes) => {
                         let mut buf = bytes;

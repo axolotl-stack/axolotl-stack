@@ -72,20 +72,34 @@ impl Default for RaknetListenerConfig {
     fn default() -> Self {
         Self {
             max_connections: 1024,
-            max_pending_connections: 1024,
+            max_pending_connections: 256, // Reduced from 1024 to prevent handshake flooding
             max_mtu: 1400,
             socket_recv_buffer_size: None,
             socket_send_buffer_size: None,
             session_timeout: Duration::from_secs(10),
             session_stale: Duration::from_secs(5),
-            max_queued_reliable_bytes: 4 * 1024 * 1024, // 4MB
+            max_queued_reliable_bytes: 1024 * 1024, // Reduced from 4MB to 1MB per session
             advertisement: b"MCPE;Tokio-Raknet Default Advertisement;527;1.19.1;0;10;13253860892328930865;Tokio Raknet;Survival;1;19132;19133".to_vec(),
             max_ordering_channels: constants::MAXIMUM_ORDERING_CHANNELS as usize,
             ack_queue_capacity: 1024,
             split_timeout: Duration::from_secs(30),
             reliable_window: constants::MAX_ACK_SEQUENCES as u32,
             max_split_parts: 8192,
-            max_concurrent_splits: 4096,
+            max_concurrent_splits: 32, // Reduced from 4096 to prevent OOM DOS
+        }
+    }
+}
+
+impl RaknetListenerConfig {
+    /// Returns a configuration optimized for high-performance servers with ample memory.
+    ///
+    /// - `max_pending_connections`: 1024
+    /// - `max_queued_reliable_bytes`: 4MB
+    pub fn high_performance() -> Self {
+        Self {
+            max_pending_connections: 1024,
+            max_queued_reliable_bytes: 4 * 1024 * 1024,
+            ..Default::default()
         }
     }
 }

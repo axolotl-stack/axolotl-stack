@@ -56,7 +56,7 @@ pub fn build_container_struct(
     }
 
     Ok(quote! {
-        #[derive(Debug, Clone, PartialEq)]
+        #[derive(Debug, Clone, PartialEq, Default)]
         pub struct #struct_ident {
             #(#fields),*
         }

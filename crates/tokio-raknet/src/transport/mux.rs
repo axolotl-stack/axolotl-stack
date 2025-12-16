@@ -29,7 +29,10 @@ pub async fn flush_managed(
         for d in managed.on_tick(now) {
             tracing::trace!("send_tick_datagram");
             let mut out = BytesMut::new();
-            d.encode(&mut out).expect("Bad datagram in queue.");
+            if let Err(e) = d.encode(&mut out) {
+                tracing::error!(error = ?e, "failed to encode tick datagram - dropping");
+                continue;
+            }
             let _ = socket.send_to(&out, peer).await;
         }
     }
@@ -37,7 +40,10 @@ pub async fn flush_managed(
     while let Some(d) = managed.build_datagram(now) {
         tracing::trace!("send_datagram");
         let mut out = BytesMut::new();
-        d.encode(&mut out).expect("Bad datagram in queue.");
+        if let Err(e) = d.encode(&mut out) {
+            tracing::error!(error = ?e, "failed to encode datagram - dropping");
+            continue;
+        }
         let _ = socket.send_to(&out, peer).await;
     }
 }

@@ -1,5 +1,9 @@
 use std::marker::PhantomData;
 
+use crate::protocol::{
+    PacketChunkRadiusUpdate, PacketPlayStatus, PacketPlayStatusStatus, PacketResourcePackStack,
+    PacketResourcePacksInfo, PacketServerToClientHandshake,
+};
 use aes_gcm::Aes256Gcm;
 use base64::Engine;
 use base64::engine::general_purpose::{STANDARD, STANDARD_NO_PAD};
@@ -12,10 +16,6 @@ use rand::{RngCore, thread_rng};
 use sha2::{Digest, Sha256};
 use tracing::instrument;
 use uuid::Uuid;
-use valentine::bedrock::v1_21_130::{
-    PacketChunkRadiusUpdate, PacketPlayStatus, PacketPlayStatusStatus, PacketResourcePackStack,
-    PacketResourcePacksInfo, PacketServerToClientHandshake,
-};
 
 use crate::auth::{ValidatedIdentity, authenticate_login};
 use crate::error::{JolyneError, ProtocolError};

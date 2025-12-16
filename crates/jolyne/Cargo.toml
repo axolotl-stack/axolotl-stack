@@ -13,11 +13,17 @@ full = ["client", "server"]
 tokio = { version = "1.41.1", features = ["full"] }
 bytes = "1.8.0"
 thiserror = "1.0"
-tokio-raknet = { path = "../tokio-raknet"}
-valentine = { path = "../valentine", default-features = false, features = ["bedrock_1_21_130"] }
+tokio-raknet = { path = "../tokio-raknet", version = "0.3" }
+valentine = { path = "../valentine", default-features = false, features = [
+    "bedrock_1_21_130",
+] }
 flate2 = "1.0"
+futures = "0.3"
 jsonwebtoken = { version = "9.3", optional = true }
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"], optional = true }
+reqwest = { version = "0.12", default-features = false, features = [
+    "json",
+    "rustls-tls",
+], optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 base64 = "0.22"

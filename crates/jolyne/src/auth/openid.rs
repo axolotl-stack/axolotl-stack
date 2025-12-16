@@ -22,13 +22,6 @@ const MINECRAFT_SERVICES_DISCOVERY_URL: &str =
 // Cache discovery responses to avoid repeated calls.
 const DISCOVERY_TTL: Duration = Duration::from_secs(6 * 60 * 60); // 6h
 
-static OPENID_KID_KEYS: Lazy<HashMap<String, String>> = Lazy::new(|| {
-    std::env::var("JOLYNE_OPENID_KID_KEYS")
-        .ok()
-        .and_then(|raw| serde_json::from_str::<HashMap<String, String>>(&raw).ok())
-        .unwrap_or_default()
-});
-
 #[derive(Debug, Deserialize)]
 struct DiscoveryAuthService {
     #[serde(rename = "serviceUri")]
@@ -158,13 +151,6 @@ fn key_from_header(header: &jsonwebtoken::Header, alg: Algorithm) -> Option<Deco
         return Some(k);
     }
     None
-}
-
-fn key_from_kid(header: &jsonwebtoken::Header, alg: Algorithm) -> Option<DecodingKey> {
-    let kid = header.kid.as_ref()?;
-    OPENID_KID_KEYS
-        .get(kid)
-        .and_then(|b64| key_from_base64_for_alg(b64, alg).ok())
 }
 
 fn decode_client_data_claims(client_data_jwt: &str) -> Option<ClientDataClaims> {
@@ -311,9 +297,8 @@ pub async fn validate_open_id(
 
     let decoded = if online_mode {
         let issuer_for_validation = provider_key.as_ref().map(|(_, iss)| iss.clone());
-        let key_opt = key_from_header(&header, alg)
-            .or_else(|| key_from_kid(&header, alg))
-            .or_else(|| provider_key.as_ref().map(|(k, _)| k.clone()));
+        let key_opt =
+            key_from_header(&header, alg).or_else(|| provider_key.as_ref().map(|(k, _)| k.clone()));
         if let Some(key) = key_opt {
             let mut validation = Validation::new(alg);
             validation.validate_exp = true;

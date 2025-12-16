@@ -1,4 +1,4 @@
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use criterion::{Criterion, criterion_group, criterion_main};
 use tokio_raknet::protocol::{ack::SequenceRange, types::Sequence24};
 use tokio_raknet::session::ack_queue::AckQueue;
 
@@ -45,7 +45,8 @@ fn benchmark_ack_queue(c: &mut Criterion) {
 
         b.iter(|| {
             let mut bench_q = q.clone();
-            black_box(bench_q.pop_for_mtu(1400, 0));
+            let mut out = Vec::new();
+            bench_q.pop_for_mtu(1400, 20, &mut out);
         })
     });
 

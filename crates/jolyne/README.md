@@ -70,7 +70,7 @@ The "state" layer. A strongly-typed wrapper around the transport that enforces p
   - `R: Role` - The connection role (`Client`, `Server`).
 - **Safety:** You cannot send gameplay packets while in the handshake state. The compiler prevents it.
 - **Usage:**
-  ```rust
+  ```rust,ignore
   // Example: Server Accepting a Connection
   let mut listener = BedrockListener::bind("0.0.0.0:19132").await?;
   
@@ -105,33 +105,45 @@ jolyne = "0.1"
 
 ### Example: Simple Bot (Client)
 
-```rust
-use jolyne::stream::{BedrockStream, Client};
+```rust,no_run
+use jolyne::stream::client::ClientHandshakeConfig;
+use jolyne::stream::BedrockStream;
+use jolyne::protocol::{McpePacket, PacketRequestChunkRadius};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Connect (Returns BedrockStream<Handshake, Client>)
-    let handshake_conn = BedrockStream::connect("127.0.0.1:19132").await?;
+    let addr = "127.0.0.1:19132".parse()?;
+
+    // 1. Connect
+    let handshake = BedrockStream::connect(addr).await?;
     
-    // Login
-    let mut play_conn = handshake_conn.login().await?;
+    // 2. Configure (Auto-generate keys/uuid)
+    let config = ClientHandshakeConfig::random(addr, "JolyneBot");
+
+    // 3. Join (Handles auth, encryption, resource packs)
+    let mut client = handshake.join(config).await?;
     
-    // Chat
-    play_conn.send_packet(GamePacket::Text(TextPacket {
-        message: "Hello from Jolyne!".into(),
-        ..Default::default()
-    })).await?;
+    // Send a chunk radius request (could be anything.)
+    let req = PacketRequestChunkRadius {
+        chunk_radius: 8,
+        max_radius: 8,
+    };
+    client.send_packet(McpePacket::from(req)).await?;
     
     Ok(())
 }
 ```
 
-## Future Roadmap
+## 🔮 Future Roadmap
 
-### Transport Abstraction (RakNet vs. NetherNet)
-Currently, `BedrockTransport` is tightly coupled to `tokio-raknet`. 
-Future versions will refactor this into a trait-based system to support alternative transports:
-- **NetherNet:** The WebSocket-based transport used by some modern clients/servers.
-- **TCP/UDP:** For proxying or custom tunnel setups.
+### Transport Decoupling
+Currently, `BedrockTransport` is tightly coupled to `tokio-raknet`. We plan to abstract this into a generic `Transport` trait or `Framed<Stream>` layer.
+- **Goal**: Support `NetherNet` (WebSocket), `TCP` (for proxies/tunneling), and `In-Memory` pipes seamlessly.
+- **Goal**: Allow users to bring their own transport implementation.
 
-The plan is to introduce a `Transport` trait that abstracts framing, allowing `BedrockStream` to operate regardless of the underlying wire protocol.
+### Xbox Live API Integration
+- **Goal**: Implement full OAuth2 flow for Xbox Live authentication / be able to use the device login code flow to get tokens.
+
+### API Stabilization
+- **Goal**: stabilize the `BedrockStream` API to minimize breaking changes.
+- **Goal**: Improve ergonomics for custom packet handling and batching strategies.

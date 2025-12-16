@@ -1,4 +1,5 @@
 use bytes::Bytes;
+use futures::StreamExt;
 use std::{error::Error, net::SocketAddr};
 use tokio_raknet::transport::{RaknetListener, RaknetStream};
 
@@ -24,7 +25,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 async fn handle_connection(conn: &mut RaknetStream) -> Result<(), Box<dyn Error>> {
     println!("[server] handle_connection start peer={}", conn.peer_addr());
-    while let Some(result) = conn.recv().await {
+    while let Some(result) = conn.next().await {
         let pkt = match result {
             Ok(p) => p,
             Err(e) => {
@@ -40,7 +41,7 @@ async fn handle_connection(conn: &mut RaknetStream) -> Result<(), Box<dyn Error>
         if let Some(text) = read_user_payload(&pkt) {
             println!("[server] received from {}: {text}", conn.peer_addr());
             let reply = make_user_payload("hello world");
-            conn.send(reply).await?;
+            conn.send_encoded(reply).await?;
             println!(
                 "[server] send(): replied with hello world to {}",
                 conn.peer_addr()

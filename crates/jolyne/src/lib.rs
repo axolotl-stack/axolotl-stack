@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 pub mod auth;
 pub mod batch;
 pub mod config;

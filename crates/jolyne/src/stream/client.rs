@@ -93,6 +93,29 @@ impl BedrockStream<Handshake, Client> {
             _ => Err(ProtocolError::UnexpectedHandshake("Expected NetworkSettings".into()).into()),
         }
     }
+
+    /// Helper: Orchestrates the entire login sequence.
+    pub async fn join(
+        self,
+        config: ClientHandshakeConfig,
+    ) -> Result<BedrockStream<Play, Client>, JolyneError> {
+        let key = config.identity_key.clone();
+        
+        // 1. Settings
+        let login = self.request_settings().await?;
+        
+        // 2. Login
+        let secure = login.send_login(&config).await?;
+        
+        // 3. Encryption
+        let packs = secure.await_handshake(&key).await?;
+        
+        // 4. Resource Packs
+        let start = packs.handle_packs().await?;
+        
+        // 5. Start Game
+        start.await_start_game().await
+    }
 }
 
 // --- State: Login ---

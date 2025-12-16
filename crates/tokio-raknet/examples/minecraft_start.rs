@@ -1,3 +1,4 @@
+use futures::StreamExt;
 use std::error::Error;
 use tokio::net::lookup_host;
 use tokio_raknet::transport::RaknetStream;
@@ -40,7 +41,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         _ = tokio::time::sleep(std::time::Duration::from_secs(5)) => {
             println!("Timeout waiting for packets (expected if we don't send Login).");
         }
-        result = client.recv() => {
+        result = client.next() => {
             match result {
                 Some(Ok(p)) => {
                     println!("Received packet of size: {}", p.len());
