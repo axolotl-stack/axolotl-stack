@@ -4,16 +4,20 @@ version = "0.1.0"
 edition = "2024"
 
 [features]
-default = ["full"]
+default = ["full", "raknet"]
 client = ["dep:jsonwebtoken"]
 server = ["dep:reqwest", "dep:jsonwebtoken"]
 full = ["client", "server"]
+raknet = ["dep:tokio-raknet"]
+nethernet = ["dep:tokio-nethernet"]
+discovery = ["nethernet", "tokio-nethernet/discovery"]
 
 [dependencies]
-tokio = { version = "1.41.1", features = ["full"] }
+tokio = { version = "1.41.1", features = ["sync", "time"] }
 bytes = "1.8.0"
 thiserror = "1.0"
-tokio-raknet = { path = "../tokio-raknet", version = "0.3" }
+tokio-raknet = { path = "../tokio-raknet", version = "0.3", optional = true }
+tokio-nethernet = { path = "../tokio-nethernet", version = "0.1", optional = true }
 valentine = { path = "../valentine", default-features = false, features = [
     "bedrock_1_21_130",
 ] }
@@ -35,21 +39,33 @@ aes-gcm = { version = "0.10", features = ["aes"] }
 p384 = { version = "0.13", features = ["ecdh", "pkcs8"] }
 rand = "0.8"
 once_cell = "1.19"
-
 tracing = "0.1"
+
+[dev-dependencies]
+tokio = { version = "1.48.0", features = ["rt-multi-thread", "macros"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 
 [[example]]
 name = "simple_client"
 path = "examples/simple_client.rs"
-required-features = ["client"]
+required-features = ["client", "raknet"]
 
 [[example]]
 name = "simple_server"
 path = "examples/simple_server.rs"
-required-features = ["server"]
+required-features = ["server", "raknet"]
 
 [[example]]
 name = "proxy"
 path = "examples/proxy.rs"
-required-features = ["full"]
+required-features = ["full", "raknet"]
+
+[[example]]
+name = "nethernet_server"
+path = "examples/nethernet_server.rs"
+required-features = ["server", "discovery"]
+
+[[example]]
+name = "nethernet_client"
+path = "examples/nethernet_client.rs"
+required-features = ["client", "discovery"]

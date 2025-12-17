@@ -2,10 +2,13 @@ mod offline;
 mod online;
 
 use std::collections::HashMap;
+use std::future::poll_fn;
 use std::net::SocketAddr;
 use std::sync::{Arc, RwLock};
+use std::task::Poll;
 use std::time::Duration;
 
+use tokio::io::ReadBuf;
 use tokio::net::UdpSocket;
 use tokio::sync::mpsc;
 
@@ -190,6 +193,12 @@ impl RaknetListener {
     }
 }
 
+enum LoopEvent<Msg> {
+    Inbound(std::io::Result<(usize, std::net::SocketAddr)>),
+    Outbound(Msg),
+    Tick,
+}
+
 async fn run_listener_muxer(
     socket: UdpSocket,
 
@@ -212,39 +221,67 @@ async fn run_listener_muxer(
     let mut tick = new_tick_interval();
 
     loop {
-        tokio::select! {
-            res = socket.recv_from(&mut buf) => {
-                match res  {
-                    Ok((len, peer)) => {
-                        dispatch_datagram(
-                            &socket,
-                            &config,
-                            &buf[..len],
-                            peer,
-                            &mut sessions,
-                            &mut pending,
-                            &new_conn_tx,
-                            &advertisement,
+        // 2. The Polling Block (Replaces select!)
+        let event = poll_fn(|cx| {
+            // A. Poll Outbound (Channel)
+            // prioritize outbound or inbound? select! is random, this is ordered.
+            // Putting outbound first gives it priority.
+            if let Poll::Ready(Some(msg)) = outbound_rx.poll_recv(cx) {
+                return Poll::Ready(LoopEvent::Outbound(msg));
+            }
 
-                        ).await;
-                    }
-                    Err(e) => {
-                        if e.kind() == std::io::ErrorKind::ConnectionReset {
-                            // Windows ICMP port unreachable - ignore
-                            continue;
-                        }
-                        tracing::error!("UDP socket error: {}", e);
-                        // Don't break on transient errors
+            // B. Poll Inbound (UDP)
+            // We need a ReadBuf for poll_recv_from
+            let mut read_buf = ReadBuf::new(&mut buf);
+            if let Poll::Ready(res) = socket.poll_recv_from(cx, &mut read_buf) {
+                let len = read_buf.filled().len();
+                return Poll::Ready(LoopEvent::Inbound(res.map(|addr| (len, addr))));
+            }
+
+            // C. Poll Tick (Timer)
+            if let Poll::Ready(_) = tick.poll_tick(cx) {
+                return Poll::Ready(LoopEvent::Tick);
+            }
+
+            Poll::Pending
+        })
+        .await;
+
+        // 3. The Logic Block (Now just a simple match)
+        match event {
+            LoopEvent::Inbound(res) => match res {
+                Ok((len, peer)) => {
+                    dispatch_datagram(
+                        &socket,
+                        &config,
+                        &buf[..len],
+                        peer,
+                        &mut sessions,
+                        &mut pending,
+                        &new_conn_tx,
+                        &advertisement,
+                    )
+                    .await;
+                }
+                Err(e) => {
+                    if e.kind() == std::io::ErrorKind::ConnectionReset {
                         continue;
                     }
+                    tracing::error!("UDP socket error: {}", e);
                 }
+            },
+            LoopEvent::Outbound(msg) => {
+                handle_outgoing_msg(
+                    &socket,
+                    config.max_mtu as usize,
+                    msg,
+                    &mut sessions,
+                    &config,
+                )
+                .await;
             }
-            Some(msg) = outbound_rx.recv() => {
-                handle_outgoing_msg(&socket, config.max_mtu as usize, msg, &mut sessions, &config).await;
-            }
-            _ = tick.tick() => {
+            LoopEvent::Tick => {
                 tick_sessions(&socket, &mut sessions).await;
-
             }
         }
     }

@@ -3,3 +3,10 @@
 
 /.idea
 /.zed
+token.json
+
+/Broadcaster
+/go-nethernet
+/go-playfab
+/gophertunnel
+nethernet.go

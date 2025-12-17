@@ -317,6 +317,7 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
             buf.resize(required, 0);
         }
 
+        // TODO: GET RID OF SELECT HERE LATER USE POLL_FN AND SPLIT THIS BRICK OF CODE UP.
         tokio::select! {
             res = socket.recv_from(&mut buf) => {
                 let (len, peer) = match res {

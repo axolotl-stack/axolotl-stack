@@ -23,7 +23,7 @@ use crate::protocol::packets::{
 use crate::protocol::{McpePacket, McpePacketData};
 use crate::stream::{
     BedrockStream, Client, Handshake, Login, Play, ResourcePacks, SecurePending, StartGame,
-    transport::BedrockTransport,
+    transport::{BedrockTransport, RakNetTransport, Transport},
 };
 
 // --- Config ---
@@ -51,7 +51,8 @@ impl ClientHandshakeConfig {
 
 // --- State: Handshake (Initial) ---
 
-impl BedrockStream<Handshake, Client> {
+// RakNet-specific connect method
+impl BedrockStream<Handshake, Client, RakNetTransport> {
     /// Connects to a Bedrock server and initializes the stream in the `Handshake` state.
     #[instrument(skip_all, level = "trace", fields(addr = %addr))]
     pub async fn connect(addr: SocketAddr) -> Result<Self, JolyneError> {
@@ -59,15 +60,32 @@ impl BedrockStream<Handshake, Client> {
         tracing::debug!("Connected to server");
 
         Ok(Self {
-            transport: BedrockTransport::new(stream),
+            transport: BedrockTransport::new(RakNetTransport::new(stream)),
             state: Handshake { config: None },
             _role: PhantomData,
         })
     }
+}
+
+// Generic methods for any transport
+impl<T: Transport> BedrockStream<Handshake, Client, T> {
+    /// Creates a client handshake stream from a transport.
+    ///
+    /// Used for NetherNet and other non-RakNet transports where you have
+    /// the raw stream and want to start the Bedrock handshake.
+    pub fn from_transport(transport: BedrockTransport<T>) -> Self {
+        Self {
+            transport,
+            state: Handshake { config: None },
+            _role: PhantomData,
+        }
+    }
 
     /// Requests network settings from the server and enables compression.
     #[instrument(skip_all, level = "trace")]
-    pub async fn request_settings(mut self) -> Result<BedrockStream<Login, Client>, JolyneError> {
+    pub async fn request_settings(
+        mut self,
+    ) -> Result<BedrockStream<Login, Client, T>, JolyneError> {
         let req = PacketRequestNetworkSettings {
             client_protocol: crate::protocol::PROTOCOL_VERSION,
         };
@@ -98,21 +116,21 @@ impl BedrockStream<Handshake, Client> {
     pub async fn join(
         self,
         config: ClientHandshakeConfig,
-    ) -> Result<BedrockStream<Play, Client>, JolyneError> {
+    ) -> Result<BedrockStream<Play, Client, T>, JolyneError> {
         let key = config.identity_key.clone();
-        
+
         // 1. Settings
         let login = self.request_settings().await?;
-        
+
         // 2. Login
         let secure = login.send_login(&config).await?;
-        
+
         // 3. Encryption
         let packs = secure.await_handshake(&key).await?;
-        
+
         // 4. Resource Packs
         let start = packs.handle_packs().await?;
-        
+
         // 5. Start Game
         start.await_start_game().await
     }
@@ -120,12 +138,12 @@ impl BedrockStream<Handshake, Client> {
 
 // --- State: Login ---
 
-impl BedrockStream<Login, Client> {
+impl<T: Transport> BedrockStream<Login, Client, T> {
     #[instrument(skip_all, level = "trace", fields(uuid = %config.uuid, display_name = %config.display_name))]
     pub async fn send_login(
         mut self,
         config: &ClientHandshakeConfig,
-    ) -> Result<BedrockStream<SecurePending, Client>, JolyneError> {
+    ) -> Result<BedrockStream<SecurePending, Client, T>, JolyneError> {
         // Generate JWT Chain
         let (chain, client_token) = crate::auth::client::generate_self_signed_chain(
             &config.identity_key,
@@ -163,12 +181,12 @@ struct ServerHandshakeClaims {
     salt: String,
 }
 
-impl BedrockStream<SecurePending, Client> {
+impl<T: Transport> BedrockStream<SecurePending, Client, T> {
     #[instrument(skip_all, level = "trace")]
     pub async fn await_handshake(
         mut self,
         client_identity_key: &SecretKey,
-    ) -> Result<BedrockStream<ResourcePacks, Client>, JolyneError> {
+    ) -> Result<BedrockStream<ResourcePacks, Client, T>, JolyneError> {
         let next_pkt = self.transport.recv_packet().await?;
 
         match next_pkt.data {
@@ -335,9 +353,11 @@ impl BedrockStream<SecurePending, Client> {
 
 // --- State: ResourcePacks ---
 
-impl BedrockStream<ResourcePacks, Client> {
+impl<T: Transport> BedrockStream<ResourcePacks, Client, T> {
     #[instrument(skip_all, level = "trace")]
-    pub async fn handle_packs(mut self) -> Result<BedrockStream<StartGame, Client>, JolyneError> {
+    pub async fn handle_packs(
+        mut self,
+    ) -> Result<BedrockStream<StartGame, Client, T>, JolyneError> {
         let info_pkt = self.transport.recv_packet().await?;
         if !matches!(info_pkt.data, McpePacketData::PacketResourcePacksInfo(_)) {
             return Err(
@@ -375,9 +395,9 @@ impl BedrockStream<ResourcePacks, Client> {
 
 // --- State: StartGame ---
 
-impl BedrockStream<StartGame, Client> {
+impl<T: Transport> BedrockStream<StartGame, Client, T> {
     #[instrument(skip_all, level = "trace")]
-    pub async fn await_start_game(mut self) -> Result<BedrockStream<Play, Client>, JolyneError> {
+    pub async fn await_start_game(mut self) -> Result<BedrockStream<Play, Client, T>, JolyneError> {
         let mut runtime_entity_id: Option<i64> = None;
         let mut sent_chunk_radius = false;
 
@@ -446,7 +466,7 @@ impl BedrockStream<StartGame, Client> {
 
 // --- State: Play ---
 
-impl BedrockStream<Play, Client> {
+impl<T: Transport> BedrockStream<Play, Client, T> {
     #[instrument(skip_all, level = "trace")]
     pub async fn recv_packet(&mut self) -> Result<McpePacket, JolyneError> {
         let mut batches = self.transport.recv_batch().await?;

@@ -136,13 +136,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## 🔮 Future Roadmap
 
-### Transport Decoupling
-Currently, `BedrockTransport` is tightly coupled to `tokio-raknet`. We plan to abstract this into a generic `Transport` trait or `Framed<Stream>` layer.
-- **Goal**: Support `NetherNet` (WebSocket), `TCP` (for proxies/tunneling), and `In-Memory` pipes seamlessly.
-- **Goal**: Allow users to bring their own transport implementation.
-
-### Xbox Live API Integration
-- **Goal**: Implement full OAuth2 flow for Xbox Live authentication / be able to use the device login code flow to get tokens.
+### Transport Decoupling (Completed)
+`BedrockTransport` is now agnostic. `jolyne` supports `NetherNet` (via `tokio-nethernet`), and `Raknet` (via `tokio-raknet`).
+- **Status**: ✅ Done. Users can bring their own transport implementation.
 
 ### API Stabilization
 - **Goal**: stabilize the `BedrockStream` API to minimize breaking changes.

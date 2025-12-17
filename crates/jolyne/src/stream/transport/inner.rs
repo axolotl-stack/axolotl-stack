@@ -1,16 +1,21 @@
+//! Raw transport layer for the Bedrock protocol.
+//!
+//! `BedrockTransport<T>` handles encryption, compression, and batching
+//! on top of any transport implementing the `Transport` trait.
+
 use std::collections::VecDeque;
+use std::future::poll_fn;
+use std::pin::Pin;
 
 use aes::Aes256;
 use aes_gcm::{Aes256Gcm, Key};
 use bytes::BytesMut;
 use ctr::cipher::{KeyIvInit, StreamCipher};
-use futures::{SinkExt, StreamExt};
 use sha2::{Digest, Sha256};
-use tokio_raknet::protocol::reliability::Reliability;
-use tokio_raknet::transport::{Message, RaknetStream};
 use tracing::{debug, instrument};
 
-use crate::batch::{decode_batch, encode_batch_multi};
+use super::{Transport, TransportMessage};
+use crate::batch::{decode_batch, decode_batch_no_prefix, encode_batch_multi};
 use crate::error::{JolyneError, ProtocolError};
 use crate::protocol::McpePacket;
 use valentine::bedrock::context::BedrockSession;
@@ -22,15 +27,17 @@ const CHECKSUM_LEN: usize = 8;
 /// Raw transport layer for the Bedrock protocol.
 ///
 /// Handles:
-/// - Framing (RakNet)
+/// - Framing (via underlying Transport)
 /// - Encryption (AES-256-CTR + SHA256 checksum)
 /// - Compression (Zlib/Deflate)
 /// - Batching
 ///
 /// This struct does NOT handle protocol state (Login, Handshake).
 /// It merely reads and writes batches of packets.
-pub struct BedrockTransport {
-    inner: RaknetStream,
+///
+/// Generic over `T: Transport` to support both RakNet and NetherNet.
+pub struct BedrockTransport<T: Transport> {
+    inner: T,
     // We keep the session for codec context (shield ID, etc.)
     pub(crate) session: BedrockSession,
 
@@ -54,14 +61,15 @@ pub struct BedrockTransport {
     max_decompressed_batch_size: Option<usize>,
 }
 
-impl BedrockTransport {
-    pub fn new(inner: RaknetStream) -> Self {
+impl<T: Transport> BedrockTransport<T> {
+    /// Create a new BedrockTransport wrapping the given transport.
+    pub fn new(inner: T) -> Self {
         Self {
             inner,
             session: BedrockSession { shield_item_id: 0 },
             recv_queue: VecDeque::new(),
             write_buffer: Vec::new(),
-            auto_flush: true, // Default to immediate send (like TCP/Proxy)
+            auto_flush: true,
             encryption_enabled: false,
             send_cipher: None,
             recv_cipher: None,
@@ -69,20 +77,17 @@ impl BedrockTransport {
             send_counter: 0,
             recv_counter: 0,
             compression_enabled: false,
-            compression_level: 7,     // Default Zlib level
-            compression_threshold: 0, // Compress everything by default if enabled
-            max_decompressed_batch_size: Some(1024 * 1024 * 4), // 4MB default limit
+            compression_level: 7,
+            compression_threshold: 0,
+            max_decompressed_batch_size: Some(1024 * 1024 * 4),
         }
     }
 
     /// Enable encryption with the derived keys.
-    /// This should be called immediately after the handshake key derivation.
     #[instrument(skip_all, level = "debug", fields(peer_addr = %self.peer_addr()))]
     pub fn enable_encryption(&mut self, key: Key<Aes256Gcm>, iv: [u8; 12]) {
         let key_bytes = key.to_vec();
 
-        // Bedrock uses AES-256-CTR with a 16-byte IV, where the last 4 bytes are a BE counter.
-        // Implementations typically initialise it to 2.
         let mut iv16 = [0u8; 16];
         iv16[..12].copy_from_slice(&iv);
         iv16[12..].copy_from_slice(&[0, 0, 0, 2]);
@@ -106,9 +111,6 @@ impl BedrockTransport {
     }
 
     /// Configures the flushing strategy.
-    ///
-    /// - `true` (Default): `send()` sends packets immediately (low latency, high overhead).
-    /// - `false`: `send()` queues packets. You MUST call `flush()` to send them (high throughput).
     pub fn set_auto_flush(&mut self, auto: bool) {
         self.auto_flush = auto;
     }
@@ -124,7 +126,6 @@ impl BedrockTransport {
     }
 
     /// Flushes all buffered packets as a single batch (ReliableOrdered).
-    /// Does nothing if the buffer is empty.
     pub async fn flush(&mut self) -> Result<(), JolyneError> {
         if self.write_buffer.is_empty() {
             return Ok(());
@@ -136,30 +137,19 @@ impl BedrockTransport {
     /// Sends a list of packets as a single batch using `ReliableOrdered` reliability.
     #[instrument(skip_all, level = "trace", fields(peer_addr = %self.peer_addr()))]
     pub async fn send_batch(&mut self, packets: &[McpePacket]) -> Result<(), JolyneError> {
-        self.send_batch_with_reliability(packets, Reliability::ReliableOrdered)
-            .await
+        self.send_batch_with_reliability(packets, true).await
     }
 
     /// Sends a list of packets as a single batch with specified reliability.
-    ///
-    /// This bypasses the internal `write_buffer` and sends immediately.
-    /// Useful for streaming data (e.g. video/maps) that should use `Unreliable` or `ReliableSequenced`.
-    ///
-    /// # Safety
-    ///
-    /// If encryption is enabled, you **MUST** use `Reliability::ReliableOrdered`.
-    /// Bedrock uses a stream cipher (AES-CTR) which requires strict ordering and no gaps.
-    /// Using any other reliability will desynchronize the cipher and break the connection.
-    /// This method returns an error if you attempt to violate this rule.
-    #[instrument(skip_all, level = "trace", fields(peer_addr = %self.peer_addr(), reliability = ?reliability))]
+    #[instrument(skip_all, level = "trace", fields(peer_addr = %self.peer_addr(), reliable = reliable))]
     pub async fn send_batch_with_reliability(
         &mut self,
         packets: &[McpePacket],
-        reliability: Reliability,
+        reliable: bool,
     ) -> Result<(), JolyneError> {
-        if self.encryption_enabled && reliability != Reliability::ReliableOrdered {
+        if self.encryption_enabled && !reliable {
             return Err(JolyneError::Protocol(ProtocolError::UnexpectedHandshake(
-                "Cannot use unreliable/unordered networking when encryption is active".into(),
+                "Cannot use unreliable networking when encryption is active".into(),
             )));
         }
 
@@ -168,50 +158,67 @@ impl BedrockTransport {
         }
 
         // 1. Encode Batch (Handles Compression)
+        // Use T::USES_BATCH_PREFIX to conditionally add 0xFE prefix
         let batch_buffer = encode_batch_multi(
             packets,
             self.compression_enabled,
             self.compression_level,
             self.compression_threshold,
+            T::USES_BATCH_PREFIX,
         )?;
 
         // 2. Encrypt & Send
-        if self.encryption_enabled {
+        let msg = if self.encryption_enabled {
             let mut bm = BytesMut::from(batch_buffer.as_ref());
             self.encrypt_outgoing(&mut bm)?;
-            self.inner
-                .send(Message::new(bm.freeze()).reliability(reliability))
-                .await?;
+            TransportMessage::reliable(bm.freeze())
+        } else if reliable {
+            TransportMessage::reliable(batch_buffer)
         } else {
-            self.inner
-                .send(Message::new(batch_buffer).reliability(reliability))
-                .await?;
-        }
+            TransportMessage::unreliable(batch_buffer)
+        };
+
+        // Send using poll_fn to convert poll-based API to async
+        poll_fn(|cx| Pin::new(&mut self.inner).poll_send(cx, msg.clone()))
+            .await
+            .map_err(|e| JolyneError::Transport(e.to_string()))?;
 
         Ok(())
     }
 
-    /// Raw send for handshake packets that cannot be batched (e.g., NetworkSettings).
+    /// Raw send for handshake packets that cannot be batched.
+    ///
+    /// The framing depends on the transport type:
+    /// - **RakNet**: Uses game frame format `[0xFE][Length][Header][Body]`
+    /// - **NetherNet**: Uses inner format `[Length][Header][Body]` (no 0xFE)
     #[instrument(skip_all, level = "trace", fields(peer_addr = %self.peer_addr()))]
     pub async fn send_raw(&mut self, packet: McpePacket) -> Result<(), JolyneError> {
         let mut buf = BytesMut::new();
-        // Manual framing: [0xFE] [Len] [Header] [Body]
-        // McpePacket::encode writes [Len] [Header] [Body].
-        // send_raw is mostly for uncompressed/unencrypted initial handshake packets.
-        // Let's rely on the crate::protocol::packets::McpePacket implementation.
 
-        // However, raw packets in Bedrock (like RequestNetworkSettings) are still framed
-        // but just NOT batched/compressed.
-        use valentine::bedrock::codec::BedrockCodec;
-        packet.encode(&mut buf)?;
+        if T::USES_BATCH_PREFIX {
+            // RakNet: Use full game frame with 0xFE prefix
+            use valentine::bedrock::codec::BedrockCodec;
+            packet.encode(&mut buf)?;
+        } else {
+            // NetherNet: Use inner format without 0xFE prefix
+            packet
+                .data
+                .encode_inner(
+                    &mut buf,
+                    packet.header.from_subclient,
+                    packet.header.to_subclient,
+                )
+                .map_err(JolyneError::Io)?;
+        }
 
         if self.encryption_enabled {
             self.encrypt_outgoing(&mut buf)?;
         }
 
-        self.inner
-            .send(Message::new(buf.freeze()).reliability(Reliability::ReliableOrdered))
-            .await?;
+        let msg = TransportMessage::reliable(buf.freeze());
+        poll_fn(|cx| Pin::new(&mut self.inner).poll_send(cx, msg.clone()))
+            .await
+            .map_err(|e| JolyneError::Transport(e.to_string()))?;
         Ok(())
     }
 
@@ -221,10 +228,8 @@ impl BedrockTransport {
             if let Some(pkt) = self.recv_queue.pop_front() {
                 return Ok(pkt);
             }
-            // Queue is empty, fetch more
             let packets = self.recv_batch().await?;
             if packets.is_empty() {
-                // Keep trying if we got an empty batch (e.g. padding?)
                 continue;
             }
             self.recv_queue.extend(packets);
@@ -232,21 +237,13 @@ impl BedrockTransport {
     }
 
     /// Reads a batch of packets from the network.
-    ///
-    /// This method:
-    /// 1. Reads a raw frame from RakNet.
-    /// 2. Decrypts it (if encryption is active).
-    /// 3. Decodes the batch (decompresses and splits).
-    ///
-    /// If the packet is NOT a batch (does not start with 0xFE), it is treated as a raw packet.
     #[instrument(skip_all, level = "trace", fields(peer_addr = %self.peer_addr()))]
     pub async fn recv_batch(&mut self) -> Result<Vec<McpePacket>, JolyneError> {
         // 1. Read Raw Frame
-        let mut packet_bytes = self
-            .inner
-            .next()
-            .await
-            .ok_or(JolyneError::ConnectionClosed)??;
+        let recv_result = poll_fn(|cx| Pin::new(&mut self.inner).poll_recv(cx)).await;
+        let mut packet_bytes = recv_result
+            .ok_or(JolyneError::ConnectionClosed)?
+            .map_err(|e| JolyneError::Transport(e.to_string()))?;
 
         // 2. Decrypt
         if self.encryption_enabled {
@@ -262,24 +259,44 @@ impl BedrockTransport {
         // 3. Detect & Decode
         let mut buf = packet_bytes;
 
-        // 0xFE is the Batch Packet ID
-        if buf[0] == 0xFE {
-            let packets = decode_batch(
-                &mut buf,
-                &self.session,
-                self.compression_enabled,
-                self.max_decompressed_batch_size,
-            )?;
-            Ok(packets)
+        // Trace: log first bytes for protocol debugging
+        tracing::trace!(first_byte = buf[0], len = buf.len(), "Received batch");
+
+        if T::USES_BATCH_PREFIX {
+            // RakNet: Expects 0xFE prefix for batch packets
+            if buf[0] == 0xFE {
+                let packets = decode_batch(
+                    &mut buf,
+                    &self.session,
+                    self.compression_enabled,
+                    self.max_decompressed_batch_size,
+                )?;
+                Ok(packets)
+            } else {
+                // Non-batch packet (raw game frame before compression is enabled)
+                use valentine::bedrock::codec::BedrockCodec;
+                let packet = McpePacket::decode(&mut buf, (&self.session).into())?;
+                Ok(vec![packet])
+            }
         } else {
-            // Treat as Raw Packet (e.g., RequestNetworkSettings)
-            use valentine::bedrock::codec::BedrockCodec;
-            // McpePacket::decode expects the buffer to be advanced past the ID?
-            // No, usually decode reads the ID to know which variant to create.
-            // BUT, standard BedrockCodec implementation usually reads the ID.
-            // Let's assume McpePacket::decode handles the full packet including ID.
-            let packet = McpePacket::decode(&mut buf, (&self.session).into())?;
-            Ok(vec![packet])
+            // NetherNet: No 0xFE prefix, packets are either:
+            // - Inner format [Length][Header][Body] (before compression)
+            // - Directly compressed batch [CompressionAlg][Data] (after compression)
+            if self.compression_enabled {
+                // After NetworkSettings: treat as batch without 0xFE prefix
+                let packets = decode_batch_no_prefix(
+                    &mut buf,
+                    &self.session,
+                    self.max_decompressed_batch_size,
+                )?;
+                Ok(packets)
+            } else {
+                // Before NetworkSettings: raw inner format
+                use crate::protocol::McpePacketData;
+                let (header, data) =
+                    McpePacketData::decode_inner(&mut buf, (&self.session).into())?;
+                Ok(vec![McpePacket { header, data }])
+            }
         }
     }
 
@@ -299,7 +316,6 @@ impl BedrockTransport {
             .as_deref()
             .expect("encryption_enabled implies key_bytes is initialised");
 
-        // Checksum = SHA256(counter_le || payload || key)[0..8]
         let counter = self.send_counter;
         self.send_counter = self.send_counter.wrapping_add(1);
 
@@ -311,8 +327,6 @@ impl BedrockTransport {
         let checksum = digest.finalize();
 
         buf.extend_from_slice(&checksum[..CHECKSUM_LEN]);
-
-        // Encrypt everything after the first byte (packet header), including the checksum.
         cipher.apply_keystream(&mut buf[1..]);
 
         Ok(())
@@ -332,7 +346,6 @@ impl BedrockTransport {
             .as_deref()
             .expect("encryption_enabled implies key_bytes is initialised");
 
-        // Decrypt everything after the first byte (packet header).
         cipher.apply_keystream(&mut buf[1..]);
 
         if buf.len() < 1 + CHECKSUM_LEN {
@@ -347,7 +360,6 @@ impl BedrockTransport {
         let checksum_start = buf.len() - CHECKSUM_LEN;
         let their_checksum = &buf[checksum_start..];
 
-        // Checksum = SHA256(counter_le || payload || key)[0..8]
         let counter = self.recv_counter;
         self.recv_counter = self.recv_counter.wrapping_add(1);
 
@@ -367,12 +379,11 @@ impl BedrockTransport {
             .into());
         }
 
-        // Strip checksum suffix before decoding.
         buf.truncate(checksum_start);
-
         Ok(())
     }
 
+    /// Returns the peer address.
     pub fn peer_addr(&self) -> std::net::SocketAddr {
         self.inner.peer_addr()
     }

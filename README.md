@@ -35,6 +35,16 @@ Valentine manages the version-specific packet definitions and data schemas. It i
 A pure Rust, asynchronous implementation of the RakNet reliability protocol. It provides `RaknetListener` and `RaknetStream` abstractions that feel like standard TCP sockets but offer the features of UDP (unreliable messages, ordering channels, and packet splitting).
 *   **Use for**: Any UDP-based reliable networking, not just Minecraft.
 
+### 🚀 [Axelerator](crates/axelerator)
+**The High-Performance Gateway.**
+Axelerator is a production-grade friend broadcaster, it hosts a mini nethernet server that signals via xbox and appears as a friends session upon joining we transfer to whatever the end user server is. 
+*   **Use for**: Allowing console players or etc to join your server via a friend in the friends menu.
+
+### 🔑 [Axolotl XBL](crates/axolotl_xbl)
+**The Authentication Provider.**
+A standalone library for handling Xbox Live authentication flows (XSTS, Device Code, Minecraft Services). It powers the secure connection features of `axelerator` and `jolyne`.
+*   **Use for**: Logging in real players or authenticating servers.
+
 ## 🛠️ Getting Started
 
 ### Prerequisites
@@ -72,9 +82,9 @@ Please check the individual crate directories for specific contribution guidelin
 
 We are building towards a production-ready, open-source Bedrock server stack. Here is the high-level plan:
 
-1.  **Transport Independence**: Decouple `Jolyne` from `RakNet`. We want to support `NetherNet` (WebSocket), standard `TCP` (for proxies), and in-memory streams (for testing) interchangeably via a `Framed<Stream>` abstraction.
-2.  **Data Completeness**: Expand `Valentine` to include block states, collision geometry, and entity metadata schemas, automated via `valentine_gen`.
-3.  **High-Performance Server (`Unastar`)**: Build a modular, ECS-driven server foundation that can handle thousands of players with minimal tick lag.
-4.  **Xbox Live Integration**: Implement full `OAuth2` and `XBL` authentication flows directly in `Jolyne` to support real online mode without proxying.
+1.  **Transport Independence (Completed)**: `Jolyne` is now decoupled from `RakNet`. We support `NetherNet` (via `tokio-nethernet`) and generic `Framed<Stream>` abstractions.
+2.  **Xbox Live Integration (In Progress)**: `axolotl_xbl` provides the authentication primitives. Full integration into `Jolyne` for "Online Mode" is underway.
+3.  **Data Completeness**: Expand `Valentine` to include block states, collision geometry, and entity metadata schemas.
+4.  **High-Performance Server (`Unastar`)**: Build a modular, ECS-driven server foundation.
 
 *“Everything is better with Axolotls.”*

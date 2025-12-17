@@ -72,6 +72,9 @@ pub enum JolyneError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
+    #[error("Transport error: {0}")]
+    Transport(String),
+
     #[error("Connection closed")]
     ConnectionClosed,
 

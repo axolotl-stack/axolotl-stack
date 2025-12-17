@@ -1,0 +1,45 @@
+[package]
+name = "axelerator"
+version = "0.1.0"
+edition = "2024"
+description = "Xbox Live friend broadcast server - makes Minecraft servers joinable via friends list"
+license = "MIT"
+publish = false
+
+[dependencies]
+# Xbox Live APIs
+axolotl-xbl = { path = "../axolotl-xbl" }
+
+# NetherNet for WebRTC signaling fallback
+tokio-nethernet = { path = "../tokio-nethernet", features = ["xbox-signaling"] }
+
+# Bedrock protocol for handshake and transfer
+jolyne = { path = "../jolyne", features = ["server", "nethernet"] }
+
+# Crypto for handshake
+p384 = "0.13"
+
+# Async runtime
+tokio = { version = "1", features = [
+    "rt-multi-thread",
+    "macros",
+    "sync",
+    "time",
+    "signal",
+    "fs",
+] }
+futures = "0.3"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+
+# Utilities
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+uuid = { version = "1", features = ["v4"] }
+rand = "0.8"

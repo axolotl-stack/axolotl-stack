@@ -1,11 +1,14 @@
+//! Bedrock protocol stream types.
+//!
+//! Provides strongly-typed, state-aware Bedrock connections using the Typestate pattern.
+
 use std::marker::PhantomData;
 use std::sync::Arc;
 
 use crate::config::BedrockListenerConfig;
 use crate::error::JolyneError;
 use crate::protocol::McpePacket;
-use tokio_raknet::protocol::reliability::Reliability;
-use transport::BedrockTransport;
+use transport::{BedrockTransport, Transport};
 
 pub mod transport;
 
@@ -14,26 +17,39 @@ pub mod client;
 #[cfg(feature = "server")]
 pub mod server;
 
+// Re-export transport types
+#[cfg(feature = "raknet")]
+pub use transport::RakNetTransport;
+
+#[cfg(feature = "nethernet")]
+pub use transport::NetherNetTransport;
+
 /// A strongly-typed, state-aware Bedrock protocol stream.
 ///
 /// This struct enforces protocol correctness at compile time using the Typestate pattern.
-/// The `S` parameter represents the current protocol state (e.g., `Login`, `Play`),
-/// and the `R` parameter represents the connection role (`Client` or `Server`).
-pub struct BedrockStream<S: State, R: Role> {
-    pub(crate) transport: BedrockTransport,
+/// - `S` represents the current protocol state (e.g., `Login`, `Play`)
+/// - `R` represents the connection role (`Client` or `Server`)
+/// - `T` represents the underlying transport (`RakNetTransport` or `NetherNetTransport`)
+pub struct BedrockStream<S: State, R: Role, T: Transport> {
+    pub(crate) transport: BedrockTransport<T>,
     pub(crate) state: S,
     pub(crate) _role: PhantomData<R>,
 }
 
-impl<S: State, R: Role> BedrockStream<S, R> {
+impl<S: State, R: Role, T: Transport> BedrockStream<S, R, T> {
     pub fn peer_addr(&self) -> std::net::SocketAddr {
         self.transport.peer_addr()
     }
 
     /// Consumes the stream and returns the underlying transport.
     /// This allows bypassing the state machine for proxying or raw access.
-    pub fn into_transport(self) -> BedrockTransport {
+    pub fn into_transport(self) -> BedrockTransport<T> {
         self.transport
+    }
+
+    /// Returns a reference to the current state.
+    pub fn state(&self) -> &S {
+        &self.state
     }
 
     /// Configures the flushing strategy.
@@ -53,14 +69,14 @@ impl<S: State, R: Role> BedrockStream<S, R> {
     /// Sends a list of packets as a single batch with specified reliability.
     ///
     /// This bypasses the internal `write_buffer` and sends immediately.
-    /// Useful for streaming data (e.g. video/maps) that should use `Unreliable` or `ReliableSequenced`.
+    /// Useful for streaming data (e.g. video/maps) that should use `Unreliable`.
     pub async fn send_batch_with_reliability(
         &mut self,
         packets: &[McpePacket],
-        reliability: Reliability,
+        reliable: bool,
     ) -> Result<(), JolyneError> {
         self.transport
-            .send_batch_with_reliability(packets, reliability)
+            .send_batch_with_reliability(packets, reliable)
             .await
     }
 }
@@ -117,16 +133,52 @@ impl Role for Client {}
 
 // --- User-Friendly Type Aliases ---
 
-/// Entry point for Server connection.
-pub type ServerLogin = BedrockStream<Handshake, Server>;
-pub type ServerSecurePending = BedrockStream<SecurePending, Server>;
-pub type ServerResourcePacks = BedrockStream<ResourcePacks, Server>;
-pub type ServerStartGame = BedrockStream<StartGame, Server>;
-pub type ServerPlay = BedrockStream<Play, Server>;
+// RakNet type aliases (default transport)
+#[cfg(feature = "raknet")]
+pub mod raknet_types {
+    use super::*;
 
-/// Entry point for Client connection.
-pub type ClientLogin = BedrockStream<Handshake, Client>;
-pub type ClientSecurePending = BedrockStream<SecurePending, Client>;
-pub type ClientResourcePacks = BedrockStream<ResourcePacks, Client>;
-pub type ClientStartGame = BedrockStream<StartGame, Client>;
-pub type ClientPlay = BedrockStream<Play, Client>;
+    /// Entry point for Server connection over RakNet.
+    pub type ServerLogin = BedrockStream<Handshake, Server, RakNetTransport>;
+    pub type ServerSecurePending = BedrockStream<SecurePending, Server, RakNetTransport>;
+    pub type ServerResourcePacks = BedrockStream<ResourcePacks, Server, RakNetTransport>;
+    pub type ServerStartGame = BedrockStream<StartGame, Server, RakNetTransport>;
+    pub type ServerPlay = BedrockStream<Play, Server, RakNetTransport>;
+
+    /// Entry point for Client connection over RakNet.
+    pub type ClientLogin = BedrockStream<Handshake, Client, RakNetTransport>;
+    pub type ClientSecurePending = BedrockStream<SecurePending, Client, RakNetTransport>;
+    pub type ClientResourcePacks = BedrockStream<ResourcePacks, Client, RakNetTransport>;
+    pub type ClientStartGame = BedrockStream<StartGame, Client, RakNetTransport>;
+    pub type ClientPlay = BedrockStream<Play, Client, RakNetTransport>;
+}
+
+#[cfg(feature = "raknet")]
+pub use raknet_types::*;
+
+// NetherNet type aliases
+#[cfg(feature = "nethernet")]
+pub mod nethernet_types {
+    use super::*;
+
+    /// Entry point for Server connection over NetherNet (WebRTC).
+    pub type NetherNetServerLogin = BedrockStream<Handshake, Server, NetherNetTransport>;
+    pub type NetherNetServerSecurePending =
+        BedrockStream<SecurePending, Server, NetherNetTransport>;
+    pub type NetherNetServerResourcePacks =
+        BedrockStream<ResourcePacks, Server, NetherNetTransport>;
+    pub type NetherNetServerStartGame = BedrockStream<StartGame, Server, NetherNetTransport>;
+    pub type NetherNetServerPlay = BedrockStream<Play, Server, NetherNetTransport>;
+
+    /// Entry point for Client connection over NetherNet (WebRTC).
+    pub type NetherNetClientLogin = BedrockStream<Handshake, Client, NetherNetTransport>;
+    pub type NetherNetClientSecurePending =
+        BedrockStream<SecurePending, Client, NetherNetTransport>;
+    pub type NetherNetClientResourcePacks =
+        BedrockStream<ResourcePacks, Client, NetherNetTransport>;
+    pub type NetherNetClientStartGame = BedrockStream<StartGame, Client, NetherNetTransport>;
+    pub type NetherNetClientPlay = BedrockStream<Play, Client, NetherNetTransport>;
+}
+
+#[cfg(feature = "nethernet")]
+pub use nethernet_types::*;

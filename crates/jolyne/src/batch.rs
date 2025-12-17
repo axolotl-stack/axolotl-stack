@@ -189,6 +189,61 @@ pub fn decode_batch(
     }
 }
 
+/// Decodes a batch packet WITHOUT the 0xFE prefix (for NetherNet).
+///
+/// NetherNet batch format is: `[CompressionAlg][CompressedData]`
+/// rather than RakNet's: `[0xFE][CompressionAlg][CompressedData]`
+#[instrument(skip_all, level = "trace")]
+pub fn decode_batch_no_prefix(
+    buf: &mut Bytes,
+    session: &BedrockSession,
+    max_decompressed_size: Option<usize>,
+) -> Result<Vec<McpePacket>, JolyneError> {
+    if buf.is_empty() {
+        return Ok(vec![]);
+    }
+
+    // Same as decode_batch but without consuming the 0xFE prefix
+    let alg_byte = buf.get_u8();
+    let alg = BatchCompression::try_from_u8(alg_byte).ok_or_else(|| {
+        JolyneError::Protocol(ProtocolError::UnexpectedHandshake(format!(
+            "Unknown compression algorithm: 0x{:02x} ({})",
+            alg_byte, alg_byte
+        )))
+    })?;
+
+    let compressed = buf.clone();
+
+    // Size check
+    if let Some(max) = max_decompressed_size {
+        if compressed.len() > max {
+            warn!("Compressed payload large: {}", compressed.len());
+        }
+    }
+
+    match alg {
+        BatchCompression::Deflate => {
+            let decompressed = decompress_with_guard(
+                DeflateDecoder::new(compressed.as_ref()),
+                max_decompressed_size,
+            )
+            .map_err(|e| ProtocolError::DecompressionFailed(e.to_string()))?;
+
+            let payload = Bytes::from(decompressed);
+            log_payload_probe(Some(compressed.len()), &payload);
+            decode_payload(payload, session)
+        }
+        BatchCompression::None => {
+            log_payload_probe(Some(compressed.len()), &compressed);
+            decode_payload(compressed, session)
+        }
+        BatchCompression::Snappy => Err(ProtocolError::UnexpectedHandshake(
+            "Snappy compression not implemented".into(),
+        )
+        .into()),
+    }
+}
+
 /// Encodes a single packet into a Batch Packet.
 pub fn encode_batch(
     packet: &McpePacket,
@@ -201,15 +256,19 @@ pub fn encode_batch(
         compression_enabled,
         compression_level,
         compression_threshold,
+        true, // RakNet-style with 0xFE prefix
     )
 }
 
 /// Encodes multiple packets into a single Batch Packet.
+///
+/// - `use_batch_prefix`: If true, prepends 0xFE (RakNet). If false, skips it (NetherNet).
 pub fn encode_batch_multi(
     packets: &[McpePacket],
     compression_enabled: bool,
     compression_level: u32,
     compression_threshold: u16,
+    use_batch_prefix: bool,
 ) -> Result<Bytes, JolyneError> {
     let mut packet_buf = BytesMut::new();
     for packet in packets {
@@ -252,10 +311,16 @@ pub fn encode_batch_multi(
         uncompressed.clone()
     };
 
-    let mut batch = BytesMut::with_capacity(1 + payload.len());
-    batch.put_u8(BATCH_PACKET_ID);
-    batch.extend_from_slice(&payload);
-    Ok(batch.freeze())
+    if use_batch_prefix {
+        // RakNet: [0xFE][payload]
+        let mut batch = BytesMut::with_capacity(1 + payload.len());
+        batch.put_u8(BATCH_PACKET_ID);
+        batch.extend_from_slice(&payload);
+        Ok(batch.freeze())
+    } else {
+        // NetherNet: [payload] (no 0xFE prefix)
+        Ok(payload)
+    }
 }
 
 #[cfg(test)]
