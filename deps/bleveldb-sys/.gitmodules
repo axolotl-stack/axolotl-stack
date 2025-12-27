@@ -1,0 +1,4 @@
+[submodule "leveldb"]
+	path = leveldb
+	url = https://github.com/Mojang/leveldb.git
+	branch = main
