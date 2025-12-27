@@ -12,6 +12,7 @@ use toml_edit::{Array, DocumentMut};
 use tracing::{error, info, warn};
 use tracing_subscriber::{EnvFilter, fmt};
 
+mod data_generator;
 mod generator;
 mod ir;
 mod parser;
@@ -44,6 +45,13 @@ struct CliArgs {
     list_versions: bool,
     log_filter: String,
     minecraft_data: Option<PathBuf>,
+    /// Generation targets (composable)
+    gen_proto: bool,
+    gen_items: bool,
+    gen_blocks: bool,
+    gen_block_states: bool,
+    gen_entities: bool,
+    gen_biomes: bool,
 }
 
 fn print_usage() {
@@ -53,11 +61,21 @@ fn print_usage() {
 USAGE:
   cargo run -p valentine_gen -- [OPTIONS]
 
-OPTIONS:
+VERSION SELECTION:
   --latest                Generate only the latest Bedrock version (default)
   --all                   Generate all supported Bedrock versions
   --versions <LIST>       Generate a comma-separated list, e.g. "1.21.130,1.20.80"
   --list-versions         Print available Bedrock versions and exit
+
+GENERATION TARGETS (composable, default: all):
+  --proto                 Generate protocol code only
+  --items                 Generate item data only
+  --blocks                Generate block data only
+  --block-states          Generate block state data only
+  --entities              Generate entity data only
+  --biomes                Generate biome data only
+
+OTHER OPTIONS:
   --minecraft-data <DIR>  Path to a minecraft-data checkout (defaults to ./minecraft-data)
   --log <FILTER>          tracing filter (default: "info"), e.g. "debug" or "valentine_gen=debug"
   -h, --help              Print help and exit
@@ -73,6 +91,14 @@ fn parse_args() -> Result<CliArgs, String> {
     let mut log_filter = "info".to_string();
     let mut minecraft_data: Option<PathBuf> = None;
 
+    // Generation targets - all false means "generate all"
+    let mut gen_proto = false;
+    let mut gen_items = false;
+    let mut gen_blocks = false;
+    let mut gen_block_states = false;
+    let mut gen_entities = false;
+    let mut gen_biomes = false;
+
     let mut it = std::env::args().skip(1).peekable();
     while let Some(arg) = it.next() {
         match arg.as_str() {
@@ -83,6 +109,12 @@ fn parse_args() -> Result<CliArgs, String> {
             "--all" => all = true,
             "--latest" => latest = true,
             "--list-versions" | "--list" => list_versions = true,
+            "--proto" | "--protocol" => gen_proto = true,
+            "--items" => gen_items = true,
+            "--blocks" => gen_blocks = true,
+            "--block-states" | "--blockstates" => gen_block_states = true,
+            "--entities" => gen_entities = true,
+            "--biomes" => gen_biomes = true,
             "--versions" | "--version" | "-v" => {
                 let raw = it
                     .next()
@@ -125,6 +157,22 @@ fn parse_args() -> Result<CliArgs, String> {
         return Err("Use either --latest or --versions (not both)".to_string());
     }
 
+    // If no generation targets specified, generate all
+    let none_specified = !gen_proto
+        && !gen_items
+        && !gen_blocks
+        && !gen_block_states
+        && !gen_entities
+        && !gen_biomes;
+    if none_specified {
+        gen_proto = true;
+        gen_items = true;
+        gen_blocks = true;
+        gen_block_states = true;
+        gen_entities = true;
+        gen_biomes = true;
+    }
+
     Ok(CliArgs {
         versions,
         all,
@@ -132,6 +180,12 @@ fn parse_args() -> Result<CliArgs, String> {
         list_versions,
         log_filter,
         minecraft_data,
+        gen_proto,
+        gen_items,
+        gen_blocks,
+        gen_block_states,
+        gen_entities,
+        gen_biomes,
     })
 }
 
@@ -331,45 +385,82 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 minecraft_version = %version,
                 module = %module_name,
                 crate_name = %crate_name,
-                "Generating Bedrock protocol sources"
+                "Generating Bedrock sources"
             );
 
-            let items_path = data
-                .get("items")
-                .and_then(|v| v.as_str())
-                .map(|p| {
-                    let mut ip = minecraft_data_root.join("data").join(p);
-                    if !p.ends_with(".json") {
-                        ip = ip.join("items.json");
-                    }
-                    ip
-                })
-                .filter(|p| p.exists());
-
-            let parse_result = match parser::parse(&protocol_file) {
-                Ok(parse_result) => parse_result,
-                Err(e) => {
-                    error!(
-                        path = %protocol_file.display(),
-                        error = %e,
-                        "Error parsing protocol file"
-                    );
-                    continue;
-                }
+            // Resolve data paths from minecraft-data
+            let resolve_data_path = |key: &str, default_file: &str| -> Option<PathBuf> {
+                data.get(key)
+                    .and_then(|v| v.as_str())
+                    .map(|p| {
+                        let mut path = minecraft_data_root.join("data").join(p);
+                        if !p.ends_with(".json") {
+                            path = path.join(default_file);
+                        }
+                        path
+                    })
+                    .filter(|p| p.exists())
             };
 
-            // Use a fresh global registry per MC version to avoid cross-version dedup dependencies.
-            let mut global_registry = GlobalRegistry::new();
-            if let Err(e) = generator::generate_protocol_module(
-                "",
-                &parse_result,
-                &crate_src_dir,
-                &mut global_registry,
-                items_path,
-                None,
-            ) {
-                error!(minecraft_version = %version, error = %e, "Error generating version");
-                continue;
+            let items_path = resolve_data_path("items", "items.json");
+            let blocks_path = resolve_data_path("blocks", "blocks.json");
+            let block_states_path = resolve_data_path("blockStates", "blockStates.json");
+            let entities_path = resolve_data_path("entities", "entities.json");
+            let biomes_path = resolve_data_path("biomes", "biomes.json");
+
+            // Generate protocol code if requested
+            if args.gen_proto {
+                let parse_result = match parser::parse(&protocol_file) {
+                    Ok(parse_result) => parse_result,
+                    Err(e) => {
+                        error!(
+                            path = %protocol_file.display(),
+                            error = %e,
+                            "Error parsing protocol file"
+                        );
+                        continue;
+                    }
+                };
+
+                // Use a fresh global registry per MC version to avoid cross-version dedup dependencies.
+                let mut global_registry = GlobalRegistry::new();
+                if let Err(e) = generator::generate_protocol_module(
+                    "",
+                    &parse_result,
+                    &crate_src_dir,
+                    &mut global_registry,
+                    items_path.clone(),
+                    None,
+                ) {
+                    error!(minecraft_version = %version, error = %e, "Error generating protocol");
+                    continue;
+                }
+            }
+
+            // Generate data modules if requested
+            let data_config = data_generator::GenerateConfig {
+                items: args.gen_items,
+                blocks: args.gen_blocks,
+                block_states: args.gen_block_states,
+                entities: args.gen_entities,
+                biomes: args.gen_biomes,
+            };
+
+            if data_config.any() {
+                let data_paths = data_generator::DataPaths {
+                    items: items_path,
+                    blocks: blocks_path,
+                    block_states: block_states_path,
+                    entities: entities_path,
+                    biomes: biomes_path,
+                };
+
+                if let Err(e) =
+                    data_generator::generate_version_data(&data_config, &data_paths, &crate_src_dir)
+                {
+                    error!(minecraft_version = %version, error = %e, "Error generating data");
+                    continue;
+                }
             }
         }
 

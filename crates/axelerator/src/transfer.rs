@@ -3,17 +3,13 @@
 //! Handles incoming WebRTC connections from Xbox Live friends and
 //! redirects them to the actual Minecraft server.
 
-// use std::net::SocketAddr;
 use std::sync::Arc;
 
-use jolyne::WorldTemplate;
-use jolyne::config::BedrockListenerConfig;
 use jolyne::protocol::{McpePacket, PacketTransfer};
-use jolyne::stream::transport::{BedrockTransport, NetherNetTransport};
-use jolyne::stream::{BedrockStream, Handshake, Play, Server};
+use jolyne::stream::{BedrockStream, Play, Server};
+use jolyne::{BedrockListener, WorldTemplate};
 use p384::SecretKey;
 use rand::thread_rng;
-use tokio_nethernet::{NetherNetListener, NetherNetListenerConfig, XboxSignaling};
 use tracing::{debug, error, info, warn};
 
 use crate::AxeleratorConfig;
@@ -22,42 +18,20 @@ use crate::AxeleratorConfig;
 ///
 /// This performs a minimal Bedrock handshake (just enough to send packets),
 /// then sends a Transfer packet with the downstream server address.
-/// Runs the mini-server that accepts WebRTC connections and transfers players.
-///
-/// This performs a minimal Bedrock handshake (just enough to send packets),
-/// then sends a Transfer packet with the downstream server address.
 pub async fn run_transfer_server(
-    signaling: Arc<XboxSignaling>,
+    nethernet_id: u64,
+    mc_token: &str,
     config: &AxeleratorConfig,
 ) -> anyhow::Result<()> {
-    // Create NetherNet listener with Xbox signaling
-    // Use new() which returns (listener, signal_tx) for manual signal routing
-    let (mut listener, signal_tx) =
-        NetherNetListener::new(signaling.clone(), NetherNetListenerConfig::default());
-
-    // Spawn signal pump to route signals from XboxSignaling to listener
-    tokio::spawn(async move {
-        loop {
-            if let Some(signal) = signaling.recv().await {
-                if signal_tx.send(signal).await.is_err() {
-                    break;
-                }
-            } else {
-                break;
-            }
-        }
-    });
+    // Create listener with builder API - no manual signal pump needed!
+    let mut listener = BedrockListener::nethernet()
+        .xbox(nethernet_id, mc_token)
+        .bind()
+        .await?;
 
     // Setup for handshake
     let template = Arc::new(WorldTemplate::default());
     let server_key = SecretKey::random(&mut thread_rng());
-
-    // Bedrock config - NetherNet uses DTLS, so no Bedrock encryption needed
-    let bedrock_config = Arc::new(BedrockListenerConfig {
-        encryption_enabled: false,
-        online_mode: false,
-        ..Default::default()
-    });
 
     // Store target as struct to pass into handlers
     let target_host = config.server_ip.clone();
@@ -71,15 +45,8 @@ pub async fn run_transfer_server(
 
     loop {
         match listener.accept().await {
-            Ok(stream) => {
+            Ok(handshake_stream) => {
                 info!("Friend connected via WebRTC!");
-
-                let transport = BedrockTransport::new(NetherNetTransport::new(stream));
-                let handshake_stream =
-                    <BedrockStream<Handshake, Server, NetherNetTransport>>::from_transport(
-                        transport,
-                        bedrock_config.clone(),
-                    );
 
                 let template = template.clone();
                 let key = server_key.clone();
@@ -101,8 +68,8 @@ pub async fn run_transfer_server(
 }
 
 /// Handles a single connection: performs handshake, resolves DNS, and sends transfer packet.
-async fn handle_transfer_connection(
-    handshake_stream: BedrockStream<Handshake, Server, NetherNetTransport>,
+async fn handle_transfer_connection<T: jolyne::stream::transport::Transport>(
+    handshake_stream: BedrockStream<jolyne::stream::Handshake, Server, T>,
     template: &WorldTemplate,
     key: &SecretKey,
     target_host: String,
@@ -139,8 +106,8 @@ async fn handle_transfer_connection(
 }
 
 /// Sends a Transfer packet to redirect the client.
-async fn send_transfer_packet(
-    stream: &mut BedrockStream<Play, Server, NetherNetTransport>,
+async fn send_transfer_packet<T: jolyne::stream::transport::Transport>(
+    stream: &mut BedrockStream<Play, Server, T>,
     addr_str: &str,
     port: u16,
 ) -> anyhow::Result<()> {

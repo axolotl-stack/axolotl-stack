@@ -15,9 +15,12 @@ use sha2::{Digest, Sha256};
 use tracing::{debug, instrument};
 
 use super::{Transport, TransportMessage};
-use crate::batch::{decode_batch, decode_batch_no_prefix, encode_batch_multi};
+use crate::batch::{
+    decode_batch_no_prefix_raw, decode_batch_raw, encode_batch_multi, encode_batch_raw,
+};
 use crate::error::{JolyneError, ProtocolError};
 use crate::protocol::McpePacket;
+use crate::raw::RawPacket;
 use valentine::bedrock::context::BedrockSession;
 
 type Aes256Ctr = ctr::Ctr32BE<Aes256>;
@@ -41,8 +44,8 @@ pub struct BedrockTransport<T: Transport> {
     // We keep the session for codec context (shield ID, etc.)
     pub(crate) session: BedrockSession,
 
-    // Packet Buffering
-    recv_queue: VecDeque<McpePacket>,
+    // Packet Buffering (single raw buffer - decoded on demand)
+    recv_queue: VecDeque<RawPacket>,
     write_buffer: Vec<McpePacket>,
     auto_flush: bool,
 
@@ -222,13 +225,14 @@ impl<T: Transport> BedrockTransport<T> {
         Ok(())
     }
 
-    /// Returns the next single packet, reading a new batch if necessary.
+    /// Returns the next single packet, decoding from raw buffer on demand.
     pub async fn recv_packet(&mut self) -> Result<McpePacket, JolyneError> {
         loop {
-            if let Some(pkt) = self.recv_queue.pop_front() {
-                return Ok(pkt);
+            if let Some(raw) = self.recv_queue.pop_front() {
+                // Decode on demand
+                return raw.decode(&self.session);
             }
-            let packets = self.recv_batch().await?;
+            let packets = self.recv_batch_raw().await?;
             if packets.is_empty() {
                 continue;
             }
@@ -236,9 +240,39 @@ impl<T: Transport> BedrockTransport<T> {
         }
     }
 
-    /// Reads a batch of packets from the network.
+    /// Reads a batch of packets from the network, returning fully decoded packets.
+    ///
+    /// Note: This decodes all packets in the batch immediately. For proxy use cases
+    /// where you want to inspect IDs without full decode, use `recv_batch_raw()` instead.
     #[instrument(skip_all, level = "trace", fields(peer_addr = %self.peer_addr()))]
     pub async fn recv_batch(&mut self) -> Result<Vec<McpePacket>, JolyneError> {
+        let raw_packets = self.recv_batch_raw().await?;
+        raw_packets
+            .into_iter()
+            .map(|raw| raw.decode(&self.session))
+            .collect()
+    }
+
+    /// Returns the next packet as raw bytes (header parsed, body undecoded).
+    ///
+    /// Useful for proxies that need to inspect packet IDs without full decode.
+    /// Call [`RawPacket::decode`] if you later need the full packet.
+    pub async fn recv_packet_raw(&mut self) -> Result<RawPacket, JolyneError> {
+        loop {
+            if let Some(pkt) = self.recv_queue.pop_front() {
+                return Ok(pkt);
+            }
+            let packets = self.recv_batch_raw().await?;
+            if packets.is_empty() {
+                continue;
+            }
+            self.recv_queue.extend(packets);
+        }
+    }
+
+    /// Returns all packets from the next network batch as raw bytes.
+    #[instrument(skip_all, level = "trace", fields(peer_addr = %self.peer_addr()))]
+    pub async fn recv_batch_raw(&mut self) -> Result<Vec<RawPacket>, JolyneError> {
         // 1. Read Raw Frame
         let recv_result = poll_fn(|cx| Pin::new(&mut self.inner).poll_recv(cx)).await;
         let mut packet_bytes = recv_result
@@ -256,48 +290,79 @@ impl<T: Transport> BedrockTransport<T> {
             return Ok(vec![]);
         }
 
-        // 3. Detect & Decode
+        // 3. Decode as raw packets
         let mut buf = packet_bytes;
 
-        // Trace: log first bytes for protocol debugging
-        tracing::trace!(first_byte = buf[0], len = buf.len(), "Received batch");
-
         if T::USES_BATCH_PREFIX {
-            // RakNet: Expects 0xFE prefix for batch packets
             if buf[0] == 0xFE {
-                let packets = decode_batch(
+                decode_batch_raw(
                     &mut buf,
-                    &self.session,
                     self.compression_enabled,
                     self.max_decompressed_batch_size,
-                )?;
-                Ok(packets)
+                )
             } else {
-                // Non-batch packet (raw game frame before compression is enabled)
-                use valentine::bedrock::codec::BedrockCodec;
-                let packet = McpePacket::decode(&mut buf, (&self.session).into())?;
-                Ok(vec![packet])
+                // Non-batch packet (before compression): parse as single raw packet
+                use crate::raw::decode_packet_raw;
+                Ok(vec![decode_packet_raw(&mut buf)?])
             }
         } else {
-            // NetherNet: No 0xFE prefix, packets are either:
-            // - Inner format [Length][Header][Body] (before compression)
-            // - Directly compressed batch [CompressionAlg][Data] (after compression)
             if self.compression_enabled {
-                // After NetworkSettings: treat as batch without 0xFE prefix
-                let packets = decode_batch_no_prefix(
-                    &mut buf,
-                    &self.session,
-                    self.max_decompressed_batch_size,
-                )?;
-                Ok(packets)
+                decode_batch_no_prefix_raw(&mut buf, self.max_decompressed_batch_size)
             } else {
-                // Before NetworkSettings: raw inner format
-                use crate::protocol::McpePacketData;
-                let (header, data) =
-                    McpePacketData::decode_inner(&mut buf, (&self.session).into())?;
-                Ok(vec![McpePacket { header, data }])
+                // Before NetworkSettings: parse as single raw packet
+                use crate::raw::decode_packet_raw;
+                Ok(vec![decode_packet_raw(&mut buf)?])
             }
         }
+    }
+
+    /// Sends raw packets as a batch with specified reliability.
+    ///
+    /// Useful for proxies forwarding packets without decode/re-encode overhead.
+    #[instrument(skip_all, level = "trace", fields(peer_addr = %self.peer_addr(), reliable = reliable))]
+    pub async fn send_batch_raw(
+        &mut self,
+        packets: &[RawPacket],
+        reliable: bool,
+    ) -> Result<(), JolyneError> {
+        if self.encryption_enabled && !reliable {
+            return Err(JolyneError::Protocol(ProtocolError::UnexpectedHandshake(
+                "Cannot use unreliable networking when encryption is active".into(),
+            )));
+        }
+
+        if packets.is_empty() {
+            return Ok(());
+        }
+
+        let batch_buffer = encode_batch_raw(
+            packets,
+            self.compression_enabled,
+            self.compression_level,
+            self.compression_threshold,
+            T::USES_BATCH_PREFIX,
+        )?;
+
+        let msg = if self.encryption_enabled {
+            let mut bm = BytesMut::from(batch_buffer.as_ref());
+            self.encrypt_outgoing(&mut bm)?;
+            TransportMessage::reliable(bm.freeze())
+        } else if reliable {
+            TransportMessage::reliable(batch_buffer)
+        } else {
+            TransportMessage::unreliable(batch_buffer)
+        };
+
+        poll_fn(|cx| Pin::new(&mut self.inner).poll_send(cx, msg.clone()))
+            .await
+            .map_err(|e| JolyneError::Transport(e.to_string()))?;
+
+        Ok(())
+    }
+
+    /// Sends a single raw packet (convenience wrapper around `send_batch_raw`).
+    pub async fn send_packet_raw(&mut self, packet: RawPacket) -> Result<(), JolyneError> {
+        self.send_batch_raw(&[packet], true).await
     }
 
     // --- Crypto Helpers ---

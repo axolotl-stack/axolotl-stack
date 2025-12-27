@@ -300,6 +300,17 @@ pub fn generate_protocol_module(
         }
     }
 
+    // Include generated data modules if they exist
+    for data_mod in ["items", "blocks", "states", "entities", "biomes"] {
+        let mod_path = version_dir.join(format!("{}.rs", data_mod));
+        if mod_path.exists() {
+            let ident = format_ident!("{}", data_mod);
+            mod_tokens.extend(quote! {
+                pub mod #ident;
+            });
+        }
+    }
+
     // Re-export core bedrock/protocol modules so generated code can refer to crate::bedrock::...
     mod_tokens.extend(quote! {
         pub mod bedrock {

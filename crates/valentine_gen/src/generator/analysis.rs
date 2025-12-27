@@ -134,6 +134,9 @@ fn collect_deps_recursive(
                 deps.extend(tmp);
             }
         }
+        Type::FixedArray { inner_type, .. } => {
+            collect_deps_recursive(inner_type, ctx, visited, deps);
+        }
         Type::String { count_type, .. } => {
             if let Type::Container(_) = count_type.as_ref() {
                 let mut tmp = DepMap::new();
@@ -166,6 +169,7 @@ pub fn should_box_variant(t: &Type, ctx: &Context, depth: usize) -> bool {
             _ => false,
         },
         Type::Array { .. } => false,
+        Type::FixedArray { .. } => false,
         Type::String { .. } => false,
         Type::Encapsulated { .. } => false,
         Type::Reference(r) => {
@@ -211,33 +215,27 @@ pub fn find_redundant_fields(container: &Container) -> HashSet<String> {
             });
 
             if keys_are_bool {
-                // Check outcomes
-                let mut has_void = false;
-                let mut has_data = false;
+                // CRITICAL FIX: For "inverse option" switches (all field cases are void,
+                // but default has data), the discriminator contains MEANINGFUL data, not
+                // just a boolean flag. For example, ItemLegacy's network_id is 0 for air
+                // but contains the actual item runtime ID otherwise. Don't mark as redundant.
+                let is_inverse_option = fields
+                    .iter()
+                    .all(|(_, t)| matches!(t, Type::Primitive(Primitive::Void)))
+                    && !matches!(default.as_ref(), Type::Primitive(Primitive::Void));
 
-                // Check default
-                if matches!(default.as_ref(), Type::Primitive(Primitive::Void)) {
-                    has_void = true;
-                } else {
-                    has_data = true;
+                if is_inverse_option {
+                    // The discriminator IS the data, NOT a derivable boolean flag
+                    continue;
                 }
 
-                // Check fields
-                for (_, t) in fields {
-                    if matches!(t, Type::Primitive(Primitive::Void)) {
-                        has_void = true;
-                    } else {
-                        has_data = true;
-                    }
-                }
-
-                // If we have both Void and Data (and nothing else), it's an Option<T>.
-                // The field we compare against is likely the discriminator and can be removed.
-                if has_void && has_data {
-                    let target = compare_to.replace("../", "");
-                    let clean_target = crate::generator::utils::clean_field_name(&target, "");
-                    redundant.insert(clean_target);
-                }
+                // For normal bool-keyed switches, the discriminator can be derived from the switch outcome:
+                // - If one branch is Void and one has Data -> Option<T>, discriminator = is_some()
+                // - If both branches have Data -> Discriminated enum, discriminator = matches!(variant)
+                // Either way, the discriminator field is redundant and can be removed from the struct.
+                let target = compare_to.replace("../", "");
+                let clean_target = crate::generator::utils::clean_field_name(&target, "");
+                redundant.insert(clean_target);
             }
         }
     }

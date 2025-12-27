@@ -52,7 +52,7 @@ Before writing code for medium/large tasks, you must utilize the `plan` tool.
 * **Next Step:** End every interaction with a clear, low-friction next step for the user (e.g., "Run `cargo run --example bot` to verify.").
 
 ## 5. Tool Use Constraints
-* **Context Gathering:** Prefer `grep`/`code_search` to find relevant code before implementing. Do not guess protocol definitions.
+* **Context Gathering:** Prefer `code_search` to find relevant code before implementing. Do not guess protocol definitions.
 * **Persistence:** Persist until the query is **completely resolved**. If a fix exposes a secondary bug, fix that too within the same turn if feasible.
 * **Update Immediacy:** Always explicitly state what you are doing in a commentary message **BEFORE** sampling thinking/tool calls.
 

@@ -166,6 +166,14 @@ impl ResolvedContainer {
                     switch_resolutions,
                     discriminator_upgrades,
                 ),
+                Type::FixedArray { inner_type, .. } => visit_type(
+                    None,
+                    inner_type,
+                    ctx,
+                    variable_types,
+                    switch_resolutions,
+                    discriminator_upgrades,
+                ),
                 Type::Option(inner) => visit_type(
                     None,
                     inner,
@@ -562,6 +570,11 @@ fn canonical_type_signature_inner(ty: &Type, ctx: &Context, seen: &mut HashSet<S
         } => format!(
             "A:[{}]->{}",
             canonical_type_signature_inner(count_type, ctx, seen),
+            canonical_type_signature_inner(inner_type, ctx, seen)
+        ),
+        Type::FixedArray { size, inner_type } => format!(
+            "FA:{}->{}",
+            size,
             canonical_type_signature_inner(inner_type, ctx, seen)
         ),
         Type::Option(inner) => format!("O:{}", canonical_type_signature_inner(inner, ctx, seen)),

@@ -332,6 +332,26 @@ fn parse_complex_type(
                 Type::Primitive(Primitive::Void)
             };
 
+            // Detect bool-based switches with exactly "true" and "false" cases
+            // that both have Reference types - these become discriminated enum types
+            let has_true = fields.iter().any(|(k, _)| k == "true");
+            let has_false = fields.iter().any(|(k, _)| k == "false");
+            let is_bool_switch = fields.len() == 2 && has_true && has_false;
+            let both_are_refs = fields.iter().all(|(_, t)| matches!(t, Type::Reference(_)));
+
+            if is_bool_switch
+                && both_are_refs
+                && matches!(default_type, Type::Primitive(Primitive::Void))
+            {
+                // This is a bool-discriminated enum like packet_subchunk entries
+                // We keep it as a Switch but mark it for special handling
+                // The generator will detect this pattern and generate an enum
+                debug!(
+                    compare_to = %compare_to,
+                    "Detected bool-discriminated enum switch"
+                );
+            }
+
             Ok(Type::Switch {
                 compare_to: compare_to.to_string(),
                 fields,
@@ -507,6 +527,17 @@ fn parse_complex_type(
             })
         }
         "buffer" => {
+            // Check for fixed-size buffer first (no length prefix)
+            if let Some(count_val) = options.get("count") {
+                if let Some(count) = count_val.as_u64() {
+                    return Ok(Type::FixedArray {
+                        size: count as usize,
+                        inner_type: Box::new(Type::Primitive(Primitive::U8)),
+                    });
+                }
+            }
+
+            // Length-prefixed buffer
             let count_type = options
                 .get("countType")
                 .and_then(|v| v.as_str())

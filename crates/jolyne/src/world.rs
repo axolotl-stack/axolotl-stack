@@ -61,7 +61,7 @@ impl Default for WorldTemplate {
             rotation: Vec2F { x: 0.0, z: 0.0 },
             seed: 0,
             dimension: crate::protocol::packets::start::PacketStartGameDimension::Overworld,
-            generator: 0,
+            generator: 1,
             world_gamemode: GameMode::Survival,
             difficulty: 0,
             spawn_position: BlockCoordinates { x: 0, y: 0, z: 0 },

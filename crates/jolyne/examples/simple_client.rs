@@ -16,8 +16,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let config = ClientHandshakeConfig::random(addr, "Steve");
 
     // The join() helper handles settings, auth, encryption, packs, and start game.
-    let mut play_stream = handshake_stream.join(config).await?;
+    let (mut play_stream, game_data) = handshake_stream.join(config).await?;
     println!("Joined Game!");
+    println!("  Items: {}", game_data.item_registry.itemstates.len());
+    println!("  Blocks: {}", game_data.start_game.block_properties.len());
 
     // Send a chunk radius request
     let req = jolyne::protocol::packets::PacketRequestChunkRadius {

@@ -205,23 +205,15 @@ impl Axelerator {
 
         info!("Got Minecraft token for signaling");
 
-        // Connect to Xbox signaling
-        let signaling = tokio_nethernet::XboxSignaling::connect(session.nethernet_id, &mc_token)
-            .await
-            .context("Failed to connect to Xbox signaling")?;
-
-        info!("Connected to Xbox signaling WebSocket");
-        info!("Waiting for friend connections...");
-        info!(
-            "(Players will be transferred to {}:{})",
-            self.config.server_ip, self.config.server_port
-        );
-
         // Spawn the transfer server that handles incoming WebRTC connections
+        // Uses the builder API which connects to Xbox signaling internally
         let config = self.config.clone();
-        let signaling_clone = signaling.clone();
+        let nethernet_id = session.nethernet_id;
+        let mc_token_clone = mc_token.clone();
         let mut transfer_handle = tokio::spawn(async move {
-            if let Err(e) = crate::transfer::run_transfer_server(signaling_clone, &config).await {
+            if let Err(e) =
+                crate::transfer::run_transfer_server(nethernet_id, &mc_token_clone, &config).await
+            {
                 tracing::error!("Transfer server error: {:?}", e);
             }
         });

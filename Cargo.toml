@@ -10,3 +10,7 @@ members = [
     "crates/axolotl-xbl",
     "crates/axelerator",
 ]
+
+# use our patched version that statically links in zlib and snappy.
+[patch.crates-io]
+bleveldb-sys = { path = "./deps/bleveldb-sys" }

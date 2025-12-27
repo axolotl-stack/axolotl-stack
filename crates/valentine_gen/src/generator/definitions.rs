@@ -41,6 +41,11 @@ fn emit_inline_types_for_dedup(
                 resolve_type_to_tokens(inner_type.as_ref(), &format!("{parent_name}Item"), ctx)?;
             Ok(())
         }
+        Type::FixedArray { inner_type, .. } => {
+            let _ =
+                resolve_type_to_tokens(inner_type.as_ref(), &format!("{parent_name}Item"), ctx)?;
+            Ok(())
+        }
         Type::Option(inner) => {
             let _ = resolve_type_to_tokens(inner.as_ref(), parent_name, ctx)?;
             Ok(())
@@ -93,6 +98,9 @@ pub fn fingerprint_type(t: &Type) -> String {
                 fingerprint_type(count_type.as_ref()),
                 fingerprint_type(inner_type.as_ref())
             )
+        }
+        Type::FixedArray { size, inner_type } => {
+            format!("FA:{}:{}", size, fingerprint_type(inner_type.as_ref()))
         }
         Type::Option(inner) => format!("O:({})", fingerprint_type(inner.as_ref())),
         Type::Switch {
@@ -255,6 +263,13 @@ pub fn resolve_type_to_tokens(
                 resolve_type_to_tokens(inner_type, &format!("{}Item", clean_type_name(hint)), ctx)?;
             quote! { Vec<#inner> }
         }
+        Type::FixedArray { size, inner_type } => {
+            // Fixed-size arrays become [u8; N] for byte buffers
+            let inner =
+                resolve_type_to_tokens(inner_type, &format!("{}Item", clean_type_name(hint)), ctx)?;
+            let size_lit = proc_macro2::Literal::usize_unsuffixed(*size);
+            quote! { [#inner; #size_lit] }
+        }
         Type::Option(inner) => {
             let inner = resolve_type_to_tokens(inner, &clean_type_name(hint), ctx)?;
             quote! { Option<#inner> }
@@ -274,12 +289,33 @@ pub fn resolve_type_to_tokens(
                     }
                     return Ok(quote! { Option<#inner> });
                 }
+
+                // Check if this is a bool switch where BOTH true/false cases have data types
+                // ONLY in this case is it a discriminated enum (not Option)
+                let is_bool_discriminated_enum = fields.len() == 2
+                    && fields
+                        .iter()
+                        .any(|(k, _)| k.to_lowercase() == "true" || k == "1")
+                    && fields
+                        .iter()
+                        .any(|(k, _)| k.to_lowercase() == "false" || k == "0")
+                    && fields
+                        .iter()
+                        .all(|(_, t)| !matches!(t, Type::Primitive(Primitive::Void)));
+
                 let name = clean_type_name(hint);
                 if !ctx.emitted.contains(&name) && !ctx.in_progress.contains(&name) {
                     define_type(&name, t, ctx)?;
                 }
                 let ident = format_ident!("{}", name);
-                return Ok(quote! { Option<#ident> });
+
+                // For bool discriminated enums (both cases have data), return enum directly
+                // For other switches with void default, wrap in Option
+                if is_bool_discriminated_enum {
+                    return Ok(quote! { #ident });
+                } else {
+                    return Ok(quote! { Option<#ident> });
+                }
             }
 
             // OPTIMIZATION: Inverse Option
@@ -506,6 +542,12 @@ pub fn define_type(
                 resolve_type_to_tokens(inner_type, &format!("{}Item", safe_name_str), ctx)?;
             quote! { pub type #ident = Vec<#inner_tokens>; }
         }
+        Type::FixedArray { size, inner_type } => {
+            let inner_tokens =
+                resolve_type_to_tokens(inner_type, &format!("{}Item", safe_name_str), ctx)?;
+            let size_lit = proc_macro2::Literal::usize_unsuffixed(*size);
+            quote! { pub type #ident = [#inner_tokens; #size_lit]; }
+        }
         Type::Option(inner) => {
             let inner_tokens = resolve_type_to_tokens(inner, &safe_name_str, ctx)?;
             quote! { pub type #ident = Option<#inner_tokens>; }
@@ -525,9 +567,27 @@ pub fn define_type(
                         quote! { pub type #ident = Option<#inner_tokens>; }
                     }
                 } else {
+                    // Check if this is a bool-discriminated switch with Reference types
+                    // If so, use cleaner variant names derived from the type names
+                    let is_bool_switch = fields.len() == 2
+                        && fields.iter().any(|(k, _)| k == "true" || k == "false")
+                        && fields.iter().all(|(_, t)| matches!(t, Type::Reference(_)));
+
                     let mut variants = Vec::new();
                     for (case_name, case_type) in fields.iter() {
-                        let case_variant_ident = format_ident!("{}", safe_camel_ident(case_name));
+                        // For bool switches with References, derive variant name from type name
+                        let case_variant_ident = if is_bool_switch {
+                            if let Type::Reference(r) = case_type {
+                                // Extract a clean variant name from the reference type
+                                let clean = clean_type_name(r);
+                                format_ident!("{}", clean)
+                            } else {
+                                format_ident!("{}", safe_camel_ident(case_name))
+                            }
+                        } else {
+                            format_ident!("{}", safe_camel_ident(case_name))
+                        };
+
                         let case_type_tokens = resolve_type_to_tokens(
                             case_type,
                             &format!("{}{}", safe_name_str, camel_case(case_name)),
@@ -544,7 +604,15 @@ pub fn define_type(
 
                     // Default impl: pick first variant
                     let (first_name, first_type) = fields.iter().next().unwrap();
-                    let first_ident = format_ident!("{}", safe_camel_ident(first_name));
+                    let first_ident = if is_bool_switch {
+                        if let Type::Reference(r) = first_type {
+                            format_ident!("{}", clean_type_name(r))
+                        } else {
+                            format_ident!("{}", safe_camel_ident(first_name))
+                        }
+                    } else {
+                        format_ident!("{}", safe_camel_ident(first_name))
+                    };
                     let default_val = if matches!(first_type, Type::Primitive(Primitive::Void)) {
                         quote! { Self::#first_ident }
                     } else {
@@ -795,7 +863,7 @@ pub fn define_type(
             }
             let repr_ty = primitive_to_enum_repr_tokens(underlying);
             let codec_impl = generate_enum_type_codec(&safe_name_str, underlying, variants)?;
-            
+
             let default_impl = if let Some((first_name, _)) = variants.first() {
                 let first_ident = format_ident!("{}", safe_camel_ident(first_name));
                 quote! {

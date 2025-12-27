@@ -21,11 +21,10 @@
 //! let listener = NetherNetListener::new(Arc::new(signaling), config);
 //! ```
 
-use crate::signaling::{Credentials, IceServer, Signal, Signaling};
+use crate::signaling::{Credentials, IceServer, Signal, Signaling, SignalingChannel};
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
 use tokio_tungstenite::{connect_async, tungstenite::Message as WsMessage};
@@ -93,8 +92,8 @@ pub struct XboxSignaling {
     nethernet_id: u64,
     /// Channel to send outgoing signals.
     tx: mpsc::UnboundedSender<WsOutgoing>,
-    /// Channel to receive incoming signals.
-    rx: RwLock<mpsc::UnboundedReceiver<Signal>>,
+    /// Channel to receive incoming signals (takeable for SignalingChannel).
+    rx: RwLock<Option<mpsc::Receiver<Signal>>>,
     /// Cached TURN credentials.
     credentials: RwLock<Option<Credentials>>,
 }
@@ -130,7 +129,8 @@ impl XboxSignaling {
 
         // Channels for signal routing
         let (out_tx, mut out_rx) = mpsc::unbounded_channel::<WsOutgoing>();
-        let (in_tx, in_rx) = mpsc::unbounded_channel::<Signal>();
+        // Use bounded channel for SignalingChannel compatibility
+        let (in_tx, in_rx) = mpsc::channel::<Signal>(256);
         let credentials: Arc<RwLock<Option<Credentials>>> = Arc::new(RwLock::new(None));
         let credentials_clone = Arc::clone(&credentials);
 
@@ -206,7 +206,7 @@ impl XboxSignaling {
                         if let (Some(from), Some(message)) = (incoming.from, incoming.message) {
                             match Signal::parse(&message, from.clone()) {
                                 Ok(signal) => {
-                                    if in_tx.send(signal).is_err() {
+                                    if in_tx.send(signal).await.is_err() {
                                         break;
                                     }
                                 }
@@ -260,14 +260,20 @@ impl XboxSignaling {
         Ok(Arc::new(Self {
             nethernet_id,
             tx: out_tx,
-            rx: RwLock::new(in_rx),
+            rx: RwLock::new(Some(in_rx)),
             credentials: RwLock::new(cached_credentials),
         }))
     }
 
     /// Receive the next incoming signal.
+    ///
+    /// Note: This will return `None` if `take_signal_receiver()` was called.
     pub async fn recv(&self) -> Option<Signal> {
-        self.rx.write().await.recv().await
+        if let Some(rx) = self.rx.write().await.as_mut() {
+            rx.recv().await
+        } else {
+            None
+        }
     }
 }
 
@@ -291,6 +297,13 @@ impl Signaling for XboxSignaling {
 
     fn network_id(&self) -> String {
         self.nethernet_id.to_string()
+    }
+}
+
+#[async_trait]
+impl SignalingChannel for XboxSignaling {
+    async fn take_signal_receiver(&self) -> Option<mpsc::Receiver<Signal>> {
+        self.rx.write().await.take()
     }
 }
 

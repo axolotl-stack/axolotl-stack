@@ -161,6 +161,14 @@ impl NetherNetListener {
             .await
             .ok_or(NetherNetError::ConnectionClosed)
     }
+
+    /// Poll-based accept for use with manual polling or futures combinators.
+    pub fn poll_accept(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<NetherNetStream>> {
+        self.accept_rx.poll_recv(cx)
+    }
 }
 
 impl ListenerActor {

@@ -6,6 +6,11 @@ pub mod r#packets;
 pub use r#packets::*;
 pub mod r#types;
 pub use r#types::*;
+pub mod items;
+pub mod blocks;
+pub mod states;
+pub mod entities;
+pub mod biomes;
 pub mod bedrock {
     pub use valentine_bedrock_core::bedrock::codec;
     pub use valentine_bedrock_core::bedrock::context;

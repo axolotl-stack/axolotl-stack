@@ -3,10 +3,14 @@
 
 /.idea
 /.zed
+/.codex
+/.cursor
+/.gemini
 token.json
 
 /Broadcaster
 /go-nethernet
 /go-playfab
-/gophertunnel
 nethernet.go
+playerdata/
+worlds/

@@ -16,7 +16,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let config = BedrockListenerConfig::default();
 
     // Proxy listens on 19133
-    let mut listener = BedrockListener::bind("0.0.0.0:19133", config).await?;
+    let mut listener = BedrockListener::raknet()
+        .addr("0.0.0.0:19133")
+        .config(config)
+        .bind()
+        .await?;
     let server_key = SecretKey::random(&mut thread_rng());
 
     info!("Proxy started on 19133. Forwarding allowed users to 19132 (Start simple_server first!)");

@@ -471,6 +471,46 @@ fn generate_field_decode_expr(
                 tmp_vec
             }})
         }
+        Type::FixedArray { size, inner_type } => {
+            // Fixed-size arrays: read exactly 'size' bytes without a length prefix
+            let size_lit = proc_macro2::Literal::usize_unsuffixed(*size);
+
+            // For byte arrays (the common case), read directly into a fixed array
+            if matches!(inner_type.as_ref(), Type::Primitive(Primitive::U8)) {
+                Ok(quote! {{
+                    if buf.remaining() < #size_lit {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::UnexpectedEof,
+                            format!("fixed array requires {} bytes but only {} remaining", #size_lit, buf.remaining()),
+                        ));
+                    }
+                    let mut arr = [0u8; #size_lit];
+                    buf.copy_to_slice(&mut arr);
+                    arr
+                }})
+            } else {
+                // Generic case: decode each element
+                let inner_var_name = format!("{}Item", var_name);
+                let inner_decode = generate_field_decode_expr(
+                    container_name,
+                    &inner_var_name,
+                    inner_type,
+                    ctx,
+                    locals,
+                    resolved,
+                    arg_idents,
+                )?;
+
+                Ok(quote! {{
+                    let mut arr = std::mem::MaybeUninit::<[_; #size_lit]>::uninit();
+                    let ptr = arr.as_mut_ptr() as *mut _;
+                    for i in 0..#size_lit {
+                        unsafe { std::ptr::write(ptr.add(i), #inner_decode); }
+                    }
+                    unsafe { arr.assume_init() }
+                }})
+            }
+        }
         Type::String {
             count_type,
             encoding,
@@ -721,18 +761,21 @@ fn generate_field_decode_expr(
                 }});
             }
 
-            // If the reference points to an Array, String, or Option, we MUST inline the decoding logic
-            // because the typedef (Vec<T> or Option<T>) does not implement BedrockCodec with the specific args we might need.
+            // If the reference points to an Array, FixedArray, String, or Option, we MUST inline the decoding logic
+            // because the typedef (Vec<T> or Option<T> or [T; N]) does not implement BedrockCodec with the specific args we might need.
             let resolved_ty = resolve_type(ty, ctx);
             if matches!(
                 resolved_ty,
-                Type::Array { .. } | Type::Option(_) | Type::String { .. }
+                Type::Array { .. }
+                    | Type::FixedArray { .. }
+                    | Type::Option(_)
+                    | Type::String { .. }
             ) {
                 let hint = format!("{}{}", container_name, camel_case(var_name));
                 let type_tokens = resolve_type_to_tokens(ty, &hint, ctx)?;
 
                 let val = match &resolved_ty {
-                    Type::Array { .. } => generate_field_decode_expr(
+                    Type::Array { .. } | Type::FixedArray { .. } => generate_field_decode_expr(
                         &clean,
                         "",
                         &resolved_ty,
@@ -1037,6 +1080,46 @@ fn generate_field_encode(
                 }
             })
         }
+        Type::FixedArray { size, inner_type } => {
+            // Fixed-size arrays: write exactly 'size' bytes without a length prefix
+            let size_lit = proc_macro2::Literal::usize_unsuffixed(*size);
+
+            // For byte arrays (the common case), write directly
+            if matches!(inner_type.as_ref(), Type::Primitive(Primitive::U8)) {
+                let access = if is_ref {
+                    quote! { #access_expr }
+                } else {
+                    quote! { &#access_expr }
+                };
+                Ok(quote! {
+                    buf.put_slice(#access);
+                })
+            } else {
+                // Generic case: encode each element
+                let inner_name = format!("{}Item", var_name);
+                let loop_body = generate_field_encode(
+                    container_name,
+                    &inner_name,
+                    inner_type,
+                    quote! { item },
+                    container,
+                    ctx,
+                    true,
+                )?;
+
+                let iter_expr = if is_ref {
+                    quote! { #access_expr }
+                } else {
+                    quote! { &#access_expr }
+                };
+
+                Ok(quote! {
+                    for item in #iter_expr {
+                        #loop_body
+                    }
+                })
+            }
+        }
         Type::String {
             count_type,
             encoding,
@@ -1296,7 +1379,10 @@ fn generate_field_encode(
             let resolved_ty = resolve_type(ty, ctx);
             if matches!(
                 resolved_ty,
-                Type::Array { .. } | Type::Option(_) | Type::String { .. }
+                Type::Array { .. }
+                    | Type::FixedArray { .. }
+                    | Type::Option(_)
+                    | Type::String { .. }
             ) {
                 // Inline encoding so we honor custom length encodings and argument propagation.
                 return generate_field_encode(
@@ -1357,16 +1443,46 @@ fn generate_switch_encode_logic(
         };
 
         if default_is_void && fields.len() == 1 {
+            // Get the type of the single case to generate proper encode logic
+            let (case_name, case_type) = &fields[0];
+            let inner_encode = generate_field_encode(
+                name,
+                &format!("{}Some", var_name),
+                case_type,
+                quote! { v },
+                container,
+                ctx,
+                true,
+            )?;
             return Ok(quote! {
                 if let Some(v) = #match_target {
-                    v.encode(buf)?;
+                    #inner_encode
                 }
             });
         }
 
+        // Is this a bool switch (has true/false keys)?
+        let is_bool_switch =
+            fields.len() == 2 && fields.iter().any(|(k, _)| k == "true" || k == "false");
+
+        // Check if this is a bool-discriminated switch with Reference types
+        // If so, use cleaner variant names derived from the type names (matching definitions.rs)
+        let is_bool_switch_with_refs =
+            is_bool_switch && fields.iter().all(|(_, t)| matches!(t, Type::Reference(_)));
+
         let mut match_arms = Vec::new();
         for (case_name, case_type) in fields {
-            let variant_ident = format_ident!("{}", safe_camel_ident(case_name));
+            // For bool switches with References, derive variant name from type name
+            let variant_ident = if is_bool_switch_with_refs {
+                if let Type::Reference(r) = case_type {
+                    format_ident!("{}", clean_type_name(r))
+                } else {
+                    format_ident!("{}", safe_camel_ident(case_name))
+                }
+            } else {
+                format_ident!("{}", safe_camel_ident(case_name))
+            };
+
             if matches!(case_type, Type::Primitive(Primitive::Void)) {
                 match_arms.push(quote! { #enum_ident::#variant_ident => {}, });
             } else {
@@ -1384,7 +1500,19 @@ fn generate_switch_encode_logic(
         }
 
         if default_is_void {
-            Ok(quote! { if let Some(v) = #match_target { match v { #(#match_arms)* } } })
+            // Only match directly for bool discriminated enums (both true/false cases have data)
+            // Other switches with void default are Option patterns and need if let Some
+            if is_bool_switch
+                && !fields
+                    .iter()
+                    .any(|(_, t)| matches!(t, Type::Primitive(Primitive::Void)))
+            {
+                // Bool discriminated enum: match directly
+                Ok(quote! { match #match_target { #(#match_arms)* } })
+            } else {
+                // Option pattern: wrap in if let Some
+                Ok(quote! { if let Some(v) = #match_target { match v { #(#match_arms)* } } })
+            }
         } else {
             let is_boxed = should_box_variant(default.as_ref(), ctx, 0);
             let inner_access = if is_boxed {
@@ -1453,6 +1581,27 @@ fn generate_redundant_encode(
     let true_is_void = is_void(true_ty.unwrap_or(default_ty));
     let false_is_void = is_void(false_ty.unwrap_or(default_ty));
 
+    // Case 1: Both true and false have data types -> Discriminated enum
+    // Derive the bool from which variant is used
+    if !true_is_void && !false_is_void {
+        // Get the enum type name hint
+        let enum_name = format!("{}{}", name, camel_case(&target.to_string()));
+        let enum_ident = format_ident!("{}", clean_type_name(&enum_name));
+
+        // Get the "true" variant name - derive from type reference if possible
+        let true_variant = if let Some(Type::Reference(r)) = true_ty {
+            format_ident!("{}", clean_type_name(r))
+        } else {
+            format_ident!("True")
+        };
+
+        return quote! {
+            let val = matches!(self.#target, #enum_ident::#true_variant(_));
+            val.encode(buf)?;
+        };
+    }
+
+    // Case 2: Option pattern - one case is void
     let val_expr = if true_is_void && !false_is_void {
         quote! { self.#target.is_none() }
     } else if !true_is_void && false_is_void {
@@ -1461,6 +1610,69 @@ fn generate_redundant_encode(
         // Fall back to the common Bedrock convention: "has_*" implies `Some`.
         quote! { self.#target.is_some() }
     };
+
+    // Check if the discriminator field has a non-bool underlying type (e.g., lu16 => 0xffff: 'true')
+    // If so, we need to encode with the correct type and discriminant values
+    if let Type::Enum {
+        underlying,
+        variants,
+    } = &field.type_def
+    {
+        // Find the discriminant values for true and false
+        let mut true_val: Option<i64> = None;
+        let mut false_val: Option<i64> = None;
+        for (variant_name, discriminant) in variants {
+            match variant_name.to_ascii_lowercase().as_str() {
+                "true" | "1" => true_val = Some(*discriminant),
+                "false" | "0" => false_val = Some(*discriminant),
+                _ => {}
+            }
+        }
+
+        // If we have explicit discriminant values and a non-bool underlying type
+        if let (Some(true_v), Some(false_v)) = (true_val, false_val) {
+            if !matches!(underlying, Primitive::Bool) {
+                let true_lit = proc_macro2::Literal::i64_unsuffixed(true_v);
+                let false_lit = proc_macro2::Literal::i64_unsuffixed(false_v);
+
+                // Generate encoding based on the underlying primitive type
+                let encode_call = match underlying {
+                    Primitive::U16LE => {
+                        quote! {
+                            let disc: u16 = if #val_expr { #true_lit as u16 } else { #false_lit as u16 };
+                            crate::bedrock::codec::U16LE(disc).encode(buf)?;
+                        }
+                    }
+                    Primitive::I16LE => {
+                        quote! {
+                            let disc: i16 = if #val_expr { #true_lit as i16 } else { #false_lit as i16 };
+                            crate::bedrock::codec::I16LE(disc).encode(buf)?;
+                        }
+                    }
+                    Primitive::U8 => {
+                        quote! {
+                            let disc: u8 = if #val_expr { #true_lit as u8 } else { #false_lit as u8 };
+                            disc.encode(buf)?;
+                        }
+                    }
+                    Primitive::I8 => {
+                        quote! {
+                            let disc: i8 = if #val_expr { #true_lit as i8 } else { #false_lit as i8 };
+                            disc.encode(buf)?;
+                        }
+                    }
+                    _ => {
+                        // For other types, fall back to bool encoding with a warning
+                        quote! {
+                            let val = #val_expr;
+                            val.encode(buf)?;
+                        }
+                    }
+                };
+                return encode_call;
+            }
+        }
+    }
 
     quote! {
         let val = #val_expr;
@@ -2180,19 +2392,38 @@ fn generate_switch_decode_logic(
             let mut false_block = None;
             let default_block;
 
+            // Check if this is a discriminated enum: all cases have non-void types
+            let is_discriminated_enum = fields.len() == 2
+                && fields
+                    .iter()
+                    .all(|(_, t)| !matches!(t, Type::Primitive(Primitive::Void)));
+
+            // Check if this is a bool switch with References (for type-based variant names)
+            let is_bool_switch_with_refs = fields.len() == 2
+                && fields.iter().any(|(k, _)| k == "true" || k == "false")
+                && fields.iter().all(|(_, t)| matches!(t, Type::Reference(_)));
+
             // Helper to generate block
             let mut gen_block = |c_name: &str,
                                  c_type: &Type,
                                  is_default: bool|
              -> Result<TokenStream, Box<dyn std::error::Error>> {
+                // For bool switches with References, derive variant name from type
                 let variant_ident = if is_default {
                     format_ident!("Default")
+                } else if is_bool_switch_with_refs {
+                    if let Type::Reference(r) = c_type {
+                        format_ident!("{}", clean_type_name(r))
+                    } else {
+                        format_ident!("{}", safe_camel_ident(c_name))
+                    }
                 } else {
                     format_ident!("{}", safe_camel_ident(c_name))
                 };
 
                 if matches!(c_type, Type::Primitive(Primitive::Void)) {
-                    if default_is_void {
+                    // Void case - only for Option patterns
+                    if default_is_void && !is_discriminated_enum {
                         Ok(quote! { Some(#enum_ident::#variant_ident) })
                     } else {
                         Ok(quote! { #enum_ident::#variant_ident })
@@ -2218,7 +2449,8 @@ fn generate_switch_decode_logic(
                     } else {
                         quote! { #inner }
                     };
-                    if default_is_void {
+                    // Only wrap in Some for Option patterns (one case is void), not discriminated enums
+                    if default_is_void && !is_discriminated_enum {
                         Ok(quote! { Some(#enum_ident::#variant_ident(#construct)) })
                     } else {
                         Ok(quote! { #enum_ident::#variant_ident(#construct) })

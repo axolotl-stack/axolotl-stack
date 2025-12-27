@@ -11,6 +11,7 @@ full = ["client", "server"]
 raknet = ["dep:tokio-raknet"]
 nethernet = ["dep:tokio-nethernet"]
 discovery = ["nethernet", "tokio-nethernet/discovery"]
+xbox-signaling = ["nethernet", "tokio-nethernet/xbox-signaling"]
 
 [dependencies]
 tokio = { version = "1.41.1", features = ["sync", "time"] }
@@ -44,6 +45,8 @@ tracing = "0.1"
 [dev-dependencies]
 tokio = { version = "1.48.0", features = ["rt-multi-thread", "macros"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive"] }
 
 [[example]]
 name = "simple_client"
@@ -69,3 +72,8 @@ required-features = ["server", "discovery"]
 name = "nethernet_client"
 path = "examples/nethernet_client.rs"
 required-features = ["client", "discovery"]
+
+[[example]]
+name = "stress_test"
+path = "examples/stress_test.rs"
+required-features = ["client", "raknet"]

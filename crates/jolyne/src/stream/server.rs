@@ -417,7 +417,7 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
         self.transport
             .send_batch(&[
                 McpePacket::from(params.start_game),
-                // McpePacket::from(params.item_registry.as_ref().clone()), // Clone for now
+                McpePacket::from(params.item_registry.as_ref().clone()), // Clone for now
             ])
             .await?;
 
@@ -436,6 +436,26 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
         let radius = requested_radius.clamp(2, 32);
 
         // 3. Send World Data
+        // IMPORTANT: CreativeContent must come BEFORE PlayerSpawn status
+
+        // Debug: print hex dump of creative content
+        {
+            use crate::protocol::bedrock::codec::BedrockCodec;
+            let mut buf = bytes::BytesMut::new();
+            let cc = params.creative_content.as_ref();
+            if cc.encode(&mut buf).is_ok() {
+                // Only print first 50 bytes to avoid spam
+                let preview: Vec<u8> = buf.iter().take(50).copied().collect();
+                tracing::info!(
+                    groups = cc.groups.len(),
+                    items = cc.items.len(),
+                    total_bytes = buf.len(),
+                    first_50_bytes = ?preview,
+                    "CreativeContent packet debug"
+                );
+            }
+        }
+
         self.transport
             .send_batch(&[
                 McpePacket::from(PacketChunkRadiusUpdate {
@@ -443,10 +463,10 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
                 }),
                 McpePacket::from(params.biome_definitions.as_ref().clone()),
                 // McpePacket::from(params.available_entities.as_ref().clone()),
+                McpePacket::from(params.creative_content.as_ref().clone()),
                 McpePacket::from(PacketPlayStatus {
                     status: PacketPlayStatusStatus::PlayerSpawn,
                 }),
-                McpePacket::from(params.creative_content.as_ref().clone()),
             ])
             .await?;
 
@@ -495,6 +515,8 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
                 McpePacketData::PacketSetLocalPlayerAsInitialized(_)
             ) {
                 break;
+            } else {
+                tracing::debug!("Waiting for init, got: {:?}", pkt.data.packet_id());
             }
         }
 
@@ -510,17 +532,13 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
 // --- State: Play ---
 
 impl<T: Transport> BedrockStream<Play, Server, T> {
+    /// Receive the next packet from the client.
     #[instrument(skip_all, level = "trace")]
     pub async fn recv_packet(&mut self) -> Result<McpePacket, JolyneError> {
-        let mut batches = self.transport.recv_batch().await?;
-
-        if let Some(pkt) = batches.pop() {
-            Ok(pkt)
-        } else {
-            Err(JolyneError::ConnectionClosed)
-        }
+        self.transport.recv_packet().await
     }
 
+    /// Send a packet to the client.
     #[instrument(skip_all, level = "trace")]
     pub async fn send_packet(&mut self, packet: McpePacket) -> Result<(), JolyneError> {
         self.transport.send(packet).await

@@ -16,8 +16,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Config
     let config = BedrockListenerConfig::default();
 
-    let mut listener = BedrockListener::bind("0.0.0.0:19132", config).await?;
-    info!("Server started on {}", listener.local_addr()?);
+    let mut listener = BedrockListener::raknet()
+        .addr("0.0.0.0:19132")
+        .config(config)
+        .bind()
+        .await?;
+    info!("Server started on {:?}", listener.local_addr());
 
     // Prepare static data
     let template = Arc::new(WorldTemplate::default());
@@ -49,7 +53,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             // Play Loop
                             while let Ok(packet) = play_stream.recv_packet().await {
                                 info!(%addr, id=?packet.data.packet_id(), "Recv Packet");
-                                
+
                                 // If using manual flush, you would call this at the end of your tick:
                                 // play_stream.flush().await?;
                             }

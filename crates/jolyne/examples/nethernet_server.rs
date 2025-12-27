@@ -6,18 +6,12 @@
 //!
 //! Run with: `cargo run -p jolyne --example nethernet_server --features discovery -- --localhost`
 
-use jolyne::WorldTemplate;
 use jolyne::config::BedrockListenerConfig;
-use jolyne::stream::transport::{BedrockTransport, NetherNetTransport};
-use jolyne::stream::{BedrockStream, Handshake, Server};
+use jolyne::{BedrockListener, WorldTemplate};
 use p384::SecretKey;
 use rand::thread_rng;
 use std::env;
 use std::sync::Arc;
-use tokio_nethernet::{
-    NetherNetListener, NetherNetListenerConfig,
-    discovery::{DiscoveryListener, DiscoveryListenerConfig, ServerData, TransportLayer},
-};
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
@@ -32,70 +26,38 @@ async fn main() -> anyhow::Result<()> {
 
     let localhost_mode = env::args().any(|a| a == "--localhost");
 
-    // Discovery configuration
-    let discovery_config = if localhost_mode {
-        println!("[LOCALHOST MODE]\n");
-        DiscoveryListenerConfig {
-            broadcast_addr: "127.0.0.1:7552".parse().unwrap(),
-            ..Default::default()
-        }
-    } else {
-        DiscoveryListenerConfig::default()
-    };
-
     let bind_addr = if localhost_mode {
+        println!("[LOCALHOST MODE]\n");
         "127.0.0.1:7551"
     } else {
         "0.0.0.0:7551"
     };
 
-    let network_id = discovery_config.network_id;
-    let discovery = DiscoveryListener::bind(bind_addr, discovery_config).await?;
+    // Bedrock config with encryption DISABLED (WebRTC/DTLS handles it)
+    let bedrock_config = BedrockListenerConfig {
+        encryption_enabled: false,
+        online_mode: false,
+        ..Default::default()
+    };
 
-    // Set server data for LAN discovery
-    discovery
-        .set_server_data(
-            ServerData::builder()
-                .name("Jolyne NetherNet Server")
-                .level("NetherNet World")
-                .players(1, 10)
-                .transport(TransportLayer::NetherNet)
-                .build(),
-        )
-        .await;
+    // Create listener with the new builder API
+    let mut listener = BedrockListener::nethernet()
+        .lan(bind_addr)
+        .config(bedrock_config)
+        .bind()
+        .await?;
 
-    info!("Discovery bound to: {}", bind_addr);
-    info!("Network ID: {}", network_id);
-
-    // Create NetherNet listener with ergonomic API
-    let mut listener =
-        NetherNetListener::bind_with_signaling(discovery, NetherNetListenerConfig::default());
+    info!("NetherNet server bound to: {}", bind_addr);
+    println!("Waiting for connections...\n");
 
     // Prepare static data
     let template = Arc::new(WorldTemplate::default());
     let server_key = SecretKey::random(&mut thread_rng());
 
-    // Bedrock config with encryption DISABLED (WebRTC/DTLS handles it)
-    let bedrock_config = Arc::new(BedrockListenerConfig {
-        encryption_enabled: false, // NetherNet uses DTLS, not Bedrock encryption
-        online_mode: false,        // Use offline mode for testing
-        ..Default::default()
-    });
-
-    println!("Waiting for connections...\n");
-
     loop {
         match listener.accept().await {
-            Ok(stream) => {
+            Ok(handshake_stream) => {
                 info!("NetherNet connection established!");
-
-                // Wrap in transport layer and create BedrockStream using constructor
-                let transport = BedrockTransport::new(NetherNetTransport::new(stream));
-                let handshake_stream =
-                    <BedrockStream<Handshake, Server, NetherNetTransport>>::from_transport(
-                        transport,
-                        bedrock_config.clone(),
-                    );
 
                 let template = template.clone();
                 let key = server_key.clone();

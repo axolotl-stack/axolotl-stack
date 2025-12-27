@@ -57,10 +57,17 @@ pub enum Type {
     /// A nested anonymous struct (common in Bedrock)
     Container(Container),
 
-    /// An array of items
+    /// An array of items with length prefix
     Array {
         count_type: Box<Type>, // Usually Type::Primitive(VarInt)
         inner_type: Box<Type>, // The thing inside the array
+    },
+
+    /// A fixed-size array with no length prefix (e.g., [u8; 256])
+    /// Used for protocol fields like heightmaps that have a known fixed size
+    FixedArray {
+        size: usize,           // The fixed number of elements
+        inner_type: Box<Type>, // Usually Type::Primitive(U8) for byte buffers
     },
 
     /// Optional value

@@ -177,6 +177,22 @@ impl RaknetListener {
         ))
     }
 
+    /// Poll-based accept for use with manual polling or futures combinators.
+    pub fn poll_accept(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<RaknetStream>> {
+        match self.new_connections.poll_recv(cx) {
+            std::task::Poll::Ready(Some((peer, incoming))) => {
+                let stream =
+                    RaknetStream::new(self.local_addr, peer, incoming, self.outbound_tx.clone());
+                std::task::Poll::Ready(Some(stream))
+            }
+            std::task::Poll::Ready(None) => std::task::Poll::Ready(None),
+            std::task::Poll::Pending => std::task::Poll::Pending,
+        }
+    }
+
     /// Sets the advertisement data (Pong payload) sent in response to UnconnectedPing (0x01) and OpenConnections (0x02).
     pub fn set_advertisement(&self, data: Vec<u8>) {
         if let Ok(mut guard) = self.advertisement.write() {

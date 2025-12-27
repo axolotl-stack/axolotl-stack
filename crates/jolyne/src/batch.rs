@@ -323,6 +323,142 @@ pub fn encode_batch_multi(
     }
 }
 
+// ============================================================================
+// Raw Packet Batch Decoding (ID-only parse, body as bytes)
+// ============================================================================
+
+use crate::raw::{RawPacket, decode_packets_raw, encode_packets_raw};
+
+/// Decodes a batch packet (0xFE prefix) into [`RawPacket`]s.
+///
+/// Only parses packet IDs—bodies are kept as raw bytes.
+/// Ideal for proxies that need to inspect packet types without full decode.
+#[instrument(skip_all, level = "trace")]
+pub fn decode_batch_raw(
+    buf: &mut Bytes,
+    compression_enabled: bool,
+    max_decompressed_size: Option<usize>,
+) -> Result<Vec<RawPacket>, JolyneError> {
+    if buf.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let packet_id = buf.get_u8();
+    if packet_id != BATCH_PACKET_ID {
+        return Err(ProtocolError::InvalidBatchId(format!(
+            "expected 0xFE, got 0x{:02x}",
+            packet_id
+        ))
+        .into());
+    }
+
+    decode_batch_payload_raw(buf.clone(), compression_enabled, max_decompressed_size)
+}
+
+/// Decodes a batch packet WITHOUT the 0xFE prefix (NetherNet) into [`RawPacket`]s.
+#[instrument(skip_all, level = "trace")]
+pub fn decode_batch_no_prefix_raw(
+    buf: &mut Bytes,
+    max_decompressed_size: Option<usize>,
+) -> Result<Vec<RawPacket>, JolyneError> {
+    if buf.is_empty() {
+        return Ok(vec![]);
+    }
+
+    // NetherNet always uses compression format after NetworkSettings
+    decode_batch_payload_raw(buf.clone(), true, max_decompressed_size)
+}
+
+/// Internal helper: decompress and decode payload into RawPackets.
+fn decode_batch_payload_raw(
+    payload_raw: Bytes,
+    compression_enabled: bool,
+    max_decompressed_size: Option<usize>,
+) -> Result<Vec<RawPacket>, JolyneError> {
+    if compression_enabled {
+        if payload_raw.is_empty() {
+            return Err(JolyneError::Protocol(ProtocolError::UnexpectedHandshake(
+                "Empty compressed batch payload".to_string(),
+            )));
+        }
+
+        let alg_byte = payload_raw[0];
+        let alg = BatchCompression::try_from_u8(alg_byte).ok_or_else(|| {
+            JolyneError::Protocol(ProtocolError::UnexpectedHandshake(format!(
+                "Unknown compression algorithm: 0x{:02x} ({})",
+                alg_byte, alg_byte
+            )))
+        })?;
+
+        let compressed = payload_raw.slice(1..);
+
+        match alg {
+            BatchCompression::Deflate => {
+                let decompressed = decompress_with_guard(
+                    DeflateDecoder::new(compressed.as_ref()),
+                    max_decompressed_size,
+                )
+                .map_err(|e| ProtocolError::DecompressionFailed(e.to_string()))?;
+
+                decode_packets_raw(Bytes::from(decompressed))
+            }
+            BatchCompression::None => decode_packets_raw(compressed),
+            BatchCompression::Snappy => Err(ProtocolError::UnexpectedHandshake(
+                "Snappy compression not implemented".into(),
+            )
+            .into()),
+        }
+    } else {
+        decode_packets_raw(payload_raw)
+    }
+}
+
+/// Encodes [`RawPacket`]s into a batch with optional compression.
+///
+/// - `use_batch_prefix`: If true, prepends 0xFE (RakNet). If false, skips it (NetherNet).
+pub fn encode_batch_raw(
+    packets: &[RawPacket],
+    compression_enabled: bool,
+    compression_level: u32,
+    compression_threshold: u16,
+    use_batch_prefix: bool,
+) -> Result<Bytes, JolyneError> {
+    let uncompressed = encode_packets_raw(packets);
+
+    let should_compress = compression_enabled
+        && compression_level > 0
+        && uncompressed.len() >= compression_threshold as usize;
+
+    let payload = if compression_enabled {
+        if should_compress {
+            let mut encoder = DeflateEncoder::new(Vec::new(), Compression::new(compression_level));
+            std::io::Write::write_all(&mut encoder, &uncompressed).map_err(JolyneError::Io)?;
+            let compressed = encoder.finish().map_err(JolyneError::Io)?;
+
+            let mut out = BytesMut::with_capacity(1 + compressed.len());
+            out.put_u8(BatchCompression::Deflate as u8);
+            out.extend_from_slice(&compressed);
+            out.freeze()
+        } else {
+            let mut out = BytesMut::with_capacity(1 + uncompressed.len());
+            out.put_u8(BatchCompression::None as u8);
+            out.extend_from_slice(&uncompressed);
+            out.freeze()
+        }
+    } else {
+        uncompressed
+    };
+
+    if use_batch_prefix {
+        let mut batch = BytesMut::with_capacity(1 + payload.len());
+        batch.put_u8(BATCH_PACKET_ID);
+        batch.extend_from_slice(&payload);
+        Ok(batch.freeze())
+    } else {
+        Ok(payload)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

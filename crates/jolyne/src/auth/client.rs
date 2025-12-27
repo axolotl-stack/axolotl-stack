@@ -31,36 +31,111 @@ struct IdentityExtraData {
     title_id: String,
 }
 
+/// Complete ClientData payload with all fields required by BDS.
+/// Based on gophertunnel's minecraft/protocol/login/data.go
 #[derive(Serialize)]
 struct ClientDataPayload {
+    // Animation data (empty for simple skins)
+    #[serde(rename = "AnimatedImageData")]
+    animated_image_data: Vec<()>,
+    #[serde(rename = "ArmSize")]
+    arm_size: String,
+    #[serde(rename = "CapeData")]
+    cape_data: String,
+    #[serde(rename = "CapeId")]
+    cape_id: String,
+    #[serde(rename = "CapeImageHeight")]
+    cape_image_height: u32,
+    #[serde(rename = "CapeImageWidth")]
+    cape_image_width: u32,
+    #[serde(rename = "CapeOnClassicSkin")]
+    cape_on_classic_skin: bool,
     #[serde(rename = "ClientRandomId")]
-    client_random_id: u64,
+    client_random_id: i64,
+    #[serde(rename = "CompatibleWithClientSideChunkGen")]
+    compatible_with_client_side_chunk_gen: bool,
     #[serde(rename = "CurrentInputMode")]
     current_input_mode: u32,
     #[serde(rename = "DefaultInputMode")]
     default_input_mode: u32,
+    #[serde(rename = "DeviceId")]
+    device_id: String,
     #[serde(rename = "DeviceModel")]
     device_model: String,
     #[serde(rename = "DeviceOS")]
     device_os: u32,
     #[serde(rename = "GameVersion")]
     game_version: String,
+    #[serde(rename = "GraphicsMode")]
+    graphics_mode: u32,
     #[serde(rename = "GuiScale")]
     gui_scale: i32,
+    #[serde(rename = "IsEditorMode")]
+    is_editor_mode: bool,
     #[serde(rename = "LanguageCode")]
     language_code: String,
+    #[serde(rename = "MaxViewDistance")]
+    max_view_distance: u32,
+    #[serde(rename = "MemoryTier")]
+    memory_tier: u32,
+    #[serde(rename = "OverrideSkin")]
+    override_skin: bool,
+    #[serde(rename = "PersonaPieces")]
+    persona_pieces: Vec<()>,
+    #[serde(rename = "PersonaSkin")]
+    persona_skin: bool,
+    #[serde(rename = "PieceTintColors")]
+    piece_tint_colors: Vec<()>,
+    #[serde(rename = "PlatformOfflineId")]
+    platform_offline_id: String,
+    #[serde(rename = "PlatformOnlineId")]
+    platform_online_id: String,
+    #[serde(rename = "PlatformType")]
+    platform_type: u32,
+    #[serde(rename = "PlayFabId")]
+    play_fab_id: String,
+    #[serde(rename = "PremiumSkin")]
+    premium_skin: bool,
+    #[serde(rename = "SelfSignedId")]
+    self_signed_id: String,
+    #[serde(rename = "ServerAddress")]
+    server_address: String,
+    #[serde(rename = "SkinAnimationData")]
+    skin_animation_data: String,
+    #[serde(rename = "SkinColor")]
+    skin_color: String,
     #[serde(rename = "SkinData")]
     skin_data: String,
-    #[serde(rename = "SkinGeometry")]
-    skin_geometry: String,
+    #[serde(rename = "SkinGeometryData")]
+    skin_geometry_data: String,
+    #[serde(rename = "SkinGeometryDataEngineVersion")]
+    skin_geometry_data_engine_version: String,
     #[serde(rename = "SkinId")]
     skin_id: String,
+    #[serde(rename = "SkinImageHeight")]
+    skin_image_height: u32,
+    #[serde(rename = "SkinImageWidth")]
+    skin_image_width: u32,
+    #[serde(rename = "SkinResourcePatch")]
+    skin_resource_patch: String,
+    #[serde(rename = "ThirdPartyName")]
+    third_party_name: String,
+    #[serde(rename = "ThirdPartyNameOnly")]
+    third_party_name_only: bool,
+    #[serde(rename = "TrustedSkin")]
+    trusted_skin: bool,
     #[serde(rename = "UIProfile")]
     ui_profile: u32,
-    nbf: u64,
-    exp: u64,
-    iat: u64,
-    iss: String,
+}
+
+/// Generates a minimal valid skin resource patch JSON.
+fn generate_skin_resource_patch() -> String {
+    let json = serde_json::json!({
+        "geometry": {
+            "default": "geometry.humanoid.custom"
+        }
+    });
+    STANDARD.encode(json.to_string().as_bytes())
 }
 
 /// Generates a self-signed chain (for Offline Mode) and a ClientData JWT.
@@ -93,7 +168,7 @@ pub fn generate_self_signed_chain(
             display_name: display_name.to_string(),
             identity: uuid.to_string(),
             xuid: "".to_string(),
-            title_id: "896928775".to_string(),
+            title_id: "896928775".to_string(), // Win10
         },
         identity_public_key: public_key_b64.clone(),
         nbf: now - 1,
@@ -116,32 +191,75 @@ pub fn generate_self_signed_chain(
     .to_string();
 
     // 2. ClientData Token
-    // Bedrock clients usually include a large base64 SkinData. We use a minimal one here.
-    // A 64x32 RGBA skin is 8192 bytes.
-    // We'll provide a dummy empty string for now, as most simple servers might ignore it.
-    // If strict validation is required, we'd need a real skin.
+    // A minimal 64x64 RGBA skin is 16384 bytes (64*64*4).
+    // Create a simple solid-color skin (all white/opaque)
+    let skin_pixels = vec![255u8; 64 * 64 * 4];
+    let skin_data_b64 = STANDARD.encode(&skin_pixels);
+
+    // Device ID is a UUID
+    let device_id = Uuid::new_v4().to_string();
+
     let client_claims = ClientDataPayload {
-        client_random_id: rand::random(),
+        animated_image_data: vec![],
+        arm_size: "wide".into(), // Standard Steve arm size
+        cape_data: "".into(),
+        cape_id: "".into(),
+        cape_image_height: 0,
+        cape_image_width: 0,
+        cape_on_classic_skin: false,
+        client_random_id: (rand::random::<u64>() & 0x7FFFFFFFFFFFFFFF) as i64,
+        compatible_with_client_side_chunk_gen: true,
         current_input_mode: 1, // Mouse/Keyboard
         default_input_mode: 1,
+        device_id,
         device_model: "JolyneClient".into(),
         device_os: 7, // Win10
         game_version: crate::protocol::GAME_VERSION.into(),
+        graphics_mode: 0,
         gui_scale: 0,
+        is_editor_mode: false,
         language_code: "en_US".into(),
-        skin_data: "".into(), // TODO: Real skin
-        skin_geometry: "".into(),
-        skin_id: "Custom".into(),
+        max_view_distance: 32,
+        memory_tier: 5, // Super High
+        override_skin: false,
+        persona_pieces: vec![],
+        persona_skin: false,
+        piece_tint_colors: vec![],
+        platform_offline_id: "".into(),
+        platform_online_id: "".into(),
+        platform_type: 0,
+        play_fab_id: "".into(),
+        premium_skin: false,
+        self_signed_id: uuid.to_string(),
+        server_address: "".into(),
+        skin_animation_data: "".into(),
+        skin_color: "#b37b62".into(), // Default Steve skin color
+        skin_data: skin_data_b64,
+        skin_geometry_data: STANDARD.encode(""), // Empty = use default
+        skin_geometry_data_engine_version: "".into(),
+        skin_id: format!("{}.Custom", uuid),
+        skin_image_height: 64,
+        skin_image_width: 64,
+        skin_resource_patch: generate_skin_resource_patch(),
+        third_party_name: display_name.into(),
+        third_party_name_only: false,
+        trusted_skin: false,
         ui_profile: 0,
-        nbf: now - 1,
-        exp,
-        iat: now,
-        iss: "self".into(),
     };
 
-    // ClientData JWT usually doesn't need x5u, it's signed by the Identity Key.
-    // The server verifies it against the key in the Identity Chain.
-    let client_header = Header::new(Algorithm::ES384);
+    // ClientData JWT - uses x5u to specify the signing key
+    let mut client_header = Header::new(Algorithm::ES384);
+    client_header.x5u = Some(
+        STANDARD.encode(
+            key.public_key()
+                .to_public_key_der()
+                .map_err(|e| {
+                    JolyneError::Auth(crate::error::AuthError::BadSignature(e.to_string()))
+                })?
+                .as_bytes(),
+        ),
+    );
+
     let client_jwt = encode(&client_header, &client_claims, &encoding_key)
         .map_err(|e| JolyneError::Auth(crate::error::AuthError::BadSignature(e.to_string())))?;
 

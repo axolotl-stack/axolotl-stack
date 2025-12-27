@@ -14,7 +14,7 @@ axolotl-xbl = { path = "../axolotl-xbl" }
 tokio-nethernet = { path = "../tokio-nethernet", features = ["xbox-signaling"] }
 
 # Bedrock protocol for handshake and transfer
-jolyne = { path = "../jolyne", features = ["server", "nethernet"] }
+jolyne = { path = "../jolyne", features = ["server", "xbox-signaling"] }
 
 # Crypto for handshake
 p384 = "0.13"

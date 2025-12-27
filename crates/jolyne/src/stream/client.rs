@@ -14,11 +14,13 @@ use tracing::{instrument, warn};
 use uuid::Uuid;
 
 use crate::error::{JolyneError, ProtocolError};
+use crate::gamedata::GameData;
 use crate::protocol::packets::{
-    PacketClientToServerHandshake, PacketLogin, PacketPlayStatusStatus, PacketRequestChunkRadius,
-    PacketRequestNetworkSettings, PacketResourcePackClientResponse,
+    PacketAvailableEntityIdentifiers, PacketBiomeDefinitionList, PacketClientToServerHandshake,
+    PacketCreativeContent, PacketItemRegistry, PacketLogin, PacketPlayStatusStatus,
+    PacketRequestChunkRadius, PacketRequestNetworkSettings, PacketResourcePackClientResponse,
     PacketResourcePackClientResponseResponseStatus, PacketServerboundLoadingScreen,
-    PacketSetLocalPlayerAsInitialized,
+    PacketSetLocalPlayerAsInitialized, PacketStartGame,
 };
 use crate::protocol::{McpePacket, McpePacketData};
 use crate::stream::{
@@ -113,10 +115,12 @@ impl<T: Transport> BedrockStream<Handshake, Client, T> {
     }
 
     /// Helper: Orchestrates the entire login sequence.
+    ///
+    /// Returns both the stream in Play state and the captured [`GameData`].
     pub async fn join(
         self,
         config: ClientHandshakeConfig,
-    ) -> Result<BedrockStream<Play, Client, T>, JolyneError> {
+    ) -> Result<(BedrockStream<Play, Client, T>, GameData), JolyneError> {
         let key = config.identity_key.clone();
 
         // 1. Settings
@@ -131,7 +135,7 @@ impl<T: Transport> BedrockStream<Handshake, Client, T> {
         // 4. Resource Packs
         let start = packs.handle_packs().await?;
 
-        // 5. Start Game
+        // 5. Start Game - returns (stream, game_data)
         start.await_start_game().await
     }
 }
@@ -396,10 +400,22 @@ impl<T: Transport> BedrockStream<ResourcePacks, Client, T> {
 // --- State: StartGame ---
 
 impl<T: Transport> BedrockStream<StartGame, Client, T> {
+    /// Awaits the start game sequence and captures all game data packets.
+    ///
+    /// Returns both the stream in Play state and the captured [`GameData`].
     #[instrument(skip_all, level = "trace")]
-    pub async fn await_start_game(mut self) -> Result<BedrockStream<Play, Client, T>, JolyneError> {
+    pub async fn await_start_game(
+        mut self,
+    ) -> Result<(BedrockStream<Play, Client, T>, GameData), JolyneError> {
         let mut runtime_entity_id: Option<i64> = None;
         let mut sent_chunk_radius = false;
+
+        // Captured game data
+        let mut start_game: Option<PacketStartGame> = None;
+        let mut item_registry: Option<PacketItemRegistry> = None;
+        let mut biome_definitions: Option<PacketBiomeDefinitionList> = None;
+        let mut entity_identifiers: Option<PacketAvailableEntityIdentifiers> = None;
+        let mut creative_content: Option<PacketCreativeContent> = None;
 
         tracing::debug!("Waiting for StartGame sequence...");
 
@@ -410,8 +426,11 @@ impl<T: Transport> BedrockStream<StartGame, Client, T> {
                 McpePacketData::PacketStartGame(start) => {
                     tracing::debug!(runtime_id = %start.runtime_entity_id, "StartGame received");
                     runtime_entity_id = Some(start.runtime_entity_id);
+                    start_game = Some(*start);
                 }
-                McpePacketData::PacketItemRegistry(_) => {
+                McpePacketData::PacketItemRegistry(registry) => {
+                    tracing::debug!(items = %registry.itemstates.len(), "ItemRegistry received");
+                    item_registry = Some(registry);
                     if !sent_chunk_radius {
                         let req = PacketRequestChunkRadius {
                             chunk_radius: 4,
@@ -420,6 +439,22 @@ impl<T: Transport> BedrockStream<StartGame, Client, T> {
                         self.transport.send_batch(&[McpePacket::from(req)]).await?;
                         sent_chunk_radius = true;
                     }
+                }
+                McpePacketData::PacketBiomeDefinitionList(biomes) => {
+                    tracing::debug!(biomes = %biomes.biome_definitions.len(), "BiomeDefinitionList received");
+                    biome_definitions = Some(biomes);
+                }
+                McpePacketData::PacketAvailableEntityIdentifiers(entities) => {
+                    tracing::debug!("AvailableEntityIdentifiers received");
+                    entity_identifiers = Some(entities);
+                }
+                McpePacketData::PacketCreativeContent(content) => {
+                    tracing::debug!(
+                        groups = %content.groups.len(),
+                        items = %content.items.len(),
+                        "CreativeContent received"
+                    );
+                    creative_content = Some(content);
                 }
                 McpePacketData::PacketPlayStatus(status) => {
                     if status.status == PacketPlayStatusStatus::PlayerSpawn {
@@ -454,29 +489,42 @@ impl<T: Transport> BedrockStream<StartGame, Client, T> {
                 .await?;
         }
 
+        // Build GameData from captured packets
+        let game_data = GameData {
+            start_game: start_game.ok_or_else(|| {
+                ProtocolError::UnexpectedHandshake("Never received StartGame packet".into())
+            })?,
+            item_registry: item_registry.ok_or_else(|| {
+                ProtocolError::UnexpectedHandshake("Never received ItemRegistry packet".into())
+            })?,
+            biome_definitions,
+            entity_identifiers,
+            creative_content,
+        };
+
         tracing::debug!("Game initialization complete, entering Play state");
 
-        Ok(BedrockStream {
-            transport: self.transport,
-            state: Play,
-            _role: PhantomData,
-        })
+        Ok((
+            BedrockStream {
+                transport: self.transport,
+                state: Play,
+                _role: PhantomData,
+            },
+            game_data,
+        ))
     }
 }
 
 // --- State: Play ---
 
 impl<T: Transport> BedrockStream<Play, Client, T> {
+    /// Receive the next packet from the server.
     #[instrument(skip_all, level = "trace")]
     pub async fn recv_packet(&mut self) -> Result<McpePacket, JolyneError> {
-        let mut batches = self.transport.recv_batch().await?;
-        if let Some(pkt) = batches.pop() {
-            Ok(pkt)
-        } else {
-            Err(JolyneError::ConnectionClosed)
-        }
+        self.transport.recv_packet().await
     }
 
+    /// Send a packet to the server.
     #[instrument(skip_all, level = "trace")]
     pub async fn send_packet(&mut self, packet: McpePacket) -> Result<(), JolyneError> {
         self.transport.send(packet).await
