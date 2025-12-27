@@ -2,6 +2,8 @@
 resolver = "3"
 members = [
     "crates/valentine",
+    "crates/valentine/bedrock_core",
+    "crates/valentine/bedrock_versions/v1_21_130",
     "crates/jolyne",
     "crates/unastar",
     "crates/valentine_gen",
@@ -9,7 +11,106 @@ members = [
     "crates/tokio-nethernet",
     "crates/axolotl-xbl",
     "crates/axelerator",
+    "crates/bds-extractor",
 ]
+
+[workspace.package]
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/axolotl-stack/axolotl-stack"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1.48", default-features = false }
+tokio-util = { version = "0.7", default-features = false }
+futures = "0.3"
+futures-util = "0.3"
+async-trait = "0.1"
+
+# Bytes & serialization
+bytes = "1.11"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml_edit = "0.22"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", default-features = false }
+
+# Error handling
+thiserror = "2.0"
+anyhow = "1.0"
+
+# CLI
+clap = { version = "4.5", features = ["derive"] }
+
+# Crypto
+aes = "0.8"
+aes-gcm = { version = "0.10", features = ["aes"] }
+ctr = "0.9"
+sha2 = "0.10"
+hmac = "0.12"
+p384 = { version = "0.13", features = ["ecdh", "pkcs8"] }
+p256 = { version = "0.13", features = ["ecdsa"] }
+rand = "0.8"
+base64 = "0.22"
+
+# Compression
+flate2 = "1.0"
+
+# Utilities
+bitflags = { version = "2", features = ["serde"] }
+uuid = { version = "1", features = ["v4"] }
+once_cell = "1.19"
+chrono = { version = "0.4", features = ["serde"] }
+glam = "0.30"
+
+# Code generation (valentine_gen)
+quote = "1.0"
+syn = { version = "2.0", features = ["full", "parsing"] }
+proc-macro2 = "1.0"
+prettyplease = "0.2"
+convert_case = "0.10"
+
+# JWT
+jsonwebtoken = "9.3"
+
+# HTTP
+reqwest = { version = "0.12", default-features = false }
+url = "2.5"
+
+# WebSocket
+tokio-tungstenite = { version = "0.24", default-features = false, features = ["connect"] }
+tungstenite = "0.26"
+http = "1.0"
+
+# WebRTC
+webrtc = "0.12"
+
+# ECS
+bevy_ecs = "0.17"
+
+# NBT
+zuri_nbt = "0.4"
+
+# LevelDB
+bleveldb = "1"
+
+# Criterion (benchmarks)
+criterion = { version = "0.5", features = ["html_reports"] }
+
+# Discovery crypto (optional)
+ecb = "0.1"
+hex = "0.4"
+
+# Workspace crates
+valentine = { path = "crates/valentine", default-features = false }
+valentine_bedrock_core = { path = "crates/valentine/bedrock_core" }
+valentine_bedrock_1_21_130 = { path = "crates/valentine/bedrock_versions/v1_21_130" }
+jolyne = { path = "crates/jolyne", default-features = false }
+tokio-raknet = { path = "crates/tokio-raknet", version = "0.3" }
+tokio-nethernet = { path = "crates/tokio-nethernet", default-features = false }
+axolotl-xbl = { path = "crates/axolotl-xbl" }
 
 # use our patched version that statically links in zlib and snappy.
 [patch.crates-io]

@@ -57,6 +57,9 @@ pub struct SessionTunables {
     pub reliable_window: u32,
     pub max_split_parts: u32,
     pub max_concurrent_splits: usize,
+    /// Maximum number of incoming ACK/NACK ranges to queue before dropping oldest.
+    /// Prevents OOM from malicious peers sending excessive ACK/NACK packets.
+    pub max_incoming_ack_queue: usize,
 }
 
 impl Default for SessionTunables {
@@ -69,6 +72,7 @@ impl Default for SessionTunables {
             reliable_window: constants::MAX_ACK_SEQUENCES as u32,
             max_split_parts: 8192,
             max_concurrent_splits: 4096,
+            max_incoming_ack_queue: 4096,
         }
     }
 }
@@ -120,6 +124,8 @@ pub struct Session {
     incoming_naks: VecDeque<SequenceRange>,
     outgoing_acks: AckQueue,
     outgoing_naks: AckQueue,
+    /// Maximum number of incoming ACK/NACK ranges to queue.
+    max_incoming_ack_queue: usize,
 }
 
 impl Session {
@@ -159,6 +165,7 @@ impl Session {
             incoming_naks: VecDeque::new(),
             outgoing_acks: AckQueue::new(tunables.ack_queue_capacity),
             outgoing_naks: AckQueue::new(tunables.ack_queue_capacity),
+            max_incoming_ack_queue: tunables.max_incoming_ack_queue,
         };
 
         for level in 0..4 {
@@ -256,6 +263,7 @@ impl Session {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::protocol::ack::{AckNackPayload, SequenceRange};
     use std::time::Instant;
 
     #[test]
@@ -284,5 +292,118 @@ mod tests {
         } else {
             panic!("expected ack datagram");
         }
+    }
+
+    #[test]
+    fn incoming_ack_queue_respects_limit() {
+        let tunables = SessionTunables {
+            max_incoming_ack_queue: 3,
+            ..Default::default()
+        };
+        let mut session = Session::with_tunables(1200, tunables);
+
+        // Add 5 ACK ranges, but only 3 should be kept
+        let payload = AckNackPayload {
+            ranges: vec![
+                SequenceRange {
+                    start: Sequence24::new(0),
+                    end: Sequence24::new(0),
+                },
+                SequenceRange {
+                    start: Sequence24::new(1),
+                    end: Sequence24::new(1),
+                },
+                SequenceRange {
+                    start: Sequence24::new(2),
+                    end: Sequence24::new(2),
+                },
+                SequenceRange {
+                    start: Sequence24::new(3),
+                    end: Sequence24::new(3),
+                },
+                SequenceRange {
+                    start: Sequence24::new(4),
+                    end: Sequence24::new(4),
+                },
+            ],
+        };
+
+        session.handle_ack_payload(payload);
+
+        // Should only have 3 entries (oldest dropped)
+        assert_eq!(session.incoming_acks.len(), 3);
+
+        // The oldest entries (0, 1) should have been dropped
+        let first = session.incoming_acks.front().unwrap();
+        assert_eq!(first.start, Sequence24::new(2));
+    }
+
+    #[test]
+    fn incoming_nack_queue_respects_limit() {
+        let tunables = SessionTunables {
+            max_incoming_ack_queue: 2,
+            ..Default::default()
+        };
+        let mut session = Session::with_tunables(1200, tunables);
+
+        // Add 4 NACK ranges, but only 2 should be kept
+        let payload = AckNackPayload {
+            ranges: vec![
+                SequenceRange {
+                    start: Sequence24::new(10),
+                    end: Sequence24::new(10),
+                },
+                SequenceRange {
+                    start: Sequence24::new(20),
+                    end: Sequence24::new(20),
+                },
+                SequenceRange {
+                    start: Sequence24::new(30),
+                    end: Sequence24::new(30),
+                },
+                SequenceRange {
+                    start: Sequence24::new(40),
+                    end: Sequence24::new(40),
+                },
+            ],
+        };
+
+        session.handle_nack_payload(payload);
+
+        // Should only have 2 entries
+        assert_eq!(session.incoming_naks.len(), 2);
+
+        // The oldest entries should have been dropped
+        let first = session.incoming_naks.front().unwrap();
+        assert_eq!(first.start, Sequence24::new(30));
+    }
+
+    #[test]
+    fn session_tunables_default_values() {
+        let tunables = SessionTunables::default();
+
+        assert_eq!(
+            tunables.max_ordering_channels,
+            constants::MAXIMUM_ORDERING_CHANNELS as usize
+        );
+        assert_eq!(tunables.ack_queue_capacity, 1024);
+        assert_eq!(tunables.split_timeout, Duration::from_secs(30));
+        assert_eq!(tunables.reliable_window, constants::MAX_ACK_SEQUENCES as u32);
+        assert_eq!(tunables.max_split_parts, 8192);
+        assert_eq!(tunables.max_concurrent_splits, 4096);
+        assert_eq!(tunables.max_incoming_ack_queue, 4096);
+    }
+
+    #[test]
+    fn session_with_custom_tunables() {
+        let tunables = SessionTunables {
+            max_incoming_ack_queue: 100,
+            max_concurrent_splits: 16,
+            split_timeout: Duration::from_secs(5),
+            ..Default::default()
+        };
+        let session = Session::with_tunables(1400, tunables);
+
+        assert_eq!(session.max_incoming_ack_queue, 100);
     }
 }

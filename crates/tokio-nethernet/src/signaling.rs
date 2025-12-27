@@ -169,7 +169,20 @@ pub enum SignalParseError {
     InvalidFormat,
     #[error("invalid connection id")]
     InvalidConnectionId,
+    #[error("invalid IP address")]
+    InvalidIpAddress,
+    #[error("invalid port number")]
+    InvalidPort,
+    #[error("field exceeds maximum length")]
+    FieldTooLong,
+    #[error("invalid protocol")]
+    InvalidProtocol,
 }
+
+/// Maximum allowed lengths for ICE candidate fields (security limits).
+const MAX_FOUNDATION_LEN: usize = 32;
+const MAX_UFRAG_LEN: usize = 256;
+const MAX_CANDIDATE_LEN: usize = 1024;
 
 /// Formats an ICE candidate in the C++ WebRTC format expected by Bedrock.
 ///
@@ -177,6 +190,7 @@ pub enum SignalParseError {
 ///
 /// This matches the format used by `go-nethernet` and upstream Bedrock clients.
 #[inline]
+#[allow(clippy::too_many_arguments)]
 pub fn format_ice_candidate(
     id: u32,
     foundation: &str,
@@ -207,10 +221,21 @@ pub fn format_ice_candidate(
     s
 }
 
-/// Parses a C++ WebRTC format ICE candidate string.
+/// Parses a C++ WebRTC format ICE candidate string with validation.
 ///
 /// Returns (foundation, protocol, priority, address, port, type, related_addr, related_port, ufrag).
+///
+/// # Security
+/// - Validates IP addresses (IPv4 or IPv6 format)
+/// - Validates port range (1-65535)
+/// - Limits string field lengths to prevent memory exhaustion
+/// - Validates protocol is "udp" or "tcp"
 pub fn parse_ice_candidate(s: &str) -> Result<IceCandidateInfo, SignalParseError> {
+    // Check total length limit
+    if s.len() > MAX_CANDIDATE_LEN {
+        return Err(SignalParseError::FieldTooLong);
+    }
+
     // Format: candidate:<foundation> 1 <proto> <priority> <addr> <port> typ <type> ...
     let s = s.strip_prefix("candidate:").unwrap_or(s);
     let parts: Vec<&str> = s.split_whitespace().collect();
@@ -219,16 +244,40 @@ pub fn parse_ice_candidate(s: &str) -> Result<IceCandidateInfo, SignalParseError
         return Err(SignalParseError::InvalidFormat);
     }
 
-    let foundation = parts[0].to_string();
+    // Validate and parse foundation
+    let foundation = parts[0];
+    if foundation.len() > MAX_FOUNDATION_LEN {
+        return Err(SignalParseError::FieldTooLong);
+    }
+    let foundation = foundation.to_string();
+
     // parts[1] is component (always 1)
-    let protocol = parts[2].to_string();
+
+    // Validate protocol (must be udp or tcp)
+    let protocol = parts[2].to_lowercase();
+    if protocol != "udp" && protocol != "tcp" {
+        return Err(SignalParseError::InvalidProtocol);
+    }
+
     let priority = parts[3]
         .parse()
         .map_err(|_| SignalParseError::InvalidFormat)?;
-    let address = parts[4].to_string();
-    let port = parts[5]
+
+    // Validate IP address format
+    let address = parts[4];
+    if address.parse::<std::net::IpAddr>().is_err() {
+        return Err(SignalParseError::InvalidIpAddress);
+    }
+    let address = address.to_string();
+
+    // Validate port range (1-65535)
+    let port: u16 = parts[5]
         .parse()
-        .map_err(|_| SignalParseError::InvalidFormat)?;
+        .map_err(|_| SignalParseError::InvalidPort)?;
+    if port == 0 {
+        return Err(SignalParseError::InvalidPort);
+    }
+
     // parts[6] is "typ"
     let candidate_type = parts[7].to_string();
 
@@ -241,7 +290,11 @@ pub fn parse_ice_candidate(s: &str) -> Result<IceCandidateInfo, SignalParseError
     while i < parts.len() {
         match parts[i] {
             "raddr" if i + 1 < parts.len() => {
-                related_address = Some(parts[i + 1].to_string());
+                let addr = parts[i + 1];
+                // Validate related address if present
+                if addr.parse::<std::net::IpAddr>().is_ok() {
+                    related_address = Some(addr.to_string());
+                }
                 i += 2;
             }
             "rport" if i + 1 < parts.len() => {
@@ -249,7 +302,11 @@ pub fn parse_ice_candidate(s: &str) -> Result<IceCandidateInfo, SignalParseError
                 i += 2;
             }
             "ufrag" if i + 1 < parts.len() => {
-                ufrag = Some(parts[i + 1].to_string());
+                let u = parts[i + 1];
+                // Validate ufrag length
+                if u.len() <= MAX_UFRAG_LEN {
+                    ufrag = Some(u.to_string());
+                }
                 i += 2;
             }
             _ => i += 1,
@@ -345,5 +402,180 @@ pub trait SignalingChannel: Signaling {
 impl<T: SignalingChannel + ?Sized> SignalingChannel for std::sync::Arc<T> {
     async fn take_signal_receiver(&self) -> Option<tokio::sync::mpsc::Receiver<Signal>> {
         (**self).take_signal_receiver().await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_ice_candidate_valid_host() {
+        let candidate = "candidate:1 1 udp 2130706431 192.168.1.100 54321 typ host generation 0 ufrag abc123 network-id 1 network-cost 0";
+        let result = parse_ice_candidate(candidate).unwrap();
+
+        assert_eq!(result.foundation, "1");
+        assert_eq!(result.protocol, "udp");
+        assert_eq!(result.priority, 2130706431);
+        assert_eq!(result.address, "192.168.1.100");
+        assert_eq!(result.port, 54321);
+        assert_eq!(result.candidate_type, "host");
+        assert_eq!(result.ufrag, Some("abc123".to_string()));
+    }
+
+    #[test]
+    fn test_parse_ice_candidate_valid_relay() {
+        let candidate = "candidate:2 1 udp 1677721855 203.0.113.50 19302 typ relay raddr 192.168.1.100 rport 54321 generation 0 ufrag xyz";
+        let result = parse_ice_candidate(candidate).unwrap();
+
+        assert_eq!(result.candidate_type, "relay");
+        assert_eq!(result.address, "203.0.113.50");
+        assert_eq!(result.port, 19302);
+        assert_eq!(result.related_address, Some("192.168.1.100".to_string()));
+        assert_eq!(result.related_port, Some(54321));
+        assert_eq!(result.ufrag, Some("xyz".to_string()));
+    }
+
+    #[test]
+    fn test_parse_ice_candidate_ipv6() {
+        let candidate = "candidate:1 1 udp 2130706431 2001:db8::1 54321 typ host";
+        let result = parse_ice_candidate(candidate).unwrap();
+
+        assert_eq!(result.address, "2001:db8::1");
+    }
+
+    #[test]
+    fn test_parse_ice_candidate_invalid_ip() {
+        let candidate = "candidate:1 1 udp 2130706431 999.999.999.999 54321 typ host";
+        let result = parse_ice_candidate(candidate);
+
+        assert!(matches!(result, Err(SignalParseError::InvalidIpAddress)));
+    }
+
+    #[test]
+    fn test_parse_ice_candidate_invalid_port_zero() {
+        let candidate = "candidate:1 1 udp 2130706431 192.168.1.100 0 typ host";
+        let result = parse_ice_candidate(candidate);
+
+        assert!(matches!(result, Err(SignalParseError::InvalidPort)));
+    }
+
+    #[test]
+    fn test_parse_ice_candidate_invalid_port_overflow() {
+        let candidate = "candidate:1 1 udp 2130706431 192.168.1.100 70000 typ host";
+        let result = parse_ice_candidate(candidate);
+
+        assert!(matches!(result, Err(SignalParseError::InvalidPort)));
+    }
+
+    #[test]
+    fn test_parse_ice_candidate_invalid_protocol() {
+        let candidate = "candidate:1 1 sctp 2130706431 192.168.1.100 54321 typ host";
+        let result = parse_ice_candidate(candidate);
+
+        assert!(matches!(result, Err(SignalParseError::InvalidProtocol)));
+    }
+
+    #[test]
+    fn test_parse_ice_candidate_too_long() {
+        let long_candidate = format!(
+            "candidate:1 1 udp 2130706431 192.168.1.100 54321 typ host {}",
+            "x".repeat(2000)
+        );
+        let result = parse_ice_candidate(&long_candidate);
+
+        assert!(matches!(result, Err(SignalParseError::FieldTooLong)));
+    }
+
+    #[test]
+    fn test_parse_ice_candidate_foundation_too_long() {
+        let long_foundation = "a".repeat(64);
+        let candidate = format!(
+            "candidate:{} 1 udp 2130706431 192.168.1.100 54321 typ host",
+            long_foundation
+        );
+        let result = parse_ice_candidate(&candidate);
+
+        assert!(matches!(result, Err(SignalParseError::FieldTooLong)));
+    }
+
+    #[test]
+    fn test_parse_ice_candidate_invalid_format() {
+        let candidate = "candidate:1 1 udp";
+        let result = parse_ice_candidate(candidate);
+
+        assert!(matches!(result, Err(SignalParseError::InvalidFormat)));
+    }
+
+    #[test]
+    fn test_signal_parse_valid() {
+        let signal = Signal::parse("CONNECTREQUEST 12345 some sdp data here", "net123".to_string()).unwrap();
+
+        assert_eq!(signal.typ, "CONNECTREQUEST");
+        assert_eq!(signal.connection_id, 12345);
+        assert_eq!(signal.data, "some sdp data here");
+        assert_eq!(signal.network_id, "net123");
+    }
+
+    #[test]
+    fn test_signal_parse_invalid_connection_id() {
+        let result = Signal::parse("CONNECTREQUEST notanumber some data", "net123".to_string());
+
+        assert!(matches!(result, Err(SignalParseError::InvalidConnectionId)));
+    }
+
+    #[test]
+    fn test_signal_error_code_display() {
+        assert_eq!(SignalErrorCode::None.to_string(), "0");
+        assert_eq!(SignalErrorCode::DestinationNotLoggedIn.to_string(), "1");
+        assert_eq!(SignalErrorCode::NegotiationTimeout.to_string(), "2");
+    }
+
+    #[test]
+    fn test_connection_type_from_u8() {
+        assert_eq!(ConnectionType::from_u8(0), Some(ConnectionType::RakNetV1));
+        assert_eq!(ConnectionType::from_u8(1), Some(ConnectionType::RakNetV2));
+        assert_eq!(ConnectionType::from_u8(3), Some(ConnectionType::WebRTC));
+        assert_eq!(ConnectionType::from_u8(4), Some(ConnectionType::Lan));
+        assert_eq!(ConnectionType::from_u8(2), None);
+        assert_eq!(ConnectionType::from_u8(5), None);
+    }
+
+    #[test]
+    fn test_format_ice_candidate() {
+        let formatted = format_ice_candidate(
+            1,
+            "abc123",
+            "udp",
+            2130706431,
+            "192.168.1.100",
+            54321,
+            "host",
+            None,
+            None,
+            "ufrag123",
+        );
+
+        assert!(formatted.starts_with("candidate:abc123 1 udp 2130706431 192.168.1.100 54321 typ host"));
+        assert!(formatted.contains("ufrag ufrag123"));
+        assert!(formatted.contains("network-id 1"));
+    }
+
+    #[test]
+    fn test_format_ice_candidate_with_relay() {
+        let formatted = format_ice_candidate(
+            1,
+            "abc123",
+            "udp",
+            1677721855,
+            "203.0.113.50",
+            19302,
+            "relay",
+            Some("192.168.1.100"),
+            Some(54321),
+            "ufrag123",
+        );
+
+        assert!(formatted.contains("raddr 192.168.1.100 rport 54321"));
     }
 }

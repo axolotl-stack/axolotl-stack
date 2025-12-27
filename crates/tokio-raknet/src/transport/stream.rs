@@ -55,6 +55,8 @@ pub struct RaknetStreamConfig {
     pub max_split_parts: u32,
     /// Maximum number of concurrent split packets being reassembled.
     pub max_concurrent_splits: usize,
+    /// Maximum number of incoming ACK/NACK ranges to queue per session.
+    pub max_incoming_ack_queue: usize,
 }
 
 impl Default for RaknetStreamConfig {
@@ -72,6 +74,7 @@ impl Default for RaknetStreamConfig {
             max_split_parts: 8192,
 
             max_concurrent_splits: 32, // Reduced from 4096 to prevent OOM DOS
+            max_incoming_ack_queue: 4096,
         }
     }
 }
@@ -694,6 +697,7 @@ fn ensure_client_session<'a>(
                     reliable_window: config.reliable_window,
                     max_split_parts: config.max_split_parts,
                     max_concurrent_splits: config.max_concurrent_splits,
+                    max_incoming_ack_queue: config.max_incoming_ack_queue,
                 },
                 ..SessionConfig::default()
             },

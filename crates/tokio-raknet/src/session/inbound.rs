@@ -30,13 +30,25 @@ impl Session {
     }
 
     /// Handle an incoming dedicated ACK payload.
+    /// Respects `max_incoming_ack_queue` limit, dropping oldest entries if exceeded.
     pub fn handle_ack_payload(&mut self, payload: AckNackPayload) {
-        self.incoming_acks.extend(payload.ranges);
+        for range in payload.ranges {
+            if self.incoming_acks.len() >= self.max_incoming_ack_queue {
+                self.incoming_acks.pop_front();
+            }
+            self.incoming_acks.push_back(range);
+        }
     }
 
     /// Handle an incoming dedicated NACK payload.
+    /// Respects `max_incoming_ack_queue` limit, dropping oldest entries if exceeded.
     pub fn handle_nack_payload(&mut self, payload: AckNackPayload) {
-        self.incoming_naks.extend(payload.ranges);
+        for range in payload.ranges {
+            if self.incoming_naks.len() >= self.max_incoming_ack_queue {
+                self.incoming_naks.pop_front();
+            }
+            self.incoming_naks.push_back(range);
+        }
     }
 
     fn handle_encapsulated(
@@ -127,11 +139,21 @@ impl Session {
         };
 
         if let RaknetPacket::EncapsulatedAck(payload) = pkt {
-            self.incoming_acks.extend(payload.0.ranges);
+            for range in payload.0.ranges {
+                if self.incoming_acks.len() >= self.max_incoming_ack_queue {
+                    self.incoming_acks.pop_front();
+                }
+                self.incoming_acks.push_back(range);
+            }
             return Ok(());
         }
         if let RaknetPacket::EncapsulatedNak(payload) = pkt {
-            self.incoming_naks.extend(payload.0.ranges);
+            for range in payload.0.ranges {
+                if self.incoming_naks.len() >= self.max_incoming_ack_queue {
+                    self.incoming_naks.pop_front();
+                }
+                self.incoming_naks.push_back(range);
+            }
             return Ok(());
         }
 

@@ -1,7 +1,7 @@
 [package]
 name = "jolyne"
 version = "0.1.0"
-edition = "2024"
+edition.workspace = true
 
 [features]
 default = ["full", "raknet"]
@@ -14,39 +14,34 @@ discovery = ["nethernet", "tokio-nethernet/discovery"]
 xbox-signaling = ["nethernet", "tokio-nethernet/xbox-signaling"]
 
 [dependencies]
-tokio = { version = "1.41.1", features = ["sync", "time"] }
-bytes = "1.8.0"
-thiserror = "1.0"
-tokio-raknet = { path = "../tokio-raknet", version = "0.3", optional = true }
-tokio-nethernet = { path = "../tokio-nethernet", version = "0.1", optional = true }
-valentine = { path = "../valentine", default-features = false, features = [
-    "bedrock_1_21_130",
-] }
-flate2 = "1.0"
-futures = "0.3"
-jsonwebtoken = { version = "9.3", optional = true }
-reqwest = { version = "0.12", default-features = false, features = [
-    "json",
-    "rustls-tls",
-], optional = true }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-base64 = "0.22"
-uuid = { version = "1", features = ["v4"] }
-sha2 = "0.10"
-aes = "0.8"
-ctr = "0.9"
-aes-gcm = { version = "0.10", features = ["aes"] }
-p384 = { version = "0.13", features = ["ecdh", "pkcs8"] }
-rand = "0.8"
-once_cell = "1.19"
-tracing = "0.1"
+tokio = { workspace = true, features = ["sync", "time"] }
+bytes.workspace = true
+thiserror = "1.0"  # Keep at 1.0 for now - jolyne uses thiserror 1.x API
+tokio-raknet = { workspace = true, optional = true }
+tokio-nethernet = { workspace = true, optional = true }
+valentine = { workspace = true, features = ["bedrock_1_21_130"] }
+flate2.workspace = true
+futures.workspace = true
+jsonwebtoken = { workspace = true, optional = true }
+reqwest = { workspace = true, features = ["json", "rustls-tls"], optional = true }
+serde.workspace = true
+serde_json.workspace = true
+base64.workspace = true
+uuid.workspace = true
+sha2.workspace = true
+aes.workspace = true
+ctr.workspace = true
+aes-gcm.workspace = true
+p384.workspace = true
+rand.workspace = true
+once_cell.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
-tokio = { version = "1.48.0", features = ["rt-multi-thread", "macros"] }
-tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
-anyhow = "1.0"
-clap = { version = "4.5", features = ["derive"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
+anyhow.workspace = true
+clap.workspace = true
 
 [[example]]
 name = "simple_client"

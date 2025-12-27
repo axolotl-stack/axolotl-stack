@@ -1,28 +1,23 @@
 [package]
 name = "valentine"
 version = "0.1.0"
-edition = "2024"
+edition.workspace = true
 
 [dependencies]
-serde = { version = "1.0", features = ["derive"] }
-bitflags = { version = "2", features = ["serde"] }
-bytes = "1"
-uuid = "1.8.0"
-valentine_bedrock_core = { path = "bedrock_core" }
-valentine_bedrock_1_21_130 = { path = "bedrock_versions/v1_21_130", optional = true }
+serde.workspace = true
+bitflags.workspace = true
+bytes.workspace = true
+uuid.workspace = true
+valentine_bedrock_core.workspace = true
+valentine_bedrock_1_21_130 = { workspace = true, optional = true }
 
 [dev-dependencies]
-tokio = { version = "1", features = [
-    "macros",
-    "rt-multi-thread",
-    "net",
-    "time",
-] }
-tokio-raknet = { path = "../tokio-raknet", version = "0.3" }
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-futures = "0.3"
-flate2 = "1"
-anyhow = "1.0.100"
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "time"] }
+tokio-raknet.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+futures.workspace = true
+flate2.workspace = true
+anyhow.workspace = true
 
 [features]
 default = ["bedrock_1_21_130"]

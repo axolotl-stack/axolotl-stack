@@ -1,5 +1,8 @@
 mod offline;
 mod online;
+mod rate_limiter;
+
+pub use rate_limiter::PingRateLimiter;
 
 use std::collections::HashMap;
 use std::future::poll_fn;
@@ -69,6 +72,14 @@ pub struct RaknetListenerConfig {
 
     /// Maximum number of concurrent split packets being reassembled.
     pub max_concurrent_splits: usize,
+
+    /// Maximum number of incoming ACK/NACK ranges to queue per session.
+    /// Prevents OOM attacks from malicious peers sending excessive ACK/NACK packets.
+    pub max_incoming_ack_queue: usize,
+
+    /// Maximum pings per second per IP address for rate limiting.
+    /// Set to 0 to disable rate limiting.
+    pub ping_rate_limit_per_ip: u32,
 }
 
 impl Default for RaknetListenerConfig {
@@ -89,6 +100,8 @@ impl Default for RaknetListenerConfig {
             reliable_window: constants::MAX_ACK_SEQUENCES as u32,
             max_split_parts: 8192,
             max_concurrent_splits: 32, // Reduced from 4096 to prevent OOM DOS
+            max_incoming_ack_queue: 4096,
+            ping_rate_limit_per_ip: 10, // 10 pings per second per IP
         }
     }
 }
@@ -235,6 +248,7 @@ async fn run_listener_muxer(
     let mut sessions: HashMap<SocketAddr, SessionState> = HashMap::new();
     let mut pending: HashMap<SocketAddr, PendingConnection> = HashMap::new();
     let mut tick = new_tick_interval();
+    let mut rate_limiter = rate_limiter::PingRateLimiter::new(config.ping_rate_limit_per_ip);
 
     loop {
         // 2. The Polling Block (Replaces select!)
@@ -255,7 +269,7 @@ async fn run_listener_muxer(
             }
 
             // C. Poll Tick (Timer)
-            if let Poll::Ready(_) = tick.poll_tick(cx) {
+            if tick.poll_tick(cx).is_ready() {
                 return Poll::Ready(LoopEvent::Tick);
             }
 
@@ -276,6 +290,7 @@ async fn run_listener_muxer(
                         &mut pending,
                         &new_conn_tx,
                         &advertisement,
+                        &mut rate_limiter,
                     )
                     .await;
                 }

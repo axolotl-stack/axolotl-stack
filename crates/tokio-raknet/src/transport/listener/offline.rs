@@ -6,6 +6,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+use super::rate_limiter::PingRateLimiter;
+
 use bytes::{Bytes, BytesMut};
 use tokio::net::UdpSocket;
 use tokio::sync::mpsc;
@@ -51,6 +53,7 @@ pub(super) fn server_session_config(config: &RaknetListenerConfig) -> SessionCon
             reliable_window: config.reliable_window,
             max_split_parts: config.max_split_parts,
             max_concurrent_splits: config.max_concurrent_splits,
+            max_incoming_ack_queue: config.max_incoming_ack_queue,
         },
         ..Default::default()
     }
@@ -69,6 +72,7 @@ pub(super) async fn handle_offline(
         mpsc::Receiver<Result<crate::transport::ReceivedMessage, crate::RaknetError>>,
     )>,
     advertisement: &Arc<RwLock<Vec<u8>>>,
+    rate_limiter: &mut PingRateLimiter,
 ) {
     let now = Instant::now();
     pending.retain(|_, p| p.expires_at > now);
@@ -82,6 +86,11 @@ pub(super) async fn handle_offline(
     match pkt {
         RaknetPacket::UnconnectedPing(req) => {
             if req.magic != DEFAULT_UNCONNECTED_MAGIC {
+                return;
+            }
+
+            // Rate limit ping responses to prevent amplification attacks
+            if !rate_limiter.check_and_record(peer.ip(), now) {
                 return;
             }
 
@@ -103,6 +112,11 @@ pub(super) async fn handle_offline(
         }
         RaknetPacket::UnconnectedPingOpenConnections(req) => {
             if req.magic != DEFAULT_UNCONNECTED_MAGIC {
+                return;
+            }
+
+            // Rate limit ping responses to prevent amplification attacks
+            if !rate_limiter.check_and_record(peer.ip(), now) {
                 return;
             }
 

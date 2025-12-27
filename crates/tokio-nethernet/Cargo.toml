@@ -1,9 +1,9 @@
 [package]
 name = "tokio-nethernet"
 version = "0.1.0"
-edition = "2024"
+edition.workspace = true
 description = "A Tokio-based implementation of the NetherNet protocol (WebRTC transport for Minecraft Bedrock)."
-license = "MIT"
+license.workspace = true
 
 [features]
 default = []
@@ -17,45 +17,37 @@ xbox-signaling = [
 ]
 
 [dependencies]
-tokio = { version = "1.43.0", features = [
-    "sync",
-    "time",
-    "rt",
-    "net",
-    "macros",
-] }
-webrtc = { version = "0.12.0" }
-bytes = "1.9.0"
-futures = "0.3.31"
-async-trait = "0.1.81"
-tokio-util = { version = "0.7", features = ["codec", "compat", "net"] }
-thiserror = "2.0.11"
-anyhow = "1.0.95"
-serde = { version = "1.0.217", features = ["derive"] }
-serde_json = "1.0.138"
-tracing = "0.1.41"
-rand = "0.8.5"
+tokio = { workspace = true, features = ["sync", "time", "rt", "net", "macros"] }
+webrtc.workspace = true
+bytes.workspace = true
+futures.workspace = true
+async-trait.workspace = true
+tokio-util = { workspace = true, features = ["codec", "compat", "net"] }
+thiserror.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+rand.workspace = true
 
 # Optional crypto dependencies for discovery feature
-aes = { version = "0.8", optional = true }
-sha2 = { version = "0.10", optional = true }
-hmac = { version = "0.12", optional = true }
-ecb = { version = "0.1", optional = true }
-hex = { version = "0.4", optional = true }
+aes = { workspace = true, optional = true }
+sha2 = { workspace = true, optional = true }
+hmac = { workspace = true, optional = true }
+ecb = { workspace = true, optional = true }
+hex = { workspace = true, optional = true }
 
 # Optional dependencies for xbox-signaling feature
-tokio-tungstenite = { version = "0.26", features = [
-    "native-tls",
-], optional = true }
-http = { version = "1.0", optional = true }
-tungstenite = { version = "0.26", optional = true }
-uuid = { version = "1.11", features = ["v4"], optional = true }
-futures-util = { version = "0.3", optional = true }
+tokio-tungstenite = { workspace = true, features = ["native-tls"], optional = true }
+http = { workspace = true, optional = true }
+tungstenite = { workspace = true, optional = true }
+uuid = { workspace = true, optional = true }
+futures-util = { workspace = true, optional = true }
 
 [dev-dependencies]
-tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
-tokio = { version = "1", features = ["full", "test-util"] }
-
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
+tokio = { workspace = true, features = ["full", "test-util"] }
+criterion.workspace = true
 
 [[example]]
 name = "discovery_client"
@@ -64,3 +56,11 @@ required-features = ["discovery"]
 [[example]]
 name = "discovery_server"
 required-features = ["discovery"]
+
+[[bench]]
+name = "signaling_benchmark"
+harness = false
+
+[[bench]]
+name = "stream_benchmark"
+harness = false

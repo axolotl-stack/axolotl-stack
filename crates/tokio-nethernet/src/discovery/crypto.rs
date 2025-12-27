@@ -2,6 +2,10 @@
 //!
 //! Uses HMAC-SHA256 for checksum and AES-ECB with PKCS7 padding for encryption.
 
+// The aes crate v0.8 uses generic_array 0.14 which is deprecated but still functional.
+// Suppressing until aes upgrades to cipher 0.5+ with generic-array 1.x support.
+#![allow(deprecated)]
+
 use aes::cipher::{generic_array::GenericArray, BlockDecrypt, BlockEncrypt, KeyInit};
 use aes::Aes256;
 use hmac::{Hmac, Mac};
@@ -38,7 +42,7 @@ pub fn encrypt(data: &[u8]) -> Vec<u8> {
 
 /// Decrypt data using AES-256-ECB with PKCS7 unpadding.
 pub fn decrypt(data: &[u8]) -> Result<Vec<u8>, &'static str> {
-    if data.is_empty() || data.len() % 16 != 0 {
+    if data.is_empty() || !data.len().is_multiple_of(16) {
         return Err("invalid ciphertext length");
     }
 

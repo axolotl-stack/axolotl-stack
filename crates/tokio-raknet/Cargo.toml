@@ -1,33 +1,28 @@
 [package]
 name = "tokio-raknet"
 version = "0.3.0"
-edition = "2024"
+edition.workspace = true
 description = "A high-performance, asynchronous implementation of the RakNet protocol on top of Tokio."
-license = "MIT"
-repository = "https://github.com/axolotl-stack/axolotl-stack"
+license.workspace = true
+repository.workspace = true
 keywords = ["raknet", "game-networking", "udp", "tokio", "async"]
 categories = ["network-programming", "game-development", "asynchronous"]
 readme = "README.md"
 exclude = ["benches", "tests"]
 
 [dependencies]
-bitflags = "2.10.0"
-bytes = "1.11.0"
-thiserror = "2.0.17"
-tokio = { version = "1.48.0", features = [
-    "net",
-    "sync",
-    "time",
-    "rt",
-    "macros",
-] }
-tracing = "0.1.43"
-futures = "0.3"
-tokio-util = { version = "0.7", features = ["codec", "net"] }
+bitflags.workspace = true
+bytes.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["net", "sync", "time", "rt", "macros"] }
+tracing.workspace = true
+futures.workspace = true
+tokio-util = { workspace = true, features = ["codec", "net"] }
 
 [dev-dependencies]
-criterion = { version = "0.5", features = ["html_reports"] }
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+criterion.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
+tokio = { workspace = true, features = ["rt-multi-thread"] }
 
 [[bench]]
 name = "codec_benchmark"
@@ -47,4 +42,12 @@ harness = false
 
 [[bench]]
 name = "process_datagram"
+harness = false
+
+[[bench]]
+name = "session_hotpath"
+harness = false
+
+[[bench]]
+name = "throughput_stress"
 harness = false

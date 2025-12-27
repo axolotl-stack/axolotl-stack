@@ -1,27 +1,25 @@
 [package]
 name = "unastar"
 version = "0.1.0"
-edition = "2024"
+edition.workspace = true
 
 [dependencies]
-bytes = "1"
-jolyne = { path = "../jolyne", version = "0.1.0" }
-tokio = { version = "1", features = ["full"] }
-tokio-raknet = { path = "../tokio-raknet" }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-p384 = "0.13"
-rand = "0.8"
-zuri_nbt = "0.4"
-valentine = { path = "../valentine", default-features = false, features = [
-    "bedrock_1_21_130",
-] }
-serde = { version = "1", features = ["derive"] }
-thiserror = "2"
-toml_edit = { version = "0.23", features = ["serde"] }
-glam = "0.30"
-uuid = { version = "1", features = ["v4"] }
-bevy_ecs = "0.17"
-async-trait = "0.1"
-bleveldb = "1"
-serde_json = "1"
+bytes.workspace = true
+jolyne = { workspace = true, features = ["server", "raknet"] }
+tokio = { workspace = true, features = ["full"] }
+tokio-raknet.workspace = true
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+p384.workspace = true
+rand.workspace = true
+zuri_nbt.workspace = true
+valentine = { workspace = true, features = ["bedrock_1_21_130"] }
+serde.workspace = true
+thiserror.workspace = true
+toml_edit = { workspace = true, features = ["serde"] }
+glam.workspace = true
+uuid.workspace = true
+bevy_ecs.workspace = true
+async-trait.workspace = true
+bleveldb.workspace = true
+serde_json.workspace = true

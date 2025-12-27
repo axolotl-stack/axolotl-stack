@@ -14,6 +14,7 @@ use bytes::BufMut;
 use super::offline::{
     PendingConnection, handle_offline, is_offline_packet_id, server_session_config,
 };
+use super::rate_limiter::PingRateLimiter;
 
 use std::sync::{Arc, RwLock};
 
@@ -32,6 +33,7 @@ pub(super) async fn dispatch_datagram(
         mpsc::Receiver<Result<crate::transport::ReceivedMessage, crate::RaknetError>>,
     )>,
     advertisement: &Arc<RwLock<Vec<u8>>>,
+    rate_limiter: &mut PingRateLimiter,
 ) {
     if sessions.contains_key(&peer) {
         if !handle_incoming_udp(socket, config, bytes, peer, sessions, pending, new_conn_tx).await {
@@ -47,6 +49,7 @@ pub(super) async fn dispatch_datagram(
                     pending,
                     new_conn_tx,
                     advertisement,
+                    rate_limiter,
                 )
                 .await;
             } else {
@@ -61,6 +64,7 @@ pub(super) async fn dispatch_datagram(
                     pending,
                     new_conn_tx,
                     advertisement,
+                    rate_limiter,
                 )
                 .await;
             }
@@ -82,6 +86,7 @@ pub(super) async fn dispatch_datagram(
             pending,
             new_conn_tx,
             advertisement,
+            rate_limiter,
         )
         .await;
     } else {

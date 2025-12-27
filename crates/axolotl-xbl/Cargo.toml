@@ -1,41 +1,41 @@
 [package]
 name = "axolotl-xbl"
 version = "0.1.0"
-edition = "2024"
+edition.workspace = true
 description = "Xbox Live API client for the axolotl-stack - authentication, friends, sessions, and signaling"
-license = "MIT"
+license.workspace = true
 
 [features]
 default = []
 
 [dependencies]
 # HTTP client
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { workspace = true, features = ["json"] }
 
 # Async runtime
-tokio = { version = "1.43", features = ["sync", "time"] }
+tokio = { workspace = true, features = ["sync", "time"] }
 
 # Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+serde.workspace = true
+serde_json.workspace = true
 
 # Cryptography for signed requests
-p256 = { version = "0.13", features = ["ecdsa"] }
-sha2 = "0.10"
-rand = "0.8"
-base64 = "0.22"
+p256.workspace = true
+sha2.workspace = true
+rand.workspace = true
+base64.workspace = true
 
 # WebSocket for RTA
-tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
-futures-util = "0.3"
-url = "2.5"
+tokio-tungstenite = { workspace = true, features = ["native-tls"] }
+futures-util.workspace = true
+url.workspace = true
 
 # Utilities
-thiserror = "2.0"
-tracing = "0.1"
-uuid = { version = "1.0", features = ["v4"] }
-chrono = { version = "0.4", features = ["serde"] }
+thiserror.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+chrono.workspace = true
 
 [dev-dependencies]
-tokio = { version = "1", features = ["full", "test-util"] }
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tokio = { workspace = true, features = ["full", "test-util"] }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }

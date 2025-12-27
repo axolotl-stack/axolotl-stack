@@ -22,6 +22,8 @@ pub enum Packet {
 
 /// Message packet data.
 pub struct MessageData {
+    /// Recipient network ID (parsed from protocol, available for future use).
+    #[allow(dead_code)]
     pub recipient_id: u64,
     pub data: String,
 }

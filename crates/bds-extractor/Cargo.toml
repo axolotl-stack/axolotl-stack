@@ -1,0 +1,34 @@
+[package]
+name = "bds-extractor"
+version = "0.1.0"
+edition.workspace = true
+description = "Extract game data from Bedrock Dedicated Server for code generation"
+
+[[bin]]
+name = "bds-extractor"
+path = "src/main.rs"
+
+[dependencies]
+# Workspace crates
+jolyne = { workspace = true, features = ["client", "raknet"] }
+valentine = { workspace = true, features = ["bedrock_1_21_130"] }
+
+# Async runtime
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# CLI
+clap.workspace = true
+
+# Logging
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
+
+# Error handling
+anyhow.workspace = true
+
+# Base64 for NBT encoding
+base64.workspace = true

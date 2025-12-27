@@ -20,6 +20,9 @@ use crate::signaling::{
 };
 use crate::stream::{NetherNetStream, NetherNetStreamConfig};
 
+/// Pair of optional data channels (reliable, unreliable) protected by a mutex.
+type DataChannelPair = Arc<tokio::sync::Mutex<(Option<Arc<RTCDataChannel>>, Option<Arc<RTCDataChannel>>)>>;
+
 /// Configuration for `NetherNetListener`.
 #[derive(Clone)]
 pub struct NetherNetListenerConfig {
@@ -29,7 +32,17 @@ pub struct NetherNetListenerConfig {
     pub connection_timeout: Duration,
     /// ICE servers for WebRTC connectivity.
     pub ice_servers: Vec<RTCIceServer>,
+    /// Maximum SDP size in bytes (prevents OOM from large SDPs).
+    pub max_sdp_size: usize,
+    /// Maximum number of pending connections (prevents connection exhaustion).
+    pub max_pending_connections: usize,
 }
+
+/// Default maximum SDP size (64 KB).
+const DEFAULT_MAX_SDP_SIZE: usize = 64 * 1024;
+
+/// Default maximum pending connections.
+const DEFAULT_MAX_PENDING_CONNECTIONS: usize = 256;
 
 impl Default for NetherNetListenerConfig {
     fn default() -> Self {
@@ -40,6 +53,8 @@ impl Default for NetherNetListenerConfig {
                 urls: vec!["stun:stun.l.google.com:19302".to_owned()],
                 ..Default::default()
             }],
+            max_sdp_size: DEFAULT_MAX_SDP_SIZE,
+            max_pending_connections: DEFAULT_MAX_PENDING_CONNECTIONS,
         }
     }
 }
@@ -258,6 +273,42 @@ impl ListenerActor {
         let conn_id = signal.connection_id;
         let network_id = signal.network_id.clone();
 
+        // Security: Check connection limit
+        if self.connections.len() >= self.config.max_pending_connections {
+            warn!(
+                conn_id,
+                current = self.connections.len(),
+                max = self.config.max_pending_connections,
+                "Connection limit reached, rejecting new connection"
+            );
+            self.signaling
+                .signal(Signal::error(
+                    conn_id,
+                    network_id,
+                    SignalErrorCode::IncomingConnectionIgnored,
+                ))
+                .await?;
+            return Ok(());
+        }
+
+        // Security: Check SDP size
+        if signal.data.len() > self.config.max_sdp_size {
+            warn!(
+                conn_id,
+                sdp_len = signal.data.len(),
+                max = self.config.max_sdp_size,
+                "SDP exceeds maximum size"
+            );
+            self.signaling
+                .signal(Signal::error(
+                    conn_id,
+                    network_id,
+                    SignalErrorCode::SignalingParsingFailure,
+                ))
+                .await?;
+            return Ok(());
+        }
+
         // Build WebRTC API
         let mut media_engine = MediaEngine::default();
         let registry = Registry::new();
@@ -326,14 +377,14 @@ impl ListenerActor {
 
         // Setup data channel handler - set up message handlers IMMEDIATELY to avoid missing messages
         let (ready_tx, ready_rx) = oneshot::channel();
-        let channels: Arc<
-            tokio::sync::Mutex<(Option<Arc<RTCDataChannel>>, Option<Arc<RTCDataChannel>>)>,
-        > = Arc::new(tokio::sync::Mutex::new((None, None)));
+        let channels: DataChannelPair = Arc::new(tokio::sync::Mutex::new((None, None)));
         let channels_clone = channels.clone();
         let ready_tx = Arc::new(tokio::sync::Mutex::new(Some(ready_tx)));
 
         // Create message channel UPFRONT so handlers can use it immediately
-        let (incoming_tx, incoming_rx) = mpsc::unbounded_channel();
+        // Use bounded channel to prevent OOM from message flooding
+        let channel_capacity = self.config.stream_config.incoming_channel_capacity;
+        let (incoming_tx, incoming_rx) = mpsc::channel(channel_capacity);
         let incoming_tx = Arc::new(incoming_tx);
         let incoming_rx = Arc::new(tokio::sync::Mutex::new(Some(incoming_rx)));
 
@@ -355,19 +406,25 @@ impl ListenerActor {
                 if label == "ReliableDataChannel" {
                     let tx = (*incoming_tx).clone();
                     dc.on_message(Box::new(move |msg| {
-                        let _ = tx.send(Ok(crate::stream::Message {
+                        // Use try_send to avoid blocking; drop message if channel is full
+                        if tx.try_send(Ok(crate::stream::Message {
                             buffer: msg.data,
                             reliable: true,
-                        }));
+                        })).is_err() {
+                            tracing::warn!("Incoming message channel full, dropping reliable message");
+                        }
                         Box::pin(async {})
                     }));
                 } else if label == "UnreliableDataChannel" {
                     let tx = (*incoming_tx).clone();
                     dc.on_message(Box::new(move |msg| {
-                        let _ = tx.send(Ok(crate::stream::Message {
+                        // Use try_send to avoid blocking; drop message if channel is full
+                        if tx.try_send(Ok(crate::stream::Message {
                             buffer: msg.data,
                             reliable: false,
-                        }));
+                        })).is_err() {
+                            tracing::warn!("Incoming message channel full, dropping unreliable message");
+                        }
                         Box::pin(async {})
                     }));
                 } else {
@@ -419,10 +476,10 @@ impl ListenerActor {
         let answer = pc.create_answer(None).await?;
 
         // Extract ufrag from SDP for candidate formatting
-        if let Some(ufrag_match) = answer.sdp.split("a=ice-ufrag:").nth(1) {
-            if let Some(ufrag_val) = ufrag_match.split_whitespace().next() {
-                *ufrag.lock().await = ufrag_val.to_string();
-            }
+        if let Some(ufrag_match) = answer.sdp.split("a=ice-ufrag:").nth(1)
+            && let Some(ufrag_val) = ufrag_match.split_whitespace().next()
+        {
+            *ufrag.lock().await = ufrag_val.to_string();
         }
 
         pc.set_local_description(answer.clone()).await?;

@@ -321,10 +321,10 @@ async fn perform_dial(
         .map_err(NetherNetError::WebRTC)?;
 
     // Extract ufrag from SDP for candidate formatting
-    if let Some(ufrag_match) = offer.sdp.split("a=ice-ufrag:").nth(1) {
-        if let Some(ufrag_val) = ufrag_match.split_whitespace().next() {
-            *ufrag.lock().await = ufrag_val.to_string();
-        }
+    if let Some(ufrag_match) = offer.sdp.split("a=ice-ufrag:").nth(1)
+        && let Some(ufrag_val) = ufrag_match.split_whitespace().next()
+    {
+        *ufrag.lock().await = ufrag_val.to_string();
     }
 
     pc.set_local_description(offer.clone())
@@ -430,27 +430,27 @@ async fn perform_dial(
     let pc_clone = pc.clone();
     tokio::spawn(async move {
         while let Some(signal) = signal_rx.recv().await {
-            if signal.typ == signal_type::CANDIDATE {
-                if let Ok(info) = parse_ice_candidate(&signal.data) {
-                    let candidate_str = format!(
-                        "candidate:{} 1 {} {} {} {} typ {}",
-                        info.foundation,
-                        info.protocol,
-                        info.priority,
-                        info.address,
-                        info.port,
-                        info.candidate_type
-                    );
+            if signal.typ == signal_type::CANDIDATE
+                && let Ok(info) = parse_ice_candidate(&signal.data)
+            {
+                let candidate_str = format!(
+                    "candidate:{} 1 {} {} {} {} typ {}",
+                    info.foundation,
+                    info.protocol,
+                    info.priority,
+                    info.address,
+                    info.port,
+                    info.candidate_type
+                );
 
-                    let init = webrtc::ice_transport::ice_candidate::RTCIceCandidateInit {
-                        candidate: candidate_str,
-                        sdp_mid: Some("0".to_string()),
-                        sdp_mline_index: Some(0),
-                        username_fragment: info.ufrag,
-                    };
+                let init = webrtc::ice_transport::ice_candidate::RTCIceCandidateInit {
+                    candidate: candidate_str,
+                    sdp_mid: Some("0".to_string()),
+                    sdp_mline_index: Some(0),
+                    username_fragment: info.ufrag,
+                };
 
-                    let _ = pc_clone.add_ice_candidate(init).await;
-                }
+                let _ = pc_clone.add_ice_candidate(init).await;
             }
         }
     });
