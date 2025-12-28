@@ -6,12 +6,12 @@
 //! Uses spatial hashing (EntityGrid) for O(N) broadcast lookups instead of O(N²).
 
 use bevy_ecs::prelude::*;
-use jolyne::valentine::{AddPlayerPacket, MovePlayerPacketMode, RemoveEntityPacket};
 use jolyne::valentine::types::{
     AbilityLayers, AbilityLayersType, AbilitySet, CommandPermissionLevel, DeviceOs,
     EntityProperties, GameMode as ProtocolGameMode, Item, Links, MetadataDictionary,
     PermissionLevel, Vec3F,
 };
+use jolyne::valentine::{AddPlayerPacket, MovePlayerPacketMode, RemoveEntityPacket};
 use jolyne::valentine::{McpePacket, MovePlayerPacket};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -401,9 +401,9 @@ pub fn broadcast_despawn_system(
 
 use crate::entity::components::BreakingState;
 use crate::world::ChunkManager;
-use crate::world::ecs::ChunkViewers;
-use jolyne::valentine::{LevelEventPacket, LevelEventPacketEvent, LevelSoundEventPacket};
+use crate::world::ecs::{ChunkData, ChunkViewers};
 use jolyne::valentine::types::SoundType;
+use jolyne::valentine::{LevelEventPacket, LevelEventPacketEvent, LevelSoundEventPacket};
 
 /// System: Tick block breaking state for all players.
 ///
@@ -415,7 +415,7 @@ use jolyne::valentine::types::SoundType;
 pub fn tick_block_breaking(
     mut players: Query<(Entity, &mut BreakingState, &PlayerSession), With<Player>>,
     chunk_manager: bevy_ecs::prelude::Res<ChunkManager>,
-    chunk_viewers: Query<&ChunkViewers>,
+    chunks: Query<(&ChunkViewers, &ChunkData)>,
     all_sessions: Query<&PlayerSession>,
 ) {
     for (_player_entity, mut breaking, _player_session) in players.iter_mut() {
@@ -458,7 +458,19 @@ pub fn tick_block_breaking(
                 data: event_data,
             };
 
-            // Build punch particles (ParticlePunchBlock - generic, block-independent)
+            // Look up block runtime ID from chunk data for correct particles/sounds
+            let block_runtime_id = chunks
+                .get(chunk_entity)
+                .ok()
+                .map(|(_, chunk_data)| {
+                    let local_x = (x & 15) as u8;
+                    let local_y = y as i16;
+                    let local_z = (z & 15) as u8;
+                    chunk_data.inner.get_block(local_x, local_y, local_z)
+                })
+                .unwrap_or(0);
+
+            // Build punch particles with block runtime ID
             let particle_event = LevelEventPacket {
                 event: LevelEventPacketEvent::ParticlePunchBlock,
                 position: Vec3F {
@@ -466,7 +478,7 @@ pub fn tick_block_breaking(
                     y: y as f32 + 0.5,
                     z: z as f32 + 0.5,
                 },
-                data: 0, // We don't have block runtime ID readily available here
+                data: block_runtime_id as i32,
             };
 
             // Build breaking sound (SoundType::Hit with block data)
@@ -477,7 +489,7 @@ pub fn tick_block_breaking(
                     y: y as f32 + 0.5,
                     z: z as f32 + 0.5,
                 },
-                extra_data: 0, // Block runtime ID - we don't have it here, but Hit still works
+                extra_data: block_runtime_id as i32,
                 entity_type: String::new(),
                 is_baby_mob: false,
                 is_global: false,
@@ -485,7 +497,7 @@ pub fn tick_block_breaking(
             };
 
             // Broadcast to all chunk viewers including breaking player
-            if let Ok(viewers) = chunk_viewers.get(chunk_entity) {
+            if let Ok((viewers, _)) = chunks.get(chunk_entity) {
                 for viewer_entity in viewers.iter() {
                     if let Ok(session) = all_sessions.get(viewer_entity) {
                         let _ = session.send(McpePacket::from(crack_event.clone()));

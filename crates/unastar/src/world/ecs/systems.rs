@@ -20,10 +20,10 @@ use crate::world::ecs::{
     ChunkData, ChunkEntities, ChunkLoader, ChunkManager, ChunkModified, ChunkPendingUnload,
     ChunkPosition, ChunkState, ChunkTicking, ChunkViewers,
 };
-use jolyne::valentine::{
-    LevelChunkPacket, NetworkChunkPublisherUpdatePacket, UpdateBlockPacket, McpePacket,
-};
 use jolyne::valentine::types::{BlockCoordinates, UpdateBlockFlags};
+use jolyne::valentine::{
+    LevelChunkPacket, McpePacket, NetworkChunkPublisherUpdatePacket, UpdateBlockPacket,
+};
 
 /// Configuration for chunk loading behavior.
 #[derive(Resource, Debug, Clone)]
@@ -41,7 +41,7 @@ pub struct ChunkLoadConfig {
 impl Default for ChunkLoadConfig {
     fn default() -> Self {
         Self {
-            chunks_per_tick: 4,
+            chunks_per_tick: 16, // Increased from 8 after generator optimization
             dimension: 0,
             simulation_distance: 6,
             unload_grace_ticks: 100,
@@ -53,7 +53,7 @@ impl ChunkLoadConfig {
     /// Create from ServerConfig.
     pub fn from_server_config(config: &crate::server::ServerConfig) -> Self {
         Self {
-            chunks_per_tick: 4,
+            chunks_per_tick: 8, // Low value to avoid slow ticks during terrain generation
             dimension: config.world.dimension,
             simulation_distance: config.simulation_distance,
             unload_grace_ticks: config.chunk_unload_ticks,
@@ -99,9 +99,10 @@ pub fn initialize_chunk_loaders(
         commands.entity(entity).insert((
             loader,
             LastPublisherState {
-                chunk_x,
-                chunk_z,
-                radius: radius.0,
+                // Use impossible values so first update always triggers
+                chunk_x: i32::MIN,
+                chunk_z: i32::MIN,
+                radius: 0,
                 queue_was_empty: false,
             },
         ));
@@ -127,7 +128,7 @@ pub fn update_chunk_loaders(
             &mut ChunkLoader,
             &mut LastPublisherState,
         ),
-        (With<Player>, Changed<Position>),
+        With<Player>,
     >,
     mut chunks: Query<&mut ChunkViewers>,
 ) {
@@ -135,6 +136,13 @@ pub fn update_chunk_loaders(
         let chunk_x = (position.0.x / 16.0).floor() as i32;
         let chunk_z = (position.0.z / 16.0).floor() as i32;
         let current_pos = loader.position();
+
+        trace!(
+            player = ?player_entity,
+            player_chunk = ?(chunk_x, chunk_z),
+            loader_chunk = ?current_pos,
+            "Update chunk loaders - checking position"
+        );
 
         // Check if player crossed into a new chunk
         if current_pos == (chunk_x, chunk_z) {
@@ -174,9 +182,8 @@ pub fn update_chunk_loaders(
             }
         }
 
-        // Mark publisher state as needing update (position changed)
-        publisher_state.chunk_x = chunk_x;
-        publisher_state.chunk_z = chunk_z;
+        // NOTE: Don't update publisher_state here - let process_chunk_load_queues
+        // detect the change and send the NetworkChunkPublisherUpdate
         publisher_state.queue_was_empty = false;
 
         trace!(
@@ -184,7 +191,8 @@ pub fn update_chunk_loaders(
             from = ?current_pos,
             to = ?(chunk_x, chunk_z),
             pending = loader.queue_len(),
-            "Player moved to new chunk"
+            evicted = evicted.len(),
+            "Player crossed chunk boundary - queuing new chunks"
         );
     }
 }
@@ -244,40 +252,60 @@ pub fn process_chunk_load_queues(
 
         // Process up to N chunks from the queue
         let mut sent_count = 0;
+        let mut retry_count = 0;
+
         while sent_count < config.chunks_per_tick {
             let Some((cx, cz)) = loader.next_to_load() else {
                 break;
             };
 
             // Get or create chunk entity - returns (entity, Option<newly_generated_chunk>)
-            let (chunk_entity, new_chunk_data) = chunk_manager.get_or_create(cx, cz, &mut commands);
-
-            // Add player as viewer if chunk already exists (new chunks need commands to flush first)
-            if new_chunk_data.is_none() {
-                if let Ok((mut viewers, _)) = chunks.get_mut(chunk_entity) {
-                    viewers.insert(player_entity);
-                }
-            }
+            // This also registers the player as a pending viewer in the ChunkManager
+            let (chunk_entity, new_chunk_data) =
+                chunk_manager.get_or_create(cx, cz, &mut commands, player_entity);
 
             // Get chunk data from either the returned new chunk or query the existing ChunkData component
-            let (payload, highest_subchunk) = if let Some(ref chunk) = new_chunk_data {
+            let chunk_data_result = if let Some(ref chunk) = new_chunk_data {
                 // Newly created - use the returned data directly
-                (chunk.encode_biomes(), chunk.highest_subchunk())
+                Some((chunk.encode_biomes(), chunk.highest_subchunk()))
             } else {
                 // Existing chunk - read from ChunkData component
-                if let Ok((_, chunk_data)) = chunks.get(chunk_entity) {
+                chunks.get(chunk_entity).ok().map(|(_, chunk_data)| {
                     (
                         chunk_data.inner.encode_biomes(),
                         chunk_data.inner.highest_subchunk(),
                     )
-                } else {
-                    debug!(chunk = ?(cx, cz), "Failed to get ChunkData component");
+                })
+            };
+
+            let (payload, highest_subchunk) = match chunk_data_result {
+                Some(data) => data,
+                None => {
+                    // ChunkData component not ready yet (commands not flushed)
+                    // Leave in queue to retry next tick
+                    trace!(
+                        chunk = ?(cx, cz),
+                        player = ?player_entity,
+                        "ChunkData component not ready - will retry next tick"
+                    );
+                    retry_count += 1;
+
+                    // If we've hit too many retries in a row, break to avoid infinite loop
+                    // This can happen if chunks are being generated but components aren't flushing
+                    if retry_count >= 3 {
+                        debug!(
+                            player = ?player_entity,
+                            retry_count,
+                            "Hit retry limit - breaking to allow command flush"
+                        );
+                        break;
+                    }
                     continue;
                 }
             };
 
             // Send LevelChunk packet
-            if let Err(e) = session.send(McpePacket::from(LevelChunkPacket {
+            let send_result = session.send(McpePacket::from(LevelChunkPacket {
                 x: cx,
                 z: cz,
                 dimension: config.dimension,
@@ -285,19 +313,31 @@ pub fn process_chunk_load_queues(
                 highest_subchunk_count: Some(highest_subchunk),
                 blobs: None,
                 payload,
-            })) {
+            }));
+
+            if let Err(e) = send_result {
                 debug!(
                     player = ?player_entity,
                     chunk = ?(cx, cz),
                     error = ?e,
-                    "Failed to send chunk"
+                    "Failed to send chunk packet - will retry next tick"
                 );
+                // Don't mark as loaded - leave in queue to retry
+                // Break instead of continue to avoid burning through the whole queue on network errors
                 break;
             }
 
-            // Mark as loaded in the loader
+            // ✅ ONLY mark as loaded after successful send
             loader.mark_loaded(cx, cz);
             sent_count += 1;
+            retry_count = 0; // Reset retry counter on success
+
+            trace!(
+                chunk = ?(cx, cz),
+                highest_subchunk = highest_subchunk,
+                is_new = new_chunk_data.is_some(),
+                "Sent LevelChunk packet"
+            );
 
             trace!(
                 player = ?player_entity,
@@ -315,6 +355,16 @@ pub fn process_chunk_load_queues(
                 sent = sent_count,
                 remaining = loader.queue_len(),
                 "Processed chunk queue"
+            );
+        }
+
+        // Diagnostic: Log if player has pending chunks but we couldn't send any
+        if loader.has_pending() && sent_count == 0 {
+            debug!(
+                player = ?player_entity,
+                pending_count = loader.queue_len(),
+                retry_count,
+                "Player has pending chunks but none were sent this tick (may need command flush)"
             );
         }
     }
@@ -462,6 +512,38 @@ pub fn process_chunk_unloads(
             debug!(chunk = ?(pos.x, pos.z), "Chunk unloaded");
         }
     }
+}
+
+/// System: Flush pending viewers from ChunkManager to ECS components.
+/// Ensures that even if a chunk was just spawned, its viewers are eventually synchronized.
+pub fn flush_pending_viewers(
+    mut chunk_manager: ResMut<ChunkManager>,
+    mut chunks: Query<&mut ChunkViewers>,
+) {
+    if chunk_manager.is_empty() {
+        return;
+    }
+
+    // We use a temporary vector to avoid borrowing issues while draining
+    let mut still_pending = std::collections::HashMap::new();
+
+    // Drain pending viewers and try to apply them to chunk entities
+    let pending_items: Vec<_> = chunk_manager.pending_viewers.drain().collect();
+
+    for (pos, viewers) in pending_items {
+        if let Some(chunk_entity) = chunk_manager.get_by_coords(pos.0, pos.1) {
+            if let Ok(mut viewers_comp) = chunks.get_mut(chunk_entity) {
+                for viewer in viewers {
+                    viewers_comp.insert(viewer);
+                }
+            } else {
+                // Entity exists in manager but component not ready yet (likely spawned this tick)
+                still_pending.insert(pos, viewers);
+            }
+        }
+    }
+
+    chunk_manager.pending_viewers = still_pending;
 }
 
 /// System: Update ChunkTicking markers based on simulation distance.
@@ -635,6 +717,7 @@ pub fn register_chunk_systems(schedule: &mut bevy_ecs::schedule::Schedule) {
         (
             initialize_chunk_loaders,
             update_chunk_loaders,
+            flush_pending_viewers, // Add flush system
             process_chunk_load_queues,
             handle_radius_changes,
             schedule_chunk_unloads,

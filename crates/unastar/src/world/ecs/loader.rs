@@ -124,7 +124,7 @@ impl ChunkLoader {
         // Evict chunks outside the new view
         let mut evicted = Vec::new();
         self.loaded.retain(|&(lx, lz)| {
-            let in_range = Self::is_in_range(cx, cz, lx, lz, r);
+            let in_range = Self::is_in_range_circular(cx, cz, lx, lz, r);
             if !in_range {
                 evicted.push((lx, lz));
             }
@@ -135,11 +135,16 @@ impl ChunkLoader {
         let mut to_load = Vec::new();
         for dx in -r..=r {
             for dz in -r..=r {
-                let chunk_x = cx + dx;
-                let chunk_z = cz + dz;
-                if !self.loaded.contains(&(chunk_x, chunk_z)) {
-                    let dist_sq = dx * dx + dz * dz;
-                    to_load.push((dist_sq, chunk_x, chunk_z));
+                let dist_sq = dx * dx + dz * dz;
+                let radius_sq = r * r;
+
+                // Only load chunks within circular radius
+                if dist_sq <= radius_sq {
+                    let chunk_x = cx + dx;
+                    let chunk_z = cz + dz;
+                    if !self.loaded.contains(&(chunk_x, chunk_z)) {
+                        to_load.push((dist_sq, chunk_x, chunk_z));
+                    }
                 }
             }
         }
@@ -151,6 +156,16 @@ impl ChunkLoader {
         self.load_queue = to_load.into_iter().map(|(_, x, z)| (x, z)).collect();
 
         evicted
+    }
+
+    /// Check if a chunk position is within circular range of the center.
+    #[inline]
+    fn is_in_range_circular(cx: i32, cz: i32, x: i32, z: i32, radius: i32) -> bool {
+        let dx = x - cx;
+        let dz = z - cz;
+        let dist_sq = dx * dx + dz * dz;
+        let radius_sq = radius * radius;
+        dist_sq <= radius_sq
     }
 
     /// Check if a chunk position is within range of the center.

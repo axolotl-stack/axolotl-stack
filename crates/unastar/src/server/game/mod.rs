@@ -21,8 +21,8 @@ pub mod types;
 use bevy_ecs::prelude::*;
 use jolyne::WorldTemplate;
 use jolyne::valentine::StartGamePacketDimension;
-use jolyne::valentine::types::Vec3F;
 use jolyne::valentine::types::BlockCoordinates;
+use jolyne::valentine::types::Vec3F;
 use std::sync::Arc;
 use tracing::{info, trace, warn};
 
@@ -73,6 +73,9 @@ pub struct GameServer {
     pub entities: EntityRegistry,
     pub biomes: BiomeRegistry,
     pub blocks: BlockRegistry,
+
+    // Item entity ID counter for dropped items (starts at high value to avoid player ID conflicts)
+    pub next_item_entity_id: i64,
 }
 
 impl GameServer {
@@ -180,6 +183,7 @@ impl GameServer {
             entities,
             biomes,
             blocks,
+            next_item_entity_id: 100000, // Start at high value to avoid conflicts with player IDs
         }
     }
 
@@ -538,9 +542,9 @@ impl GameServer {
     ) -> jolyne::valentine::CreativeContentPacket {
         use crate::registry::RegistryEntry;
         use jolyne::valentine::{
-            ItemLegacy, ItemLegacyContent, ItemLegacyContentExtra, CreativeContentPacket,
-            CreativeContentPacketGroupsItem, CreativeContentPacketGroupsItemCategory,
-            CreativeContentPacketItemsItem,
+            CreativeContentPacket, CreativeContentPacketGroupsItem,
+            CreativeContentPacketGroupsItemCategory, CreativeContentPacketItemsItem, ItemLegacy,
+            ItemLegacyContent, ItemLegacyContentExtra,
         };
 
         // Create proper groups like Dragonfly does

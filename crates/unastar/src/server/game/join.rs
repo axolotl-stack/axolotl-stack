@@ -5,21 +5,21 @@
 use super::GameServer;
 use crate::entity::components::{GameMode, PlayerSession, RuntimeEntityId};
 use jolyne::valentine::items::ITEMS;
-use jolyne::valentine::{
-    CreativeContentPacket, CreativeContentPacketGroupsItem,
-    CreativeContentPacketGroupsItemCategory, CreativeContentPacketItemsItem,
-    InventoryContentPacket, SetPlayerGameTypePacket, McpePacket,
-};
 use jolyne::valentine::types::{
     AbilityLayers, AbilityLayersType, AbilitySet, CommandPermissionLevel, ContainerSlotType,
     EntityProperties, FullContainerName, GameMode as ProtocolGameMode, Item, ItemLegacy,
-    ItemLegacyContent, ItemLegacyContentExtra, MetadataDictionary,
-    MetadataDictionaryItem, MetadataDictionaryItemKey, MetadataDictionaryItemType,
-    MetadataDictionaryItemValue, MetadataDictionaryItemValueDefault, MetadataFlags1,
-    PermissionLevel, PlayerAttributesItem, WindowIdVarint,
+    ItemLegacyContent, ItemLegacyContentExtra, MetadataDictionary, MetadataDictionaryItem,
+    MetadataDictionaryItemKey, MetadataDictionaryItemType, MetadataDictionaryItemValue,
+    MetadataDictionaryItemValueDefault, MetadataFlags1, PermissionLevel, PlayerAttributesItem,
+    WindowIdVarint,
 };
 use jolyne::valentine::{
     ChunkRadiusUpdatePacket, SetEntityDataPacket, UpdateAbilitiesPacket, UpdateAttributesPacket,
+};
+use jolyne::valentine::{
+    CreativeContentPacket, CreativeContentPacketGroupsItem,
+    CreativeContentPacketGroupsItemCategory, CreativeContentPacketItemsItem,
+    InventoryContentPacket, McpePacket, SetPlayerGameTypePacket,
 };
 use tracing::debug;
 

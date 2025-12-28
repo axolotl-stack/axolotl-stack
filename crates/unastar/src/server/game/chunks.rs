@@ -3,18 +3,21 @@
 //! Contains subchunk request and chunk radius request handling.
 
 use bevy_ecs::entity::Entity;
-use tracing::debug;
+use tracing::{debug, trace};
 
 use super::GameServer;
 use crate::entity::components::{ChunkRadius, PlayerSession};
 use crate::world::ChunkPos;
 use crate::world::chunk::HeightMapType;
 use crate::world::ecs::{ChunkManager, ChunkViewers};
-use jolyne::valentine::{
-    ChunkRadiusUpdatePacket, RequestChunkRadiusPacket, SubchunkPacket, SubchunkPacketEntries,
-    SubchunkRequestPacket, McpePacket,
+use jolyne::valentine::types::{
+    HeightMapDataType, SubChunkEntryWithoutCachingItem, SubChunkEntryWithoutCachingItemResult,
+    Vec3I,
 };
-use jolyne::valentine::types::{HeightMapDataType, SubChunkEntryWithoutCachingItem, SubChunkEntryWithoutCachingItemResult, Vec3I};
+use jolyne::valentine::{
+    ChunkRadiusUpdatePacket, McpePacket, RequestChunkRadiusPacket, SubchunkPacket,
+    SubchunkPacketEntries, SubchunkRequestPacket,
+};
 
 /// Maximum subchunk requests per packet (DoS protection).
 const MAX_SUBCHUNK_REQUESTS: usize = 1024;
@@ -62,7 +65,8 @@ impl GameServer {
         let chunk_x = origin.x;
         let chunk_z = origin.z;
 
-        debug!(
+        // Only log at trace level to avoid overhead
+        trace!(
             session_id,
             origin = ?origin,
             request_count = req.requests.len(),
@@ -128,34 +132,76 @@ impl GameServer {
 
             let (is_empty, subchunk_data, hm_type, hm_data) = {
                 let world = self.ecs.world();
-                let Some(chunk_data) = world.get::<crate::world::ecs::ChunkData>(chunk_entity)
-                else {
-                    entries.push(SubChunkEntryWithoutCachingItem {
-                        dx: offset.dx,
-                        dy: offset.dy,
-                        dz: offset.dz,
-                        result: SubChunkEntryWithoutCachingItemResult::SuccessAllAir,
-                        payload: vec![],
-                        heightmap_type: HeightMapDataType::TooLow,
-                        heightmap: None,
-                        render_heightmap_type: HeightMapDataType::TooLow,
-                        render_heightmap: None,
-                    });
-                    continue;
-                };
-                let is_empty = chunk_data.inner.is_subchunk_empty(sub_y);
-                let subchunk_data = if !is_empty {
-                    chunk_data.inner.encode_subchunk(sub_y).unwrap_or_default()
+                let chunk_manager = world
+                    .get_resource::<ChunkManager>()
+                    .expect("ChunkManager must exist");
+
+                if let Some(chunk_data) = world.get::<crate::world::ecs::ChunkData>(chunk_entity) {
+                    let is_empty = chunk_data.inner.is_subchunk_empty(sub_y);
+                    let subchunk_data = if !is_empty {
+                        // Check if we can use superflat cache
+                        let use_cache = matches!(
+                            chunk_manager.world_config().generator,
+                            crate::world::WorldGenerator::SuperFlat
+                        );
+
+                        if use_cache {
+                            if let Some(cached) =
+                                crate::world::generator::flat::get_cached_superflat_subchunk(sub_y)
+                            {
+                                cached.to_vec()
+                            } else {
+                                chunk_data.inner.encode_subchunk(sub_y).unwrap_or_default()
+                            }
+                        } else {
+                            chunk_data.inner.encode_subchunk(sub_y).unwrap_or_default()
+                        }
+                    } else {
+                        vec![]
+                    };
+                    let (ht, hm) = chunk_data.inner.get_subchunk_heightmap(sub_y);
+                    let hm_type = match ht {
+                        HeightMapType::TooHigh => HeightMapDataType::TooHigh,
+                        HeightMapType::TooLow => HeightMapDataType::TooLow,
+                        HeightMapType::HasData => HeightMapDataType::HasData,
+                    };
+                    (is_empty, subchunk_data, hm_type, hm)
                 } else {
-                    vec![]
-                };
-                let (ht, hm) = chunk_data.inner.get_subchunk_heightmap(sub_y);
-                let hm_type = match ht {
-                    HeightMapType::TooHigh => HeightMapDataType::TooHigh,
-                    HeightMapType::TooLow => HeightMapDataType::TooLow,
-                    HeightMapType::HasData => HeightMapDataType::HasData,
-                };
-                (is_empty, subchunk_data, hm_type, hm)
+                    // Entity exists but component not ready (flushing commands)
+                    // Fallback to generating a temporary chunk to avoid returning "all air"
+                    trace!(chunk = ?(target_chunk_x, target_chunk_z), sub_y, "SubChunkRequest for unflushed chunk - using temporary generation");
+                    let temp_chunk = chunk_manager.generate_chunk(target_chunk_x, target_chunk_z);
+
+                    let is_empty = temp_chunk.is_subchunk_empty(sub_y);
+                    let subchunk_data = if !is_empty {
+                        // Check if we can use superflat cache (even for temporary chunks)
+                        let use_cache = matches!(
+                            chunk_manager.world_config().generator,
+                            crate::world::WorldGenerator::SuperFlat
+                        );
+
+                        if use_cache {
+                            if let Some(cached) =
+                                crate::world::generator::flat::get_cached_superflat_subchunk(sub_y)
+                            {
+                                cached.to_vec()
+                            } else {
+                                temp_chunk.encode_subchunk(sub_y).unwrap_or_default()
+                            }
+                        } else {
+                            temp_chunk.encode_subchunk(sub_y).unwrap_or_default()
+                        }
+                    } else {
+                        vec![]
+                    };
+                    let (ht, hm) = temp_chunk.get_subchunk_heightmap(sub_y);
+                    let hm_type = match ht {
+                        HeightMapType::TooHigh => HeightMapDataType::TooHigh,
+                        HeightMapType::TooLow => HeightMapDataType::TooLow,
+                        HeightMapType::HasData => HeightMapDataType::HasData,
+                    };
+                    (is_empty, subchunk_data, hm_type, hm)
+                }
             };
 
             let result = if is_empty {
@@ -177,13 +223,23 @@ impl GameServer {
             });
         }
 
-        // Ensure chunk entities exist and add player as viewer for each served chunk
-        use crate::world::ecs::ChunkManagerWorldExt;
-        for (cx, cz) in served_chunks {
-            // Create chunk entity if it doesn't exist
-            let chunk_entity = self.ecs.world_mut().get_or_create_chunk(cx, cz);
+        // Add player as viewer for served chunks (don't generate missing chunks here!)
+        // The chunk streaming system will handle chunk generation asynchronously
+        // First collect existing chunk entities, then add viewers
+        let chunk_entities: Vec<_> = {
+            let world = self.ecs.world();
+            if let Some(chunk_manager) = world.get_resource::<crate::world::ecs::ChunkManager>() {
+                served_chunks
+                    .iter()
+                    .filter_map(|(cx, cz)| chunk_manager.get_by_coords(*cx, *cz))
+                    .collect()
+            } else {
+                Vec::new()
+            }
+        };
 
-            // Add player as viewer
+        // Now add player as viewer (can mutate world)
+        for chunk_entity in chunk_entities {
             let world = self.ecs.world_mut();
             if let Some(mut viewers) = world.get_mut::<ChunkViewers>(chunk_entity) {
                 viewers.insert(entity);

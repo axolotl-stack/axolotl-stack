@@ -14,12 +14,11 @@ use crate::entity::components::{
     HeldSlot, InventoryOpened, PlayerInput, PlayerSession, PlayerState,
 };
 use crate::network::SessionId;
+use jolyne::valentine::types::{Action, BlockCoordinates, InputFlag, WindowId, WindowType};
 use jolyne::valentine::{
-    ContainerClosePacket, ContainerOpenPacket, InteractPacket,
-    MobEquipmentPacket, McpePacket, McpePacketData,
-};
-use jolyne::valentine::types::{
-    BlockCoordinates, InputFlag, WindowId, WindowType, InteractPacketActionId
+    AnimatePacket, ContainerClosePacket, ContainerOpenPacket, InteractPacket,
+    InteractPacketActionId, McpePacket, McpePacketData, MobEquipmentPacket, PlayerActionPacket,
+    TextPacket, TextPacketType,
 };
 
 impl GameServer {
@@ -80,6 +79,9 @@ impl GameServer {
             }
             McpePacketData::PacketInventoryTransaction(pk) => {
                 self.handle_inventory_transaction(entity, pk);
+            }
+            McpePacketData::PacketText(pk) => {
+                self.handle_text(session_id, entity, pk);
             }
             _ => {
                 debug!(
@@ -566,6 +568,194 @@ impl GameServer {
                 _ => {
                     debug!(source_type = ?action.source_type, "Unhandled action source type");
                 }
+            }
+        }
+    }
+
+    /// Handle Animate packet (arm swings, critical hits, etc.).
+    ///
+    /// When a player swings their arm or performs other animations,
+    /// we need to broadcast this to nearby players so they can see it.
+    pub(super) fn handle_animate(
+        &mut self,
+        session_id: SessionId,
+        entity: Entity,
+        pk: &AnimatePacket,
+    ) {
+        use crate::entity::components::RuntimeEntityId;
+
+        debug!(
+            session_id,
+            action = ?pk.action_id,
+            runtime_id = pk.runtime_entity_id,
+            "Received Animate packet"
+        );
+
+        // Get the sender's runtime ID for broadcasting
+        let world = self.ecs.world();
+        let sender_runtime_id = world
+            .get::<RuntimeEntityId>(entity)
+            .map(|r| r.0)
+            .unwrap_or(pk.runtime_entity_id);
+
+        // Build the animate packet to broadcast to other players
+        let broadcast_packet = AnimatePacket {
+            action_id: pk.action_id,
+            runtime_entity_id: sender_runtime_id,
+            data: pk.data,
+            swing_source: pk.swing_source.clone(),
+        };
+
+        // Broadcast to all other players
+        let world = self.ecs.world();
+        let session_map = match world.get_resource::<SessionEntityMap>() {
+            Some(map) => map,
+            None => return,
+        };
+
+        for (_sid, other_entity) in session_map.iter() {
+            if other_entity == entity {
+                continue; // Skip sender
+            }
+            if let Some(other_session) = world.get::<PlayerSession>(other_entity) {
+                let _ = other_session.send(McpePacket::from(broadcast_packet.clone()));
+            }
+        }
+    }
+
+    /// Handle Text packet (chat messages, whispers, etc.).
+    ///
+    /// When a player sends a chat message, we need to format it and
+    /// broadcast it to the appropriate recipients.
+    pub(super) fn handle_text(&mut self, session_id: SessionId, entity: Entity, pk: &TextPacket) {
+        use crate::entity::components::PlayerName;
+        use jolyne::valentine::TextPacketExtra;
+
+        debug!(
+            session_id,
+            text_type = ?pk.type_,
+            category = ?pk.category,
+            "Received Text packet"
+        );
+
+        // Extract the message content based on type
+        let message = match &pk.extra {
+            Some(TextPacketExtra::Chat(data)) => Some(data.message.clone()),
+            Some(TextPacketExtra::Whisper(data)) => Some(data.message.clone()),
+            _ => None,
+        };
+
+        let Some(message) = message else {
+            trace!("Text packet without extractable message");
+            return;
+        };
+
+        // Get sender's name
+        let world = self.ecs.world();
+        let sender_name = world
+            .get::<PlayerName>(entity)
+            .map(|n| n.0.clone())
+            .unwrap_or_else(|| "Unknown".to_string());
+
+        match pk.type_ {
+            TextPacketType::Chat => {
+                info!(
+                    sender = %sender_name,
+                    message = %message,
+                    "Chat message"
+                );
+
+                // Clone the incoming packet to preserve all protocol-specific fields (XUID, platforms, etc.)
+                let mut broadcast_packet = pk.clone();
+
+                // Update the message and source name in the extra data
+                if let Some(TextPacketExtra::Chat(ref mut extra)) = broadcast_packet.extra {
+                    extra.source_name = sender_name.clone();
+                    extra.message = message.clone();
+                }
+
+                // Broadcast to all players
+                let world = self.ecs.world();
+                let session_map = match world.get_resource::<SessionEntityMap>() {
+                    Some(map) => map,
+                    None => return,
+                };
+
+                for (_sid, other_entity) in session_map.iter() {
+                    if let Some(other_session) = world.get::<PlayerSession>(other_entity) {
+                        let _ = other_session.send(McpePacket::from(broadcast_packet.clone()));
+                    }
+                }
+            }
+            TextPacketType::Whisper => {
+                // For whisper, we'd need to find the target player and send privately
+                // This requires extracting the target from the message (e.g., "/tell Player msg")
+                debug!(
+                    sender = %sender_name,
+                    message = %message,
+                    "Whisper message (not fully implemented)"
+                );
+            }
+            _ => {
+                trace!(text_type = ?pk.type_, "Unhandled text type");
+            }
+        }
+    }
+
+    /// Handle PlayerAction packet (jump, sprint, sneak, respawn, etc.).
+    ///
+    /// This packet is sent when a player performs various actions that
+    /// aren't covered by PlayerAuthInput (which handles most movement).
+    pub(super) fn handle_player_action(&mut self, entity: Entity, pk: &PlayerActionPacket) {
+        use crate::entity::components::PlayerState;
+
+        trace!(
+            action = ?pk.action,
+            position = ?pk.position,
+            face = pk.face,
+            "Received PlayerAction packet"
+        );
+
+        let world = self.ecs.world_mut();
+
+        match pk.action {
+            Action::Jump => {
+                // Jump action - mostly informational, physics handled elsewhere
+                trace!("Player jumped");
+            }
+            Action::StartSprint => {
+                if let Some(mut state) = world.get_mut::<PlayerState>(entity) {
+                    state.sprinting = true;
+                }
+            }
+            Action::StopSprint => {
+                if let Some(mut state) = world.get_mut::<PlayerState>(entity) {
+                    state.sprinting = false;
+                }
+            }
+            Action::StartSneak => {
+                if let Some(mut state) = world.get_mut::<PlayerState>(entity) {
+                    state.sneaking = true;
+                }
+            }
+            Action::StopSneak => {
+                if let Some(mut state) = world.get_mut::<PlayerState>(entity) {
+                    state.sneaking = false;
+                }
+            }
+            Action::Respawn => {
+                debug!("Player requested respawn");
+                // TODO: Implement respawn logic - reset position, health, etc.
+            }
+            Action::DimensionChangeAck => {
+                debug!("Player acknowledged dimension change");
+                // Client is ready after dimension change
+            }
+            Action::HandledTeleport => {
+                trace!("Player handled teleport");
+            }
+            _ => {
+                trace!(action = ?pk.action, "Unhandled player action");
             }
         }
     }

@@ -11,8 +11,8 @@ use crate::world::chunk::blocks;
 use crate::world::ecs::{ChunkManager, ChunkViewers};
 use crate::world::ecs::{world_to_chunk_coords, world_to_local_coords};
 use jolyne::valentine::blocks::BLOCKS;
-use jolyne::valentine::{LevelEventPacket, LevelEventPacketEvent, McpePacket};
 use jolyne::valentine::types::{Action, BlockCoordinates, Vec3F};
+use jolyne::valentine::{LevelEventPacket, LevelEventPacketEvent, McpePacket};
 
 /// Maximum block actions per PlayerAuthInput packet.
 const MAX_BLOCK_ACTIONS: usize = 64;
@@ -27,7 +27,6 @@ impl GameServer {
         let Some(block_actions) = &pk.block_action else {
             return;
         };
-
         // Get current tick for timing
         let current_tick = self.current_tick;
 
@@ -59,17 +58,33 @@ impl GameServer {
                 // Creative mode: instant block destroy
                 Action::PredictBreak | Action::CreativePlayerDestroyBlock => {
                     if let Some((x, y, z)) = get_pos(&action_item.content) {
-                        debug!(pos = ?(x, y, z), "Creative/Predict block break");
-                        self.break_block(x, y, z);
+                        info!(pos = ?(x, y, z), "Creative/Predict block break");
+                        self.break_block(player_entity, x, y, z);
                     }
                 }
-                // Survival: Start breaking - record state and broadcast crack animation
+                // Survival or Creative: Start breaking - record state
                 Action::StartBreak => {
-                    if let Some((x, y, z)) = get_pos(&action_item.content) {
-                        debug!(pos = ?(x, y, z), "StartBreak");
+                    // StartBreak might not have position content - get it from content if available
+                    let pos = get_pos(&action_item.content);
 
-                        // Get actual break time from block hardness
-                        let break_time_ticks = self.get_block_break_time(x, y, z);
+                    if let Some((x, y, z)) = pos {
+                        // Check if player is in creative mode (instant break)
+                        let is_creative = {
+                            let world = self.ecs.world();
+                            world
+                                .get::<crate::entity::components::GameMode>(player_entity)
+                                .map(|gm| gm.instant_break())
+                                .unwrap_or(false)
+                        };
+
+                        // Get actual break time from block hardness (0 for creative)
+                        let break_time_ticks = if is_creative {
+                            0 // Instant break in creative
+                        } else {
+                            self.get_block_break_time(x, y, z)
+                        };
+
+                        info!(pos = ?(x, y, z), is_creative, break_time_ticks, "StartBreak - setting break time");
 
                         // Update player breaking state
                         {
@@ -82,39 +97,84 @@ impl GameServer {
                         }
 
                         // Broadcast crack animation to chunk viewers (except breaker)
-                        self.broadcast_block_crack_start(x, y, z, break_time_ticks);
+                        if !is_creative {
+                            self.broadcast_block_crack_start(x, y, z, break_time_ticks);
+                        }
+                    } else {
+                        info!("StartBreak: no position in content (will use CrackBreak position)");
+                    }
+                }
+                // CrackBreak: ongoing break animation - update position if StartBreak had none
+                Action::CrackBreak | Action::ContinueBreak => {
+                    if let Some((x, y, z)) = get_pos(&action_item.content) {
+                        // If we're not already breaking, start breaking now
+                        let needs_start = {
+                            let world = self.ecs.world();
+                            world
+                                .get::<BreakingState>(player_entity)
+                                .map(|b| b.position.is_none())
+                                .unwrap_or(true)
+                        };
+
+                        if needs_start {
+                            // Check if player is in creative mode
+                            let is_creative = {
+                                let world = self.ecs.world();
+                                world
+                                    .get::<crate::entity::components::GameMode>(player_entity)
+                                    .map(|gm| gm.instant_break())
+                                    .unwrap_or(false)
+                            };
+
+                            let break_time_ticks = if is_creative {
+                                0
+                            } else {
+                                self.get_block_break_time(x, y, z)
+                            };
+
+                            info!(pos = ?(x, y, z), is_creative, break_time_ticks, "CrackBreak: starting break (StartBreak had no position)");
+
+                            let world = self.ecs.world_mut();
+                            if let Some(mut breaking) =
+                                world.get_mut::<BreakingState>(player_entity)
+                            {
+                                breaking.start(x, y, z, current_tick, break_time_ticks);
+                            }
+                        }
                     }
                 }
                 // Survival mode: StopBreak means the client finished breaking
                 // NOTE: StopBreak action has NO position data in content - use stored BreakingState.position
+                // We trust the client timing since they have better info about tools, enchantments, haste, etc.
                 Action::StopBreak => {
-                    // Get position and validate from stored breaking state
+                    info!("StopBreak received");
+                    // Get position from stored breaking state - trust client timing
                     let break_result = {
                         let world = self.ecs.world();
                         if let Some(breaking) = world.get::<BreakingState>(player_entity) {
                             if let Some((x, y, z)) = breaking.position {
-                                let valid = breaking.validate_break(current_tick);
-                                debug!(
+                                let elapsed = current_tick.saturating_sub(breaking.start_tick);
+                                info!(
                                     pos = ?(x, y, z),
-                                    elapsed = current_tick.saturating_sub(breaking.start_tick),
+                                    elapsed,
                                     expected = breaking.expected_ticks,
-                                    valid,
-                                    "StopBreak validation"
+                                    "StopBreak - trusting client timing"
                                 );
-                                if valid { Some((x, y, z)) } else { None }
+                                // Trust client - just ensure we have a valid position
+                                Some((x, y, z))
                             } else {
-                                debug!("StopBreak: no breaking position stored");
+                                info!("StopBreak: no breaking position stored");
                                 None
                             }
                         } else {
-                            debug!("StopBreak: no BreakingState component");
+                            info!("StopBreak: no BreakingState component");
                             None
                         }
                     };
 
                     if let Some((x, y, z)) = break_result {
                         info!(pos = ?(x, y, z), "Survival block break (StopBreak) - validated");
-                        self.break_block(x, y, z);
+                        self.break_block(player_entity, x, y, z);
 
                         // Clear breaking state
                         let world = self.ecs.world_mut();
@@ -140,12 +200,6 @@ impl GameServer {
                         // Broadcast stop crack to all viewers
                         self.broadcast_block_crack_stop(x, y, z);
                     }
-                }
-                // Continue/Crack are progress updates - broadcast to other viewers
-                // CrackBreak/ContinueBreak: ignored - cracking is handled server-side
-                // (dragonfly comment: "It is no longer used. Block cracking is done fully server-side.")
-                Action::ContinueBreak | Action::CrackBreak => {
-                    trace!(action = ?action_item.action, "Ignoring client crack packet - handled server-side");
                 }
                 _ => {}
             }
@@ -231,7 +285,9 @@ impl GameServer {
     }
 
     /// Break a block at world coordinates: set to air and broadcast to viewers.
-    pub(super) fn break_block(&mut self, x: i32, y: i32, z: i32) {
+    ///
+    /// The breaking_player receives the effect immediately, even if not yet in ChunkViewers.
+    pub(super) fn break_block(&mut self, breaking_player: Entity, x: i32, y: i32, z: i32) {
         debug!(pos = ?(x, y, z), "break_block called");
 
         let (cx, cz) = world_to_chunk_coords(x, z);
@@ -252,6 +308,16 @@ impl GameServer {
             return;
         };
 
+        // Get the original block runtime ID before breaking (for particles/sound)
+        let original_block_id = {
+            let world = self.ecs.world();
+            if let Some(chunk_data) = world.get::<crate::world::ecs::ChunkData>(chunk_entity) {
+                chunk_data.inner.get_block(local_x, local_y, local_z)
+            } else {
+                0
+            }
+        };
+
         // Update block to air in chunk data (ECS component is source of truth)
         {
             let world = self.ecs.world_mut();
@@ -260,8 +326,21 @@ impl GameServer {
             {
                 chunk_data
                     .inner
-                    .set_block(local_x, local_y, local_z, blocks::AIR);
-                debug!(local = ?(local_x, local_y, local_z), "break_block: set block to AIR");
+                    .set_block(local_x, local_y, local_z, *blocks::AIR);
+                // Log block ID with comparisons to known blocks
+                let is_dirt = original_block_id == *blocks::DIRT;
+                let is_grass = original_block_id == *blocks::GRASS_BLOCK;
+                let is_stone = original_block_id == *blocks::STONE;
+                info!(
+                    local = ?(local_x, local_y, local_z),
+                    original_block_id,
+                    is_dirt,
+                    is_grass,
+                    is_stone,
+                    dirt_id = *blocks::DIRT,
+                    grass_id = *blocks::GRASS_BLOCK,
+                    "break_block: set block to AIR"
+                );
             } else {
                 debug!(chunk = ?(cx, cz), "break_block: chunk data component not found");
                 return;
@@ -273,6 +352,93 @@ impl GameServer {
                 .insert(crate::world::ecs::ChunkModified);
         }
 
+        // Spawn item drop if breaking player is in survival mode
+        // and block is not air
+        if original_block_id != *blocks::AIR {
+            let is_survival = {
+                let world = self.ecs.world();
+                world
+                    .get::<crate::entity::components::GameMode>(breaking_player)
+                    .map(|gm| !gm.instant_break()) // Not creative/spectator = survival/adventure
+                    .unwrap_or(true) // Default to survival
+            };
+
+            if is_survival {
+                // Get item network ID for this block
+                // Most blocks drop themselves - look up the item by block name
+                let item_network_id = {
+                    // Look up block name from runtime ID using jolyne BLOCKS slice
+                    let block_name = BLOCKS.get(original_block_id as usize).map(|b| b.name());
+
+                    use crate::registry::RegistryEntry;
+                    block_name
+                        .and_then(|name| self.items.get_by_name(name).map(|item| item.id()))
+                        .unwrap_or(0)
+                };
+
+                if item_network_id > 0 {
+                    // Allocate item entity ID
+                    let item_entity_id = self.next_item_entity_id;
+                    self.next_item_entity_id += 1;
+
+                    // Create AddItemEntity packet
+                    use jolyne::valentine::AddItemEntityPacket;
+                    use jolyne::valentine::types::{
+                        Item, ItemContent, ItemContentExtra, ItemExtraDataWithoutBlockingTick,
+                    };
+
+                    let item_packet = AddItemEntityPacket {
+                        entity_id_self: item_entity_id,
+                        runtime_entity_id: item_entity_id,
+                        item: Item {
+                            network_id: item_network_id as i32,
+                            content: Some(Box::new(ItemContent {
+                                count: 1,
+                                metadata: 0,
+                                has_stack_id: 0,
+                                stack_id: None,
+                                block_runtime_id: original_block_id as i32,
+                                extra: ItemContentExtra::Default(
+                                    ItemExtraDataWithoutBlockingTick::default(),
+                                ),
+                            })),
+                        },
+                        position: Vec3F {
+                            x: x as f32 + 0.5,
+                            y: y as f32 + 0.25, // Spawn slightly above block center
+                            z: z as f32 + 0.5,
+                        },
+                        velocity: Vec3F {
+                            x: 0.0,
+                            y: 0.1, // Small upward velocity
+                            z: 0.0,
+                        },
+                        metadata: vec![], // Empty metadata
+                        is_from_fishing: false,
+                    };
+
+                    // Send to breaking player
+                    let world = self.ecs.world();
+                    if let Some(session) = world.get::<PlayerSession>(breaking_player) {
+                        let _ = session.send(McpePacket::from(item_packet.clone()));
+                        info!(pos = ?(x, y, z), item_network_id, entity_id = item_entity_id, "Spawned item drop");
+                    }
+
+                    // Also send to chunk viewers
+                    if let Some(chunk_viewers) = world.get::<ChunkViewers>(chunk_entity) {
+                        for viewer in chunk_viewers.iter() {
+                            if viewer != breaking_player {
+                                if let Some(viewer_session) = world.get::<PlayerSession>(viewer) {
+                                    let _ =
+                                        viewer_session.send(McpePacket::from(item_packet.clone()));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Broadcast to viewers
         let world = self.ecs.world();
 
@@ -281,27 +447,27 @@ impl GameServer {
             debug!(viewer_count, "break_block: broadcasting UpdateBlock");
 
             // Prepare destroy particles and break sound
+            use jolyne::valentine::types::{SoundType, UpdateBlockFlags};
             use jolyne::valentine::{
                 LevelEventPacket, LevelEventPacketEvent, LevelSoundEventPacket, UpdateBlockPacket,
             };
-            use jolyne::valentine::types::{SoundType, UpdateBlockFlags};
 
             let update_packet = UpdateBlockPacket {
                 position: BlockCoordinates { x, y, z },
-                block_runtime_id: blocks::AIR as i32,
+                block_runtime_id: *blocks::AIR as i32,
                 flags: UpdateBlockFlags::NEIGHBORS | UpdateBlockFlags::NETWORK,
                 layer: 0,
             };
 
-            // Destroy particles (ParticleDestroyBlockNoSound)
+            // Destroy particles
             let particle_packet = LevelEventPacket {
-                event: LevelEventPacketEvent::ParticleDestroyBlockNoSound,
+                event: LevelEventPacketEvent::ParticleDestroy,
                 position: Vec3F {
                     x: x as f32 + 0.5,
                     y: y as f32 + 0.5,
                     z: z as f32 + 0.5,
                 },
-                data: 0, // Block runtime ID would be nice but we don't have it here
+                data: original_block_id as i32, // Block runtime ID for correct particle texture
             };
 
             // Break sound (SoundType::BreakBlock)
@@ -312,25 +478,79 @@ impl GameServer {
                     y: y as f32 + 0.5,
                     z: z as f32 + 0.5,
                 },
-                extra_data: 0, // Block runtime ID
+                extra_data: original_block_id as i32, // Block runtime ID for correct sound
                 entity_type: String::new(),
                 is_baby_mob: false,
                 is_global: false,
                 entity_unique_id: 0,
             };
 
+            // Track who we've sent to (to avoid duplicates if breaking player is in viewers)
+            let mut sent_to = std::collections::HashSet::new();
+
             for viewer_entity in chunk_viewers.iter() {
                 if let Some(session) = world.get::<PlayerSession>(viewer_entity) {
+                    let _ = session.send(McpePacket::from(update_packet.clone()));
+                    let _ = session.send(McpePacket::from(particle_packet.clone()));
+                    let _ = session.send(McpePacket::from(sound_packet.clone()));
+                    sent_to.insert(viewer_entity);
+                }
+            }
+
+            // Always send to breaking player if not already sent
+            if !sent_to.contains(&breaking_player) {
+                if let Some(session) = world.get::<PlayerSession>(breaking_player) {
+                    info!("Sending break effects directly to breaking player (not in viewers)");
                     let _ = session.send(McpePacket::from(update_packet.clone()));
                     let _ = session.send(McpePacket::from(particle_packet.clone()));
                     let _ = session.send(McpePacket::from(sound_packet.clone()));
                 }
             }
         } else {
-            debug!("break_block: no ChunkViewers component on chunk entity");
-        }
+            // No chunk viewers - still send to breaking player
 
-        info!(pos = ?(x, y, z), "Block broken");
+            use jolyne::valentine::types::{SoundType, UpdateBlockFlags};
+            use jolyne::valentine::{
+                LevelEventPacket, LevelEventPacketEvent, LevelSoundEventPacket, UpdateBlockPacket,
+            };
+
+            let update_packet = UpdateBlockPacket {
+                position: BlockCoordinates { x, y, z },
+                block_runtime_id: *blocks::AIR as i32,
+                flags: UpdateBlockFlags::NEIGHBORS | UpdateBlockFlags::NETWORK,
+                layer: 0,
+            };
+
+            let particle_packet = LevelEventPacket {
+                event: LevelEventPacketEvent::ParticleDestroy,
+                position: Vec3F {
+                    x: x as f32 + 0.5,
+                    y: y as f32 + 0.5,
+                    z: z as f32 + 0.5,
+                },
+                data: original_block_id as i32,
+            };
+
+            let sound_packet = LevelSoundEventPacket {
+                sound_id: SoundType::BreakBlock,
+                position: Vec3F {
+                    x: x as f32 + 0.5,
+                    y: y as f32 + 0.5,
+                    z: z as f32 + 0.5,
+                },
+                extra_data: original_block_id as i32,
+                entity_type: String::new(),
+                is_baby_mob: false,
+                is_global: false,
+                entity_unique_id: 0,
+            };
+
+            if let Some(session) = world.get::<PlayerSession>(breaking_player) {
+                let _ = session.send(McpePacket::from(update_packet));
+                let _ = session.send(McpePacket::from(particle_packet));
+                let _ = session.send(McpePacket::from(sound_packet));
+            }
+        }
     }
 
     /// Get the break time in ticks for the block at the given world coordinates.
@@ -479,8 +699,8 @@ impl GameServer {
         // Broadcast to viewers
         let world = self.ecs.world();
         if let Some(chunk_viewers) = world.get::<ChunkViewers>(chunk_entity) {
-            use jolyne::valentine::{LevelSoundEventPacket, UpdateBlockPacket};
             use jolyne::valentine::types::{SoundType, UpdateBlockFlags};
+            use jolyne::valentine::{LevelSoundEventPacket, UpdateBlockPacket};
 
             let update_packet = UpdateBlockPacket {
                 position: BlockCoordinates { x, y, z },
@@ -511,7 +731,5 @@ impl GameServer {
                 }
             }
         }
-
-        info!(pos = ?(x, y, z), runtime_id = block_runtime_id, "Block placed");
     }
 }

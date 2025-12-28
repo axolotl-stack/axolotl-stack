@@ -59,30 +59,56 @@ impl UnastarServer {
             }
         }
 
-        // Initialize LevelDB world provider
-        // For now use a simple "world" subdirectory
+        // Initialize world provider based on config
         let world_db_path = std::path::PathBuf::from("worlds")
             .join("default")
             .join("db");
         let dimension = config.server_config().world.dimension;
-        match crate::storage::LevelDBWorldProvider::open(&world_db_path, dimension) {
-            Ok(provider) => {
-                info!(path = %world_db_path.display(), "Opened world LevelDB");
-                let provider = Arc::new(provider);
-                server.set_world_provider(provider.clone());
+        let storage_provider = config.server_config().world.storage_provider;
 
-                // Also set provider on ChunkManager resource for load-before-generate
-                {
-                    let world = server.ecs.world_mut();
-                    if let Some(mut chunk_manager) =
-                        world.get_resource_mut::<crate::world::ecs::ChunkManager>()
-                    {
-                        chunk_manager.set_provider(provider);
+        let provider: Option<Arc<dyn crate::storage::WorldProvider>> = match storage_provider {
+            crate::world::StorageProvider::LevelDb => {
+                match crate::storage::LevelDBWorldProvider::open(&world_db_path, dimension) {
+                    Ok(provider) => {
+                        info!(path = %world_db_path.display(), "Opened world LevelDB");
+                        Some(Arc::new(provider))
+                    }
+                    Err(e) => {
+                        warn!(error = %e, "Failed to open world LevelDB, chunk persistence disabled");
+                        None
                     }
                 }
             }
-            Err(e) => {
-                warn!(error = %e, "Failed to open world LevelDB, chunk persistence disabled");
+            crate::world::StorageProvider::BlazeDb => {
+                let cache_capacity = config.server_config().world.blazedb_cache_chunks;
+                let blaze_config = crate::storage::blazedb::BlazeConfig {
+                    cache_capacity,
+                    ..Default::default()
+                };
+                match crate::storage::BlazeDBProvider::open(&world_db_path, Some(blaze_config)) {
+                    Ok(provider) => {
+                        info!(path = %world_db_path.display(), cache_capacity, "Opened world BlazeDB");
+                        Some(provider as Arc<dyn crate::storage::WorldProvider>)
+                    }
+                    Err(e) => {
+                        warn!(error = %e, "Failed to open world BlazeDB, chunk persistence disabled");
+                        None
+                    }
+                }
+            }
+        };
+
+        if let Some(provider) = provider {
+            server.set_world_provider(provider.clone());
+
+            // Also set provider on ChunkManager resource for load-before-generate
+            {
+                let world = server.ecs.world_mut();
+                if let Some(mut chunk_manager) =
+                    world.get_resource_mut::<crate::world::ecs::ChunkManager>()
+                {
+                    chunk_manager.set_provider(provider);
+                }
             }
         }
 

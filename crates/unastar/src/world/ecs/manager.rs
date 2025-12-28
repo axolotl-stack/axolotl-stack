@@ -8,7 +8,7 @@ use super::components::{
     ChunkData, ChunkEntities, ChunkModified, ChunkPosition, ChunkState, ChunkViewers,
 };
 use crate::storage::WorldProvider;
-use crate::world::{Chunk, ChunkPos, WorldConfig};
+use crate::world::{Chunk, ChunkPos, WorldConfig, WorldGenerator};
 
 /// Global resource for chunk entity management.
 ///
@@ -25,15 +25,28 @@ pub struct ChunkManager {
     world_config: WorldConfig,
     /// Optional world provider for loading chunks from disk.
     provider: Option<Arc<dyn WorldProvider>>,
+    /// Cached VanillaGenerator for chunk generation (avoids creating per-chunk).
+    vanilla_generator: Option<Box<crate::world::generator::VanillaGenerator>>,
+    /// Chunks that need viewers added once their entity is fully spawned/ready.
+    pub pending_viewers: HashMap<(i32, i32), Vec<Entity>>,
 }
 
 impl ChunkManager {
     /// Create a new chunk manager with the given world configuration.
     pub fn new(world_config: WorldConfig) -> Self {
+        // Pre-create VanillaGenerator if using vanilla world type
+        let vanilla_generator = match &world_config.generator {
+            WorldGenerator::Vanilla { seed } => Some(Box::new(
+                crate::world::generator::VanillaGenerator::new(*seed),
+            )),
+            _ => None,
+        };
         Self {
             chunks: HashMap::new(),
             world_config,
             provider: None,
+            vanilla_generator,
+            pending_viewers: HashMap::new(),
         }
     }
 
@@ -121,19 +134,43 @@ impl ChunkManager {
         let pos = ChunkPos::new(x, z);
         let mut chunk = Chunk::new(x, z);
 
-        if self.world_config.bounds.contains(pos) {
-            match self.world_config.generator {
-                WorldGenerator::FlatStone => {
-                    chunk.fill_subchunk_solid(4, STONE);
+        if !self.world_config.bounds.contains(pos) {
+            tracing::warn!(
+                chunk = ?(x, z),
+                bounds = ?self.world_config.bounds,
+                "Chunk outside world bounds - returning empty"
+            );
+            return chunk; // Empty chunk
+        }
+
+        match self.world_config.generator {
+            WorldGenerator::SuperFlat => {
+                // Standard Minecraft superflat: bedrock, 2 dirt, 1 grass
+                // Y=0: Bedrock, Y=1-2: Dirt, Y=3: Grass
+                // Fill in reverse order so higher layers don't overwrite lower ones
+                use crate::world::chunk::blocks::{BEDROCK, DIRT, GRASS_BLOCK};
+                // First fill with grass (will be at Y=3 when done)
+                chunk.fill_floor(4, *GRASS_BLOCK); // Y=0-3: all grass initially
+                // Then overwrite Y=0-2 with dirt
+                chunk.fill_floor(3, *DIRT); // Y=0-2: now dirt
+                // Finally overwrite Y=0 with bedrock
+                chunk.fill_floor(1, *BEDROCK); // Y=0: now bedrock
+            }
+            WorldGenerator::VoidSpawnPlatform {
+                platform_radius_chunks,
+            } => {
+                if x.unsigned_abs() <= platform_radius_chunks
+                    && z.unsigned_abs() <= platform_radius_chunks
+                {
+                    chunk.fill_subchunk_solid(4, *STONE);
                 }
-                WorldGenerator::VoidSpawnPlatform {
-                    platform_radius_chunks,
-                } => {
-                    if x.unsigned_abs() <= platform_radius_chunks
-                        && z.unsigned_abs() <= platform_radius_chunks
-                    {
-                        chunk.fill_subchunk_solid(4, STONE);
-                    }
+            }
+            WorldGenerator::Vanilla { .. } => {
+                // Use cached VanillaGenerator for terrain generation
+                if let Some(ref genr) = self.vanilla_generator {
+                    chunk = genr.generate_chunk(x, z);
+                    chunk.x = x;
+                    chunk.z = z;
                 }
             }
         }
@@ -183,12 +220,16 @@ impl ChunkManager {
         x: i32,
         z: i32,
         commands: &mut Commands,
+        viewer: Entity,
     ) -> (Entity, Option<Chunk>) {
+        // Check if chunk entity already exists
         if let Some(entity) = self.get_by_coords(x, z) {
+            // Chunk exists - add viewer to pending list for flush_pending_viewers to handle
+            self.pending_viewers.entry((x, z)).or_default().push(viewer);
             return (entity, None);
         }
 
-        // Try to load from disk, otherwise generate
+        // Chunk doesn't exist - try to load from disk, otherwise generate
         let (chunk_data, was_loaded) = self.load_or_generate_chunk(x, z);
         let pos = ChunkPosition::new(x, z);
 
@@ -208,7 +249,12 @@ impl ChunkManager {
 
         let entity = entity_commands.id();
 
+        // Register the entity in our lookup map
         self.insert(pos, entity);
+
+        // Add viewer to pending list - flush_pending_viewers will apply it once entity is ready
+        self.pending_viewers.entry((x, z)).or_default().push(viewer);
+
         (entity, Some(chunk_data))
     }
 }
