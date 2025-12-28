@@ -3,9 +3,9 @@
 //! These benchmarks cover the hot paths in ICE candidate parsing,
 //! signal parsing, and validation.
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
+use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_main};
 use tokio_nethernet::signaling::{
-    format_ice_candidate, parse_ice_candidate, Signal, SignalErrorCode,
+    Signal, SignalErrorCode, format_ice_candidate, parse_ice_candidate,
 };
 
 const VALID_HOST_CANDIDATE: &str = "candidate:1 1 udp 2130706431 192.168.1.100 54321 typ host generation 0 ufrag abc123 network-id 1 network-cost 0";
@@ -98,13 +98,16 @@ fn benchmark_signal_parse(c: &mut Criterion) {
     // Typical connect request with SDP
     let connect_request = format!(
         "CONNECTREQUEST 12345678901234 v=0\r\no=- {} 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=group:BUNDLE 0 1\r\na=ice-ufrag:{}\r\na=ice-pwd:{}\r\n",
-        "1234567890",
-        "abcd1234",
-        "password123456789012"
+        "1234567890", "abcd1234", "password123456789012"
     );
 
     group.bench_function("connect_request", |b| {
-        b.iter(|| Signal::parse(black_box(&connect_request), black_box("network123".to_string())))
+        b.iter(|| {
+            Signal::parse(
+                black_box(&connect_request),
+                black_box("network123".to_string()),
+            )
+        })
     });
 
     // Short signal
@@ -122,7 +125,12 @@ fn benchmark_signal_parse(c: &mut Criterion) {
     // Invalid signal (rejection path)
     let invalid_signal = "INVALID notanumber data";
     group.bench_function("invalid_rejection", |b| {
-        b.iter(|| Signal::parse(black_box(invalid_signal), black_box("network123".to_string())))
+        b.iter(|| {
+            Signal::parse(
+                black_box(invalid_signal),
+                black_box("network123".to_string()),
+            )
+        })
     });
 
     group.finish();

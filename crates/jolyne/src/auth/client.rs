@@ -214,7 +214,7 @@ pub fn generate_self_signed_chain(
         device_id,
         device_model: "JolyneClient".into(),
         device_os: 7, // Win10
-        game_version: crate::protocol::GAME_VERSION.into(),
+        game_version: crate::valentine::GAME_VERSION.into(),
         graphics_mode: 0,
         gui_scale: 0,
         is_editor_mode: false,

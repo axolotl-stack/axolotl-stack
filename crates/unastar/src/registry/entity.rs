@@ -2,9 +2,9 @@
 
 use super::{Registry, RegistryEntry};
 use bytes::BytesMut;
-use jolyne::protocol::PacketAvailableEntityIdentifiers;
-use jolyne::protocol::bedrock::codec::Nbt;
-use jolyne::protocol::entities::EntityType;
+use jolyne::valentine::AvailableEntityIdentifiersPacket;
+use jolyne::valentine::bedrock::codec::Nbt;
+use jolyne::valentine::entities::EntityType;
 
 /// Runtime entity entry in the registry.
 #[derive(Debug, Clone)]
@@ -40,7 +40,7 @@ pub type EntityRegistry = Registry<EntityEntry>;
 impl EntityRegistry {
     /// Load vanilla entities from valentine's generated data.
     pub fn load_vanilla(&mut self) {
-        use jolyne::protocol::entities::ALL_ENTITIES;
+        use jolyne::valentine::entities::ALL_ENTITIES;
 
         for entity in ALL_ENTITIES.iter() {
             let entry = EntityEntry {
@@ -60,7 +60,7 @@ impl EntityRegistry {
     ///
     /// This matches Dragonfly's `AvailableActorIdentifiers` payload: an NBT compound containing an
     /// `idlist` list of compounds, each with a single string field `id`.
-    pub fn to_available_entity_identifiers_packet(&self) -> PacketAvailableEntityIdentifiers {
+    pub fn to_available_entity_identifiers_packet(&self) -> AvailableEntityIdentifiersPacket {
         fn write_var_u32(buf: &mut BytesMut, mut v: u32) {
             while v >= 0x80 {
                 buf.extend_from_slice(&[(v as u8) | 0x80]);
@@ -104,7 +104,7 @@ impl EntityRegistry {
         // End root compound
         buf.extend_from_slice(&[0x00]);
 
-        PacketAvailableEntityIdentifiers {
+        AvailableEntityIdentifiersPacket {
             nbt: Nbt(buf.freeze()),
         }
     }

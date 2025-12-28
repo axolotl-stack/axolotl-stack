@@ -1,10 +1,10 @@
 [package]
 name = "valentine_bedrock_1_21_130"
 version = "0.1.0"
-edition.workspace = true
+edition = "2024"
 
 [dependencies]
-bitflags.workspace = true
-bytes.workspace = true
-uuid.workspace = true
-valentine_bedrock_core.workspace = true
+bitflags = "2"
+bytes = "1"
+uuid = "1.8.0"
+valentine_bedrock_core = { path = "../../bedrock_core" }

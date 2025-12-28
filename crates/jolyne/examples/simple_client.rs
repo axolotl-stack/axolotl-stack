@@ -1,6 +1,6 @@
 use jolyne::BedrockStream;
-use jolyne::protocol::McpePacket;
 use jolyne::stream::client::ClientHandshakeConfig;
+use jolyne::valentine::McpePacket;
 use std::error::Error;
 
 #[tokio::main]
@@ -22,7 +22,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("  Blocks: {}", game_data.start_game.block_properties.len());
 
     // Send a chunk radius request
-    let req = jolyne::protocol::packets::PacketRequestChunkRadius {
+    let req = jolyne::valentine::proto::RequestChunkRadiusPacket {
         chunk_radius: 8,
         max_radius: 8,
     };

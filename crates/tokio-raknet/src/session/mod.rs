@@ -388,7 +388,10 @@ mod tests {
         );
         assert_eq!(tunables.ack_queue_capacity, 1024);
         assert_eq!(tunables.split_timeout, Duration::from_secs(30));
-        assert_eq!(tunables.reliable_window, constants::MAX_ACK_SEQUENCES as u32);
+        assert_eq!(
+            tunables.reliable_window,
+            constants::MAX_ACK_SEQUENCES as u32
+        );
         assert_eq!(tunables.max_split_parts, 8192);
         assert_eq!(tunables.max_concurrent_splits, 4096);
         assert_eq!(tunables.max_incoming_ack_queue, 4096);

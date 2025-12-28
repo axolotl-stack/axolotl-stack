@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use crate::config::BedrockListenerConfig;
 use crate::error::JolyneError;
-use crate::protocol::McpePacket;
+use crate::valentine::McpePacket;
 use transport::{BedrockTransport, Transport};
 
 pub mod transport;

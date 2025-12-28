@@ -165,7 +165,7 @@ pub fn should_box_variant(t: &Type, ctx: &Context, depth: usize) -> bool {
     }
     match t {
         Type::Primitive(p) => match p {
-            Primitive::McString | Primitive::ByteArray => false,
+            Primitive::ByteArray => false,
             _ => false,
         },
         Type::Array { .. } => false,

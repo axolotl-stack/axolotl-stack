@@ -143,10 +143,13 @@ impl NetherNetStream {
                 "Reliable DC on_message callback triggered"
             );
             // Use try_send to avoid blocking; drop message if channel is full
-            if tx.try_send(Ok(Message {
-                buffer: data,
-                reliable: true,
-            })).is_err() {
+            if tx
+                .try_send(Ok(Message {
+                    buffer: data,
+                    reliable: true,
+                }))
+                .is_err()
+            {
                 tracing::warn!("Incoming message channel full, dropping reliable message");
             }
             Box::pin(async {})
@@ -160,10 +163,13 @@ impl NetherNetStream {
                 "Unreliable DC on_message callback triggered"
             );
             // Use try_send to avoid blocking; drop message if channel is full
-            if tx.try_send(Ok(Message {
-                buffer: data,
-                reliable: false,
-            })).is_err() {
+            if tx
+                .try_send(Ok(Message {
+                    buffer: data,
+                    reliable: false,
+                }))
+                .is_err()
+            {
                 tracing::warn!("Incoming message channel full, dropping unreliable message");
             }
             Box::pin(async {})
@@ -264,10 +270,13 @@ impl NetherNetStream {
                 "Reliable DC on_message callback triggered"
             );
             // Use try_send to avoid blocking; drop message if channel is full
-            if tx.try_send(Ok(Message {
-                buffer: data,
-                reliable: true,
-            })).is_err() {
+            if tx
+                .try_send(Ok(Message {
+                    buffer: data,
+                    reliable: true,
+                }))
+                .is_err()
+            {
                 tracing::warn!("Incoming message channel full, dropping reliable message");
             }
             Box::pin(async {})
@@ -281,10 +290,13 @@ impl NetherNetStream {
                 "Unreliable DC on_message callback triggered"
             );
             // Use try_send to avoid blocking; drop message if channel is full
-            if tx.try_send(Ok(Message {
-                buffer: data,
-                reliable: false,
-            })).is_err() {
+            if tx
+                .try_send(Ok(Message {
+                    buffer: data,
+                    reliable: false,
+                }))
+                .is_err()
+            {
                 tracing::warn!("Incoming message channel full, dropping unreliable message");
             }
             Box::pin(async {})
@@ -623,7 +635,9 @@ mod tests {
         let mut harness = ReassemblyTestHarness::new(5, Duration::from_secs(30));
 
         // First fragment: 10 bytes payload exceeds limit
-        let frag = Bytes::from(vec![1u8, b'h', b'e', b'l', b'l', b'o', b' ', b'w', b'o', b'r', b'l']);
+        let frag = Bytes::from(vec![
+            1u8, b'h', b'e', b'l', b'l', b'o', b' ', b'w', b'o', b'r', b'l',
+        ]);
         let result = harness.handle_fragment(frag);
         assert!(result.is_none());
 

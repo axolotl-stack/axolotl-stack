@@ -1,12 +1,12 @@
 use bytes::{Buf, BytesMut};
-use std::io::ErrorKind;
 
 use valentine::bedrock::codec::{BedrockCodec, VarInt};
-use valentine::bedrock::protocol::v1_21_130::packets::{
-    PacketDisconnect, PacketDisconnectContent, PacketText, PacketTextCategory, PacketTextContent,
-    PacketTextContentAuthored, PacketTextExtra, PacketTextExtraJson, PacketTextType,
+use valentine::bedrock::error::DecodeError;
+use valentine::bedrock::protocol::v1_21_130::{
+    DisconnectFailReason, DisconnectPacket, DisconnectPacketContent, TextPacket,
+    TextPacketCategory, TextPacketContent, TextPacketContentAuthored, TextPacketExtra,
+    TextPacketExtraJson, TextPacketType,
 };
-use valentine::bedrock::protocol::v1_21_130::types::DisconnectFailReason;
 
 fn assert_roundtrip<T>(value: T, args: T::Args)
 where
@@ -43,9 +43,10 @@ fn varint_roundtrips_typical_boundaries() {
 
 #[test]
 fn packet_disconnect_roundtrip_with_message() {
-    let packet = PacketDisconnect {
+    let packet = DisconnectPacket {
         reason: DisconnectFailReason::Timeout,
-        content: Some(PacketDisconnectContent {
+        hide_disconnect_reason: false,
+        content: Some(DisconnectPacketContent {
             message: "Server maintenance in 5 minutes".to_string(),
             filtered_message: "Server maintenance".to_string(),
         }),
@@ -56,8 +57,9 @@ fn packet_disconnect_roundtrip_with_message() {
 
 #[test]
 fn packet_disconnect_roundtrip_hidden_reason() {
-    let packet = PacketDisconnect {
+    let packet = DisconnectPacket {
         reason: DisconnectFailReason::NoReason,
+        hide_disconnect_reason: true,
         content: None,
     };
 
@@ -66,16 +68,16 @@ fn packet_disconnect_roundtrip_hidden_reason() {
 
 #[test]
 fn packet_text_roundtrip_translation_content() {
-    let packet = PacketText {
+    let packet = TextPacket {
         needs_translation: false,
-        category: PacketTextCategory::Authored,
-        content: Some(PacketTextContent::Authored(PacketTextContentAuthored {
+        category: TextPacketCategory::Authored,
+        content: Some(TextPacketContent::Authored(TextPacketContentAuthored {
             chat: "chat".to_string(),
             whisper: "whisper".to_string(),
             announcement: "announcement".to_string(),
         })),
-        type_: PacketTextType::Json,
-        extra: Some(PacketTextExtra::Json(PacketTextExtraJson {
+        type_: TextPacketType::Json,
+        extra: Some(TextPacketExtra::Json(TextPacketExtraJson {
             message: r#"{"text":"hi","color":"green"}"#.to_string(),
         })),
         xuid: "1234567890123456".into(),
@@ -93,9 +95,10 @@ fn packet_text_roundtrip_json_chat() {
 
 #[test]
 fn packet_disconnect_rejects_truncated_payload() {
-    let packet = PacketDisconnect {
+    let packet = DisconnectPacket {
         reason: DisconnectFailReason::Kicked,
-        content: Some(PacketDisconnectContent {
+        hide_disconnect_reason: false,
+        content: Some(DisconnectPacketContent {
             message: "Bye".to_string(),
             filtered_message: "Bye".to_string(),
         }),
@@ -107,8 +110,16 @@ fn packet_disconnect_rejects_truncated_payload() {
     let truncated_len = encoded.len().saturating_sub(1);
     let mut truncated = encoded.slice(0..truncated_len);
 
-    let err = PacketDisconnect::decode(&mut truncated, ()).expect_err("decode should fail");
-    assert_eq!(err.kind(), ErrorKind::UnexpectedEof);
+    let err = DisconnectPacket::decode(&mut truncated, ()).expect_err("decode should fail");
+    // DecodeError variants that indicate not enough data
+    assert!(
+        matches!(
+            err,
+            DecodeError::UnexpectedEof { .. } | DecodeError::StringLengthExceeded { .. }
+        ),
+        "Expected EOF-related error, got: {:?}",
+        err
+    );
 }
 
 #[test]

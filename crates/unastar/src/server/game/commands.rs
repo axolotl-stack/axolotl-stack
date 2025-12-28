@@ -9,15 +9,14 @@ use super::types::{SessionEntityMap, system_text};
 use crate::command::{CommandOutput, CommandParseError, parse_command_line};
 use crate::entity::components::PlayerSession;
 use crate::network::SessionId;
-use jolyne::protocol::packets::PacketCommandRequest;
-use jolyne::protocol::types::McpePacket;
+use jolyne::valentine::{CommandRequestPacket, McpePacket};
 
 impl GameServer {
     /// Handle a command request from a player.
     pub(super) fn handle_command_request(
         &mut self,
         session_id: SessionId,
-        req: &PacketCommandRequest,
+        req: &CommandRequestPacket,
     ) {
         if req.internal {
             trace!(session_id, "Ignoring internal CommandRequest");

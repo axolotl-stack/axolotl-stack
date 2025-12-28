@@ -20,10 +20,10 @@ use crate::world::ecs::{
     ChunkData, ChunkEntities, ChunkLoader, ChunkManager, ChunkModified, ChunkPendingUnload,
     ChunkPosition, ChunkState, ChunkTicking, ChunkViewers,
 };
-use jolyne::protocol::packets::{
-    PacketLevelChunk, PacketNetworkChunkPublisherUpdate, PacketUpdateBlock,
+use jolyne::valentine::{
+    LevelChunkPacket, NetworkChunkPublisherUpdatePacket, UpdateBlockPacket, McpePacket,
 };
-use jolyne::protocol::types::{BlockCoordinates, McpePacket, UpdateBlockFlags};
+use jolyne::valentine::types::{BlockCoordinates, UpdateBlockFlags};
 
 /// Configuration for chunk loading behavior.
 #[derive(Resource, Debug, Clone)]
@@ -224,7 +224,7 @@ pub fn process_chunk_load_queues(
             let block_y = position.0.y.floor() as i32;
             let block_z = position.0.z.floor() as i32;
 
-            if let Err(e) = session.send(McpePacket::from(PacketNetworkChunkPublisherUpdate {
+            if let Err(e) = session.send(McpePacket::from(NetworkChunkPublisherUpdatePacket {
                 coordinates: BlockCoordinates {
                     x: block_x,
                     y: block_y,
@@ -277,7 +277,7 @@ pub fn process_chunk_load_queues(
             };
 
             // Send LevelChunk packet
-            if let Err(e) = session.send(McpePacket::from(PacketLevelChunk {
+            if let Err(e) = session.send(McpePacket::from(LevelChunkPacket {
                 x: cx,
                 z: cz,
                 dimension: config.dimension,
@@ -585,7 +585,7 @@ pub fn broadcast_block_update(
         return;
     };
 
-    let packet = PacketUpdateBlock {
+    let packet = UpdateBlockPacket {
         position: BlockCoordinates {
             x: world_x,
             y: world_y,

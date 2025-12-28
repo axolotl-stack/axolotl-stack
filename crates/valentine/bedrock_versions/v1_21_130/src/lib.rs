@@ -2,18 +2,23 @@
 
 #![allow(ambiguous_glob_reexports)]
 #![allow(unused_imports)]
-pub mod r#packets;
-pub use r#packets::*;
-pub mod r#types;
-pub use r#types::*;
-pub mod items;
-pub mod blocks;
-pub mod states;
-pub mod entities;
+pub mod proto;
+pub use proto::*;
+pub mod types;
+pub use types::*;
+pub mod mcpe;
+pub use mcpe::*;
+pub mod common;
+pub use common::*;
 pub mod biomes;
+pub mod blocks;
+pub mod entities;
+pub mod items;
+pub mod states;
 pub mod bedrock {
     pub use valentine_bedrock_core::bedrock::codec;
     pub use valentine_bedrock_core::bedrock::context;
+    pub use valentine_bedrock_core::bedrock::error;
     pub use valentine_bedrock_core::bedrock::version;
 }
 pub mod protocol {

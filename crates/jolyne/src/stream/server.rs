@@ -3,9 +3,9 @@ use std::sync::Arc;
 
 use crate::config::BedrockListenerConfig;
 
-use crate::protocol::{
-    PacketChunkRadiusUpdate, PacketPlayStatus, PacketPlayStatusStatus, PacketResourcePackStack,
-    PacketResourcePacksInfo, PacketServerToClientHandshake,
+use crate::valentine::{
+    ChunkRadiusUpdatePacket, PlayStatusPacket, PlayStatusPacketStatus, ResourcePackStackPacket,
+    ResourcePacksInfoPacket, ServerToClientHandshakePacket,
 };
 use aes_gcm::Aes256Gcm;
 use base64::Engine;
@@ -22,14 +22,14 @@ use uuid::Uuid;
 
 use crate::auth::{ValidatedIdentity, authenticate_login};
 use crate::error::{JolyneError, ProtocolError};
-use crate::protocol::packets::{PacketNetworkSettings, PacketNetworkSettingsCompressionAlgorithm};
-use crate::protocol::types::experiments::Experiments;
-use crate::protocol::types::resource::ResourcePackIdVersions;
-use crate::protocol::{McpePacket, McpePacketData};
 use crate::stream::{
     BedrockStream, Handshake, Login, Play, ResourcePacks, SecurePending, Server, StartGame,
     transport::{BedrockTransport, Transport},
 };
+use crate::valentine::types::Experiments;
+use crate::valentine::types::ResourcePackIdVersions;
+use crate::valentine::{McpePacket, McpePacketData};
+use crate::valentine::{NetworkSettingsPacket, NetworkSettingsPacketCompressionAlgorithm};
 use crate::world::{WorldJoinParams, WorldTemplate};
 
 /// Configuration for the Server Handshake.
@@ -69,7 +69,7 @@ impl<T: Transport> BedrockStream<Handshake, Server, T> {
 
         match packet.data {
             McpePacketData::PacketRequestNetworkSettings(req) => {
-                let server_protocol = crate::protocol::PROTOCOL_VERSION;
+                let server_protocol = crate::valentine::PROTOCOL_VERSION;
 
                 let client_protocol = req.client_protocol;
 
@@ -79,13 +79,13 @@ impl<T: Transport> BedrockStream<Handshake, Server, T> {
 
                 if client_protocol != server_protocol {
                     let status = if client_protocol < server_protocol {
-                        PacketPlayStatusStatus::FailedClient
+                        PlayStatusPacketStatus::FailedClient
                     } else {
-                        PacketPlayStatusStatus::FailedSpawn
+                        PlayStatusPacketStatus::FailedSpawn
                     };
 
                     self.transport
-                        .send_raw(McpePacket::from(PacketPlayStatus { status }))
+                        .send_raw(McpePacket::from(PlayStatusPacket { status }))
                         .await?;
 
                     tracing::warn!(client_protocol, server_protocol, "Protocol mismatch");
@@ -99,9 +99,9 @@ impl<T: Transport> BedrockStream<Handshake, Server, T> {
 
                 let listener_config = self.state.config.as_ref().expect("config");
 
-                let settings = PacketNetworkSettings {
+                let settings = NetworkSettingsPacket {
                     compression_threshold: listener_config.compression_threshold,
-                    compression_algorithm: PacketNetworkSettingsCompressionAlgorithm::Deflate,
+                    compression_algorithm: NetworkSettingsPacketCompressionAlgorithm::Deflate,
                     client_throttle: false,
                     client_throttle_threshold: 0,
                     client_throttle_scalar: 0.0,
@@ -237,8 +237,8 @@ impl<T: Transport> BedrockStream<SecurePending, Server, T> {
         }
 
         self.transport
-            .send_batch(&[McpePacket::from(PacketPlayStatus {
-                status: PacketPlayStatusStatus::LoginSuccess,
+            .send_batch(&[McpePacket::from(PlayStatusPacket {
+                status: PlayStatusPacketStatus::LoginSuccess,
             })])
             .await?;
 
@@ -298,7 +298,7 @@ impl<T: Transport> BedrockStream<SecurePending, Server, T> {
 
         let token = encode(&header, &claims, &encoding_key).unwrap();
 
-        let handshake_pkt = PacketServerToClientHandshake { token };
+        let handshake_pkt = ServerToClientHandshakePacket { token };
 
         self.transport
             .send_batch(&[McpePacket::from(handshake_pkt)])
@@ -334,23 +334,22 @@ impl<T: Transport> BedrockStream<ResourcePacks, Server, T> {
 
         required: bool,
     ) -> Result<BedrockStream<StartGame, Server, T>, JolyneError> {
-        let info = PacketResourcePacksInfo {
+        let info = ResourcePacksInfoPacket {
             must_accept: required,
             has_addons: false,
             has_scripts: false,
             disable_vibrant_visuals: false,
-            world_template:
-                crate::protocol::packets::resource::PacketResourcePacksInfoWorldTemplate {
-                    uuid: Uuid::nil(),
-                    version: "1.0.0".to_string(),
-                },
+            world_template: crate::valentine::types::ResourcePacksInfoPacketWorldTemplate {
+                uuid: Uuid::nil(),
+                version: "1.0.0".to_string(),
+            },
             texture_packs: vec![],
         };
 
-        let stack = PacketResourcePackStack {
+        let stack = ResourcePackStackPacket {
             must_accept: required,
             resource_packs: ResourcePackIdVersions::new(),
-            game_version: crate::protocol::GAME_VERSION.to_string(),
+            game_version: crate::valentine::GAME_VERSION.to_string(),
             experiments: Experiments::new(),
             experiments_previously_used: false,
             has_editor_packs: false,
@@ -364,7 +363,7 @@ impl<T: Transport> BedrockStream<ResourcePacks, Server, T> {
             let packets = self.transport.recv_batch().await?;
             for pkt in packets {
                 if let McpePacketData::PacketResourcePackClientResponse(resp) = pkt.data {
-                    use crate::protocol::packets::resource::PacketResourcePackClientResponseResponseStatus as Status;
+                    use crate::valentine::ResourcePackClientResponsePacketResponseStatus as Status;
                     match resp.response_status {
                         Status::Refused if required => {
                             tracing::warn!("Client refused required resource packs");
@@ -440,7 +439,7 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
 
         // Debug: print hex dump of creative content
         {
-            use crate::protocol::bedrock::codec::BedrockCodec;
+            use crate::valentine::bedrock::codec::BedrockCodec;
             let mut buf = bytes::BytesMut::new();
             let cc = params.creative_content.as_ref();
             if cc.encode(&mut buf).is_ok() {
@@ -458,14 +457,14 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
 
         self.transport
             .send_batch(&[
-                McpePacket::from(PacketChunkRadiusUpdate {
+                McpePacket::from(ChunkRadiusUpdatePacket {
                     chunk_radius: radius,
                 }),
                 McpePacket::from(params.biome_definitions.as_ref().clone()),
                 // McpePacket::from(params.available_entities.as_ref().clone()),
                 McpePacket::from(params.creative_content.as_ref().clone()),
-                McpePacket::from(PacketPlayStatus {
-                    status: PacketPlayStatusStatus::PlayerSpawn,
+                McpePacket::from(PlayStatusPacket {
+                    status: PlayStatusPacketStatus::PlayerSpawn,
                 }),
             ])
             .await?;

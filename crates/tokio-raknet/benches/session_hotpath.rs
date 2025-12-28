@@ -4,7 +4,7 @@
 //! a typical Minecraft Bedrock session.
 
 use bytes::Bytes;
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use std::time::Instant;
 use tokio_raknet::protocol::{
     ack::{AckNackPayload, SequenceRange},

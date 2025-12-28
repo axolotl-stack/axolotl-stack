@@ -6,8 +6,8 @@
 // Suppressing until aes upgrades to cipher 0.5+ with generic-array 1.x support.
 #![allow(deprecated)]
 
-use aes::cipher::{generic_array::GenericArray, BlockDecrypt, BlockEncrypt, KeyInit};
 use aes::Aes256;
+use aes::cipher::{BlockDecrypt, BlockEncrypt, KeyInit, generic_array::GenericArray};
 use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
 

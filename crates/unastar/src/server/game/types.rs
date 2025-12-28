@@ -4,16 +4,16 @@
 
 use bevy_ecs::prelude::*;
 use glam::DVec3;
-use jolyne::protocol::types::McpePacket;
+use jolyne::valentine::McpePacket;
 use std::collections::HashMap;
 use tokio::sync::mpsc;
 
 use crate::config::PlayerLastPosition;
 use crate::network::SessionId;
 
-use jolyne::protocol::{
-    PacketText, PacketTextCategory, PacketTextContent, PacketTextContentMessageOnly,
-    PacketTextExtra, PacketTextExtraJson, PacketTextType,
+use jolyne::valentine::{
+    TextPacket, TextPacketCategory, TextPacketContent, TextPacketContentMessageOnly,
+    TextPacketExtra, TextPacketExtraJson, TextPacketType,
 };
 
 /// Mapping from session ID to ECS entity.
@@ -71,12 +71,12 @@ pub struct PlayerPersistenceData {
 }
 
 /// Create a system text message packet.
-pub fn system_text(message: &str) -> PacketText {
-    PacketText {
+pub fn system_text(message: &str) -> TextPacket {
+    TextPacket {
         needs_translation: false,
-        category: PacketTextCategory::MessageOnly,
-        content: Some(PacketTextContent::MessageOnly(Box::new(
-            PacketTextContentMessageOnly {
+        category: TextPacketCategory::MessageOnly,
+        content: Some(TextPacketContent::MessageOnly(Box::new(
+            TextPacketContentMessageOnly {
                 raw: message.to_string(),
                 tip: String::new(),
                 system_message: message.to_string(),
@@ -85,8 +85,8 @@ pub fn system_text(message: &str) -> PacketText {
                 text_object: String::new(),
             },
         ))),
-        type_: PacketTextType::System,
-        extra: Some(PacketTextExtra::System(PacketTextExtraJson {
+        type_: TextPacketType::System,
+        extra: Some(TextPacketExtra::System(TextPacketExtraJson {
             message: message.to_string(),
         })),
         xuid: String::new(),

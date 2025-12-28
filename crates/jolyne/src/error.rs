@@ -69,6 +69,9 @@ pub enum JolyneError {
     #[error("RakNet error: {0}")]
     Raknet(#[from] RaknetError),
 
+    #[error("Decode error: {0}")]
+    Decode(#[from] valentine::bedrock::error::DecodeError),
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 

@@ -17,4 +17,4 @@ prettyplease.workspace = true
 toml_edit.workspace = true
 convert_case.workspace = true
 tracing.workspace = true
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }

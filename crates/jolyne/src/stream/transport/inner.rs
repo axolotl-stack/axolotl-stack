@@ -19,8 +19,8 @@ use crate::batch::{
     decode_batch_no_prefix_raw, decode_batch_raw, encode_batch_multi, encode_batch_raw,
 };
 use crate::error::{JolyneError, ProtocolError};
-use crate::protocol::McpePacket;
 use crate::raw::RawPacket;
+use crate::valentine::McpePacket;
 use valentine::bedrock::context::BedrockSession;
 
 type Aes256Ctr = ctr::Ctr32BE<Aes256>;
@@ -204,14 +204,11 @@ impl<T: Transport> BedrockTransport<T> {
             packet.encode(&mut buf)?;
         } else {
             // NetherNet: Use inner format without 0xFE prefix
-            packet
-                .data
-                .encode_inner(
-                    &mut buf,
-                    packet.header.from_subclient,
-                    packet.header.to_subclient,
-                )
-                .map_err(JolyneError::Io)?;
+            packet.data.encode_inner(
+                &mut buf,
+                packet.header.from_subclient,
+                packet.header.to_subclient,
+            )?;
         }
 
         if self.encryption_enabled {

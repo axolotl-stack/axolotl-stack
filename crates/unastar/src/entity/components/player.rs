@@ -1,7 +1,7 @@
 //! Player-specific components.
 
 use bevy_ecs::prelude::*;
-use jolyne::protocol::types::mcpe::McpePacket;
+use jolyne::valentine::McpePacket;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 

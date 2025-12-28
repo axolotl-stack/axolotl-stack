@@ -10,14 +10,11 @@ use crate::entity::components::{ChunkRadius, PlayerSession};
 use crate::world::ChunkPos;
 use crate::world::chunk::HeightMapType;
 use crate::world::ecs::{ChunkManager, ChunkViewers};
-use jolyne::protocol::packets::{
-    PacketChunkRadiusUpdate, PacketRequestChunkRadius, PacketSubchunk, PacketSubchunkEntries,
-    PacketSubchunkRequest,
+use jolyne::valentine::{
+    ChunkRadiusUpdatePacket, RequestChunkRadiusPacket, SubchunkPacket, SubchunkPacketEntries,
+    SubchunkRequestPacket, McpePacket,
 };
-use jolyne::protocol::types::{
-    HeightMapDataType, McpePacket, SubChunkEntryWithoutCachingItem,
-    SubChunkEntryWithoutCachingItemResult, Vec3I,
-};
+use jolyne::valentine::types::{HeightMapDataType, SubChunkEntryWithoutCachingItem, SubChunkEntryWithoutCachingItemResult, Vec3I};
 
 /// Maximum subchunk requests per packet (DoS protection).
 const MAX_SUBCHUNK_REQUESTS: usize = 1024;
@@ -27,7 +24,7 @@ impl GameServer {
     pub(super) fn handle_chunk_radius_request(
         &mut self,
         entity: Entity,
-        req: &PacketRequestChunkRadius,
+        req: &RequestChunkRadiusPacket,
     ) {
         let server_max = self.config.max_chunk_radius.max(1);
         let client_max = i32::from(req.max_radius).max(1);
@@ -45,14 +42,14 @@ impl GameServer {
         // Send response
         let session = self.ecs.world().get::<PlayerSession>(entity);
         if let Some(session) = session {
-            let _ = session.send(McpePacket::from(PacketChunkRadiusUpdate {
+            let _ = session.send(McpePacket::from(ChunkRadiusUpdatePacket {
                 chunk_radius: radius,
             }));
         }
     }
 
     /// Handle a subchunk request from a player.
-    pub(super) fn handle_subchunk_request(&mut self, entity: Entity, req: &PacketSubchunkRequest) {
+    pub(super) fn handle_subchunk_request(&mut self, entity: Entity, req: &SubchunkRequestPacket) {
         let session_id = {
             let world = self.ecs.world();
             world
@@ -193,14 +190,14 @@ impl GameServer {
             }
         }
 
-        let response = PacketSubchunk {
+        let response = SubchunkPacket {
             dimension: req.dimension,
             origin: Vec3I {
                 x: origin.x,
                 y: origin.y,
                 z: origin.z,
             },
-            entries: PacketSubchunkEntries::SubChunkEntryWithoutCaching(entries),
+            entries: SubchunkPacketEntries::SubChunkEntryWithoutCaching(entries),
         };
 
         let world = self.ecs.world();

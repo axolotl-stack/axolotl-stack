@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(research_codebase)",
+      "Skill(research_codebase:*)"
+    ]
+  }
+}

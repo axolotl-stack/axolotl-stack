@@ -16,7 +16,7 @@ const KEY_REFRESH_INTERVAL: Duration = Duration::from_secs(30 * 60); // 30 minut
 const AUTHORIZATION_SERVICE_URI_FALLBACK: &str =
     "https://authorization.franchise.minecraft-services.net";
 // Best-effort discovery target; if this fails we fall back to the static auth service.
-const MINECRAFT_VERSION_NETWORK: &str = crate::protocol::GAME_VERSION;
+const MINECRAFT_VERSION_NETWORK: &str = crate::valentine::GAME_VERSION;
 const MINECRAFT_SERVICES_DISCOVERY_URL: &str =
     "https://client.discovery.minecraft-services.net/api/v1.0/discovery/MinecraftPE/builds/";
 // Cache discovery responses to avoid repeated calls.

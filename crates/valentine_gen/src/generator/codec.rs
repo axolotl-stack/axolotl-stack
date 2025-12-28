@@ -81,13 +81,21 @@ pub fn generate_codec_impl(
                 .unwrap_or(dep_type.clone());
 
             // Special-case: SetScoreEntries discriminator should stay as the action enum.
-            if fname == "action" && name.starts_with("PacketSetScoreEntriesItem") {
-                final_arg_type = Type::Reference("PacketSetScoreAction".to_string());
+            // Handles both old naming (PacketSetScore*) and new naming (SetScorePacket*)
+            if fname == "action"
+                && (name.starts_with("PacketSetScoreEntriesItem")
+                    || name.starts_with("SetScorePacketEntriesItem"))
+            {
+                final_arg_type = Type::Reference("SetScorePacketAction".to_string());
             }
 
             // Special-case: SetScoreboardIdentity entries should use the action enum.
-            if fname == "action" && name.starts_with("PacketSetScoreboardIdentityEntriesItem") {
-                final_arg_type = Type::Reference("PacketSetScoreboardIdentityAction".to_string());
+            // Handles both old naming (PacketSetScoreboardIdentity*) and new naming (SetScoreboardIdentityPacket*)
+            if fname == "action"
+                && (name.starts_with("PacketSetScoreboardIdentityEntriesItem")
+                    || name.starts_with("SetScoreboardIdentityPacketEntriesItem"))
+            {
+                final_arg_type = Type::Reference("SetScoreboardIdentityPacketAction".to_string());
             }
 
             // Special-case: shield_item_id is a discriminator, not the payload.
@@ -228,7 +236,7 @@ pub fn generate_codec_impl(
                 Ok(())
             }
 
-            fn decode<B: bytes::Buf>(buf: &mut B, #args_usage: Self::Args) -> Result<Self, std::io::Error> {
+            fn decode<B: bytes::Buf>(buf: &mut B, #args_usage: Self::Args) -> Result<Self, crate::bedrock::error::DecodeError> {
                 let _ = buf;
                 #decode_body
             }
@@ -449,10 +457,7 @@ fn generate_field_decode_expr(
                 quote! {
                     let raw = #count_read as i64;
                     if raw < 0 {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::InvalidData,
-                            "array length cannot be negative",
-                        ));
+                        return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
                     }
                     let len = raw as usize;
                 }
@@ -479,10 +484,10 @@ fn generate_field_decode_expr(
             if matches!(inner_type.as_ref(), Type::Primitive(Primitive::U8)) {
                 Ok(quote! {{
                     if buf.remaining() < #size_lit {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::UnexpectedEof,
-                            format!("fixed array requires {} bytes but only {} remaining", #size_lit, buf.remaining()),
-                        ));
+                        return Err(crate::bedrock::error::DecodeError::UnexpectedEof {
+                            needed: #size_lit,
+                            available: buf.remaining(),
+                        });
                     }
                     let mut arr = [0u8; #size_lit];
                     buf.copy_to_slice(&mut arr);
@@ -578,10 +583,7 @@ fn generate_field_decode_expr(
                 quote! {
                     let len_raw = (#len_read) as i64;
                     if len_raw < 0 {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::InvalidData,
-                            "string length cannot be negative",
-                        ));
+                        return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
                     }
                     let len = len_raw as usize;
                 }
@@ -594,10 +596,10 @@ fn generate_field_decode_expr(
             Ok(quote! {{
                 #len_logic
                 if buf.remaining() < len {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::UnexpectedEof,
-                        format!("string declared length {} exceeds remaining {}", len, buf.remaining()),
-                    ));
+                    return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
+                        declared: len,
+                        available: buf.remaining(),
+                    });
                 }
                 let mut bytes = vec![0u8; len];
                 buf.copy_to_slice(&mut bytes);
@@ -672,10 +674,7 @@ fn generate_field_decode_expr(
                 quote! {
                     let len_raw = (#len_read) as i64;
                     if len_raw < 0 {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::InvalidData,
-                            "encapsulated length cannot be negative",
-                        ));
+                        return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
                     }
                     let len = len_raw as usize;
                 }
@@ -699,10 +698,10 @@ fn generate_field_decode_expr(
             Ok(quote! {{
                 #len_logic
                 if buf.remaining() < len {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::UnexpectedEof,
-                        format!("encapsulated declared length {} exceeds remaining {}", len, buf.remaining()),
-                    ));
+                    return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                        declared: len,
+                        available: buf.remaining(),
+                    });
                 }
                 let mut slice = bytes::Buf::take(&mut *buf, len);
                 let value = {
@@ -1082,7 +1081,7 @@ fn generate_field_encode(
         }
         Type::FixedArray { size, inner_type } => {
             // Fixed-size arrays: write exactly 'size' bytes without a length prefix
-            let size_lit = proc_macro2::Literal::usize_unsuffixed(*size);
+            let _size_lit = proc_macro2::Literal::usize_unsuffixed(*size);
 
             // For byte arrays (the common case), write directly
             if matches!(inner_type.as_ref(), Type::Primitive(Primitive::U8)) {
@@ -1444,7 +1443,7 @@ fn generate_switch_encode_logic(
 
         if default_is_void && fields.len() == 1 {
             // Get the type of the single case to generate proper encode logic
-            let (case_name, case_type) = &fields[0];
+            let (_case_name, case_type) = &fields[0];
             let inner_encode = generate_field_encode(
                 name,
                 &format!("{}Some", var_name),
@@ -2045,10 +2044,6 @@ fn case_value_pattern(
                     return quote! { false };
                 }
             }
-            Type::Primitive(Primitive::McString) => {
-                let lit = proc_macro2::Literal::string(case_name);
-                return quote! { x if x == #lit };
-            }
             Type::Switch { fields, .. } => {
                 // Check if this switch is strictly boolean (all keys are true/false/1/0, ignoring default)
                 let is_bool = fields.iter().all(|(k, _)| {
@@ -2329,7 +2324,9 @@ fn generate_switch_decode_logic(
         }
 
         if default_is_void && fields.len() == 1 {
-            let (case_name, case_type) = fields.first().unwrap();
+            let Some((case_name, case_type)) = fields.first() else {
+                return Err("switch has no fields".into());
+            };
             let inner_name = format!("{}{}", var_name, camel_case(case_name));
             let inner = generate_field_decode_expr(
                 name,
@@ -2476,8 +2473,12 @@ fn generate_switch_decode_logic(
                 default_block = Some(gen_block("Default", default, true)?);
             }
 
-            let t_block = true_block.or(default_block.clone()).unwrap();
-            let f_block = false_block.or(default_block.clone()).unwrap();
+            let t_block = true_block
+                .or(default_block.clone())
+                .ok_or("missing true_block and default_block")?;
+            let f_block = false_block
+                .or(default_block)
+                .ok_or("missing false_block and default_block")?;
             let cond = mk_cond(&compare_expr);
 
             return Ok(quote! {
@@ -2656,14 +2657,14 @@ pub fn generate_enum_type_codec(
                 let val = *self as #repr_ty;
                 #encode_logic
             }
-            fn decode<B: bytes::Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
+            fn decode<B: bytes::Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, crate::bedrock::error::DecodeError> {
                 #decode_logic
                 match val {
                     #(#match_arms)*
-                    _ => Err(std::io::Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        format!("Invalid enum value for {}: {}", stringify!(#struct_ident), val)
-                    ))
+                    _ => Err(crate::bedrock::error::DecodeError::InvalidEnumValue {
+                        enum_name: stringify!(#struct_ident),
+                        value: val as i64,
+                    })
                 }
             }
         }

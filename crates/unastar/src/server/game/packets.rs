@@ -4,7 +4,7 @@
 
 use bevy_ecs::entity::Entity;
 use glam::DVec3;
-use jolyne::protocol::ContainerSlotType;
+use jolyne::valentine::ContainerSlotType;
 use tracing::{debug, info, trace};
 
 use super::GameServer;
@@ -14,12 +14,12 @@ use crate::entity::components::{
     HeldSlot, InventoryOpened, PlayerInput, PlayerSession, PlayerState,
 };
 use crate::network::SessionId;
-use jolyne::protocol::packets::{
-    PacketContainerClose, PacketContainerOpen, PacketInteract, PacketInteractActionId,
-    PacketMobEquipment,
+use jolyne::valentine::{
+    ContainerClosePacket, ContainerOpenPacket, InteractPacket,
+    MobEquipmentPacket, McpePacket, McpePacketData,
 };
-use jolyne::protocol::types::{
-    BlockCoordinates, InputFlag, McpePacket, McpePacketData, WindowId, WindowType,
+use jolyne::valentine::types::{
+    BlockCoordinates, InputFlag, WindowId, WindowType, InteractPacketActionId
 };
 
 impl GameServer {
@@ -95,7 +95,7 @@ impl GameServer {
     pub(super) fn handle_player_auth_input(
         &mut self,
         entity: Entity,
-        pk: &jolyne::protocol::packets::PacketPlayerAuthInput,
+        pk: &jolyne::valentine::PlayerAuthInputPacket,
     ) {
         // Update position and rotation
         let new_pos = DVec3::new(
@@ -174,7 +174,7 @@ impl GameServer {
     ///
     /// When a player scrolls their hotbar or presses 1-9, the client sends
     /// this packet to indicate which slot is now selected.
-    pub(super) fn handle_mob_equipment(&mut self, entity: Entity, pk: &PacketMobEquipment) {
+    pub(super) fn handle_mob_equipment(&mut self, entity: Entity, pk: &MobEquipmentPacket) {
         let world = self.ecs.world_mut();
 
         // Update HeldSlot to the newly selected slot
@@ -194,7 +194,7 @@ impl GameServer {
     ///
     /// When the player presses E, the client sends this packet with OpenInventory action.
     /// We must respond with a ContainerOpen packet to actually open the inventory UI.
-    pub(super) fn handle_interact(&mut self, entity: Entity, pk: &PacketInteract) {
+    pub(super) fn handle_interact(&mut self, entity: Entity, pk: &InteractPacket) {
         debug!(
             entity = ?entity,
             action = ?pk.action_id,
@@ -202,7 +202,7 @@ impl GameServer {
         );
 
         match pk.action_id {
-            PacketInteractActionId::OpenInventory => {
+            InteractPacketActionId::OpenInventory => {
                 // Check if inventory is already open to prevent duplicate ContainerOpen
                 // which would crash the client
                 {
@@ -231,7 +231,7 @@ impl GameServer {
                 // Send ContainerOpen packet to actually open the inventory UI
                 // WindowID 0 = Inventory window
                 // WindowType::Inventory (-1) = Player inventory container type
-                let result = session.send(McpePacket::from(PacketContainerOpen {
+                let result = session.send(McpePacket::from(ContainerOpenPacket {
                     window_id: WindowId::Inventory,     // 0
                     window_type: WindowType::Inventory, // -1 (0xff in unsigned)
                     coordinates: BlockCoordinates {
@@ -250,7 +250,7 @@ impl GameServer {
                     opened.0 = true;
                 }
             }
-            PacketInteractActionId::MouseOverEntity => {
+            InteractPacketActionId::MouseOverEntity => {
                 // Ignored - client sends this when hovering over entities
             }
             _ => {
@@ -263,7 +263,7 @@ impl GameServer {
     ///
     /// When the player presses E again (or Escape) to close their inventory,
     /// the client sends this packet. We must acknowledge it and update our state.
-    pub(super) fn handle_container_close(&mut self, entity: Entity, pk: &PacketContainerClose) {
+    pub(super) fn handle_container_close(&mut self, entity: Entity, pk: &ContainerClosePacket) {
         debug!(
             entity = ?entity,
             window_id = ?pk.window_id,
@@ -275,7 +275,7 @@ impl GameServer {
             // Send ContainerClose back to acknowledge
             let world = self.ecs.world();
             if let Some(session) = world.get::<PlayerSession>(entity) {
-                let _ = session.send(McpePacket::from(PacketContainerClose {
+                let _ = session.send(McpePacket::from(ContainerClosePacket {
                     window_id: WindowId::Inventory,
                     window_type: WindowType::Inventory,
                     server: false, // false = client initiated close
@@ -303,13 +303,13 @@ impl GameServer {
     pub(super) fn handle_item_stack_request(
         &mut self,
         entity: Entity,
-        pk: &jolyne::protocol::packets::PacketItemStackRequest,
+        pk: &jolyne::valentine::ItemStackRequestPacket,
     ) {
         use crate::entity::components::{ItemStackRequestState, MainInventory};
         use crate::item::ItemStack;
-        use jolyne::protocol::packets::PacketItemStackResponse;
-        use jolyne::protocol::types::FullContainerName;
-        use jolyne::protocol::types::item::{
+        use jolyne::valentine::ItemStackResponsePacket;
+        use jolyne::valentine::types::FullContainerName;
+        use jolyne::valentine::types::{
             ItemStackRequestActionsItemContent, ItemStackResponsesItem,
             ItemStackResponsesItemContent, ItemStackResponsesItemContentContainersItem,
             ItemStackResponsesItemContentContainersItemSlotsItem, ItemStackResponsesItemStatus,
@@ -424,7 +424,7 @@ impl GameServer {
             // Send response
             let world = self.ecs.world();
             if let Some(session) = world.get::<crate::entity::components::PlayerSession>(entity) {
-                let response = PacketItemStackResponse {
+                let response = ItemStackResponsePacket {
                     responses: vec![ItemStackResponsesItem {
                         status: ItemStackResponsesItemStatus::Ok,
                         request_id,
@@ -443,9 +443,9 @@ impl GameServer {
     fn handle_inventory_transaction(
         &mut self,
         entity: Entity,
-        pk: &jolyne::protocol::packets::PacketInventoryTransaction,
+        pk: &jolyne::valentine::InventoryTransactionPacket,
     ) {
-        use jolyne::protocol::types::TransactionTransactionType;
+        use jolyne::valentine::types::TransactionTransactionType;
 
         let transaction = &pk.transaction;
 
@@ -467,9 +467,9 @@ impl GameServer {
             TransactionTransactionType::ItemUse => {
                 // Item use (clicking blocks, etc.)
                 if let Some(data) = &transaction.transaction_data {
-                    use jolyne::protocol::types::TransactionTransactionData;
+                    use jolyne::valentine::types::TransactionTransactionData;
                     if let TransactionTransactionData::ItemUse(use_item) = data {
-                        use jolyne::protocol::types::TransactionUseItemActionType;
+                        use jolyne::valentine::types::TransactionUseItemActionType;
                         match use_item.action_type {
                             TransactionUseItemActionType::ClickBlock => {
                                 self.handle_block_click(entity, use_item);
@@ -494,9 +494,9 @@ impl GameServer {
     fn handle_normal_transaction(
         &mut self,
         entity: Entity,
-        actions: &[jolyne::protocol::types::TransactionActionsItem],
+        actions: &[jolyne::valentine::types::TransactionActionsItem],
     ) {
-        use jolyne::protocol::types::TransactionActionsItemSourceType;
+        use jolyne::valentine::types::TransactionActionsItemSourceType;
 
         for action in actions {
             match action.source_type {
@@ -519,7 +519,7 @@ impl GameServer {
                 TransactionActionsItemSourceType::Container => {
                     // Container action - placing into inventory slot
                     if let Some(content) = &action.content {
-                        use jolyne::protocol::types::TransactionActionsItemContent;
+                        use jolyne::valentine::types::TransactionActionsItemContent;
                         if let TransactionActionsItemContent::Container(container) = content {
                             let slot = action.slot as usize;
 

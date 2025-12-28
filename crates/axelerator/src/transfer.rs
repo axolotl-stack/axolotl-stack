@@ -5,8 +5,8 @@
 
 use std::sync::Arc;
 
-use jolyne::protocol::{McpePacket, PacketTransfer};
 use jolyne::stream::{BedrockStream, Play, Server};
+use jolyne::valentine::{McpePacket, TransferPacket};
 use jolyne::{BedrockListener, WorldTemplate};
 use p384::SecretKey;
 use rand::thread_rng;
@@ -112,7 +112,7 @@ async fn send_transfer_packet<T: jolyne::stream::transport::Transport>(
     port: u16,
 ) -> anyhow::Result<()> {
     // Create Transfer packet using generated protocol type
-    let transfer = PacketTransfer {
+    let transfer = TransferPacket {
         server_address: addr_str.to_string(),
         port,
         reload_world: false,

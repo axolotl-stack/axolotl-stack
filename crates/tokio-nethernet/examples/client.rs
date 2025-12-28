@@ -83,7 +83,11 @@ async fn main() -> anyhow::Result<()> {
     while let Some(result) = stream.next().await {
         match result {
             Ok(msg) => {
-                let channel = if msg.reliable { "reliable" } else { "unreliable" };
+                let channel = if msg.reliable {
+                    "reliable"
+                } else {
+                    "unreliable"
+                };
                 println!(
                     "[RECV {}] {} bytes: {:?}",
                     channel,

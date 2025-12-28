@@ -122,9 +122,9 @@ impl DeviceCodeAuth {
             None => {
                 // Authentication successful
                 Ok(Some(OAuthToken {
-                    access_token: poll.access_token.ok_or_else(|| {
-                        XblError::Auth("Missing access_token in response".into())
-                    })?,
+                    access_token: poll
+                        .access_token
+                        .ok_or_else(|| XblError::Auth("Missing access_token in response".into()))?,
                     token_type: poll.token_type.unwrap_or_else(|| "Bearer".into()),
                     refresh_token: poll.refresh_token.ok_or_else(|| {
                         XblError::Auth("Missing refresh_token in response".into())

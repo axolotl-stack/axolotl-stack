@@ -1,15 +1,11 @@
 use bytes::{Buf, BytesMut};
 use valentine::bedrock::codec::BedrockCodec;
-use valentine::bedrock::protocol::v1_21_130::packets::{
-    PacketStartGame, PacketStartGameChatRestrictionLevel, PacketStartGameDimension,
-    PacketStartGameEditorWorldType,
-};
-use valentine::bedrock::protocol::v1_21_130::types::*;
+use valentine::bedrock::protocol::v1_21_130::*;
 use valentine_bedrock_core::bedrock::codec::Nbt;
 
 #[test]
 fn jolyne_start_game_roundtrip() {
-    let packet = PacketStartGame {
+    let packet = StartGamePacket {
         entity_id: 1,
         runtime_entity_id: 2,
         player_gamemode: GameMode::Creative,
@@ -22,14 +18,14 @@ fn jolyne_start_game_roundtrip() {
         seed: 12345,
         biome_type: 0,
         biome_name: "plains".to_string(),
-        dimension: PacketStartGameDimension::Overworld,
+        dimension: StartGamePacketDimension::Overworld,
         generator: 1,
         world_gamemode: GameMode::Survival,
         hardcore: false,
         difficulty: 1,
         spawn_position: BlockCoordinates { x: 0, y: 0, z: 0 },
         achievements_disabled: false,
-        editor_world_type: PacketStartGameEditorWorldType::NotEditor,
+        editor_world_type: StartGamePacketEditorWorldType::NotEditor,
         created_in_editor: false,
         exported_from_editor: false,
         day_cycle_stop_time: 0,
@@ -71,7 +67,7 @@ fn jolyne_start_game_roundtrip() {
             link_uri: "".to_string(),
         },
         experimental_gameplay_override: false,
-        chat_restriction_level: PacketStartGameChatRestrictionLevel::None,
+        chat_restriction_level: StartGamePacketChatRestrictionLevel::None,
         disable_player_interactions: false,
         server_identifier: "".to_string(),
         world_identifier: "".to_string(),
@@ -105,7 +101,7 @@ fn jolyne_start_game_roundtrip() {
     let encoded = buf.freeze();
 
     let mut reader = encoded.clone();
-    let decoded = PacketStartGame::decode(&mut reader, ()).expect("decode failed");
+    let decoded = StartGamePacket::decode(&mut reader, ()).expect("decode failed");
 
     assert_eq!(packet, decoded);
     assert!(

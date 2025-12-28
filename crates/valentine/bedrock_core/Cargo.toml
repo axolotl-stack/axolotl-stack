@@ -6,3 +6,4 @@ edition.workspace = true
 [dependencies]
 bytes.workspace = true
 uuid.workspace = true
+thiserror = "1.0"

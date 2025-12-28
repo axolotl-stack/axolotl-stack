@@ -281,8 +281,7 @@ pub fn resolve_type_to_tokens(
                 if fields.is_empty() {
                     return Ok(quote! { () });
                 }
-                if fields.len() == 1 {
-                    let (_case_name, case_type) = &fields.iter().next().unwrap();
+                if let [(_, case_type)] = fields.as_slice() {
                     let inner = resolve_type_to_tokens(case_type, &clean_type_name(hint), ctx)?;
                     if should_box_variant(case_type, ctx, 0) {
                         return Ok(quote! { Option<Box<#inner>> });
@@ -478,14 +477,14 @@ pub fn define_type(
                     Ok(())
                 }
 
-                fn decode<B: bytes::Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
+                fn decode<B: bytes::Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, crate::bedrock::error::DecodeError> {
                     let len_raw = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0;
                     let len = len_raw as usize;
                     if buf.remaining() < len {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::UnexpectedEof,
-                            "little string eof",
-                        ));
+                        return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
+                            declared: len,
+                            available: buf.remaining(),
+                        });
                     }
                     let mut v = vec![0u8; len];
                     buf.copy_to_slice(&mut v);
@@ -558,8 +557,7 @@ pub fn define_type(
             if matches!(default.as_ref(), Type::Primitive(Primitive::Void)) {
                 if fields.is_empty() {
                     quote! { pub type #ident = (); }
-                } else if fields.len() == 1 {
-                    let (_case_name, case_type) = &fields.iter().next().unwrap();
+                } else if let [(_, case_type)] = fields.as_slice() {
                     let inner_tokens = resolve_type_to_tokens(case_type, &safe_name_str, ctx)?;
                     if should_box_variant(case_type, ctx, 0) {
                         quote! { pub type #ident = Option<Box<#inner_tokens>>; }
@@ -602,8 +600,10 @@ pub fn define_type(
                         }
                     }
 
-                    // Default impl: pick first variant
-                    let (first_name, first_type) = fields.iter().next().unwrap();
+                    // Default impl: pick first variant (fields is guaranteed non-empty here)
+                    let Some((first_name, first_type)) = fields.first() else {
+                        return Err("switch has no fields for default impl".into());
+                    };
                     let first_ident = if is_bool_switch {
                         if let Type::Reference(r) = first_type {
                             format_ident!("{}", clean_type_name(r))
@@ -836,7 +836,7 @@ pub fn define_type(
                         let val = self.bits();
                         #encode_logic
                     }
-                    fn decode<B: bytes::Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, std::io::Error> {
+                    fn decode<B: bytes::Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, crate::bedrock::error::DecodeError> {
                         #decode_logic
                         Ok(Self::from_bits_retain(bits))
                     }

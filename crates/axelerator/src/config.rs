@@ -55,10 +55,10 @@ fn default_world_name() -> String {
     "Minecraft World".into()
 }
 fn default_version() -> String {
-    jolyne::protocol::GAME_VERSION.into()
+    jolyne::valentine::GAME_VERSION.into()
 }
 fn default_protocol() -> i32 {
-    jolyne::protocol::PROTOCOL_VERSION
+    jolyne::valentine::PROTOCOL_VERSION
 }
 fn default_port() -> u16 {
     19132

@@ -7,9 +7,9 @@ pub mod error;
 pub mod gamedata;
 #[cfg(feature = "server")]
 pub mod listener;
-pub mod protocol;
 pub mod raw;
 pub mod stream;
+pub mod valentine;
 pub mod world;
 
 pub use config::BedrockListenerConfig;
@@ -35,5 +35,5 @@ pub use stream::{BedrockStream, Login, Play};
 pub use tokio_raknet::protocol::reliability::Reliability;
 pub use world::WorldTemplate;
 
-pub use protocol::{GAME_VERSION, PROTOCOL_VERSION};
 pub use raw::{RawPacket, decode_packet_raw};
+pub use valentine::{GAME_VERSION, PROTOCOL_VERSION};

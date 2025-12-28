@@ -9,12 +9,12 @@ bitflags.workspace = true
 bytes.workspace = true
 uuid.workspace = true
 valentine_bedrock_core.workspace = true
-valentine_bedrock_1_21_130 = { workspace = true, optional = true }
+valentine_bedrock_1_21_130 = { path = "bedrock_versions/v1_21_130", optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "time"] }
 tokio-raknet.workspace = true
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 futures.workspace = true
 flate2.workspace = true
 anyhow.workspace = true

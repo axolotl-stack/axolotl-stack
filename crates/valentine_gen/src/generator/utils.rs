@@ -106,13 +106,14 @@ pub fn clean_type_name(name: &str) -> String {
 }
 
 /// For packet-local helper types we sometimes end up with duplicated suffixes like
-/// `PacketPlayStatusStatus`. This derives a nicer alias name (e.g., `PlayStatus`) by:
-/// 1) stripping the leading `Packet`
+/// `PlayStatusStatusPacket`. This derives a nicer alias name (e.g., `PlayStatusPacket`) by:
+/// 1) stripping the trailing `Packet`
 /// 2) collapsing repeated trailing tokens (`*_status_status` -> `*_status`)
+/// 3) re-appending `Packet`
 ///
 /// Returns `None` when no collapse would occur.
 pub fn packet_duplicate_alias(type_name: &str) -> Option<String> {
-    let stripped = type_name.strip_prefix("Packet")?;
+    let stripped = type_name.strip_suffix("Packet")?;
     if stripped.is_empty() {
         return None;
     }
@@ -131,7 +132,7 @@ pub fn packet_duplicate_alias(type_name: &str) -> Option<String> {
     }
 
     let aliased = parts.join("_").to_case(Case::Pascal);
-    Some(clean_type_name(&aliased))
+    Some(format!("{}Packet", clean_type_name(&aliased)))
 }
 
 pub fn compute_fingerprint(
@@ -159,24 +160,14 @@ pub fn make_unique_names(base_names: &[String]) -> Vec<String> {
     result
 }
 
-fn first_token_from_pascal(name: &str) -> String {
-    let snake = name.to_case(Case::Snake);
-    snake
-        .split('_')
-        .find(|s| !s.is_empty())
-        .unwrap_or("misc")
-        .to_string()
-}
-
-/// Returns a hierarchical group path like "packets/chat" or "types/entities"
+/// Returns the group name for a struct - "proto" for packets, "types" for everything else.
+/// This consolidates all packets into proto.rs and all types into types.rs.
 pub fn get_group_name(struct_name: &str) -> String {
-    if struct_name.starts_with("Packet") {
-        let base = struct_name.trim_start_matches("Packet");
-        let token = first_token_from_pascal(base);
-        return format!("packets/{}", token);
+    if struct_name.ends_with("Packet") {
+        "proto".to_string()
+    } else {
+        "types".to_string()
     }
-    let token = first_token_from_pascal(struct_name);
-    format!("types/{}", token)
 }
 
 pub fn derive_field_names(container: &Container, struct_name: &str) -> Vec<String> {
@@ -224,15 +215,15 @@ mod tests {
     #[test]
     fn packet_duplicate_alias_collapses_suffix() {
         assert_eq!(
-            packet_duplicate_alias("PacketPlayStatusStatus").as_deref(),
-            Some("PlayStatus")
+            packet_duplicate_alias("PlayStatusStatusPacket").as_deref(),
+            Some("PlayStatusPacket")
         );
     }
 
     #[test]
     fn packet_duplicate_alias_none_when_not_duplicated() {
         assert_eq!(
-            packet_duplicate_alias("PacketNetworkSettingsCompressionAlgorithm"),
+            packet_duplicate_alias("NetworkSettingsCompressionAlgorithmPacket"),
             None
         );
     }
@@ -240,8 +231,8 @@ mod tests {
     #[test]
     fn packet_duplicate_alias_collapses_multiple() {
         assert_eq!(
-            packet_duplicate_alias("PacketFooTypeTypeType").as_deref(),
-            Some("FooType")
+            packet_duplicate_alias("FooTypeTypeTypePacket").as_deref(),
+            Some("FooTypePacket")
         );
     }
 }

@@ -3,8 +3,8 @@
 pub mod events;
 
 use jolyne::BedrockStream;
-use jolyne::protocol::types::mcpe::McpePacket;
 use jolyne::stream::{Play, Server as ServerRole};
+use jolyne::valentine::McpePacket;
 use tokio::sync::{broadcast, mpsc};
 use tracing::{debug, info, trace, warn};
 

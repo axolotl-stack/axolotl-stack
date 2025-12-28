@@ -18,7 +18,9 @@ impl BlockDef for Air {
     const MIN_STATE_ID: u32 = 12530;
     const MAX_STATE_ID: u32 = 12530;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stone
@@ -36,7 +38,9 @@ impl BlockDef for Stone {
     const MIN_STATE_ID: u32 = 2532;
     const MAX_STATE_ID: u32 = 2532;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Granite
@@ -54,7 +58,9 @@ impl BlockDef for Granite {
     const MIN_STATE_ID: u32 = 284;
     const MAX_STATE_ID: u32 = 284;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Granite
@@ -72,7 +78,9 @@ impl BlockDef for PolishedGranite {
     const MIN_STATE_ID: u32 = 1843;
     const MAX_STATE_ID: u32 = 1843;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Diorite
@@ -90,7 +98,9 @@ impl BlockDef for Diorite {
     const MIN_STATE_ID: u32 = 415;
     const MAX_STATE_ID: u32 = 415;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Diorite
@@ -108,7 +118,9 @@ impl BlockDef for PolishedDiorite {
     const MIN_STATE_ID: u32 = 10440;
     const MAX_STATE_ID: u32 = 10440;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Andesite
@@ -126,7 +138,9 @@ impl BlockDef for Andesite {
     const MIN_STATE_ID: u32 = 2530;
     const MAX_STATE_ID: u32 = 2530;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Andesite
@@ -144,7 +158,9 @@ impl BlockDef for PolishedAndesite {
     const MIN_STATE_ID: u32 = 14394;
     const MAX_STATE_ID: u32 = 14394;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Grass Block
@@ -162,7 +178,9 @@ impl BlockDef for GrassBlock {
     const MIN_STATE_ID: u32 = 11062;
     const MAX_STATE_ID: u32 = 11062;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dirt
@@ -180,7 +198,9 @@ impl BlockDef for Dirt {
     const MIN_STATE_ID: u32 = 9852;
     const MAX_STATE_ID: u32 = 9852;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Coarse Dirt
@@ -198,7 +218,9 @@ impl BlockDef for CoarseDirt {
     const MIN_STATE_ID: u32 = 6725;
     const MAX_STATE_ID: u32 = 6725;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Podzol
@@ -216,7 +238,9 @@ impl BlockDef for Podzol {
     const MIN_STATE_ID: u32 = 7292;
     const MAX_STATE_ID: u32 = 7292;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cobblestone
@@ -234,7 +258,9 @@ impl BlockDef for Cobblestone {
     const MIN_STATE_ID: u32 = 5088;
     const MAX_STATE_ID: u32 = 5088;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oak Planks
@@ -252,7 +278,9 @@ impl BlockDef for OakPlanks {
     const MIN_STATE_ID: u32 = 14388;
     const MAX_STATE_ID: u32 = 14388;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Spruce Planks
@@ -270,7 +298,9 @@ impl BlockDef for SprucePlanks {
     const MIN_STATE_ID: u32 = 14781;
     const MAX_STATE_ID: u32 = 14781;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Birch Planks
@@ -288,7 +318,9 @@ impl BlockDef for BirchPlanks {
     const MIN_STATE_ID: u32 = 8651;
     const MAX_STATE_ID: u32 = 8651;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Jungle Planks
@@ -306,7 +338,9 @@ impl BlockDef for JunglePlanks {
     const MIN_STATE_ID: u32 = 12490;
     const MAX_STATE_ID: u32 = 12490;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Acacia Planks
@@ -324,7 +358,9 @@ impl BlockDef for AcaciaPlanks {
     const MIN_STATE_ID: u32 = 6633;
     const MAX_STATE_ID: u32 = 6633;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cherry Planks
@@ -342,7 +378,9 @@ impl BlockDef for CherryPlanks {
     const MIN_STATE_ID: u32 = 14646;
     const MAX_STATE_ID: u32 = 14646;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dark Oak Planks
@@ -360,7 +398,9 @@ impl BlockDef for DarkOakPlanks {
     const MIN_STATE_ID: u32 = 5023;
     const MAX_STATE_ID: u32 = 5023;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pale Oak Wood
@@ -378,7 +418,9 @@ impl BlockDef for PaleOakWood {
     const MIN_STATE_ID: u32 = 8533;
     const MAX_STATE_ID: u32 = 8535;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pale Oak Planks
@@ -396,7 +438,9 @@ impl BlockDef for PaleOakPlanks {
     const MIN_STATE_ID: u32 = 5268;
     const MAX_STATE_ID: u32 = 5268;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mangrove Planks
@@ -414,7 +458,9 @@ impl BlockDef for MangrovePlanks {
     const MIN_STATE_ID: u32 = 3253;
     const MAX_STATE_ID: u32 = 3253;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bamboo Planks
@@ -432,7 +478,9 @@ impl BlockDef for BambooPlanks {
     const MIN_STATE_ID: u32 = 9713;
     const MAX_STATE_ID: u32 = 9713;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bamboo Mosaic
@@ -450,7 +498,9 @@ impl BlockDef for BambooMosaic {
     const MIN_STATE_ID: u32 = 15773;
     const MAX_STATE_ID: u32 = 15773;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oak Sapling
@@ -468,7 +518,9 @@ impl BlockDef for OakSapling {
     const MIN_STATE_ID: u32 = 2520;
     const MAX_STATE_ID: u32 = 2521;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Spruce Sapling
@@ -486,7 +538,9 @@ impl BlockDef for SpruceSapling {
     const MIN_STATE_ID: u32 = 6230;
     const MAX_STATE_ID: u32 = 6231;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Birch Sapling
@@ -504,7 +558,9 @@ impl BlockDef for BirchSapling {
     const MIN_STATE_ID: u32 = 14365;
     const MAX_STATE_ID: u32 = 14366;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Jungle Sapling
@@ -522,7 +578,9 @@ impl BlockDef for JungleSapling {
     const MIN_STATE_ID: u32 = 11609;
     const MAX_STATE_ID: u32 = 11610;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Acacia Sapling
@@ -540,7 +598,9 @@ impl BlockDef for AcaciaSapling {
     const MIN_STATE_ID: u32 = 12180;
     const MAX_STATE_ID: u32 = 12181;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cherry Sapling
@@ -558,7 +618,9 @@ impl BlockDef for CherrySapling {
     const MIN_STATE_ID: u32 = 13879;
     const MAX_STATE_ID: u32 = 13880;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dark Oak Sapling
@@ -576,7 +638,9 @@ impl BlockDef for DarkOakSapling {
     const MIN_STATE_ID: u32 = 1825;
     const MAX_STATE_ID: u32 = 1826;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pale Oak Sapling
@@ -594,7 +658,9 @@ impl BlockDef for PaleOakSapling {
     const MIN_STATE_ID: u32 = 1841;
     const MAX_STATE_ID: u32 = 1842;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mangrove Propagule
@@ -612,7 +678,9 @@ impl BlockDef for MangrovePropagule {
     const MIN_STATE_ID: u32 = 12870;
     const MAX_STATE_ID: u32 = 12879;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bedrock
@@ -630,7 +698,9 @@ impl BlockDef for Bedrock {
     const MIN_STATE_ID: u32 = 13079;
     const MAX_STATE_ID: u32 = 13080;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Water
@@ -648,7 +718,9 @@ impl BlockDef for FlowingWater {
     const MIN_STATE_ID: u32 = 7439;
     const MAX_STATE_ID: u32 = 7454;
     type State = super::states::LiquidState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Water
@@ -666,7 +738,9 @@ impl BlockDef for Water {
     const MIN_STATE_ID: u32 = 9268;
     const MAX_STATE_ID: u32 = 9283;
     type State = super::states::LiquidState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Lava
@@ -684,7 +758,9 @@ impl BlockDef for Lava {
     const MIN_STATE_ID: u32 = 5406;
     const MAX_STATE_ID: u32 = 5421;
     type State = super::states::LiquidState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Lava
@@ -702,7 +778,9 @@ impl BlockDef for FlowingLava {
     const MIN_STATE_ID: u32 = 13820;
     const MAX_STATE_ID: u32 = 13835;
     type State = super::states::LiquidState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Sand
@@ -720,7 +798,9 @@ impl BlockDef for Sand {
     const MIN_STATE_ID: u32 = 6234;
     const MAX_STATE_ID: u32 = 6234;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Suspicious Sand
@@ -738,7 +818,9 @@ impl BlockDef for SuspiciousSand {
     const MIN_STATE_ID: u32 = 3611;
     const MAX_STATE_ID: u32 = 3618;
     type State = super::states::BrushableState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Red Sand
@@ -756,7 +838,9 @@ impl BlockDef for RedSand {
     const MIN_STATE_ID: u32 = 2732;
     const MAX_STATE_ID: u32 = 2732;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Gravel
@@ -774,7 +858,9 @@ impl BlockDef for Gravel {
     const MIN_STATE_ID: u32 = 15806;
     const MAX_STATE_ID: u32 = 15806;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Suspicious Gravel
@@ -792,7 +878,9 @@ impl BlockDef for SuspiciousGravel {
     const MIN_STATE_ID: u32 = 7415;
     const MAX_STATE_ID: u32 = 7422;
     type State = super::states::BrushableState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Gold Ore
@@ -810,7 +898,9 @@ impl BlockDef for GoldOre {
     const MIN_STATE_ID: u32 = 3203;
     const MAX_STATE_ID: u32 = 3203;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Deepslate Gold Ore
@@ -828,7 +918,9 @@ impl BlockDef for DeepslateGoldOre {
     const MIN_STATE_ID: u32 = 11907;
     const MAX_STATE_ID: u32 = 11907;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Iron Ore
@@ -846,7 +938,9 @@ impl BlockDef for IronOre {
     const MIN_STATE_ID: u32 = 7336;
     const MAX_STATE_ID: u32 = 7336;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Deepslate Iron Ore
@@ -864,7 +958,9 @@ impl BlockDef for DeepslateIronOre {
     const MIN_STATE_ID: u32 = 13905;
     const MAX_STATE_ID: u32 = 13905;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Coal Ore
@@ -882,7 +978,9 @@ impl BlockDef for CoalOre {
     const MIN_STATE_ID: u32 = 6318;
     const MAX_STATE_ID: u32 = 6318;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Deepslate Coal Ore
@@ -900,7 +998,9 @@ impl BlockDef for DeepslateCoalOre {
     const MIN_STATE_ID: u32 = 13783;
     const MAX_STATE_ID: u32 = 13783;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Nether Gold Ore
@@ -918,7 +1018,9 @@ impl BlockDef for NetherGoldOre {
     const MIN_STATE_ID: u32 = 32;
     const MAX_STATE_ID: u32 = 32;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oak Log
@@ -936,7 +1038,9 @@ impl BlockDef for OakLog {
     const MIN_STATE_ID: u32 = 1366;
     const MAX_STATE_ID: u32 = 1368;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Spruce Log
@@ -954,7 +1058,9 @@ impl BlockDef for SpruceLog {
     const MIN_STATE_ID: u32 = 6314;
     const MAX_STATE_ID: u32 = 6316;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Birch Log
@@ -972,7 +1078,9 @@ impl BlockDef for BirchLog {
     const MIN_STATE_ID: u32 = 2535;
     const MAX_STATE_ID: u32 = 2537;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Jungle Log
@@ -990,7 +1098,9 @@ impl BlockDef for JungleLog {
     const MIN_STATE_ID: u32 = 1260;
     const MAX_STATE_ID: u32 = 1262;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Acacia Log
@@ -1008,7 +1118,9 @@ impl BlockDef for AcaciaLog {
     const MIN_STATE_ID: u32 = 6466;
     const MAX_STATE_ID: u32 = 6468;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cherry Log
@@ -1026,7 +1138,9 @@ impl BlockDef for CherryLog {
     const MIN_STATE_ID: u32 = 13881;
     const MAX_STATE_ID: u32 = 13883;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dark Oak Log
@@ -1044,7 +1158,9 @@ impl BlockDef for DarkOakLog {
     const MIN_STATE_ID: u32 = 3989;
     const MAX_STATE_ID: u32 = 3991;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pale Oak Log
@@ -1062,7 +1178,9 @@ impl BlockDef for PaleOakLog {
     const MIN_STATE_ID: u32 = 11622;
     const MAX_STATE_ID: u32 = 11624;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mangrove Log
@@ -1080,7 +1198,9 @@ impl BlockDef for MangroveLog {
     const MIN_STATE_ID: u32 = 1764;
     const MAX_STATE_ID: u32 = 1766;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mangrove Roots
@@ -1098,7 +1218,9 @@ impl BlockDef for MangroveRoots {
     const MIN_STATE_ID: u32 = 12011;
     const MAX_STATE_ID: u32 = 12011;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Muddy Mangrove Roots
@@ -1116,7 +1238,9 @@ impl BlockDef for MuddyMangroveRoots {
     const MIN_STATE_ID: u32 = 1740;
     const MAX_STATE_ID: u32 = 1742;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Block of Bamboo
@@ -1134,7 +1258,9 @@ impl BlockDef for BambooBlock {
     const MIN_STATE_ID: u32 = 111;
     const MAX_STATE_ID: u32 = 113;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stripped Spruce Log
@@ -1152,7 +1278,9 @@ impl BlockDef for StrippedSpruceLog {
     const MIN_STATE_ID: u32 = 12112;
     const MAX_STATE_ID: u32 = 12114;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stripped Birch Log
@@ -1170,7 +1298,9 @@ impl BlockDef for StrippedBirchLog {
     const MIN_STATE_ID: u32 = 11154;
     const MAX_STATE_ID: u32 = 11156;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stripped Jungle Log
@@ -1188,7 +1318,9 @@ impl BlockDef for StrippedJungleLog {
     const MIN_STATE_ID: u32 = 2471;
     const MAX_STATE_ID: u32 = 2473;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stripped Acacia Log
@@ -1206,7 +1338,9 @@ impl BlockDef for StrippedAcaciaLog {
     const MIN_STATE_ID: u32 = 10508;
     const MAX_STATE_ID: u32 = 10510;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stripped Cherry Log
@@ -1224,7 +1358,9 @@ impl BlockDef for StrippedCherryLog {
     const MIN_STATE_ID: u32 = 6618;
     const MAX_STATE_ID: u32 = 6620;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stripped Dark Oak Log
@@ -1242,7 +1378,9 @@ impl BlockDef for StrippedDarkOakLog {
     const MIN_STATE_ID: u32 = 1254;
     const MAX_STATE_ID: u32 = 1256;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stripped Pale Oak Log
@@ -1260,7 +1398,9 @@ impl BlockDef for StrippedPaleOakLog {
     const MIN_STATE_ID: u32 = 6373;
     const MAX_STATE_ID: u32 = 6375;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stripped Oak Log
@@ -1278,7 +1418,9 @@ impl BlockDef for StrippedOakLog {
     const MIN_STATE_ID: u32 = 14389;
     const MAX_STATE_ID: u32 = 14391;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stripped Mangrove Log
@@ -1296,7 +1438,9 @@ impl BlockDef for StrippedMangroveLog {
     const MIN_STATE_ID: u32 = 15801;
     const MAX_STATE_ID: u32 = 15803;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Block of Stripped Bamboo
@@ -1314,7 +1458,9 @@ impl BlockDef for StrippedBambooBlock {
     const MIN_STATE_ID: u32 = 5066;
     const MAX_STATE_ID: u32 = 5068;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oak Wood
@@ -1332,7 +1478,9 @@ impl BlockDef for OakWood {
     const MIN_STATE_ID: u32 = 7957;
     const MAX_STATE_ID: u32 = 7959;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Spruce Wood
@@ -1350,7 +1498,9 @@ impl BlockDef for SpruceWood {
     const MIN_STATE_ID: u32 = 14436;
     const MAX_STATE_ID: u32 = 14438;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Birch Wood
@@ -1368,7 +1518,9 @@ impl BlockDef for BirchWood {
     const MIN_STATE_ID: u32 = 2729;
     const MAX_STATE_ID: u32 = 2731;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Jungle Wood
@@ -1386,7 +1538,9 @@ impl BlockDef for JungleWood {
     const MIN_STATE_ID: u32 = 2745;
     const MAX_STATE_ID: u32 = 2747;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Acacia Wood
@@ -1404,7 +1558,9 @@ impl BlockDef for AcaciaWood {
     const MIN_STATE_ID: u32 = 12784;
     const MAX_STATE_ID: u32 = 12786;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cherry Wood
@@ -1422,7 +1578,9 @@ impl BlockDef for CherryWood {
     const MIN_STATE_ID: u32 = 13315;
     const MAX_STATE_ID: u32 = 13317;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dark Oak Wood
@@ -1440,7 +1598,9 @@ impl BlockDef for DarkOakWood {
     const MIN_STATE_ID: u32 = 10;
     const MAX_STATE_ID: u32 = 12;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mangrove Wood
@@ -1458,7 +1618,9 @@ impl BlockDef for MangroveWood {
     const MIN_STATE_ID: u32 = 6175;
     const MAX_STATE_ID: u32 = 6177;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stripped Oak Wood
@@ -1476,7 +1638,9 @@ impl BlockDef for StrippedOakWood {
     const MIN_STATE_ID: u32 = 7510;
     const MAX_STATE_ID: u32 = 7512;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stripped Spruce Wood
@@ -1494,7 +1658,9 @@ impl BlockDef for StrippedSpruceWood {
     const MIN_STATE_ID: u32 = 2704;
     const MAX_STATE_ID: u32 = 2706;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stripped Birch Wood
@@ -1512,7 +1678,9 @@ impl BlockDef for StrippedBirchWood {
     const MIN_STATE_ID: u32 = 6734;
     const MAX_STATE_ID: u32 = 6736;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stripped Jungle Wood
@@ -1530,7 +1698,9 @@ impl BlockDef for StrippedJungleWood {
     const MIN_STATE_ID: u32 = 1759;
     const MAX_STATE_ID: u32 = 1761;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stripped Acacia Wood
@@ -1548,7 +1718,9 @@ impl BlockDef for StrippedAcaciaWood {
     const MIN_STATE_ID: u32 = 1350;
     const MAX_STATE_ID: u32 = 1352;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stripped Cherry Wood
@@ -1566,7 +1738,9 @@ impl BlockDef for StrippedCherryWood {
     const MIN_STATE_ID: u32 = 7984;
     const MAX_STATE_ID: u32 = 7986;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stripped Dark Oak Wood
@@ -1584,7 +1758,9 @@ impl BlockDef for StrippedDarkOakWood {
     const MIN_STATE_ID: u32 = 7948;
     const MAX_STATE_ID: u32 = 7950;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stripped Pale Oak Wood
@@ -1602,7 +1778,9 @@ impl BlockDef for StrippedPaleOakWood {
     const MIN_STATE_ID: u32 = 3606;
     const MAX_STATE_ID: u32 = 3608;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stripped Mangrove Wood
@@ -1620,7 +1798,9 @@ impl BlockDef for StrippedMangroveWood {
     const MIN_STATE_ID: u32 = 6267;
     const MAX_STATE_ID: u32 = 6269;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oak Leaves
@@ -1638,7 +1818,9 @@ impl BlockDef for OakLeaves {
     const MIN_STATE_ID: u32 = 2752;
     const MAX_STATE_ID: u32 = 2755;
     type State = super::states::LeavesState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Spruce Leaves
@@ -1656,7 +1838,9 @@ impl BlockDef for SpruceLeaves {
     const MIN_STATE_ID: u32 = 6578;
     const MAX_STATE_ID: u32 = 6581;
     type State = super::states::LeavesState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Birch Leaves
@@ -1674,7 +1858,9 @@ impl BlockDef for BirchLeaves {
     const MIN_STATE_ID: u32 = 6160;
     const MAX_STATE_ID: u32 = 6163;
     type State = super::states::LeavesState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Jungle Leaves
@@ -1692,7 +1878,9 @@ impl BlockDef for JungleLeaves {
     const MIN_STATE_ID: u32 = 8677;
     const MAX_STATE_ID: u32 = 8680;
     type State = super::states::LeavesState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Acacia Leaves
@@ -1710,7 +1898,9 @@ impl BlockDef for AcaciaLeaves {
     const MIN_STATE_ID: u32 = 3810;
     const MAX_STATE_ID: u32 = 3813;
     type State = super::states::LeavesState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cherry Leaves
@@ -1728,7 +1918,9 @@ impl BlockDef for CherryLeaves {
     const MIN_STATE_ID: u32 = 10443;
     const MAX_STATE_ID: u32 = 10446;
     type State = super::states::LeavesState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dark Oak Leaves
@@ -1746,7 +1938,9 @@ impl BlockDef for DarkOakLeaves {
     const MIN_STATE_ID: u32 = 11647;
     const MAX_STATE_ID: u32 = 11650;
     type State = super::states::LeavesState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pale Oak Leaves
@@ -1764,7 +1958,9 @@ impl BlockDef for PaleOakLeaves {
     const MIN_STATE_ID: u32 = 1776;
     const MAX_STATE_ID: u32 = 1779;
     type State = super::states::LeavesState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mangrove Leaves
@@ -1782,7 +1978,9 @@ impl BlockDef for MangroveLeaves {
     const MIN_STATE_ID: u32 = 12516;
     const MAX_STATE_ID: u32 = 12519;
     type State = super::states::LeavesState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Azalea Leaves
@@ -1800,7 +1998,9 @@ impl BlockDef for AzaleaLeaves {
     const MIN_STATE_ID: u32 = 14598;
     const MAX_STATE_ID: u32 = 14601;
     type State = super::states::LeavesState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Flowering Azalea Leaves
@@ -1818,7 +2018,9 @@ impl BlockDef for AzaleaLeavesFlowered {
     const MIN_STATE_ID: u32 = 12167;
     const MAX_STATE_ID: u32 = 12170;
     type State = super::states::LeavesState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Sponge
@@ -1836,7 +2038,9 @@ impl BlockDef for Sponge {
     const MIN_STATE_ID: u32 = 2070;
     const MAX_STATE_ID: u32 = 2070;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Wet Sponge
@@ -1854,7 +2058,9 @@ impl BlockDef for WetSponge {
     const MIN_STATE_ID: u32 = 121;
     const MAX_STATE_ID: u32 = 121;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Glass
@@ -1872,7 +2078,9 @@ impl BlockDef for Glass {
     const MIN_STATE_ID: u32 = 11998;
     const MAX_STATE_ID: u32 = 11998;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Lapis Lazuli Ore
@@ -1890,7 +2098,9 @@ impl BlockDef for LapisOre {
     const MIN_STATE_ID: u32 = 14583;
     const MAX_STATE_ID: u32 = 14583;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Deepslate Lapis Lazuli Ore
@@ -1908,7 +2118,9 @@ impl BlockDef for DeepslateLapisOre {
     const MIN_STATE_ID: u32 = 13877;
     const MAX_STATE_ID: u32 = 13877;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Block of Lapis Lazuli
@@ -1926,7 +2138,9 @@ impl BlockDef for LapisBlock {
     const MIN_STATE_ID: u32 = 6317;
     const MAX_STATE_ID: u32 = 6317;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dispenser
@@ -1944,7 +2158,9 @@ impl BlockDef for Dispenser {
     const MIN_STATE_ID: u32 = 14980;
     const MAX_STATE_ID: u32 = 14991;
     type State = super::states::DispenserState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Sandstone
@@ -1962,7 +2178,9 @@ impl BlockDef for Sandstone {
     const MIN_STATE_ID: u32 = 5213;
     const MAX_STATE_ID: u32 = 5213;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Chiseled Sandstone
@@ -1980,7 +2198,9 @@ impl BlockDef for ChiseledSandstone {
     const MIN_STATE_ID: u32 = 11611;
     const MAX_STATE_ID: u32 = 11611;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cut Sandstone
@@ -1998,7 +2218,9 @@ impl BlockDef for CutSandstone {
     const MIN_STATE_ID: u32 = 11190;
     const MAX_STATE_ID: u32 = 11190;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Note Block
@@ -2016,7 +2238,9 @@ impl BlockDef for Noteblock {
     const MIN_STATE_ID: u32 = 1762;
     const MAX_STATE_ID: u32 = 1762;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Black Bed
@@ -2034,7 +2258,9 @@ impl BlockDef for Bed {
     const MIN_STATE_ID: u32 = 12531;
     const MAX_STATE_ID: u32 = 12546;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Powered Rail
@@ -2052,7 +2278,9 @@ impl BlockDef for GoldenRail {
     const MIN_STATE_ID: u32 = 8652;
     const MAX_STATE_ID: u32 = 8663;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Detector Rail
@@ -2070,7 +2298,9 @@ impl BlockDef for DetectorRail {
     const MIN_STATE_ID: u32 = 6138;
     const MAX_STATE_ID: u32 = 6149;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Sticky Piston
@@ -2088,7 +2318,9 @@ impl BlockDef for StickyPiston {
     const MIN_STATE_ID: u32 = 6505;
     const MAX_STATE_ID: u32 = 6510;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cobweb
@@ -2106,7 +2338,9 @@ impl BlockDef for Web {
     const MIN_STATE_ID: u32 = 12552;
     const MAX_STATE_ID: u32 = 12552;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Short Grass
@@ -2124,7 +2358,9 @@ impl BlockDef for ShortGrass {
     const MIN_STATE_ID: u32 = 12421;
     const MAX_STATE_ID: u32 = 12421;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Fern
@@ -2142,7 +2378,9 @@ impl BlockDef for Fern {
     const MIN_STATE_ID: u32 = 11669;
     const MAX_STATE_ID: u32 = 11669;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dead Bush
@@ -2160,7 +2398,9 @@ impl BlockDef for Deadbush {
     const MIN_STATE_ID: u32 = 7319;
     const MAX_STATE_ID: u32 = 7319;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bush
@@ -2178,7 +2418,9 @@ impl BlockDef for Bush {
     const MIN_STATE_ID: u32 = 12841;
     const MAX_STATE_ID: u32 = 12841;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Short Dry Grass
@@ -2196,7 +2438,9 @@ impl BlockDef for ShortDryGrass {
     const MIN_STATE_ID: u32 = 11673;
     const MAX_STATE_ID: u32 = 11673;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Tall Dry Grass
@@ -2214,7 +2458,9 @@ impl BlockDef for TallDryGrass {
     const MIN_STATE_ID: u32 = 8589;
     const MAX_STATE_ID: u32 = 8589;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Seagrass
@@ -2232,7 +2478,9 @@ impl BlockDef for Seagrass {
     const MIN_STATE_ID: u32 = 1301;
     const MAX_STATE_ID: u32 = 1303;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Piston
@@ -2250,7 +2498,9 @@ impl BlockDef for Piston {
     const MIN_STATE_ID: u32 = 3228;
     const MAX_STATE_ID: u32 = 3233;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Piston Head
@@ -2268,7 +2518,9 @@ impl BlockDef for PistonArmCollision {
     const MIN_STATE_ID: u32 = 114;
     const MAX_STATE_ID: u32 = 119;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Piston Head
@@ -2286,7 +2538,9 @@ impl BlockDef for StickyPistonArmCollision {
     const MIN_STATE_ID: u32 = 12172;
     const MAX_STATE_ID: u32 = 12177;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// White Wool
@@ -2304,7 +2558,9 @@ impl BlockDef for WhiteWool {
     const MIN_STATE_ID: u32 = 8738;
     const MAX_STATE_ID: u32 = 8738;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Orange Wool
@@ -2322,7 +2578,9 @@ impl BlockDef for OrangeWool {
     const MIN_STATE_ID: u32 = 2707;
     const MAX_STATE_ID: u32 = 2707;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Magenta Wool
@@ -2340,7 +2598,9 @@ impl BlockDef for MagentaWool {
     const MIN_STATE_ID: u32 = 3423;
     const MAX_STATE_ID: u32 = 3423;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light Blue Wool
@@ -2358,7 +2618,9 @@ impl BlockDef for LightBlueWool {
     const MIN_STATE_ID: u32 = 13238;
     const MAX_STATE_ID: u32 = 13238;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Yellow Wool
@@ -2376,7 +2638,9 @@ impl BlockDef for YellowWool {
     const MIN_STATE_ID: u32 = 836;
     const MAX_STATE_ID: u32 = 836;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Lime Wool
@@ -2394,7 +2658,9 @@ impl BlockDef for LimeWool {
     const MIN_STATE_ID: u32 = 11575;
     const MAX_STATE_ID: u32 = 11575;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pink Wool
@@ -2412,7 +2678,9 @@ impl BlockDef for PinkWool {
     const MIN_STATE_ID: u32 = 5368;
     const MAX_STATE_ID: u32 = 5368;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Gray Wool
@@ -2430,7 +2698,9 @@ impl BlockDef for GrayWool {
     const MIN_STATE_ID: u32 = 1270;
     const MAX_STATE_ID: u32 = 1270;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light Gray Wool
@@ -2448,7 +2718,9 @@ impl BlockDef for LightGrayWool {
     const MIN_STATE_ID: u32 = 15016;
     const MAX_STATE_ID: u32 = 15016;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cyan Wool
@@ -2466,7 +2738,9 @@ impl BlockDef for CyanWool {
     const MIN_STATE_ID: u32 = 8664;
     const MAX_STATE_ID: u32 = 8664;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Purple Wool
@@ -2484,7 +2758,9 @@ impl BlockDef for PurpleWool {
     const MIN_STATE_ID: u32 = 15777;
     const MAX_STATE_ID: u32 = 15777;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Blue Wool
@@ -2502,7 +2778,9 @@ impl BlockDef for BlueWool {
     const MIN_STATE_ID: u32 = 8856;
     const MAX_STATE_ID: u32 = 8856;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Brown Wool
@@ -2520,7 +2798,9 @@ impl BlockDef for BrownWool {
     const MIN_STATE_ID: u32 = 1330;
     const MAX_STATE_ID: u32 = 1330;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Green Wool
@@ -2538,7 +2818,9 @@ impl BlockDef for GreenWool {
     const MIN_STATE_ID: u32 = 5309;
     const MAX_STATE_ID: u32 = 5309;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Red Wool
@@ -2556,7 +2838,9 @@ impl BlockDef for RedWool {
     const MIN_STATE_ID: u32 = 361;
     const MAX_STATE_ID: u32 = 361;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Black Wool
@@ -2574,7 +2858,9 @@ impl BlockDef for BlackWool {
     const MIN_STATE_ID: u32 = 1790;
     const MAX_STATE_ID: u32 = 1790;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Moving Piston
@@ -2592,7 +2878,9 @@ impl BlockDef for MovingBlock {
     const MIN_STATE_ID: u32 = 9668;
     const MAX_STATE_ID: u32 = 9668;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dandelion
@@ -2610,7 +2898,9 @@ impl BlockDef for Dandelion {
     const MIN_STATE_ID: u32 = 15844;
     const MAX_STATE_ID: u32 = 15844;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Torchflower
@@ -2628,7 +2918,9 @@ impl BlockDef for Torchflower {
     const MIN_STATE_ID: u32 = 11672;
     const MAX_STATE_ID: u32 = 11672;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Poppy
@@ -2646,7 +2938,9 @@ impl BlockDef for Poppy {
     const MIN_STATE_ID: u32 = 5298;
     const MAX_STATE_ID: u32 = 5298;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Blue Orchid
@@ -2664,7 +2958,9 @@ impl BlockDef for BlueOrchid {
     const MIN_STATE_ID: u32 = 6150;
     const MAX_STATE_ID: u32 = 6150;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Allium
@@ -2682,7 +2978,9 @@ impl BlockDef for Allium {
     const MIN_STATE_ID: u32 = 1787;
     const MAX_STATE_ID: u32 = 1787;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Azure Bluet
@@ -2700,7 +2998,9 @@ impl BlockDef for AzureBluet {
     const MIN_STATE_ID: u32 = 845;
     const MAX_STATE_ID: u32 = 845;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Red Tulip
@@ -2718,7 +3018,9 @@ impl BlockDef for RedTulip {
     const MIN_STATE_ID: u32 = 14294;
     const MAX_STATE_ID: u32 = 14294;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Orange Tulip
@@ -2736,7 +3038,9 @@ impl BlockDef for OrangeTulip {
     const MIN_STATE_ID: u32 = 12768;
     const MAX_STATE_ID: u32 = 12768;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// White Tulip
@@ -2754,7 +3058,9 @@ impl BlockDef for WhiteTulip {
     const MIN_STATE_ID: u32 = 6793;
     const MAX_STATE_ID: u32 = 6793;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pink Tulip
@@ -2772,7 +3078,9 @@ impl BlockDef for PinkTulip {
     const MIN_STATE_ID: u32 = 6370;
     const MAX_STATE_ID: u32 = 6370;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oxeye Daisy
@@ -2790,7 +3098,9 @@ impl BlockDef for OxeyeDaisy {
     const MIN_STATE_ID: u32 = 13916;
     const MAX_STATE_ID: u32 = 13916;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cornflower
@@ -2808,7 +3118,9 @@ impl BlockDef for Cornflower {
     const MIN_STATE_ID: u32 = 8356;
     const MAX_STATE_ID: u32 = 8356;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Wither Rose
@@ -2826,7 +3138,9 @@ impl BlockDef for WitherRose {
     const MIN_STATE_ID: u32 = 11999;
     const MAX_STATE_ID: u32 = 11999;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Lily of the Valley
@@ -2844,7 +3158,9 @@ impl BlockDef for LilyOfTheValley {
     const MIN_STATE_ID: u32 = 1274;
     const MAX_STATE_ID: u32 = 1274;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Brown Mushroom
@@ -2862,7 +3178,9 @@ impl BlockDef for BrownMushroom {
     const MIN_STATE_ID: u32 = 4959;
     const MAX_STATE_ID: u32 = 4959;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Red Mushroom
@@ -2880,7 +3198,9 @@ impl BlockDef for RedMushroom {
     const MIN_STATE_ID: u32 = 6797;
     const MAX_STATE_ID: u32 = 6797;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Block of Gold
@@ -2898,7 +3218,9 @@ impl BlockDef for GoldBlock {
     const MIN_STATE_ID: u32 = 1429;
     const MAX_STATE_ID: u32 = 1429;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Block of Iron
@@ -2916,7 +3238,9 @@ impl BlockDef for IronBlock {
     const MIN_STATE_ID: u32 = 15778;
     const MAX_STATE_ID: u32 = 15778;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bricks
@@ -2934,7 +3258,9 @@ impl BlockDef for BrickBlock {
     const MIN_STATE_ID: u32 = 7455;
     const MAX_STATE_ID: u32 = 7455;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// TNT
@@ -2952,7 +3278,9 @@ impl BlockDef for Tnt {
     const MIN_STATE_ID: u32 = 12548;
     const MAX_STATE_ID: u32 = 12549;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bookshelf
@@ -2970,7 +3298,9 @@ impl BlockDef for Bookshelf {
     const MIN_STATE_ID: u32 = 12523;
     const MAX_STATE_ID: u32 = 12523;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Chiseled Bookshelf
@@ -2988,7 +3318,9 @@ impl BlockDef for ChiseledBookshelf {
     const MIN_STATE_ID: u32 = 1432;
     const MAX_STATE_ID: u32 = 1687;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mossy Cobblestone
@@ -3006,7 +3338,9 @@ impl BlockDef for MossyCobblestone {
     const MIN_STATE_ID: u32 = 1309;
     const MAX_STATE_ID: u32 = 1309;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Obsidian
@@ -3024,7 +3358,9 @@ impl BlockDef for Obsidian {
     const MIN_STATE_ID: u32 = 1879;
     const MAX_STATE_ID: u32 = 1879;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Torch
@@ -3042,7 +3378,9 @@ impl BlockDef for Torch {
     const MIN_STATE_ID: u32 = 2995;
     const MAX_STATE_ID: u32 = 3000;
     type State = super::states::TorchState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Fire
@@ -3060,7 +3398,9 @@ impl BlockDef for Fire {
     const MIN_STATE_ID: u32 = 11653;
     const MAX_STATE_ID: u32 = 11668;
     type State = super::states::AgeState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Soul Fire
@@ -3078,7 +3418,9 @@ impl BlockDef for SoulFire {
     const MIN_STATE_ID: u32 = 1850;
     const MAX_STATE_ID: u32 = 1865;
     type State = super::states::AgeState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Monster Spawner
@@ -3096,7 +3438,9 @@ impl BlockDef for MobSpawner {
     const MIN_STATE_ID: u32 = 1840;
     const MAX_STATE_ID: u32 = 1840;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Creaking Heart
@@ -3114,7 +3458,9 @@ impl BlockDef for CreakingHeart {
     const MIN_STATE_ID: u32 = 14258;
     const MAX_STATE_ID: u32 = 14275;
     type State = super::states::CreakingHeartBlockState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oak Stairs
@@ -3132,7 +3478,9 @@ impl BlockDef for OakStairs {
     const MIN_STATE_ID: u32 = 1357;
     const MAX_STATE_ID: u32 = 1364;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Chest
@@ -3150,7 +3498,9 @@ impl BlockDef for Chest {
     const MIN_STATE_ID: u32 = 13311;
     const MAX_STATE_ID: u32 = 13314;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Redstone Wire
@@ -3168,7 +3518,9 @@ impl BlockDef for RedstoneWire {
     const MIN_STATE_ID: u32 = 5386;
     const MAX_STATE_ID: u32 = 5401;
     type State = super::states::PressurePlateState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Diamond Ore
@@ -3186,7 +3538,9 @@ impl BlockDef for DiamondOre {
     const MIN_STATE_ID: u32 = 6501;
     const MAX_STATE_ID: u32 = 6501;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Deepslate Diamond Ore
@@ -3204,7 +3558,9 @@ impl BlockDef for DeepslateDiamondOre {
     const MIN_STATE_ID: u32 = 14995;
     const MAX_STATE_ID: u32 = 14995;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Block of Diamond
@@ -3222,7 +3578,9 @@ impl BlockDef for DiamondBlock {
     const MIN_STATE_ID: u32 = 1354;
     const MAX_STATE_ID: u32 = 1354;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Crafting Table
@@ -3240,7 +3598,9 @@ impl BlockDef for CraftingTable {
     const MIN_STATE_ID: u32 = 10514;
     const MAX_STATE_ID: u32 = 10514;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Wheat Crops
@@ -3258,7 +3618,9 @@ impl BlockDef for Wheat {
     const MIN_STATE_ID: u32 = 13918;
     const MAX_STATE_ID: u32 = 13925;
     type State = super::states::CropState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Farmland
@@ -3276,7 +3638,9 @@ impl BlockDef for Farmland {
     const MIN_STATE_ID: u32 = 5943;
     const MAX_STATE_ID: u32 = 5950;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Furnace
@@ -3294,7 +3658,9 @@ impl BlockDef for LitFurnace {
     const MIN_STATE_ID: u32 = 13858;
     const MAX_STATE_ID: u32 = 13861;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Furnace
@@ -3312,7 +3678,9 @@ impl BlockDef for Furnace {
     const MIN_STATE_ID: u32 = 14784;
     const MAX_STATE_ID: u32 = 14787;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oak Sign
@@ -3330,7 +3698,9 @@ impl BlockDef for StandingSign {
     const MIN_STATE_ID: u32 = 9697;
     const MAX_STATE_ID: u32 = 9712;
     type State = super::states::StandingSignState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Spruce Sign
@@ -3348,7 +3718,9 @@ impl BlockDef for SpruceStandingSign {
     const MIN_STATE_ID: u32 = 13123;
     const MAX_STATE_ID: u32 = 13138;
     type State = super::states::StandingSignState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Birch Sign
@@ -3366,7 +3738,9 @@ impl BlockDef for BirchStandingSign {
     const MIN_STATE_ID: u32 = 13;
     const MAX_STATE_ID: u32 = 28;
     type State = super::states::StandingSignState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Acacia Sign
@@ -3384,7 +3758,9 @@ impl BlockDef for AcaciaStandingSign {
     const MIN_STATE_ID: u32 = 12066;
     const MAX_STATE_ID: u32 = 12081;
     type State = super::states::StandingSignState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cherry Sign
@@ -3402,7 +3778,9 @@ impl BlockDef for CherryStandingSign {
     const MIN_STATE_ID: u32 = 10523;
     const MAX_STATE_ID: u32 = 10538;
     type State = super::states::StandingSignState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Jungle Sign
@@ -3420,7 +3798,9 @@ impl BlockDef for JungleStandingSign {
     const MIN_STATE_ID: u32 = 11625;
     const MAX_STATE_ID: u32 = 11640;
     type State = super::states::StandingSignState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dark Oak Sign
@@ -3438,7 +3818,9 @@ impl BlockDef for DarkoakStandingSign {
     const MIN_STATE_ID: u32 = 13975;
     const MAX_STATE_ID: u32 = 13990;
     type State = super::states::StandingSignState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pale Oak Sign
@@ -3456,7 +3838,9 @@ impl BlockDef for PaleOakStandingSign {
     const MIN_STATE_ID: u32 = 12562;
     const MAX_STATE_ID: u32 = 12577;
     type State = super::states::StandingSignState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mangrove Sign
@@ -3474,7 +3858,9 @@ impl BlockDef for MangroveStandingSign {
     const MIN_STATE_ID: u32 = 6251;
     const MAX_STATE_ID: u32 = 6266;
     type State = super::states::StandingSignState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bamboo Sign
@@ -3492,7 +3878,9 @@ impl BlockDef for BambooStandingSign {
     const MIN_STATE_ID: u32 = 13804;
     const MAX_STATE_ID: u32 = 13819;
     type State = super::states::StandingSignState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oak Door
@@ -3510,7 +3898,9 @@ impl BlockDef for WoodenDoor {
     const MIN_STATE_ID: u32 = 5313;
     const MAX_STATE_ID: u32 = 5344;
     type State = super::states::DoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Ladder
@@ -3528,7 +3918,9 @@ impl BlockDef for Ladder {
     const MIN_STATE_ID: u32 = 15779;
     const MAX_STATE_ID: u32 = 15784;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Rail
@@ -3546,7 +3938,9 @@ impl BlockDef for Rail {
     const MIN_STATE_ID: u32 = 5956;
     const MAX_STATE_ID: u32 = 5965;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cobblestone Stairs
@@ -3564,7 +3958,9 @@ impl BlockDef for StoneStairs {
     const MIN_STATE_ID: u32 = 5269;
     const MAX_STATE_ID: u32 = 5276;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oak Sign
@@ -3582,7 +3978,9 @@ impl BlockDef for WallSign {
     const MIN_STATE_ID: u32 = 7977;
     const MAX_STATE_ID: u32 = 7982;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Spruce Sign
@@ -3600,7 +3998,9 @@ impl BlockDef for SpruceWallSign {
     const MIN_STATE_ID: u32 = 14209;
     const MAX_STATE_ID: u32 = 14214;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Birch Sign
@@ -3618,7 +4018,9 @@ impl BlockDef for BirchWallSign {
     const MIN_STATE_ID: u32 = 12772;
     const MAX_STATE_ID: u32 = 12777;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Acacia Sign
@@ -3636,7 +4038,9 @@ impl BlockDef for AcaciaWallSign {
     const MIN_STATE_ID: u32 = 5216;
     const MAX_STATE_ID: u32 = 5221;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cherry Sign
@@ -3654,7 +4058,9 @@ impl BlockDef for CherryWallSign {
     const MIN_STATE_ID: u32 = 14605;
     const MAX_STATE_ID: u32 = 14610;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Jungle Sign
@@ -3672,7 +4078,9 @@ impl BlockDef for JungleWallSign {
     const MIN_STATE_ID: u32 = 6524;
     const MAX_STATE_ID: u32 = 6529;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dark Oak Sign
@@ -3690,7 +4098,9 @@ impl BlockDef for DarkoakWallSign {
     const MIN_STATE_ID: u32 = 8671;
     const MAX_STATE_ID: u32 = 8676;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pale Oak Sign
@@ -3708,7 +4118,9 @@ impl BlockDef for PaleOakWallSign {
     const MIN_STATE_ID: u32 = 1844;
     const MAX_STATE_ID: u32 = 1849;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mangrove Sign
@@ -3726,7 +4138,9 @@ impl BlockDef for MangroveWallSign {
     const MIN_STATE_ID: u32 = 8582;
     const MAX_STATE_ID: u32 = 8587;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bamboo Sign
@@ -3744,7 +4158,9 @@ impl BlockDef for BambooWallSign {
     const MIN_STATE_ID: u32 = 12778;
     const MAX_STATE_ID: u32 = 12783;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oak Hanging Sign
@@ -3762,7 +4178,9 @@ impl BlockDef for OakHangingSign {
     const MIN_STATE_ID: u32 = 7514;
     const MAX_STATE_ID: u32 = 7897;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Spruce Hanging Sign
@@ -3780,7 +4198,9 @@ impl BlockDef for SpruceHangingSign {
     const MIN_STATE_ID: u32 = 10056;
     const MAX_STATE_ID: u32 = 10439;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Birch Hanging Sign
@@ -3798,7 +4218,9 @@ impl BlockDef for BirchHangingSign {
     const MIN_STATE_ID: u32 = 2087;
     const MAX_STATE_ID: u32 = 2470;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Acacia Hanging Sign
@@ -3816,7 +4238,9 @@ impl BlockDef for AcaciaHangingSign {
     const MIN_STATE_ID: u32 = 3992;
     const MAX_STATE_ID: u32 = 4375;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cherry Hanging Sign
@@ -3834,7 +4258,9 @@ impl BlockDef for CherryHangingSign {
     const MIN_STATE_ID: u32 = 452;
     const MAX_STATE_ID: u32 = 835;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Jungle Hanging Sign
@@ -3852,7 +4278,9 @@ impl BlockDef for JungleHangingSign {
     const MIN_STATE_ID: u32 = 5422;
     const MAX_STATE_ID: u32 = 5805;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dark Oak Hanging Sign
@@ -3870,7 +4298,9 @@ impl BlockDef for DarkOakHangingSign {
     const MIN_STATE_ID: u32 = 4574;
     const MAX_STATE_ID: u32 = 4957;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pale Oak Hanging Sign
@@ -3888,7 +4318,9 @@ impl BlockDef for PaleOakHangingSign {
     const MIN_STATE_ID: u32 = 8857;
     const MAX_STATE_ID: u32 = 9240;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Crimson Hanging Sign
@@ -3906,7 +4338,9 @@ impl BlockDef for CrimsonHangingSign {
     const MIN_STATE_ID: u32 = 13334;
     const MAX_STATE_ID: u32 = 13717;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Warped Hanging Sign
@@ -3924,7 +4358,9 @@ impl BlockDef for WarpedHangingSign {
     const MIN_STATE_ID: u32 = 11191;
     const MAX_STATE_ID: u32 = 11574;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mangrove Hanging Sign
@@ -3942,7 +4378,9 @@ impl BlockDef for MangroveHangingSign {
     const MIN_STATE_ID: u32 = 10572;
     const MAX_STATE_ID: u32 = 10955;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bamboo Hanging Sign
@@ -3960,7 +4398,9 @@ impl BlockDef for BambooHangingSign {
     const MIN_STATE_ID: u32 = 6899;
     const MAX_STATE_ID: u32 = 7282;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Lever
@@ -3978,7 +4418,9 @@ impl BlockDef for Lever {
     const MIN_STATE_ID: u32 = 12362;
     const MAX_STATE_ID: u32 = 12377;
     type State = super::states::LeverState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stone Pressure Plate
@@ -3996,7 +4438,9 @@ impl BlockDef for StonePressurePlate {
     const MIN_STATE_ID: u32 = 5902;
     const MAX_STATE_ID: u32 = 5917;
     type State = super::states::PressurePlateState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Iron Door
@@ -4014,7 +4458,9 @@ impl BlockDef for IronDoor {
     const MIN_STATE_ID: u32 = 6636;
     const MAX_STATE_ID: u32 = 6667;
     type State = super::states::DoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oak Pressure Plate
@@ -4032,7 +4478,9 @@ impl BlockDef for WoodenPressurePlate {
     const MIN_STATE_ID: u32 = 15026;
     const MAX_STATE_ID: u32 = 15041;
     type State = super::states::PressurePlateState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Spruce Pressure Plate
@@ -4050,7 +4498,9 @@ impl BlockDef for SprucePressurePlate {
     const MIN_STATE_ID: u32 = 5351;
     const MAX_STATE_ID: u32 = 5366;
     type State = super::states::PressurePlateState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Birch Pressure Plate
@@ -4068,7 +4518,9 @@ impl BlockDef for BirchPressurePlate {
     const MIN_STATE_ID: u32 = 5024;
     const MAX_STATE_ID: u32 = 5039;
     type State = super::states::PressurePlateState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Jungle Pressure Plate
@@ -4086,7 +4538,9 @@ impl BlockDef for JunglePressurePlate {
     const MIN_STATE_ID: u32 = 5178;
     const MAX_STATE_ID: u32 = 5193;
     type State = super::states::PressurePlateState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Acacia Pressure Plate
@@ -4104,7 +4558,9 @@ impl BlockDef for AcaciaPressurePlate {
     const MIN_STATE_ID: u32 = 8537;
     const MAX_STATE_ID: u32 = 8552;
     type State = super::states::PressurePlateState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cherry Pressure Plate
@@ -4122,7 +4578,9 @@ impl BlockDef for CherryPressurePlate {
     const MIN_STATE_ID: u32 = 436;
     const MAX_STATE_ID: u32 = 451;
     type State = super::states::PressurePlateState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dark Oak Pressure Plate
@@ -4140,7 +4598,9 @@ impl BlockDef for DarkOakPressurePlate {
     const MIN_STATE_ID: u32 = 11105;
     const MAX_STATE_ID: u32 = 11120;
     type State = super::states::PressurePlateState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pale Oak Pressure Plate
@@ -4158,7 +4618,9 @@ impl BlockDef for PaleOakPressurePlate {
     const MIN_STATE_ID: u32 = 1743;
     const MAX_STATE_ID: u32 = 1758;
     type State = super::states::PressurePlateState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mangrove Pressure Plate
@@ -4176,7 +4638,9 @@ impl BlockDef for MangrovePressurePlate {
     const MIN_STATE_ID: u32 = 5850;
     const MAX_STATE_ID: u32 = 5865;
     type State = super::states::PressurePlateState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bamboo Pressure Plate
@@ -4194,7 +4658,9 @@ impl BlockDef for BambooPressurePlate {
     const MIN_STATE_ID: u32 = 11847;
     const MAX_STATE_ID: u32 = 11862;
     type State = super::states::PressurePlateState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Redstone Ore
@@ -4212,7 +4678,9 @@ impl BlockDef for RedstoneOre {
     const MIN_STATE_ID: u32 = 6356;
     const MAX_STATE_ID: u32 = 6356;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Redstone Ore
@@ -4230,7 +4698,9 @@ impl BlockDef for LitRedstoneOre {
     const MIN_STATE_ID: u32 = 7294;
     const MAX_STATE_ID: u32 = 7294;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Deepslate Redstone Ore
@@ -4248,7 +4718,9 @@ impl BlockDef for DeepslateRedstoneOre {
     const MIN_STATE_ID: u32 = 12491;
     const MAX_STATE_ID: u32 = 12491;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Deepslate Redstone Ore
@@ -4266,7 +4738,9 @@ impl BlockDef for LitDeepslateRedstoneOre {
     const MIN_STATE_ID: u32 = 14456;
     const MAX_STATE_ID: u32 = 14456;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Redstone Torch
@@ -4284,7 +4758,9 @@ impl BlockDef for RedstoneTorch {
     const MIN_STATE_ID: u32 = 4553;
     const MAX_STATE_ID: u32 = 4558;
     type State = super::states::TorchState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Redstone Torch
@@ -4302,7 +4778,9 @@ impl BlockDef for UnlitRedstoneTorch {
     const MIN_STATE_ID: u32 = 15735;
     const MAX_STATE_ID: u32 = 15740;
     type State = super::states::TorchState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stone Button
@@ -4320,7 +4798,9 @@ impl BlockDef for StoneButton {
     const MIN_STATE_ID: u32 = 2052;
     const MAX_STATE_ID: u32 = 2063;
     type State = super::states::ButtonState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Snow
@@ -4338,7 +4818,9 @@ impl BlockDef for SnowLayer {
     const MIN_STATE_ID: u32 = 1019;
     const MAX_STATE_ID: u32 = 1034;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Ice
@@ -4356,7 +4838,9 @@ impl BlockDef for Ice {
     const MIN_STATE_ID: u32 = 12529;
     const MAX_STATE_ID: u32 = 12529;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Snow Block
@@ -4374,7 +4858,9 @@ impl BlockDef for Snow {
     const MIN_STATE_ID: u32 = 6233;
     const MAX_STATE_ID: u32 = 6233;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cactus
@@ -4392,7 +4878,9 @@ impl BlockDef for Cactus {
     const MIN_STATE_ID: u32 = 12880;
     const MAX_STATE_ID: u32 = 12895;
     type State = super::states::AgeState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cactus Flower
@@ -4410,7 +4898,9 @@ impl BlockDef for CactusFlower {
     const MIN_STATE_ID: u32 = 1297;
     const MAX_STATE_ID: u32 = 1297;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Clay
@@ -4428,7 +4918,9 @@ impl BlockDef for Clay {
     const MIN_STATE_ID: u32 = 13318;
     const MAX_STATE_ID: u32 = 13318;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Sugar Cane
@@ -4446,7 +4938,9 @@ impl BlockDef for Reeds {
     const MIN_STATE_ID: u32 = 11588;
     const MAX_STATE_ID: u32 = 11603;
     type State = super::states::AgeState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Jukebox
@@ -4464,7 +4958,9 @@ impl BlockDef for Jukebox {
     const MIN_STATE_ID: u32 = 7983;
     const MAX_STATE_ID: u32 = 7983;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oak Fence
@@ -4482,7 +4978,9 @@ impl BlockDef for OakFence {
     const MIN_STATE_ID: u32 = 9848;
     const MAX_STATE_ID: u32 = 9848;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Netherrack
@@ -4500,7 +4998,9 @@ impl BlockDef for Netherrack {
     const MIN_STATE_ID: u32 = 13114;
     const MAX_STATE_ID: u32 = 13114;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Soul Sand
@@ -4518,7 +5018,9 @@ impl BlockDef for SoulSand {
     const MIN_STATE_ID: u32 = 9893;
     const MAX_STATE_ID: u32 = 9893;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Soul Soil
@@ -4536,7 +5038,9 @@ impl BlockDef for SoulSoil {
     const MIN_STATE_ID: u32 = 9892;
     const MAX_STATE_ID: u32 = 9892;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Basalt
@@ -4554,7 +5058,9 @@ impl BlockDef for Basalt {
     const MIN_STATE_ID: u32 = 6485;
     const MAX_STATE_ID: u32 = 6487;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Basalt
@@ -4572,7 +5078,9 @@ impl BlockDef for PolishedBasalt {
     const MIN_STATE_ID: u32 = 29;
     const MAX_STATE_ID: u32 = 31;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Soul Torch
@@ -4590,7 +5098,9 @@ impl BlockDef for SoulTorch {
     const MIN_STATE_ID: u32 = 7286;
     const MAX_STATE_ID: u32 = 7291;
     type State = super::states::TorchState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Glowstone
@@ -4608,7 +5118,9 @@ impl BlockDef for Glowstone {
     const MIN_STATE_ID: u32 = 5901;
     const MAX_STATE_ID: u32 = 5901;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Nether Portal
@@ -4626,7 +5138,9 @@ impl BlockDef for Portal {
     const MIN_STATE_ID: u32 = 14692;
     const MAX_STATE_ID: u32 = 14694;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Carved Pumpkin
@@ -4644,7 +5158,9 @@ impl BlockDef for CarvedPumpkin {
     const MIN_STATE_ID: u32 = 14193;
     const MAX_STATE_ID: u32 = 14196;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Jack o'Lantern
@@ -4662,7 +5178,9 @@ impl BlockDef for LitPumpkin {
     const MIN_STATE_ID: u32 = 12525;
     const MAX_STATE_ID: u32 = 12528;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cake
@@ -4680,7 +5198,9 @@ impl BlockDef for Cake {
     const MIN_STATE_ID: u32 = 13327;
     const MAX_STATE_ID: u32 = 13333;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Redstone Repeater
@@ -4698,7 +5218,9 @@ impl BlockDef for PoweredRepeater {
     const MIN_STATE_ID: u32 = 6738;
     const MAX_STATE_ID: u32 = 6753;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Redstone Repeater
@@ -4716,7 +5238,9 @@ impl BlockDef for UnpoweredRepeater {
     const MIN_STATE_ID: u32 = 9292;
     const MAX_STATE_ID: u32 = 9307;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// White Stained Glass
@@ -4734,7 +5258,9 @@ impl BlockDef for WhiteStainedGlass {
     const MIN_STATE_ID: u32 = 7952;
     const MAX_STATE_ID: u32 = 7952;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Orange Stained Glass
@@ -4752,7 +5278,9 @@ impl BlockDef for OrangeStainedGlass {
     const MIN_STATE_ID: u32 = 6732;
     const MAX_STATE_ID: u32 = 6732;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Magenta Stained Glass
@@ -4770,7 +5298,9 @@ impl BlockDef for MagentaStainedGlass {
     const MIN_STATE_ID: u32 = 13843;
     const MAX_STATE_ID: u32 = 13843;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light Blue Stained Glass
@@ -4788,7 +5318,9 @@ impl BlockDef for LightBlueStainedGlass {
     const MIN_STATE_ID: u32 = 9891;
     const MAX_STATE_ID: u32 = 9891;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Yellow Stained Glass
@@ -4806,7 +5338,9 @@ impl BlockDef for YellowStainedGlass {
     const MIN_STATE_ID: u32 = 14431;
     const MAX_STATE_ID: u32 = 14431;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Lime Stained Glass
@@ -4824,7 +5358,9 @@ impl BlockDef for LimeStainedGlass {
     const MIN_STATE_ID: u32 = 360;
     const MAX_STATE_ID: u32 = 360;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pink Stained Glass
@@ -4842,7 +5378,9 @@ impl BlockDef for PinkStainedGlass {
     const MIN_STATE_ID: u32 = 6452;
     const MAX_STATE_ID: u32 = 6452;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Gray Stained Glass
@@ -4860,7 +5398,9 @@ impl BlockDef for GrayStainedGlass {
     const MIN_STATE_ID: u32 = 5278;
     const MAX_STATE_ID: u32 = 5278;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light Gray Stained Glass
@@ -4878,7 +5418,9 @@ impl BlockDef for LightGrayStainedGlass {
     const MIN_STATE_ID: u32 = 1878;
     const MAX_STATE_ID: u32 = 1878;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cyan Stained Glass
@@ -4896,7 +5438,9 @@ impl BlockDef for CyanStainedGlass {
     const MIN_STATE_ID: u32 = 11025;
     const MAX_STATE_ID: u32 = 11025;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Purple Stained Glass
@@ -4914,7 +5458,9 @@ impl BlockDef for PurpleStainedGlass {
     const MIN_STATE_ID: u32 = 3797;
     const MAX_STATE_ID: u32 = 3797;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Blue Stained Glass
@@ -4932,7 +5478,9 @@ impl BlockDef for BlueStainedGlass {
     const MIN_STATE_ID: u32 = 9853;
     const MAX_STATE_ID: u32 = 9853;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Brown Stained Glass
@@ -4950,7 +5498,9 @@ impl BlockDef for BrownStainedGlass {
     const MIN_STATE_ID: u32 = 2529;
     const MAX_STATE_ID: u32 = 2529;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Green Stained Glass
@@ -4968,7 +5518,9 @@ impl BlockDef for GreenStainedGlass {
     const MIN_STATE_ID: u32 = 6363;
     const MAX_STATE_ID: u32 = 6363;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Red Stained Glass
@@ -4986,7 +5538,9 @@ impl BlockDef for RedStainedGlass {
     const MIN_STATE_ID: u32 = 8532;
     const MAX_STATE_ID: u32 = 8532;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Black Stained Glass
@@ -5004,7 +5558,9 @@ impl BlockDef for BlackStainedGlass {
     const MIN_STATE_ID: u32 = 11026;
     const MAX_STATE_ID: u32 = 11026;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oak Trapdoor
@@ -5022,7 +5578,9 @@ impl BlockDef for Trapdoor {
     const MIN_STATE_ID: u32 = 1281;
     const MAX_STATE_ID: u32 = 1296;
     type State = super::states::TrapdoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Spruce Trapdoor
@@ -5040,7 +5598,9 @@ impl BlockDef for SpruceTrapdoor {
     const MIN_STATE_ID: u32 = 12426;
     const MAX_STATE_ID: u32 = 12441;
     type State = super::states::TrapdoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Birch Trapdoor
@@ -5058,7 +5618,9 @@ impl BlockDef for BirchTrapdoor {
     const MIN_STATE_ID: u32 = 12499;
     const MAX_STATE_ID: u32 = 12514;
     type State = super::states::TrapdoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Jungle Trapdoor
@@ -5076,7 +5638,9 @@ impl BlockDef for JungleTrapdoor {
     const MIN_STATE_ID: u32 = 8720;
     const MAX_STATE_ID: u32 = 8735;
     type State = super::states::TrapdoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Acacia Trapdoor
@@ -5094,7 +5658,9 @@ impl BlockDef for AcaciaTrapdoor {
     const MIN_STATE_ID: u32 = 9673;
     const MAX_STATE_ID: u32 = 9688;
     type State = super::states::TrapdoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cherry Trapdoor
@@ -5112,7 +5678,9 @@ impl BlockDef for CherryTrapdoor {
     const MIN_STATE_ID: u32 = 3185;
     const MAX_STATE_ID: u32 = 3200;
     type State = super::states::TrapdoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dark Oak Trapdoor
@@ -5130,7 +5698,9 @@ impl BlockDef for DarkOakTrapdoor {
     const MIN_STATE_ID: u32 = 14367;
     const MAX_STATE_ID: u32 = 14382;
     type State = super::states::TrapdoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pale Oak Trapdoor
@@ -5148,7 +5718,9 @@ impl BlockDef for PaleOakTrapdoor {
     const MIN_STATE_ID: u32 = 13937;
     const MAX_STATE_ID: u32 = 13952;
     type State = super::states::TrapdoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mangrove Trapdoor
@@ -5166,7 +5738,9 @@ impl BlockDef for MangroveTrapdoor {
     const MIN_STATE_ID: u32 = 6677;
     const MAX_STATE_ID: u32 = 6692;
     type State = super::states::TrapdoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bamboo Trapdoor
@@ -5184,7 +5758,9 @@ impl BlockDef for BambooTrapdoor {
     const MIN_STATE_ID: u32 = 8565;
     const MAX_STATE_ID: u32 = 8580;
     type State = super::states::TrapdoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stone Bricks
@@ -5202,7 +5778,9 @@ impl BlockDef for StoneBricks {
     const MIN_STATE_ID: u32 = 6128;
     const MAX_STATE_ID: u32 = 6128;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mossy Stone Bricks
@@ -5220,7 +5798,9 @@ impl BlockDef for MossyStoneBricks {
     const MIN_STATE_ID: u32 = 5308;
     const MAX_STATE_ID: u32 = 5308;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cracked Stone Bricks
@@ -5238,7 +5818,9 @@ impl BlockDef for CrackedStoneBricks {
     const MIN_STATE_ID: u32 = 5085;
     const MAX_STATE_ID: u32 = 5085;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Chiseled Stone Bricks
@@ -5256,7 +5838,9 @@ impl BlockDef for ChiseledStoneBricks {
     const MIN_STATE_ID: u32 = 348;
     const MAX_STATE_ID: u32 = 348;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Packed Mud
@@ -5274,7 +5858,9 @@ impl BlockDef for PackedMud {
     const MIN_STATE_ID: u32 = 1373;
     const MAX_STATE_ID: u32 = 1373;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mud Bricks
@@ -5292,7 +5878,9 @@ impl BlockDef for MudBricks {
     const MIN_STATE_ID: u32 = 12771;
     const MAX_STATE_ID: u32 = 12771;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Infested Stone
@@ -5310,7 +5898,9 @@ impl BlockDef for InfestedStone {
     const MIN_STATE_ID: u32 = 11674;
     const MAX_STATE_ID: u32 = 11674;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Infested Cobblestone
@@ -5328,7 +5918,9 @@ impl BlockDef for InfestedCobblestone {
     const MIN_STATE_ID: u32 = 6167;
     const MAX_STATE_ID: u32 = 6167;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Infested Stone Bricks
@@ -5346,7 +5938,9 @@ impl BlockDef for InfestedStoneBricks {
     const MIN_STATE_ID: u32 = 8536;
     const MAX_STATE_ID: u32 = 8536;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Infested Mossy Stone Bricks
@@ -5364,7 +5958,9 @@ impl BlockDef for InfestedMossyStoneBricks {
     const MIN_STATE_ID: u32 = 2994;
     const MAX_STATE_ID: u32 = 2994;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Infested Cracked Stone Bricks
@@ -5382,7 +5978,9 @@ impl BlockDef for InfestedCrackedStoneBricks {
     const MIN_STATE_ID: u32 = 2749;
     const MAX_STATE_ID: u32 = 2749;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Infested Chiseled Stone Bricks
@@ -5400,7 +5998,9 @@ impl BlockDef for InfestedChiseledStoneBricks {
     const MIN_STATE_ID: u32 = 6368;
     const MAX_STATE_ID: u32 = 6368;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Brown Mushroom Block
@@ -5418,7 +6018,9 @@ impl BlockDef for BrownMushroomBlock {
     const MIN_STATE_ID: u32 = 14002;
     const MAX_STATE_ID: u32 = 14017;
     type State = super::states::MushroomState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Red Mushroom Block
@@ -5436,7 +6038,9 @@ impl BlockDef for RedMushroomBlock {
     const MIN_STATE_ID: u32 = 5069;
     const MAX_STATE_ID: u32 = 5084;
     type State = super::states::MushroomState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mushroom Stem
@@ -5454,7 +6058,9 @@ impl BlockDef for MushroomStem {
     const MIN_STATE_ID: u32 = 11882;
     const MAX_STATE_ID: u32 = 11897;
     type State = super::states::MushroomState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Iron Bars
@@ -5472,7 +6078,9 @@ impl BlockDef for IronBars {
     const MIN_STATE_ID: u32 = 7508;
     const MAX_STATE_ID: u32 = 7508;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Chain
@@ -5490,7 +6098,9 @@ impl BlockDef for IronChain {
     const MIN_STATE_ID: u32 = 13927;
     const MAX_STATE_ID: u32 = 13929;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Glass Pane
@@ -5508,7 +6118,9 @@ impl BlockDef for GlassPane {
     const MIN_STATE_ID: u32 = 8528;
     const MAX_STATE_ID: u32 = 8528;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pumpkin
@@ -5526,7 +6138,9 @@ impl BlockDef for Pumpkin {
     const MIN_STATE_ID: u32 = 6763;
     const MAX_STATE_ID: u32 = 6766;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Melon
@@ -5544,7 +6158,9 @@ impl BlockDef for MelonBlock {
     const MIN_STATE_ID: u32 = 1827;
     const MAX_STATE_ID: u32 = 1827;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Attached Pumpkin Stem
@@ -5562,7 +6178,9 @@ impl BlockDef for PumpkinStem {
     const MIN_STATE_ID: u32 = 12119;
     const MAX_STATE_ID: u32 = 12166;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Attached Melon Stem
@@ -5580,7 +6198,9 @@ impl BlockDef for MelonStem {
     const MIN_STATE_ID: u32 = 7899;
     const MAX_STATE_ID: u32 = 7946;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Vines
@@ -5598,7 +6218,9 @@ impl BlockDef for Vine {
     const MIN_STATE_ID: u32 = 3167;
     const MAX_STATE_ID: u32 = 3182;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Glow Lichen
@@ -5616,7 +6238,9 @@ impl BlockDef for GlowLichen {
     const MIN_STATE_ID: u32 = 9714;
     const MAX_STATE_ID: u32 = 9777;
     type State = super::states::MultiFaceState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Resin Clump
@@ -5634,7 +6258,9 @@ impl BlockDef for ResinClump {
     const MIN_STATE_ID: u32 = 2756;
     const MAX_STATE_ID: u32 = 2819;
     type State = super::states::MultiFaceState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oak Fence Gate
@@ -5652,7 +6278,9 @@ impl BlockDef for FenceGate {
     const MIN_STATE_ID: u32 = 286;
     const MAX_STATE_ID: u32 = 301;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Brick Stairs
@@ -5670,7 +6298,9 @@ impl BlockDef for BrickStairs {
     const MIN_STATE_ID: u32 = 12381;
     const MAX_STATE_ID: u32 = 12388;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stone Brick Stairs
@@ -5688,7 +6318,9 @@ impl BlockDef for StoneBrickStairs {
     const MIN_STATE_ID: u32 = 3235;
     const MAX_STATE_ID: u32 = 3242;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mud Brick Stairs
@@ -5706,7 +6338,9 @@ impl BlockDef for MudBrickStairs {
     const MIN_STATE_ID: u32 = 9284;
     const MAX_STATE_ID: u32 = 9291;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mycelium
@@ -5724,7 +6358,9 @@ impl BlockDef for Mycelium {
     const MIN_STATE_ID: u32 = 5240;
     const MAX_STATE_ID: u32 = 5240;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Lily Pad
@@ -5742,7 +6378,9 @@ impl BlockDef for Waterlily {
     const MIN_STATE_ID: u32 = 3605;
     const MAX_STATE_ID: u32 = 3605;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Block of Resin
@@ -5760,7 +6398,9 @@ impl BlockDef for ResinBlock {
     const MIN_STATE_ID: u32 = 12336;
     const MAX_STATE_ID: u32 = 12336;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Resin Bricks
@@ -5778,7 +6418,9 @@ impl BlockDef for ResinBricks {
     const MIN_STATE_ID: u32 = 11007;
     const MAX_STATE_ID: u32 = 11007;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Resin Brick Stairs
@@ -5796,7 +6438,9 @@ impl BlockDef for ResinBrickStairs {
     const MIN_STATE_ID: u32 = 11899;
     const MAX_STATE_ID: u32 = 11906;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Resin Brick Slab
@@ -5814,7 +6458,9 @@ impl BlockDef for ResinBrickDoubleSlab {
     const MIN_STATE_ID: u32 = 5019;
     const MAX_STATE_ID: u32 = 5020;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Resin Brick Slab
@@ -5832,7 +6478,9 @@ impl BlockDef for ResinBrickSlab {
     const MIN_STATE_ID: u32 = 13930;
     const MAX_STATE_ID: u32 = 13931;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Resin Brick Wall
@@ -5850,7 +6498,9 @@ impl BlockDef for ResinBrickWall {
     const MIN_STATE_ID: u32 = 15233;
     const MAX_STATE_ID: u32 = 15394;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Chiseled Resin Bricks
@@ -5868,7 +6518,9 @@ impl BlockDef for ChiseledResinBricks {
     const MIN_STATE_ID: u32 = 12039;
     const MAX_STATE_ID: u32 = 12039;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Nether Bricks
@@ -5886,7 +6538,9 @@ impl BlockDef for NetherBrick {
     const MIN_STATE_ID: u32 = 13904;
     const MAX_STATE_ID: u32 = 13904;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Nether Brick Fence
@@ -5904,7 +6558,9 @@ impl BlockDef for NetherBrickFence {
     const MIN_STATE_ID: u32 = 6369;
     const MAX_STATE_ID: u32 = 6369;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Nether Brick Stairs
@@ -5922,7 +6578,9 @@ impl BlockDef for NetherBrickStairs {
     const MIN_STATE_ID: u32 = 349;
     const MAX_STATE_ID: u32 = 356;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Nether Wart
@@ -5940,7 +6598,9 @@ impl BlockDef for NetherWart {
     const MIN_STATE_ID: u32 = 14638;
     const MAX_STATE_ID: u32 = 14641;
     type State = super::states::AgeState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Enchanting Table
@@ -5958,7 +6618,9 @@ impl BlockDef for EnchantingTable {
     const MIN_STATE_ID: u32 = 12599;
     const MAX_STATE_ID: u32 = 12599;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Brewing Stand
@@ -5976,7 +6638,9 @@ impl BlockDef for BrewingStand {
     const MIN_STATE_ID: u32 = 14396;
     const MAX_STATE_ID: u32 = 14403;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cauldron
@@ -5994,7 +6658,9 @@ impl BlockDef for Cauldron {
     const MIN_STATE_ID: u32 = 14312;
     const MAX_STATE_ID: u32 = 14332;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// End Portal
@@ -6012,7 +6678,9 @@ impl BlockDef for EndPortal {
     const MIN_STATE_ID: u32 = 14430;
     const MAX_STATE_ID: u32 = 14430;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// End Portal Frame
@@ -6030,7 +6698,9 @@ impl BlockDef for EndPortalFrame {
     const MIN_STATE_ID: u32 = 11839;
     const MAX_STATE_ID: u32 = 11846;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// End Stone
@@ -6048,7 +6718,9 @@ impl BlockDef for EndStone {
     const MIN_STATE_ID: u32 = 5815;
     const MAX_STATE_ID: u32 = 5815;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dragon Egg
@@ -6066,7 +6738,9 @@ impl BlockDef for DragonEgg {
     const MIN_STATE_ID: u32 = 13902;
     const MAX_STATE_ID: u32 = 13902;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Redstone Lamp
@@ -6084,7 +6758,9 @@ impl BlockDef for RedstoneLamp {
     const MIN_STATE_ID: u32 = 1308;
     const MAX_STATE_ID: u32 = 1308;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Redstone Lamp
@@ -6102,7 +6778,9 @@ impl BlockDef for LitRedstoneLamp {
     const MIN_STATE_ID: u32 = 6494;
     const MAX_STATE_ID: u32 = 6494;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cocoa
@@ -6120,7 +6798,9 @@ impl BlockDef for Cocoa {
     const MIN_STATE_ID: u32 = 12350;
     const MAX_STATE_ID: u32 = 12361;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Sandstone Stairs
@@ -6138,7 +6818,9 @@ impl BlockDef for SandstoneStairs {
     const MIN_STATE_ID: u32 = 5056;
     const MAX_STATE_ID: u32 = 5063;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Emerald Ore
@@ -6156,7 +6838,9 @@ impl BlockDef for EmeraldOre {
     const MIN_STATE_ID: u32 = 14001;
     const MAX_STATE_ID: u32 = 14001;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Deepslate Emerald Ore
@@ -6174,7 +6858,9 @@ impl BlockDef for DeepslateEmeraldOre {
     const MIN_STATE_ID: u32 = 12179;
     const MAX_STATE_ID: u32 = 12179;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Ender Chest
@@ -6192,7 +6878,9 @@ impl BlockDef for EnderChest {
     const MIN_STATE_ID: u32 = 6511;
     const MAX_STATE_ID: u32 = 6514;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Tripwire Hook
@@ -6210,7 +6898,9 @@ impl BlockDef for TripwireHook {
     const MIN_STATE_ID: u32 = 11063;
     const MAX_STATE_ID: u32 = 11078;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Tripwire
@@ -6228,7 +6918,9 @@ impl BlockDef for TripWire {
     const MIN_STATE_ID: u32 = 14296;
     const MAX_STATE_ID: u32 = 14311;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Block of Emerald
@@ -6246,7 +6938,9 @@ impl BlockDef for EmeraldBlock {
     const MIN_STATE_ID: u32 = 3610;
     const MAX_STATE_ID: u32 = 3610;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Spruce Stairs
@@ -6264,7 +6958,9 @@ impl BlockDef for SpruceStairs {
     const MIN_STATE_ID: u32 = 374;
     const MAX_STATE_ID: u32 = 381;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Birch Stairs
@@ -6282,7 +6978,9 @@ impl BlockDef for BirchStairs {
     const MIN_STATE_ID: u32 = 12902;
     const MAX_STATE_ID: u32 = 12909;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Jungle Stairs
@@ -6300,7 +6998,9 @@ impl BlockDef for JungleStairs {
     const MIN_STATE_ID: u32 = 12862;
     const MAX_STATE_ID: u32 = 12869;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Command Block
@@ -6318,7 +7018,9 @@ impl BlockDef for CommandBlock {
     const MIN_STATE_ID: u32 = 14709;
     const MAX_STATE_ID: u32 = 14720;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Beacon
@@ -6336,7 +7038,9 @@ impl BlockDef for Beacon {
     const MIN_STATE_ID: u32 = 846;
     const MAX_STATE_ID: u32 = 846;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cobblestone Wall
@@ -6354,7 +7058,9 @@ impl BlockDef for CobblestoneWall {
     const MIN_STATE_ID: u32 = 3815;
     const MAX_STATE_ID: u32 = 3976;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mossy Cobblestone Wall
@@ -6372,7 +7078,9 @@ impl BlockDef for MossyCobblestoneWall {
     const MIN_STATE_ID: u32 = 3619;
     const MAX_STATE_ID: u32 = 3780;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Carrots
@@ -6390,7 +7098,9 @@ impl BlockDef for Carrots {
     const MIN_STATE_ID: u32 = 11008;
     const MAX_STATE_ID: u32 = 11015;
     type State = super::states::CropState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Potatoes
@@ -6408,7 +7118,9 @@ impl BlockDef for Potatoes {
     const MIN_STATE_ID: u32 = 1732;
     const MAX_STATE_ID: u32 = 1739;
     type State = super::states::CropState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oak Button
@@ -6426,7 +7138,9 @@ impl BlockDef for WoodenButton {
     const MIN_STATE_ID: u32 = 12225;
     const MAX_STATE_ID: u32 = 12236;
     type State = super::states::ButtonState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Spruce Button
@@ -6444,7 +7158,9 @@ impl BlockDef for SpruceButton {
     const MIN_STATE_ID: u32 = 6454;
     const MAX_STATE_ID: u32 = 6465;
     type State = super::states::ButtonState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Birch Button
@@ -6462,7 +7178,9 @@ impl BlockDef for BirchButton {
     const MIN_STATE_ID: u32 = 14695;
     const MAX_STATE_ID: u32 = 14706;
     type State = super::states::ButtonState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Jungle Button
@@ -6480,7 +7198,9 @@ impl BlockDef for JungleButton {
     const MIN_STATE_ID: u32 = 362;
     const MAX_STATE_ID: u32 = 373;
     type State = super::states::ButtonState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Acacia Button
@@ -6498,7 +7218,9 @@ impl BlockDef for AcaciaButton {
     const MIN_STATE_ID: u32 = 13845;
     const MAX_STATE_ID: u32 = 13856;
     type State = super::states::ButtonState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cherry Button
@@ -6516,7 +7238,9 @@ impl BlockDef for CherryButton {
     const MIN_STATE_ID: u32 = 6835;
     const MAX_STATE_ID: u32 = 6846;
     type State = super::states::ButtonState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dark Oak Button
@@ -6534,7 +7258,9 @@ impl BlockDef for DarkOakButton {
     const MIN_STATE_ID: u32 = 335;
     const MAX_STATE_ID: u32 = 346;
     type State = super::states::ButtonState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pale Oak Button
@@ -6552,7 +7278,9 @@ impl BlockDef for PaleOakButton {
     const MIN_STATE_ID: u32 = 14276;
     const MAX_STATE_ID: u32 = 14287;
     type State = super::states::ButtonState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mangrove Button
@@ -6570,7 +7298,9 @@ impl BlockDef for MangroveButton {
     const MIN_STATE_ID: u32 = 13139;
     const MAX_STATE_ID: u32 = 13150;
     type State = super::states::ButtonState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bamboo Button
@@ -6588,7 +7318,9 @@ impl BlockDef for BambooButton {
     const MIN_STATE_ID: u32 = 12307;
     const MAX_STATE_ID: u32 = 12318;
     type State = super::states::ButtonState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Skeleton Skull
@@ -6606,7 +7338,9 @@ impl BlockDef for SkeletonSkull {
     const MIN_STATE_ID: u32 = 8757;
     const MAX_STATE_ID: u32 = 8762;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Wither Skeleton Skull
@@ -6624,7 +7358,9 @@ impl BlockDef for WitherSkeletonSkull {
     const MIN_STATE_ID: u32 = 13836;
     const MAX_STATE_ID: u32 = 13841;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Zombie Head
@@ -6642,7 +7378,9 @@ impl BlockDef for ZombieHead {
     const MIN_STATE_ID: u32 = 33;
     const MAX_STATE_ID: u32 = 38;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Player Head
@@ -6660,7 +7398,9 @@ impl BlockDef for PlayerHead {
     const MIN_STATE_ID: u32 = 5291;
     const MAX_STATE_ID: u32 = 5296;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Creeper Head
@@ -6678,7 +7418,9 @@ impl BlockDef for CreeperHead {
     const MIN_STATE_ID: u32 = 10447;
     const MAX_STATE_ID: u32 = 10452;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dragon Head
@@ -6696,7 +7438,9 @@ impl BlockDef for DragonHead {
     const MIN_STATE_ID: u32 = 10471;
     const MAX_STATE_ID: u32 = 10476;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Piglin Head
@@ -6714,7 +7458,9 @@ impl BlockDef for PiglinHead {
     const MIN_STATE_ID: u32 = 13106;
     const MAX_STATE_ID: u32 = 13111;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Anvil
@@ -6732,7 +7478,9 @@ impl BlockDef for Anvil {
     const MIN_STATE_ID: u32 = 12495;
     const MAX_STATE_ID: u32 = 12498;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Chipped Anvil
@@ -6750,7 +7498,9 @@ impl BlockDef for ChippedAnvil {
     const MIN_STATE_ID: u32 = 7373;
     const MAX_STATE_ID: u32 = 7376;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Damaged Anvil
@@ -6768,7 +7518,9 @@ impl BlockDef for DamagedAnvil {
     const MIN_STATE_ID: u32 = 15208;
     const MAX_STATE_ID: u32 = 15211;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Trapped Chest
@@ -6786,7 +7538,9 @@ impl BlockDef for TrappedChest {
     const MIN_STATE_ID: u32 = 9669;
     const MAX_STATE_ID: u32 = 9672;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light Weighted Pressure Plate
@@ -6804,7 +7558,9 @@ impl BlockDef for LightWeightedPressurePlate {
     const MIN_STATE_ID: u32 = 5222;
     const MAX_STATE_ID: u32 = 5237;
     type State = super::states::PressurePlateState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Heavy Weighted Pressure Plate
@@ -6822,7 +7578,9 @@ impl BlockDef for HeavyWeightedPressurePlate {
     const MIN_STATE_ID: u32 = 3781;
     const MAX_STATE_ID: u32 = 3796;
     type State = super::states::PressurePlateState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Redstone Comparator
@@ -6840,7 +7598,9 @@ impl BlockDef for PoweredComparator {
     const MIN_STATE_ID: u32 = 1799;
     const MAX_STATE_ID: u32 = 1814;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Redstone Comparator
@@ -6858,7 +7618,9 @@ impl BlockDef for UnpoweredComparator {
     const MIN_STATE_ID: u32 = 12185;
     const MAX_STATE_ID: u32 = 12200;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Daylight Detector
@@ -6876,7 +7638,9 @@ impl BlockDef for DaylightDetector {
     const MIN_STATE_ID: u32 = 6235;
     const MAX_STATE_ID: u32 = 6250;
     type State = super::states::PressurePlateState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Daylight Detector
@@ -6894,7 +7658,9 @@ impl BlockDef for DaylightDetectorInverted {
     const MIN_STATE_ID: u32 = 6694;
     const MAX_STATE_ID: u32 = 6709;
     type State = super::states::PressurePlateState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Block of Redstone
@@ -6912,7 +7678,9 @@ impl BlockDef for RedstoneBlock {
     const MIN_STATE_ID: u32 = 5369;
     const MAX_STATE_ID: u32 = 5369;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Nether Quartz Ore
@@ -6930,7 +7698,9 @@ impl BlockDef for QuartzOre {
     const MIN_STATE_ID: u32 = 6693;
     const MAX_STATE_ID: u32 = 6693;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hopper
@@ -6948,7 +7718,9 @@ impl BlockDef for Hopper {
     const MIN_STATE_ID: u32 = 12788;
     const MAX_STATE_ID: u32 = 12799;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Block of Quartz
@@ -6966,7 +7738,9 @@ impl BlockDef for QuartzBlock {
     const MIN_STATE_ID: u32 = 5265;
     const MAX_STATE_ID: u32 = 5267;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Chiseled Quartz Block
@@ -6984,7 +7758,9 @@ impl BlockDef for ChiseledQuartzBlock {
     const MIN_STATE_ID: u32 = 13953;
     const MAX_STATE_ID: u32 = 13955;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Quartz Pillar
@@ -7002,7 +7778,9 @@ impl BlockDef for QuartzPillar {
     const MIN_STATE_ID: u32 = 5402;
     const MAX_STATE_ID: u32 = 5404;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Quartz Stairs
@@ -7020,7 +7798,9 @@ impl BlockDef for QuartzStairs {
     const MIN_STATE_ID: u32 = 7473;
     const MAX_STATE_ID: u32 = 7480;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Activator Rail
@@ -7038,7 +7818,9 @@ impl BlockDef for ActivatorRail {
     const MIN_STATE_ID: u32 = 1704;
     const MAX_STATE_ID: u32 = 1715;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dropper
@@ -7056,7 +7838,9 @@ impl BlockDef for Dropper {
     const MIN_STATE_ID: u32 = 14197;
     const MAX_STATE_ID: u32 = 14208;
     type State = super::states::DispenserState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// White Terracotta
@@ -7074,7 +7858,9 @@ impl BlockDef for WhiteTerracotta {
     const MIN_STATE_ID: u32 = 7509;
     const MAX_STATE_ID: u32 = 7509;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Orange Terracotta
@@ -7092,7 +7878,9 @@ impl BlockDef for OrangeTerracotta {
     const MIN_STATE_ID: u32 = 14384;
     const MAX_STATE_ID: u32 = 14384;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Magenta Terracotta
@@ -7110,7 +7898,9 @@ impl BlockDef for MagentaTerracotta {
     const MIN_STATE_ID: u32 = 6800;
     const MAX_STATE_ID: u32 = 6800;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light Blue Terracotta
@@ -7128,7 +7918,9 @@ impl BlockDef for LightBlueTerracotta {
     const MIN_STATE_ID: u32 = 6493;
     const MAX_STATE_ID: u32 = 6493;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Yellow Terracotta
@@ -7146,7 +7938,9 @@ impl BlockDef for YellowTerracotta {
     const MIN_STATE_ID: u32 = 6232;
     const MAX_STATE_ID: u32 = 6232;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Lime Terracotta
@@ -7164,7 +7958,9 @@ impl BlockDef for LimeTerracotta {
     const MIN_STATE_ID: u32 = 15743;
     const MAX_STATE_ID: u32 = 15743;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pink Terracotta
@@ -7182,7 +7978,9 @@ impl BlockDef for PinkTerracotta {
     const MIN_STATE_ID: u32 = 6164;
     const MAX_STATE_ID: u32 = 6164;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Gray Terracotta
@@ -7200,7 +7998,9 @@ impl BlockDef for GrayTerracotta {
     const MIN_STATE_ID: u32 = 6774;
     const MAX_STATE_ID: u32 = 6774;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light Gray Terracotta
@@ -7218,7 +8018,9 @@ impl BlockDef for LightGrayTerracotta {
     const MIN_STATE_ID: u32 = 2524;
     const MAX_STATE_ID: u32 = 2524;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cyan Terracotta
@@ -7236,7 +8038,9 @@ impl BlockDef for CyanTerracotta {
     const MIN_STATE_ID: u32 = 0;
     const MAX_STATE_ID: u32 = 0;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Purple Terracotta
@@ -7254,7 +8058,9 @@ impl BlockDef for PurpleTerracotta {
     const MIN_STATE_ID: u32 = 12223;
     const MAX_STATE_ID: u32 = 12223;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Blue Terracotta
@@ -7272,7 +8078,9 @@ impl BlockDef for BlueTerracotta {
     const MIN_STATE_ID: u32 = 5212;
     const MAX_STATE_ID: u32 = 5212;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Brown Terracotta
@@ -7290,7 +8098,9 @@ impl BlockDef for BrownTerracotta {
     const MIN_STATE_ID: u32 = 14992;
     const MAX_STATE_ID: u32 = 14992;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Green Terracotta
@@ -7308,7 +8118,9 @@ impl BlockDef for GreenTerracotta {
     const MIN_STATE_ID: u32 = 5279;
     const MAX_STATE_ID: u32 = 5279;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Red Terracotta
@@ -7326,7 +8138,9 @@ impl BlockDef for RedTerracotta {
     const MIN_STATE_ID: u32 = 3255;
     const MAX_STATE_ID: u32 = 3255;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Black Terracotta
@@ -7344,7 +8158,9 @@ impl BlockDef for BlackTerracotta {
     const MIN_STATE_ID: u32 = 11898;
     const MAX_STATE_ID: u32 = 11898;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// White Stained Glass Pane
@@ -7362,7 +8178,9 @@ impl BlockDef for WhiteStainedGlassPane {
     const MIN_STATE_ID: u32 = 6733;
     const MAX_STATE_ID: u32 = 6733;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Orange Stained Glass Pane
@@ -7380,7 +8198,9 @@ impl BlockDef for OrangeStainedGlassPane {
     const MIN_STATE_ID: u32 = 1271;
     const MAX_STATE_ID: u32 = 1271;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Magenta Stained Glass Pane
@@ -7398,7 +8218,9 @@ impl BlockDef for MagentaStainedGlassPane {
     const MIN_STATE_ID: u32 = 7507;
     const MAX_STATE_ID: u32 = 7507;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light Blue Stained Glass Pane
@@ -7416,7 +8238,9 @@ impl BlockDef for LightBlueStainedGlassPane {
     const MIN_STATE_ID: u32 = 5900;
     const MAX_STATE_ID: u32 = 5900;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Yellow Stained Glass Pane
@@ -7434,7 +8258,9 @@ impl BlockDef for YellowStainedGlassPane {
     const MIN_STATE_ID: u32 = 843;
     const MAX_STATE_ID: u32 = 843;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Lime Stained Glass Pane
@@ -7452,7 +8278,9 @@ impl BlockDef for LimeStainedGlassPane {
     const MIN_STATE_ID: u32 = 14429;
     const MAX_STATE_ID: u32 = 14429;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pink Stained Glass Pane
@@ -7470,7 +8298,9 @@ impl BlockDef for PinkStainedGlassPane {
     const MIN_STATE_ID: u32 = 13237;
     const MAX_STATE_ID: u32 = 13237;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Gray Stained Glass Pane
@@ -7488,7 +8318,9 @@ impl BlockDef for GrayStainedGlassPane {
     const MIN_STATE_ID: u32 = 12787;
     const MAX_STATE_ID: u32 = 12787;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light Gray Stained Glass Pane
@@ -7506,7 +8338,9 @@ impl BlockDef for LightGrayStainedGlassPane {
     const MIN_STATE_ID: u32 = 1880;
     const MAX_STATE_ID: u32 = 1880;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cyan Stained Glass Pane
@@ -7524,7 +8358,9 @@ impl BlockDef for CyanStainedGlassPane {
     const MIN_STATE_ID: u32 = 12330;
     const MAX_STATE_ID: u32 = 12330;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Purple Stained Glass Pane
@@ -7542,7 +8378,9 @@ impl BlockDef for PurpleStainedGlassPane {
     const MIN_STATE_ID: u32 = 7960;
     const MAX_STATE_ID: u32 = 7960;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Blue Stained Glass Pane
@@ -7560,7 +8398,9 @@ impl BlockDef for BlueStainedGlassPane {
     const MIN_STATE_ID: u32 = 285;
     const MAX_STATE_ID: u32 = 285;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Brown Stained Glass Pane
@@ -7578,7 +8418,9 @@ impl BlockDef for BrownStainedGlassPane {
     const MIN_STATE_ID: u32 = 1369;
     const MAX_STATE_ID: u32 = 1369;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Green Stained Glass Pane
@@ -7596,7 +8438,9 @@ impl BlockDef for GreenStainedGlassPane {
     const MIN_STATE_ID: u32 = 6151;
     const MAX_STATE_ID: u32 = 6151;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Red Stained Glass Pane
@@ -7614,7 +8458,9 @@ impl BlockDef for RedStainedGlassPane {
     const MIN_STATE_ID: u32 = 13220;
     const MAX_STATE_ID: u32 = 13220;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Black Stained Glass Pane
@@ -7632,7 +8478,9 @@ impl BlockDef for BlackStainedGlassPane {
     const MIN_STATE_ID: u32 = 3814;
     const MAX_STATE_ID: u32 = 3814;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Acacia Stairs
@@ -7650,7 +8498,9 @@ impl BlockDef for AcaciaStairs {
     const MIN_STATE_ID: u32 = 12020;
     const MAX_STATE_ID: u32 = 12027;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cherry Stairs
@@ -7668,7 +8518,9 @@ impl BlockDef for CherryStairs {
     const MIN_STATE_ID: u32 = 13319;
     const MAX_STATE_ID: u32 = 13326;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dark Oak Stairs
@@ -7686,7 +8538,9 @@ impl BlockDef for DarkOakStairs {
     const MIN_STATE_ID: u32 = 8358;
     const MAX_STATE_ID: u32 = 8365;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pale Oak Stairs
@@ -7704,7 +8558,9 @@ impl BlockDef for PaleOakStairs {
     const MIN_STATE_ID: u32 = 13993;
     const MAX_STATE_ID: u32 = 14000;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mangrove Stairs
@@ -7722,7 +8578,9 @@ impl BlockDef for MangroveStairs {
     const MIN_STATE_ID: u32 = 6809;
     const MAX_STATE_ID: u32 = 6816;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bamboo Stairs
@@ -7740,7 +8598,9 @@ impl BlockDef for BambooStairs {
     const MIN_STATE_ID: u32 = 2986;
     const MAX_STATE_ID: u32 = 2993;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bamboo Mosaic Stairs
@@ -7758,7 +8618,9 @@ impl BlockDef for BambooMosaicStairs {
     const MIN_STATE_ID: u32 = 12028;
     const MAX_STATE_ID: u32 = 12035;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Slime Block
@@ -7776,7 +8638,9 @@ impl BlockDef for Slime {
     const MIN_STATE_ID: u32 = 6271;
     const MAX_STATE_ID: u32 = 6271;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Barrier
@@ -7794,7 +8658,9 @@ impl BlockDef for Barrier {
     const MIN_STATE_ID: u32 = 11612;
     const MAX_STATE_ID: u32 = 11612;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light
@@ -7812,7 +8678,9 @@ impl BlockDef for LightBlock9 {
     const MIN_STATE_ID: u32 = 2478;
     const MAX_STATE_ID: u32 = 2478;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light
@@ -7830,7 +8698,9 @@ impl BlockDef for LightBlock8 {
     const MIN_STATE_ID: u32 = 2479;
     const MAX_STATE_ID: u32 = 2479;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light
@@ -7848,7 +8718,9 @@ impl BlockDef for LightBlock7 {
     const MIN_STATE_ID: u32 = 2480;
     const MAX_STATE_ID: u32 = 2480;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light
@@ -7866,7 +8738,9 @@ impl BlockDef for LightBlock6 {
     const MIN_STATE_ID: u32 = 2481;
     const MAX_STATE_ID: u32 = 2481;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light
@@ -7884,7 +8758,9 @@ impl BlockDef for LightBlock5 {
     const MIN_STATE_ID: u32 = 2482;
     const MAX_STATE_ID: u32 = 2482;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light
@@ -7902,7 +8778,9 @@ impl BlockDef for LightBlock4 {
     const MIN_STATE_ID: u32 = 2483;
     const MAX_STATE_ID: u32 = 2483;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light
@@ -7920,7 +8798,9 @@ impl BlockDef for LightBlock3 {
     const MIN_STATE_ID: u32 = 2484;
     const MAX_STATE_ID: u32 = 2484;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light
@@ -7938,7 +8818,9 @@ impl BlockDef for LightBlock2 {
     const MIN_STATE_ID: u32 = 2485;
     const MAX_STATE_ID: u32 = 2485;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light
@@ -7956,7 +8838,9 @@ impl BlockDef for LightBlock1 {
     const MIN_STATE_ID: u32 = 2486;
     const MAX_STATE_ID: u32 = 2486;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light
@@ -7974,7 +8858,9 @@ impl BlockDef for LightBlock0 {
     const MIN_STATE_ID: u32 = 2487;
     const MAX_STATE_ID: u32 = 2487;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light
@@ -7992,7 +8878,9 @@ impl BlockDef for LightBlock12 {
     const MIN_STATE_ID: u32 = 12323;
     const MAX_STATE_ID: u32 = 12323;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light
@@ -8010,7 +8898,9 @@ impl BlockDef for LightBlock13 {
     const MIN_STATE_ID: u32 = 12324;
     const MAX_STATE_ID: u32 = 12324;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light
@@ -8028,7 +8918,9 @@ impl BlockDef for LightBlock10 {
     const MIN_STATE_ID: u32 = 12325;
     const MAX_STATE_ID: u32 = 12325;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light
@@ -8046,7 +8938,9 @@ impl BlockDef for LightBlock11 {
     const MIN_STATE_ID: u32 = 12326;
     const MAX_STATE_ID: u32 = 12326;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light
@@ -8064,7 +8958,9 @@ impl BlockDef for LightBlock14 {
     const MIN_STATE_ID: u32 = 12327;
     const MAX_STATE_ID: u32 = 12327;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light
@@ -8082,7 +8978,9 @@ impl BlockDef for LightBlock15 {
     const MIN_STATE_ID: u32 = 12328;
     const MAX_STATE_ID: u32 = 12328;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Iron Trapdoor
@@ -8100,7 +8998,9 @@ impl BlockDef for IronTrapdoor {
     const MIN_STATE_ID: u32 = 1716;
     const MAX_STATE_ID: u32 = 1731;
     type State = super::states::TrapdoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Prismarine
@@ -8118,7 +9018,9 @@ impl BlockDef for Prismarine {
     const MIN_STATE_ID: u32 = 11863;
     const MAX_STATE_ID: u32 = 11863;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Prismarine Bricks
@@ -8136,7 +9038,9 @@ impl BlockDef for PrismarineBricks {
     const MIN_STATE_ID: u32 = 15025;
     const MAX_STATE_ID: u32 = 15025;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dark Prismarine
@@ -8154,7 +9058,9 @@ impl BlockDef for DarkPrismarine {
     const MIN_STATE_ID: u32 = 6504;
     const MAX_STATE_ID: u32 = 6504;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Prismarine Stairs
@@ -8172,7 +9078,9 @@ impl BlockDef for PrismarineStairs {
     const MIN_STATE_ID: u32 = 13884;
     const MAX_STATE_ID: u32 = 13891;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Prismarine Brick Stairs
@@ -8190,7 +9098,9 @@ impl BlockDef for PrismarineBricksStairs {
     const MIN_STATE_ID: u32 = 1235;
     const MAX_STATE_ID: u32 = 1242;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dark Prismarine Stairs
@@ -8208,7 +9118,9 @@ impl BlockDef for DarkPrismarineStairs {
     const MIN_STATE_ID: u32 = 14250;
     const MAX_STATE_ID: u32 = 14257;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Prismarine Slab
@@ -8226,7 +9138,9 @@ impl BlockDef for PrismarineSlab {
     const MIN_STATE_ID: u32 = 6383;
     const MAX_STATE_ID: u32 = 6384;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Prismarine Slab
@@ -8244,7 +9158,9 @@ impl BlockDef for PrismarineDoubleSlab {
     const MIN_STATE_ID: u32 = 6385;
     const MAX_STATE_ID: u32 = 6386;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Prismarine Brick Slab
@@ -8262,7 +9178,9 @@ impl BlockDef for PrismarineBrickSlab {
     const MIN_STATE_ID: u32 = 5311;
     const MAX_STATE_ID: u32 = 5312;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Prismarine Brick Slab
@@ -8280,7 +9198,9 @@ impl BlockDef for PrismarineBrickDoubleSlab {
     const MIN_STATE_ID: u32 = 14960;
     const MAX_STATE_ID: u32 = 14961;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dark Prismarine Slab
@@ -8298,7 +9218,9 @@ impl BlockDef for DarkPrismarineDoubleSlab {
     const MIN_STATE_ID: u32 = 1355;
     const MAX_STATE_ID: u32 = 1356;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dark Prismarine Slab
@@ -8316,7 +9238,9 @@ impl BlockDef for DarkPrismarineSlab {
     const MIN_STATE_ID: u32 = 10490;
     const MAX_STATE_ID: u32 = 10491;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Sea Lantern
@@ -8334,7 +9258,9 @@ impl BlockDef for SeaLantern {
     const MIN_STATE_ID: u32 = 14395;
     const MAX_STATE_ID: u32 = 14395;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hay Bale
@@ -8352,7 +9278,9 @@ impl BlockDef for HayBlock {
     const MIN_STATE_ID: u32 = 2733;
     const MAX_STATE_ID: u32 = 2744;
     type State = super::states::DeprecatedPillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// White Carpet
@@ -8370,7 +9298,9 @@ impl BlockDef for WhiteCarpet {
     const MIN_STATE_ID: u32 = 13892;
     const MAX_STATE_ID: u32 = 13892;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Orange Carpet
@@ -8388,7 +9318,9 @@ impl BlockDef for OrangeCarpet {
     const MIN_STATE_ID: u32 = 13151;
     const MAX_STATE_ID: u32 = 13151;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Magenta Carpet
@@ -8406,7 +9338,9 @@ impl BlockDef for MagentaCarpet {
     const MIN_STATE_ID: u32 = 1313;
     const MAX_STATE_ID: u32 = 1313;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light Blue Carpet
@@ -8424,7 +9358,9 @@ impl BlockDef for LightBlueCarpet {
     const MIN_STATE_ID: u32 = 7513;
     const MAX_STATE_ID: u32 = 7513;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Yellow Carpet
@@ -8442,7 +9378,9 @@ impl BlockDef for YellowCarpet {
     const MIN_STATE_ID: u32 = 11024;
     const MAX_STATE_ID: u32 = 11024;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Lime Carpet
@@ -8460,7 +9398,9 @@ impl BlockDef for LimeCarpet {
     const MIN_STATE_ID: u32 = 12589;
     const MAX_STATE_ID: u32 = 12589;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pink Carpet
@@ -8478,7 +9418,9 @@ impl BlockDef for PinkCarpet {
     const MIN_STATE_ID: u32 = 14585;
     const MAX_STATE_ID: u32 = 14585;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Gray Carpet
@@ -8496,7 +9438,9 @@ impl BlockDef for GrayCarpet {
     const MIN_STATE_ID: u32 = 1273;
     const MAX_STATE_ID: u32 = 1273;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light Gray Carpet
@@ -8514,7 +9458,9 @@ impl BlockDef for LightGrayCarpet {
     const MIN_STATE_ID: u32 = 15776;
     const MAX_STATE_ID: u32 = 15776;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cyan Carpet
@@ -8532,7 +9478,9 @@ impl BlockDef for CyanCarpet {
     const MIN_STATE_ID: u32 = 5135;
     const MAX_STATE_ID: u32 = 5135;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Purple Carpet
@@ -8550,7 +9498,9 @@ impl BlockDef for PurpleCarpet {
     const MIN_STATE_ID: u32 = 14642;
     const MAX_STATE_ID: u32 = 14642;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Blue Carpet
@@ -8568,7 +9518,9 @@ impl BlockDef for BlueCarpet {
     const MIN_STATE_ID: u32 = 1045;
     const MAX_STATE_ID: u32 = 1045;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Brown Carpet
@@ -8586,7 +9538,9 @@ impl BlockDef for BrownCarpet {
     const MIN_STATE_ID: u32 = 3234;
     const MAX_STATE_ID: u32 = 3234;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Green Carpet
@@ -8604,7 +9558,9 @@ impl BlockDef for GreenCarpet {
     const MIN_STATE_ID: u32 = 5310;
     const MAX_STATE_ID: u32 = 5310;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Red Carpet
@@ -8622,7 +9578,9 @@ impl BlockDef for RedCarpet {
     const MIN_STATE_ID: u32 = 14238;
     const MAX_STATE_ID: u32 = 14238;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Black Carpet
@@ -8640,7 +9598,9 @@ impl BlockDef for BlackCarpet {
     const MIN_STATE_ID: u32 = 11621;
     const MAX_STATE_ID: u32 = 11621;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Terracotta
@@ -8658,7 +9618,9 @@ impl BlockDef for HardenedClay {
     const MIN_STATE_ID: u32 = 2086;
     const MAX_STATE_ID: u32 = 2086;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Block of Coal
@@ -8676,7 +9638,9 @@ impl BlockDef for CoalBlock {
     const MIN_STATE_ID: u32 = 8737;
     const MAX_STATE_ID: u32 = 8737;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Packed Ice
@@ -8694,7 +9658,9 @@ impl BlockDef for PackedIce {
     const MIN_STATE_ID: u32 = 1372;
     const MAX_STATE_ID: u32 = 1372;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Sunflower
@@ -8712,7 +9678,9 @@ impl BlockDef for Sunflower {
     const MIN_STATE_ID: u32 = 6865;
     const MAX_STATE_ID: u32 = 6866;
     type State = super::states::DoublePlantState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Lilac
@@ -8730,7 +9698,9 @@ impl BlockDef for Lilac {
     const MIN_STATE_ID: u32 = 13935;
     const MAX_STATE_ID: u32 = 13936;
     type State = super::states::DoublePlantState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Rose Bush
@@ -8748,7 +9718,9 @@ impl BlockDef for RoseBush {
     const MIN_STATE_ID: u32 = 8852;
     const MAX_STATE_ID: u32 = 8853;
     type State = super::states::DoublePlantState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Peony
@@ -8766,7 +9738,9 @@ impl BlockDef for Peony {
     const MIN_STATE_ID: u32 = 14707;
     const MAX_STATE_ID: u32 = 14708;
     type State = super::states::DoublePlantState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Tall Grass
@@ -8784,7 +9758,9 @@ impl BlockDef for TallGrass {
     const MIN_STATE_ID: u32 = 12319;
     const MAX_STATE_ID: u32 = 12320;
     type State = super::states::DoublePlantState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Large Fern
@@ -8802,7 +9778,9 @@ impl BlockDef for LargeFern {
     const MIN_STATE_ID: u32 = 12345;
     const MAX_STATE_ID: u32 = 12346;
     type State = super::states::DoublePlantState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Black Banner
@@ -8820,7 +9798,9 @@ impl BlockDef for StandingBanner {
     const MIN_STATE_ID: u32 = 12845;
     const MAX_STATE_ID: u32 = 12860;
     type State = super::states::StandingSignState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Black Banner
@@ -8838,7 +9818,9 @@ impl BlockDef for WallBanner {
     const MIN_STATE_ID: u32 = 9781;
     const MAX_STATE_ID: u32 = 9786;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Red Sandstone
@@ -8856,7 +9838,9 @@ impl BlockDef for RedSandstone {
     const MIN_STATE_ID: u32 = 12454;
     const MAX_STATE_ID: u32 = 12454;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Chiseled Red Sandstone
@@ -8874,7 +9858,9 @@ impl BlockDef for ChiseledRedSandstone {
     const MIN_STATE_ID: u32 = 14360;
     const MAX_STATE_ID: u32 = 14360;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cut Red Sandstone
@@ -8892,7 +9878,9 @@ impl BlockDef for CutRedSandstone {
     const MIN_STATE_ID: u32 = 5955;
     const MAX_STATE_ID: u32 = 5955;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Red Sandstone Stairs
@@ -8910,7 +9898,9 @@ impl BlockDef for RedSandstoneStairs {
     const MIN_STATE_ID: u32 = 8682;
     const MAX_STATE_ID: u32 = 8689;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oak Slab
@@ -8928,7 +9918,9 @@ impl BlockDef for OakDoubleSlab {
     const MIN_STATE_ID: u32 = 5168;
     const MAX_STATE_ID: u32 = 5169;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oak Slab
@@ -8946,7 +9938,9 @@ impl BlockDef for OakSlab {
     const MIN_STATE_ID: u32 = 6371;
     const MAX_STATE_ID: u32 = 6372;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Spruce Slab
@@ -8964,7 +9958,9 @@ impl BlockDef for SpruceDoubleSlab {
     const MIN_STATE_ID: u32 = 3985;
     const MAX_STATE_ID: u32 = 3986;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Spruce Slab
@@ -8982,7 +9978,9 @@ impl BlockDef for SpruceSlab {
     const MIN_STATE_ID: u32 = 13081;
     const MAX_STATE_ID: u32 = 13082;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Birch Slab
@@ -9000,7 +9998,9 @@ impl BlockDef for BirchSlab {
     const MIN_STATE_ID: u32 = 5806;
     const MAX_STATE_ID: u32 = 5807;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Birch Slab
@@ -9018,7 +10018,9 @@ impl BlockDef for BirchDoubleSlab {
     const MIN_STATE_ID: u32 = 15212;
     const MAX_STATE_ID: u32 = 15213;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Jungle Slab
@@ -9036,7 +10038,9 @@ impl BlockDef for JungleSlab {
     const MIN_STATE_ID: u32 = 5898;
     const MAX_STATE_ID: u32 = 5899;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Jungle Slab
@@ -9054,7 +10058,9 @@ impl BlockDef for JungleDoubleSlab {
     const MIN_STATE_ID: u32 = 14432;
     const MAX_STATE_ID: u32 = 14433;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Acacia Slab
@@ -9072,7 +10078,9 @@ impl BlockDef for AcaciaDoubleSlab {
     const MIN_STATE_ID: u32 = 9814;
     const MAX_STATE_ID: u32 = 9815;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Acacia Slab
@@ -9090,7 +10098,9 @@ impl BlockDef for AcaciaSlab {
     const MIN_STATE_ID: u32 = 14416;
     const MAX_STATE_ID: u32 = 14417;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cherry Slab
@@ -9108,7 +10118,9 @@ impl BlockDef for CherryDoubleSlab {
     const MIN_STATE_ID: u32 = 11641;
     const MAX_STATE_ID: u32 = 11642;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cherry Slab
@@ -9126,7 +10138,9 @@ impl BlockDef for CherrySlab {
     const MIN_STATE_ID: u32 = 12037;
     const MAX_STATE_ID: u32 = 12038;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dark Oak Slab
@@ -9144,7 +10158,9 @@ impl BlockDef for DarkOakSlab {
     const MIN_STATE_ID: u32 = 1881;
     const MAX_STATE_ID: u32 = 1882;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dark Oak Slab
@@ -9162,7 +10178,9 @@ impl BlockDef for DarkOakDoubleSlab {
     const MIN_STATE_ID: u32 = 6165;
     const MAX_STATE_ID: u32 = 6166;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pale Oak Slab
@@ -9180,7 +10198,9 @@ impl BlockDef for PaleOakSlab {
     const MIN_STATE_ID: u32 = 6379;
     const MAX_STATE_ID: u32 = 6380;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pale Oak Slab
@@ -9198,7 +10218,9 @@ impl BlockDef for PaleOakDoubleSlab {
     const MIN_STATE_ID: u32 = 15741;
     const MAX_STATE_ID: u32 = 15742;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mangrove Slab
@@ -9216,7 +10238,9 @@ impl BlockDef for MangroveDoubleSlab {
     const MIN_STATE_ID: u32 = 1874;
     const MAX_STATE_ID: u32 = 1875;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mangrove Slab
@@ -9234,7 +10258,9 @@ impl BlockDef for MangroveSlab {
     const MIN_STATE_ID: u32 = 3595;
     const MAX_STATE_ID: u32 = 3596;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bamboo Slab
@@ -9252,7 +10278,9 @@ impl BlockDef for BambooDoubleSlab {
     const MIN_STATE_ID: u32 = 6357;
     const MAX_STATE_ID: u32 = 6358;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bamboo Slab
@@ -9270,7 +10298,9 @@ impl BlockDef for BambooSlab {
     const MIN_STATE_ID: u32 = 12378;
     const MAX_STATE_ID: u32 = 12379;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bamboo Mosaic Slab
@@ -9288,7 +10318,9 @@ impl BlockDef for BambooMosaicSlab {
     const MIN_STATE_ID: u32 = 3987;
     const MAX_STATE_ID: u32 = 3988;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bamboo Mosaic Slab
@@ -9306,7 +10338,9 @@ impl BlockDef for BambooMosaicDoubleSlab {
     const MIN_STATE_ID: u32 = 6213;
     const MAX_STATE_ID: u32 = 6214;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stone Slab
@@ -9324,7 +10358,9 @@ impl BlockDef for NormalStoneSlab {
     const MIN_STATE_ID: u32 = 6227;
     const MAX_STATE_ID: u32 = 6228;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stone Slab
@@ -9342,7 +10378,9 @@ impl BlockDef for NormalStoneDoubleSlab {
     const MIN_STATE_ID: u32 = 6489;
     const MAX_STATE_ID: u32 = 6490;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Smooth Stone Slab
@@ -9360,7 +10398,9 @@ impl BlockDef for SmoothStoneDoubleSlab {
     const MIN_STATE_ID: u32 = 9889;
     const MAX_STATE_ID: u32 = 9890;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Smooth Stone Slab
@@ -9378,7 +10418,9 @@ impl BlockDef for SmoothStoneSlab {
     const MIN_STATE_ID: u32 = 14392;
     const MAX_STATE_ID: u32 = 14393;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Sandstone Slab
@@ -9396,7 +10438,9 @@ impl BlockDef for SandstoneSlab {
     const MIN_STATE_ID: u32 = 1782;
     const MAX_STATE_ID: u32 = 1783;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Sandstone Slab
@@ -9414,7 +10458,9 @@ impl BlockDef for SandstoneDoubleSlab {
     const MIN_STATE_ID: u32 = 1829;
     const MAX_STATE_ID: u32 = 1830;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cut Sandstone Slab
@@ -9432,7 +10478,9 @@ impl BlockDef for CutSandstoneDoubleSlab {
     const MIN_STATE_ID: u32 = 1816;
     const MAX_STATE_ID: u32 = 1817;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cut Sandstone Slab
@@ -9450,7 +10498,9 @@ impl BlockDef for CutSandstoneSlab {
     const MIN_STATE_ID: u32 = 8755;
     const MAX_STATE_ID: u32 = 8756;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Petrified Oak Slab
@@ -9468,7 +10518,9 @@ impl BlockDef for PetrifiedOakDoubleSlab {
     const MIN_STATE_ID: u32 = 8665;
     const MAX_STATE_ID: u32 = 8666;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Petrified Oak Slab
@@ -9486,7 +10538,9 @@ impl BlockDef for PetrifiedOakSlab {
     const MIN_STATE_ID: u32 = 14019;
     const MAX_STATE_ID: u32 = 14020;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cobblestone Slab
@@ -9504,7 +10558,9 @@ impl BlockDef for CobblestoneSlab {
     const MIN_STATE_ID: u32 = 6215;
     const MAX_STATE_ID: u32 = 6216;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cobblestone Slab
@@ -9522,7 +10578,9 @@ impl BlockDef for CobblestoneDoubleSlab {
     const MIN_STATE_ID: u32 = 14993;
     const MAX_STATE_ID: u32 = 14994;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Brick Slab
@@ -9540,7 +10598,9 @@ impl BlockDef for BrickDoubleSlab {
     const MIN_STATE_ID: u32 = 1035;
     const MAX_STATE_ID: u32 = 1036;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Brick Slab
@@ -9558,7 +10618,9 @@ impl BlockDef for BrickSlab {
     const MIN_STATE_ID: u32 = 14385;
     const MAX_STATE_ID: u32 = 14386;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stone Brick Slab
@@ -9576,7 +10638,9 @@ impl BlockDef for StoneBrickDoubleSlab {
     const MIN_STATE_ID: u32 = 6491;
     const MAX_STATE_ID: u32 = 6492;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stone Brick Slab
@@ -9594,7 +10658,9 @@ impl BlockDef for StoneBrickSlab {
     const MIN_STATE_ID: u32 = 12101;
     const MAX_STATE_ID: u32 = 12102;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mud Brick Slab
@@ -9612,7 +10678,9 @@ impl BlockDef for MudBrickDoubleSlab {
     const MIN_STATE_ID: u32 = 1070;
     const MAX_STATE_ID: u32 = 1071;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mud Brick Slab
@@ -9630,7 +10698,9 @@ impl BlockDef for MudBrickSlab {
     const MIN_STATE_ID: u32 = 5927;
     const MAX_STATE_ID: u32 = 5928;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Nether Brick Slab
@@ -9648,7 +10718,9 @@ impl BlockDef for NetherBrickSlab {
     const MIN_STATE_ID: u32 = 11651;
     const MAX_STATE_ID: u32 = 11652;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Nether Brick Slab
@@ -9666,7 +10738,9 @@ impl BlockDef for NetherBrickDoubleSlab {
     const MIN_STATE_ID: u32 = 12000;
     const MAX_STATE_ID: u32 = 12001;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Quartz Slab
@@ -9684,7 +10758,9 @@ impl BlockDef for QuartzDoubleSlab {
     const MIN_STATE_ID: u32 = 3431;
     const MAX_STATE_ID: u32 = 3432;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Quartz Slab
@@ -9702,7 +10778,9 @@ impl BlockDef for QuartzSlab {
     const MIN_STATE_ID: u32 = 12521;
     const MAX_STATE_ID: u32 = 12522;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Red Sandstone Slab
@@ -9720,7 +10798,9 @@ impl BlockDef for RedSandstoneDoubleSlab {
     const MIN_STATE_ID: u32 = 2727;
     const MAX_STATE_ID: u32 = 2728;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Red Sandstone Slab
@@ -9738,7 +10818,9 @@ impl BlockDef for RedSandstoneSlab {
     const MIN_STATE_ID: u32 = 3183;
     const MAX_STATE_ID: u32 = 3184;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cut Red Sandstone Slab
@@ -9756,7 +10838,9 @@ impl BlockDef for CutRedSandstoneDoubleSlab {
     const MIN_STATE_ID: u32 = 6321;
     const MAX_STATE_ID: u32 = 6322;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cut Red Sandstone Slab
@@ -9774,7 +10858,9 @@ impl BlockDef for CutRedSandstoneSlab {
     const MIN_STATE_ID: u32 = 14240;
     const MAX_STATE_ID: u32 = 14241;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Purpur Slab
@@ -9792,7 +10878,9 @@ impl BlockDef for PurpurSlab {
     const MIN_STATE_ID: u32 = 2701;
     const MAX_STATE_ID: u32 = 2702;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Purpur Slab
@@ -9810,7 +10898,9 @@ impl BlockDef for PurpurDoubleSlab {
     const MIN_STATE_ID: u32 = 11670;
     const MAX_STATE_ID: u32 = 11671;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Smooth Stone
@@ -9828,7 +10918,9 @@ impl BlockDef for SmoothStone {
     const MIN_STATE_ID: u32 = 6772;
     const MAX_STATE_ID: u32 = 6772;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Smooth Sandstone
@@ -9846,7 +10938,9 @@ impl BlockDef for SmoothSandstone {
     const MIN_STATE_ID: u32 = 1018;
     const MAX_STATE_ID: u32 = 1018;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Smooth Quartz Block
@@ -9864,7 +10958,9 @@ impl BlockDef for SmoothQuartz {
     const MIN_STATE_ID: u32 = 6722;
     const MAX_STATE_ID: u32 = 6724;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Smooth Red Sandstone
@@ -9882,7 +10978,9 @@ impl BlockDef for SmoothRedSandstone {
     const MIN_STATE_ID: u32 = 14650;
     const MAX_STATE_ID: u32 = 14650;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Spruce Fence Gate
@@ -9900,7 +10998,9 @@ impl BlockDef for SpruceFenceGate {
     const MIN_STATE_ID: u32 = 12458;
     const MAX_STATE_ID: u32 = 12473;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Birch Fence Gate
@@ -9918,7 +11018,9 @@ impl BlockDef for BirchFenceGate {
     const MIN_STATE_ID: u32 = 5370;
     const MAX_STATE_ID: u32 = 5385;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Jungle Fence Gate
@@ -9936,7 +11038,9 @@ impl BlockDef for JungleFenceGate {
     const MIN_STATE_ID: u32 = 8701;
     const MAX_STATE_ID: u32 = 8716;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Acacia Fence Gate
@@ -9954,7 +11058,9 @@ impl BlockDef for AcaciaFenceGate {
     const MIN_STATE_ID: u32 = 14440;
     const MAX_STATE_ID: u32 = 14455;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cherry Fence Gate
@@ -9972,7 +11078,9 @@ impl BlockDef for CherryFenceGate {
     const MIN_STATE_ID: u32 = 15744;
     const MAX_STATE_ID: u32 = 15759;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dark Oak Fence Gate
@@ -9990,7 +11098,9 @@ impl BlockDef for DarkOakFenceGate {
     const MIN_STATE_ID: u32 = 6195;
     const MAX_STATE_ID: u32 = 6210;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pale Oak Fence Gate
@@ -10008,7 +11118,9 @@ impl BlockDef for PaleOakFenceGate {
     const MIN_STATE_ID: u32 = 416;
     const MAX_STATE_ID: u32 = 431;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mangrove Fence Gate
@@ -10026,7 +11138,9 @@ impl BlockDef for MangroveFenceGate {
     const MIN_STATE_ID: u32 = 6849;
     const MAX_STATE_ID: u32 = 6864;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bamboo Fence Gate
@@ -10044,7 +11158,9 @@ impl BlockDef for BambooFenceGate {
     const MIN_STATE_ID: u32 = 8340;
     const MAX_STATE_ID: u32 = 8355;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Spruce Fence
@@ -10062,7 +11178,9 @@ impl BlockDef for SpruceFence {
     const MIN_STATE_ID: u32 = 1824;
     const MAX_STATE_ID: u32 = 1824;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Birch Fence
@@ -10080,7 +11198,9 @@ impl BlockDef for BirchFence {
     const MIN_STATE_ID: u32 = 15204;
     const MAX_STATE_ID: u32 = 15204;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Jungle Fence
@@ -10098,7 +11218,9 @@ impl BlockDef for JungleFence {
     const MIN_STATE_ID: u32 = 1815;
     const MAX_STATE_ID: u32 = 1815;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Acacia Fence
@@ -10116,7 +11238,9 @@ impl BlockDef for AcaciaFence {
     const MIN_STATE_ID: u32 = 15231;
     const MAX_STATE_ID: u32 = 15231;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cherry Fence
@@ -10134,7 +11258,9 @@ impl BlockDef for CherryFence {
     const MIN_STATE_ID: u32 = 3252;
     const MAX_STATE_ID: u32 = 3252;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dark Oak Fence
@@ -10152,7 +11278,9 @@ impl BlockDef for DarkOakFence {
     const MIN_STATE_ID: u32 = 13240;
     const MAX_STATE_ID: u32 = 13240;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pale Oak Fence
@@ -10170,7 +11298,9 @@ impl BlockDef for PaleOakFence {
     const MIN_STATE_ID: u32 = 1775;
     const MAX_STATE_ID: u32 = 1775;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mangrove Fence
@@ -10188,7 +11318,9 @@ impl BlockDef for MangroveFence {
     const MIN_STATE_ID: u32 = 12493;
     const MAX_STATE_ID: u32 = 12493;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bamboo Fence
@@ -10206,7 +11338,9 @@ impl BlockDef for BambooFence {
     const MIN_STATE_ID: u32 = 2073;
     const MAX_STATE_ID: u32 = 2073;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Spruce Door
@@ -10224,7 +11358,9 @@ impl BlockDef for SpruceDoor {
     const MIN_STATE_ID: u32 = 7337;
     const MAX_STATE_ID: u32 = 7368;
     type State = super::states::DoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Birch Door
@@ -10242,7 +11378,9 @@ impl BlockDef for BirchDoor {
     const MIN_STATE_ID: u32 = 13247;
     const MAX_STATE_ID: u32 = 13278;
     type State = super::states::DoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Jungle Door
@@ -10260,7 +11398,9 @@ impl BlockDef for JungleDoor {
     const MIN_STATE_ID: u32 = 11966;
     const MAX_STATE_ID: u32 = 11997;
     type State = super::states::DoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Acacia Door
@@ -10278,7 +11418,9 @@ impl BlockDef for AcaciaDoor {
     const MIN_STATE_ID: u32 = 6583;
     const MAX_STATE_ID: u32 = 6614;
     type State = super::states::DoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cherry Door
@@ -10296,7 +11438,9 @@ impl BlockDef for CherryDoor {
     const MIN_STATE_ID: u32 = 6387;
     const MAX_STATE_ID: u32 = 6418;
     type State = super::states::DoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dark Oak Door
@@ -10314,7 +11458,9 @@ impl BlockDef for DarkOakDoor {
     const MIN_STATE_ID: u32 = 9816;
     const MAX_STATE_ID: u32 = 9847;
     type State = super::states::DoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pale Oak Door
@@ -10332,7 +11478,9 @@ impl BlockDef for PaleOakDoor {
     const MIN_STATE_ID: u32 = 2488;
     const MAX_STATE_ID: u32 = 2519;
     type State = super::states::DoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mangrove Door
@@ -10350,7 +11498,9 @@ impl BlockDef for MangroveDoor {
     const MIN_STATE_ID: u32 = 12237;
     const MAX_STATE_ID: u32 = 12268;
     type State = super::states::DoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bamboo Door
@@ -10368,7 +11518,9 @@ impl BlockDef for BambooDoor {
     const MIN_STATE_ID: u32 = 1392;
     const MAX_STATE_ID: u32 = 1423;
     type State = super::states::DoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// End Rod
@@ -10386,7 +11538,9 @@ impl BlockDef for EndRod {
     const MIN_STATE_ID: u32 = 10988;
     const MAX_STATE_ID: u32 = 10993;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Chorus Plant
@@ -10404,7 +11558,9 @@ impl BlockDef for ChorusPlant {
     const MIN_STATE_ID: u32 = 9267;
     const MAX_STATE_ID: u32 = 9267;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Chorus Flower
@@ -10422,7 +11578,9 @@ impl BlockDef for ChorusFlower {
     const MIN_STATE_ID: u32 = 6726;
     const MAX_STATE_ID: u32 = 6731;
     type State = super::states::AgeState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Purpur Block
@@ -10440,7 +11598,9 @@ impl BlockDef for PurpurBlock {
     const MIN_STATE_ID: u32 = 14602;
     const MAX_STATE_ID: u32 = 14604;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Purpur Pillar
@@ -10458,7 +11618,9 @@ impl BlockDef for PurpurPillar {
     const MIN_STATE_ID: u32 = 9778;
     const MAX_STATE_ID: u32 = 9780;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Purpur Stairs
@@ -10476,7 +11638,9 @@ impl BlockDef for PurpurStairs {
     const MIN_STATE_ID: u32 = 14651;
     const MAX_STATE_ID: u32 = 14658;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// End Stone Bricks
@@ -10494,7 +11658,9 @@ impl BlockDef for EndBricks {
     const MIN_STATE_ID: u32 = 1370;
     const MAX_STATE_ID: u32 = 1370;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Torchflower Crop
@@ -10512,7 +11678,9 @@ impl BlockDef for TorchflowerCrop {
     const MIN_STATE_ID: u32 = 11613;
     const MAX_STATE_ID: u32 = 11620;
     type State = super::states::CropState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pitcher Crop
@@ -10530,7 +11698,9 @@ impl BlockDef for PitcherCrop {
     const MIN_STATE_ID: u32 = 1314;
     const MAX_STATE_ID: u32 = 1329;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pitcher Plant
@@ -10548,7 +11718,9 @@ impl BlockDef for PitcherPlant {
     const MIN_STATE_ID: u32 = 5345;
     const MAX_STATE_ID: u32 = 5346;
     type State = super::states::DoublePlantState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Beetroots
@@ -10566,7 +11738,9 @@ impl BlockDef for Beetroot {
     const MIN_STATE_ID: u32 = 8625;
     const MAX_STATE_ID: u32 = 8632;
     type State = super::states::CropState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dirt Path
@@ -10584,7 +11758,9 @@ impl BlockDef for GrassPath {
     const MIN_STATE_ID: u32 = 15232;
     const MAX_STATE_ID: u32 = 15232;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// End Gateway
@@ -10602,7 +11778,9 @@ impl BlockDef for EndGateway {
     const MIN_STATE_ID: u32 = 844;
     const MAX_STATE_ID: u32 = 844;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Repeating Command Block
@@ -10620,7 +11798,9 @@ impl BlockDef for RepeatingCommandBlock {
     const MIN_STATE_ID: u32 = 14620;
     const MAX_STATE_ID: u32 = 14631;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Chain Command Block
@@ -10638,7 +11818,9 @@ impl BlockDef for ChainCommandBlock {
     const MIN_STATE_ID: u32 = 12442;
     const MAX_STATE_ID: u32 = 12453;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Frosted Ice
@@ -10656,7 +11838,9 @@ impl BlockDef for FrostedIce {
     const MIN_STATE_ID: u32 = 7369;
     const MAX_STATE_ID: u32 = 7372;
     type State = super::states::AgeState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Magma Block
@@ -10674,7 +11858,9 @@ impl BlockDef for Magma {
     const MIN_STATE_ID: u32 = 14979;
     const MAX_STATE_ID: u32 = 14979;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Nether Wart Block
@@ -10692,7 +11878,9 @@ impl BlockDef for NetherWartBlock {
     const MIN_STATE_ID: u32 = 6382;
     const MAX_STATE_ID: u32 = 6382;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Red Nether Bricks
@@ -10710,7 +11898,9 @@ impl BlockDef for RedNetherBrick {
     const MIN_STATE_ID: u32 = 847;
     const MAX_STATE_ID: u32 = 847;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bone Block
@@ -10728,7 +11918,9 @@ impl BlockDef for BoneBlock {
     const MIN_STATE_ID: u32 = 6278;
     const MAX_STATE_ID: u32 = 6289;
     type State = super::states::DeprecatedPillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Structure Void
@@ -10746,7 +11938,9 @@ impl BlockDef for StructureVoid {
     const MIN_STATE_ID: u32 = 6218;
     const MAX_STATE_ID: u32 = 6218;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Observer
@@ -10764,7 +11958,9 @@ impl BlockDef for Observer {
     const MIN_STATE_ID: u32 = 4541;
     const MAX_STATE_ID: u32 = 4552;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Shulker Box
@@ -10782,7 +11978,9 @@ impl BlockDef for UndyedShulkerBox {
     const MIN_STATE_ID: u32 = 5238;
     const MAX_STATE_ID: u32 = 5238;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// White Shulker Box
@@ -10800,7 +11998,9 @@ impl BlockDef for WhiteShulkerBox {
     const MIN_STATE_ID: u32 = 1788;
     const MAX_STATE_ID: u32 = 1788;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Orange Shulker Box
@@ -10818,7 +12018,9 @@ impl BlockDef for OrangeShulkerBox {
     const MIN_STATE_ID: u32 = 12041;
     const MAX_STATE_ID: u32 = 12041;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Magenta Shulker Box
@@ -10836,7 +12038,9 @@ impl BlockDef for MagentaShulkerBox {
     const MIN_STATE_ID: u32 = 1371;
     const MAX_STATE_ID: u32 = 1371;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light Blue Shulker Box
@@ -10854,7 +12058,9 @@ impl BlockDef for LightBlueShulkerBox {
     const MIN_STATE_ID: u32 = 12861;
     const MAX_STATE_ID: u32 = 12861;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Yellow Shulker Box
@@ -10872,7 +12078,9 @@ impl BlockDef for YellowShulkerBox {
     const MIN_STATE_ID: u32 = 357;
     const MAX_STATE_ID: u32 = 357;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Lime Shulker Box
@@ -10890,7 +12098,9 @@ impl BlockDef for LimeShulkerBox {
     const MIN_STATE_ID: u32 = 1696;
     const MAX_STATE_ID: u32 = 1696;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pink Shulker Box
@@ -10908,7 +12118,9 @@ impl BlockDef for PinkShulkerBox {
     const MIN_STATE_ID: u32 = 6521;
     const MAX_STATE_ID: u32 = 6521;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Gray Shulker Box
@@ -10926,7 +12138,9 @@ impl BlockDef for GrayShulkerBox {
     const MIN_STATE_ID: u32 = 8681;
     const MAX_STATE_ID: u32 = 8681;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light Gray Shulker Box
@@ -10944,7 +12158,9 @@ impl BlockDef for LightGrayShulkerBox {
     const MIN_STATE_ID: u32 = 11006;
     const MAX_STATE_ID: u32 = 11006;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cyan Shulker Box
@@ -10962,7 +12178,9 @@ impl BlockDef for CyanShulkerBox {
     const MIN_STATE_ID: u32 = 13092;
     const MAX_STATE_ID: u32 = 13092;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Purple Shulker Box
@@ -10980,7 +12198,9 @@ impl BlockDef for PurpleShulkerBox {
     const MIN_STATE_ID: u32 = 14192;
     const MAX_STATE_ID: u32 = 14192;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Blue Shulker Box
@@ -10998,7 +12218,9 @@ impl BlockDef for BlueShulkerBox {
     const MIN_STATE_ID: u32 = 12094;
     const MAX_STATE_ID: u32 = 12094;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Brown Shulker Box
@@ -11016,7 +12238,9 @@ impl BlockDef for BrownShulkerBox {
     const MIN_STATE_ID: u32 = 12769;
     const MAX_STATE_ID: u32 = 12769;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Green Shulker Box
@@ -11034,7 +12258,9 @@ impl BlockDef for GreenShulkerBox {
     const MIN_STATE_ID: u32 = 12344;
     const MAX_STATE_ID: u32 = 12344;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Red Shulker Box
@@ -11052,7 +12278,9 @@ impl BlockDef for RedShulkerBox {
     const MIN_STATE_ID: u32 = 6617;
     const MAX_STATE_ID: u32 = 6617;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Black Shulker Box
@@ -11070,7 +12298,9 @@ impl BlockDef for BlackShulkerBox {
     const MIN_STATE_ID: u32 = 11604;
     const MAX_STATE_ID: u32 = 11604;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// White Glazed Terracotta
@@ -11088,7 +12318,9 @@ impl BlockDef for WhiteGlazedTerracotta {
     const MIN_STATE_ID: u32 = 9659;
     const MAX_STATE_ID: u32 = 9664;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Orange Glazed Terracotta
@@ -11106,7 +12338,9 @@ impl BlockDef for OrangeGlazedTerracotta {
     const MIN_STATE_ID: u32 = 3597;
     const MAX_STATE_ID: u32 = 3602;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Magenta Glazed Terracotta
@@ -11124,7 +12358,9 @@ impl BlockDef for MagentaGlazedTerracotta {
     const MIN_STATE_ID: u32 = 3425;
     const MAX_STATE_ID: u32 = 3430;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light Blue Glazed Terracotta
@@ -11142,7 +12378,9 @@ impl BlockDef for LightBlueGlazedTerracotta {
     const MIN_STATE_ID: u32 = 8846;
     const MAX_STATE_ID: u32 = 8851;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Yellow Glazed Terracotta
@@ -11160,7 +12398,9 @@ impl BlockDef for YellowGlazedTerracotta {
     const MIN_STATE_ID: u32 = 3204;
     const MAX_STATE_ID: u32 = 3209;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Lime Glazed Terracotta
@@ -11178,7 +12418,9 @@ impl BlockDef for LimeGlazedTerracotta {
     const MIN_STATE_ID: u32 = 1275;
     const MAX_STATE_ID: u32 = 1280;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pink Glazed Terracotta
@@ -11196,7 +12438,9 @@ impl BlockDef for PinkGlazedTerracotta {
     const MIN_STATE_ID: u32 = 12415;
     const MAX_STATE_ID: u32 = 12420;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Gray Glazed Terracotta
@@ -11214,7 +12458,9 @@ impl BlockDef for GrayGlazedTerracotta {
     const MIN_STATE_ID: u32 = 15760;
     const MAX_STATE_ID: u32 = 15765;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light Gray Glazed Terracotta
@@ -11232,7 +12478,9 @@ impl BlockDef for SilverGlazedTerracotta {
     const MIN_STATE_ID: u32 = 4559;
     const MAX_STATE_ID: u32 = 4564;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cyan Glazed Terracotta
@@ -11250,7 +12498,9 @@ impl BlockDef for CyanGlazedTerracotta {
     const MIN_STATE_ID: u32 = 8690;
     const MAX_STATE_ID: u32 = 8695;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Purple Glazed Terracotta
@@ -11268,7 +12518,9 @@ impl BlockDef for PurpleGlazedTerracotta {
     const MIN_STATE_ID: u32 = 13072;
     const MAX_STATE_ID: u32 = 13077;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Blue Glazed Terracotta
@@ -11286,7 +12538,9 @@ impl BlockDef for BlueGlazedTerracotta {
     const MIN_STATE_ID: u32 = 8840;
     const MAX_STATE_ID: u32 = 8845;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Brown Glazed Terracotta
@@ -11304,7 +12558,9 @@ impl BlockDef for BrownGlazedTerracotta {
     const MIN_STATE_ID: u32 = 4965;
     const MAX_STATE_ID: u32 = 4970;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Green Glazed Terracotta
@@ -11322,7 +12578,9 @@ impl BlockDef for GreenGlazedTerracotta {
     const MIN_STATE_ID: u32 = 12484;
     const MAX_STATE_ID: u32 = 12489;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Red Glazed Terracotta
@@ -11340,7 +12598,9 @@ impl BlockDef for RedGlazedTerracotta {
     const MIN_STATE_ID: u32 = 6182;
     const MAX_STATE_ID: u32 = 6187;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Black Glazed Terracotta
@@ -11358,7 +12618,9 @@ impl BlockDef for BlackGlazedTerracotta {
     const MIN_STATE_ID: u32 = 10453;
     const MAX_STATE_ID: u32 = 10458;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// White Concrete
@@ -11376,7 +12638,9 @@ impl BlockDef for WhiteConcrete {
     const MIN_STATE_ID: u32 = 15214;
     const MAX_STATE_ID: u32 = 15214;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Orange Concrete
@@ -11394,7 +12658,9 @@ impl BlockDef for OrangeConcrete {
     const MIN_STATE_ID: u32 = 12587;
     const MAX_STATE_ID: u32 = 12587;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Magenta Concrete
@@ -11412,7 +12678,9 @@ impl BlockDef for MagentaConcrete {
     const MIN_STATE_ID: u32 = 6503;
     const MAX_STATE_ID: u32 = 6503;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light Blue Concrete
@@ -11430,7 +12698,9 @@ impl BlockDef for LightBlueConcrete {
     const MIN_STATE_ID: u32 = 14289;
     const MAX_STATE_ID: u32 = 14289;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Yellow Concrete
@@ -11448,7 +12718,9 @@ impl BlockDef for YellowConcrete {
     const MIN_STATE_ID: u32 = 5102;
     const MAX_STATE_ID: u32 = 5102;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Lime Concrete
@@ -11466,7 +12738,9 @@ impl BlockDef for LimeConcrete {
     const MIN_STATE_ID: u32 = 6794;
     const MAX_STATE_ID: u32 = 6794;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pink Concrete
@@ -11484,7 +12758,9 @@ impl BlockDef for PinkConcrete {
     const MIN_STATE_ID: u32 = 4573;
     const MAX_STATE_ID: u32 = 4573;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Gray Concrete
@@ -11502,7 +12778,9 @@ impl BlockDef for GrayConcrete {
     const MIN_STATE_ID: u32 = 14021;
     const MAX_STATE_ID: u32 = 14021;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light Gray Concrete
@@ -11520,7 +12798,9 @@ impl BlockDef for LightGrayConcrete {
     const MIN_STATE_ID: u32 = 2717;
     const MAX_STATE_ID: u32 = 2717;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cyan Concrete
@@ -11538,7 +12818,9 @@ impl BlockDef for CyanConcrete {
     const MIN_STATE_ID: u32 = 13893;
     const MAX_STATE_ID: u32 = 13893;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Purple Concrete
@@ -11556,7 +12838,9 @@ impl BlockDef for PurpleConcrete {
     const MIN_STATE_ID: u32 = 6220;
     const MAX_STATE_ID: u32 = 6220;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Blue Concrete
@@ -11574,7 +12858,9 @@ impl BlockDef for BlueConcrete {
     const MIN_STATE_ID: u32 = 13903;
     const MAX_STATE_ID: u32 = 13903;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Brown Concrete
@@ -11592,7 +12878,9 @@ impl BlockDef for BrownConcrete {
     const MIN_STATE_ID: u32 = 12036;
     const MAX_STATE_ID: u32 = 12036;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Green Concrete
@@ -11610,7 +12898,9 @@ impl BlockDef for GreenConcrete {
     const MIN_STATE_ID: u32 = 10997;
     const MAX_STATE_ID: u32 = 10997;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Red Concrete
@@ -11628,7 +12918,9 @@ impl BlockDef for RedConcrete {
     const MIN_STATE_ID: u32 = 14584;
     const MAX_STATE_ID: u32 = 14584;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Black Concrete
@@ -11646,7 +12938,9 @@ impl BlockDef for BlackConcrete {
     const MIN_STATE_ID: u32 = 12547;
     const MAX_STATE_ID: u32 = 12547;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// White Concrete Powder
@@ -11664,7 +12958,9 @@ impl BlockDef for WhiteConcretePowder {
     const MIN_STATE_ID: u32 = 7898;
     const MAX_STATE_ID: u32 = 7898;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Orange Concrete Powder
@@ -11682,7 +12978,9 @@ impl BlockDef for OrangeConcretePowder {
     const MIN_STATE_ID: u32 = 15569;
     const MAX_STATE_ID: u32 = 15569;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Magenta Concrete Powder
@@ -11700,7 +12998,9 @@ impl BlockDef for MagentaConcretePowder {
     const MIN_STATE_ID: u32 = 6635;
     const MAX_STATE_ID: u32 = 6635;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light Blue Concrete Powder
@@ -11718,7 +13018,9 @@ impl BlockDef for LightBlueConcretePowder {
     const MIN_STATE_ID: u32 = 110;
     const MAX_STATE_ID: u32 = 110;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Yellow Concrete Powder
@@ -11736,7 +13038,9 @@ impl BlockDef for YellowConcretePowder {
     const MIN_STATE_ID: u32 = 14424;
     const MAX_STATE_ID: u32 = 14424;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Lime Concrete Powder
@@ -11754,7 +13058,9 @@ impl BlockDef for LimeConcretePowder {
     const MIN_STATE_ID: u32 = 14966;
     const MAX_STATE_ID: u32 = 14966;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pink Concrete Powder
@@ -11772,7 +13078,9 @@ impl BlockDef for PinkConcretePowder {
     const MIN_STATE_ID: u32 = 6378;
     const MAX_STATE_ID: u32 = 6378;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Gray Concrete Powder
@@ -11790,7 +13098,9 @@ impl BlockDef for GrayConcretePowder {
     const MIN_STATE_ID: u32 = 14018;
     const MAX_STATE_ID: u32 = 14018;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light Gray Concrete Powder
@@ -11808,7 +13118,9 @@ impl BlockDef for LightGrayConcretePowder {
     const MIN_STATE_ID: u32 = 13876;
     const MAX_STATE_ID: u32 = 13876;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cyan Concrete Powder
@@ -11826,7 +13138,9 @@ impl BlockDef for CyanConcretePowder {
     const MIN_STATE_ID: u32 = 4960;
     const MAX_STATE_ID: u32 = 4960;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Purple Concrete Powder
@@ -11844,7 +13158,9 @@ impl BlockDef for PurpleConcretePowder {
     const MIN_STATE_ID: u32 = 12414;
     const MAX_STATE_ID: u32 = 12414;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Blue Concrete Powder
@@ -11862,7 +13178,9 @@ impl BlockDef for BlueConcretePowder {
     const MIN_STATE_ID: u32 = 12586;
     const MAX_STATE_ID: u32 = 12586;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Brown Concrete Powder
@@ -11880,7 +13198,9 @@ impl BlockDef for BrownConcretePowder {
     const MIN_STATE_ID: u32 = 10571;
     const MAX_STATE_ID: u32 = 10571;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Green Concrete Powder
@@ -11898,7 +13218,9 @@ impl BlockDef for GreenConcretePowder {
     const MIN_STATE_ID: u32 = 13078;
     const MAX_STATE_ID: u32 = 13078;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Red Concrete Powder
@@ -11916,7 +13238,9 @@ impl BlockDef for RedConcretePowder {
     const MIN_STATE_ID: u32 = 13875;
     const MAX_STATE_ID: u32 = 13875;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Black Concrete Powder
@@ -11934,7 +13258,9 @@ impl BlockDef for BlackConcretePowder {
     const MIN_STATE_ID: u32 = 1828;
     const MAX_STATE_ID: u32 = 1828;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Kelp Plant
@@ -11952,7 +13278,9 @@ impl BlockDef for Kelp {
     const MIN_STATE_ID: u32 = 8781;
     const MAX_STATE_ID: u32 = 8806;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dried Kelp Block
@@ -11970,7 +13298,9 @@ impl BlockDef for DriedKelpBlock {
     const MIN_STATE_ID: u32 = 14962;
     const MAX_STATE_ID: u32 = 14962;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Turtle Egg
@@ -11988,7 +13318,9 @@ impl BlockDef for TurtleEgg {
     const MIN_STATE_ID: u32 = 14967;
     const MAX_STATE_ID: u32 = 14978;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Sniffer Egg
@@ -12006,7 +13338,9 @@ impl BlockDef for SnifferEgg {
     const MIN_STATE_ID: u32 = 12897;
     const MAX_STATE_ID: u32 = 12899;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dried Ghast
@@ -12024,7 +13358,9 @@ impl BlockDef for DriedGhast {
     const MIN_STATE_ID: u32 = 3211;
     const MAX_STATE_ID: u32 = 3226;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dead Tube Coral Block
@@ -12042,7 +13378,9 @@ impl BlockDef for DeadTubeCoralBlock {
     const MIN_STATE_ID: u32 = 5814;
     const MAX_STATE_ID: u32 = 5814;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dead Brain Coral Block
@@ -12060,7 +13398,9 @@ impl BlockDef for DeadBrainCoralBlock {
     const MIN_STATE_ID: u32 = 12492;
     const MAX_STATE_ID: u32 = 12492;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dead Bubble Coral Block
@@ -12078,7 +13418,9 @@ impl BlockDef for DeadBubbleCoralBlock {
     const MIN_STATE_ID: u32 = 3243;
     const MAX_STATE_ID: u32 = 3243;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dead Fire Coral Block
@@ -12096,7 +13438,9 @@ impl BlockDef for DeadFireCoralBlock {
     const MIN_STATE_ID: u32 = 3418;
     const MAX_STATE_ID: u32 = 3418;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dead Horn Coral Block
@@ -12114,7 +13458,9 @@ impl BlockDef for DeadHornCoralBlock {
     const MIN_STATE_ID: u32 = 12331;
     const MAX_STATE_ID: u32 = 12331;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Tube Coral Block
@@ -12132,7 +13478,9 @@ impl BlockDef for TubeCoralBlock {
     const MIN_STATE_ID: u32 = 14359;
     const MAX_STATE_ID: u32 = 14359;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Brain Coral Block
@@ -12150,7 +13498,9 @@ impl BlockDef for BrainCoralBlock {
     const MIN_STATE_ID: u32 = 9693;
     const MAX_STATE_ID: u32 = 9693;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bubble Coral Block
@@ -12168,7 +13518,9 @@ impl BlockDef for BubbleCoralBlock {
     const MIN_STATE_ID: u32 = 6367;
     const MAX_STATE_ID: u32 = 6367;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Fire Coral Block
@@ -12186,7 +13538,9 @@ impl BlockDef for FireCoralBlock {
     const MIN_STATE_ID: u32 = 6634;
     const MAX_STATE_ID: u32 = 6634;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Horn Coral Block
@@ -12204,7 +13558,9 @@ impl BlockDef for HornCoralBlock {
     const MIN_STATE_ID: u32 = 8592;
     const MAX_STATE_ID: u32 = 8592;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dead Tube Coral
@@ -12222,7 +13578,9 @@ impl BlockDef for DeadTubeCoral {
     const MIN_STATE_ID: u32 = 6381;
     const MAX_STATE_ID: u32 = 6381;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dead Brain Coral
@@ -12240,7 +13598,9 @@ impl BlockDef for DeadBrainCoral {
     const MIN_STATE_ID: u32 = 13782;
     const MAX_STATE_ID: u32 = 13782;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dead Bubble Coral
@@ -12258,7 +13618,9 @@ impl BlockDef for DeadBubbleCoral {
     const MIN_STATE_ID: u32 = 13878;
     const MAX_STATE_ID: u32 = 13878;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dead Fire Coral
@@ -12276,7 +13638,9 @@ impl BlockDef for DeadFireCoral {
     const MIN_STATE_ID: u32 = 12100;
     const MAX_STATE_ID: u32 = 12100;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dead Horn Coral
@@ -12294,7 +13658,9 @@ impl BlockDef for DeadHornCoral {
     const MIN_STATE_ID: u32 = 11059;
     const MAX_STATE_ID: u32 = 11059;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Tube Coral
@@ -12312,7 +13678,9 @@ impl BlockDef for TubeCoral {
     const MIN_STATE_ID: u32 = 14659;
     const MAX_STATE_ID: u32 = 14659;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Brain Coral
@@ -12330,7 +13698,9 @@ impl BlockDef for BrainCoral {
     const MIN_STATE_ID: u32 = 2703;
     const MAX_STATE_ID: u32 = 2703;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bubble Coral
@@ -12348,7 +13718,9 @@ impl BlockDef for BubbleCoral {
     const MIN_STATE_ID: u32 = 12040;
     const MAX_STATE_ID: u32 = 12040;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Fire Coral
@@ -12366,7 +13738,9 @@ impl BlockDef for FireCoral {
     const MIN_STATE_ID: u32 = 2531;
     const MAX_STATE_ID: u32 = 2531;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Horn Coral
@@ -12384,7 +13758,9 @@ impl BlockDef for HornCoral {
     const MIN_STATE_ID: u32 = 5101;
     const MAX_STATE_ID: u32 = 5101;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dead Tube Coral Fan
@@ -12402,7 +13778,9 @@ impl BlockDef for DeadTubeCoralFan {
     const MIN_STATE_ID: u32 = 12553;
     const MAX_STATE_ID: u32 = 12554;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dead Brain Coral Fan
@@ -12420,7 +13798,9 @@ impl BlockDef for DeadBrainCoralFan {
     const MIN_STATE_ID: u32 = 1298;
     const MAX_STATE_ID: u32 = 1299;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dead Bubble Coral Fan
@@ -12438,7 +13818,9 @@ impl BlockDef for DeadBubbleCoralFan {
     const MIN_STATE_ID: u32 = 1258;
     const MAX_STATE_ID: u32 = 1259;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dead Fire Coral Fan
@@ -12456,7 +13838,9 @@ impl BlockDef for DeadFireCoralFan {
     const MIN_STATE_ID: u32 = 12591;
     const MAX_STATE_ID: u32 = 12592;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dead Horn Coral Fan
@@ -12474,7 +13858,9 @@ impl BlockDef for DeadHornCoralFan {
     const MIN_STATE_ID: u32 = 13152;
     const MAX_STATE_ID: u32 = 13153;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Tube Coral Fan
@@ -12492,7 +13878,9 @@ impl BlockDef for TubeCoralFan {
     const MIN_STATE_ID: u32 = 1304;
     const MAX_STATE_ID: u32 = 1305;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Brain Coral Fan
@@ -12510,7 +13898,9 @@ impl BlockDef for BrainCoralFan {
     const MIN_STATE_ID: u32 = 2820;
     const MAX_STATE_ID: u32 = 2821;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bubble Coral Fan
@@ -12528,7 +13918,9 @@ impl BlockDef for BubbleCoralFan {
     const MIN_STATE_ID: u32 = 1263;
     const MAX_STATE_ID: u32 = 1264;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Fire Coral Fan
@@ -12546,7 +13938,9 @@ impl BlockDef for FireCoralFan {
     const MIN_STATE_ID: u32 = 12424;
     const MAX_STATE_ID: u32 = 12425;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Horn Coral Fan
@@ -12564,7 +13958,9 @@ impl BlockDef for HornCoralFan {
     const MIN_STATE_ID: u32 = 12342;
     const MAX_STATE_ID: u32 = 12343;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dead Tube Coral Wall Fan
@@ -12582,7 +13978,9 @@ impl BlockDef for DeadTubeCoralWallFan {
     const MIN_STATE_ID: u32 = 14361;
     const MAX_STATE_ID: u32 = 14364;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dead Brain Coral Wall Fan
@@ -12600,7 +13998,9 @@ impl BlockDef for DeadBrainCoralWallFan {
     const MIN_STATE_ID: u32 = 5951;
     const MAX_STATE_ID: u32 = 5954;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dead Bubble Coral Wall Fan
@@ -12618,7 +14018,9 @@ impl BlockDef for DeadBubbleCoralWallFan {
     const MIN_STATE_ID: u32 = 1425;
     const MAX_STATE_ID: u32 = 1428;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dead Fire Coral Wall Fan
@@ -12636,7 +14038,9 @@ impl BlockDef for DeadFireCoralWallFan {
     const MIN_STATE_ID: u32 = 4961;
     const MAX_STATE_ID: u32 = 4964;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dead Horn Coral Wall Fan
@@ -12654,7 +14058,9 @@ impl BlockDef for DeadHornCoralWallFan {
     const MIN_STATE_ID: u32 = 13102;
     const MAX_STATE_ID: u32 = 13105;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Tube Coral Wall Fan
@@ -12672,7 +14078,9 @@ impl BlockDef for TubeCoralWallFan {
     const MIN_STATE_ID: u32 = 15840;
     const MAX_STATE_ID: u32 = 15843;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Brain Coral Wall Fan
@@ -12690,7 +14098,9 @@ impl BlockDef for BrainCoralWallFan {
     const MIN_STATE_ID: u32 = 6171;
     const MAX_STATE_ID: u32 = 6174;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bubble Coral Wall Fan
@@ -12708,7 +14118,9 @@ impl BlockDef for BubbleCoralWallFan {
     const MIN_STATE_ID: u32 = 12764;
     const MAX_STATE_ID: u32 = 12767;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Fire Coral Wall Fan
@@ -12726,7 +14138,9 @@ impl BlockDef for FireCoralWallFan {
     const MIN_STATE_ID: u32 = 8697;
     const MAX_STATE_ID: u32 = 8700;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Horn Coral Wall Fan
@@ -12744,7 +14158,9 @@ impl BlockDef for HornCoralWallFan {
     const MIN_STATE_ID: u32 = 7953;
     const MAX_STATE_ID: u32 = 7956;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Sea Pickle
@@ -12762,7 +14178,9 @@ impl BlockDef for SeaPickle {
     const MIN_STATE_ID: u32 = 10515;
     const MAX_STATE_ID: u32 = 10522;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Blue Ice
@@ -12780,7 +14198,9 @@ impl BlockDef for BlueIce {
     const MIN_STATE_ID: u32 = 13091;
     const MAX_STATE_ID: u32 = 13091;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Conduit
@@ -12798,7 +14218,9 @@ impl BlockDef for Conduit {
     const MIN_STATE_ID: u32 = 6270;
     const MAX_STATE_ID: u32 = 6270;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bamboo Shoot
@@ -12816,7 +14238,9 @@ impl BlockDef for BambooSapling {
     const MIN_STATE_ID: u32 = 14404;
     const MAX_STATE_ID: u32 = 14405;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bamboo
@@ -12834,7 +14258,9 @@ impl BlockDef for Bamboo {
     const MIN_STATE_ID: u32 = 5253;
     const MAX_STATE_ID: u32 = 5264;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bubble Column
@@ -12852,7 +14278,9 @@ impl BlockDef for BubbleColumn {
     const MIN_STATE_ID: u32 = 9879;
     const MAX_STATE_ID: u32 = 9880;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Granite Stairs
@@ -12870,7 +14298,9 @@ impl BlockDef for PolishedGraniteStairs {
     const MIN_STATE_ID: u32 = 6152;
     const MAX_STATE_ID: u32 = 6159;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Smooth Red Sandstone Stairs
@@ -12888,7 +14318,9 @@ impl BlockDef for SmoothRedSandstoneStairs {
     const MIN_STATE_ID: u32 = 9470;
     const MAX_STATE_ID: u32 = 9477;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mossy Stone Brick Stairs
@@ -12906,7 +14338,9 @@ impl BlockDef for MossyStoneBrickStairs {
     const MIN_STATE_ID: u32 = 10980;
     const MAX_STATE_ID: u32 = 10987;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Diorite Stairs
@@ -12924,7 +14358,9 @@ impl BlockDef for PolishedDioriteStairs {
     const MIN_STATE_ID: u32 = 12578;
     const MAX_STATE_ID: u32 = 12585;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mossy Cobblestone Stairs
@@ -12942,7 +14378,9 @@ impl BlockDef for MossyCobblestoneStairs {
     const MIN_STATE_ID: u32 = 6129;
     const MAX_STATE_ID: u32 = 6136;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// End Stone Brick Stairs
@@ -12960,7 +14398,9 @@ impl BlockDef for EndBrickStairs {
     const MIN_STATE_ID: u32 = 12215;
     const MAX_STATE_ID: u32 = 12222;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stone Stairs
@@ -12978,7 +14418,9 @@ impl BlockDef for NormalStoneStairs {
     const MIN_STATE_ID: u32 = 2074;
     const MAX_STATE_ID: u32 = 2081;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Smooth Sandstone Stairs
@@ -12996,7 +14438,9 @@ impl BlockDef for SmoothSandstoneStairs {
     const MIN_STATE_ID: u32 = 5170;
     const MAX_STATE_ID: u32 = 5177;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Smooth Quartz Stairs
@@ -13014,7 +14458,9 @@ impl BlockDef for SmoothQuartzStairs {
     const MIN_STATE_ID: u32 = 14586;
     const MAX_STATE_ID: u32 = 14593;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Granite Stairs
@@ -13032,7 +14478,9 @@ impl BlockDef for GraniteStairs {
     const MIN_STATE_ID: u32 = 4565;
     const MAX_STATE_ID: u32 = 4572;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Andesite Stairs
@@ -13050,7 +14498,9 @@ impl BlockDef for AndesiteStairs {
     const MIN_STATE_ID: u32 = 8643;
     const MAX_STATE_ID: u32 = 8650;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Red Nether Brick Stairs
@@ -13068,7 +14518,9 @@ impl BlockDef for RedNetherBrickStairs {
     const MIN_STATE_ID: u32 = 12476;
     const MAX_STATE_ID: u32 = 12483;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Andesite Stairs
@@ -13086,7 +14538,9 @@ impl BlockDef for PolishedAndesiteStairs {
     const MIN_STATE_ID: u32 = 13094;
     const MAX_STATE_ID: u32 = 13101;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Diorite Stairs
@@ -13104,7 +14558,9 @@ impl BlockDef for DioriteStairs {
     const MIN_STATE_ID: u32 = 6570;
     const MAX_STATE_ID: u32 = 6577;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Granite Slab
@@ -13122,7 +14578,9 @@ impl BlockDef for PolishedGraniteSlab {
     const MIN_STATE_ID: u32 = 12082;
     const MAX_STATE_ID: u32 = 12083;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Granite Slab
@@ -13140,7 +14598,9 @@ impl BlockDef for PolishedGraniteDoubleSlab {
     const MIN_STATE_ID: u32 = 14434;
     const MAX_STATE_ID: u32 = 14435;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Smooth Red Sandstone Slab
@@ -13158,7 +14618,9 @@ impl BlockDef for SmoothRedSandstoneDoubleSlab {
     const MIN_STATE_ID: u32 = 12084;
     const MAX_STATE_ID: u32 = 12085;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Smooth Red Sandstone Slab
@@ -13176,7 +14638,9 @@ impl BlockDef for SmoothRedSandstoneSlab {
     const MIN_STATE_ID: u32 = 12411;
     const MAX_STATE_ID: u32 = 12412;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mossy Stone Brick Slab
@@ -13194,7 +14658,9 @@ impl BlockDef for MossyStoneBrickSlab {
     const MIN_STATE_ID: u32 = 1784;
     const MAX_STATE_ID: u32 = 1785;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mossy Stone Brick Slab
@@ -13212,7 +14678,9 @@ impl BlockDef for MossyStoneBrickDoubleSlab {
     const MIN_STATE_ID: u32 = 6319;
     const MAX_STATE_ID: u32 = 6320;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Diorite Slab
@@ -13230,7 +14698,9 @@ impl BlockDef for PolishedDioriteSlab {
     const MIN_STATE_ID: u32 = 6817;
     const MAX_STATE_ID: u32 = 6818;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Diorite Slab
@@ -13248,7 +14718,9 @@ impl BlockDef for PolishedDioriteDoubleSlab {
     const MIN_STATE_ID: u32 = 12900;
     const MAX_STATE_ID: u32 = 12901;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mossy Cobblestone Slab
@@ -13266,7 +14738,9 @@ impl BlockDef for MossyCobblestoneSlab {
     const MIN_STATE_ID: u32 = 6211;
     const MAX_STATE_ID: u32 = 6212;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mossy Cobblestone Slab
@@ -13284,7 +14758,9 @@ impl BlockDef for MossyCobblestoneDoubleSlab {
     const MIN_STATE_ID: u32 = 14782;
     const MAX_STATE_ID: u32 = 14783;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// End Stone Brick Slab
@@ -13302,7 +14778,9 @@ impl BlockDef for EndStoneBrickSlab {
     const MIN_STATE_ID: u32 = 2084;
     const MAX_STATE_ID: u32 = 2085;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// End Stone Brick Slab
@@ -13320,7 +14798,9 @@ impl BlockDef for EndStoneBrickDoubleSlab {
     const MIN_STATE_ID: u32 = 12269;
     const MAX_STATE_ID: u32 = 12270;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Smooth Sandstone Slab
@@ -13338,7 +14818,9 @@ impl BlockDef for SmoothSandstoneSlab {
     const MIN_STATE_ID: u32 = 2533;
     const MAX_STATE_ID: u32 = 2534;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Smooth Sandstone Slab
@@ -13356,7 +14838,9 @@ impl BlockDef for SmoothSandstoneDoubleSlab {
     const MIN_STATE_ID: u32 = 6615;
     const MAX_STATE_ID: u32 = 6616;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Smooth Quartz Slab
@@ -13374,7 +14858,9 @@ impl BlockDef for SmoothQuartzDoubleSlab {
     const MIN_STATE_ID: u32 = 1876;
     const MAX_STATE_ID: u32 = 1877;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Smooth Quartz Slab
@@ -13392,7 +14878,9 @@ impl BlockDef for SmoothQuartzSlab {
     const MIN_STATE_ID: u32 = 14422;
     const MAX_STATE_ID: u32 = 14423;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Granite Slab
@@ -13410,7 +14898,9 @@ impl BlockDef for GraniteSlab {
     const MIN_STATE_ID: u32 = 6791;
     const MAX_STATE_ID: u32 = 6792;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Granite Slab
@@ -13428,7 +14918,9 @@ impl BlockDef for GraniteDoubleSlab {
     const MIN_STATE_ID: u32 = 12597;
     const MAX_STATE_ID: u32 = 12598;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Andesite Slab
@@ -13446,7 +14938,9 @@ impl BlockDef for AndesiteDoubleSlab {
     const MIN_STATE_ID: u32 = 11060;
     const MAX_STATE_ID: u32 = 11061;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Andesite Slab
@@ -13464,7 +14958,9 @@ impl BlockDef for AndesiteSlab {
     const MIN_STATE_ID: u32 = 12183;
     const MAX_STATE_ID: u32 = 12184;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Red Nether Brick Slab
@@ -13482,7 +14978,9 @@ impl BlockDef for RedNetherBrickDoubleSlab {
     const MIN_STATE_ID: u32 = 2064;
     const MAX_STATE_ID: u32 = 2065;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Red Nether Brick Slab
@@ -13500,7 +14998,9 @@ impl BlockDef for RedNetherBrickSlab {
     const MIN_STATE_ID: u32 = 12455;
     const MAX_STATE_ID: u32 = 12456;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Andesite Slab
@@ -13518,7 +15018,9 @@ impl BlockDef for PolishedAndesiteDoubleSlab {
     const MIN_STATE_ID: u32 = 13801;
     const MAX_STATE_ID: u32 = 13802;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Andesite Slab
@@ -13536,7 +15038,9 @@ impl BlockDef for PolishedAndesiteSlab {
     const MIN_STATE_ID: u32 = 14226;
     const MAX_STATE_ID: u32 = 14227;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Diorite Slab
@@ -13554,7 +15058,9 @@ impl BlockDef for DioriteSlab {
     const MIN_STATE_ID: u32 = 1252;
     const MAX_STATE_ID: u32 = 1253;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Diorite Slab
@@ -13572,7 +15078,9 @@ impl BlockDef for DioriteDoubleSlab {
     const MIN_STATE_ID: u32 = 2082;
     const MAX_STATE_ID: u32 = 2083;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Brick Wall
@@ -13590,7 +15098,9 @@ impl BlockDef for BrickWall {
     const MIN_STATE_ID: u32 = 848;
     const MAX_STATE_ID: u32 = 1009;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Prismarine Wall
@@ -13608,7 +15118,9 @@ impl BlockDef for PrismarineWall {
     const MIN_STATE_ID: u32 = 8015;
     const MAX_STATE_ID: u32 = 8176;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Red Sandstone Wall
@@ -13626,7 +15138,9 @@ impl BlockDef for RedSandstoneWall {
     const MIN_STATE_ID: u32 = 1073;
     const MAX_STATE_ID: u32 = 1234;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mossy Stone Brick Wall
@@ -13644,7 +15158,9 @@ impl BlockDef for MossyStoneBrickWall {
     const MIN_STATE_ID: u32 = 15573;
     const MAX_STATE_ID: u32 = 15734;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Granite Wall
@@ -13662,7 +15178,9 @@ impl BlockDef for GraniteWall {
     const MIN_STATE_ID: u32 = 9894;
     const MAX_STATE_ID: u32 = 10055;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stone Brick Wall
@@ -13680,7 +15198,9 @@ impl BlockDef for StoneBrickWall {
     const MIN_STATE_ID: u32 = 9308;
     const MAX_STATE_ID: u32 = 9469;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mud Brick Wall
@@ -13698,7 +15218,9 @@ impl BlockDef for MudBrickWall {
     const MIN_STATE_ID: u32 = 3001;
     const MAX_STATE_ID: u32 = 3162;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Nether Brick Wall
@@ -13716,7 +15238,9 @@ impl BlockDef for NetherBrickWall {
     const MIN_STATE_ID: u32 = 12910;
     const MAX_STATE_ID: u32 = 13071;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Andesite Wall
@@ -13734,7 +15258,9 @@ impl BlockDef for AndesiteWall {
     const MIN_STATE_ID: u32 = 9497;
     const MAX_STATE_ID: u32 = 9658;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Red Nether Brick Wall
@@ -13752,7 +15278,9 @@ impl BlockDef for RedNetherBrickWall {
     const MIN_STATE_ID: u32 = 14030;
     const MAX_STATE_ID: u32 = 14191;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Sandstone Wall
@@ -13770,7 +15298,9 @@ impl BlockDef for SandstoneWall {
     const MIN_STATE_ID: u32 = 15042;
     const MAX_STATE_ID: u32 = 15203;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// End Stone Brick Wall
@@ -13788,7 +15318,9 @@ impl BlockDef for EndStoneBrickWall {
     const MIN_STATE_ID: u32 = 122;
     const MAX_STATE_ID: u32 = 283;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Diorite Wall
@@ -13806,7 +15338,9 @@ impl BlockDef for DioriteWall {
     const MIN_STATE_ID: u32 = 3256;
     const MAX_STATE_ID: u32 = 3417;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Scaffolding
@@ -13824,7 +15358,9 @@ impl BlockDef for Scaffolding {
     const MIN_STATE_ID: u32 = 5040;
     const MAX_STATE_ID: u32 = 5055;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Loom
@@ -13842,7 +15378,9 @@ impl BlockDef for Loom {
     const MIN_STATE_ID: u32 = 5808;
     const MAX_STATE_ID: u32 = 5811;
     type State = super::states::DirectionState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Barrel
@@ -13860,7 +15398,9 @@ impl BlockDef for Barrel {
     const MIN_STATE_ID: u32 = 6710;
     const MAX_STATE_ID: u32 = 6721;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Smoker
@@ -13878,7 +15418,9 @@ impl BlockDef for Smoker {
     const MIN_STATE_ID: u32 = 2525;
     const MAX_STATE_ID: u32 = 2528;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Smoker
@@ -13896,7 +15438,9 @@ impl BlockDef for LitSmoker {
     const MIN_STATE_ID: u32 = 14579;
     const MAX_STATE_ID: u32 = 14582;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Blast Furnace
@@ -13914,7 +15458,9 @@ impl BlockDef for LitBlastFurnace {
     const MIN_STATE_ID: u32 = 13221;
     const MAX_STATE_ID: u32 = 13224;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Blast Furnace
@@ -13932,7 +15478,9 @@ impl BlockDef for BlastFurnace {
     const MIN_STATE_ID: u32 = 14411;
     const MAX_STATE_ID: u32 = 14414;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cartography Table
@@ -13950,7 +15498,9 @@ impl BlockDef for CartographyTable {
     const MIN_STATE_ID: u32 = 15807;
     const MAX_STATE_ID: u32 = 15807;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Fletching Table
@@ -13968,7 +15518,9 @@ impl BlockDef for FletchingTable {
     const MIN_STATE_ID: u32 = 10442;
     const MAX_STATE_ID: u32 = 10442;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Grindstone
@@ -13986,7 +15538,9 @@ impl BlockDef for Grindstone {
     const MIN_STATE_ID: u32 = 14996;
     const MAX_STATE_ID: u32 = 15011;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Lectern
@@ -14004,7 +15558,9 @@ impl BlockDef for Lectern {
     const MIN_STATE_ID: u32 = 12833;
     const MAX_STATE_ID: u32 = 12840;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Smithing Table
@@ -14022,7 +15578,9 @@ impl BlockDef for SmithingTable {
     const MIN_STATE_ID: u32 = 5290;
     const MAX_STATE_ID: u32 = 5290;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stonecutter
@@ -14040,7 +15598,9 @@ impl BlockDef for StonecutterBlock {
     const MIN_STATE_ID: u32 = 14418;
     const MAX_STATE_ID: u32 = 14421;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bell
@@ -14058,7 +15618,9 @@ impl BlockDef for Bell {
     const MIN_STATE_ID: u32 = 12801;
     const MAX_STATE_ID: u32 = 12832;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Lantern
@@ -14076,7 +15638,9 @@ impl BlockDef for Lantern {
     const MIN_STATE_ID: u32 = 13154;
     const MAX_STATE_ID: u32 = 13155;
     type State = super::states::LanternState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Soul Lantern
@@ -14094,7 +15658,9 @@ impl BlockDef for SoulLantern {
     const MIN_STATE_ID: u32 = 9850;
     const MAX_STATE_ID: u32 = 9851;
     type State = super::states::LanternState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Campfire
@@ -14112,7 +15678,9 @@ impl BlockDef for Campfire {
     const MIN_STATE_ID: u32 = 9881;
     const MAX_STATE_ID: u32 = 9888;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Soul Campfire
@@ -14130,7 +15698,9 @@ impl BlockDef for SoulCampfire {
     const MIN_STATE_ID: u32 = 15017;
     const MAX_STATE_ID: u32 = 15024;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Sweet Berry Bush
@@ -14148,7 +15718,9 @@ impl BlockDef for SweetBerryBush {
     const MIN_STATE_ID: u32 = 11578;
     const MAX_STATE_ID: u32 = 11585;
     type State = super::states::CropState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Warped Stem
@@ -14166,7 +15738,9 @@ impl BlockDef for WarpedStem {
     const MIN_STATE_ID: u32 = 12339;
     const MAX_STATE_ID: u32 = 12341;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stripped Warped Stem
@@ -14184,7 +15758,9 @@ impl BlockDef for StrippedWarpedStem {
     const MIN_STATE_ID: u32 = 14215;
     const MAX_STATE_ID: u32 = 14217;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Warped Hyphae
@@ -14202,7 +15778,9 @@ impl BlockDef for WarpedHyphae {
     const MIN_STATE_ID: u32 = 11002;
     const MAX_STATE_ID: u32 = 11004;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stripped Warped Hyphae
@@ -14220,7 +15798,9 @@ impl BlockDef for StrippedWarpedHyphae {
     const MIN_STATE_ID: u32 = 9665;
     const MAX_STATE_ID: u32 = 9667;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Warped Nylium
@@ -14238,7 +15818,9 @@ impl BlockDef for WarpedNylium {
     const MIN_STATE_ID: u32 = 12178;
     const MAX_STATE_ID: u32 = 12178;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Warped Fungus
@@ -14256,7 +15838,9 @@ impl BlockDef for WarpedFungus {
     const MIN_STATE_ID: u32 = 1377;
     const MAX_STATE_ID: u32 = 1377;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Warped Wart Block
@@ -14274,7 +15858,9 @@ impl BlockDef for WarpedWartBlock {
     const MIN_STATE_ID: u32 = 11005;
     const MAX_STATE_ID: u32 = 11005;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Warped Roots
@@ -14292,7 +15878,9 @@ impl BlockDef for WarpedRoots {
     const MIN_STATE_ID: u32 = 6502;
     const MAX_STATE_ID: u32 = 6502;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Nether Sprouts
@@ -14310,7 +15898,9 @@ impl BlockDef for NetherSprouts {
     const MIN_STATE_ID: u32 = 12329;
     const MAX_STATE_ID: u32 = 12329;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Crimson Stem
@@ -14328,7 +15918,9 @@ impl BlockDef for CrimsonStem {
     const MIN_STATE_ID: u32 = 10994;
     const MAX_STATE_ID: u32 = 10996;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stripped Crimson Stem
@@ -14346,7 +15938,9 @@ impl BlockDef for StrippedCrimsonStem {
     const MIN_STATE_ID: u32 = 12842;
     const MAX_STATE_ID: u32 = 12844;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Crimson Hyphae
@@ -14364,7 +15958,9 @@ impl BlockDef for CrimsonHyphae {
     const MIN_STATE_ID: u32 = 6425;
     const MAX_STATE_ID: u32 = 6427;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stripped Crimson Hyphae
@@ -14382,7 +15978,9 @@ impl BlockDef for StrippedCrimsonHyphae {
     const MIN_STATE_ID: u32 = 12347;
     const MAX_STATE_ID: u32 = 12349;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Crimson Nylium
@@ -14400,7 +15998,9 @@ impl BlockDef for CrimsonNylium {
     const MIN_STATE_ID: u32 = 6217;
     const MAX_STATE_ID: u32 = 6217;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Crimson Fungus
@@ -14418,7 +16018,9 @@ impl BlockDef for CrimsonFungus {
     const MIN_STATE_ID: u32 = 14645;
     const MAX_STATE_ID: u32 = 14645;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Shroomlight
@@ -14436,7 +16038,9 @@ impl BlockDef for Shroomlight {
     const MIN_STATE_ID: u32 = 8339;
     const MAX_STATE_ID: u32 = 8339;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Weeping Vines Plant
@@ -14454,7 +16058,9 @@ impl BlockDef for WeepingVines {
     const MIN_STATE_ID: u32 = 9241;
     const MAX_STATE_ID: u32 = 9266;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Twisting Vines Plant
@@ -14472,7 +16078,9 @@ impl BlockDef for TwistingVines {
     const MIN_STATE_ID: u32 = 9787;
     const MAX_STATE_ID: u32 = 9812;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Crimson Roots
@@ -14490,7 +16098,9 @@ impl BlockDef for CrimsonRoots {
     const MIN_STATE_ID: u32 = 14415;
     const MAX_STATE_ID: u32 = 14415;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Crimson Planks
@@ -14508,7 +16118,9 @@ impl BlockDef for CrimsonPlanks {
     const MIN_STATE_ID: u32 = 7947;
     const MAX_STATE_ID: u32 = 7947;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Warped Planks
@@ -14526,7 +16138,9 @@ impl BlockDef for WarpedPlanks {
     const MIN_STATE_ID: u32 = 3227;
     const MAX_STATE_ID: u32 = 3227;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Crimson Slab
@@ -14544,7 +16158,9 @@ impl BlockDef for CrimsonDoubleSlab {
     const MIN_STATE_ID: u32 = 2710;
     const MAX_STATE_ID: u32 = 2711;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Crimson Slab
@@ -14562,7 +16178,9 @@ impl BlockDef for CrimsonSlab {
     const MIN_STATE_ID: u32 = 11000;
     const MAX_STATE_ID: u32 = 11001;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Warped Slab
@@ -14580,7 +16198,9 @@ impl BlockDef for WarpedDoubleSlab {
     const MIN_STATE_ID: u32 = 6522;
     const MAX_STATE_ID: u32 = 6523;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Warped Slab
@@ -14598,7 +16218,9 @@ impl BlockDef for WarpedSlab {
     const MIN_STATE_ID: u32 = 12337;
     const MAX_STATE_ID: u32 = 12338;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Crimson Pressure Plate
@@ -14616,7 +16238,9 @@ impl BlockDef for CrimsonPressurePlate {
     const MIN_STATE_ID: u32 = 15785;
     const MAX_STATE_ID: u32 = 15800;
     type State = super::states::PressurePlateState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Warped Pressure Plate
@@ -14634,7 +16258,9 @@ impl BlockDef for WarpedPressurePlate {
     const MIN_STATE_ID: u32 = 1334;
     const MAX_STATE_ID: u32 = 1349;
     type State = super::states::PressurePlateState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Crimson Fence
@@ -14652,7 +16278,9 @@ impl BlockDef for CrimsonFence {
     const MIN_STATE_ID: u32 = 14964;
     const MAX_STATE_ID: u32 = 14964;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Warped Fence
@@ -14670,7 +16298,9 @@ impl BlockDef for WarpedFence {
     const MIN_STATE_ID: u32 = 10513;
     const MAX_STATE_ID: u32 = 10513;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Crimson Trapdoor
@@ -14688,7 +16318,9 @@ impl BlockDef for CrimsonTrapdoor {
     const MIN_STATE_ID: u32 = 6469;
     const MAX_STATE_ID: u32 = 6484;
     type State = super::states::TrapdoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Warped Trapdoor
@@ -14706,7 +16338,9 @@ impl BlockDef for WarpedTrapdoor {
     const MIN_STATE_ID: u32 = 7423;
     const MAX_STATE_ID: u32 = 7438;
     type State = super::states::TrapdoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Crimson Fence Gate
@@ -14724,7 +16358,9 @@ impl BlockDef for CrimsonFenceGate {
     const MIN_STATE_ID: u32 = 7303;
     const MAX_STATE_ID: u32 = 7318;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Warped Fence Gate
@@ -14742,7 +16378,9 @@ impl BlockDef for WarpedFenceGate {
     const MIN_STATE_ID: u32 = 8739;
     const MAX_STATE_ID: u32 = 8754;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Crimson Stairs
@@ -14760,7 +16398,9 @@ impl BlockDef for CrimsonStairs {
     const MIN_STATE_ID: u32 = 12103;
     const MAX_STATE_ID: u32 = 12110;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Warped Stairs
@@ -14778,7 +16418,9 @@ impl BlockDef for WarpedStairs {
     const MIN_STATE_ID: u32 = 5282;
     const MAX_STATE_ID: u32 = 5289;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Crimson Button
@@ -14796,7 +16438,9 @@ impl BlockDef for CrimsonButton {
     const MIN_STATE_ID: u32 = 6621;
     const MAX_STATE_ID: u32 = 6632;
     type State = super::states::ButtonState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Warped Button
@@ -14814,7 +16458,9 @@ impl BlockDef for WarpedButton {
     const MIN_STATE_ID: u32 = 13863;
     const MAX_STATE_ID: u32 = 13874;
     type State = super::states::ButtonState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Crimson Door
@@ -14832,7 +16478,9 @@ impl BlockDef for CrimsonDoor {
     const MIN_STATE_ID: u32 = 5818;
     const MAX_STATE_ID: u32 = 5849;
     type State = super::states::DoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Warped Door
@@ -14850,7 +16498,9 @@ impl BlockDef for WarpedDoor {
     const MIN_STATE_ID: u32 = 78;
     const MAX_STATE_ID: u32 = 109;
     type State = super::states::DoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Crimson Sign
@@ -14868,7 +16518,9 @@ impl BlockDef for CrimsonStandingSign {
     const MIN_STATE_ID: u32 = 13959;
     const MAX_STATE_ID: u32 = 13974;
     type State = super::states::StandingSignState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Warped Sign
@@ -14886,7 +16538,9 @@ impl BlockDef for WarpedStandingSign {
     const MIN_STATE_ID: u32 = 13785;
     const MAX_STATE_ID: u32 = 13800;
     type State = super::states::StandingSignState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Crimson Sign
@@ -14904,7 +16558,9 @@ impl BlockDef for CrimsonWallSign {
     const MIN_STATE_ID: u32 = 837;
     const MAX_STATE_ID: u32 = 842;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Warped Sign
@@ -14922,7 +16578,9 @@ impl BlockDef for WarpedWallSign {
     const MIN_STATE_ID: u32 = 1818;
     const MAX_STATE_ID: u32 = 1823;
     type State = super::states::FacingState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Structure Block
@@ -14940,7 +16598,9 @@ impl BlockDef for StructureBlock {
     const MIN_STATE_ID: u32 = 12209;
     const MAX_STATE_ID: u32 = 12214;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Jigsaw Block
@@ -14958,7 +16618,9 @@ impl BlockDef for Jigsaw {
     const MIN_STATE_ID: u32 = 7987;
     const MAX_STATE_ID: u32 = 8010;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Test Instance Block
@@ -14976,7 +16638,9 @@ impl BlockDef for Unknown {
     const MIN_STATE_ID: u32 = 6828;
     const MAX_STATE_ID: u32 = 6828;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Composter
@@ -14994,7 +16658,9 @@ impl BlockDef for Composter {
     const MIN_STATE_ID: u32 = 8770;
     const MAX_STATE_ID: u32 = 8778;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Target
@@ -15012,7 +16678,9 @@ impl BlockDef for Target {
     const MIN_STATE_ID: u32 = 12224;
     const MAX_STATE_ID: u32 = 12224;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bee Nest
@@ -15030,7 +16698,9 @@ impl BlockDef for BeeNest {
     const MIN_STATE_ID: u32 = 9855;
     const MAX_STATE_ID: u32 = 9878;
     type State = super::states::BeehiveState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Beehive
@@ -15048,7 +16718,9 @@ impl BlockDef for Beehive {
     const MIN_STATE_ID: u32 = 11941;
     const MAX_STATE_ID: u32 = 11964;
     type State = super::states::BeehiveState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Honey Block
@@ -15066,7 +16738,9 @@ impl BlockDef for HoneyBlock {
     const MIN_STATE_ID: u32 = 3163;
     const MAX_STATE_ID: u32 = 3163;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Honeycomb Block
@@ -15084,7 +16758,9 @@ impl BlockDef for HoneycombBlock {
     const MIN_STATE_ID: u32 = 6668;
     const MAX_STATE_ID: u32 = 6668;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Block of Netherite
@@ -15102,7 +16778,9 @@ impl BlockDef for NetheriteBlock {
     const MIN_STATE_ID: u32 = 5367;
     const MAX_STATE_ID: u32 = 5367;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Ancient Debris
@@ -15120,7 +16798,9 @@ impl BlockDef for AncientDebris {
     const MIN_STATE_ID: u32 = 11908;
     const MAX_STATE_ID: u32 = 11908;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Crying Obsidian
@@ -15138,7 +16818,9 @@ impl BlockDef for CryingObsidian {
     const MIN_STATE_ID: u32 = 12588;
     const MAX_STATE_ID: u32 = 12588;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Respawn Anchor
@@ -15156,7 +16838,9 @@ impl BlockDef for RespawnAnchor {
     const MIN_STATE_ID: u32 = 2712;
     const MAX_STATE_ID: u32 = 2716;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Lodestone
@@ -15174,7 +16858,9 @@ impl BlockDef for Lodestone {
     const MIN_STATE_ID: u32 = 15772;
     const MAX_STATE_ID: u32 = 15772;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Blackstone
@@ -15192,7 +16878,9 @@ impl BlockDef for Blackstone {
     const MIN_STATE_ID: u32 = 14439;
     const MAX_STATE_ID: u32 = 14439;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Blackstone Stairs
@@ -15210,7 +16898,9 @@ impl BlockDef for BlackstoneStairs {
     const MIN_STATE_ID: u32 = 13083;
     const MAX_STATE_ID: u32 = 13090;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Blackstone Wall
@@ -15228,7 +16918,9 @@ impl BlockDef for BlackstoneWall {
     const MIN_STATE_ID: u32 = 5966;
     const MAX_STATE_ID: u32 = 6127;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Blackstone Slab
@@ -15246,7 +16938,9 @@ impl BlockDef for BlackstoneDoubleSlab {
     const MIN_STATE_ID: u32 = 358;
     const MAX_STATE_ID: u32 = 359;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Blackstone Slab
@@ -15264,7 +16958,9 @@ impl BlockDef for BlackstoneSlab {
     const MIN_STATE_ID: u32 = 3201;
     const MAX_STATE_ID: u32 = 3202;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Blackstone
@@ -15282,7 +16978,9 @@ impl BlockDef for PolishedBlackstone {
     const MIN_STATE_ID: u32 = 5239;
     const MAX_STATE_ID: u32 = 5239;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Blackstone Bricks
@@ -15300,7 +16998,9 @@ impl BlockDef for PolishedBlackstoneBricks {
     const MIN_STATE_ID: u32 = 7322;
     const MAX_STATE_ID: u32 = 7322;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cracked Polished Blackstone Bricks
@@ -15318,7 +17018,9 @@ impl BlockDef for CrackedPolishedBlackstoneBricks {
     const MIN_STATE_ID: u32 = 13803;
     const MAX_STATE_ID: u32 = 13803;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Chiseled Polished Blackstone
@@ -15336,7 +17038,9 @@ impl BlockDef for ChiseledPolishedBlackstone {
     const MIN_STATE_ID: u32 = 8357;
     const MAX_STATE_ID: u32 = 8357;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Blackstone Brick Slab
@@ -15354,7 +17058,9 @@ impl BlockDef for PolishedBlackstoneBrickDoubleSlab {
     const MIN_STATE_ID: u32 = 2708;
     const MAX_STATE_ID: u32 = 2709;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Blackstone Brick Slab
@@ -15372,7 +17078,9 @@ impl BlockDef for PolishedBlackstoneBrickSlab {
     const MIN_STATE_ID: u32 = 6225;
     const MAX_STATE_ID: u32 = 6226;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Blackstone Brick Stairs
@@ -15390,7 +17098,9 @@ impl BlockDef for PolishedBlackstoneBrickStairs {
     const MIN_STATE_ID: u32 = 6669;
     const MAX_STATE_ID: u32 = 6676;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Blackstone Brick Wall
@@ -15408,7 +17118,9 @@ impl BlockDef for PolishedBlackstoneBrickWall {
     const MIN_STATE_ID: u32 = 3433;
     const MAX_STATE_ID: u32 = 3594;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Gilded Blackstone
@@ -15426,7 +17138,9 @@ impl BlockDef for GildedBlackstone {
     const MIN_STATE_ID: u32 = 6798;
     const MAX_STATE_ID: u32 = 6798;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Blackstone Stairs
@@ -15444,7 +17158,9 @@ impl BlockDef for PolishedBlackstoneStairs {
     const MIN_STATE_ID: u32 = 6428;
     const MAX_STATE_ID: u32 = 6435;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Blackstone Slab
@@ -15462,7 +17178,9 @@ impl BlockDef for PolishedBlackstoneDoubleSlab {
     const MIN_STATE_ID: u32 = 2522;
     const MAX_STATE_ID: u32 = 2523;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Blackstone Slab
@@ -15480,7 +17198,9 @@ impl BlockDef for PolishedBlackstoneSlab {
     const MIN_STATE_ID: u32 = 11586;
     const MAX_STATE_ID: u32 = 11587;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Blackstone Pressure Plate
@@ -15498,7 +17218,9 @@ impl BlockDef for PolishedBlackstonePressurePlate {
     const MIN_STATE_ID: u32 = 12050;
     const MAX_STATE_ID: u32 = 12065;
     type State = super::states::PressurePlateState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Blackstone Button
@@ -15516,7 +17238,9 @@ impl BlockDef for PolishedBlackstoneButton {
     const MIN_STATE_ID: u32 = 14721;
     const MAX_STATE_ID: u32 = 14732;
     type State = super::states::ButtonState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Blackstone Wall
@@ -15534,7 +17258,9 @@ impl BlockDef for PolishedBlackstoneWall {
     const MIN_STATE_ID: u32 = 12600;
     const MAX_STATE_ID: u32 = 12761;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Chiseled Nether Bricks
@@ -15552,7 +17278,9 @@ impl BlockDef for ChiseledNetherBricks {
     const MIN_STATE_ID: u32 = 13862;
     const MAX_STATE_ID: u32 = 13862;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cracked Nether Bricks
@@ -15570,7 +17298,9 @@ impl BlockDef for CrackedNetherBricks {
     const MIN_STATE_ID: u32 = 6737;
     const MAX_STATE_ID: u32 = 6737;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Quartz Bricks
@@ -15588,7 +17318,9 @@ impl BlockDef for QuartzBricks {
     const MIN_STATE_ID: u32 = 12182;
     const MAX_STATE_ID: u32 = 12182;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Candle
@@ -15606,7 +17338,9 @@ impl BlockDef for Candle {
     const MIN_STATE_ID: u32 = 14218;
     const MAX_STATE_ID: u32 = 14225;
     type State = super::states::CandleState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// White Candle
@@ -15624,7 +17358,9 @@ impl BlockDef for WhiteCandle {
     const MIN_STATE_ID: u32 = 8635;
     const MAX_STATE_ID: u32 = 8642;
     type State = super::states::CandleState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Orange Candle
@@ -15642,7 +17378,9 @@ impl BlockDef for OrangeCandle {
     const MIN_STATE_ID: u32 = 1791;
     const MAX_STATE_ID: u32 = 1798;
     type State = super::states::CandleState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Magenta Candle
@@ -15660,7 +17398,9 @@ impl BlockDef for MagentaCandle {
     const MIN_STATE_ID: u32 = 1866;
     const MAX_STATE_ID: u32 = 1873;
     type State = super::states::CandleState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light Blue Candle
@@ -15678,7 +17418,9 @@ impl BlockDef for LightBlueCandle {
     const MIN_STATE_ID: u32 = 6754;
     const MAX_STATE_ID: u32 = 6761;
     type State = super::states::CandleState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Yellow Candle
@@ -15696,7 +17438,9 @@ impl BlockDef for YellowCandle {
     const MIN_STATE_ID: u32 = 12012;
     const MAX_STATE_ID: u32 = 12019;
     type State = super::states::CandleState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Lime Candle
@@ -15714,7 +17458,9 @@ impl BlockDef for LimeCandle {
     const MIN_STATE_ID: u32 = 12201;
     const MAX_STATE_ID: u32 = 12208;
     type State = super::states::CandleState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pink Candle
@@ -15732,7 +17478,9 @@ impl BlockDef for PinkCandle {
     const MIN_STATE_ID: u32 = 14022;
     const MAX_STATE_ID: u32 = 14029;
     type State = super::states::CandleState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Gray Candle
@@ -15750,7 +17498,9 @@ impl BlockDef for GrayCandle {
     const MIN_STATE_ID: u32 = 3244;
     const MAX_STATE_ID: u32 = 3251;
     type State = super::states::CandleState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Light Gray Candle
@@ -15768,7 +17518,9 @@ impl BlockDef for LightGrayCandle {
     const MIN_STATE_ID: u32 = 12042;
     const MAX_STATE_ID: u32 = 12049;
     type State = super::states::CandleState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cyan Candle
@@ -15786,7 +17538,9 @@ impl BlockDef for CyanCandle {
     const MIN_STATE_ID: u32 = 14611;
     const MAX_STATE_ID: u32 = 14618;
     type State = super::states::CandleState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Purple Candle
@@ -15804,7 +17558,9 @@ impl BlockDef for PurpleCandle {
     const MIN_STATE_ID: u32 = 13115;
     const MAX_STATE_ID: u32 = 13122;
     type State = super::states::CandleState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Blue Candle
@@ -15822,7 +17578,9 @@ impl BlockDef for BlueCandle {
     const MIN_STATE_ID: u32 = 2;
     const MAX_STATE_ID: u32 = 9;
     type State = super::states::CandleState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Brown Candle
@@ -15840,7 +17598,9 @@ impl BlockDef for BrownCandle {
     const MIN_STATE_ID: u32 = 10972;
     const MAX_STATE_ID: u32 = 10979;
     type State = super::states::CandleState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Green Candle
@@ -15858,7 +17618,9 @@ impl BlockDef for GreenCandle {
     const MIN_STATE_ID: u32 = 2718;
     const MAX_STATE_ID: u32 = 2725;
     type State = super::states::CandleState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Red Candle
@@ -15876,7 +17638,9 @@ impl BlockDef for RedCandle {
     const MIN_STATE_ID: u32 = 7323;
     const MAX_STATE_ID: u32 = 7330;
     type State = super::states::CandleState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Black Candle
@@ -15894,7 +17658,9 @@ impl BlockDef for BlackCandle {
     const MIN_STATE_ID: u32 = 1037;
     const MAX_STATE_ID: u32 = 1044;
     type State = super::states::CandleState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cake with Candle
@@ -15912,7 +17678,9 @@ impl BlockDef for CandleCake {
     const MIN_STATE_ID: u32 = 14427;
     const MAX_STATE_ID: u32 = 14428;
     type State = super::states::CandleCakeState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cake with White Candle
@@ -15930,7 +17698,9 @@ impl BlockDef for WhiteCandleCake {
     const MIN_STATE_ID: u32 = 14425;
     const MAX_STATE_ID: u32 = 14426;
     type State = super::states::CandleCakeState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cake with Orange Candle
@@ -15948,7 +17718,9 @@ impl BlockDef for OrangeCandleCake {
     const MIN_STATE_ID: u32 = 15570;
     const MAX_STATE_ID: u32 = 15571;
     type State = super::states::CandleCakeState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cake with Magenta Candle
@@ -15966,7 +17738,9 @@ impl BlockDef for MagentaCandleCake {
     const MIN_STATE_ID: u32 = 11864;
     const MAX_STATE_ID: u32 = 11865;
     type State = super::states::CandleCakeState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cake with Light Blue Candle
@@ -15984,7 +17758,9 @@ impl BlockDef for LightBlueCandleCake {
     const MIN_STATE_ID: u32 = 1374;
     const MAX_STATE_ID: u32 = 1375;
     type State = super::states::CandleCakeState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cake with Yellow Candle
@@ -16002,7 +17778,9 @@ impl BlockDef for YellowCandleCake {
     const MIN_STATE_ID: u32 = 6847;
     const MAX_STATE_ID: u32 = 6848;
     type State = super::states::CandleCakeState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cake with Lime Candle
@@ -16020,7 +17798,9 @@ impl BlockDef for LimeCandleCake {
     const MIN_STATE_ID: u32 = 15205;
     const MAX_STATE_ID: u32 = 15206;
     type State = super::states::CandleCakeState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cake with Pink Candle
@@ -16038,7 +17818,9 @@ impl BlockDef for PinkCandleCake {
     const MIN_STATE_ID: u32 = 6168;
     const MAX_STATE_ID: u32 = 6169;
     type State = super::states::CandleCakeState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cake with Gray Candle
@@ -16056,7 +17838,9 @@ impl BlockDef for GrayCandleCake {
     const MIN_STATE_ID: u32 = 432;
     const MAX_STATE_ID: u32 = 433;
     type State = super::states::CandleCakeState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cake with Light Gray Candle
@@ -16074,7 +17858,9 @@ impl BlockDef for LightGrayCandleCake {
     const MIN_STATE_ID: u32 = 8633;
     const MAX_STATE_ID: u32 = 8634;
     type State = super::states::CandleCakeState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cake with Cyan Candle
@@ -16092,7 +17878,9 @@ impl BlockDef for CyanCandleCake {
     const MIN_STATE_ID: u32 = 2822;
     const MAX_STATE_ID: u32 = 2823;
     type State = super::states::CandleCakeState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cake with Purple Candle
@@ -16110,7 +17898,9 @@ impl BlockDef for PurpleCandleCake {
     const MIN_STATE_ID: u32 = 12550;
     const MAX_STATE_ID: u32 = 12551;
     type State = super::states::CandleCakeState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cake with Blue Candle
@@ -16128,7 +17918,9 @@ impl BlockDef for BlueCandleCake {
     const MIN_STATE_ID: u32 = 11576;
     const MAX_STATE_ID: u32 = 11577;
     type State = super::states::CandleCakeState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cake with Brown Candle
@@ -16146,7 +17938,9 @@ impl BlockDef for BrownCandleCake {
     const MIN_STATE_ID: u32 = 5214;
     const MAX_STATE_ID: u32 = 5215;
     type State = super::states::CandleCakeState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cake with Green Candle
@@ -16164,7 +17958,9 @@ impl BlockDef for GreenCandleCake {
     const MIN_STATE_ID: u32 = 5064;
     const MAX_STATE_ID: u32 = 5065;
     type State = super::states::CandleCakeState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cake with Red Candle
@@ -16182,7 +17978,9 @@ impl BlockDef for RedCandleCake {
     const MIN_STATE_ID: u32 = 14594;
     const MAX_STATE_ID: u32 = 14595;
     type State = super::states::CandleCakeState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cake with Black Candle
@@ -16200,7 +17998,9 @@ impl BlockDef for BlackCandleCake {
     const MIN_STATE_ID: u32 = 6795;
     const MAX_STATE_ID: u32 = 6796;
     type State = super::states::CandleCakeState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Block of Amethyst
@@ -16218,7 +18018,9 @@ impl BlockDef for AmethystBlock {
     const MIN_STATE_ID: u32 = 1424;
     const MAX_STATE_ID: u32 = 1424;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Budding Amethyst
@@ -16236,7 +18038,9 @@ impl BlockDef for BuddingAmethyst {
     const MIN_STATE_ID: u32 = 12896;
     const MAX_STATE_ID: u32 = 12896;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Amethyst Cluster
@@ -16254,7 +18058,9 @@ impl BlockDef for AmethystCluster {
     const MIN_STATE_ID: u32 = 14789;
     const MAX_STATE_ID: u32 = 14794;
     type State = super::states::BlockFaceState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Large Amethyst Bud
@@ -16272,7 +18078,9 @@ impl BlockDef for LargeAmethystBud {
     const MIN_STATE_ID: u32 = 7377;
     const MAX_STATE_ID: u32 = 7382;
     type State = super::states::BlockFaceState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Medium Amethyst Bud
@@ -16290,7 +18098,9 @@ impl BlockDef for MediumAmethystBud {
     const MIN_STATE_ID: u32 = 6515;
     const MAX_STATE_ID: u32 = 6520;
     type State = super::states::BlockFaceState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Small Amethyst Bud
@@ -16308,7 +18118,9 @@ impl BlockDef for SmallAmethystBud {
     const MIN_STATE_ID: u32 = 1698;
     const MAX_STATE_ID: u32 = 1703;
     type State = super::states::BlockFaceState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Tuff
@@ -16326,7 +18138,9 @@ impl BlockDef for Tuff {
     const MIN_STATE_ID: u32 = 1763;
     const MAX_STATE_ID: u32 = 1763;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Tuff Slab
@@ -16344,7 +18158,9 @@ impl BlockDef for TuffSlab {
     const MIN_STATE_ID: u32 = 1332;
     const MAX_STATE_ID: u32 = 1333;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Tuff Slab
@@ -16362,7 +18178,9 @@ impl BlockDef for TuffDoubleSlab {
     const MIN_STATE_ID: u32 = 14648;
     const MAX_STATE_ID: u32 = 14649;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Tuff Stairs
@@ -16380,7 +18198,9 @@ impl BlockDef for TuffStairs {
     const MIN_STATE_ID: u32 = 11016;
     const MAX_STATE_ID: u32 = 11023;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Tuff Wall
@@ -16398,7 +18218,9 @@ impl BlockDef for TuffWall {
     const MIN_STATE_ID: u32 = 4379;
     const MAX_STATE_ID: u32 = 4540;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Tuff
@@ -16416,7 +18238,9 @@ impl BlockDef for PolishedTuff {
     const MIN_STATE_ID: u32 = 13842;
     const MAX_STATE_ID: u32 = 13842;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Tuff Slab
@@ -16434,7 +18258,9 @@ impl BlockDef for PolishedTuffSlab {
     const MIN_STATE_ID: u32 = 434;
     const MAX_STATE_ID: u32 = 435;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Tuff Slab
@@ -16452,7 +18278,9 @@ impl BlockDef for PolishedTuffDoubleSlab {
     const MIN_STATE_ID: u32 = 5816;
     const MAX_STATE_ID: u32 = 5817;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Tuff Stairs
@@ -16470,7 +18298,9 @@ impl BlockDef for PolishedTuffStairs {
     const MIN_STATE_ID: u32 = 13894;
     const MAX_STATE_ID: u32 = 13901;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Tuff Wall
@@ -16488,7 +18318,9 @@ impl BlockDef for PolishedTuffWall {
     const MIN_STATE_ID: u32 = 2824;
     const MAX_STATE_ID: u32 = 2985;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Chiseled Tuff
@@ -16506,7 +18338,9 @@ impl BlockDef for ChiseledTuff {
     const MIN_STATE_ID: u32 = 14965;
     const MAX_STATE_ID: u32 = 14965;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Tuff Bricks
@@ -16524,7 +18358,9 @@ impl BlockDef for TuffBricks {
     const MIN_STATE_ID: u32 = 12515;
     const MAX_STATE_ID: u32 = 12515;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Tuff Brick Slab
@@ -16542,7 +18378,9 @@ impl BlockDef for TuffBrickSlab {
     const MIN_STATE_ID: u32 = 5299;
     const MAX_STATE_ID: u32 = 5300;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Tuff Brick Slab
@@ -16560,7 +18398,9 @@ impl BlockDef for TuffBrickDoubleSlab {
     const MIN_STATE_ID: u32 = 10998;
     const MAX_STATE_ID: u32 = 10999;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Tuff Brick Stairs
@@ -16578,7 +18418,9 @@ impl BlockDef for TuffBrickStairs {
     const MIN_STATE_ID: u32 = 12086;
     const MAX_STATE_ID: u32 = 12093;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Tuff Brick Wall
@@ -16596,7 +18438,9 @@ impl BlockDef for TuffBrickWall {
     const MIN_STATE_ID: u32 = 2539;
     const MAX_STATE_ID: u32 = 2700;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Chiseled Tuff Bricks
@@ -16614,7 +18458,9 @@ impl BlockDef for ChiseledTuffBricks {
     const MIN_STATE_ID: u32 = 14288;
     const MAX_STATE_ID: u32 = 14288;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Calcite
@@ -16632,7 +18478,9 @@ impl BlockDef for Calcite {
     const MIN_STATE_ID: u32 = 1251;
     const MAX_STATE_ID: u32 = 1251;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Tinted Glass
@@ -16650,7 +18498,9 @@ impl BlockDef for TintedGlass {
     const MIN_STATE_ID: u32 = 11157;
     const MAX_STATE_ID: u32 = 11157;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Powder Snow
@@ -16668,7 +18518,9 @@ impl BlockDef for PowderSnow {
     const MIN_STATE_ID: u32 = 334;
     const MAX_STATE_ID: u32 = 334;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Sculk Sensor
@@ -16686,7 +18538,9 @@ impl BlockDef for SculkSensor {
     const MIN_STATE_ID: u32 = 6530;
     const MAX_STATE_ID: u32 = 6532;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Calibrated Sculk Sensor
@@ -16704,7 +18558,9 @@ impl BlockDef for CalibratedSculkSensor {
     const MIN_STATE_ID: u32 = 10478;
     const MAX_STATE_ID: u32 = 10489;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Sculk
@@ -16722,7 +18578,9 @@ impl BlockDef for Sculk {
     const MIN_STATE_ID: u32 = 13112;
     const MAX_STATE_ID: u32 = 13112;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Sculk Vein
@@ -16740,7 +18598,9 @@ impl BlockDef for SculkVein {
     const MIN_STATE_ID: u32 = 13718;
     const MAX_STATE_ID: u32 = 13781;
     type State = super::states::MultiFaceState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Sculk Catalyst
@@ -16758,7 +18618,9 @@ impl BlockDef for SculkCatalyst {
     const MIN_STATE_ID: u32 = 5086;
     const MAX_STATE_ID: u32 = 5087;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Sculk Shrieker
@@ -16776,7 +18638,9 @@ impl BlockDef for SculkShrieker {
     const MIN_STATE_ID: u32 = 1266;
     const MAX_STATE_ID: u32 = 1269;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Block of Copper
@@ -16794,7 +18658,9 @@ impl BlockDef for CopperBlock {
     const MIN_STATE_ID: u32 = 7293;
     const MAX_STATE_ID: u32 = 7293;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Exposed Copper
@@ -16812,7 +18678,9 @@ impl BlockDef for ExposedCopper {
     const MIN_STATE_ID: u32 = 2048;
     const MAX_STATE_ID: u32 = 2048;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Weathered Copper
@@ -16830,7 +18698,9 @@ impl BlockDef for WeatheredCopper {
     const MIN_STATE_ID: u32 = 15572;
     const MAX_STATE_ID: u32 = 15572;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oxidized Copper
@@ -16848,7 +18718,9 @@ impl BlockDef for OxidizedCopper {
     const MIN_STATE_ID: u32 = 5021;
     const MAX_STATE_ID: u32 = 5021;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Copper Ore
@@ -16866,7 +18738,9 @@ impl BlockDef for CopperOre {
     const MIN_STATE_ID: u32 = 5022;
     const MAX_STATE_ID: u32 = 5022;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Deepslate Copper Ore
@@ -16884,7 +18758,9 @@ impl BlockDef for DeepslateCopperOre {
     const MIN_STATE_ID: u32 = 347;
     const MAX_STATE_ID: u32 = 347;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oxidized Cut Copper
@@ -16902,7 +18778,9 @@ impl BlockDef for OxidizedCutCopper {
     const MIN_STATE_ID: u32 = 8855;
     const MAX_STATE_ID: u32 = 8855;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Weathered Cut Copper
@@ -16920,7 +18798,9 @@ impl BlockDef for WeatheredCutCopper {
     const MIN_STATE_ID: u32 = 13784;
     const MAX_STATE_ID: u32 = 13784;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Exposed Cut Copper
@@ -16938,7 +18818,9 @@ impl BlockDef for ExposedCutCopper {
     const MIN_STATE_ID: u32 = 12002;
     const MAX_STATE_ID: u32 = 12002;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cut Copper
@@ -16956,7 +18838,9 @@ impl BlockDef for CutCopper {
     const MIN_STATE_ID: u32 = 7331;
     const MAX_STATE_ID: u32 = 7331;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oxidized Chiseled Copper
@@ -16974,7 +18858,9 @@ impl BlockDef for OxidizedChiseledCopper {
     const MIN_STATE_ID: u32 = 8581;
     const MAX_STATE_ID: u32 = 8581;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Weathered Chiseled Copper
@@ -16992,7 +18878,9 @@ impl BlockDef for WeatheredChiseledCopper {
     const MIN_STATE_ID: u32 = 1697;
     const MAX_STATE_ID: u32 = 1697;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Exposed Chiseled Copper
@@ -17010,7 +18898,9 @@ impl BlockDef for ExposedChiseledCopper {
     const MIN_STATE_ID: u32 = 12457;
     const MAX_STATE_ID: u32 = 12457;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Chiseled Copper
@@ -17028,7 +18918,9 @@ impl BlockDef for ChiseledCopper {
     const MIN_STATE_ID: u32 = 9813;
     const MAX_STATE_ID: u32 = 9813;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Oxidized Chiseled Copper
@@ -17046,7 +18938,9 @@ impl BlockDef for WaxedOxidizedChiseledCopper {
     const MIN_STATE_ID: u32 = 120;
     const MAX_STATE_ID: u32 = 120;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Weathered Chiseled Copper
@@ -17064,7 +18958,9 @@ impl BlockDef for WaxedWeatheredChiseledCopper {
     const MIN_STATE_ID: u32 = 5277;
     const MAX_STATE_ID: u32 = 5277;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Exposed Chiseled Copper
@@ -17082,7 +18978,9 @@ impl BlockDef for WaxedExposedChiseledCopper {
     const MIN_STATE_ID: u32 = 1331;
     const MAX_STATE_ID: u32 = 1331;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Chiseled Copper
@@ -17100,7 +18998,9 @@ impl BlockDef for WaxedChiseledCopper {
     const MIN_STATE_ID: u32 = 14795;
     const MAX_STATE_ID: u32 = 14795;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oxidized Cut Copper Stairs
@@ -17118,7 +19018,9 @@ impl BlockDef for OxidizedCutCopperStairs {
     const MIN_STATE_ID: u32 = 1767;
     const MAX_STATE_ID: u32 = 1774;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Weathered Cut Copper Stairs
@@ -17136,7 +19038,9 @@ impl BlockDef for WeatheredCutCopperStairs {
     const MIN_STATE_ID: u32 = 6436;
     const MAX_STATE_ID: u32 = 6443;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Exposed Cut Copper Stairs
@@ -17154,7 +19058,9 @@ impl BlockDef for ExposedCutCopperStairs {
     const MIN_STATE_ID: u32 = 6801;
     const MAX_STATE_ID: u32 = 6808;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cut Copper Stairs
@@ -17172,7 +19078,9 @@ impl BlockDef for CutCopperStairs {
     const MIN_STATE_ID: u32 = 6820;
     const MAX_STATE_ID: u32 = 6827;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oxidized Cut Copper Slab
@@ -17190,7 +19098,9 @@ impl BlockDef for OxidizedDoubleCutCopperSlab {
     const MIN_STATE_ID: u32 = 2046;
     const MAX_STATE_ID: u32 = 2047;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oxidized Cut Copper Slab
@@ -17208,7 +19118,9 @@ impl BlockDef for OxidizedCutCopperSlab {
     const MIN_STATE_ID: u32 = 8590;
     const MAX_STATE_ID: u32 = 8591;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Weathered Cut Copper Slab
@@ -17226,7 +19138,9 @@ impl BlockDef for WeatheredCutCopperSlab {
     const MIN_STATE_ID: u32 = 11643;
     const MAX_STATE_ID: u32 = 11644;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Weathered Cut Copper Slab
@@ -17244,7 +19158,9 @@ impl BlockDef for WeatheredDoubleCutCopperSlab {
     const MIN_STATE_ID: u32 = 13991;
     const MAX_STATE_ID: u32 = 13992;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Exposed Cut Copper Slab
@@ -17262,7 +19178,9 @@ impl BlockDef for ExposedDoubleCutCopperSlab {
     const MIN_STATE_ID: u32 = 2071;
     const MAX_STATE_ID: u32 = 2072;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Exposed Cut Copper Slab
@@ -17280,7 +19198,9 @@ impl BlockDef for ExposedCutCopperSlab {
     const MIN_STATE_ID: u32 = 12474;
     const MAX_STATE_ID: u32 = 12475;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cut Copper Slab
@@ -17298,7 +19218,9 @@ impl BlockDef for DoubleCutCopperSlab {
     const MIN_STATE_ID: u32 = 5194;
     const MAX_STATE_ID: u32 = 5195;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cut Copper Slab
@@ -17316,7 +19238,9 @@ impl BlockDef for CutCopperSlab {
     const MIN_STATE_ID: u32 = 8530;
     const MAX_STATE_ID: u32 = 8531;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Block of Copper
@@ -17334,7 +19258,9 @@ impl BlockDef for WaxedCopper {
     const MIN_STATE_ID: u32 = 14619;
     const MAX_STATE_ID: u32 = 14619;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Weathered Copper
@@ -17352,7 +19278,9 @@ impl BlockDef for WaxedWeatheredCopper {
     const MIN_STATE_ID: u32 = 2748;
     const MAX_STATE_ID: u32 = 2748;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Exposed Copper
@@ -17370,7 +19298,9 @@ impl BlockDef for WaxedExposedCopper {
     const MIN_STATE_ID: u32 = 2726;
     const MAX_STATE_ID: u32 = 2726;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Oxidized Copper
@@ -17388,7 +19318,9 @@ impl BlockDef for WaxedOxidizedCopper {
     const MIN_STATE_ID: u32 = 14387;
     const MAX_STATE_ID: u32 = 14387;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Oxidized Cut Copper
@@ -17406,7 +19338,9 @@ impl BlockDef for WaxedOxidizedCutCopper {
     const MIN_STATE_ID: u32 = 1243;
     const MAX_STATE_ID: u32 = 1243;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Weathered Cut Copper
@@ -17424,7 +19358,9 @@ impl BlockDef for WaxedWeatheredCutCopper {
     const MIN_STATE_ID: u32 = 7951;
     const MAX_STATE_ID: u32 = 7951;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Exposed Cut Copper
@@ -17442,7 +19378,9 @@ impl BlockDef for WaxedExposedCutCopper {
     const MIN_STATE_ID: u32 = 5405;
     const MAX_STATE_ID: u32 = 5405;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oxidized Copper Door
@@ -17460,7 +19398,9 @@ impl BlockDef for OxidizedCopperDoor {
     const MIN_STATE_ID: u32 = 15808;
     const MAX_STATE_ID: u32 = 15839;
     type State = super::states::DoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Copper Lantern
@@ -17478,7 +19418,9 @@ impl BlockDef for CopperLantern {
     const MIN_STATE_ID: u32 = 15804;
     const MAX_STATE_ID: u32 = 15805;
     type State = super::states::LanternState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Block of Raw Iron
@@ -17496,7 +19438,9 @@ impl BlockDef for RawIronBlock {
     const MIN_STATE_ID: u32 = 15775;
     const MAX_STATE_ID: u32 = 15775;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Blue Stained Glass Pane
@@ -17514,7 +19458,9 @@ impl BlockDef for HardBlueStainedGlassPane {
     const MIN_STATE_ID: u32 = 15774;
     const MAX_STATE_ID: u32 = 15774;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Colored Torch Red
@@ -17532,7 +19478,9 @@ impl BlockDef for ColoredTorchRed {
     const MIN_STATE_ID: u32 = 15766;
     const MAX_STATE_ID: u32 = 15771;
     type State = super::states::TorchState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Weathered Lightning Rod
@@ -17550,7 +19498,9 @@ impl BlockDef for WaxedWeatheredLightningRod {
     const MIN_STATE_ID: u32 = 15557;
     const MAX_STATE_ID: u32 = 15568;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Material Reducer
@@ -17568,7 +19518,9 @@ impl BlockDef for MaterialReducer {
     const MIN_STATE_ID: u32 = 15215;
     const MAX_STATE_ID: u32 = 15218;
     type State = super::states::DirectionState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Oxidized Copper Grate
@@ -17586,7 +19538,9 @@ impl BlockDef for WaxedOxidizedCopperGrate {
     const MIN_STATE_ID: u32 = 15207;
     const MAX_STATE_ID: u32 = 15207;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cobbled Deepslate Wall
@@ -17604,7 +19558,9 @@ impl BlockDef for CobbledDeepslateWall {
     const MIN_STATE_ID: u32 = 15395;
     const MAX_STATE_ID: u32 = 15556;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Trial Spawner
@@ -17622,7 +19578,9 @@ impl BlockDef for TrialSpawner {
     const MIN_STATE_ID: u32 = 15219;
     const MAX_STATE_ID: u32 = 15230;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Copper Golem Statue
@@ -17640,7 +19598,9 @@ impl BlockDef for WaxedCopperGolemStatue {
     const MIN_STATE_ID: u32 = 15012;
     const MAX_STATE_ID: u32 = 15015;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Light Gray Stained Glass
@@ -17658,7 +19618,9 @@ impl BlockDef for HardLightGrayStainedGlass {
     const MIN_STATE_ID: u32 = 14963;
     const MAX_STATE_ID: u32 = 14963;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Info Update2
@@ -17676,7 +19638,9 @@ impl BlockDef for InfoUpdate2 {
     const MIN_STATE_ID: u32 = 14788;
     const MAX_STATE_ID: u32 = 14788;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Oxidized Cut Copper Slab
@@ -17694,7 +19658,9 @@ impl BlockDef for WaxedOxidizedDoubleCutCopperSlab {
     const MIN_STATE_ID: u32 = 14643;
     const MAX_STATE_ID: u32 = 14644;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Cut Copper Slab
@@ -17712,7 +19678,9 @@ impl BlockDef for WaxedCutCopperSlab {
     const MIN_STATE_ID: u32 = 14796;
     const MAX_STATE_ID: u32 = 14797;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Copper Door
@@ -17730,7 +19698,9 @@ impl BlockDef for WaxedCopperDoor {
     const MIN_STATE_ID: u32 = 14660;
     const MAX_STATE_ID: u32 = 14691;
     type State = super::states::DoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Deepslate
@@ -17748,7 +19718,9 @@ impl BlockDef for PolishedDeepslate {
     const MIN_STATE_ID: u32 = 14647;
     const MAX_STATE_ID: u32 = 14647;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Deepslate Wall
@@ -17766,7 +19738,9 @@ impl BlockDef for PolishedDeepslateWall {
     const MIN_STATE_ID: u32 = 14798;
     const MAX_STATE_ID: u32 = 14959;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Crafter
@@ -17784,7 +19758,9 @@ impl BlockDef for Crafter {
     const MIN_STATE_ID: u32 = 14733;
     const MAX_STATE_ID: u32 = 14780;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Colored Torch Purple
@@ -17802,7 +19778,9 @@ impl BlockDef for ColoredTorchPurple {
     const MIN_STATE_ID: u32 = 14632;
     const MAX_STATE_ID: u32 = 14637;
     type State = super::states::TorchState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Copper Lantern
@@ -17820,7 +19798,9 @@ impl BlockDef for WaxedCopperLantern {
     const MIN_STATE_ID: u32 = 14596;
     const MAX_STATE_ID: u32 = 14597;
     type State = super::states::LanternState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 84
@@ -17838,7 +19818,9 @@ impl BlockDef for Element84 {
     const MIN_STATE_ID: u32 = 14578;
     const MAX_STATE_ID: u32 = 14578;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 85
@@ -17856,7 +19838,9 @@ impl BlockDef for Element85 {
     const MIN_STATE_ID: u32 = 14577;
     const MAX_STATE_ID: u32 = 14577;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 86
@@ -17874,7 +19858,9 @@ impl BlockDef for Element86 {
     const MIN_STATE_ID: u32 = 14576;
     const MAX_STATE_ID: u32 = 14576;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 87
@@ -17892,7 +19878,9 @@ impl BlockDef for Element87 {
     const MIN_STATE_ID: u32 = 14575;
     const MAX_STATE_ID: u32 = 14575;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 80
@@ -17910,7 +19898,9 @@ impl BlockDef for Element80 {
     const MIN_STATE_ID: u32 = 14574;
     const MAX_STATE_ID: u32 = 14574;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 81
@@ -17928,7 +19918,9 @@ impl BlockDef for Element81 {
     const MIN_STATE_ID: u32 = 14573;
     const MAX_STATE_ID: u32 = 14573;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 82
@@ -17946,7 +19938,9 @@ impl BlockDef for Element82 {
     const MIN_STATE_ID: u32 = 14572;
     const MAX_STATE_ID: u32 = 14572;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 83
@@ -17964,7 +19958,9 @@ impl BlockDef for Element83 {
     const MIN_STATE_ID: u32 = 14571;
     const MAX_STATE_ID: u32 = 14571;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 88
@@ -17982,7 +19978,9 @@ impl BlockDef for Element88 {
     const MIN_STATE_ID: u32 = 14570;
     const MAX_STATE_ID: u32 = 14570;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 89
@@ -18000,7 +19998,9 @@ impl BlockDef for Element89 {
     const MIN_STATE_ID: u32 = 14569;
     const MAX_STATE_ID: u32 = 14569;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 97
@@ -18018,7 +20018,9 @@ impl BlockDef for Element97 {
     const MIN_STATE_ID: u32 = 14568;
     const MAX_STATE_ID: u32 = 14568;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 96
@@ -18036,7 +20038,9 @@ impl BlockDef for Element96 {
     const MIN_STATE_ID: u32 = 14567;
     const MAX_STATE_ID: u32 = 14567;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 95
@@ -18054,7 +20058,9 @@ impl BlockDef for Element95 {
     const MIN_STATE_ID: u32 = 14566;
     const MAX_STATE_ID: u32 = 14566;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 94
@@ -18072,7 +20078,9 @@ impl BlockDef for Element94 {
     const MIN_STATE_ID: u32 = 14565;
     const MAX_STATE_ID: u32 = 14565;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 93
@@ -18090,7 +20098,9 @@ impl BlockDef for Element93 {
     const MIN_STATE_ID: u32 = 14564;
     const MAX_STATE_ID: u32 = 14564;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 92
@@ -18108,7 +20118,9 @@ impl BlockDef for Element92 {
     const MIN_STATE_ID: u32 = 14563;
     const MAX_STATE_ID: u32 = 14563;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 91
@@ -18126,7 +20138,9 @@ impl BlockDef for Element91 {
     const MIN_STATE_ID: u32 = 14562;
     const MAX_STATE_ID: u32 = 14562;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 90
@@ -18144,7 +20158,9 @@ impl BlockDef for Element90 {
     const MIN_STATE_ID: u32 = 14561;
     const MAX_STATE_ID: u32 = 14561;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 99
@@ -18162,7 +20178,9 @@ impl BlockDef for Element99 {
     const MIN_STATE_ID: u32 = 14560;
     const MAX_STATE_ID: u32 = 14560;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 98
@@ -18180,7 +20198,9 @@ impl BlockDef for Element98 {
     const MIN_STATE_ID: u32 = 14559;
     const MAX_STATE_ID: u32 = 14559;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 68
@@ -18198,7 +20218,9 @@ impl BlockDef for Element68 {
     const MIN_STATE_ID: u32 = 14558;
     const MAX_STATE_ID: u32 = 14558;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 69
@@ -18216,7 +20238,9 @@ impl BlockDef for Element69 {
     const MIN_STATE_ID: u32 = 14557;
     const MAX_STATE_ID: u32 = 14557;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 62
@@ -18234,7 +20258,9 @@ impl BlockDef for Element62 {
     const MIN_STATE_ID: u32 = 14556;
     const MAX_STATE_ID: u32 = 14556;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 63
@@ -18252,7 +20278,9 @@ impl BlockDef for Element63 {
     const MIN_STATE_ID: u32 = 14555;
     const MAX_STATE_ID: u32 = 14555;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 60
@@ -18270,7 +20298,9 @@ impl BlockDef for Element60 {
     const MIN_STATE_ID: u32 = 14554;
     const MAX_STATE_ID: u32 = 14554;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 61
@@ -18288,7 +20318,9 @@ impl BlockDef for Element61 {
     const MIN_STATE_ID: u32 = 14553;
     const MAX_STATE_ID: u32 = 14553;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 66
@@ -18306,7 +20338,9 @@ impl BlockDef for Element66 {
     const MIN_STATE_ID: u32 = 14552;
     const MAX_STATE_ID: u32 = 14552;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 67
@@ -18324,7 +20358,9 @@ impl BlockDef for Element67 {
     const MIN_STATE_ID: u32 = 14551;
     const MAX_STATE_ID: u32 = 14551;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 64
@@ -18342,7 +20378,9 @@ impl BlockDef for Element64 {
     const MIN_STATE_ID: u32 = 14550;
     const MAX_STATE_ID: u32 = 14550;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 65
@@ -18360,7 +20398,9 @@ impl BlockDef for Element65 {
     const MIN_STATE_ID: u32 = 14549;
     const MAX_STATE_ID: u32 = 14549;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 79
@@ -18378,7 +20418,9 @@ impl BlockDef for Element79 {
     const MIN_STATE_ID: u32 = 14548;
     const MAX_STATE_ID: u32 = 14548;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 78
@@ -18396,7 +20438,9 @@ impl BlockDef for Element78 {
     const MIN_STATE_ID: u32 = 14547;
     const MAX_STATE_ID: u32 = 14547;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 75
@@ -18414,7 +20458,9 @@ impl BlockDef for Element75 {
     const MIN_STATE_ID: u32 = 14546;
     const MAX_STATE_ID: u32 = 14546;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 74
@@ -18432,7 +20478,9 @@ impl BlockDef for Element74 {
     const MIN_STATE_ID: u32 = 14545;
     const MAX_STATE_ID: u32 = 14545;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 77
@@ -18450,7 +20498,9 @@ impl BlockDef for Element77 {
     const MIN_STATE_ID: u32 = 14544;
     const MAX_STATE_ID: u32 = 14544;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 76
@@ -18468,7 +20518,9 @@ impl BlockDef for Element76 {
     const MIN_STATE_ID: u32 = 14543;
     const MAX_STATE_ID: u32 = 14543;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 71
@@ -18486,7 +20538,9 @@ impl BlockDef for Element71 {
     const MIN_STATE_ID: u32 = 14542;
     const MAX_STATE_ID: u32 = 14542;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 70
@@ -18504,7 +20558,9 @@ impl BlockDef for Element70 {
     const MIN_STATE_ID: u32 = 14541;
     const MAX_STATE_ID: u32 = 14541;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 73
@@ -18522,7 +20578,9 @@ impl BlockDef for Element73 {
     const MIN_STATE_ID: u32 = 14540;
     const MAX_STATE_ID: u32 = 14540;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 72
@@ -18540,7 +20598,9 @@ impl BlockDef for Element72 {
     const MIN_STATE_ID: u32 = 14539;
     const MAX_STATE_ID: u32 = 14539;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 40
@@ -18558,7 +20618,9 @@ impl BlockDef for Element40 {
     const MIN_STATE_ID: u32 = 14538;
     const MAX_STATE_ID: u32 = 14538;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 41
@@ -18576,7 +20638,9 @@ impl BlockDef for Element41 {
     const MIN_STATE_ID: u32 = 14537;
     const MAX_STATE_ID: u32 = 14537;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 42
@@ -18594,7 +20658,9 @@ impl BlockDef for Element42 {
     const MIN_STATE_ID: u32 = 14536;
     const MAX_STATE_ID: u32 = 14536;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 43
@@ -18612,7 +20678,9 @@ impl BlockDef for Element43 {
     const MIN_STATE_ID: u32 = 14535;
     const MAX_STATE_ID: u32 = 14535;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 44
@@ -18630,7 +20698,9 @@ impl BlockDef for Element44 {
     const MIN_STATE_ID: u32 = 14534;
     const MAX_STATE_ID: u32 = 14534;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 45
@@ -18648,7 +20718,9 @@ impl BlockDef for Element45 {
     const MIN_STATE_ID: u32 = 14533;
     const MAX_STATE_ID: u32 = 14533;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 46
@@ -18666,7 +20738,9 @@ impl BlockDef for Element46 {
     const MIN_STATE_ID: u32 = 14532;
     const MAX_STATE_ID: u32 = 14532;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 47
@@ -18684,7 +20758,9 @@ impl BlockDef for Element47 {
     const MIN_STATE_ID: u32 = 14531;
     const MAX_STATE_ID: u32 = 14531;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 48
@@ -18702,7 +20778,9 @@ impl BlockDef for Element48 {
     const MIN_STATE_ID: u32 = 14530;
     const MAX_STATE_ID: u32 = 14530;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 49
@@ -18720,7 +20798,9 @@ impl BlockDef for Element49 {
     const MIN_STATE_ID: u32 = 14529;
     const MAX_STATE_ID: u32 = 14529;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 53
@@ -18738,7 +20818,9 @@ impl BlockDef for Element53 {
     const MIN_STATE_ID: u32 = 14528;
     const MAX_STATE_ID: u32 = 14528;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 52
@@ -18756,7 +20838,9 @@ impl BlockDef for Element52 {
     const MIN_STATE_ID: u32 = 14527;
     const MAX_STATE_ID: u32 = 14527;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 51
@@ -18774,7 +20858,9 @@ impl BlockDef for Element51 {
     const MIN_STATE_ID: u32 = 14526;
     const MAX_STATE_ID: u32 = 14526;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 50
@@ -18792,7 +20878,9 @@ impl BlockDef for Element50 {
     const MIN_STATE_ID: u32 = 14525;
     const MAX_STATE_ID: u32 = 14525;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 57
@@ -18810,7 +20898,9 @@ impl BlockDef for Element57 {
     const MIN_STATE_ID: u32 = 14524;
     const MAX_STATE_ID: u32 = 14524;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 56
@@ -18828,7 +20918,9 @@ impl BlockDef for Element56 {
     const MIN_STATE_ID: u32 = 14523;
     const MAX_STATE_ID: u32 = 14523;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 55
@@ -18846,7 +20938,9 @@ impl BlockDef for Element55 {
     const MIN_STATE_ID: u32 = 14522;
     const MAX_STATE_ID: u32 = 14522;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 54
@@ -18864,7 +20958,9 @@ impl BlockDef for Element54 {
     const MIN_STATE_ID: u32 = 14521;
     const MAX_STATE_ID: u32 = 14521;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 59
@@ -18882,7 +20978,9 @@ impl BlockDef for Element59 {
     const MIN_STATE_ID: u32 = 14520;
     const MAX_STATE_ID: u32 = 14520;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 58
@@ -18900,7 +20998,9 @@ impl BlockDef for Element58 {
     const MIN_STATE_ID: u32 = 14519;
     const MAX_STATE_ID: u32 = 14519;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 26
@@ -18918,7 +21018,9 @@ impl BlockDef for Element26 {
     const MIN_STATE_ID: u32 = 14518;
     const MAX_STATE_ID: u32 = 14518;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 27
@@ -18936,7 +21038,9 @@ impl BlockDef for Element27 {
     const MIN_STATE_ID: u32 = 14517;
     const MAX_STATE_ID: u32 = 14517;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 24
@@ -18954,7 +21058,9 @@ impl BlockDef for Element24 {
     const MIN_STATE_ID: u32 = 14516;
     const MAX_STATE_ID: u32 = 14516;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 25
@@ -18972,7 +21078,9 @@ impl BlockDef for Element25 {
     const MIN_STATE_ID: u32 = 14515;
     const MAX_STATE_ID: u32 = 14515;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 22
@@ -18990,7 +21098,9 @@ impl BlockDef for Element22 {
     const MIN_STATE_ID: u32 = 14514;
     const MAX_STATE_ID: u32 = 14514;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 23
@@ -19008,7 +21118,9 @@ impl BlockDef for Element23 {
     const MIN_STATE_ID: u32 = 14513;
     const MAX_STATE_ID: u32 = 14513;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 20
@@ -19026,7 +21138,9 @@ impl BlockDef for Element20 {
     const MIN_STATE_ID: u32 = 14512;
     const MAX_STATE_ID: u32 = 14512;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 21
@@ -19044,7 +21158,9 @@ impl BlockDef for Element21 {
     const MIN_STATE_ID: u32 = 14511;
     const MAX_STATE_ID: u32 = 14511;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 28
@@ -19062,7 +21178,9 @@ impl BlockDef for Element28 {
     const MIN_STATE_ID: u32 = 14510;
     const MAX_STATE_ID: u32 = 14510;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 29
@@ -19080,7 +21198,9 @@ impl BlockDef for Element29 {
     const MIN_STATE_ID: u32 = 14509;
     const MAX_STATE_ID: u32 = 14509;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 39
@@ -19098,7 +21218,9 @@ impl BlockDef for Element39 {
     const MIN_STATE_ID: u32 = 14508;
     const MAX_STATE_ID: u32 = 14508;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 38
@@ -19116,7 +21238,9 @@ impl BlockDef for Element38 {
     const MIN_STATE_ID: u32 = 14507;
     const MAX_STATE_ID: u32 = 14507;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 31
@@ -19134,7 +21258,9 @@ impl BlockDef for Element31 {
     const MIN_STATE_ID: u32 = 14506;
     const MAX_STATE_ID: u32 = 14506;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 30
@@ -19152,7 +21278,9 @@ impl BlockDef for Element30 {
     const MIN_STATE_ID: u32 = 14505;
     const MAX_STATE_ID: u32 = 14505;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 33
@@ -19170,7 +21298,9 @@ impl BlockDef for Element33 {
     const MIN_STATE_ID: u32 = 14504;
     const MAX_STATE_ID: u32 = 14504;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 32
@@ -19188,7 +21318,9 @@ impl BlockDef for Element32 {
     const MIN_STATE_ID: u32 = 14503;
     const MAX_STATE_ID: u32 = 14503;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 35
@@ -19206,7 +21338,9 @@ impl BlockDef for Element35 {
     const MIN_STATE_ID: u32 = 14502;
     const MAX_STATE_ID: u32 = 14502;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 34
@@ -19224,7 +21358,9 @@ impl BlockDef for Element34 {
     const MIN_STATE_ID: u32 = 14501;
     const MAX_STATE_ID: u32 = 14501;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 37
@@ -19242,7 +21378,9 @@ impl BlockDef for Element37 {
     const MIN_STATE_ID: u32 = 14500;
     const MAX_STATE_ID: u32 = 14500;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 36
@@ -19260,7 +21398,9 @@ impl BlockDef for Element36 {
     const MIN_STATE_ID: u32 = 14499;
     const MAX_STATE_ID: u32 = 14499;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 19
@@ -19278,7 +21418,9 @@ impl BlockDef for Element19 {
     const MIN_STATE_ID: u32 = 14498;
     const MAX_STATE_ID: u32 = 14498;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 18
@@ -19296,7 +21438,9 @@ impl BlockDef for Element18 {
     const MIN_STATE_ID: u32 = 14497;
     const MAX_STATE_ID: u32 = 14497;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 17
@@ -19314,7 +21458,9 @@ impl BlockDef for Element17 {
     const MIN_STATE_ID: u32 = 14496;
     const MAX_STATE_ID: u32 = 14496;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 16
@@ -19332,7 +21478,9 @@ impl BlockDef for Element16 {
     const MIN_STATE_ID: u32 = 14495;
     const MAX_STATE_ID: u32 = 14495;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 15
@@ -19350,7 +21498,9 @@ impl BlockDef for Element15 {
     const MIN_STATE_ID: u32 = 14494;
     const MAX_STATE_ID: u32 = 14494;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 14
@@ -19368,7 +21518,9 @@ impl BlockDef for Element14 {
     const MIN_STATE_ID: u32 = 14493;
     const MAX_STATE_ID: u32 = 14493;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 13
@@ -19386,7 +21538,9 @@ impl BlockDef for Element13 {
     const MIN_STATE_ID: u32 = 14492;
     const MAX_STATE_ID: u32 = 14492;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 12
@@ -19404,7 +21558,9 @@ impl BlockDef for Element12 {
     const MIN_STATE_ID: u32 = 14491;
     const MAX_STATE_ID: u32 = 14491;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 11
@@ -19422,7 +21578,9 @@ impl BlockDef for Element11 {
     const MIN_STATE_ID: u32 = 14490;
     const MAX_STATE_ID: u32 = 14490;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 10
@@ -19440,7 +21598,9 @@ impl BlockDef for Element10 {
     const MIN_STATE_ID: u32 = 14489;
     const MAX_STATE_ID: u32 = 14489;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Weathered Copper Bars
@@ -19458,7 +21618,9 @@ impl BlockDef for WeatheredCopperBars {
     const MIN_STATE_ID: u32 = 14410;
     const MAX_STATE_ID: u32 = 14410;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Weathered Copper Bulb
@@ -19476,7 +21638,9 @@ impl BlockDef for WeatheredCopperBulb {
     const MIN_STATE_ID: u32 = 14406;
     const MAX_STATE_ID: u32 = 14409;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Pink Stained Glass Pane
@@ -19494,7 +21658,9 @@ impl BlockDef for HardPinkStainedGlassPane {
     const MIN_STATE_ID: u32 = 14383;
     const MAX_STATE_ID: u32 = 14383;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cave Vines
@@ -19512,7 +21678,9 @@ impl BlockDef for CaveVinesHeadWithBerries {
     const MIN_STATE_ID: u32 = 14333;
     const MAX_STATE_ID: u32 = 14358;
     type State = super::states::GrowingPlantState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Wildflowers
@@ -19530,7 +21698,9 @@ impl BlockDef for Wildflowers {
     const MIN_STATE_ID: u32 = 14457;
     const MAX_STATE_ID: u32 = 14488;
     type State = super::states::PetalsState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Chemical Heat
@@ -19548,7 +21718,9 @@ impl BlockDef for ChemicalHeat {
     const MIN_STATE_ID: u32 = 14295;
     const MAX_STATE_ID: u32 = 14295;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Exposed Copper Golem Statue
@@ -19566,7 +21738,9 @@ impl BlockDef for ExposedCopperGolemStatue {
     const MIN_STATE_ID: u32 = 14290;
     const MAX_STATE_ID: u32 = 14293;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Deepslate Brick Stairs
@@ -19584,7 +21758,9 @@ impl BlockDef for DeepslateBrickStairs {
     const MIN_STATE_ID: u32 = 14242;
     const MAX_STATE_ID: u32 = 14249;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Netherreactor
@@ -19602,7 +21778,9 @@ impl BlockDef for Netherreactor {
     const MIN_STATE_ID: u32 = 14239;
     const MAX_STATE_ID: u32 = 14239;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Exposed Copper Lantern
@@ -19620,7 +21798,9 @@ impl BlockDef for WaxedExposedCopperLantern {
     const MIN_STATE_ID: u32 = 13957;
     const MAX_STATE_ID: u32 = 13958;
     type State = super::states::LanternState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Cut Copper
@@ -19638,7 +21818,9 @@ impl BlockDef for WaxedCutCopper {
     const MIN_STATE_ID: u32 = 13926;
     const MAX_STATE_ID: u32 = 13926;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pointed Dripstone
@@ -19656,7 +21838,9 @@ impl BlockDef for PointedDripstone {
     const MIN_STATE_ID: u32 = 14228;
     const MAX_STATE_ID: u32 = 14237;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Spore Blossom
@@ -19674,7 +21858,9 @@ impl BlockDef for SporeBlossom {
     const MIN_STATE_ID: u32 = 13956;
     const MAX_STATE_ID: u32 = 13956;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cobbled Deepslate Slab
@@ -19692,7 +21878,9 @@ impl BlockDef for CobbledDeepslateSlab {
     const MIN_STATE_ID: u32 = 13933;
     const MAX_STATE_ID: u32 = 13934;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Heavy Core
@@ -19710,7 +21898,9 @@ impl BlockDef for HeavyCore {
     const MIN_STATE_ID: u32 = 13932;
     const MAX_STATE_ID: u32 = 13932;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Camera
@@ -19728,7 +21918,9 @@ impl BlockDef for Camera {
     const MIN_STATE_ID: u32 = 13917;
     const MAX_STATE_ID: u32 = 13917;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 8
@@ -19746,7 +21938,9 @@ impl BlockDef for Element8 {
     const MIN_STATE_ID: u32 = 13915;
     const MAX_STATE_ID: u32 = 13915;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 9
@@ -19764,7 +21958,9 @@ impl BlockDef for Element9 {
     const MIN_STATE_ID: u32 = 13914;
     const MAX_STATE_ID: u32 = 13914;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 6
@@ -19782,7 +21978,9 @@ impl BlockDef for Element6 {
     const MIN_STATE_ID: u32 = 13913;
     const MAX_STATE_ID: u32 = 13913;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 7
@@ -19800,7 +21998,9 @@ impl BlockDef for Element7 {
     const MIN_STATE_ID: u32 = 13912;
     const MAX_STATE_ID: u32 = 13912;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 4
@@ -19818,7 +22018,9 @@ impl BlockDef for Element4 {
     const MIN_STATE_ID: u32 = 13911;
     const MAX_STATE_ID: u32 = 13911;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 5
@@ -19836,7 +22038,9 @@ impl BlockDef for Element5 {
     const MIN_STATE_ID: u32 = 13910;
     const MAX_STATE_ID: u32 = 13910;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 2
@@ -19854,7 +22058,9 @@ impl BlockDef for Element2 {
     const MIN_STATE_ID: u32 = 13909;
     const MAX_STATE_ID: u32 = 13909;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 3
@@ -19872,7 +22078,9 @@ impl BlockDef for Element3 {
     const MIN_STATE_ID: u32 = 13908;
     const MAX_STATE_ID: u32 = 13908;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 0
@@ -19890,7 +22098,9 @@ impl BlockDef for Element0 {
     const MIN_STATE_ID: u32 = 13907;
     const MAX_STATE_ID: u32 = 13907;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 1
@@ -19908,7 +22118,9 @@ impl BlockDef for Element1 {
     const MIN_STATE_ID: u32 = 13906;
     const MAX_STATE_ID: u32 = 13906;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Cyan Stained Glass Pane
@@ -19926,7 +22138,9 @@ impl BlockDef for HardCyanStainedGlassPane {
     const MIN_STATE_ID: u32 = 13857;
     const MAX_STATE_ID: u32 = 13857;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard White Stained Glass Pane
@@ -19944,7 +22158,9 @@ impl BlockDef for HardWhiteStainedGlassPane {
     const MIN_STATE_ID: u32 = 13844;
     const MAX_STATE_ID: u32 = 13844;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cherry Shelf
@@ -19962,7 +22178,9 @@ impl BlockDef for CherryShelf {
     const MIN_STATE_ID: u32 = 13279;
     const MAX_STATE_ID: u32 = 13310;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Deprecated Purpur Block 1
@@ -19980,7 +22198,9 @@ impl BlockDef for DeprecatedPurpurBlock1 {
     const MIN_STATE_ID: u32 = 13244;
     const MAX_STATE_ID: u32 = 13246;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Deprecated Purpur Block 2
@@ -19998,7 +22218,9 @@ impl BlockDef for DeprecatedPurpurBlock2 {
     const MIN_STATE_ID: u32 = 13241;
     const MAX_STATE_ID: u32 = 13243;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Allow
@@ -20016,7 +22238,9 @@ impl BlockDef for Allow {
     const MIN_STATE_ID: u32 = 13239;
     const MAX_STATE_ID: u32 = 13239;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Oxidized Lightning Rod
@@ -20034,7 +22258,9 @@ impl BlockDef for WaxedOxidizedLightningRod {
     const MIN_STATE_ID: u32 = 13225;
     const MAX_STATE_ID: u32 = 13236;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Weathered Cut Copper Slab
@@ -20052,7 +22278,9 @@ impl BlockDef for WaxedWeatheredCutCopperSlab {
     const MIN_STATE_ID: u32 = 12422;
     const MAX_STATE_ID: u32 = 12423;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Weathered Copper Door
@@ -20070,7 +22298,9 @@ impl BlockDef for WaxedWeatheredCopperDoor {
     const MIN_STATE_ID: u32 = 13188;
     const MAX_STATE_ID: u32 = 13219;
     type State = super::states::DoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Crimson Shelf
@@ -20088,7 +22318,9 @@ impl BlockDef for CrimsonShelf {
     const MIN_STATE_ID: u32 = 13156;
     const MAX_STATE_ID: u32 = 13187;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Purple Stained Glass Pane
@@ -20106,7 +22338,9 @@ impl BlockDef for HardPurpleStainedGlassPane {
     const MIN_STATE_ID: u32 = 13113;
     const MAX_STATE_ID: u32 = 13113;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Red Stained Glass Pane
@@ -20124,7 +22358,9 @@ impl BlockDef for HardRedStainedGlassPane {
     const MIN_STATE_ID: u32 = 13093;
     const MAX_STATE_ID: u32 = 13093;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Red Stained Glass
@@ -20142,7 +22378,9 @@ impl BlockDef for HardRedStainedGlass {
     const MIN_STATE_ID: u32 = 12800;
     const MAX_STATE_ID: u32 = 12800;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Exposed Cut Copper Slab
@@ -20160,7 +22398,9 @@ impl BlockDef for WaxedExposedDoubleCutCopperSlab {
     const MIN_STATE_ID: u32 = 12762;
     const MAX_STATE_ID: u32 = 12763;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Weathered Copper Trapdoor
@@ -20178,7 +22418,9 @@ impl BlockDef for WeatheredCopperTrapdoor {
     const MIN_STATE_ID: u32 = 12395;
     const MAX_STATE_ID: u32 = 12410;
     type State = super::states::TrapdoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oxidized Copper Grate
@@ -20196,7 +22438,9 @@ impl BlockDef for OxidizedCopperGrate {
     const MIN_STATE_ID: u32 = 12494;
     const MAX_STATE_ID: u32 = 12494;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Azalea
@@ -20214,7 +22458,9 @@ impl BlockDef for Azalea {
     const MIN_STATE_ID: u32 = 12770;
     const MAX_STATE_ID: u32 = 12770;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Moss Block
@@ -20232,7 +22478,9 @@ impl BlockDef for MossBlock {
     const MIN_STATE_ID: u32 = 12413;
     const MAX_STATE_ID: u32 = 12413;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mud
@@ -20250,7 +22498,9 @@ impl BlockDef for Mud {
     const MIN_STATE_ID: u32 = 12524;
     const MAX_STATE_ID: u32 = 12524;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cobbled Deepslate
@@ -20268,7 +22518,9 @@ impl BlockDef for CobbledDeepslate {
     const MIN_STATE_ID: u32 = 12520;
     const MAX_STATE_ID: u32 = 12520;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Decorated Pot
@@ -20286,7 +22538,9 @@ impl BlockDef for DecoratedPot {
     const MIN_STATE_ID: u32 = 12593;
     const MAX_STATE_ID: u32 = 12596;
     type State = super::states::DirectionState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Closed Eyeblossom
@@ -20304,7 +22558,9 @@ impl BlockDef for ClosedEyeblossom {
     const MIN_STATE_ID: u32 = 12590;
     const MAX_STATE_ID: u32 = 12590;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oxidized Copper Chain
@@ -20322,7 +22578,9 @@ impl BlockDef for OxidizedCopperChain {
     const MIN_STATE_ID: u32 = 12559;
     const MAX_STATE_ID: u32 = 12561;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oxidized Copper Chest
@@ -20340,7 +22598,9 @@ impl BlockDef for OxidizedCopperChest {
     const MIN_STATE_ID: u32 = 12555;
     const MAX_STATE_ID: u32 = 12558;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Colored Torch Green
@@ -20358,7 +22618,9 @@ impl BlockDef for ColoredTorchGreen {
     const MIN_STATE_ID: u32 = 12389;
     const MAX_STATE_ID: u32 = 12394;
     type State = super::states::TorchState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Green Stained Glass
@@ -20376,7 +22638,9 @@ impl BlockDef for HardGreenStainedGlass {
     const MIN_STATE_ID: u32 = 12380;
     const MAX_STATE_ID: u32 = 12380;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Gray Stained Glass Pane
@@ -20394,7 +22658,9 @@ impl BlockDef for HardGrayStainedGlassPane {
     const MIN_STATE_ID: u32 = 12335;
     const MAX_STATE_ID: u32 = 12335;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Weathered Copper Lantern
@@ -20412,7 +22678,9 @@ impl BlockDef for WeatheredCopperLantern {
     const MIN_STATE_ID: u32 = 12321;
     const MAX_STATE_ID: u32 = 12322;
     type State = super::states::LanternState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Weathered Copper Door
@@ -20430,7 +22698,9 @@ impl BlockDef for WeatheredCopperDoor {
     const MIN_STATE_ID: u32 = 12272;
     const MAX_STATE_ID: u32 = 12303;
     type State = super::states::DoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Verdant Froglight
@@ -20448,7 +22718,9 @@ impl BlockDef for VerdantFroglight {
     const MIN_STATE_ID: u32 = 12332;
     const MAX_STATE_ID: u32 = 12334;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pearlescent Froglight
@@ -20466,7 +22738,9 @@ impl BlockDef for PearlescentFroglight {
     const MIN_STATE_ID: u32 = 12304;
     const MAX_STATE_ID: u32 = 12306;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Lime Stained Glass
@@ -20484,7 +22758,9 @@ impl BlockDef for HardLimeStainedGlass {
     const MIN_STATE_ID: u32 = 12271;
     const MAX_STATE_ID: u32 = 12271;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Magenta Stained Glass Pane
@@ -20502,7 +22778,9 @@ impl BlockDef for HardMagentaStainedGlassPane {
     const MIN_STATE_ID: u32 = 12171;
     const MAX_STATE_ID: u32 = 12171;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Oxidized Copper Bulb
@@ -20520,7 +22798,9 @@ impl BlockDef for WaxedOxidizedCopperBulb {
     const MIN_STATE_ID: u32 = 12115;
     const MAX_STATE_ID: u32 = 12118;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Oxidized Copper Bars
@@ -20538,7 +22818,9 @@ impl BlockDef for WaxedOxidizedCopperBars {
     const MIN_STATE_ID: u32 = 12111;
     const MAX_STATE_ID: u32 = 12111;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Exposed Copper Bars
@@ -20556,7 +22838,9 @@ impl BlockDef for ExposedCopperBars {
     const MIN_STATE_ID: u32 = 12099;
     const MAX_STATE_ID: u32 = 12099;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Weathered Cut Copper Stairs
@@ -20574,7 +22858,9 @@ impl BlockDef for WaxedWeatheredCutCopperStairs {
     const MIN_STATE_ID: u32 = 12003;
     const MAX_STATE_ID: u32 = 12010;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Orange Stained Glass
@@ -20592,7 +22878,9 @@ impl BlockDef for HardOrangeStainedGlass {
     const MIN_STATE_ID: u32 = 11965;
     const MAX_STATE_ID: u32 = 11965;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oxidized Copper Lantern
@@ -20610,7 +22898,9 @@ impl BlockDef for OxidizedCopperLantern {
     const MIN_STATE_ID: u32 = 11645;
     const MAX_STATE_ID: u32 = 11646;
     type State = super::states::LanternState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Weathered Copper Golem Statue
@@ -20628,7 +22918,9 @@ impl BlockDef for WeatheredCopperGolemStatue {
     const MIN_STATE_ID: u32 = 11605;
     const MAX_STATE_ID: u32 = 11608;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Black Stained Glass
@@ -20646,7 +22938,9 @@ impl BlockDef for HardBlackStainedGlass {
     const MIN_STATE_ID: u32 = 11153;
     const MAX_STATE_ID: u32 = 11153;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Copper Door
@@ -20664,7 +22958,9 @@ impl BlockDef for CopperDoor {
     const MIN_STATE_ID: u32 = 11121;
     const MAX_STATE_ID: u32 = 11152;
     type State = super::states::DoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Oxidized Copper Door
@@ -20682,7 +22978,9 @@ impl BlockDef for WaxedOxidizedCopperDoor {
     const MIN_STATE_ID: u32 = 11027;
     const MAX_STATE_ID: u32 = 11058;
     type State = super::states::DoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Exposed Copper Trapdoor
@@ -20700,7 +22998,9 @@ impl BlockDef for ExposedCopperTrapdoor {
     const MIN_STATE_ID: u32 = 11866;
     const MAX_STATE_ID: u32 = 11881;
     type State = super::states::TrapdoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Exposed Copper Trapdoor
@@ -20718,7 +23018,9 @@ impl BlockDef for WaxedExposedCopperTrapdoor {
     const MIN_STATE_ID: u32 = 10956;
     const MAX_STATE_ID: u32 = 10971;
     type State = super::states::TrapdoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Exposed Copper Bulb
@@ -20736,7 +23038,9 @@ impl BlockDef for ExposedCopperBulb {
     const MIN_STATE_ID: u32 = 12095;
     const MAX_STATE_ID: u32 = 12098;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cave Vines Plant
@@ -20754,7 +23058,9 @@ impl BlockDef for CaveVinesBodyWithBerries {
     const MIN_STATE_ID: u32 = 11079;
     const MAX_STATE_ID: u32 = 11104;
     type State = super::states::GrowingPlantState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Big Dripleaf
@@ -20772,7 +23078,9 @@ impl BlockDef for BigDripleaf {
     const MIN_STATE_ID: u32 = 11158;
     const MAX_STATE_ID: u32 = 11189;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Vault
@@ -20790,7 +23098,9 @@ impl BlockDef for Vault {
     const MIN_STATE_ID: u32 = 11909;
     const MAX_STATE_ID: u32 = 11940;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pale Moss Carpet
@@ -20808,7 +23118,9 @@ impl BlockDef for PaleMossCarpet {
     const MIN_STATE_ID: u32 = 11677;
     const MAX_STATE_ID: u32 = 11838;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pale Hanging Moss
@@ -20826,7 +23138,9 @@ impl BlockDef for PaleHangingMoss {
     const MIN_STATE_ID: u32 = 11675;
     const MAX_STATE_ID: u32 = 11676;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pale Oak Shelf
@@ -20844,7 +23158,9 @@ impl BlockDef for PaleOakShelf {
     const MIN_STATE_ID: u32 = 10539;
     const MAX_STATE_ID: u32 = 10570;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Copper Trapdoor
@@ -20862,7 +23178,9 @@ impl BlockDef for CopperTrapdoor {
     const MIN_STATE_ID: u32 = 10492;
     const MAX_STATE_ID: u32 = 10507;
     type State = super::states::TrapdoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Weathered Copper Bars
@@ -20880,7 +23198,9 @@ impl BlockDef for WaxedWeatheredCopperBars {
     const MIN_STATE_ID: u32 = 10477;
     const MAX_STATE_ID: u32 = 10477;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Oxidized Cut Copper Stairs
@@ -20898,7 +23218,9 @@ impl BlockDef for WaxedOxidizedCutCopperStairs {
     const MIN_STATE_ID: u32 = 10459;
     const MAX_STATE_ID: u32 = 10466;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Weathered Copper Bulb
@@ -20916,7 +23238,9 @@ impl BlockDef for WaxedWeatheredCopperBulb {
     const MIN_STATE_ID: u32 = 10467;
     const MAX_STATE_ID: u32 = 10470;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cobbled Deepslate Slab
@@ -20934,7 +23258,9 @@ impl BlockDef for CobbledDeepslateDoubleSlab {
     const MIN_STATE_ID: u32 = 10511;
     const MAX_STATE_ID: u32 = 10512;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Reinforced Deepslate
@@ -20952,7 +23278,9 @@ impl BlockDef for ReinforcedDeepslate {
     const MIN_STATE_ID: u32 = 10441;
     const MAX_STATE_ID: u32 = 10441;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Deny
@@ -20970,7 +23298,9 @@ impl BlockDef for Deny {
     const MIN_STATE_ID: u32 = 9854;
     const MAX_STATE_ID: u32 = 9854;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pale Moss Block
@@ -20988,7 +23318,9 @@ impl BlockDef for PaleMossBlock {
     const MIN_STATE_ID: u32 = 9849;
     const MAX_STATE_ID: u32 = 9849;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Weathered Copper Chain
@@ -21006,7 +23338,9 @@ impl BlockDef for WeatheredCopperChain {
     const MIN_STATE_ID: u32 = 9694;
     const MAX_STATE_ID: u32 = 9696;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Weathered Copper Chest
@@ -21024,7 +23358,9 @@ impl BlockDef for WeatheredCopperChest {
     const MIN_STATE_ID: u32 = 9689;
     const MAX_STATE_ID: u32 = 9692;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 118
@@ -21042,7 +23378,9 @@ impl BlockDef for Element118 {
     const MIN_STATE_ID: u32 = 9496;
     const MAX_STATE_ID: u32 = 9496;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 114
@@ -21060,7 +23398,9 @@ impl BlockDef for Element114 {
     const MIN_STATE_ID: u32 = 9495;
     const MAX_STATE_ID: u32 = 9495;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 115
@@ -21078,7 +23418,9 @@ impl BlockDef for Element115 {
     const MIN_STATE_ID: u32 = 9494;
     const MAX_STATE_ID: u32 = 9494;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 116
@@ -21096,7 +23438,9 @@ impl BlockDef for Element116 {
     const MIN_STATE_ID: u32 = 9493;
     const MAX_STATE_ID: u32 = 9493;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 117
@@ -21114,7 +23458,9 @@ impl BlockDef for Element117 {
     const MIN_STATE_ID: u32 = 9492;
     const MAX_STATE_ID: u32 = 9492;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 110
@@ -21132,7 +23478,9 @@ impl BlockDef for Element110 {
     const MIN_STATE_ID: u32 = 9491;
     const MAX_STATE_ID: u32 = 9491;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 111
@@ -21150,7 +23498,9 @@ impl BlockDef for Element111 {
     const MIN_STATE_ID: u32 = 9490;
     const MAX_STATE_ID: u32 = 9490;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 112
@@ -21168,7 +23518,9 @@ impl BlockDef for Element112 {
     const MIN_STATE_ID: u32 = 9489;
     const MAX_STATE_ID: u32 = 9489;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 113
@@ -21186,7 +23538,9 @@ impl BlockDef for Element113 {
     const MIN_STATE_ID: u32 = 9488;
     const MAX_STATE_ID: u32 = 9488;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 109
@@ -21204,7 +23558,9 @@ impl BlockDef for Element109 {
     const MIN_STATE_ID: u32 = 9487;
     const MAX_STATE_ID: u32 = 9487;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 108
@@ -21222,7 +23578,9 @@ impl BlockDef for Element108 {
     const MIN_STATE_ID: u32 = 9486;
     const MAX_STATE_ID: u32 = 9486;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 107
@@ -21240,7 +23598,9 @@ impl BlockDef for Element107 {
     const MIN_STATE_ID: u32 = 9485;
     const MAX_STATE_ID: u32 = 9485;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 106
@@ -21258,7 +23618,9 @@ impl BlockDef for Element106 {
     const MIN_STATE_ID: u32 = 9484;
     const MAX_STATE_ID: u32 = 9484;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 105
@@ -21276,7 +23638,9 @@ impl BlockDef for Element105 {
     const MIN_STATE_ID: u32 = 9483;
     const MAX_STATE_ID: u32 = 9483;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 104
@@ -21294,7 +23658,9 @@ impl BlockDef for Element104 {
     const MIN_STATE_ID: u32 = 9482;
     const MAX_STATE_ID: u32 = 9482;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 103
@@ -21312,7 +23678,9 @@ impl BlockDef for Element103 {
     const MIN_STATE_ID: u32 = 9481;
     const MAX_STATE_ID: u32 = 9481;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 102
@@ -21330,7 +23698,9 @@ impl BlockDef for Element102 {
     const MIN_STATE_ID: u32 = 9480;
     const MAX_STATE_ID: u32 = 9480;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 101
@@ -21348,7 +23718,9 @@ impl BlockDef for Element101 {
     const MIN_STATE_ID: u32 = 9479;
     const MAX_STATE_ID: u32 = 9479;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element 100
@@ -21366,7 +23738,9 @@ impl BlockDef for Element100 {
     const MIN_STATE_ID: u32 = 9478;
     const MAX_STATE_ID: u32 = 9478;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Cut Copper Slab
@@ -21384,7 +23758,9 @@ impl BlockDef for WaxedDoubleCutCopperSlab {
     const MIN_STATE_ID: u32 = 8779;
     const MAX_STATE_ID: u32 = 8780;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Exposed Copper Door
@@ -21402,7 +23778,9 @@ impl BlockDef for WaxedExposedCopperDoor {
     const MIN_STATE_ID: u32 = 8807;
     const MAX_STATE_ID: u32 = 8838;
     type State = super::states::DoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Deprecated Anvil
@@ -21420,7 +23798,9 @@ impl BlockDef for DeprecatedAnvil {
     const MIN_STATE_ID: u32 = 8667;
     const MAX_STATE_ID: u32 = 8670;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dark Oak Shelf
@@ -21438,7 +23818,9 @@ impl BlockDef for DarkOakShelf {
     const MIN_STATE_ID: u32 = 8593;
     const MAX_STATE_ID: u32 = 8624;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Weathered Lightning Rod
@@ -21456,7 +23838,9 @@ impl BlockDef for WeatheredLightningRod {
     const MIN_STATE_ID: u32 = 8553;
     const MAX_STATE_ID: u32 = 8564;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Deepslate Tile Wall
@@ -21474,7 +23858,9 @@ impl BlockDef for DeepslateTileWall {
     const MIN_STATE_ID: u32 = 8366;
     const MAX_STATE_ID: u32 = 8527;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Chiseled Deepslate
@@ -21492,7 +23878,9 @@ impl BlockDef for ChiseledDeepslate {
     const MIN_STATE_ID: u32 = 8529;
     const MAX_STATE_ID: u32 = 8529;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Block of Raw Copper
@@ -21510,7 +23898,9 @@ impl BlockDef for RawCopperBlock {
     const MIN_STATE_ID: u32 = 8588;
     const MAX_STATE_ID: u32 = 8588;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Border Block
@@ -21528,7 +23918,9 @@ impl BlockDef for BorderBlock {
     const MIN_STATE_ID: u32 = 8177;
     const MAX_STATE_ID: u32 = 8338;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Oxidized Copper Golem Statue
@@ -21546,7 +23938,9 @@ impl BlockDef for WaxedOxidizedCopperGolemStatue {
     const MIN_STATE_ID: u32 = 8011;
     const MAX_STATE_ID: u32 = 8014;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Oxidized Copper Trapdoor
@@ -21564,7 +23958,9 @@ impl BlockDef for WaxedOxidizedCopperTrapdoor {
     const MIN_STATE_ID: u32 = 7961;
     const MAX_STATE_ID: u32 = 7976;
     type State = super::states::TrapdoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Flowering Azalea
@@ -21582,7 +23978,9 @@ impl BlockDef for FloweringAzalea {
     const MIN_STATE_ID: u32 = 8854;
     const MAX_STATE_ID: u32 = 8854;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Deepslate Bricks
@@ -21600,7 +23998,9 @@ impl BlockDef for DeepslateBricks {
     const MIN_STATE_ID: u32 = 8839;
     const MAX_STATE_ID: u32 = 8839;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Exposed Copper Chain
@@ -21618,7 +24018,9 @@ impl BlockDef for ExposedCopperChain {
     const MIN_STATE_ID: u32 = 8767;
     const MAX_STATE_ID: u32 = 8769;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Exposed Copper Chest
@@ -21636,7 +24038,9 @@ impl BlockDef for ExposedCopperChest {
     const MIN_STATE_ID: u32 = 8763;
     const MAX_STATE_ID: u32 = 8766;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Light Blue Stained Glass Pane
@@ -21654,7 +24058,9 @@ impl BlockDef for HardLightBlueStainedGlassPane {
     const MIN_STATE_ID: u32 = 8719;
     const MAX_STATE_ID: u32 = 8719;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Exposed Copper Grate
@@ -21672,7 +24078,9 @@ impl BlockDef for ExposedCopperGrate {
     const MIN_STATE_ID: u32 = 8717;
     const MAX_STATE_ID: u32 = 8717;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Copper Grate
@@ -21690,7 +24098,9 @@ impl BlockDef for WaxedCopperGrate {
     const MIN_STATE_ID: u32 = 8718;
     const MAX_STATE_ID: u32 = 8718;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Rooted Dirt
@@ -21708,7 +24118,9 @@ impl BlockDef for DirtWithRoots {
     const MIN_STATE_ID: u32 = 8736;
     const MAX_STATE_ID: u32 = 8736;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cracked Deepslate Bricks
@@ -21726,7 +24138,9 @@ impl BlockDef for CrackedDeepslateBricks {
     const MIN_STATE_ID: u32 = 8696;
     const MAX_STATE_ID: u32 = 8696;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Glass
@@ -21744,7 +24158,9 @@ impl BlockDef for HardGlass {
     const MIN_STATE_ID: u32 = 7456;
     const MAX_STATE_ID: u32 = 7456;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Exposed Copper Door
@@ -21762,7 +24178,9 @@ impl BlockDef for ExposedCopperDoor {
     const MIN_STATE_ID: u32 = 7383;
     const MAX_STATE_ID: u32 = 7414;
     type State = super::states::DoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Weathered Copper Golem Statue
@@ -21780,7 +24198,9 @@ impl BlockDef for WaxedWeatheredCopperGolemStatue {
     const MIN_STATE_ID: u32 = 7332;
     const MAX_STATE_ID: u32 = 7335;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Weathered Cut Copper Slab
@@ -21798,7 +24218,9 @@ impl BlockDef for WaxedWeatheredDoubleCutCopperSlab {
     const MIN_STATE_ID: u32 = 7320;
     const MAX_STATE_ID: u32 = 7321;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Weathered Copper Trapdoor
@@ -21816,7 +24238,9 @@ impl BlockDef for WaxedWeatheredCopperTrapdoor {
     const MIN_STATE_ID: u32 = 7457;
     const MAX_STATE_ID: u32 = 7472;
     type State = super::states::TrapdoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cave Vines Plant
@@ -21834,7 +24258,9 @@ impl BlockDef for CaveVines {
     const MIN_STATE_ID: u32 = 7481;
     const MAX_STATE_ID: u32 = 7506;
     type State = super::states::GrowingPlantState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Pink Petals
@@ -21852,7 +24278,9 @@ impl BlockDef for PinkPetals {
     const MIN_STATE_ID: u32 = 6867;
     const MAX_STATE_ID: u32 = 6898;
     type State = super::states::PetalsState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Deepslate Tile Stairs
@@ -21870,7 +24298,9 @@ impl BlockDef for DeepslateTileStairs {
     const MIN_STATE_ID: u32 = 7295;
     const MAX_STATE_ID: u32 = 7302;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Infested Deepslate
@@ -21888,7 +24318,9 @@ impl BlockDef for InfestedDeepslate {
     const MIN_STATE_ID: u32 = 7283;
     const MAX_STATE_ID: u32 = 7285;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Oxidized Copper Lantern
@@ -21906,7 +24338,9 @@ impl BlockDef for WaxedOxidizedCopperLantern {
     const MIN_STATE_ID: u32 = 6833;
     const MAX_STATE_ID: u32 = 6834;
     type State = super::states::LanternState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Lab Table
@@ -21924,7 +24358,9 @@ impl BlockDef for LabTable {
     const MIN_STATE_ID: u32 = 6829;
     const MAX_STATE_ID: u32 = 6832;
     type State = super::states::DirectionState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Reserved6
@@ -21942,7 +24378,9 @@ impl BlockDef for Reserved6 {
     const MIN_STATE_ID: u32 = 6819;
     const MAX_STATE_ID: u32 = 6819;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Yellow Stained Glass
@@ -21960,7 +24398,9 @@ impl BlockDef for HardYellowStainedGlass {
     const MIN_STATE_ID: u32 = 6799;
     const MAX_STATE_ID: u32 = 6799;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oxidized Copper Trapdoor
@@ -21978,7 +24418,9 @@ impl BlockDef for OxidizedCopperTrapdoor {
     const MIN_STATE_ID: u32 = 6775;
     const MAX_STATE_ID: u32 = 6790;
     type State = super::states::TrapdoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Light Gray Stained Glass Pane
@@ -21996,7 +24438,9 @@ impl BlockDef for HardLightGrayStainedGlassPane {
     const MIN_STATE_ID: u32 = 6773;
     const MAX_STATE_ID: u32 = 6773;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Deepslate Tiles
@@ -22014,7 +24458,9 @@ impl BlockDef for DeepslateTiles {
     const MIN_STATE_ID: u32 = 6771;
     const MAX_STATE_ID: u32 = 6771;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Element Constructor
@@ -22032,7 +24478,9 @@ impl BlockDef for ElementConstructor {
     const MIN_STATE_ID: u32 = 6767;
     const MAX_STATE_ID: u32 = 6770;
     type State = super::states::DirectionState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Lime Stained Glass Pane
@@ -22050,7 +24498,9 @@ impl BlockDef for HardLimeStainedGlassPane {
     const MIN_STATE_ID: u32 = 6762;
     const MAX_STATE_ID: u32 = 6762;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Frogspawn
@@ -22068,7 +24518,9 @@ impl BlockDef for FrogSpawn {
     const MIN_STATE_ID: u32 = 6582;
     const MAX_STATE_ID: u32 = 6582;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oak Shelf
@@ -22086,7 +24538,9 @@ impl BlockDef for OakShelf {
     const MIN_STATE_ID: u32 = 6538;
     const MAX_STATE_ID: u32 = 6569;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Copper Bars
@@ -22104,7 +24558,9 @@ impl BlockDef for CopperBars {
     const MIN_STATE_ID: u32 = 6537;
     const MAX_STATE_ID: u32 = 6537;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Copper Bulb
@@ -22122,7 +24578,9 @@ impl BlockDef for CopperBulb {
     const MIN_STATE_ID: u32 = 6533;
     const MAX_STATE_ID: u32 = 6536;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Purple Stained Glass
@@ -22140,7 +24598,9 @@ impl BlockDef for HardPurpleStainedGlass {
     const MIN_STATE_ID: u32 = 6500;
     const MAX_STATE_ID: u32 = 6500;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Blue Stained Glass
@@ -22158,7 +24618,9 @@ impl BlockDef for HardBlueStainedGlass {
     const MIN_STATE_ID: u32 = 6499;
     const MAX_STATE_ID: u32 = 6499;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Copper Golem Statue
@@ -22176,7 +24638,9 @@ impl BlockDef for CopperGolemStatue {
     const MIN_STATE_ID: u32 = 6495;
     const MAX_STATE_ID: u32 = 6498;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Cyan Stained Glass
@@ -22194,7 +24658,9 @@ impl BlockDef for HardCyanStainedGlass {
     const MIN_STATE_ID: u32 = 6488;
     const MAX_STATE_ID: u32 = 6488;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Weathered Copper Grate
@@ -22212,7 +24678,9 @@ impl BlockDef for WaxedWeatheredCopperGrate {
     const MIN_STATE_ID: u32 = 6453;
     const MAX_STATE_ID: u32 = 6453;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Small Dripleaf
@@ -22230,7 +24698,9 @@ impl BlockDef for SmallDripleafBlock {
     const MIN_STATE_ID: u32 = 6444;
     const MAX_STATE_ID: u32 = 6451;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Colored Torch Blue
@@ -22248,7 +24718,9 @@ impl BlockDef for ColoredTorchBlue {
     const MIN_STATE_ID: u32 = 6419;
     const MAX_STATE_ID: u32 = 6424;
     type State = super::states::TorchState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Deepslate Tile Slab
@@ -22266,7 +24738,9 @@ impl BlockDef for DeepslateTileSlab {
     const MIN_STATE_ID: u32 = 6376;
     const MAX_STATE_ID: u32 = 6377;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Copper Chain
@@ -22284,7 +24758,9 @@ impl BlockDef for WaxedCopperChain {
     const MIN_STATE_ID: u32 = 6364;
     const MAX_STATE_ID: u32 = 6366;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Copper Chest
@@ -22302,7 +24778,9 @@ impl BlockDef for WaxedCopperChest {
     const MIN_STATE_ID: u32 = 6359;
     const MAX_STATE_ID: u32 = 6362;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Bamboo Shelf
@@ -22320,7 +24798,9 @@ impl BlockDef for BambooShelf {
     const MIN_STATE_ID: u32 = 6324;
     const MAX_STATE_ID: u32 = 6355;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Client Request Placeholder Block
@@ -22338,7 +24818,9 @@ impl BlockDef for ClientRequestPlaceholderBlock {
     const MIN_STATE_ID: u32 = 6323;
     const MAX_STATE_ID: u32 = 6323;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Frame
@@ -22356,7 +24838,9 @@ impl BlockDef for Frame {
     const MIN_STATE_ID: u32 = 6290;
     const MAX_STATE_ID: u32 = 6313;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Copper Torch
@@ -22374,7 +24858,9 @@ impl BlockDef for CopperTorch {
     const MIN_STATE_ID: u32 = 6272;
     const MAX_STATE_ID: u32 = 6277;
     type State = super::states::TorchState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Yellow Stained Glass Pane
@@ -22392,7 +24878,9 @@ impl BlockDef for HardYellowStainedGlassPane {
     const MIN_STATE_ID: u32 = 6229;
     const MAX_STATE_ID: u32 = 6229;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Exposed Copper Bulb
@@ -22410,7 +24898,9 @@ impl BlockDef for WaxedExposedCopperBulb {
     const MIN_STATE_ID: u32 = 6221;
     const MAX_STATE_ID: u32 = 6224;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Exposed Copper Bars
@@ -22428,7 +24918,9 @@ impl BlockDef for WaxedExposedCopperBars {
     const MIN_STATE_ID: u32 = 6219;
     const MAX_STATE_ID: u32 = 6219;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Oxidized Copper Chain
@@ -22446,7 +24938,9 @@ impl BlockDef for WaxedOxidizedCopperChain {
     const MIN_STATE_ID: u32 = 6192;
     const MAX_STATE_ID: u32 = 6194;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Oxidized Copper Chest
@@ -22464,7 +24958,9 @@ impl BlockDef for WaxedOxidizedCopperChest {
     const MIN_STATE_ID: u32 = 6188;
     const MAX_STATE_ID: u32 = 6191;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Exposed Copper Golem Statue
@@ -22482,7 +24978,9 @@ impl BlockDef for WaxedExposedCopperGolemStatue {
     const MIN_STATE_ID: u32 = 6178;
     const MAX_STATE_ID: u32 = 6181;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cracked Deepslate Tiles
@@ -22500,7 +24998,9 @@ impl BlockDef for CrackedDeepslateTiles {
     const MIN_STATE_ID: u32 = 6170;
     const MAX_STATE_ID: u32 = 6170;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Magenta Stained Glass
@@ -22518,7 +25018,9 @@ impl BlockDef for HardMagentaStainedGlass {
     const MIN_STATE_ID: u32 = 6137;
     const MAX_STATE_ID: u32 = 6137;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Exposed Copper Lantern
@@ -22536,7 +25038,9 @@ impl BlockDef for ExposedCopperLantern {
     const MIN_STATE_ID: u32 = 5941;
     const MAX_STATE_ID: u32 = 5942;
     type State = super::states::LanternState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Exposed Lightning Rod
@@ -22554,7 +25058,9 @@ impl BlockDef for WaxedExposedLightningRod {
     const MIN_STATE_ID: u32 = 5929;
     const MAX_STATE_ID: u32 = 5940;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard White Stained Glass
@@ -22572,7 +25078,9 @@ impl BlockDef for HardWhiteStainedGlass {
     const MIN_STATE_ID: u32 = 5926;
     const MAX_STATE_ID: u32 = 5926;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Exposed Cut Copper Stairs
@@ -22590,7 +25098,9 @@ impl BlockDef for WaxedExposedCutCopperStairs {
     const MIN_STATE_ID: u32 = 5918;
     const MAX_STATE_ID: u32 = 5925;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Jungle Shelf
@@ -22608,7 +25118,9 @@ impl BlockDef for JungleShelf {
     const MIN_STATE_ID: u32 = 5866;
     const MAX_STATE_ID: u32 = 5897;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Weathered Copper Lantern
@@ -22626,7 +25138,9 @@ impl BlockDef for WaxedWeatheredCopperLantern {
     const MIN_STATE_ID: u32 = 5812;
     const MAX_STATE_ID: u32 = 5813;
     type State = super::states::LanternState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Compound Creator
@@ -22644,7 +25158,9 @@ impl BlockDef for CompoundCreator {
     const MIN_STATE_ID: u32 = 5347;
     const MAX_STATE_ID: u32 = 5350;
     type State = super::states::DirectionState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Copper Chest
@@ -22662,7 +25178,9 @@ impl BlockDef for CopperChest {
     const MIN_STATE_ID: u32 = 5304;
     const MAX_STATE_ID: u32 = 5307;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Copper Chain
@@ -22680,7 +25198,9 @@ impl BlockDef for CopperChain {
     const MIN_STATE_ID: u32 = 5301;
     const MAX_STATE_ID: u32 = 5303;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Weathered Copper Grate
@@ -22698,7 +25218,9 @@ impl BlockDef for WeatheredCopperGrate {
     const MIN_STATE_ID: u32 = 5297;
     const MAX_STATE_ID: u32 = 5297;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Deepslate Brick Slab
@@ -22716,7 +25238,9 @@ impl BlockDef for DeepslateBrickSlab {
     const MIN_STATE_ID: u32 = 5280;
     const MAX_STATE_ID: u32 = 5281;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Exposed Lightning Rod
@@ -22734,7 +25258,9 @@ impl BlockDef for ExposedLightningRod {
     const MIN_STATE_ID: u32 = 5241;
     const MAX_STATE_ID: u32 = 5252;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Chalkboard
@@ -22752,7 +25278,9 @@ impl BlockDef for Chalkboard {
     const MIN_STATE_ID: u32 = 5196;
     const MAX_STATE_ID: u32 = 5211;
     type State = super::states::DirectionState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Warped Shelf
@@ -22770,7 +25298,9 @@ impl BlockDef for WarpedShelf {
     const MIN_STATE_ID: u32 = 5136;
     const MAX_STATE_ID: u32 = 5167;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Mangrove Shelf
@@ -22788,7 +25318,9 @@ impl BlockDef for MangroveShelf {
     const MIN_STATE_ID: u32 = 5103;
     const MAX_STATE_ID: u32 = 5134;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Lightning Rod
@@ -22806,7 +25338,9 @@ impl BlockDef for WaxedLightningRod {
     const MIN_STATE_ID: u32 = 5089;
     const MAX_STATE_ID: u32 = 5100;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Spruce Shelf
@@ -22824,7 +25358,9 @@ impl BlockDef for SpruceShelf {
     const MIN_STATE_ID: u32 = 4987;
     const MAX_STATE_ID: u32 = 5018;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Cut Copper Stairs
@@ -22842,7 +25378,9 @@ impl BlockDef for WaxedCutCopperStairs {
     const MIN_STATE_ID: u32 = 1831;
     const MAX_STATE_ID: u32 = 1838;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Copper Trapdoor
@@ -22860,7 +25398,9 @@ impl BlockDef for WaxedCopperTrapdoor {
     const MIN_STATE_ID: u32 = 4971;
     const MAX_STATE_ID: u32 = 4986;
     type State = super::states::TrapdoorState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Glowingobsidian
@@ -22878,7 +25418,9 @@ impl BlockDef for Glowingobsidian {
     const MIN_STATE_ID: u32 = 4958;
     const MAX_STATE_ID: u32 = 4958;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Underwater Torch
@@ -22896,7 +25438,9 @@ impl BlockDef for UnderwaterTorch {
     const MIN_STATE_ID: u32 = 3977;
     const MAX_STATE_ID: u32 = 3982;
     type State = super::states::TorchState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Copper Grate
@@ -22914,7 +25458,9 @@ impl BlockDef for CopperGrate {
     const MIN_STATE_ID: u32 = 1789;
     const MAX_STATE_ID: u32 = 1789;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Exposed Copper Grate
@@ -22932,7 +25478,9 @@ impl BlockDef for WaxedExposedCopperGrate {
     const MIN_STATE_ID: u32 = 2045;
     const MAX_STATE_ID: u32 = 2045;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Lightning Rod
@@ -22950,7 +25498,9 @@ impl BlockDef for LightningRod {
     const MIN_STATE_ID: u32 = 3798;
     const MAX_STATE_ID: u32 = 3809;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Deepslate Stairs
@@ -22968,7 +25518,9 @@ impl BlockDef for PolishedDeepslateStairs {
     const MIN_STATE_ID: u32 = 1688;
     const MAX_STATE_ID: u32 = 1695;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Deepslate Slab
@@ -22986,7 +25538,9 @@ impl BlockDef for PolishedDeepslateSlab {
     const MIN_STATE_ID: u32 = 1390;
     const MAX_STATE_ID: u32 = 1391;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Deepslate Tile Slab
@@ -23004,7 +25558,9 @@ impl BlockDef for DeepslateTileDoubleSlab {
     const MIN_STATE_ID: u32 = 1780;
     const MAX_STATE_ID: u32 = 1781;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Deepslate Brick Slab
@@ -23022,7 +25578,9 @@ impl BlockDef for DeepslateBrickDoubleSlab {
     const MIN_STATE_ID: u32 = 3983;
     const MAX_STATE_ID: u32 = 3984;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Deepslate Brick Wall
@@ -23040,7 +25598,9 @@ impl BlockDef for DeepslateBrickWall {
     const MIN_STATE_ID: u32 = 1883;
     const MAX_STATE_ID: u32 = 2044;
     type State = super::states::WallState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Block of Raw Gold
@@ -23058,7 +25618,9 @@ impl BlockDef for RawGoldBlock {
     const MIN_STATE_ID: u32 = 1786;
     const MAX_STATE_ID: u32 = 1786;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Ochre Froglight
@@ -23076,7 +25638,9 @@ impl BlockDef for OchreFroglight {
     const MIN_STATE_ID: u32 = 4376;
     const MAX_STATE_ID: u32 = 4378;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Light Blue Stained Glass
@@ -23094,7 +25658,9 @@ impl BlockDef for HardLightBlueStainedGlass {
     const MIN_STATE_ID: u32 = 3609;
     const MAX_STATE_ID: u32 = 3609;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Smooth Basalt
@@ -23112,7 +25678,9 @@ impl BlockDef for SmoothBasalt {
     const MIN_STATE_ID: u32 = 3604;
     const MAX_STATE_ID: u32 = 3604;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Brown Stained Glass Pane
@@ -23130,7 +25698,9 @@ impl BlockDef for HardBrownStainedGlassPane {
     const MIN_STATE_ID: u32 = 3603;
     const MAX_STATE_ID: u32 = 3603;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oxidized Copper Bars
@@ -23148,7 +25718,9 @@ impl BlockDef for OxidizedCopperBars {
     const MIN_STATE_ID: u32 = 3424;
     const MAX_STATE_ID: u32 = 3424;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oxidized Copper Bulb
@@ -23166,7 +25738,9 @@ impl BlockDef for OxidizedCopperBulb {
     const MIN_STATE_ID: u32 = 3419;
     const MAX_STATE_ID: u32 = 3422;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Invisible Bedrock
@@ -23184,7 +25758,9 @@ impl BlockDef for InvisibleBedrock {
     const MIN_STATE_ID: u32 = 3254;
     const MAX_STATE_ID: u32 = 3254;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Stonecutter
@@ -23202,7 +25778,9 @@ impl BlockDef for Stonecutter {
     const MIN_STATE_ID: u32 = 3210;
     const MAX_STATE_ID: u32 = 3210;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Underwater Tnt
@@ -23220,7 +25798,9 @@ impl BlockDef for UnderwaterTnt {
     const MIN_STATE_ID: u32 = 3164;
     const MAX_STATE_ID: u32 = 3165;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Oxidized Cut Copper Slab
@@ -23238,7 +25818,9 @@ impl BlockDef for WaxedOxidizedCutCopperSlab {
     const MIN_STATE_ID: u32 = 2750;
     const MAX_STATE_ID: u32 = 2751;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Dripstone Block
@@ -23256,7 +25838,9 @@ impl BlockDef for DripstoneBlock {
     const MIN_STATE_ID: u32 = 3166;
     const MAX_STATE_ID: u32 = 3166;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Glass Pane
@@ -23274,7 +25858,9 @@ impl BlockDef for HardGlassPane {
     const MIN_STATE_ID: u32 = 2538;
     const MAX_STATE_ID: u32 = 2538;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oxidized Copper Golem Statue
@@ -23292,7 +25878,9 @@ impl BlockDef for OxidizedCopperGolemStatue {
     const MIN_STATE_ID: u32 = 2474;
     const MAX_STATE_ID: u32 = 2477;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Copper Bulb
@@ -23310,7 +25898,9 @@ impl BlockDef for WaxedCopperBulb {
     const MIN_STATE_ID: u32 = 2066;
     const MAX_STATE_ID: u32 = 2069;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Copper Bars
@@ -23328,7 +25918,9 @@ impl BlockDef for WaxedCopperBars {
     const MIN_STATE_ID: u32 = 2051;
     const MAX_STATE_ID: u32 = 2051;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Polished Deepslate Slab
@@ -23346,7 +25938,9 @@ impl BlockDef for PolishedDeepslateDoubleSlab {
     const MIN_STATE_ID: u32 = 2049;
     const MAX_STATE_ID: u32 = 2050;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Open Eyeblossom
@@ -23364,7 +25958,9 @@ impl BlockDef for OpenEyeblossom {
     const MIN_STATE_ID: u32 = 1839;
     const MAX_STATE_ID: u32 = 1839;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Oxidized Lightning Rod
@@ -23382,7 +25978,9 @@ impl BlockDef for OxidizedLightningRod {
     const MIN_STATE_ID: u32 = 1378;
     const MAX_STATE_ID: u32 = 1389;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Gray Stained Glass
@@ -23400,7 +25998,9 @@ impl BlockDef for HardGrayStainedGlass {
     const MIN_STATE_ID: u32 = 1365;
     const MAX_STATE_ID: u32 = 1365;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Exposed Cut Copper Slab
@@ -23418,7 +26018,9 @@ impl BlockDef for WaxedExposedCutCopperSlab {
     const MIN_STATE_ID: u32 = 1306;
     const MAX_STATE_ID: u32 = 1307;
     type State = super::states::SlabState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Moss Carpet
@@ -23436,7 +26038,9 @@ impl BlockDef for MossCarpet {
     const MIN_STATE_ID: u32 = 1376;
     const MAX_STATE_ID: u32 = 1376;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Deepslate
@@ -23454,7 +26058,9 @@ impl BlockDef for Deepslate {
     const MIN_STATE_ID: u32 = 1310;
     const MAX_STATE_ID: u32 = 1312;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Potted Closed Eyeblossom
@@ -23472,7 +26078,9 @@ impl BlockDef for FlowerPot {
     const MIN_STATE_ID: u32 = 1430;
     const MAX_STATE_ID: u32 = 1431;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Firefly Bush
@@ -23490,7 +26098,9 @@ impl BlockDef for FireflyBush {
     const MIN_STATE_ID: u32 = 1353;
     const MAX_STATE_ID: u32 = 1353;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Info Update
@@ -23508,7 +26118,9 @@ impl BlockDef for InfoUpdate {
     const MIN_STATE_ID: u32 = 1300;
     const MAX_STATE_ID: u32 = 1300;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Black Stained Glass Pane
@@ -23526,7 +26138,9 @@ impl BlockDef for HardBlackStainedGlassPane {
     const MIN_STATE_ID: u32 = 1272;
     const MAX_STATE_ID: u32 = 1272;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Brown Stained Glass
@@ -23544,7 +26158,9 @@ impl BlockDef for HardBrownStainedGlass {
     const MIN_STATE_ID: u32 = 1265;
     const MAX_STATE_ID: u32 = 1265;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Orange Stained Glass Pane
@@ -23562,7 +26178,9 @@ impl BlockDef for HardOrangeStainedGlassPane {
     const MIN_STATE_ID: u32 = 1257;
     const MAX_STATE_ID: u32 = 1257;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Exposed Copper Chest
@@ -23580,7 +26198,9 @@ impl BlockDef for WaxedExposedCopperChest {
     const MIN_STATE_ID: u32 = 1247;
     const MAX_STATE_ID: u32 = 1250;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Exposed Copper Chain
@@ -23598,7 +26218,9 @@ impl BlockDef for WaxedExposedCopperChain {
     const MIN_STATE_ID: u32 = 1244;
     const MAX_STATE_ID: u32 = 1246;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hanging Roots
@@ -23616,7 +26238,9 @@ impl BlockDef for HangingRoots {
     const MIN_STATE_ID: u32 = 1072;
     const MAX_STATE_ID: u32 = 1072;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Glow Frame
@@ -23634,7 +26258,9 @@ impl BlockDef for GlowFrame {
     const MIN_STATE_ID: u32 = 1046;
     const MAX_STATE_ID: u32 = 1069;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Cobbled Deepslate Stairs
@@ -23652,7 +26278,9 @@ impl BlockDef for CobbledDeepslateStairs {
     const MIN_STATE_ID: u32 = 1010;
     const MAX_STATE_ID: u32 = 1017;
     type State = super::states::StairState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Acacia Shelf
@@ -23670,7 +26298,9 @@ impl BlockDef for AcaciaShelf {
     const MIN_STATE_ID: u32 = 383;
     const MAX_STATE_ID: u32 = 414;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Green Stained Glass Pane
@@ -23688,7 +26318,9 @@ impl BlockDef for HardGreenStainedGlassPane {
     const MIN_STATE_ID: u32 = 382;
     const MAX_STATE_ID: u32 = 382;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Birch Shelf
@@ -23706,7 +26338,9 @@ impl BlockDef for BirchShelf {
     const MIN_STATE_ID: u32 = 302;
     const MAX_STATE_ID: u32 = 333;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Leaf Litter
@@ -23724,7 +26358,9 @@ impl BlockDef for LeafLitter {
     const MIN_STATE_ID: u32 = 46;
     const MAX_STATE_ID: u32 = 77;
     type State = super::states::PetalsState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Weathered Copper Chest
@@ -23742,7 +26378,9 @@ impl BlockDef for WaxedWeatheredCopperChest {
     const MIN_STATE_ID: u32 = 42;
     const MAX_STATE_ID: u32 = 45;
     type State = super::states::CardinalState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Waxed Weathered Copper Chain
@@ -23760,7 +26398,9 @@ impl BlockDef for WaxedWeatheredCopperChain {
     const MIN_STATE_ID: u32 = 39;
     const MAX_STATE_ID: u32 = 41;
     type State = super::states::PillarState;
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// Hard Pink Stained Glass
@@ -23778,7 +26418,9 @@ impl BlockDef for HardPinkStainedGlass {
     const MIN_STATE_ID: u32 = 1;
     const MAX_STATE_ID: u32 = 1;
     type State = ();
-    fn default_state() -> Self::State { Default::default() }
+    fn default_state() -> Self::State {
+        Default::default()
+    }
 }
 
 /// All vanilla blocks as dynamic references.

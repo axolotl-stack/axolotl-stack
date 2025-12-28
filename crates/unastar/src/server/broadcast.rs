@@ -6,13 +6,13 @@
 //! Uses spatial hashing (EntityGrid) for O(N) broadcast lookups instead of O(N²).
 
 use bevy_ecs::prelude::*;
-use jolyne::protocol::packets::PacketMovePlayerMode;
-use jolyne::protocol::types::{
+use jolyne::valentine::{AddPlayerPacket, MovePlayerPacketMode, RemoveEntityPacket};
+use jolyne::valentine::types::{
     AbilityLayers, AbilityLayersType, AbilitySet, CommandPermissionLevel, DeviceOs,
-    EntityProperties, GameMode as ProtocolGameMode, Item, Links, McpePacket, MetadataDictionary,
+    EntityProperties, GameMode as ProtocolGameMode, Item, Links, MetadataDictionary,
     PermissionLevel, Vec3F,
 };
-use jolyne::protocol::{PacketAddPlayer, PacketMovePlayer, PacketRemoveEntity};
+use jolyne::valentine::{McpePacket, MovePlayerPacket};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -67,7 +67,7 @@ fn build_add_player_packet(
     position: &Position,
     rotation: &Rotation,
     game_mode: GameMode,
-) -> PacketAddPlayer {
+) -> AddPlayerPacket {
     let protocol_gamemode = match game_mode {
         GameMode::Survival => ProtocolGameMode::Survival,
         GameMode::Creative => ProtocolGameMode::Creative,
@@ -75,7 +75,7 @@ fn build_add_player_packet(
         GameMode::Spectator => ProtocolGameMode::Creative, // No spectator in protocol
     };
 
-    PacketAddPlayer {
+    AddPlayerPacket {
         uuid,
         username: name.to_string(),
         runtime_id,
@@ -116,8 +116,8 @@ fn build_move_player_packet(
     position: &Position,
     rotation: &Rotation,
     on_ground: bool,
-) -> PacketMovePlayer {
-    PacketMovePlayer {
+) -> MovePlayerPacket {
+    MovePlayerPacket {
         runtime_id: runtime_id as i32,
         position: Vec3F {
             x: position.0.x as f32,
@@ -127,7 +127,7 @@ fn build_move_player_packet(
         pitch: rotation.pitch,
         yaw: rotation.yaw,
         head_yaw: rotation.yaw,
-        mode: PacketMovePlayerMode::Normal,
+        mode: MovePlayerPacketMode::Normal,
         on_ground,
         ridden_runtime_id: 0,
         teleport: None,
@@ -136,8 +136,8 @@ fn build_move_player_packet(
 }
 
 /// Builds a RemoveEntity packet for despawn broadcasting.
-fn build_remove_entity_packet(runtime_id: i64) -> PacketRemoveEntity {
-    PacketRemoveEntity {
+fn build_remove_entity_packet(runtime_id: i64) -> RemoveEntityPacket {
+    RemoveEntityPacket {
         entity_id_self: runtime_id,
     }
 }
@@ -402,8 +402,8 @@ pub fn broadcast_despawn_system(
 use crate::entity::components::BreakingState;
 use crate::world::ChunkManager;
 use crate::world::ecs::ChunkViewers;
-use jolyne::protocol::packets::{PacketLevelEvent, PacketLevelEventEvent, PacketLevelSoundEvent};
-use jolyne::protocol::types::SoundType;
+use jolyne::valentine::{LevelEventPacket, LevelEventPacketEvent, LevelSoundEventPacket};
+use jolyne::valentine::types::SoundType;
 
 /// System: Tick block breaking state for all players.
 ///
@@ -448,8 +448,8 @@ pub fn tick_block_breaking(
                 65535i32
             };
 
-            let crack_event = PacketLevelEvent {
-                event: PacketLevelEventEvent::BlockBreakSpeed,
+            let crack_event = LevelEventPacket {
+                event: LevelEventPacketEvent::BlockBreakSpeed,
                 position: Vec3F {
                     x: x as f32,
                     y: y as f32,
@@ -459,8 +459,8 @@ pub fn tick_block_breaking(
             };
 
             // Build punch particles (ParticlePunchBlock - generic, block-independent)
-            let particle_event = PacketLevelEvent {
-                event: PacketLevelEventEvent::ParticlePunchBlock,
+            let particle_event = LevelEventPacket {
+                event: LevelEventPacketEvent::ParticlePunchBlock,
                 position: Vec3F {
                     x: x as f32 + 0.5,
                     y: y as f32 + 0.5,
@@ -470,7 +470,7 @@ pub fn tick_block_breaking(
             };
 
             // Build breaking sound (SoundType::Hit with block data)
-            let sound_event = PacketLevelSoundEvent {
+            let sound_event = LevelSoundEventPacket {
                 sound_id: SoundType::Hit,
                 position: Vec3F {
                     x: x as f32 + 0.5,

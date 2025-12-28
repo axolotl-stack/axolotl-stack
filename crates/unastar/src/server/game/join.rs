@@ -4,22 +4,22 @@
 
 use super::GameServer;
 use crate::entity::components::{GameMode, PlayerSession, RuntimeEntityId};
-use jolyne::protocol::items::ITEMS;
-use jolyne::protocol::packets::{
-    PacketCreativeContent, PacketCreativeContentGroupsItem,
-    PacketCreativeContentGroupsItemCategory, PacketCreativeContentItemsItem,
-    PacketInventoryContent, PacketSetPlayerGameType,
+use jolyne::valentine::items::ITEMS;
+use jolyne::valentine::{
+    CreativeContentPacket, CreativeContentPacketGroupsItem,
+    CreativeContentPacketGroupsItemCategory, CreativeContentPacketItemsItem,
+    InventoryContentPacket, SetPlayerGameTypePacket, McpePacket,
 };
-use jolyne::protocol::types::{
+use jolyne::valentine::types::{
     AbilityLayers, AbilityLayersType, AbilitySet, CommandPermissionLevel, ContainerSlotType,
     EntityProperties, FullContainerName, GameMode as ProtocolGameMode, Item, ItemLegacy,
-    ItemLegacyContent, ItemLegacyContentExtra, McpePacket, MetadataDictionary,
+    ItemLegacyContent, ItemLegacyContentExtra, MetadataDictionary,
     MetadataDictionaryItem, MetadataDictionaryItemKey, MetadataDictionaryItemType,
     MetadataDictionaryItemValue, MetadataDictionaryItemValueDefault, MetadataFlags1,
     PermissionLevel, PlayerAttributesItem, WindowIdVarint,
 };
-use jolyne::protocol::{
-    PacketChunkRadiusUpdate, PacketSetEntityData, PacketUpdateAbilities, PacketUpdateAttributes,
+use jolyne::valentine::{
+    ChunkRadiusUpdatePacket, SetEntityDataPacket, UpdateAbilitiesPacket, UpdateAttributesPacket,
 };
 use tracing::debug;
 
@@ -40,7 +40,7 @@ impl GameServer {
             .copied()
             .unwrap_or(GameMode::Survival);
 
-        let _ = session.send(McpePacket::from(PacketChunkRadiusUpdate {
+        let _ = session.send(McpePacket::from(ChunkRadiusUpdatePacket {
             chunk_radius: self.config.default_chunk_radius,
         }));
         let _ = session.send(McpePacket::from(
@@ -54,7 +54,7 @@ impl GameServer {
             GameMode::Adventure => ProtocolGameMode::Adventure,
             GameMode::Spectator => ProtocolGameMode::Spectator,
         };
-        let _ = session.send(McpePacket::from(PacketSetPlayerGameType {
+        let _ = session.send(McpePacket::from(SetPlayerGameTypePacket {
             gamemode: protocol_gamemode,
         }));
         debug!("Sent SetPlayerGameType: {:?}", game_mode);
@@ -104,7 +104,7 @@ impl GameServer {
             walk_speed: 0.1,
         };
 
-        let _ = session.send(McpePacket::from(PacketUpdateAbilities {
+        let _ = session.send(McpePacket::from(UpdateAbilitiesPacket {
             entity_unique_id: runtime_id,
             permission_level: PermissionLevel::Member,
             command_permission: CommandPermissionLevel::Normal,
@@ -147,7 +147,7 @@ impl GameServer {
             attr("minecraft:player.experience", 0.0, 1.0, 0.0, 1.0),
         ];
 
-        let _ = session.send(McpePacket::from(PacketUpdateAttributes {
+        let _ = session.send(McpePacket::from(UpdateAttributesPacket {
             runtime_entity_id: runtime_id,
             attributes,
             tick: self.current_tick as i64,
@@ -212,7 +212,7 @@ impl GameServer {
             },
         ];
 
-        let _ = session.send(McpePacket::from(PacketSetEntityData {
+        let _ = session.send(McpePacket::from(SetEntityDataPacket {
             runtime_entity_id: runtime_id,
             metadata,
             properties: EntityProperties::default(),
@@ -249,7 +249,7 @@ impl GameServer {
         };
 
         // Main inventory: 36 empty slots (hotbar 0-8, main 9-35)
-        let result = session.send(McpePacket::from(PacketInventoryContent {
+        let result = session.send(McpePacket::from(InventoryContentPacket {
             window_id: WindowIdVarint::Inventory, // 0
             input: vec![empty_item.clone(); 36],
             container: container_name.clone(),
@@ -261,7 +261,7 @@ impl GameServer {
         );
 
         // Offhand: 1 empty slot
-        let result = session.send(McpePacket::from(PacketInventoryContent {
+        let result = session.send(McpePacket::from(InventoryContentPacket {
             window_id: WindowIdVarint::Offhand, // 119
             input: vec![empty_item.clone(); 1],
             container: FullContainerName {
@@ -276,7 +276,7 @@ impl GameServer {
         );
 
         // Armor: 4 empty slots (helmet, chestplate, leggings, boots)
-        let result = session.send(McpePacket::from(PacketInventoryContent {
+        let result = session.send(McpePacket::from(InventoryContentPacket {
             window_id: WindowIdVarint::Armor, // 120
             input: vec![empty_item.clone(); 4],
             container: FullContainerName {
@@ -292,7 +292,7 @@ impl GameServer {
 
         // UI inventory (crafting grid, cursor, etc.)
         // The UI inventory needs a larger size to support crafting operations
-        let result = session.send(McpePacket::from(PacketInventoryContent {
+        let result = session.send(McpePacket::from(InventoryContentPacket {
             window_id: WindowIdVarint::Ui,       // 124
             input: vec![empty_item.clone(); 51], // UI inventory size from Dragonfly
             container: FullContainerName {
@@ -318,8 +318,8 @@ impl GameServer {
         // Per gophertunnel: "Every item must be part of a group, any items that are not
         // part of a group will need to reference an 'anonymous group' which has an empty
         // name OR no icon."
-        let groups = vec![PacketCreativeContentGroupsItem {
-            category: PacketCreativeContentGroupsItemCategory::All,
+        let groups = vec![CreativeContentPacketGroupsItem {
+            category: CreativeContentPacketGroupsItemCategory::All,
             name: String::new(), // Empty name = anonymous group
             icon_item: ItemLegacy {
                 network_id: 0, // Air = no icon
@@ -329,12 +329,12 @@ impl GameServer {
 
         // Build items list from ITEMS registry
         // Each item needs: entry_id, ItemLegacy, group_index
-        let items: Vec<PacketCreativeContentItemsItem> = ITEMS
+        let items: Vec<CreativeContentPacketItemsItem> = ITEMS
             .iter()
             .enumerate()
             .filter(|(_, item)| item.id() != 0) // Skip air (id 0)
             .map(|(idx, item)| {
-                PacketCreativeContentItemsItem {
+                CreativeContentPacketItemsItem {
                     entry_id: (idx + 1) as i32, // 1-indexed entry IDs
                     item: ItemLegacy {
                         network_id: item.id() as i32, // Item's runtime network ID
@@ -353,13 +353,13 @@ impl GameServer {
         let item_count = items.len();
 
         // Debug: Print the exact bytes of just the groups for comparison
-        let test_packet = PacketCreativeContent {
+        let test_packet = CreativeContentPacket {
             groups: groups.clone(), // Use groups for testing
             items: vec![],
         };
 
         // Manually encode to see bytes
-        use jolyne::protocol::bedrock::codec::BedrockCodec;
+        use jolyne::valentine::bedrock::codec::BedrockCodec;
         let mut debug_buf = bytes::BytesMut::new();
         if let Err(e) = test_packet.encode(&mut debug_buf) {
             debug!("Failed to encode for debug: {:?}", e);
@@ -371,7 +371,7 @@ impl GameServer {
             debug!("CreativeContent packet len: {} bytes", debug_buf.len());
         }
 
-        let result = session.send(McpePacket::from(PacketCreativeContent {
+        let result = session.send(McpePacket::from(CreativeContentPacket {
             groups,        // Send with groups
             items: vec![], // But no items for now
         }));

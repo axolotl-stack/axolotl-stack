@@ -31,7 +31,7 @@ pub type ItemRegistry = Registry<ItemEntry>;
 impl ItemRegistry {
     /// Load vanilla items from valentine's generated data.
     pub fn load_vanilla(&mut self) {
-        use jolyne::protocol::items::ITEMS;
+        use jolyne::valentine::items::ITEMS;
 
         for item in ITEMS.iter() {
             let entry = ItemEntry {
@@ -46,9 +46,9 @@ impl ItemRegistry {
     }
 
     /// Convert registry to protocol packet.
-    pub fn to_packet(&self) -> jolyne::protocol::PacketItemRegistry {
-        use jolyne::protocol::bedrock::codec::Nbt;
-        use jolyne::protocol::types::itemstates::{ItemstatesItem, ItemstatesItemVersion};
+    pub fn to_packet(&self) -> jolyne::valentine::ItemRegistryPacket {
+        use jolyne::valentine::bedrock::codec::Nbt;
+        use jolyne::valentine::types::{ItemstatesItem, ItemstatesItemVersion};
 
         let itemstates: Vec<ItemstatesItem> = self
             .iter()
@@ -61,6 +61,6 @@ impl ItemRegistry {
             })
             .collect();
 
-        jolyne::protocol::PacketItemRegistry { itemstates }
+        jolyne::valentine::ItemRegistryPacket { itemstates }
     }
 }

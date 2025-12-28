@@ -4,7 +4,7 @@
 //! and the hot paths in stream processing.
 
 use bytes::{Bytes, BytesMut};
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use std::time::{Duration, Instant};
 use tokio_nethernet::stream::{Message, NetherNetStreamConfig};
 
@@ -96,18 +96,22 @@ fn benchmark_single_packet_processing(c: &mut Criterion) {
     for size in [64, 256, 1024, 4096, 8192] {
         group.throughput(Throughput::Bytes(size as u64));
 
-        group.bench_with_input(BenchmarkId::new("no_reassembly", size), &size, |b, &size| {
-            let mut harness =
-                ReassemblyBenchHarness::new(10 * 1024 * 1024, Duration::from_secs(30));
-            let now = Instant::now();
+        group.bench_with_input(
+            BenchmarkId::new("no_reassembly", size),
+            &size,
+            |b, &size| {
+                let mut harness =
+                    ReassemblyBenchHarness::new(10 * 1024 * 1024, Duration::from_secs(30));
+                let now = Instant::now();
 
-            // segments=0 means single packet (no reassembly needed)
-            let mut data = vec![0u8; size + 1];
-            data[0] = 0; // segments = 0
-            let data = Bytes::from(data);
+                // segments=0 means single packet (no reassembly needed)
+                let mut data = vec![0u8; size + 1];
+                data[0] = 0; // segments = 0
+                let data = Bytes::from(data);
 
-            b.iter(|| harness.handle_fragment(black_box(data.clone()), now))
-        });
+                b.iter(|| harness.handle_fragment(black_box(data.clone()), now))
+            },
+        );
     }
 
     group.finish();

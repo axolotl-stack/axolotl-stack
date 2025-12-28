@@ -121,8 +121,8 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn spawn_client(addr: SocketAddr, name: &str, duration: u64) -> anyhow::Result<()> {
-    use jolyne::protocol::PacketPlayerAuthInput;
-    use jolyne::protocol::types::{InputFlag, Vec2F, Vec3F};
+    use jolyne::valentine::PlayerAuthInputPacket;
+    use jolyne::valentine::types::{InputFlag, Vec2F, Vec3F};
 
     // Connect
     let handshake = BedrockStream::connect(addr).await?;
@@ -157,7 +157,7 @@ async fn spawn_client(addr: SocketAddr, name: &str, duration: u64) -> anyhow::Re
         let delta_x = -angle.sin() * walk_radius * rotation_speed;
         let delta_z = angle.cos() * walk_radius * rotation_speed;
 
-        let input_packet = PacketPlayerAuthInput {
+        let input_packet = PlayerAuthInputPacket {
             pitch: 0.0,
             yaw: angle.to_degrees(),
             position: Vec3F {
@@ -211,10 +211,10 @@ async fn spawn_client(addr: SocketAddr, name: &str, duration: u64) -> anyhow::Re
     info!("[{}] Duration complete, sending disconnect", name);
 
     // Send a clean disconnect packet
-    use jolyne::protocol::PacketDisconnect;
-    use jolyne::protocol::types::DisconnectFailReason;
+    use jolyne::valentine::DisconnectPacket;
+    use jolyne::valentine::types::DisconnectFailReason;
 
-    let disconnect = PacketDisconnect {
+    let disconnect = DisconnectPacket {
         hide_disconnect_reason: false,
         reason: DisconnectFailReason::Unknown,
         content: None, // No message needed

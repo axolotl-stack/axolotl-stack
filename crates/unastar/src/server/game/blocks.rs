@@ -10,9 +10,9 @@ use crate::entity::components::{BreakingState, PlayerSession};
 use crate::world::chunk::blocks;
 use crate::world::ecs::{ChunkManager, ChunkViewers};
 use crate::world::ecs::{world_to_chunk_coords, world_to_local_coords};
-use jolyne::protocol::blocks::BLOCKS;
-use jolyne::protocol::packets::{LevelEvent, PacketLevelEvent};
-use jolyne::protocol::types::{Action, BlockCoordinates, McpePacket, Vec3F};
+use jolyne::valentine::blocks::BLOCKS;
+use jolyne::valentine::{LevelEventPacket, LevelEventPacketEvent, McpePacket};
+use jolyne::valentine::types::{Action, BlockCoordinates, Vec3F};
 
 /// Maximum block actions per PlayerAuthInput packet.
 const MAX_BLOCK_ACTIONS: usize = 64;
@@ -22,7 +22,7 @@ impl GameServer {
     pub(super) fn handle_block_actions(
         &mut self,
         player_entity: Entity,
-        pk: &jolyne::protocol::packets::PacketPlayerAuthInput,
+        pk: &jolyne::valentine::PlayerAuthInputPacket,
     ) {
         let Some(block_actions) = &pk.block_action else {
             return;
@@ -35,16 +35,16 @@ impl GameServer {
         for action_item in block_actions.iter().take(MAX_BLOCK_ACTIONS) {
             // Extract position from content if available
             let get_pos = |content: &Option<
-                jolyne::protocol::packets::PacketPlayerAuthInputBlockActionItemContent,
+                jolyne::valentine::PlayerAuthInputPacketBlockActionItemContent,
             >|
              -> Option<(i32, i32, i32)> {
                 content.as_ref().map(|c| {
                     let pos = match c {
-                        jolyne::protocol::packets::PacketPlayerAuthInputBlockActionItemContent::PredictBreak(b) => &b.position,
-                        jolyne::protocol::packets::PacketPlayerAuthInputBlockActionItemContent::StartBreak(b) => &b.position,
-                        jolyne::protocol::packets::PacketPlayerAuthInputBlockActionItemContent::ContinueBreak(b) => &b.position,
-                        jolyne::protocol::packets::PacketPlayerAuthInputBlockActionItemContent::AbortBreak(b) => &b.position,
-                        jolyne::protocol::packets::PacketPlayerAuthInputBlockActionItemContent::CrackBreak(b) => &b.position,
+                        jolyne::valentine::PlayerAuthInputPacketBlockActionItemContent::PredictBreak(b) => &b.position,
+                        jolyne::valentine::PlayerAuthInputPacketBlockActionItemContent::StartBreak(b) => &b.position,
+                        jolyne::valentine::PlayerAuthInputPacketBlockActionItemContent::ContinueBreak(b) => &b.position,
+                        jolyne::valentine::PlayerAuthInputPacketBlockActionItemContent::AbortBreak(b) => &b.position,
+                        jolyne::valentine::PlayerAuthInputPacketBlockActionItemContent::CrackBreak(b) => &b.position,
                     };
                     (pos.x, pos.y, pos.z)
                 })
@@ -179,8 +179,8 @@ impl GameServer {
             65535
         };
 
-        let packet = PacketLevelEvent {
-            event: LevelEvent::BlockStartBreak,
+        let packet = LevelEventPacket {
+            event: LevelEventPacketEvent::BlockStartBreak,
             position: Vec3F {
                 x: x as f32,
                 y: y as f32,
@@ -211,8 +211,8 @@ impl GameServer {
             return;
         };
 
-        let packet = PacketLevelEvent {
-            event: LevelEvent::BlockStopBreak,
+        let packet = LevelEventPacket {
+            event: LevelEventPacketEvent::BlockStopBreak,
             position: Vec3F {
                 x: x as f32,
                 y: y as f32,
@@ -281,12 +281,12 @@ impl GameServer {
             debug!(viewer_count, "break_block: broadcasting UpdateBlock");
 
             // Prepare destroy particles and break sound
-            use jolyne::protocol::packets::{
-                PacketLevelEvent, PacketLevelEventEvent, PacketLevelSoundEvent, PacketUpdateBlock,
+            use jolyne::valentine::{
+                LevelEventPacket, LevelEventPacketEvent, LevelSoundEventPacket, UpdateBlockPacket,
             };
-            use jolyne::protocol::types::{SoundType, UpdateBlockFlags};
+            use jolyne::valentine::types::{SoundType, UpdateBlockFlags};
 
-            let update_packet = PacketUpdateBlock {
+            let update_packet = UpdateBlockPacket {
                 position: BlockCoordinates { x, y, z },
                 block_runtime_id: blocks::AIR as i32,
                 flags: UpdateBlockFlags::NEIGHBORS | UpdateBlockFlags::NETWORK,
@@ -294,8 +294,8 @@ impl GameServer {
             };
 
             // Destroy particles (ParticleDestroyBlockNoSound)
-            let particle_packet = PacketLevelEvent {
-                event: PacketLevelEventEvent::ParticleDestroyBlockNoSound,
+            let particle_packet = LevelEventPacket {
+                event: LevelEventPacketEvent::ParticleDestroyBlockNoSound,
                 position: Vec3F {
                     x: x as f32 + 0.5,
                     y: y as f32 + 0.5,
@@ -305,7 +305,7 @@ impl GameServer {
             };
 
             // Break sound (SoundType::BreakBlock)
-            let sound_packet = PacketLevelSoundEvent {
+            let sound_packet = LevelSoundEventPacket {
                 sound_id: SoundType::BreakBlock,
                 position: Vec3F {
                     x: x as f32 + 0.5,
@@ -384,7 +384,7 @@ impl GameServer {
     pub(super) fn handle_block_click(
         &mut self,
         _entity: Entity,
-        data: &jolyne::protocol::types::TransactionUseItem,
+        data: &jolyne::valentine::types::TransactionUseItem,
     ) {
         // 1. Get held item and map to block
         let network_id = data.held_item.network_id;
@@ -479,10 +479,10 @@ impl GameServer {
         // Broadcast to viewers
         let world = self.ecs.world();
         if let Some(chunk_viewers) = world.get::<ChunkViewers>(chunk_entity) {
-            use jolyne::protocol::packets::{PacketLevelSoundEvent, PacketUpdateBlock};
-            use jolyne::protocol::types::{SoundType, UpdateBlockFlags};
+            use jolyne::valentine::{LevelSoundEventPacket, UpdateBlockPacket};
+            use jolyne::valentine::types::{SoundType, UpdateBlockFlags};
 
-            let update_packet = PacketUpdateBlock {
+            let update_packet = UpdateBlockPacket {
                 position: BlockCoordinates { x, y, z },
                 block_runtime_id: block_runtime_id as i32,
                 flags: UpdateBlockFlags::NEIGHBORS | UpdateBlockFlags::NETWORK,
@@ -490,7 +490,7 @@ impl GameServer {
             };
 
             // Place sound
-            let sound_packet = PacketLevelSoundEvent {
+            let sound_packet = LevelSoundEventPacket {
                 sound_id: SoundType::Place,
                 position: Vec3F {
                     x: x as f32 + 0.5,

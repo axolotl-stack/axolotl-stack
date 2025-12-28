@@ -21,7 +21,8 @@ use crate::signaling::{
 use crate::stream::{NetherNetStream, NetherNetStreamConfig};
 
 /// Pair of optional data channels (reliable, unreliable) protected by a mutex.
-type DataChannelPair = Arc<tokio::sync::Mutex<(Option<Arc<RTCDataChannel>>, Option<Arc<RTCDataChannel>>)>>;
+type DataChannelPair =
+    Arc<tokio::sync::Mutex<(Option<Arc<RTCDataChannel>>, Option<Arc<RTCDataChannel>>)>>;
 
 /// Configuration for `NetherNetListener`.
 #[derive(Clone)]
@@ -407,11 +408,16 @@ impl ListenerActor {
                     let tx = (*incoming_tx).clone();
                     dc.on_message(Box::new(move |msg| {
                         // Use try_send to avoid blocking; drop message if channel is full
-                        if tx.try_send(Ok(crate::stream::Message {
-                            buffer: msg.data,
-                            reliable: true,
-                        })).is_err() {
-                            tracing::warn!("Incoming message channel full, dropping reliable message");
+                        if tx
+                            .try_send(Ok(crate::stream::Message {
+                                buffer: msg.data,
+                                reliable: true,
+                            }))
+                            .is_err()
+                        {
+                            tracing::warn!(
+                                "Incoming message channel full, dropping reliable message"
+                            );
                         }
                         Box::pin(async {})
                     }));
@@ -419,11 +425,16 @@ impl ListenerActor {
                     let tx = (*incoming_tx).clone();
                     dc.on_message(Box::new(move |msg| {
                         // Use try_send to avoid blocking; drop message if channel is full
-                        if tx.try_send(Ok(crate::stream::Message {
-                            buffer: msg.data,
-                            reliable: false,
-                        })).is_err() {
-                            tracing::warn!("Incoming message channel full, dropping unreliable message");
+                        if tx
+                            .try_send(Ok(crate::stream::Message {
+                                buffer: msg.data,
+                                reliable: false,
+                            }))
+                            .is_err()
+                        {
+                            tracing::warn!(
+                                "Incoming message channel full, dropping unreliable message"
+                            );
                         }
                         Box::pin(async {})
                     }));

@@ -13,7 +13,7 @@ use valentine::bedrock::context::BedrockSession;
 use valentine::protocol::wire;
 
 use crate::error::{JolyneError, ProtocolError};
-use crate::protocol::types::mcpe::{GameHeader, McpePacket, McpePacketData, McpePacketName};
+use crate::valentine::mcpe::{GameHeader, McpePacket, McpePacketData, McpePacketName};
 
 /// A packet with only the header parsed, body kept as raw bytes.
 ///

@@ -167,13 +167,13 @@ impl ExtractedData {
                 .into_iter()
                 .map(|item| {
                     let version_str = match item.version {
-                        jolyne::protocol::types::ItemstatesItemVersion::Legacy => {
+                        jolyne::valentine::types::ItemstatesItemVersion::Legacy => {
                             "legacy".to_string()
                         }
-                        jolyne::protocol::types::ItemstatesItemVersion::DataDriven => {
+                        jolyne::valentine::types::ItemstatesItemVersion::DataDriven => {
                             "data_driven".to_string()
                         }
-                        jolyne::protocol::types::ItemstatesItemVersion::None => "none".to_string(),
+                        jolyne::valentine::types::ItemstatesItemVersion::None => "none".to_string(),
                     };
 
                     // Encode NBT to base64 if present

@@ -1,3 +1,14 @@
+#![allow(clippy::collapsible_if)]
+#![allow(clippy::manual_pattern_char_comparison)]
+#![allow(clippy::collapsible_match)]
+#![allow(clippy::unnecessary_map_or)]
+#![allow(clippy::double_ended_iterator_last)]
+#![allow(clippy::manual_strip)]
+#![allow(clippy::manual_find)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::needless_late_init)]
+#![allow(clippy::useless_format)]
+
 use std::collections::HashSet;
 use std::fs::{self, File};
 use std::io::{BufReader, Read, Write};
@@ -260,7 +271,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map(|p| if p.is_relative() { root.join(p) } else { p })
         .unwrap_or_else(|| root.join("minecraft-data"));
 
-    let valentine_root = root.parent().unwrap().join("valentine");
+    let valentine_root = root
+        .parent()
+        .ok_or("CARGO_MANIFEST_DIR has no parent directory")?
+        .join("valentine");
     let bedrock_src_dir = valentine_root.join("src").join("bedrock");
     let protocol_mod_dir = bedrock_src_dir.join("protocol");
     let bedrock_versions_dir = valentine_root.join("bedrock_versions");
@@ -288,6 +302,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let reader = BufReader::new(file);
     let all_versions: Vec<String> = serde_json::from_reader(reader)?;
 
+    // Filter out legacy protocol versions that have incompatible schema formats
+    // or are missing required type definitions in minecraft-data.
     let supported_versions: Vec<String> = all_versions
         .into_iter()
         .filter(|v| v != "0.14" && v != "0.15" && v != "1.0")
@@ -560,6 +576,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         /// - `protocol`: Unique protocol definitions (one per protocol schema).
         /// - `version`: Feature-gated per-MC-version modules that re-export a `protocol`.
         pub mod codec;
+        pub mod error;
         pub mod protocol;
         pub mod version;
         pub mod context;
@@ -645,7 +662,11 @@ fn update_valentine_manifest(
     default_feature: &str,
     versions: &[VersionDecl],
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let valentine_cargo = root.parent().unwrap().join("valentine").join("Cargo.toml");
+    let valentine_cargo = root
+        .parent()
+        .ok_or("CARGO_MANIFEST_DIR has no parent directory")?
+        .join("valentine")
+        .join("Cargo.toml");
     let mut contents = String::new();
     {
         let mut f = File::open(&valentine_cargo)?;
@@ -663,7 +684,9 @@ fn update_valentine_manifest(
 
     // Dependencies: remove stale generated crates then insert current set.
     {
-        let deps_tbl = doc["dependencies"].as_table_mut().unwrap();
+        let deps_tbl = doc["dependencies"]
+            .as_table_mut()
+            .ok_or("Cargo.toml missing [dependencies] table")?;
 
         let existing_deps: Vec<String> = deps_tbl.iter().map(|(k, _)| k.to_string()).collect();
         for key in existing_deps {
@@ -688,7 +711,9 @@ fn update_valentine_manifest(
 
     // Features: remove stale generated entries then insert current set.
     {
-        let features_tbl = doc["features"].as_table_mut().unwrap();
+        let features_tbl = doc["features"]
+            .as_table_mut()
+            .ok_or("Cargo.toml missing [features] table")?;
 
         let existing_keys: Vec<String> = features_tbl.iter().map(|(k, _)| k.to_string()).collect();
         for key in existing_keys {

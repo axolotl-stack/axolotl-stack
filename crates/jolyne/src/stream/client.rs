@@ -15,18 +15,18 @@ use uuid::Uuid;
 
 use crate::error::{JolyneError, ProtocolError};
 use crate::gamedata::GameData;
-use crate::protocol::packets::{
-    PacketAvailableEntityIdentifiers, PacketBiomeDefinitionList, PacketClientToServerHandshake,
-    PacketCreativeContent, PacketItemRegistry, PacketLogin, PacketPlayStatusStatus,
-    PacketRequestChunkRadius, PacketRequestNetworkSettings, PacketResourcePackClientResponse,
-    PacketResourcePackClientResponseResponseStatus, PacketServerboundLoadingScreen,
-    PacketSetLocalPlayerAsInitialized, PacketStartGame,
-};
-use crate::protocol::{McpePacket, McpePacketData};
 use crate::stream::{
     BedrockStream, Client, Handshake, Login, Play, ResourcePacks, SecurePending, StartGame,
     transport::{BedrockTransport, RakNetTransport, Transport},
 };
+use crate::valentine::{
+    AvailableEntityIdentifiersPacket, BiomeDefinitionListPacket, ClientToServerHandshakePacket,
+    CreativeContentPacket, ItemRegistryPacket, LoginPacket, PlayStatusPacketStatus,
+    RequestChunkRadiusPacket, RequestNetworkSettingsPacket, ResourcePackClientResponsePacket,
+    ResourcePackClientResponsePacketResponseStatus, ServerboundLoadingScreenPacket,
+    SetLocalPlayerAsInitializedPacket, StartGamePacket,
+};
+use crate::valentine::{McpePacket, McpePacketData};
 
 // --- Config ---
 
@@ -88,8 +88,8 @@ impl<T: Transport> BedrockStream<Handshake, Client, T> {
     pub async fn request_settings(
         mut self,
     ) -> Result<BedrockStream<Login, Client, T>, JolyneError> {
-        let req = PacketRequestNetworkSettings {
-            client_protocol: crate::protocol::PROTOCOL_VERSION,
+        let req = RequestNetworkSettingsPacket {
+            client_protocol: crate::valentine::PROTOCOL_VERSION,
         };
         self.transport.send_raw(McpePacket::from(req)).await?;
 
@@ -155,9 +155,9 @@ impl<T: Transport> BedrockStream<Login, Client, T> {
             config.uuid,
         )?;
 
-        let login_pkt = PacketLogin {
-            protocol_version: crate::protocol::PROTOCOL_VERSION,
-            tokens: crate::protocol::types::login::LoginTokens {
+        let login_pkt = LoginPacket {
+            protocol_version: crate::valentine::PROTOCOL_VERSION,
+            tokens: crate::valentine::LoginTokens {
                 identity: chain,
                 client: client_token,
             },
@@ -298,7 +298,7 @@ impl<T: Transport> BedrockStream<SecurePending, Client, T> {
 
                 self.transport.enable_encryption(*key, iv);
 
-                let ack = PacketClientToServerHandshake {};
+                let ack = ClientToServerHandshakePacket {};
                 self.transport.send_batch(&[McpePacket::from(ack)]).await?;
 
                 // 6. Wait for PlayStatus::LoginSuccess (Encrypted)
@@ -311,8 +311,8 @@ impl<T: Transport> BedrockStream<SecurePending, Client, T> {
                 }
 
                 if let McpePacketData::PacketPlayStatus(status) = status.data {
-                    use crate::protocol::packets::PacketPlayStatusStatus;
-                    if status.status != PacketPlayStatusStatus::LoginSuccess {
+                    use crate::valentine::PlayStatusPacketStatus;
+                    if status.status != PlayStatusPacketStatus::LoginSuccess {
                         return Err(ProtocolError::UnexpectedHandshake(format!(
                             "Login failed: {:?}",
                             status.status
@@ -330,8 +330,8 @@ impl<T: Transport> BedrockStream<SecurePending, Client, T> {
             }
             McpePacketData::PacketPlayStatus(status) => {
                 // Encryption skipped by server?
-                use crate::protocol::packets::PacketPlayStatusStatus;
-                if status.status != PacketPlayStatusStatus::LoginSuccess {
+                use crate::valentine::PlayStatusPacketStatus;
+                if status.status != PlayStatusPacketStatus::LoginSuccess {
                     return Err(ProtocolError::UnexpectedHandshake(format!(
                         "Login failed: {:?}",
                         status.status
@@ -371,16 +371,16 @@ impl<T: Transport> BedrockStream<ResourcePacks, Client, T> {
 
         tracing::debug!("Received ResourcePacksInfo");
 
-        let resp = PacketResourcePackClientResponse {
-            response_status: PacketResourcePackClientResponseResponseStatus::HaveAllPacks,
+        let resp = ResourcePackClientResponsePacket {
+            response_status: ResourcePackClientResponsePacketResponseStatus::HaveAllPacks,
             resourcepackids: vec![],
         };
         self.transport.send_batch(&[McpePacket::from(resp)]).await?;
 
         let _stack_pkt = self.transport.recv_packet().await?;
 
-        let complete = PacketResourcePackClientResponse {
-            response_status: PacketResourcePackClientResponseResponseStatus::Completed,
+        let complete = ResourcePackClientResponsePacket {
+            response_status: ResourcePackClientResponsePacketResponseStatus::Completed,
             resourcepackids: vec![],
         };
         self.transport
@@ -411,11 +411,11 @@ impl<T: Transport> BedrockStream<StartGame, Client, T> {
         let mut sent_chunk_radius = false;
 
         // Captured game data
-        let mut start_game: Option<PacketStartGame> = None;
-        let mut item_registry: Option<PacketItemRegistry> = None;
-        let mut biome_definitions: Option<PacketBiomeDefinitionList> = None;
-        let mut entity_identifiers: Option<PacketAvailableEntityIdentifiers> = None;
-        let mut creative_content: Option<PacketCreativeContent> = None;
+        let mut start_game: Option<StartGamePacket> = None;
+        let mut item_registry: Option<ItemRegistryPacket> = None;
+        let mut biome_definitions: Option<BiomeDefinitionListPacket> = None;
+        let mut entity_identifiers: Option<AvailableEntityIdentifiersPacket> = None;
+        let mut creative_content: Option<CreativeContentPacket> = None;
 
         tracing::debug!("Waiting for StartGame sequence...");
 
@@ -432,7 +432,7 @@ impl<T: Transport> BedrockStream<StartGame, Client, T> {
                     tracing::debug!(items = %registry.itemstates.len(), "ItemRegistry received");
                     item_registry = Some(registry);
                     if !sent_chunk_radius {
-                        let req = PacketRequestChunkRadius {
+                        let req = RequestChunkRadiusPacket {
                             chunk_radius: 4,
                             max_radius: 32,
                         };
@@ -457,7 +457,7 @@ impl<T: Transport> BedrockStream<StartGame, Client, T> {
                     creative_content = Some(content);
                 }
                 McpePacketData::PacketPlayStatus(status) => {
-                    if status.status == PacketPlayStatusStatus::PlayerSpawn {
+                    if status.status == PlayStatusPacketStatus::PlayerSpawn {
                         tracing::debug!("PlayerSpawn received");
                         break;
                     }
@@ -469,11 +469,11 @@ impl<T: Transport> BedrockStream<StartGame, Client, T> {
         // 2. Send Loading Screen (Start & End)
         self.transport
             .send_batch(&[
-                McpePacket::from(PacketServerboundLoadingScreen {
+                McpePacket::from(ServerboundLoadingScreenPacket {
                     type_: 1,
                     loading_screen_id: None,
                 }),
-                McpePacket::from(PacketServerboundLoadingScreen {
+                McpePacket::from(ServerboundLoadingScreenPacket {
                     type_: 2,
                     loading_screen_id: None,
                 }),
@@ -483,7 +483,7 @@ impl<T: Transport> BedrockStream<StartGame, Client, T> {
         // 3. Send Initialized
         if let Some(rid) = runtime_entity_id {
             self.transport
-                .send_batch(&[McpePacket::from(PacketSetLocalPlayerAsInitialized {
+                .send_batch(&[McpePacket::from(SetLocalPlayerAsInitializedPacket {
                     runtime_entity_id: rid,
                 })])
                 .await?;

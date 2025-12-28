@@ -13,8 +13,8 @@ impl Position {
     }
 
     /// Convert to protocol Vec3F.
-    pub fn to_protocol(&self) -> jolyne::protocol::types::Vec3F {
-        jolyne::protocol::types::Vec3F {
+    pub fn to_protocol(&self) -> jolyne::valentine::types::Vec3F {
+        jolyne::valentine::types::Vec3F {
             x: self.0.x as f32,
             y: self.0.y as f32,
             z: self.0.z as f32,
@@ -22,7 +22,7 @@ impl Position {
     }
 
     /// Create from protocol Vec3F.
-    pub fn from_protocol(v: &jolyne::protocol::types::Vec3F) -> Self {
+    pub fn from_protocol(v: &jolyne::valentine::types::Vec3F) -> Self {
         Self(DVec3::new(v.x as f64, v.y as f64, v.z as f64))
     }
 }

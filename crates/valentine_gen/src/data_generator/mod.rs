@@ -33,6 +33,7 @@ pub struct GenerateConfig {
 
 impl GenerateConfig {
     /// Generate all data types.
+    #[allow(dead_code)]
     pub fn all() -> Self {
         Self {
             items: true,

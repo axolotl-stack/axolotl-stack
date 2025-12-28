@@ -42,7 +42,7 @@ impl BlockRegistry {
     /// Uses MIN_STATE_ID and MAX_STATE_ID from valentine which are the canonical
     /// runtime IDs that match client expectations.
     pub fn load_vanilla(&mut self) {
-        use jolyne::protocol::blocks::BLOCKS;
+        use jolyne::valentine::blocks::BLOCKS;
 
         for block in BLOCKS.iter() {
             let entry = BlockEntry {
@@ -59,9 +59,9 @@ impl BlockRegistry {
     }
 
     /// Generate BlockPropertyData for PacketStartGame.
-    pub fn to_block_properties(&self) -> Vec<jolyne::protocol::BlockPropertiesItem> {
-        use jolyne::protocol::BlockPropertiesItem;
-        use jolyne::protocol::blocks::BLOCKS;
+    pub fn to_block_properties(&self) -> Vec<jolyne::valentine::BlockPropertiesItem> {
+        use jolyne::valentine::BlockPropertiesItem;
+        use jolyne::valentine::blocks::BLOCKS;
         use valentine::bedrock::codec::Nbt;
 
         let mut properties = Vec::with_capacity(BLOCKS.len());

@@ -9,11 +9,7 @@ use tokio_raknet::transport::RaknetStream;
 use valentine::bedrock::{
     codec::BedrockCodec,
     context::BedrockSession,
-    protocol::v1_21_130::{
-        packets::PacketRequestNetworkSettings,
-        types::mcpe::McpePacket,
-        types::mcpe::McpePacketData, // Still need McpePacketData for matching
-    },
+    protocol::v1_21_130::{McpePacket, McpePacketData, RequestNetworkSettingsPacket},
 };
 
 const PROTOCOL_VERSION: i32 = 860;
@@ -44,7 +40,7 @@ async fn main() -> Result<()> {
     // Build and send the first Game packet: RequestNetworkSettings.
     // Use McpePacket::from_payload_with_subclients for explicit header control.
     let network_settings_req = McpePacket::from_payload_with_subclients(
-        PacketRequestNetworkSettings {
+        RequestNetworkSettingsPacket {
             client_protocol: PROTOCOL_VERSION,
         },
         0, // from_subclient

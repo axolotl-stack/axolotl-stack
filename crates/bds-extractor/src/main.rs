@@ -7,8 +7,8 @@ mod output;
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use jolyne::stream::client::ClientHandshakeConfig;
 use jolyne::BedrockStream;
+use jolyne::stream::client::ClientHandshakeConfig;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -51,10 +51,7 @@ async fn main() -> Result<()> {
         )
         .init();
 
-    let addr: SocketAddr = args
-        .addr
-        .parse()
-        .context("Invalid server address format")?;
+    let addr: SocketAddr = args.addr.parse().context("Invalid server address format")?;
 
     info!("Connecting to BDS at {}...", addr);
 

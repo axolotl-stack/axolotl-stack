@@ -12,7 +12,7 @@ fn decode_packets(
 }
 
 use crate::error::{JolyneError, ProtocolError};
-use crate::protocol::types::mcpe::{GAME_PACKET_ID as GAME_FRAME_ID, McpePacket, McpePacketData};
+use crate::valentine::mcpe::{GAME_PACKET_ID as GAME_FRAME_ID, McpePacket, McpePacketData};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use flate2::Compression;
 use flate2::read::DeflateDecoder;
@@ -92,8 +92,7 @@ fn decode_payload(
 ) -> Result<Vec<McpePacket>, JolyneError> {
     if payload.first().copied() == Some(GAME_FRAME_ID) {
         let mut buf = payload.clone();
-        let (header, data) =
-            McpePacketData::decode_game_frame(&mut buf, session.into()).map_err(JolyneError::Io)?;
+        let (header, data) = McpePacketData::decode_game_frame(&mut buf, session.into())?;
         return Ok(vec![McpePacket { header, data }]);
     }
     decode_packets(payload, session)
@@ -272,14 +271,11 @@ pub fn encode_batch_multi(
 ) -> Result<Bytes, JolyneError> {
     let mut packet_buf = BytesMut::new();
     for packet in packets {
-        packet
-            .data
-            .encode_inner(
-                &mut packet_buf,
-                packet.header.from_subclient,
-                packet.header.to_subclient,
-            )
-            .map_err(JolyneError::Io)?;
+        packet.data.encode_inner(
+            &mut packet_buf,
+            packet.header.from_subclient,
+            packet.header.to_subclient,
+        )?;
     }
 
     let uncompressed = packet_buf.freeze();
@@ -462,7 +458,7 @@ pub fn encode_batch_raw(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::protocol::packets::{PacketPlayStatus, PacketPlayStatusStatus};
+    use crate::valentine::{PlayStatusPacket, PlayStatusPacketStatus};
 
     #[test]
     fn decode_batch_rejects_wrong_id() {
@@ -503,8 +499,8 @@ mod tests {
     #[test]
     fn encode_decode_roundtrip_compressed() {
         let session = BedrockSession { shield_item_id: 0 };
-        let packet = McpePacket::from(PacketPlayStatus {
-            status: PacketPlayStatusStatus::LoginSuccess,
+        let packet = McpePacket::from(PlayStatusPacket {
+            status: PlayStatusPacketStatus::LoginSuccess,
         });
 
         let batch = encode_batch(&packet, true, 7, 0).expect("encode");
@@ -514,7 +510,7 @@ mod tests {
         assert_eq!(decoded.len(), 1);
         assert!(matches!(
             decoded[0].data,
-            McpePacketData::PacketPlayStatus(ref s) if s.status == PacketPlayStatusStatus::LoginSuccess
+            McpePacketData::PacketPlayStatus(ref s) if s.status == PlayStatusPacketStatus::LoginSuccess
         ));
     }
 }

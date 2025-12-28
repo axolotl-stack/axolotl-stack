@@ -1,7 +1,7 @@
 //! Network events for communication between network tasks and main thread.
 
 use glam::DVec3;
-use jolyne::protocol::types::mcpe::McpePacket;
+use jolyne::valentine::McpePacket;
 use tokio::sync::mpsc;
 
 /// Unique session identifier.

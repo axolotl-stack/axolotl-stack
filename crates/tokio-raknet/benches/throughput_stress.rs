@@ -4,7 +4,7 @@
 //! measure throughput under various conditions.
 
 use bytes::{Bytes, BytesMut};
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use std::time::Instant;
 use tokio_raknet::protocol::{
     datagram::{Datagram, DatagramPayload},

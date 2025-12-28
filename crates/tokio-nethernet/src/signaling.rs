@@ -509,7 +509,11 @@ mod tests {
 
     #[test]
     fn test_signal_parse_valid() {
-        let signal = Signal::parse("CONNECTREQUEST 12345 some sdp data here", "net123".to_string()).unwrap();
+        let signal = Signal::parse(
+            "CONNECTREQUEST 12345 some sdp data here",
+            "net123".to_string(),
+        )
+        .unwrap();
 
         assert_eq!(signal.typ, "CONNECTREQUEST");
         assert_eq!(signal.connection_id, 12345);
@@ -556,7 +560,9 @@ mod tests {
             "ufrag123",
         );
 
-        assert!(formatted.starts_with("candidate:abc123 1 udp 2130706431 192.168.1.100 54321 typ host"));
+        assert!(
+            formatted.starts_with("candidate:abc123 1 udp 2130706431 192.168.1.100 54321 typ host")
+        );
         assert!(formatted.contains("ufrag ufrag123"));
         assert!(formatted.contains("network-id 1"));
     }

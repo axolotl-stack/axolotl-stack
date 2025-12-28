@@ -4,9 +4,9 @@
 
 use glam::DVec3;
 use jolyne::auth::ValidatedIdentity;
-use jolyne::protocol::types::Vec3F;
-use jolyne::protocol::types::block::BlockCoordinates;
 use jolyne::stream::server::ServerHandshakeConfig;
+use jolyne::valentine::types::Vec3F;
+use jolyne::valentine::BlockCoordinates;
 use jolyne::{JolyneError, ServerLogin, ServerPlay, WorldTemplate};
 use p384::SecretKey;
 
@@ -64,7 +64,7 @@ pub async fn accept_join_sequence(
         y: spawn.y.floor() as i32,
         z: spawn.z.floor() as i32,
     };
-    join_params.start_game.rotation = jolyne::protocol::types::vec::Vec2F {
+    join_params.start_game.rotation = jolyne::valentine::Vec2F {
         x: spawn.pitch,
         z: spawn.yaw,
     };
@@ -81,13 +81,13 @@ pub async fn resolve_spawn_location(
     template: &WorldTemplate,
     player_data_store: &PlayerDataStore,
 ) -> SpawnLocation {
-    use jolyne::protocol::packets::start::PacketStartGameDimension;
+    use jolyne::valentine::StartGamePacketDimension;
 
     let uuid = identity.uuid.as_deref();
     let world_dimension = match template.start_game_template.dimension {
-        PacketStartGameDimension::Overworld => 0,
-        PacketStartGameDimension::Nether => 1,
-        PacketStartGameDimension::End => 2,
+        StartGamePacketDimension::Overworld => 0,
+        StartGamePacketDimension::Nether => 1,
+        StartGamePacketDimension::End => 2,
     };
 
     for rule in &config.spawn_rules {

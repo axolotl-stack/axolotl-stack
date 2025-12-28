@@ -39,7 +39,7 @@ pub type BiomeRegistry = Registry<BiomeEntry>;
 impl BiomeRegistry {
     /// Load vanilla biomes from valentine's generated data.
     pub fn load_vanilla(&mut self) {
-        use jolyne::protocol::biomes::ALL_BIOMES;
+        use jolyne::valentine::biomes::ALL_BIOMES;
 
         for biome in ALL_BIOMES.iter() {
             let entry = BiomeEntry {
@@ -58,8 +58,8 @@ impl BiomeRegistry {
 
     /// Convert registry to protocol packet with string interning.
     /// Match Go format: -1 for vanilla biome IDs, proper string interning
-    pub fn to_packet(&self) -> jolyne::protocol::PacketBiomeDefinitionList {
-        use jolyne::protocol::types::biome::BiomeDefinition;
+    pub fn to_packet(&self) -> jolyne::valentine::BiomeDefinitionListPacket {
+        use jolyne::valentine::BiomeDefinition;
         use std::collections::HashMap;
 
         let mut string_list: Vec<String> = Vec::new();
@@ -115,7 +115,7 @@ impl BiomeRegistry {
             })
             .collect();
 
-        jolyne::protocol::PacketBiomeDefinitionList {
+        jolyne::valentine::BiomeDefinitionListPacket {
             biome_definitions,
             string_list,
         }

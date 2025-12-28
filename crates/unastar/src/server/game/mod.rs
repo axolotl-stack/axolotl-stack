@@ -20,9 +20,9 @@ pub mod types;
 
 use bevy_ecs::prelude::*;
 use jolyne::WorldTemplate;
-use jolyne::protocol::packets::start::PacketStartGameDimension;
-use jolyne::protocol::types::Vec3F;
-use jolyne::protocol::types::block::BlockCoordinates;
+use jolyne::valentine::StartGamePacketDimension;
+use jolyne::valentine::types::Vec3F;
+use jolyne::valentine::types::BlockCoordinates;
 use std::sync::Arc;
 use tracing::{info, trace, warn};
 
@@ -105,9 +105,9 @@ impl GameServer {
         };
         world_template.start_game_template.spawn_position = BlockCoordinates { x: 0, y: 17, z: 0 };
         world_template.start_game_template.dimension = match config.world.dimension {
-            1 => PacketStartGameDimension::Nether,
-            2 => PacketStartGameDimension::End,
-            _ => PacketStartGameDimension::Overworld,
+            1 => StartGamePacketDimension::Nether,
+            2 => StartGamePacketDimension::End,
+            _ => StartGamePacketDimension::Overworld,
         };
         world_template.item_registry = Arc::new(items.to_packet());
         world_template.biome_definitions = Arc::new(biomes.to_packet());
@@ -535,12 +535,12 @@ impl GameServer {
     fn build_creative_content(
         items: &ItemRegistry,
         blocks: &BlockRegistry,
-    ) -> jolyne::protocol::PacketCreativeContent {
+    ) -> jolyne::valentine::CreativeContentPacket {
         use crate::registry::RegistryEntry;
-        use jolyne::protocol::{
-            ItemLegacy, ItemLegacyContent, ItemLegacyContentExtra, PacketCreativeContent,
-            PacketCreativeContentGroupsItem, PacketCreativeContentGroupsItemCategory,
-            PacketCreativeContentItemsItem,
+        use jolyne::valentine::{
+            ItemLegacy, ItemLegacyContent, ItemLegacyContentExtra, CreativeContentPacket,
+            CreativeContentPacketGroupsItem, CreativeContentPacketGroupsItemCategory,
+            CreativeContentPacketItemsItem,
         };
 
         // Create proper groups like Dragonfly does
@@ -548,8 +548,8 @@ impl GameServer {
         // Anonymous groups (empty name) don't show a header
         let groups = vec![
             // Group 0: Construction blocks
-            PacketCreativeContentGroupsItem {
-                category: PacketCreativeContentGroupsItemCategory::Construction,
+            CreativeContentPacketGroupsItem {
+                category: CreativeContentPacketGroupsItemCategory::Construction,
                 name: "itemGroup.name.planks".to_string(),
                 icon_item: ItemLegacy {
                     network_id: 0, // Air = use first item as icon
@@ -557,8 +557,8 @@ impl GameServer {
                 },
             },
             // Group 1: Nature blocks
-            PacketCreativeContentGroupsItem {
-                category: PacketCreativeContentGroupsItemCategory::Nature,
+            CreativeContentPacketGroupsItem {
+                category: CreativeContentPacketGroupsItemCategory::Nature,
                 name: "itemGroup.name.stone".to_string(),
                 icon_item: ItemLegacy {
                     network_id: 0,
@@ -566,8 +566,8 @@ impl GameServer {
                 },
             },
             // Group 2: Equipment
-            PacketCreativeContentGroupsItem {
-                category: PacketCreativeContentGroupsItemCategory::Equipment,
+            CreativeContentPacketGroupsItem {
+                category: CreativeContentPacketGroupsItemCategory::Equipment,
                 name: "itemGroup.name.sword".to_string(),
                 icon_item: ItemLegacy {
                     network_id: 0,
@@ -575,8 +575,8 @@ impl GameServer {
                 },
             },
             // Group 3: Miscellaneous items
-            PacketCreativeContentGroupsItem {
-                category: PacketCreativeContentGroupsItemCategory::Items,
+            CreativeContentPacketGroupsItem {
+                category: CreativeContentPacketGroupsItemCategory::Items,
                 name: "itemGroup.name.miscFood".to_string(),
                 icon_item: ItemLegacy {
                     network_id: 0,
@@ -587,7 +587,7 @@ impl GameServer {
 
         // Build items list from registry - entry_id must be sequential from 1
         let mut entry_id_counter = 1u32;
-        let items_list: Vec<PacketCreativeContentItemsItem> = items
+        let items_list: Vec<CreativeContentPacketItemsItem> = items
             .iter()
             .filter(|item| item.id() != 0) // Skip air (id 0)
             .map(|item| {
@@ -622,7 +622,7 @@ impl GameServer {
                     }
                 };
 
-                PacketCreativeContentItemsItem {
+                CreativeContentPacketItemsItem {
                     entry_id: entry_id as i32,
                     item: ItemLegacy {
                         network_id: item.id() as i32,
@@ -644,7 +644,7 @@ impl GameServer {
             "Built creative content"
         );
 
-        PacketCreativeContent {
+        CreativeContentPacket {
             groups,
             items: items_list,
         }
