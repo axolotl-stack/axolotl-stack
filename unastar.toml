@@ -25,7 +25,7 @@ default_gamemode = "creative"
 # Chunk radius we will *advertise* to clients and stream.
 # (Clients may request a different radius; we clamp it by `max_chunk_radius`.)
 default_chunk_radius = 4
-max_chunk_radius = 12
+max_chunk_radius = 16
 
 # Authentication settings
 # Xbox Live authentication. Set to false for offline/cracked clients.
@@ -38,6 +38,12 @@ encryption_enabled = true
 [world]
 # Dimension ID: 0 = Overworld, 1 = Nether, 2 = End
 dimension = 0
+
+# Storage provider: "level_db" (default, Bedrock-compatible) or "blaze_db" (high-performance)
+storage_provider = "blaze_db"
+
+# BlazeDB cache size in chunks (only used if storage_provider = "blaze_db")
+blazedb_cache_chunks = 4096
 
 [world.bounds]
 # Bounds are applied to *terrain generation* (non-air). Chunks outside bounds
@@ -52,8 +58,9 @@ mode = "infinite"
 # max_z = 64
 
 [world.generator]
-# kinds: "flat_stone" | "void_spawn_platform"
-kind = "flat_stone"
+# kinds: "super_flat" | "void_spawn_platform" | "vanilla"
+kind = "super_flat"
+seed = 12345
 
 [players]
 # Where Unastar stores per-player files (e.g. last known position).

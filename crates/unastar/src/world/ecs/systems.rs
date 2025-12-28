@@ -13,7 +13,7 @@
 //! - Publisher updates only sent on position/radius change, not per-chunk
 
 use bevy_ecs::prelude::*;
-use tracing::{debug, trace};
+use tracing::{debug, info, trace};
 
 use crate::entity::components::{ChunkRadius, Player, PlayerSession, Position};
 use crate::world::ecs::{
@@ -41,7 +41,7 @@ pub struct ChunkLoadConfig {
 impl Default for ChunkLoadConfig {
     fn default() -> Self {
         Self {
-            chunks_per_tick: 4,
+            chunks_per_tick: 8, // Low value to avoid slow ticks during terrain generation
             dimension: 0,
             simulation_distance: 6,
             unload_grace_ticks: 100,
@@ -53,7 +53,7 @@ impl ChunkLoadConfig {
     /// Create from ServerConfig.
     pub fn from_server_config(config: &crate::server::ServerConfig) -> Self {
         Self {
-            chunks_per_tick: 4,
+            chunks_per_tick: 8, // Low value to avoid slow ticks during terrain generation
             dimension: config.world.dimension,
             simulation_distance: config.simulation_distance,
             unload_grace_ticks: config.chunk_unload_ticks,
@@ -99,9 +99,10 @@ pub fn initialize_chunk_loaders(
         commands.entity(entity).insert((
             loader,
             LastPublisherState {
-                chunk_x,
-                chunk_z,
-                radius: radius.0,
+                // Use impossible values so first update always triggers
+                chunk_x: i32::MIN,
+                chunk_z: i32::MIN,
+                radius: 0,
                 queue_was_empty: false,
             },
         ));
@@ -127,7 +128,7 @@ pub fn update_chunk_loaders(
             &mut ChunkLoader,
             &mut LastPublisherState,
         ),
-        (With<Player>, Changed<Position>),
+        With<Player>,
     >,
     mut chunks: Query<&mut ChunkViewers>,
 ) {
@@ -135,6 +136,13 @@ pub fn update_chunk_loaders(
         let chunk_x = (position.0.x / 16.0).floor() as i32;
         let chunk_z = (position.0.z / 16.0).floor() as i32;
         let current_pos = loader.position();
+
+        trace!(
+            player = ?player_entity,
+            player_chunk = ?(chunk_x, chunk_z),
+            loader_chunk = ?current_pos,
+            "Update chunk loaders - checking position"
+        );
 
         // Check if player crossed into a new chunk
         if current_pos == (chunk_x, chunk_z) {
@@ -174,9 +182,8 @@ pub fn update_chunk_loaders(
             }
         }
 
-        // Mark publisher state as needing update (position changed)
-        publisher_state.chunk_x = chunk_x;
-        publisher_state.chunk_z = chunk_z;
+        // NOTE: Don't update publisher_state here - let process_chunk_load_queues
+        // detect the change and send the NetworkChunkPublisherUpdate
         publisher_state.queue_was_empty = false;
 
         trace!(
@@ -184,7 +191,8 @@ pub fn update_chunk_loaders(
             from = ?current_pos,
             to = ?(chunk_x, chunk_z),
             pending = loader.queue_len(),
-            "Player moved to new chunk"
+            evicted = evicted.len(),
+            "Player crossed chunk boundary - queuing new chunks"
         );
     }
 }
@@ -298,6 +306,13 @@ pub fn process_chunk_load_queues(
             // Mark as loaded in the loader
             loader.mark_loaded(cx, cz);
             sent_count += 1;
+
+            trace!(
+                chunk = ?(cx, cz),
+                highest_subchunk = highest_subchunk,
+                is_new = new_chunk_data.is_some(),
+                "Sent LevelChunk packet"
+            );
 
             trace!(
                 player = ?player_entity,

@@ -90,6 +90,7 @@ pub async fn resolve_spawn_location(
         PacketStartGameDimension::End => 2,
     };
 
+    // Check for previous position first
     for rule in &config.spawn_rules {
         if rule.previous_position {
             if let Some(uuid) = uuid {
@@ -102,6 +103,21 @@ pub async fn resolve_spawn_location(
         }
         if rule.always_at_location {
             if let Some(location) = rule.location {
+                // If using Vanilla generator, verify spawn is safe
+                if let crate::world::WorldGenerator::Vanilla { seed } = config.world.generator {
+                    let generator = crate::world::generator::VanillaGenerator::new(seed);
+                    let height = generator.find_safe_spawn();
+                    // Use safe spawn Y if configured Y seems underground
+                    if location.y < height.1 as f32 - 10.0 {
+                        return SpawnLocation {
+                            x: height.0 as f32 + 0.5,
+                            y: height.1 as f32,
+                            z: height.2 as f32 + 0.5,
+                            yaw: location.yaw,
+                            pitch: location.pitch,
+                        };
+                    }
+                }
                 return location;
             }
         }
@@ -109,10 +125,37 @@ pub async fn resolve_spawn_location(
 
     // Fallback: if any rule has a location, use it.
     if let Some(location) = config.spawn_rules.iter().find_map(|r| r.location) {
+        // If using Vanilla generator, verify spawn is safe
+        if let crate::world::WorldGenerator::Vanilla { seed } = config.world.generator {
+            let generator = crate::world::generator::VanillaGenerator::new(seed);
+            let height = generator.find_safe_spawn();
+            // Use safe spawn if configured Y seems underground
+            if location.y < height.1 as f32 - 10.0 {
+                return SpawnLocation {
+                    x: height.0 as f32 + 0.5,
+                    y: height.1 as f32,
+                    z: height.2 as f32 + 0.5,
+                    yaw: location.yaw,
+                    pitch: location.pitch,
+                };
+            }
+        }
         return location;
     }
 
-    // Final fallback: use the template's spawn.
+    // Final fallback: use safe spawn for Vanilla, or template spawn otherwise
+    if let crate::world::WorldGenerator::Vanilla { seed } = config.world.generator {
+        let generator = crate::world::generator::VanillaGenerator::new(seed);
+        let (x, y, z) = generator.find_safe_spawn();
+        return SpawnLocation {
+            x: x as f32 + 0.5,
+            y: y as f32,
+            z: z as f32 + 0.5,
+            yaw: 0.0,
+            pitch: 0.0,
+        };
+    }
+
     SpawnLocation {
         x: template.start_game_template.player_position.x,
         y: template.start_game_template.player_position.y,

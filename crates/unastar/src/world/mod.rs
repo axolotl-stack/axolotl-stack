@@ -2,8 +2,10 @@
 
 pub mod chunk;
 pub mod ecs;
+pub mod generator;
 
 pub use chunk::{Chunk, HeightMapType, SUBCHUNK_COUNT, request_mode};
+pub use generator::VanillaGenerator;
 pub use ecs::{ChunkData, ChunkManager, ChunkPosition, ChunkState};
 
 use serde::{Deserialize, Serialize};
@@ -63,10 +65,23 @@ impl WorldBounds {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum WorldGenerator {
-    /// Flat world: a solid 16-block-thick stone layer at Y=0..15.
-    FlatStone,
+    /// Superflat world: classic Minecraft superflat (1 bedrock, 2 dirt, 1 grass at Y=0-3).
+    SuperFlat,
     /// A 3x3 (or larger) stone platform in an otherwise-void world.
     VoidSpawnPlatform { platform_radius_chunks: u32 },
+    /// Vanilla-style terrain generation with biomes.
+    Vanilla { seed: i64 },
+}
+
+/// Storage provider for world persistence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum StorageProvider {
+    /// LevelDB - standard Bedrock-compatible storage (default).
+    #[default]
+    LevelDb,
+    /// BlazeDB - high-performance with spatial indexing.
+    BlazeDb,
 }
 
 /// World configuration.
@@ -76,6 +91,10 @@ pub struct WorldConfig {
     pub dimension: i32,
     pub bounds: WorldBounds,
     pub generator: WorldGenerator,
+    /// Storage provider (leveldb or blazedb).
+    pub storage_provider: StorageProvider,
+    /// BlazeDB cache capacity in chunks (default: 4096).
+    pub blazedb_cache_chunks: usize,
 }
 
 impl Default for WorldConfig {
@@ -86,6 +105,9 @@ impl Default for WorldConfig {
             generator: WorldGenerator::VoidSpawnPlatform {
                 platform_radius_chunks: 1,
             },
+            storage_provider: StorageProvider::LevelDb,
+            blazedb_cache_chunks: 4096,
         }
     }
 }
+

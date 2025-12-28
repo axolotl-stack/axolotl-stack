@@ -3,7 +3,7 @@
 //! Contains subchunk request and chunk radius request handling.
 
 use bevy_ecs::entity::Entity;
-use tracing::debug;
+use tracing::{debug, trace};
 
 use super::GameServer;
 use crate::entity::components::{ChunkRadius, PlayerSession};
@@ -65,7 +65,8 @@ impl GameServer {
         let chunk_x = origin.x;
         let chunk_z = origin.z;
 
-        debug!(
+        // Only log at trace level to avoid overhead
+        trace!(
             session_id,
             origin = ?origin,
             request_count = req.requests.len(),
@@ -180,13 +181,23 @@ impl GameServer {
             });
         }
 
-        // Ensure chunk entities exist and add player as viewer for each served chunk
-        use crate::world::ecs::ChunkManagerWorldExt;
-        for (cx, cz) in served_chunks {
-            // Create chunk entity if it doesn't exist
-            let chunk_entity = self.ecs.world_mut().get_or_create_chunk(cx, cz);
-
-            // Add player as viewer
+        // Add player as viewer for served chunks (don't generate missing chunks here!)
+        // The chunk streaming system will handle chunk generation asynchronously
+        // First collect existing chunk entities, then add viewers
+        let chunk_entities: Vec<_> = {
+            let world = self.ecs.world();
+            if let Some(chunk_manager) = world.get_resource::<crate::world::ecs::ChunkManager>() {
+                served_chunks
+                    .iter()
+                    .filter_map(|(cx, cz)| chunk_manager.get_by_coords(*cx, *cz))
+                    .collect()
+            } else {
+                Vec::new()
+            }
+        };
+        
+        // Now add player as viewer (can mutate world)
+        for chunk_entity in chunk_entities {
             let world = self.ecs.world_mut();
             if let Some(mut viewers) = world.get_mut::<ChunkViewers>(chunk_entity) {
                 viewers.insert(entity);

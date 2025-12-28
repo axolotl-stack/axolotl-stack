@@ -93,7 +93,7 @@ async fn run_network_loop(
                 }
             }
 
-            // Priority 3: Queue outbound packets (don't flush yet, wait for tick)
+            // Priority 3: Queue outbound packets and flush immediately for responsive gameplay
             Some(packet) = outbound_rx.recv() => {
                 if let Err(e) = stream.send_packet(packet).await {
                     warn!(session_id, "Send failed: {:?}", e);
@@ -105,6 +105,11 @@ async fn run_network_loop(
                         warn!(session_id, "Send failed: {:?}", e);
                         return;
                     }
+                }
+                // Flush immediately for responsive effects (block break, sounds, etc.)
+                if let Err(e) = stream.flush().await {
+                    warn!(session_id, "Flush failed: {:?}", e);
+                    return;
                 }
             }
         }

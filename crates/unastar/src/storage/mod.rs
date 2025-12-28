@@ -4,7 +4,9 @@
 //! - `WorldProvider` - chunk persistence
 //! - `PlayerProvider` - player data persistence
 //!
-//! Default implementations use LevelDB via `bleveldb`.
+//! Implementations:
+//! - LevelDB (default) - standard Bedrock-compatible storage
+//! - BlazeDB - high-performance with spatial indexing
 
 mod keys;
 mod provider;
@@ -13,7 +15,14 @@ mod provider;
 mod leveldb_player;
 mod leveldb_world;
 
+// BlazeDB implementation
+pub mod blazedb;
+pub mod cache;
+pub mod morton;
+
 pub use keys::*;
 pub use leveldb_player::LevelDBPlayerProvider;
 pub use leveldb_world::LevelDBWorldProvider;
+pub use blazedb::BlazeDBProvider;
 pub use provider::*;
+

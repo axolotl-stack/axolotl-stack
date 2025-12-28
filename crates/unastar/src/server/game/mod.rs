@@ -73,6 +73,9 @@ pub struct GameServer {
     pub entities: EntityRegistry,
     pub biomes: BiomeRegistry,
     pub blocks: BlockRegistry,
+
+    // Item entity ID counter for dropped items (starts at high value to avoid player ID conflicts)
+    pub next_item_entity_id: i64,
 }
 
 impl GameServer {
@@ -180,6 +183,7 @@ impl GameServer {
             entities,
             biomes,
             blocks,
+            next_item_entity_id: 100000, // Start at high value to avoid conflicts with player IDs
         }
     }
 

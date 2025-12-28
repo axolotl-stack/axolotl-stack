@@ -31,20 +31,123 @@ pub const BLOCKS_PER_SUBCHUNK: usize = SUBCHUNK_SIZE * SUBCHUNK_SIZE * SUBCHUNK_
 /// Sub-chunk version for network encoding.
 const SUBCHUNK_VERSION: u8 = 9;
 
-/// Block runtime IDs from valentine's canonical block_states.nbt ordering.
-/// These values come from the MIN_STATE_ID/default state in valentine blocks.rs.
-/// IMPORTANT: These must match client expectations - the client uses
-/// block_states.nbt to determine what runtime ID = what block.
+/// Block runtime IDs fetched from jolyne's protocol blocks.
+/// Uses default_state_id() from valentine-generated block definitions.
 pub mod blocks {
-    // Values from valentine/bedrock_versions/v1_21_130/src/blocks.rs
-    // Air: MIN_STATE_ID = 12530
-    pub const AIR: u32 = 12530;
-    // Stone: MIN_STATE_ID = 2532
-    pub const STONE: u32 = 2532;
-    // GrassBlock: MIN_STATE_ID = 11062
-    pub const GRASS_BLOCK: u32 = 11062;
-    // Dirt: MIN_STATE_ID = 9852
-    pub const DIRT: u32 = 9852;
+    use jolyne::protocol::blocks::BLOCKS;
+    use std::sync::LazyLock;
+
+    /// Lookup a block's default state ID by string ID.
+    fn lookup(name: &str) -> u32 {
+        for block in BLOCKS.iter() {
+            if block.string_id() == name {
+                return block.default_state_id();
+            }
+        }
+        // Fallback to air if not found
+        lookup("minecraft:air")
+    }
+
+    // Core blocks
+    pub static AIR: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:air"));
+    pub static STONE: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:stone"));
+    pub static DIRT: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:dirt"));
+    pub static GRASS_BLOCK: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:grass_block"));
+    pub static BEDROCK: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:bedrock"));
+
+    // Water and sand
+    pub static WATER: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:water"));
+    pub static LAVA: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:lava"));
+    pub static SAND: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:sand"));
+    pub static GRAVEL: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:gravel"));
+
+    // Trees - Oak
+    pub static OAK_LOG: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:oak_log"));
+    pub static OAK_LEAVES: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:oak_leaves"));
+
+    // Trees - Birch
+    pub static BIRCH_LOG: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:birch_log"));
+    pub static BIRCH_LEAVES: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:birch_leaves"));
+
+    // Trees - Spruce
+    pub static SPRUCE_LOG: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:spruce_log"));
+    pub static SPRUCE_LEAVES: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:spruce_leaves"));
+    pub static SPRUCE_PLANKS: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:spruce_planks"));
+
+    // Mountain blocks
+    pub static SNOW_BLOCK: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:snow"));
+    pub static PACKED_ICE: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:packed_ice"));
+    pub static COBBLESTONE: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:cobblestone"));
+
+    // Desert/Mesa
+    pub static SANDSTONE: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:sandstone"));
+    pub static RED_SAND: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:red_sand"));
+    pub static TERRACOTTA: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:terracotta"));
+
+    // Flowers and plants
+    pub static GRASS: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:short_grass"));
+    pub static TALL_GRASS: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:tall_grass"));
+    pub static DANDELION: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:dandelion"));
+    pub static POPPY: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:poppy"));
+    pub static CORNFLOWER: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:cornflower"));
+    pub static OXEYE_DAISY: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:oxeye_daisy"));
+    pub static AZURE_BLUET: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:azure_bluet"));
+    pub static LILY_OF_THE_VALLEY: LazyLock<u32> =
+        LazyLock::new(|| lookup("minecraft:lily_of_the_valley"));
+
+    // Clay for rivers
+    pub static CLAY: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:clay"));
+
+    // Trees - Jungle
+    pub static JUNGLE_LOG: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:jungle_log"));
+    pub static JUNGLE_LEAVES: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:jungle_leaves"));
+
+    // Trees - Dark Oak
+    pub static DARK_OAK_LOG: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:dark_oak_log"));
+    pub static DARK_OAK_LEAVES: LazyLock<u32> =
+        LazyLock::new(|| lookup("minecraft:dark_oak_leaves"));
+
+    // Trees - Acacia
+    pub static ACACIA_LOG: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:acacia_log"));
+    pub static ACACIA_LEAVES: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:acacia_leaves"));
+
+    // Swamp
+    pub static VINE: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:vine"));
+    pub static LILY_PAD: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:waterlily"));
+
+    // Mushrooms
+    pub static RED_MUSHROOM: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:red_mushroom"));
+    pub static BROWN_MUSHROOM: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:brown_mushroom"));
+
+    // Coarse dirt for savanna
+    pub static COARSE_DIRT: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:coarse_dirt"));
+
+    // Stone variants (underground variety)
+    pub static GRANITE: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:granite"));
+    pub static DIORITE: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:diorite"));
+    pub static ANDESITE: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:andesite"));
+    pub static DEEPSLATE: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:deepslate"));
+    pub static TUFF: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:tuff"));
+
+    // Ores
+    pub static COAL_ORE: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:coal_ore"));
+    pub static IRON_ORE: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:iron_ore"));
+    pub static COPPER_ORE: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:copper_ore"));
+    pub static GOLD_ORE: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:gold_ore"));
+    pub static REDSTONE_ORE: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:redstone_ore"));
+    pub static LAPIS_ORE: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:lapis_ore"));
+    pub static DIAMOND_ORE: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:diamond_ore"));
+    pub static EMERALD_ORE: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:emerald_ore"));
+    
+    // Deepslate ores
+    pub static DEEPSLATE_COAL_ORE: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:deepslate_coal_ore"));
+    pub static DEEPSLATE_IRON_ORE: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:deepslate_iron_ore"));
+    pub static DEEPSLATE_COPPER_ORE: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:deepslate_copper_ore"));
+    pub static DEEPSLATE_GOLD_ORE: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:deepslate_gold_ore"));
+    pub static DEEPSLATE_REDSTONE_ORE: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:deepslate_redstone_ore"));
+    pub static DEEPSLATE_LAPIS_ORE: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:deepslate_lapis_ore"));
+    pub static DEEPSLATE_DIAMOND_ORE: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:deepslate_diamond_ore"));
+    pub static DEEPSLATE_EMERALD_ORE: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:deepslate_emerald_ore"));
 }
 
 /// Height map for a chunk - tracks highest light-blocking block per column.
@@ -213,7 +316,7 @@ impl Chunk {
         }
     }
 
-    /// Fill the bottom layers with grass blocks.
+    /// Fill the bottom layers with blocks.
     ///
     /// # Arguments
     /// * `layers` - Number of Y layers to fill (from world Y=0 upward).
@@ -232,6 +335,19 @@ impl Chunk {
                 self.sub_chunks[subchunk_idx].fill_layer(local_y, block_id);
             }
         }
+
+        // Update heightmap to reflect the topmost layer if non-air
+        if layers > 0 && block_id != *blocks::AIR {
+            let top_y = (layers - 1) as i16 + 1; // Height is Y of first air above highest block
+            for z in 0u8..16 {
+                for x in 0u8..16 {
+                    let current = self.height_map.at(x, z);
+                    if top_y > current {
+                        self.height_map.set(x, z, top_y);
+                    }
+                }
+            }
+        }
     }
 
     /// Fill an entire subchunk (16x16x16) with a single block type.
@@ -245,7 +361,7 @@ impl Chunk {
             self.sub_chunks[subchunk_idx].fill_solid(block_id);
 
             // Update height map if this is a non-air block
-            if block_id != blocks::AIR {
+            if block_id != *blocks::AIR {
                 // Calculate the world Y for the top of this subchunk
                 let subchunk_top_y = (MIN_Y + (subchunk_idx as i32 + 1) * 16) as i16;
 
@@ -262,14 +378,23 @@ impl Chunk {
         }
     }
 
-    /// Get the index of the highest non-empty sub-chunk.
+    /// Get the count of sub-chunks from bottom to highest non-empty.
+    /// Returns 0 if all are empty, otherwise returns highest_index + 1.
     pub fn highest_subchunk(&self) -> u16 {
         for (i, sub) in self.sub_chunks.iter().enumerate().rev() {
             if !sub.is_empty() {
-                return i as u16;
+                return (i + 1) as u16; // Return count, not index
             }
         }
         0
+    }
+
+    /// Set the biome ID for all vertical sections.
+    /// This affects grass/foliage color tinting on the client.
+    pub fn set_biome(&mut self, biome_id: u32) {
+        for biome in &mut self.biome_ids {
+            *biome = biome_id;
+        }
     }
 
     /// Encode biome data only (for SubChunkRequestModeLimited).
@@ -332,7 +457,7 @@ impl Chunk {
     pub fn get_block(&self, x: u8, y: i16, z: u8) -> u32 {
         let adjusted_y = (y as i32) - MIN_Y;
         if adjusted_y < 0 || adjusted_y >= (SUBCHUNK_COUNT as i32 * 16) {
-            return blocks::AIR;
+            return *blocks::AIR;
         }
 
         let subchunk_idx = (adjusted_y / 16) as usize;
@@ -341,7 +466,7 @@ impl Chunk {
         self.sub_chunks
             .get(subchunk_idx)
             .map(|s| s.get_block(x, local_y, z))
-            .unwrap_or(blocks::AIR)
+            .unwrap_or(*blocks::AIR)
     }
 
     /// Set the block at world coordinates.
@@ -374,7 +499,7 @@ impl Chunk {
     fn update_heightmap_for_block(&mut self, x: u8, y: i16, z: u8, block_id: u32) {
         let current_height = self.height_map.at(x, z);
 
-        if block_id != blocks::AIR {
+        if block_id != *blocks::AIR {
             // Non-air block: update height if higher than current
             if y >= current_height {
                 self.height_map.set(x, z, y + 1);
@@ -384,7 +509,7 @@ impl Chunk {
             // Scan downward to find new highest non-air block
             let mut new_height = MIN_Y as i16;
             for check_y in (MIN_Y as i16..y).rev() {
-                if self.get_block(x, check_y, z) != blocks::AIR {
+                if self.get_block(x, check_y, z) != *blocks::AIR {
                     new_height = check_y + 1;
                     break;
                 }
@@ -448,7 +573,7 @@ impl Chunk {
             for z in 0u8..16 {
                 for local_y in (0..16).rev() {
                     let block = self.sub_chunks[array_idx].get_block(x, local_y, z);
-                    if block != blocks::AIR {
+                    if block != *blocks::AIR {
                         let world_y = (base_y + local_y as i32) as i16;
                         let current = self.height_map.at(x, z);
                         if world_y + 1 > current {
@@ -474,13 +599,13 @@ impl SubChunk {
     /// Create an empty (all air) sub-chunk.
     pub fn empty() -> Self {
         Self {
-            storage: PalettedStorage::single_block(blocks::AIR),
+            storage: PalettedStorage::single_block(*blocks::AIR),
         }
     }
 
     /// Check if this subchunk is all air.
     pub fn is_empty(&self) -> bool {
-        self.storage.palette.len() == 1 && self.storage.palette[0] == blocks::AIR
+        self.storage.palette.len() == 1 && self.storage.palette[0] == *blocks::AIR
     }
 
     /// Fill an entire Y layer with a block.
@@ -570,7 +695,7 @@ impl PalettedStorage {
             self.palette
                 .get(palette_idx)
                 .copied()
-                .unwrap_or(blocks::AIR)
+                .unwrap_or(*blocks::AIR)
         }
     }
 
@@ -855,7 +980,7 @@ mod tests {
     #[test]
     fn test_fill_floor() {
         let mut chunk = Chunk::new(0, 0);
-        chunk.fill_floor(3, blocks::GRASS_BLOCK);
+        chunk.fill_floor(3, *blocks::GRASS_BLOCK);
 
         // Subchunk 4 should no longer be empty
         assert!(!chunk.sub_chunks[4].is_empty());
@@ -867,7 +992,7 @@ mod tests {
     #[test]
     fn test_subchunk_encoding() {
         let mut chunk = Chunk::new(0, 0);
-        chunk.fill_floor(1, blocks::GRASS_BLOCK);
+        chunk.fill_floor(1, *blocks::GRASS_BLOCK);
 
         // Y index 0 corresponds to subchunk index 4
         let data = chunk.encode_subchunk(0);
