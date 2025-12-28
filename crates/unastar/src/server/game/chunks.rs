@@ -132,34 +132,70 @@ impl GameServer {
 
             let (is_empty, subchunk_data, hm_type, hm_data) = {
                 let world = self.ecs.world();
-                let Some(chunk_data) = world.get::<crate::world::ecs::ChunkData>(chunk_entity)
-                else {
-                    entries.push(SubChunkEntryWithoutCachingItem {
-                        dx: offset.dx,
-                        dy: offset.dy,
-                        dz: offset.dz,
-                        result: SubChunkEntryWithoutCachingItemResult::SuccessAllAir,
-                        payload: vec![],
-                        heightmap_type: HeightMapDataType::TooLow,
-                        heightmap: None,
-                        render_heightmap_type: HeightMapDataType::TooLow,
-                        render_heightmap: None,
-                    });
-                    continue;
-                };
-                let is_empty = chunk_data.inner.is_subchunk_empty(sub_y);
-                let subchunk_data = if !is_empty {
-                    chunk_data.inner.encode_subchunk(sub_y).unwrap_or_default()
+                let chunk_manager = world.get_resource::<ChunkManager>().expect("ChunkManager must exist");
+                
+                if let Some(chunk_data) = world.get::<crate::world::ecs::ChunkData>(chunk_entity) {
+                    let is_empty = chunk_data.inner.is_subchunk_empty(sub_y);
+                    let subchunk_data = if !is_empty {
+                        // Check if we can use superflat cache
+                        let use_cache = matches!(
+                            chunk_manager.world_config().generator,
+                            crate::world::WorldGenerator::SuperFlat
+                        );
+                        
+                        if use_cache {
+                            if let Some(cached) = crate::world::generator::flat::get_cached_superflat_subchunk(sub_y) {
+                                cached.to_vec()
+                            } else {
+                                chunk_data.inner.encode_subchunk(sub_y).unwrap_or_default()
+                            }
+                        } else {
+                            chunk_data.inner.encode_subchunk(sub_y).unwrap_or_default()
+                        }
+                    } else {
+                        vec![]
+                    };
+                    let (ht, hm) = chunk_data.inner.get_subchunk_heightmap(sub_y);
+                    let hm_type = match ht {
+                        HeightMapType::TooHigh => HeightMapDataType::TooHigh,
+                        HeightMapType::TooLow => HeightMapDataType::TooLow,
+                        HeightMapType::HasData => HeightMapDataType::HasData,
+                    };
+                    (is_empty, subchunk_data, hm_type, hm)
                 } else {
-                    vec![]
-                };
-                let (ht, hm) = chunk_data.inner.get_subchunk_heightmap(sub_y);
-                let hm_type = match ht {
-                    HeightMapType::TooHigh => HeightMapDataType::TooHigh,
-                    HeightMapType::TooLow => HeightMapDataType::TooLow,
-                    HeightMapType::HasData => HeightMapDataType::HasData,
-                };
-                (is_empty, subchunk_data, hm_type, hm)
+                    // Entity exists but component not ready (flushing commands)
+                    // Fallback to generating a temporary chunk to avoid returning "all air"
+                    trace!(chunk = ?(target_chunk_x, target_chunk_z), sub_y, "SubChunkRequest for unflushed chunk - using temporary generation");
+                    let temp_chunk = chunk_manager.generate_chunk(target_chunk_x, target_chunk_z);
+                    
+                    let is_empty = temp_chunk.is_subchunk_empty(sub_y);
+                    let subchunk_data = if !is_empty {
+                        // Check if we can use superflat cache (even for temporary chunks)
+                        let use_cache = matches!(
+                            chunk_manager.world_config().generator,
+                            crate::world::WorldGenerator::SuperFlat
+                        );
+                        
+                        if use_cache {
+                            if let Some(cached) = crate::world::generator::flat::get_cached_superflat_subchunk(sub_y) {
+                                cached.to_vec()
+                            } else {
+                                temp_chunk.encode_subchunk(sub_y).unwrap_or_default()
+                            }
+                        } else {
+                            temp_chunk.encode_subchunk(sub_y).unwrap_or_default()
+                        }
+                    } else {
+                        vec![]
+                    };
+                    let (ht, hm) = temp_chunk.get_subchunk_heightmap(sub_y);
+                    let hm_type = match ht {
+                        HeightMapType::TooHigh => HeightMapDataType::TooHigh,
+                        HeightMapType::TooLow => HeightMapDataType::TooLow,
+                        HeightMapType::HasData => HeightMapDataType::HasData,
+                    };
+                    (is_empty, subchunk_data, hm_type, hm)
+                }
             };
 
             let result = if is_empty {

@@ -24,8 +24,8 @@ default_gamemode = "creative"
 
 # Chunk radius we will *advertise* to clients and stream.
 # (Clients may request a different radius; we clamp it by `max_chunk_radius`.)
-default_chunk_radius = 4
-max_chunk_radius = 16
+default_chunk_radius = 64
+max_chunk_radius = 128
 
 # Authentication settings
 # Xbox Live authentication. Set to false for offline/cracked clients.
@@ -60,7 +60,7 @@ mode = "infinite"
 [world.generator]
 # kinds: "super_flat" | "void_spawn_platform" | "vanilla"
 kind = "super_flat"
-seed = 12345
+seed = 1111
 
 [players]
 # Where Unastar stores per-player files (e.g. last known position).

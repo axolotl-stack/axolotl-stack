@@ -117,41 +117,56 @@ impl ChunkLoader {
 
     /// Rebuild the load queue and evict out-of-range chunks.
     /// Returns evicted chunk positions.
-    fn rebuild_queue_and_evict(&mut self) -> Vec<(i32, i32)> {
-        let (cx, cz) = self.position;
-        let r = self.radius;
+fn rebuild_queue_and_evict(&mut self) -> Vec<(i32, i32)> {
+    let (cx, cz) = self.position;
+    let r = self.radius;
 
-        // Evict chunks outside the new view
-        let mut evicted = Vec::new();
-        self.loaded.retain(|&(lx, lz)| {
-            let in_range = Self::is_in_range(cx, cz, lx, lz, r);
-            if !in_range {
-                evicted.push((lx, lz));
-            }
-            in_range
-        });
+    // Evict chunks outside the new view
+    let mut evicted = Vec::new();
+    self.loaded.retain(|&(lx, lz)| {
+        let in_range = Self::is_in_range_circular(cx, cz, lx, lz, r);
+        if !in_range {
+            evicted.push((lx, lz));
+        }
+        in_range
+    });
 
-        // Build list of chunks that need loading (in range but not loaded)
-        let mut to_load = Vec::new();
-        for dx in -r..=r {
-            for dz in -r..=r {
+    // Build list of chunks that need loading (in range but not loaded)
+    let mut to_load = Vec::new();
+    for dx in -r..=r {
+        for dz in -r..=r {
+            let dist_sq = dx * dx + dz * dz;
+            let radius_sq = r * r;
+            
+            // Only load chunks within circular radius
+            if dist_sq <= radius_sq {
                 let chunk_x = cx + dx;
                 let chunk_z = cz + dz;
                 if !self.loaded.contains(&(chunk_x, chunk_z)) {
-                    let dist_sq = dx * dx + dz * dz;
                     to_load.push((dist_sq, chunk_x, chunk_z));
                 }
             }
         }
-
-        // Sort by distance (descending so pop() gives closest first)
-        to_load.sort_by(|a, b| b.0.cmp(&a.0));
-
-        // Update queue
-        self.load_queue = to_load.into_iter().map(|(_, x, z)| (x, z)).collect();
-
-        evicted
     }
+
+    // Sort by distance (descending so pop() gives closest first)
+    to_load.sort_by(|a, b| b.0.cmp(&a.0));
+
+    // Update queue
+    self.load_queue = to_load.into_iter().map(|(_, x, z)| (x, z)).collect();
+
+    evicted
+}
+
+/// Check if a chunk position is within circular range of the center.
+#[inline]
+fn is_in_range_circular(cx: i32, cz: i32, x: i32, z: i32, radius: i32) -> bool {
+    let dx = x - cx;
+    let dz = z - cz;
+    let dist_sq = dx * dx + dz * dz;
+    let radius_sq = radius * radius;
+    dist_sq <= radius_sq
+}
 
     /// Check if a chunk position is within range of the center.
     #[inline]

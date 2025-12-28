@@ -108,8 +108,12 @@ impl VanillaGenerator {
             for local_x in 0u8..16 {
                 let world_x = chunk_x * 16 + local_x as i32;
                 let world_z = chunk_z * 16 + local_z as i32;
-                let height = self.get_height(world_x, world_z);
-                let biome = self.get_biome(world_x, world_z);
+                
+                // Sample climate once per column
+                let climate = self.biome_noise.sample_climate(world_x, 0, world_z);
+                let height = self.get_height_from_climate(world_x, world_z, &climate);
+                let biome = BiomeNoise::lookup_biome(&climate);
+                
                 self.build_column(&mut chunk, local_x, local_z, height, biome);
             }
         }
@@ -141,8 +145,12 @@ impl VanillaGenerator {
     /// Get terrain height with dramatic features.
     /// Get terrain height using climate parameters (Java-like MultiNoise).
     fn get_height(&self, x: i32, z: i32) -> i32 {
-        // Get climate params (scaled by 10000)
         let climate = self.biome_noise.sample_climate(x, 0, z);
+        self.get_height_from_climate(x, z, &climate)
+    }
+
+    /// Get terrain height from pre-sampled climate parameters.
+    fn get_height_from_climate(&self, x: i32, z: i32, climate: &[i64; 6]) -> i32 {
         let cont = climate[Climate::Continentalness as usize] as f64 / 10000.0;
         let erosion = climate[Climate::Erosion as usize] as f64 / 10000.0;
         let weirdness = climate[Climate::Weirdness as usize] as f64 / 10000.0;

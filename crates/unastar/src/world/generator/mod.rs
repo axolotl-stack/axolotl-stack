@@ -5,6 +5,7 @@
 
 mod climate;
 mod constants;
+pub mod flat;
 mod noise;
 mod structures;
 mod terrain;

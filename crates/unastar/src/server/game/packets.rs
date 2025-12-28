@@ -635,10 +635,7 @@ impl GameServer {
         pk: &PacketText,
     ) {
         use crate::entity::components::PlayerName;
-        use jolyne::protocol::{
-            PacketTextCategory, PacketTextContent, PacketTextContentAuthored,
-            PacketTextExtra, PacketTextExtraAnnouncement,
-        };
+        use jolyne::protocol::PacketTextExtra;
 
         debug!(
             session_id,

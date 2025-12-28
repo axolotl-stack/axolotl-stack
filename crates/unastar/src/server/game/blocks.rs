@@ -27,16 +27,11 @@ impl GameServer {
         let Some(block_actions) = &pk.block_action else {
             return;
         };
-
-        // Log that we received block actions
-        info!("Received block_action with {} actions", block_actions.len());
-
         // Get current tick for timing
         let current_tick = self.current_tick;
 
         // Cap block actions per packet (DoS protection)
         for action_item in block_actions.iter().take(MAX_BLOCK_ACTIONS) {
-            info!(action = ?action_item.action, "Processing block action");
             // Extract position from content if available
             let get_pos = |content: &Option<
                 jolyne::protocol::packets::PacketPlayerAuthInputBlockActionItemContent,
@@ -507,7 +502,6 @@ impl GameServer {
             }
         } else {
             // No chunk viewers - still send to breaking player
-            info!("break_block: no ChunkViewers on chunk, sending directly to breaking player");
             
             use jolyne::protocol::packets::{
                 PacketLevelEvent, PacketLevelEventEvent, PacketLevelSoundEvent, PacketUpdateBlock,
@@ -552,7 +546,6 @@ impl GameServer {
             }
         }
 
-        info!(pos = ?(x, y, z), "Block broken");
     }
 
     /// Get the break time in ticks for the block at the given world coordinates.
@@ -734,6 +727,5 @@ impl GameServer {
             }
         }
 
-        info!(pos = ?(x, y, z), runtime_id = block_runtime_id, "Block placed");
     }
 }

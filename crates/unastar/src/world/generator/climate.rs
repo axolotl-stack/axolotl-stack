@@ -97,7 +97,7 @@ impl BiomeNoise {
 
     /// Lookup biome from climate parameters using simplified rules.
     /// This is a simplified version - full vanilla uses a complex binary tree.
-    fn lookup_biome(climate: &[i64; 6]) -> Biome {
+    pub fn lookup_biome(climate: &[i64; 6]) -> Biome {
         let temp = climate[Climate::Temperature as usize];
         let humid = climate[Climate::Humidity as usize];
         let cont = climate[Climate::Continentalness as usize];
