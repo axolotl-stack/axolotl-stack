@@ -21,8 +21,8 @@ repository = "https://github.com/axolotl-stack/axolotl-stack"
 
 [profile.release]
 opt-level = 3           # Max optimization
-lto = "fat"             # Link Time Optimization (slower build, faster code)
-codegen-units = 1       # Reduce parallelism to improve code quality
+lto = "thin"            # Link Time Optimization (faster build, still good optimization)
+codegen-units = 16      # Enable parallelism to speed up compilation
 panic = "abort"         # Remove stack unwinding (smaller/faster binary)
 strip = true            # Remove symbols (smaller binary)
 # debug = 1             # uncomment this to enable debug symbols
