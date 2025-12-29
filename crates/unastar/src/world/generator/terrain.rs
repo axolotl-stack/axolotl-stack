@@ -10,6 +10,7 @@ use super::aquifer::{NoiseBasedAquifer, OverworldFluidPicker};
 use super::constants::Biome;
 use super::density::{build_overworld_router, NoiseChunk, NoiseRouter, WrapVisitor};
 use super::noise::PerlinNoise;
+use super::ore_veinifier::OreVeinifier;
 use super::structures::{get_structure_pos, StructureConfig, StructureType};
 use super::surface::{build_overworld_surface_rule, SurfaceSystem};
 use super::xoroshiro::{JavaRandom, Xoroshiro128};
@@ -160,6 +161,10 @@ impl VanillaGenerator {
             height,
         );
 
+        // Wire router functions with caching
+        let visitor = WrapVisitor::new(&noise_chunk);
+        let router = self.router.map_all(&visitor);
+
         // Create aquifer system for underground water/lava pockets
         let fluid_picker = Box::new(OverworldFluidPicker::new(Self::SEA_LEVEL));
         let mut aquifer = NoiseBasedAquifer::new(
@@ -167,20 +172,26 @@ impl VanillaGenerator {
             chunk_z,
             min_y,
             height,
-            self.router.barrier_noise.clone(),
-            self.router.fluid_level_floodedness.clone(),
-            self.router.fluid_level_spread.clone(),
-            self.router.lava_noise.clone(),
-            self.router.erosion.clone(),
-            self.router.depth.clone(),
+            router.barrier_noise.clone(),
+            router.fluid_level_floodedness.clone(),
+            router.fluid_level_spread.clone(),
+            router.lava_noise.clone(),
+            router.erosion.clone(),
+            router.depth.clone(),
+            router.preliminary_surface_level.clone(),
             self.seed,
             fluid_picker,
         );
 
-        // Wire router functions with caching
-        let _visitor = WrapVisitor::new(&noise_chunk);
-        // Note: In a full implementation, we'd use router.map_all(&visitor)
-        // to replace markers with cache implementations
+        // Create ore veinifier for tuff/granite and ore veins
+        // This adds copper ore veins with granite filler (Y: 0-50)
+        // and iron ore veins with tuff filler (Y: -60 to -8)
+        let ore_veinifier = OreVeinifier::new(
+            router.vein_toggle.clone(),
+            router.vein_ridged.clone(),
+            router.vein_gap.clone(),
+            self.seed,
+        );
 
         // Cell counts
         let cell_count_xz = 16 / cell_width;
@@ -215,15 +226,23 @@ impl VanillaGenerator {
                                 noise_chunk.update_for_z(z_in_cell, t_z);
 
                                 // Get density from router
-                                let density = self.router.final_density.compute(&noise_chunk);
+                                let density = router.final_density.compute(&noise_chunk);
 
-                                // Use aquifer to determine block state
+                                // Determine block using MaterialRuleList pattern:
+                                // 1. First try aquifer (handles air/water/lava)
+                                // 2. Then try ore veinifier (replaces stone with ore/filler)
+                                // 3. Default to stone for solid blocks
                                 let block = if let Some(fluid_block) = aquifer.compute_substance(&noise_chunk, density) {
                                     // Aquifer determined the block (air or fluid)
                                     fluid_block
                                 } else if density > 0.0 {
-                                    // Solid - use stone (surface rules will replace later)
-                                    *blocks::STONE
+                                    // Solid block - check ore veinifier for tuff/granite/ore
+                                    if let Some(vein_block) = ore_veinifier.compute(&noise_chunk) {
+                                        vein_block
+                                    } else {
+                                        // Default to stone (surface rules will replace later)
+                                        *blocks::STONE
+                                    }
                                 } else {
                                     // This shouldn't happen since aquifer handles negative density
                                     *blocks::AIR

@@ -175,6 +175,95 @@ impl JavaRandom {
     }
 }
 
+/// Compute a seed from block coordinates.
+/// This is Java's `Mth.getSeed(x, y, z)` implementation.
+#[inline]
+pub fn get_seed(x: i32, y: i32, z: i32) -> i64 {
+    let mut l = (x as i64)
+        .wrapping_mul(3129871)
+        ^ ((z as i64).wrapping_mul(116129781))
+        ^ (y as i64);
+    l = l.wrapping_mul(l).wrapping_mul(42317861).wrapping_add(l.wrapping_mul(11));
+    l >> 16
+}
+
+/// Positional random factory for creating position-dependent RNGs.
+/// This matches Java's `XoroshiroRandomSource.XoroshiroPositionalRandomFactory`.
+#[derive(Debug, Clone)]
+pub struct PositionalRandomFactory {
+    seed_lo: i64,
+    seed_hi: i64,
+}
+
+// MD5 hash of "minecraft:aquifer" - precomputed for performance.
+// Java: RandomSupport.seedFromHashOf("minecraft:aquifer")
+const AQUIFER_HASH_LO: i64 = 0x7bb15cc403c6ace6_u64 as i64;
+const AQUIFER_HASH_HI: i64 = 0x0bdd56bc9d232691_u64 as i64;
+
+impl PositionalRandomFactory {
+    /// Create a new positional random factory from a world seed.
+    /// This matches Java's `RandomSource.create(seed).forkPositional()`.
+    pub fn new(seed: i64) -> Self {
+        let mut rng = Xoroshiro128::from_seed(seed);
+        let seed_lo = rng.next_long() as i64;
+        let seed_hi = rng.next_long() as i64;
+        Self { seed_lo, seed_hi }
+    }
+
+    /// Create from explicit low/high seeds.
+    pub fn from_seeds(seed_lo: i64, seed_hi: i64) -> Self {
+        Self { seed_lo, seed_hi }
+    }
+
+    /// Create a random source at the given position.
+    /// This matches Java's `positionalRandomFactory.at(x, y, z)`.
+    #[inline]
+    pub fn at(&self, x: i32, y: i32, z: i32) -> Xoroshiro128 {
+        let l = get_seed(x, y, z);
+        let m = l ^ self.seed_lo;
+        Xoroshiro128::from_state(m as u64, self.seed_hi as u64)
+    }
+
+    /// Create a Xoroshiro128 RNG from a hash of the given string, XOR'd with our seeds.
+    /// This matches Java's `PositionalRandomFactory.fromHashOf(String)`.
+    ///
+    /// Java implementation:
+    /// ```java
+    /// public RandomSource fromHashOf(String string) {
+    ///     RandomSupport.Seed128bit seed128bit = RandomSupport.seedFromHashOf(string);
+    ///     return new XoroshiroRandomSource(seed128bit.xor(this.seedLo, this.seedHi));
+    /// }
+    /// ```
+    pub fn from_hash_of_aquifer(&self) -> Xoroshiro128 {
+        // XOR the precomputed MD5 hash with our seeds
+        let lo = AQUIFER_HASH_LO ^ self.seed_lo;
+        let hi = AQUIFER_HASH_HI ^ self.seed_hi;
+        Xoroshiro128::from_state(lo as u64, hi as u64)
+    }
+
+    /// Create the aquifer positional random factory.
+    /// This matches Java's `this.random.fromHashOf("minecraft:aquifer").forkPositional()`.
+    ///
+    /// Java: RandomState.java line 38:
+    /// `this.aquiferRandom = this.random.fromHashOf(Identifier.withDefaultNamespace("aquifer")).forkPositional();`
+    pub fn fork_aquifer_random(&self) -> PositionalRandomFactory {
+        let mut rng = self.from_hash_of_aquifer();
+        let seed_lo = rng.next_long() as i64;
+        let seed_hi = rng.next_long() as i64;
+        PositionalRandomFactory { seed_lo, seed_hi }
+    }
+
+    /// Get the seed_lo value.
+    pub fn seed_lo(&self) -> i64 {
+        self.seed_lo
+    }
+
+    /// Get the seed_hi value.
+    pub fn seed_hi(&self) -> i64 {
+        self.seed_hi
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

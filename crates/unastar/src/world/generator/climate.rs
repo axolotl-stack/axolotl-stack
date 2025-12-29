@@ -63,11 +63,20 @@ impl BiomeNoise {
 
     /// Sample climate at a position, returning 6 parameters.
     /// Values are scaled by 10000 to match biome parameter tables.
+    ///
+    /// Java Edition samples climate at "quart positions" (block / 4) with an
+    /// additional 0.25 scale factor applied to the noise. This effectively
+    /// samples at block / 16 scale. We replicate this by:
+    /// 1. Converting to quart positions (>> 2 = divide by 4)
+    /// 2. Applying 0.25 scale (multiply by 0.25)
+    /// Result: position / 4 * 0.25 = position / 16
     pub fn sample_climate(&self, x: i32, y: i32, z: i32) -> [i64; 6] {
-        // Quarter coordinates (biome resolution)
-        let qx = (x >> 2) as f64;
-        let qy = (y >> 2) as f64;
-        let qz = (z >> 2) as f64;
+        // Convert to quart coordinates then apply 0.25 scale factor
+        // This matches Java's shiftedNoise2d with 0.25 xzScale
+        const SCALE: f64 = 0.25;
+        let qx = (x >> 2) as f64 * SCALE;
+        let qy = (y >> 2) as f64 * SCALE;
+        let qz = (z >> 2) as f64 * SCALE;
 
         let temperature = (self.temperature.sample(qx, qy, qz) * 10000.0) as i64;
         let humidity = (self.humidity.sample(qx, qy, qz) * 10000.0) as i64;
@@ -92,19 +101,21 @@ impl BiomeNoise {
     /// Returns 4 climate arrays, one per input position.
     /// All positions share the same Y coordinate for efficiency.
     pub fn sample_climate_4(&self, x: [i32; 4], y: i32, z: [i32; 4]) -> [[i64; 6]; 4] {
-        // Quarter coordinates (biome resolution)
+        // Convert to quart coordinates then apply 0.25 scale factor
+        // This matches Java's shiftedNoise2d with 0.25 xzScale
+        const SCALE: f64 = 0.25;
         let qx = [
-            (x[0] >> 2) as f64,
-            (x[1] >> 2) as f64,
-            (x[2] >> 2) as f64,
-            (x[3] >> 2) as f64,
+            (x[0] >> 2) as f64 * SCALE,
+            (x[1] >> 2) as f64 * SCALE,
+            (x[2] >> 2) as f64 * SCALE,
+            (x[3] >> 2) as f64 * SCALE,
         ];
-        let qy = (y >> 2) as f64;
+        let qy = (y >> 2) as f64 * SCALE;
         let qz = [
-            (z[0] >> 2) as f64,
-            (z[1] >> 2) as f64,
-            (z[2] >> 2) as f64,
-            (z[3] >> 2) as f64,
+            (z[0] >> 2) as f64 * SCALE,
+            (z[1] >> 2) as f64 * SCALE,
+            (z[2] >> 2) as f64 * SCALE,
+            (z[3] >> 2) as f64 * SCALE,
         ];
 
         // Sample all 5 noise parameters using SIMD batch sampling

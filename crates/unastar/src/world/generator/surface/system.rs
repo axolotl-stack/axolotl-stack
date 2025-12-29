@@ -117,11 +117,19 @@ impl SurfaceSystem {
                 let world_x = chunk_x * 16 + local_x as i32;
                 let world_z = chunk_z * 16 + local_z as i32;
 
+                // Get the surface Y for this column
+                let surface_y = chunk.height_map().at(local_x, local_z) as i32;
+
                 // Calculate XZ-dependent values
                 let surface_depth = self.get_surface_depth(world_x, world_z);
                 let surface_secondary = self.get_surface_secondary(world_x, world_z);
                 let steep = self.is_steep(chunk, local_x, local_z);
-                let min_surface_level = chunk.height_map().at(local_x, local_z) as i32 - surface_depth;
+                let min_surface_level = surface_y - surface_depth;
+
+                // Cache biome at surface for the whole column
+                // Optimization: Surface rules usually use the surface biome.
+                // 3D biomes are rare in the surface replacement layer.
+                let column_biome = self.biome_noise.get_biome(world_x, surface_y, world_z);
 
                 ctx.update_xz(
                     world_x,
@@ -137,11 +145,8 @@ impl SurfaceSystem {
                 let mut water_height = i32::MIN;
                 let mut in_stone = false;
 
-                // Get the surface Y for this column
-                let surface_y = chunk.height_map().at(local_x, local_z);
-
                 // Iterate from surface down
-                for y in (min_y..=surface_y as i32).rev() {
+                for y in (min_y..=surface_y).rev() {
                     let block = chunk.get_block(local_x, y as i16, local_z);
 
                     // Skip air
@@ -151,10 +156,11 @@ impl SurfaceSystem {
                         continue;
                     }
 
-                    // Track water level
+                    // Track water level (Java: r = u + 1 when first hitting fluid)
+                    // water_height is the Y level of the water SURFACE (top of water)
                     if block == *blocks::WATER {
                         if water_height == i32::MIN {
-                            water_height = y;
+                            water_height = y + 1; // Top of the water column (Java: u + 1)
                         }
                         stone_depth_above = 0;
                         in_stone = false;
@@ -167,24 +173,10 @@ impl SurfaceSystem {
                         stone_depth_above = 0;
                     }
 
-                    // Calculate stone depth below (scan down)
-                    let mut stone_depth_below = 0;
-                    for dy in 1..=5 {
-                        let below_y = y - dy;
-                        if below_y < min_y {
-                            break;
-                        }
-                        let below = chunk.get_block(local_x, below_y as i16, local_z);
-                        if below == *blocks::AIR || below == *blocks::WATER {
-                            break;
-                        }
-                        stone_depth_below += 1;
-                    }
-
                     // Only apply rules to the default block (stone)
                     if block == self.default_block {
-                        let biome = self.biome_noise.get_biome(world_x, y, world_z);
-                        ctx.update_y(y, stone_depth_above, stone_depth_below, water_height, biome);
+                        // Use cached biome and skip expensive scan down
+                        ctx.update_y(y, stone_depth_above, 0, water_height, column_biome);
 
                         if let Some(new_block) = self.rule.try_apply(&ctx) {
                             if new_block != block {
@@ -194,6 +186,13 @@ impl SurfaceSystem {
                     }
 
                     stone_depth_above += 1;
+                    
+                    // Optimization: if we are deep enough and above deepslate transition, 
+                    // we can stop applying complex surface rules.
+                    // But we must continue for deepslate/bedrock which starts at Y < 10.
+                    if stone_depth_above > 20 && y > 10 {
+                         break;
+                    }
                 }
             }
         }

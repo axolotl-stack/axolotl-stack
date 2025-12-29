@@ -25,7 +25,7 @@
 
 use crate::world::chunk::blocks;
 use crate::world::generator::density::{DensityFunction, FunctionContext, SinglePointContext};
-use crate::world::generator::xoroshiro::Xoroshiro128;
+use crate::world::generator::xoroshiro::PositionalRandomFactory;
 use std::sync::Arc;
 
 // ========== Constants ==========
@@ -257,9 +257,11 @@ pub struct NoiseBasedAquifer {
     erosion: Arc<dyn DensityFunction>,
     /// Depth function (used for deep dark region detection - future use).
     depth: Arc<dyn DensityFunction>,
+    /// Preliminary surface level function - used to find terrain height before density eval.
+    preliminary_surface_level: Arc<dyn DensityFunction>,
 
-    // World seed for RNG
-    seed: i64,
+    // Positional random factory for aquifer center locations
+    positional_random: PositionalRandomFactory,
 
     // Grid bounds
     min_grid_x: i32,
@@ -281,6 +283,7 @@ pub struct NoiseBasedAquifer {
     pub should_schedule_fluid_update: bool,
 
     /// Skip sampling above this Y level (optimization).
+    /// Computed from preliminary surface level at chunk initialization.
     skip_sampling_above_y: i32,
 }
 
@@ -298,6 +301,7 @@ impl NoiseBasedAquifer {
     /// * `lava_noise` - Lava noise function from router
     /// * `erosion` - Erosion function from router
     /// * `depth` - Depth function from router
+    /// * `preliminary_surface_level` - Function to compute terrain surface height
     /// * `seed` - World seed
     /// * `fluid_picker` - Global fluid picker
     #[allow(clippy::too_many_arguments)]
@@ -312,6 +316,7 @@ impl NoiseBasedAquifer {
         lava_noise: Arc<dyn DensityFunction>,
         erosion: Arc<dyn DensityFunction>,
         depth: Arc<dyn DensityFunction>,
+        preliminary_surface_level: Arc<dyn DensityFunction>,
         seed: i64,
         fluid_picker: Box<dyn FluidPicker>,
     ) -> Self {
@@ -335,6 +340,31 @@ impl NoiseBasedAquifer {
 
         let cache_size = (grid_size_x * grid_size_y * grid_size_z) as usize;
 
+        // Compute max preliminary surface level for skip optimization
+        // Java: this.adjustSurfaceLevel(noiseChunk.maxPreliminarySurfaceLevel(...))
+        // Sample the 4 corners of the grid to find max surface
+        let max_surface = Self::compute_max_preliminary_surface(
+            &preliminary_surface_level,
+            from_grid_x(min_grid_x, 0),
+            from_grid_z(min_grid_z, 0),
+            from_grid_x(max_grid_x, X_RANGE - 1),
+            from_grid_z(max_grid_z, Z_RANGE - 1),
+        );
+        // Java: int p = this.adjustSurfaceLevel(maxPreliminarySurfaceLevel) = max_surface + 8
+        // Java: int q = gridY(p + 12) - -1 = gridY(p + 12) + 1
+        // Java: this.skipSamplingAboveY = fromGridY(q, 11) - 1
+        // Note: Java uses 11 (Y_SPACING - 1 = 12 - 1) as offset to get max Y in cell
+        let adjusted_surface = max_surface + 8;  // Java: adjustSurfaceLevel()
+        let skip_grid_y = grid_y(adjusted_surface + 12) + 1;  // Java: gridY(p + 12) - -1
+        let skip_sampling_above_y = from_grid_y(skip_grid_y, Y_SPACING - 1) - 1;  // Java: fromGridY(q, 11) - 1
+
+        // Create positional random factory from seed
+        // Java: this.positionalRandomFactory = positionalRandomFactory (passed from RandomState)
+        // Java derives aquifer random via: this.random.fromHashOf("minecraft:aquifer").forkPositional()
+        // where this.random is already a PositionalRandomFactory from world seed
+        let base_random = PositionalRandomFactory::new(seed);
+        let positional_random = base_random.fork_aquifer_random();
+
         Self {
             barrier_noise,
             floodedness_noise,
@@ -342,7 +372,8 @@ impl NoiseBasedAquifer {
             lava_noise,
             erosion,
             depth,
-            seed,
+            preliminary_surface_level,
+            positional_random,
             min_grid_x,
             min_grid_y,
             min_grid_z,
@@ -353,15 +384,51 @@ impl NoiseBasedAquifer {
             location_cache: vec![i64::MAX; cache_size],
             global_fluid_picker: fluid_picker,
             should_schedule_fluid_update: false,
-            skip_sampling_above_y: 256, // Will be computed from surface level
+            skip_sampling_above_y,
         }
     }
 
+    /// Compute max preliminary surface level over a region.
+    fn compute_max_preliminary_surface(
+        surface_fn: &Arc<dyn DensityFunction>,
+        min_x: i32,
+        min_z: i32,
+        max_x: i32,
+        max_z: i32,
+    ) -> i32 {
+        let mut max_surface = i32::MIN;
+        // Sample corners and center
+        let sample_points = [
+            (min_x, min_z),
+            (max_x, min_z),
+            (min_x, max_z),
+            (max_x, max_z),
+            ((min_x + max_x) / 2, (min_z + max_z) / 2),
+        ];
+        for (x, z) in sample_points {
+            let ctx = SinglePointContext::new(x, 0, z);
+            let surface = surface_fn.compute(&ctx) as i32;
+            max_surface = max_surface.max(surface);
+        }
+        max_surface
+    }
+
     /// Get cache index from grid coordinates.
+    /// Returns usize::MAX if coordinates are out of bounds.
     fn get_index(&self, grid_x: i32, grid_y: i32, grid_z: i32) -> usize {
         let x = grid_x - self.min_grid_x;
         let y = grid_y - self.min_grid_y;
         let z = grid_z - self.min_grid_z;
+
+        // Bounds check before computing index
+        if x < 0 || y < 0 || z < 0
+            || x >= self.grid_size_x
+            || y >= self.grid_size_y
+            || z >= self.grid_size_z
+        {
+            return usize::MAX;
+        }
+
         ((y * self.grid_size_z + z) * self.grid_size_x + x) as usize
     }
 
@@ -413,7 +480,7 @@ impl NoiseBasedAquifer {
                     let cell_z = gz + dz;
 
                     let index = self.get_index(cell_x, cell_y, cell_z);
-                    if index >= self.location_cache.len() {
+                    if index == usize::MAX {
                         continue;
                     }
 
@@ -450,9 +517,19 @@ impl NoiseBasedAquifer {
         // Calculate similarity between distances
         let similarity = self.similarity(closest_distances[0], closest_distances[1]);
 
+        // FLOWING_UPDATE_SIMILARITY = similarity(100, 144) = 1.0 - 44/25 = -0.76
+        // Java: if (e <= 0.0) { if (e >= FLOWING) { check fluid } else { no update } return; }
+        let flowing_update_similarity = self.similarity(100, 144);
+
         if similarity <= 0.0 {
-            // Only closest aquifer matters
-            self.should_schedule_fluid_update = false;
+            // Only closest aquifer matters for block placement
+            // But check if we need to schedule fluid update
+            if similarity >= flowing_update_similarity {
+                let fluid2 = self.get_aquifer_status(closest_indices[1]);
+                self.should_schedule_fluid_update = fluid1 != fluid2;
+            } else {
+                self.should_schedule_fluid_update = false;
+            }
             return Some(block_at_y);
         }
 
@@ -497,25 +574,48 @@ impl NoiseBasedAquifer {
         }
 
         // Determine if fluid update is needed
-        let flowing_similarity = self.similarity(100, 144); // Constants from Java
+        // Java logic (lines 275-284):
+        // boolean bl = !fluid1.equals(fluid2);
+        // boolean bl2 = h >= FLOWING && !fluid2.equals(fluid3);
+        // boolean bl3 = g >= FLOWING && !fluid1.equals(fluid3);
+        // if (!bl && !bl2 && !bl3) {
+        //     // Only then check 4th aquifer
+        //     shouldUpdate = g >= FLOWING && similarity(dist1, dist4) >= FLOWING && !fluid1.equals(fluid4);
+        // } else {
+        //     shouldUpdate = true;
+        // }
         let different_12 = fluid1 != fluid2;
-        let different_23_sim = similarity3 >= flowing_similarity && fluid2 != fluid3;
-        let different_13_sim = similarity2 >= flowing_similarity && fluid1 != fluid3;
+        let different_23_sim = similarity3 >= flowing_update_similarity && fluid2 != fluid3;
+        let different_13_sim = similarity2 >= flowing_update_similarity && fluid1 != fluid3;
 
-        self.should_schedule_fluid_update = different_12 || different_23_sim || different_13_sim;
+        if !different_12 && !different_23_sim && !different_13_sim {
+            // Check 4th aquifer
+            let similarity4 = self.similarity(closest_distances[0], closest_distances[3]);
+            if similarity2 >= flowing_update_similarity && similarity4 >= flowing_update_similarity {
+                let fluid4 = self.get_aquifer_status(closest_indices[3]);
+                self.should_schedule_fluid_update = fluid1 != fluid4;
+            } else {
+                self.should_schedule_fluid_update = false;
+            }
+        } else {
+            self.should_schedule_fluid_update = true;
+        }
 
         Some(block_at_y)
     }
 
     /// Compute the randomized location of an aquifer center.
+    /// Uses the positional random factory to match Java's exact RNG behavior.
     fn compute_aquifer_location(&self, grid_x: i32, grid_y: i32, grid_z: i32) -> i64 {
-        // Create positional RNG
-        let seed_mix = self.seed
-            .wrapping_add(grid_x as i64 * 341873128712)
-            .wrapping_add(grid_y as i64 * 132897987541)
-            .wrapping_add(grid_z as i64 * 1664525);
-        let mut rng = Xoroshiro128::from_seed(seed_mix);
+        // Java: RandomSource randomSource = this.positionalRandomFactory.at(z, aa, ab);
+        // where z=grid_x, aa=grid_y, ab=grid_z
+        let mut rng = self.positional_random.at(grid_x, grid_y, grid_z);
 
+        // Java: ae = BlockPos.asLong(
+        //     fromGridX(z, randomSource.nextInt(10)),
+        //     fromGridY(aa, randomSource.nextInt(9)),
+        //     fromGridZ(ab, randomSource.nextInt(10))
+        // );
         let offset_x = rng.next_int(X_RANGE as u32) as i32;
         let offset_y = rng.next_int(Y_RANGE as u32) as i32;
         let offset_z = rng.next_int(Z_RANGE as u32) as i32;
@@ -542,34 +642,161 @@ impl NoiseBasedAquifer {
     /// Compute fluid status at a position.
     ///
     /// This determines whether an aquifer exists at this position and what
-    /// fluid level it should have. The fix uses sea level (63) as the base
-    /// instead of the problematic grid-based calculation that caused water pillars.
+    /// fluid level it should have.
+    ///
+    /// The algorithm samples preliminary surface level at 13 nearby positions
+    /// (in chunk coordinates) to determine if aquifer water should exist.
+    /// This prevents floating water above the terrain surface.
+    ///
+    /// Java reference: Aquifer.NoiseBasedAquifer.computeFluid()
     fn compute_fluid(&self, x: i32, y: i32, z: i32) -> FluidStatus {
         let global_fluid = self.global_fluid_picker.compute_fluid(x, y, z);
+
+        // Track minimum raw surface and whether we're below any surface with fluid
+        let mut min_surface_raw = i32::MAX; // Java: l = Integer.MAX_VALUE
+        let y_upper = y + 12; // Java: m = j + 12
+        let y_lower = y - 12; // Java: n = j - 12
+        let mut is_below_surface_with_fluid = false; // Java: bl = false
+
+        // Sample surface level at 13 nearby positions (matches Java's SURFACE_SAMPLING_OFFSETS_IN_CHUNKS)
+        for (i, [chunk_offset_x, chunk_offset_z]) in SURFACE_SAMPLING_OFFSETS_IN_CHUNKS.iter().enumerate() {
+            let sample_x = x + chunk_offset_x * 16; // Java: o = i + SectionPos.sectionToBlockCoord(is[0])
+            let sample_z = z + chunk_offset_z * 16; // Java: p = k + SectionPos.sectionToBlockCoord(is[1])
+
+            // Get preliminary surface level at this position
+            // Java: int q = this.noiseChunk.preliminarySurfaceLevel(o, p)
+            let ctx = SinglePointContext::new(sample_x, 0, sample_z);
+            let raw_surface = self.preliminary_surface_level.compute(&ctx) as i32; // Java: q
+            let adjusted_surface = raw_surface + 8; // Java: r = this.adjustSurfaceLevel(q)
+
+            let is_at_our_position = i == 0; // Java: bl2 = is[0] == 0 && is[1] == 0
+
+            // Java: if (bl2 && n > r) return fluidStatus
+            // If at our position and we're more than 12 blocks below the adjusted surface,
+            // return global fluid (we're deep underground, use normal behavior)
+            if is_at_our_position && y_lower > adjusted_surface {
+                return global_fluid;
+            }
+
+            // Java: bl3 = m > r (are we above the adjusted surface?)
+            let is_above_adjusted_surface = y_upper > adjusted_surface;
+
+            // Java: if (bl3 || bl2) { ... }
+            if is_above_adjusted_surface || is_at_our_position {
+                // Get fluid at surface level
+                // Java: FluidStatus fluidStatus2 = this.globalFluidPicker.computeFluid(o, r, p)
+                let surface_fluid = self.global_fluid_picker.compute_fluid(sample_x, adjusted_surface, sample_z);
+
+                // Java: if (!fluidStatus2.at(r).isAir()) { ... }
+                if surface_fluid.at(adjusted_surface) != *blocks::AIR {
+                    // Java: if (bl2) bl = true
+                    if is_at_our_position {
+                        is_below_surface_with_fluid = true;
+                    }
+                    // Java: if (bl3) return fluidStatus2
+                    if is_above_adjusted_surface {
+                        // We're above the surface and there's fluid at surface - return that fluid
+                        return surface_fluid;
+                    }
+                }
+            }
+
+            // Java: l = Math.min(l, q)
+            min_surface_raw = min_surface_raw.min(raw_surface);
+        }
+
+        // Java: int s = this.computeSurfaceLevel(i, j, k, fluidStatus, l, bl)
+        let fluid_level = self.compute_surface_level(x, y, z, &global_fluid, min_surface_raw, is_below_surface_with_fluid);
+
+        // Java: return new Aquifer.FluidStatus(s, this.computeFluidType(i, j, k, fluidStatus, s))
+        FluidStatus::new(fluid_level, self.compute_fluid_type(x, y, z, &global_fluid, fluid_level))
+    }
+
+    /// Compute the fluid surface level for an aquifer.
+    ///
+    /// Java reference: Aquifer.NoiseBasedAquifer.computeSurfaceLevel()
+    fn compute_surface_level(
+        &self,
+        x: i32,
+        y: i32,
+        z: i32,
+        global_fluid: &FluidStatus,
+        min_surface_raw: i32,
+        is_below_surface_with_fluid: bool,
+    ) -> i32 {
         let ctx = SinglePointContext::new(x, y, z);
 
-        // Sample floodedness noise
-        let floodedness = self.floodedness_noise.compute(&ctx).clamp(-1.0, 1.0);
+        // TODO: Check for deep dark region using erosion and depth
+        // Java: if (OverworldBiomeBuilder.isDeepDarkRegion(this.erosion, this.depth, singlePointContext))
+        // For now, skip deep dark check
 
-        // Fully flooded = use global sea level
-        if floodedness > 0.8 {
-            return global_fluid;
+        // Java: int m = l + 8 - j  (distance from adjusted min surface to current Y)
+        let dist_from_surface = min_surface_raw + 8 - y;
+
+        // Java: double f = bl ? Mth.clampedMap((double)m, 0.0, 64.0, 1.0, 0.0) : 0.0
+        // When close to surface (m=0): f=1.0, when far (m>=64): f=0.0
+        let surface_proximity = if is_below_surface_with_fluid {
+            // clampedMap(m, 0, 64, 1, 0) = 1 - (clamp(m, 0, 64) / 64)
+            let clamped = (dist_from_surface as f64).clamp(0.0, 64.0);
+            1.0 - (clamped / 64.0)
+        } else {
+            0.0
+        };
+
+        // Java: double g = Mth.clamp(this.fluidLevelFloodednessNoise.compute(...), -1.0, 1.0)
+        let floodedness_noise = self.floodedness_noise.compute(&ctx).clamp(-1.0, 1.0);
+
+        // Java: double h = Mth.map(f, 1.0, 0.0, -0.3, 0.8)
+        // When f=1 (close to surface): h=-0.3, when f=0 (far): h=0.8
+        // map(f, 1, 0, -0.3, 0.8) = -0.3 + (0.8 - (-0.3)) * (1 - f) / (0 - 1 + 1) wait...
+        // Actually: map(value, fromMin, fromMax, toMin, toMax) = toMin + (toMax - toMin) * (value - fromMin) / (fromMax - fromMin)
+        // map(f, 1.0, 0.0, -0.3, 0.8) = -0.3 + (0.8 - (-0.3)) * (f - 1.0) / (0.0 - 1.0)
+        //                             = -0.3 + 1.1 * (f - 1.0) / (-1.0)
+        //                             = -0.3 - 1.1 * (f - 1.0)
+        //                             = -0.3 - 1.1*f + 1.1
+        //                             = 0.8 - 1.1*f
+        let threshold_h = 0.8 - 1.1 * surface_proximity;
+
+        // Java: double o = Mth.map(f, 1.0, 0.0, -0.8, 0.4)
+        // = 0.4 - 1.2 * f
+        let threshold_o = 0.4 - 1.2 * surface_proximity;
+
+        // Java: d = g - o, e = g - h
+        let d = floodedness_noise - threshold_o; // Must be > 0 for partial flood
+        let e = floodedness_noise - threshold_h; // Must be > 0 for full flood
+
+        // Java logic:
+        // if (e > 0.0) m = fluidStatus.fluidLevel  (FULLY FLOODED - use global level)
+        // else if (d > 0.0) m = computeRandomizedFluidSurfaceLevel(...) (PARTIAL)
+        // else m = WAY_BELOW_MIN_Y (NO AQUIFER)
+        if e > 0.0 {
+            // Fully flooded - use global fluid level
+            global_fluid.fluid_level
+        } else if d > 0.0 {
+            // Partially flooded - compute randomized level
+            self.compute_randomized_fluid_level(x, y, z, min_surface_raw)
+        } else {
+            // Not flooded - no aquifer here
+            WAY_BELOW_MIN_Y
         }
+    }
 
-        // Partially flooded = compute level based on position but relative to sea level
-        if floodedness > 0.3 {
-            let spread = self.spread_noise.compute(&ctx) * 10.0;
-            let quantized = (spread / 3.0).round() as i32 * 3;
-            // Use sea level as base, not arbitrary grid position
-            // This prevents water pillars appearing at random heights
-            const SEA_LEVEL: i32 = 63;
-            let variation = quantized.clamp(-20, 20); // Limit variation to prevent extreme levels
-            let level = SEA_LEVEL + variation;
-            return FluidStatus::new(level, self.compute_fluid_type(x, y, z, &global_fluid, level));
-        }
+    /// Compute a randomized fluid surface level for partially flooded areas.
+    fn compute_randomized_fluid_level(&self, x: i32, y: i32, z: i32, min_surface: i32) -> i32 {
+        // Use coarser grid (16x40x16) for spread noise
+        let grid_x = x.div_euclid(16);
+        let grid_y = y.div_euclid(40);
+        let grid_z = z.div_euclid(16);
 
-        // Not flooded - no aquifer here
-        FluidStatus::new(WAY_BELOW_MIN_Y, FluidType::Water)
+        let base_level = grid_y * 40 + 20; // Center of the grid cell
+
+        let ctx = SinglePointContext::new(grid_x, grid_y, grid_z);
+        let spread = self.spread_noise.compute(&ctx) * 10.0;
+        let quantized = ((spread / 3.0).round() as i32) * 3;
+
+        let level = base_level + quantized;
+        // Never exceed the minimum surface level
+        level.min(min_surface)
     }
 
     /// Determine fluid type (water or lava) at a position.
@@ -606,6 +833,17 @@ impl NoiseBasedAquifer {
     }
 
     /// Calculate pressure between two aquifers.
+    ///
+    /// Java reference: Aquifer.NoiseBasedAquifer.calculatePressure() lines 303-361
+    /// The pressure determines barrier formation between aquifers with different fluid levels.
+    ///
+    /// Java variables:
+    /// - d = avgLevel = (level1 + level2) / 2
+    /// - e = signedOffset = y + 0.5 - avgLevel
+    /// - f = halfDiff = |level1 - level2| / 2
+    /// - o = halfDiff - |signedOffset|
+    /// - p = (e > 0) ? o : (3.0 + o)
+    /// - q = (p > 0) ? p/divisor1 : p/divisor2
     fn calculate_pressure(
         &self,
         ctx: &dyn FunctionContext,
@@ -618,37 +856,53 @@ impl NoiseBasedAquifer {
         let block2 = fluid2.at(y);
 
         // Lava/water interface creates strong barrier
+        // Java: if ((status1 == LAVA && status2 == WATER) || vice versa) return 2.0
         if (block1 == *blocks::LAVA && block2 == *blocks::WATER)
             || (block1 == *blocks::WATER && block2 == *blocks::LAVA)
         {
             return 2.0;
         }
 
-        // Calculate level difference
-        // Use wrapping arithmetic to prevent overflow when dealing with WAY_BELOW_MIN_Y marker values
-        let diff = fluid1.fluid_level.wrapping_sub(fluid2.fluid_level);
-        let level_diff = diff.wrapping_abs();
+        // Java: int j = Math.abs(fluidStatus.fluidLevel - fluidStatus2.fluidLevel)
+        // NOTE: When one fluid level is WAY_BELOW_MIN_Y, the level_diff will be huge,
+        // resulting in a very large pressure that creates a barrier. This is intentional -
+        // Java creates stone barriers between valid aquifers and non-existent ones.
+        // Use i64 arithmetic to prevent overflow when dealing with WAY_BELOW_MIN_Y.
+        let level_diff = ((fluid1.fluid_level as i64) - (fluid2.fluid_level as i64)).abs() as i32;
         if level_diff == 0 {
             return 0.0;
         }
 
-        // Calculate pressure based on Y position relative to fluid levels
-        let mid_level = (fluid1.fluid_level + fluid2.fluid_level) as f64 / 2.0;
-        let dist_from_mid = ctx.block_y() as f64 + 0.5 - mid_level;
-        let half_range = level_diff as f64 / 2.0;
-        let offset = half_range - dist_from_mid.abs();
+        // Java formula (lines 314-323):
+        // double d = 0.5 * (level1 + level2)   // avgLevel
+        // double e = y + 0.5 - d               // signedOffset (signed distance from midpoint)
+        // double f = level_diff / 2.0          // halfDiff
+        // double o = f - Math.abs(e)           // halfDiff - |signedOffset|
+        // Use f64 arithmetic to prevent i32 overflow when one level is WAY_BELOW_MIN_Y
+        let avg_level = (fluid1.fluid_level as f64 + fluid2.fluid_level as f64) * 0.5;
+        let signed_offset = y as f64 + 0.5 - avg_level;  // Java's 'e'
+        let half_diff = level_diff as f64 * 0.5;          // Java's 'f'
+        let o = half_diff - signed_offset.abs();          // Java's 'o'
 
-        let base_pressure = if dist_from_mid > 0.0 {
+        // Java formula (lines 325-338):
+        // if (e > 0.0) {          // above midpoint
+        //     double p = 0.0 + o;  // p = o
+        //     q = p > 0 ? p/1.5 : p/2.5;
+        // } else {                // below or at midpoint
+        //     double p = 3.0 + o;
+        //     q = p > 0 ? p/3.0 : p/10.0;
+        // }
+        let q = if signed_offset > 0.0 {
             // Above midpoint
-            if offset > 0.0 { offset / 1.5 } else { offset / 2.5 }
+            if o > 0.0 { o / 1.5 } else { o / 2.5 }
         } else {
-            // Below midpoint
-            let p = 3.0 + offset;
+            // Below midpoint (or at midpoint)
+            let p = 3.0 + o;
             if p > 0.0 { p / 3.0 } else { p / 10.0 }
         };
 
-        // Add barrier noise when near boundary
-        let barrier = if (-2.0..=2.0).contains(&base_pressure) {
+        // Java (lines 343-353): Add barrier noise when q is in range [-2, 2]
+        let barrier = if q >= -2.0 && q <= 2.0 {
             if barrier_value.is_nan() {
                 *barrier_value = self.barrier_noise.compute(ctx);
             }
@@ -657,10 +911,14 @@ impl NoiseBasedAquifer {
             0.0
         };
 
-        2.0 * (barrier + base_pressure)
+        // Java (line 354): return 2.0 * (barrier + q)
+        2.0 * (barrier + q)
     }
 
     /// Insert into sorted arrays of 4 closest items.
+    ///
+    /// Java uses `>=` comparison, meaning when distances are equal, the new one
+    /// takes precedence and pushes others down. This matches Java lines 203-227.
     fn insert_sorted(
         &self,
         indices: &mut [usize; 4],
@@ -668,30 +926,39 @@ impl NoiseBasedAquifer {
         new_index: usize,
         new_dist: i32,
     ) {
-        if new_dist >= distances[3] {
-            return; // Not closer than any of the 4
+        // Java: if (o >= ai) - insert at position 0 if closer OR EQUAL
+        // Java: else if (p >= ai) - insert at position 1
+        // etc.
+        if distances[0] >= new_dist {
+            // Insert at position 0, shift all down
+            indices[3] = indices[2];
+            indices[2] = indices[1];
+            indices[1] = indices[0];
+            indices[0] = new_index;
+            distances[3] = distances[2];
+            distances[2] = distances[1];
+            distances[1] = distances[0];
+            distances[0] = new_dist;
+        } else if distances[1] >= new_dist {
+            // Insert at position 1, shift 2,3 down
+            indices[3] = indices[2];
+            indices[2] = indices[1];
+            indices[1] = new_index;
+            distances[3] = distances[2];
+            distances[2] = distances[1];
+            distances[1] = new_dist;
+        } else if distances[2] >= new_dist {
+            // Insert at position 2, shift 3 down
+            indices[3] = indices[2];
+            indices[2] = new_index;
+            distances[3] = distances[2];
+            distances[2] = new_dist;
+        } else if distances[3] >= new_dist {
+            // Insert at position 3
+            indices[3] = new_index;
+            distances[3] = new_dist;
         }
-
-        // Find insertion position
-        let pos = if new_dist < distances[0] {
-            0
-        } else if new_dist < distances[1] {
-            1
-        } else if new_dist < distances[2] {
-            2
-        } else {
-            3
-        };
-
-        // Shift elements down
-        for i in (pos + 1..4).rev() {
-            indices[i] = indices[i - 1];
-            distances[i] = distances[i - 1];
-        }
-
-        // Insert new element
-        indices[pos] = new_index;
-        distances[pos] = new_dist;
+        // If new_dist > distances[3], don't insert
     }
 }
 

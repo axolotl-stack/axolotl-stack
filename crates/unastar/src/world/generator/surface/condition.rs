@@ -326,6 +326,52 @@ impl Not {
     }
 }
 
+/// Temperature check condition.
+///
+/// Checks if the biome temperature is within a specified range.
+/// Temperature values are sampled from the noise router.
+#[derive(Debug)]
+pub struct Temperature {
+    /// The temperature noise for sampling.
+    pub noise: DoublePerlinNoise,
+    /// Minimum temperature (inclusive).
+    pub min_value: f64,
+    /// Maximum temperature (inclusive).
+    pub max_value: f64,
+}
+
+impl Condition for Temperature {
+    fn test(&self, ctx: &SurfaceContext) -> bool {
+        let value = self.noise.sample(ctx.block_x as f64, 0.0, ctx.block_z as f64);
+        value >= self.min_value && value <= self.max_value
+    }
+}
+
+impl Temperature {
+    /// Create a new temperature condition.
+    pub fn new(noise: DoublePerlinNoise, min_value: f64, max_value: f64) -> Self {
+        Self {
+            noise,
+            min_value,
+            max_value,
+        }
+    }
+}
+
+/// Above preliminary surface condition.
+///
+/// Returns true if the block Y coordinate is above the preliminary surface level.
+/// The preliminary surface is calculated during terrain generation and stored
+/// in the context.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct AbovePreliminarySurface;
+
+impl Condition for AbovePreliminarySurface {
+    fn test(&self, ctx: &SurfaceContext) -> bool {
+        ctx.block_y >= ctx.min_surface_level
+    }
+}
+
 /// Linear interpolation helper.
 #[inline]
 fn lerp(t: f64, a: f64, b: f64) -> f64 {
@@ -452,5 +498,22 @@ mod tests {
         // Always false above threshold
         ctx.block_y = -54;
         assert!(!condition.test(&ctx));
+    }
+
+    #[test]
+    fn test_above_preliminary_surface() {
+        let condition = AbovePreliminarySurface;
+
+        let mut ctx = SurfaceContext::default();
+        ctx.min_surface_level = 60;
+
+        ctx.block_y = 60;
+        assert!(condition.test(&ctx), "Y=60 should be at or above surface 60");
+
+        ctx.block_y = 65;
+        assert!(condition.test(&ctx), "Y=65 should be above surface 60");
+
+        ctx.block_y = 59;
+        assert!(!condition.test(&ctx), "Y=59 should be below surface 60");
     }
 }

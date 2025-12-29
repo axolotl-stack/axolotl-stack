@@ -48,6 +48,7 @@ impl DensityFunction for Interpolated {
     fn max_value(&self) -> f64 {
         self.wrapped.max_value()
     }
+
 }
 
 /// Marker for flat (2D XZ) caching.
@@ -89,6 +90,7 @@ impl DensityFunction for FlatCacheMarker {
     fn max_value(&self) -> f64 {
         self.wrapped.max_value()
     }
+
 }
 
 /// Marker for 2D single-point cache.
@@ -171,6 +173,7 @@ impl DensityFunction for CacheOnceMarker {
     fn max_value(&self) -> f64 {
         self.wrapped.max_value()
     }
+
 }
 
 /// Marker for caching all values in a cell.
