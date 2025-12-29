@@ -20,5 +20,8 @@ worlds/
 /java-source
 /cubiomes
 
+# Auto Claude data directory
+.auto-claude/
+
 /java-ed-world
 /dragonfly

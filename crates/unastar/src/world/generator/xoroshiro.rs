@@ -69,6 +69,11 @@ impl Xoroshiro128 {
         (self.next_long() >> 11) as f64 * 1.1102230246251565e-16
     }
 
+    /// Generate a random f32 in [0.0, 1.0).
+    pub fn next_float(&mut self) -> f32 {
+        (self.next_long() >> 40) as f32 / (1u32 << 24) as f32
+    }
+
     /// Fork this RNG into two independent streams.
     pub fn fork(&mut self) -> Self {
         let low = self.next_long();
@@ -153,6 +158,20 @@ impl JavaRandom {
         let high = (self.next(32) as i64) << 32;
         let low = self.next(32) as i64 & 0xffffffff;
         high + low
+    }
+
+    /// Skip n iterations of the RNG.
+    ///
+    /// This advances the internal state as if `next()` was called n times.
+    /// Used for chunk-deterministic randomness where we need to skip to
+    /// a specific position in the sequence.
+    pub fn skip(&mut self, n: i64) {
+        // For small n, just iterate
+        // For large n, we could use fast-forward with modular exponentiation,
+        // but for typical use cases (chunk offsets), iteration is fine
+        for _ in 0..n.unsigned_abs() {
+            self.next(1);
+        }
     }
 }
 

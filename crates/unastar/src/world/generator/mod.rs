@@ -3,11 +3,14 @@
 //! This module implements terrain generation matching vanilla Minecraft 1.18+
 //! multi-noise biome system.
 
+pub mod aquifer;
 mod climate;
 mod constants;
+pub mod density;
 pub mod flat;
 pub mod noise;
 mod structures;
+pub mod surface;
 mod terrain;
 pub mod xoroshiro;
 
