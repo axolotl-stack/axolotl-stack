@@ -684,9 +684,252 @@ impl DoublePerlinNoise {
     }
 }
 
+/// Simplex noise generator matching Java's SimplexNoise.
+///
+/// Used for End island generation and some special terrain features.
+#[derive(Debug, Clone)]
+pub struct SimplexNoise {
+    /// Permutation table (512 entries for easy wrapping).
+    p: [i32; 512],
+    /// X offset
+    pub xo: f64,
+    /// Y offset
+    pub yo: f64,
+    /// Z offset
+    pub zo: f64,
+}
+
+impl SimplexNoise {
+    /// Gradient vectors for simplex noise (16 directions).
+    const GRADIENT: [[i32; 3]; 16] = [
+        [1, 1, 0],
+        [-1, 1, 0],
+        [1, -1, 0],
+        [-1, -1, 0],
+        [1, 0, 1],
+        [-1, 0, 1],
+        [1, 0, -1],
+        [-1, 0, -1],
+        [0, 1, 1],
+        [0, -1, 1],
+        [0, 1, -1],
+        [0, -1, -1],
+        [1, 1, 0],
+        [0, -1, 1],
+        [-1, 1, 0],
+        [0, -1, -1],
+    ];
+
+    /// F2 constant: 0.5 * (sqrt(3) - 1)
+    const F2: f64 = 0.3660254037844386;
+    /// G2 constant: (3 - sqrt(3)) / 6
+    const G2: f64 = 0.21132486540518713;
+    /// F3 constant: 1/3
+    const F3: f64 = 0.3333333333333333;
+    /// G3 constant: 1/6
+    const G3: f64 = 0.16666666666666666;
+
+    /// Create a new SimplexNoise from a Xoroshiro RNG.
+    pub fn new(rng: &mut Xoroshiro128) -> Self {
+        let xo = rng.next_double() * 256.0;
+        let yo = rng.next_double() * 256.0;
+        let zo = rng.next_double() * 256.0;
+
+        let mut p = [0i32; 512];
+
+        // Initialize with identity permutation
+        for i in 0..256 {
+            p[i] = i as i32;
+        }
+
+        // Fisher-Yates shuffle (matching Java's exact algorithm)
+        for i in 0..256 {
+            let j = rng.next_int(256 - i as u32) as usize;
+            let k = p[i];
+            p[i] = p[j + i];
+            p[j + i] = k;
+        }
+
+        Self { p, xo, yo, zo }
+    }
+
+    /// Get permutation value with wrapping.
+    #[inline]
+    fn p(&self, i: i32) -> i32 {
+        self.p[(i & 0xFF) as usize]
+    }
+
+    /// Dot product with gradient vector.
+    #[inline]
+    fn dot(grad: &[i32; 3], x: f64, y: f64, z: f64) -> f64 {
+        grad[0] as f64 * x + grad[1] as f64 * y + grad[2] as f64 * z
+    }
+
+    /// Calculate corner contribution for 3D simplex noise.
+    #[inline]
+    fn get_corner_noise_3d(&self, grad_idx: i32, x: f64, y: f64, z: f64, falloff: f64) -> f64 {
+        let h = falloff - x * x - y * y - z * z;
+        if h < 0.0 {
+            0.0
+        } else {
+            let h = h * h;
+            h * h * Self::dot(&Self::GRADIENT[(grad_idx % 12) as usize], x, y, z)
+        }
+    }
+
+    /// Sample 2D simplex noise.
+    pub fn get_value_2d(&self, x: f64, y: f64) -> f64 {
+        let f = (x + y) * Self::F2;
+        let i = (x + f).floor() as i32;
+        let j = (y + f).floor() as i32;
+
+        let g = (i + j) as f64 * Self::G2;
+        let h = i as f64 - g;
+        let k = j as f64 - g;
+        let l = x - h;
+        let m = y - k;
+
+        // Determine which simplex we're in
+        let (n, o) = if l > m { (1, 0) } else { (0, 1) };
+
+        // Offsets for middle corner
+        let p = l - n as f64 + Self::G2;
+        let q = m - o as f64 + Self::G2;
+
+        // Offsets for last corner
+        let r = l - 1.0 + 2.0 * Self::G2;
+        let s = m - 1.0 + 2.0 * Self::G2;
+
+        // Hash coordinates
+        let t = i & 0xFF;
+        let u = j & 0xFF;
+        let v = (self.p(t + self.p(u)) % 12) as usize;
+        let w = (self.p(t + n + self.p(u + o)) % 12) as usize;
+        let x_idx = (self.p(t + 1 + self.p(u + 1)) % 12) as usize;
+
+        // Calculate contributions from the three corners
+        let corner0 = self.get_corner_noise_3d(v as i32, l, m, 0.0, 0.5);
+        let corner1 = self.get_corner_noise_3d(w as i32, p, q, 0.0, 0.5);
+        let corner2 = self.get_corner_noise_3d(x_idx as i32, r, s, 0.0, 0.5);
+
+        70.0 * (corner0 + corner1 + corner2)
+    }
+
+    /// Sample 3D simplex noise.
+    pub fn get_value_3d(&self, x: f64, y: f64, z: f64) -> f64 {
+        let h = (x + y + z) * Self::F3;
+        let i = (x + h).floor() as i32;
+        let j = (y + h).floor() as i32;
+        let k = (z + h).floor() as i32;
+
+        let m = (i + j + k) as f64 * Self::G3;
+        let n = i as f64 - m;
+        let o = j as f64 - m;
+        let p = k as f64 - m;
+        let q = x - n;
+        let r = y - o;
+        let s = z - p;
+
+        // Determine which simplex we're in
+        let (t, u, v, w, x_off, y_off): (i32, i32, i32, i32, i32, i32);
+        if q >= r {
+            if r >= s {
+                t = 1; u = 0; v = 0; w = 1; x_off = 1; y_off = 0;
+            } else if q >= s {
+                t = 1; u = 0; v = 0; w = 1; x_off = 0; y_off = 1;
+            } else {
+                t = 0; u = 0; v = 1; w = 1; x_off = 0; y_off = 1;
+            }
+        } else if r < s {
+            t = 0; u = 0; v = 1; w = 0; x_off = 1; y_off = 1;
+        } else if q < s {
+            t = 0; u = 1; v = 0; w = 0; x_off = 1; y_off = 1;
+        } else {
+            t = 0; u = 1; v = 0; w = 1; x_off = 1; y_off = 0;
+        }
+
+        // Offsets for second corner
+        let z_off = q - t as f64 + Self::G3;
+        let aa = r - u as f64 + Self::G3;
+        let ab = s - v as f64 + Self::G3;
+
+        // Offsets for third corner
+        let ac = q - w as f64 + 2.0 * Self::G3;
+        let ad = r - x_off as f64 + 2.0 * Self::G3;
+        let ae = s - y_off as f64 + 2.0 * Self::G3;
+
+        // Offsets for fourth corner
+        let af = q - 1.0 + 0.5;
+        let ag = r - 1.0 + 0.5;
+        let ah = s - 1.0 + 0.5;
+
+        // Hash coordinates
+        let ai = i & 0xFF;
+        let aj = j & 0xFF;
+        let ak = k & 0xFF;
+
+        let al = self.p(ai + self.p(aj + self.p(ak))) % 12;
+        let am = self.p(ai + t + self.p(aj + u + self.p(ak + v))) % 12;
+        let an = self.p(ai + w + self.p(aj + x_off + self.p(ak + y_off))) % 12;
+        let ao = self.p(ai + 1 + self.p(aj + 1 + self.p(ak + 1))) % 12;
+
+        // Calculate contributions from the four corners
+        let ap = self.get_corner_noise_3d(al, q, r, s, 0.6);
+        let aq = self.get_corner_noise_3d(am, z_off, aa, ab, 0.6);
+        let ar = self.get_corner_noise_3d(an, ac, ad, ae, 0.6);
+        let as_ = self.get_corner_noise_3d(ao, af, ag, ah, 0.6);
+
+        32.0 * (ap + aq + ar + as_)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_simplex_noise_deterministic() {
+        // Test that simplex noise is deterministic with same seed
+        let mut rng1 = Xoroshiro128::from_seed(12345);
+        let mut rng2 = Xoroshiro128::from_seed(12345);
+
+        let noise1 = SimplexNoise::new(&mut rng1);
+        let noise2 = SimplexNoise::new(&mut rng2);
+
+        // Same seed should produce same results
+        assert_eq!(noise1.get_value_2d(0.0, 0.0), noise2.get_value_2d(0.0, 0.0));
+        assert_eq!(noise1.get_value_2d(1.5, 2.5), noise2.get_value_2d(1.5, 2.5));
+        assert_eq!(noise1.get_value_3d(1.0, 2.0, 3.0), noise2.get_value_3d(1.0, 2.0, 3.0));
+    }
+
+    #[test]
+    fn test_simplex_noise_range() {
+        // Simplex noise should produce finite values
+        let mut rng = Xoroshiro128::from_seed(42);
+        let noise = SimplexNoise::new(&mut rng);
+
+        for x in -10..10 {
+            for y in -10..10 {
+                let value_2d = noise.get_value_2d(x as f64 * 0.5, y as f64 * 0.5);
+                assert!(
+                    value_2d.is_finite() && value_2d.abs() <= 100.0,
+                    "2D simplex value {} out of expected range at ({}, {})",
+                    value_2d,
+                    x,
+                    y
+                );
+
+                let value_3d = noise.get_value_3d(x as f64 * 0.5, y as f64 * 0.5, 0.0);
+                assert!(
+                    value_3d.is_finite() && value_3d.abs() <= 100.0,
+                    "3D simplex value {} out of expected range at ({}, {}, 0)",
+                    value_3d,
+                    x,
+                    y
+                );
+            }
+        }
+    }
 
     #[test]
     fn test_perlin_noise_deterministic() {

@@ -237,30 +237,48 @@ impl NoiseInterpolator {
     }
 
     /// Select the 8 corners for a specific cell.
+    ///
+    /// Java naming convention for corners: noiseXYZ where:
+    /// - X: 0=slice0, 1=slice1 (X direction)
+    /// - Y: 0=cell_y, 1=cell_y+1 (Y direction)
+    /// - Z: 0=cell_z, 1=cell_z+1 (Z direction)
+    ///
+    /// Java array layout: slice[z][y] where j=cell_z, i=cell_y
     pub fn select_cell_yz(&self, cell_y: usize, cell_z: usize) {
         let s0 = self.slice0.read().unwrap();
         let s1 = self.slice1.read().unwrap();
 
+        // Java: noise000 = slice0[j][i]     = slice0[z][y]
+        // Java: noise001 = slice0[j+1][i]   = slice0[z+1][y]
+        // Java: noise010 = slice0[j][i+1]   = slice0[z][y+1]
+        // Java: noise011 = slice0[j+1][i+1] = slice0[z+1][y+1]
         *self.noise_000.write().unwrap() = s0[cell_z][cell_y];
-        *self.noise_001.write().unwrap() = s0[cell_z][cell_y + 1];
-        *self.noise_010.write().unwrap() = s0[cell_z + 1][cell_y];
+        *self.noise_001.write().unwrap() = s0[cell_z + 1][cell_y];
+        *self.noise_010.write().unwrap() = s0[cell_z][cell_y + 1];
         *self.noise_011.write().unwrap() = s0[cell_z + 1][cell_y + 1];
         *self.noise_100.write().unwrap() = s1[cell_z][cell_y];
-        *self.noise_101.write().unwrap() = s1[cell_z][cell_y + 1];
-        *self.noise_110.write().unwrap() = s1[cell_z + 1][cell_y];
+        *self.noise_101.write().unwrap() = s1[cell_z + 1][cell_y];
+        *self.noise_110.write().unwrap() = s1[cell_z][cell_y + 1];
         *self.noise_111.write().unwrap() = s1[cell_z + 1][cell_y + 1];
     }
 
     /// Update interpolation for Y position.
+    ///
+    /// Java: valueXZij = lerp(t, noiseij0, noiseij1) for X=0,1 and Z=0,1
+    /// This interpolates along Y (the middle digit changes from 0 to 1).
     pub fn update_for_y(&self, t: f64) {
+        // Java: valueXZ00 = lerp(d, noise000, noise010) - X=0, Z=0, lerp Y
         *self.value_xz00.write().unwrap() =
-            lerp(t, *self.noise_000.read().unwrap(), *self.noise_001.read().unwrap());
+            lerp(t, *self.noise_000.read().unwrap(), *self.noise_010.read().unwrap());
+        // Java: valueXZ10 = lerp(d, noise100, noise110) - X=1, Z=0, lerp Y
         *self.value_xz10.write().unwrap() =
-            lerp(t, *self.noise_100.read().unwrap(), *self.noise_101.read().unwrap());
+            lerp(t, *self.noise_100.read().unwrap(), *self.noise_110.read().unwrap());
+        // Java: valueXZ01 = lerp(d, noise001, noise011) - X=0, Z=1, lerp Y
         *self.value_xz01.write().unwrap() =
-            lerp(t, *self.noise_010.read().unwrap(), *self.noise_011.read().unwrap());
+            lerp(t, *self.noise_001.read().unwrap(), *self.noise_011.read().unwrap());
+        // Java: valueXZ11 = lerp(d, noise101, noise111) - X=1, Z=1, lerp Y
         *self.value_xz11.write().unwrap() =
-            lerp(t, *self.noise_110.read().unwrap(), *self.noise_111.read().unwrap());
+            lerp(t, *self.noise_101.read().unwrap(), *self.noise_111.read().unwrap());
     }
 
     /// Update interpolation for X position.

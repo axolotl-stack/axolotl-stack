@@ -1,13 +1,26 @@
 //! Core density function trait definitions.
 
 use super::context::{ContextProvider, FunctionContext};
+use std::any::Any;
 use std::sync::Arc;
+
+pub trait AsAny: Any + Send + Sync {
+    fn as_any(&self) -> &dyn Any;
+}
+
+// 2. Blanket implement this helper for ALL types that satisfy the bounds
+// This is the "magic" line you were looking for.
+impl<T: Any + Send + Sync> AsAny for T {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
 
 /// Core trait for density functions.
 ///
 /// Density > 0 = solid block, density <= 0 = air/fluid.
 /// This trait is the foundation of the composable terrain generation system.
-pub trait DensityFunction: Send + Sync {
+pub trait DensityFunction: Send + Sync + AsAny {
     /// Compute density at a single point.
     fn compute(&self, ctx: &dyn FunctionContext) -> f64;
 

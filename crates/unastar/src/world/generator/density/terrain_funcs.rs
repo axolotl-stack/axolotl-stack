@@ -6,6 +6,8 @@
 use super::context::FunctionContext;
 use super::function::{DensityFunction, Visitor};
 use super::math::lerp;
+use crate::world::generator::noise::PerlinNoise;
+use crate::world::generator::xoroshiro::Xoroshiro128;
 use std::sync::Arc;
 
 /// Slide density function.
@@ -261,56 +263,286 @@ impl DensityFunction for EndIslands {
     }
 }
 
-/// Old blended noise for legacy terrain compatibility.
+/// Blended noise for 3D terrain generation.
 ///
-/// Used when blending between old and new terrain generation algorithms.
+/// This matches Java's BlendedNoise class. It uses three noise instances
+/// (min_limit, max_limit, main) blended together to create terrain density.
+///
+/// The main noise selects between min and max limit noises, creating
+/// varied terrain with both steep and gentle slopes.
 #[derive(Clone)]
-pub struct OldBlendedNoise {
-    /// Minimum Y for blending.
-    pub min_y: i32,
-    /// Maximum Y for blending.
-    pub max_y: i32,
-    /// XZ scale for noise.
-    pub xz_scale: f64,
-    /// Y scale for noise.
-    pub y_scale: f64,
-    /// XZ factor.
-    pub xz_factor: f64,
-    /// Y factor.
-    pub y_factor: f64,
-    /// Smear scale for Y.
-    pub smear_scale: f64,
+pub struct BlendedNoise {
+    /// Minimum limit noise (16 octaves: -15 to 0)
+    min_limit_noise: LegacyOctaveNoise,
+    /// Maximum limit noise (16 octaves: -15 to 0)
+    max_limit_noise: LegacyOctaveNoise,
+    /// Main/selector noise (8 octaves: -7 to 0)
+    main_noise: LegacyOctaveNoise,
+    /// XZ scale (typically 1.0)
+    xz_scale: f64,
+    /// Y scale (typically 1.0)
+    y_scale: f64,
+    /// XZ factor for main noise division (typically 80.0)
+    xz_factor: f64,
+    /// Y factor for main noise division (typically 160.0)
+    y_factor: f64,
+    /// Smear scale multiplier (typically 8.0)
+    smear_scale_multiplier: f64,
+    /// Precomputed: 684.412 * xz_scale
+    xz_multiplier: f64,
+    /// Precomputed: 684.412 * y_scale
+    y_multiplier: f64,
+    /// Maximum possible output value
+    max_value: f64,
 }
 
-impl OldBlendedNoise {
-    /// Create with default settings.
-    pub fn new() -> Self {
+/// Legacy octave noise for BlendedNoise.
+///
+/// This is a simplified octave noise that matches Java's legacy initialization
+/// used by BlendedNoise (non-positional random source).
+#[derive(Clone)]
+struct LegacyOctaveNoise {
+    /// Individual noise octaves (may have None for skipped octaves)
+    octaves: Vec<Option<PerlinNoise>>,
+    /// First octave index (negative)
+    first_octave: i32,
+    /// Number of octaves
+    num_octaves: usize,
+}
+
+impl LegacyOctaveNoise {
+    /// Create legacy octave noise matching Java's createLegacyForBlendedNoise.
+    fn new(rng: &mut Xoroshiro128, first_octave: i32, num_octaves: usize) -> Self {
+        let mut octaves = Vec::with_capacity(num_octaves);
+
+        // The legacy path creates octaves differently:
+        // First creates one at index -first_octave, then fills backwards
+
+        // Create initial noise at the "anchor" position
+        let anchor_idx = (-first_octave) as usize;
+        let anchor_noise = PerlinNoise::new(rng);
+
+        // Pre-fill with None
+        for _ in 0..num_octaves {
+            octaves.push(None);
+        }
+
+        // Place anchor noise if in range
+        if anchor_idx < num_octaves {
+            octaves[anchor_idx] = Some(anchor_noise);
+        }
+
+        // Fill octaves backwards from anchor
+        for i in (0..anchor_idx).rev() {
+            if i < num_octaves {
+                octaves[i] = Some(PerlinNoise::new(rng));
+            } else {
+                // Skip octave (consume RNG state)
+                Self::skip_octave(rng);
+            }
+        }
+
         Self {
-            min_y: -64,
-            max_y: 320,
-            xz_scale: 684.412,
-            y_scale: 684.412,
-            xz_factor: 80.0,
-            y_factor: 160.0,
-            smear_scale: 8.0,
+            octaves,
+            first_octave,
+            num_octaves,
         }
     }
-}
 
-impl Default for OldBlendedNoise {
-    fn default() -> Self {
-        Self::new()
+    /// Skip an octave by consuming the expected RNG calls
+    fn skip_octave(rng: &mut Xoroshiro128) {
+        // Perlin noise consumes: 3 doubles + 256 ints for shuffle
+        for _ in 0..262 {
+            rng.next_int(256);
+        }
+    }
+
+    /// Get the octave noise at index (from highest frequency).
+    /// Index 0 is the highest frequency octave.
+    fn get_octave(&self, index: usize) -> Option<&PerlinNoise> {
+        let actual_idx = self.num_octaves.saturating_sub(1).saturating_sub(index);
+        self.octaves.get(actual_idx).and_then(|o| o.as_ref())
+    }
+
+    /// Sample the octave noise with the legacy parameters.
+    fn sample(&self, x: f64, y: f64, z: f64, y_scale: f64, y_offset: f64) -> f64 {
+        let mut value = 0.0;
+        let mut frequency = self.lowest_freq_input_factor();
+        let mut amplitude = self.lowest_freq_value_factor();
+
+        for i in 0..self.num_octaves {
+            if let Some(octave) = &self.octaves[i] {
+                let wrapped_x = Self::wrap(x * frequency);
+                let wrapped_y = Self::wrap(y * frequency);
+                let wrapped_z = Self::wrap(z * frequency);
+
+                // Sample with y offset for smearing
+                let noise_val =
+                    octave.sample(wrapped_x, wrapped_y + y_offset * frequency, wrapped_z);
+                value += amplitude * noise_val;
+            }
+            frequency *= 2.0;
+            amplitude /= 2.0;
+        }
+
+        value
+    }
+
+    /// Wrap coordinate to prevent precision issues at large values.
+    #[inline]
+    fn wrap(d: f64) -> f64 {
+        const ROUND_OFF: f64 = 33554432.0; // 2^25
+        d - (d / ROUND_OFF + 0.5).floor() * ROUND_OFF
+    }
+
+    /// Get the lowest frequency input factor.
+    fn lowest_freq_input_factor(&self) -> f64 {
+        2.0_f64.powi(self.first_octave)
+    }
+
+    /// Get the lowest frequency value factor.
+    fn lowest_freq_value_factor(&self) -> f64 {
+        let n = self.num_octaves as i32;
+        2.0_f64.powi(n - 1) / (2.0_f64.powi(n) - 1.0)
+    }
+
+    /// Calculate the maximum value for edge calculation.
+    fn edge_value(&self, d: f64) -> f64 {
+        let mut value = 0.0;
+        let mut amplitude = self.lowest_freq_value_factor();
+
+        for octave in &self.octaves {
+            if octave.is_some() {
+                value += amplitude * d;
+            }
+            amplitude /= 2.0;
+        }
+
+        value
     }
 }
 
-impl DensityFunction for OldBlendedNoise {
-    fn compute(&self, ctx: &dyn FunctionContext) -> f64 {
-        // Simplified: in full implementation this would sample legacy noise
-        let y = ctx.block_y();
-        let normalized_y = (y - self.min_y) as f64 / (self.max_y - self.min_y) as f64;
+impl BlendedNoise {
+    /// Base frequency constant (same as Java).
+    const BASE_FREQUENCY: f64 = 684.412;
 
-        // Basic falloff: more solid at bottom, more air at top
-        0.5 - normalized_y
+    /// Create a new BlendedNoise with the given parameters and seed.
+    pub fn new(
+        rng: &mut Xoroshiro128,
+        xz_scale: f64,
+        y_scale: f64,
+        xz_factor: f64,
+        y_factor: f64,
+        smear_scale_multiplier: f64,
+    ) -> Self {
+        // Create the three octave noises with legacy initialization
+        // min_limit: octaves -15 to 0 (16 octaves)
+        let min_limit_noise = LegacyOctaveNoise::new(rng, -15, 16);
+        // max_limit: octaves -15 to 0 (16 octaves)
+        let max_limit_noise = LegacyOctaveNoise::new(rng, -15, 16);
+        // main: octaves -7 to 0 (8 octaves)
+        let main_noise = LegacyOctaveNoise::new(rng, -7, 8);
+
+        let xz_multiplier = Self::BASE_FREQUENCY * xz_scale;
+        let y_multiplier = Self::BASE_FREQUENCY * y_scale;
+
+        // Calculate max value
+        let max_value = min_limit_noise.edge_value(y_multiplier + 2.0);
+
+        Self {
+            min_limit_noise,
+            max_limit_noise,
+            main_noise,
+            xz_scale,
+            y_scale,
+            xz_factor,
+            y_factor,
+            smear_scale_multiplier,
+            xz_multiplier,
+            y_multiplier,
+            max_value,
+        }
+    }
+
+    /// Create with default overworld settings.
+    pub fn default_overworld(rng: &mut Xoroshiro128) -> Self {
+        Self::new(rng, 1.0, 1.0, 80.0, 160.0, 8.0)
+    }
+}
+
+impl DensityFunction for BlendedNoise {
+    fn compute(&self, ctx: &dyn FunctionContext) -> f64 {
+        let block_x = ctx.block_x() as f64;
+        let block_y = ctx.block_y() as f64;
+        let block_z = ctx.block_z() as f64;
+
+        // Scale coordinates
+        let d = block_x * self.xz_multiplier;
+        let e = block_y * self.y_multiplier;
+        let f = block_z * self.xz_multiplier;
+
+        // Main noise sampling coordinates (divided by factor)
+        let g = d / self.xz_factor;
+        let h = e / self.y_factor;
+        let i = f / self.xz_factor;
+
+        // Smear parameters
+        let j = self.y_multiplier * self.smear_scale_multiplier;
+        let k = j / self.y_factor;
+
+        // Sample main noise (selector)
+        let mut n = 0.0;
+        let mut o = 1.0;
+
+        for p in 0..8 {
+            if let Some(_octave) = self.main_noise.get_octave(p) {
+                let wrapped_g = LegacyOctaveNoise::wrap(g * o);
+                let wrapped_h = LegacyOctaveNoise::wrap(h * o);
+                let wrapped_i = LegacyOctaveNoise::wrap(i * o);
+                // For main noise, we sample with smear
+                n += self
+                    .main_noise
+                    .sample(wrapped_g, wrapped_h, wrapped_i, k * o, h * o)
+                    / o;
+            }
+            o /= 2.0;
+        }
+
+        // Convert selector to 0-1 range
+        let q = (n / 10.0 + 1.0) / 2.0;
+        let is_max = q >= 1.0;
+        let is_min = q <= 0.0;
+
+        // Sample limit noises based on selector
+        let mut l = 0.0; // min limit
+        let mut m = 0.0; // max limit
+        o = 1.0;
+
+        for r in 0..16 {
+            let s = LegacyOctaveNoise::wrap(d * o);
+            let t = LegacyOctaveNoise::wrap(e * o);
+            let u = LegacyOctaveNoise::wrap(f * o);
+            let v = j * o;
+
+            if !is_max {
+                if let Some(_octave) = self.min_limit_noise.get_octave(r) {
+                    l += self.min_limit_noise.sample(s, t, u, v, e * o) / o;
+                }
+            }
+
+            if !is_min {
+                if let Some(_octave) = self.max_limit_noise.get_octave(r) {
+                    m += self.max_limit_noise.sample(s, t, u, v, e * o) / o;
+                }
+            }
+
+            o /= 2.0;
+        }
+
+        // Blend and normalize
+        let clamped_q = q.clamp(0.0, 1.0);
+        let blended = lerp(clamped_q, l / 512.0, m / 512.0);
+        blended / 128.0
     }
 
     fn map_all(&self, visitor: &dyn Visitor) -> Arc<dyn DensityFunction> {
@@ -318,13 +550,18 @@ impl DensityFunction for OldBlendedNoise {
     }
 
     fn min_value(&self) -> f64 {
-        -1.0
+        -self.max_value
     }
 
     fn max_value(&self) -> f64 {
-        1.0
+        self.max_value
     }
 }
+
+/// Old blended noise for legacy terrain compatibility (stub for backwards compat).
+///
+/// This is a simplified alias. Use BlendedNoise for the full implementation.
+pub type OldBlendedNoise = BlendedNoise;
 
 #[cfg(test)]
 mod tests {
@@ -391,5 +628,44 @@ mod tests {
         let density = end.compute(&ctx);
         // Could be positive (outer island) or negative (void)
         assert!(density.is_finite());
+    }
+
+    #[test]
+    fn test_blended_noise_deterministic() {
+        // Test that BlendedNoise is deterministic with same seed
+        let mut rng1 = Xoroshiro128::from_seed(12345);
+        let mut rng2 = Xoroshiro128::from_seed(12345);
+
+        let noise1 = BlendedNoise::default_overworld(&mut rng1);
+        let noise2 = BlendedNoise::default_overworld(&mut rng2);
+
+        let ctx = SinglePointContext::new(100, 64, 100);
+
+        // Same seed should produce same results
+        assert_eq!(noise1.compute(&ctx), noise2.compute(&ctx));
+    }
+
+    #[test]
+    fn test_blended_noise_finite() {
+        // Test that BlendedNoise produces finite values
+        let mut rng = Xoroshiro128::from_seed(42);
+        let noise = BlendedNoise::default_overworld(&mut rng);
+
+        for x in [-100, 0, 100] {
+            for y in [-64, 0, 64, 128] {
+                for z in [-100, 0, 100] {
+                    let ctx = SinglePointContext::new(x, y, z);
+                    let value = noise.compute(&ctx);
+                    assert!(
+                        value.is_finite(),
+                        "BlendedNoise produced non-finite value at ({}, {}, {}): {}",
+                        x,
+                        y,
+                        z,
+                        value
+                    );
+                }
+            }
+        }
     }
 }

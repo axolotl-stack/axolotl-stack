@@ -40,6 +40,7 @@ impl DensityFunction for Constant {
     fn max_value(&self) -> f64 {
         self.value
     }
+
 }
 
 /// Two-argument operation types.
@@ -140,6 +141,7 @@ impl DensityFunction for TwoArg {
     fn max_value(&self) -> f64 {
         self.max_value
     }
+
 }
 
 /// Unary transformation types.
@@ -216,8 +218,10 @@ impl Mapped {
                 }
             }
             MappedType::Squeeze => {
-                // Java formula: x/2 - x³/24
-                d * 0.5 - d.powi(3) / 24.0
+                // Java formula: clamp(d, -1, 1) THEN x/2 - x³/24
+                // This is critical - without the clamp, large values cause incorrect terrain
+                let e = d.clamp(-1.0, 1.0);
+                e * 0.5 - e.powi(3) / 24.0
             }
         }
     }
@@ -265,9 +269,15 @@ impl Mapped {
                 (-10000.0, 10000.0)
             }
             MappedType::Squeeze => {
-                // Squeeze is monotonic in reasonable range
-                let a = Self::apply_op(MappedType::Squeeze, in_min);
-                let b = Self::apply_op(MappedType::Squeeze, in_max);
+                // With clamp(-1, 1), squeeze output is bounded:
+                // squeeze(-1) = -1/2 - (-1)³/24 = -0.5 + 1/24 ≈ -0.458
+                // squeeze(1) = 1/2 - 1/24 ≈ 0.458
+                // squeeze(0) = 0
+                // The function is monotonic in [-1, 1]
+                let clamped_min = in_min.clamp(-1.0, 1.0);
+                let clamped_max = in_max.clamp(-1.0, 1.0);
+                let a = clamped_min * 0.5 - clamped_min.powi(3) / 24.0;
+                let b = clamped_max * 0.5 - clamped_max.powi(3) / 24.0;
                 (a.min(b), a.max(b))
             }
         }
@@ -291,6 +301,7 @@ impl DensityFunction for Mapped {
     fn max_value(&self) -> f64 {
         self.max_value
     }
+
 }
 
 /// Clamp density function.
@@ -330,6 +341,7 @@ impl DensityFunction for Clamp {
     fn max_value(&self) -> f64 {
         self.input.max_value().clamp(self.min, self.max)
     }
+
 }
 
 /// Y-clamped gradient density function.
@@ -385,6 +397,7 @@ impl DensityFunction for YClampedGradient {
     fn max_value(&self) -> f64 {
         self.from_value.max(self.to_value)
     }
+
 }
 
 /// Range choice density function.
@@ -458,6 +471,7 @@ impl DensityFunction for RangeChoice {
             .max_value()
             .max(self.when_out_of_range.max_value())
     }
+
 }
 
 /// Optimized multiply-or-add operation.
@@ -533,6 +547,53 @@ impl DensityFunction for MulOrAdd {
     }
 }
 
+/// Y coordinate density function.
+///
+/// Simply returns the Y coordinate of the current position.
+/// Used in cave systems for range checks (e.g., only generate caves at certain Y levels).
+#[derive(Debug, Clone, Copy)]
+pub struct YCoord;
+
+impl YCoord {
+    /// Create a new Y coordinate function.
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for YCoord {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl DensityFunction for YCoord {
+    fn compute(&self, ctx: &dyn FunctionContext) -> f64 {
+        ctx.block_y() as f64
+    }
+
+    fn fill_array(&self, values: &mut [f64], provider: &dyn ContextProvider) {
+        for (i, value) in values.iter_mut().enumerate() {
+            let ctx = provider.for_index(i);
+            *value = ctx.block_y() as f64;
+        }
+    }
+
+    fn map_all(&self, visitor: &dyn Visitor) -> Arc<dyn DensityFunction> {
+        visitor.apply(Arc::new(*self))
+    }
+
+    fn min_value(&self) -> f64 {
+        // World Y range
+        -64.0
+    }
+
+    fn max_value(&self) -> f64 {
+        // World Y range
+        320.0
+    }
+}
+
 /// Linear interpolation helper.
 #[inline]
 pub fn lerp(t: f64, a: f64, b: f64) -> f64 {
@@ -601,13 +662,26 @@ mod tests {
 
     #[test]
     fn test_squeeze_formula() {
-        // Verify squeeze matches Java: x/2 - x³/24
-        let input = Arc::new(Constant::new(2.0));
-        let squeeze = Mapped::new(MappedType::Squeeze, input);
+        // Verify squeeze matches Java: clamp(d, -1, 1) THEN x/2 - x³/24
         let ctx = super::super::context::SinglePointContext::new(0, 0, 0);
 
-        let expected = 2.0 / 2.0 - 2.0_f64.powi(3) / 24.0; // 1.0 - 8/24 = 1.0 - 0.333... = 0.666...
-        assert!((squeeze.compute(&ctx) - expected).abs() < 0.0001);
+        // Test with value in range [-1, 1]
+        let input_half = Arc::new(Constant::new(0.5));
+        let squeeze_half = Mapped::new(MappedType::Squeeze, input_half);
+        let expected_half = 0.5 / 2.0 - 0.5_f64.powi(3) / 24.0; // 0.25 - 0.00520833... ≈ 0.2448
+        assert!((squeeze_half.compute(&ctx) - expected_half).abs() < 0.0001);
+
+        // Test with value outside range - should clamp to 1.0 first
+        let input_large = Arc::new(Constant::new(2.0));
+        let squeeze_large = Mapped::new(MappedType::Squeeze, input_large);
+        let expected_clamped = 1.0 / 2.0 - 1.0_f64.powi(3) / 24.0; // 0.5 - 0.0416... ≈ 0.4583
+        assert!((squeeze_large.compute(&ctx) - expected_clamped).abs() < 0.0001);
+
+        // Test with negative value outside range - should clamp to -1.0 first
+        let input_neg = Arc::new(Constant::new(-5.0));
+        let squeeze_neg = Mapped::new(MappedType::Squeeze, input_neg);
+        let expected_neg = -1.0 / 2.0 - (-1.0_f64).powi(3) / 24.0; // -0.5 + 0.0416... ≈ -0.4583
+        assert!((squeeze_neg.compute(&ctx) - expected_neg).abs() < 0.0001);
     }
 
     #[test]

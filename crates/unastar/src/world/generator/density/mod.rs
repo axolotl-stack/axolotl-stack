@@ -76,7 +76,7 @@ pub use function::{DensityFunction, IdentityVisitor, Visitor};
 // Re-export math functions
 pub use math::{
     lerp, lerp3, Clamp, Constant, Mapped, MappedType, MulOrAdd, RangeChoice, TwoArg, TwoArgType,
-    YClampedGradient,
+    YClampedGradient, YCoord,
 };
 
 // Re-export cache implementations
@@ -91,7 +91,7 @@ pub use markers::{
 pub use blend::{BlendAlpha, BlendDensity, BlendOffset};
 
 // Re-export terrain functions
-pub use terrain_funcs::{Beardifier, EndIslands, OldBlendedNoise, Slide};
+pub use terrain_funcs::{Beardifier, BlendedNoise, EndIslands, OldBlendedNoise, Slide};
 
 // Re-export noise functions
 pub use noise_funcs::{

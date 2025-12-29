@@ -47,8 +47,8 @@ mod system;
 
 // Re-export conditions
 pub use condition::{
-    BiomeCheck, Condition, Hole, LazyCondition, NoiseThreshold, Not, Steep, StoneDepthCheck,
-    VerticalGradient, WaterCheck, YCheck,
+    AbovePreliminarySurface, BiomeCheck, Condition, Hole, LazyCondition, NoiseThreshold, Not,
+    Steep, StoneDepthCheck, Temperature, VerticalGradient, WaterCheck, YCheck,
 };
 
 // Re-export context

@@ -156,6 +156,12 @@ pub mod blocks {
         LazyLock::new(|| lookup("minecraft:deepslate_diamond_ore"));
     pub static DEEPSLATE_EMERALD_ORE: LazyLock<u32> =
         LazyLock::new(|| lookup("minecraft:deepslate_emerald_ore"));
+
+    // Raw ore blocks (for large ore veins)
+    pub static RAW_COPPER_BLOCK: LazyLock<u32> =
+        LazyLock::new(|| lookup("minecraft:raw_copper_block"));
+    pub static RAW_IRON_BLOCK: LazyLock<u32> =
+        LazyLock::new(|| lookup("minecraft:raw_iron_block"));
 }
 
 /// Height map for a chunk - tracks highest light-blocking block per column.

@@ -379,10 +379,53 @@ impl<'a> WrapVisitor<'a> {
 impl<'a> Visitor for WrapVisitor<'a> {
     fn apply(&self, func: Arc<dyn DensityFunction>) -> Arc<dyn DensityFunction> {
         // Check if this is a marker type that needs wrapping
-        // We use downcasting to identify marker types
+        if let Some(marker) = func.as_any().downcast_ref::<Interpolated>() {
+            let interp = Arc::new(NoiseInterpolator::new(
+                marker.wrapped.clone(),
+                self.noise_chunk.cell_count_xz as usize,
+                self.noise_chunk.cell_count_y as usize,
+            ));
+            self.noise_chunk.register_interpolator(interp.clone());
+            return interp;
+        }
 
-        // For now, return the function as-is
-        // The actual marker replacement will be done when we have type IDs
+        if let Some(marker) = func.as_any().downcast_ref::<FlatCacheMarker>() {
+            // FlatCache needs to cover cell corners, which extend 1 cell beyond chunk edge.
+            // For a chunk of 16 blocks with cell_width=4, we have 5 corners (0,4,8,12,16).
+            // So cache size needs to be chunk_size + 1 to include the far edge corner.
+            let cache = Arc::new(FlatCache::new(
+                marker.wrapped.clone(),
+                self.noise_chunk.min_block_x,
+                self.noise_chunk.min_block_z,
+                17, // Chunk width + 1 for cell corner at far edge
+                17  // Chunk depth + 1 for cell corner at far edge
+            ));
+            self.noise_chunk.register_flat_cache(cache.clone());
+            return cache;
+        }
+
+        if let Some(marker) = func.as_any().downcast_ref::<Cache2DMarker>() {
+            let cache = Arc::new(Cache2D::new(marker.wrapped.clone()));
+            self.noise_chunk.register_cache_2d(cache.clone());
+            return cache;
+        }
+
+        if let Some(marker) = func.as_any().downcast_ref::<CacheOnceMarker>() {
+            let cache = Arc::new(CacheOnce::new(marker.wrapped.clone()));
+            self.noise_chunk.register_cache_once(cache.clone());
+            return cache;
+        }
+
+        if let Some(marker) = func.as_any().downcast_ref::<CacheAllInCellMarker>() {
+            let cache = Arc::new(CacheAllInCell::new(
+                marker.wrapped.clone(),
+                self.noise_chunk.cell_width,
+                self.noise_chunk.cell_height
+            ));
+            self.noise_chunk.register_cell_cache(cache.clone());
+            return cache;
+        }
+
         func
     }
 }
