@@ -14,6 +14,7 @@ use tracing::{error, info, trace, warn};
 
 use crate::config::{PlayerDataStore, UnastarConfig};
 use crate::network::{NetworkEvent, spawn_network_task};
+use crate::plugin::PluginManager;
 use crate::server::connect::{accept_join_sequence, spawn_to_dvec3};
 use crate::server::{GameServer, PlayerSpawnData};
 use crate::storage::LevelDBPlayerProvider;
@@ -32,6 +33,7 @@ pub struct UnastarServer {
     player_data_store: Arc<PlayerDataStore>,
     server: GameServer,
     server_key: SecretKey,
+    plugin_manager: PluginManager,
 }
 
 impl UnastarServer {
@@ -115,11 +117,22 @@ impl UnastarServer {
         // Server key for encryption
         let server_key = SecretKey::random(&mut thread_rng());
 
+        // Initialize Plugin Manager
+        let mut plugin_manager = PluginManager::new()
+            .map_err(|e| format!("Failed to initialize plugin manager: {}", e))?;
+        
+        // Load plugins from "plugins" directory relative to CWD
+        let plugins_dir = std::env::current_dir()?.join("plugins");
+        if let Err(e) = plugin_manager.load_plugins(&plugins_dir).await {
+            warn!(error = %e, "Failed to load plugins");
+        }
+
         Ok(Self {
             config,
             player_data_store,
             server,
             server_key,
+            plugin_manager,
         })
     }
 
@@ -252,9 +265,16 @@ impl UnastarServer {
 
                     let events_elapsed = tick_start.elapsed();
 
-                    // Run game tick (this queues packets to broadcast systems)
+                    // 1. Run game simulation (Physics, Logic, Chunks)
                     let tick_logic_start = std::time::Instant::now();
-                    self.server.tick();
+                    self.server.tick_simulation();
+                    
+                    // 2. Run plugin tick (Plugins can react to sim and modify state before broadcast)
+                    self.plugin_manager.tick(self.server.ecs.world_mut()).await;
+
+                    // 3. Run post-simulation (Network Broadcast, Cleanup)
+                    self.server.tick_post_simulation();
+
                     let tick_logic_elapsed = tick_logic_start.elapsed();
 
                     // Signal all network tasks to flush their buffers

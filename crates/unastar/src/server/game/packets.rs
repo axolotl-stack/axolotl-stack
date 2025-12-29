@@ -652,10 +652,25 @@ impl GameServer {
 
         // Get sender's name
         let world = self.ecs.world();
-        let sender_name = world
-            .get::<PlayerName>(entity)
-            .map(|n| n.0.clone())
-            .unwrap_or_else(|| "Unknown".to_string());
+        let (sender_name, player_uuid) = {
+            let name = world
+                .get::<crate::entity::components::PlayerName>(entity)
+                .map(|n| n.0.clone())
+                .unwrap_or_else(|| "Unknown".to_string());
+            let uuid = world
+                .get::<crate::entity::components::PlayerUuid>(entity)
+                .map(|u| u.0.to_string())
+                .unwrap_or_else(|| "".to_string());
+            (name, uuid)
+        };
+
+        // Push PlayerChat event to EventBuffer for plugins
+        if let Some(mut event_buffer) = self.ecs.world_mut().get_resource_mut::<crate::ecs::events::EventBuffer>() {
+            event_buffer.push(unastar_api::PluginEvent::PlayerChat {
+                player_id: player_uuid,
+                message: message.clone(),
+            });
+        }
 
         match pk.type_ {
             TextPacketType::Chat => {

@@ -4,9 +4,11 @@
 //! This provides a data-oriented architecture for managing entities, chunks, and game state.
 
 pub mod app;
+pub mod events;
 pub mod resources;
 pub mod schedules;
 
 pub use app::UnastarEcs;
+pub use events::*;
 pub use resources::*;
 pub use schedules::*;

@@ -17,7 +17,9 @@ use glam::IVec3;
 use tracing::{debug, info, trace};
 
 use super::GameServer;
-use crate::entity::components::{BreakingState, PlayerSession};
+use crate::entity::components::{BreakingState, PlayerSession, PlayerUuid, PlayerName};
+use crate::ecs::events::EventBuffer;
+use unastar_api::PluginEvent;
 use crate::world::chunk::blocks;
 use crate::world::ecs::{BlockBroadcastEvent, BlockChanged, ChunkManager, ChunkViewers};
 use crate::world::ecs::{world_to_chunk_coords, world_to_local_coords};
@@ -328,6 +330,25 @@ impl GameServer {
                 0
             }
         };
+
+        // Emit PluginEvent::BlockBreak
+        let (player_id, block_name) = {
+            let world = self.ecs.world();
+            let uuid = world.get::<PlayerUuid>(breaking_player).map(|u| u.0.to_string()).unwrap_or_default();
+            // Map runtime ID back to block name (approximation for now using BLOCKS slice)
+            let name = BLOCKS.get(original_block_id as usize).map(|b| b.name()).unwrap_or("unknown").to_string();
+            (uuid, name)
+        };
+
+        if let Some(mut event_buffer) = self.ecs.world_mut().get_resource_mut::<EventBuffer>() {
+            event_buffer.push(PluginEvent::BlockBreak {
+                player_id,
+                x,
+                y,
+                z,
+                block_name,
+            });
+        }
 
         // Update block to air in chunk data (ECS component is source of truth)
         {
@@ -694,6 +715,25 @@ impl GameServer {
         }
 
         // 3. Place block
+        
+        // Emit PluginEvent::BlockPlace
+        let (player_id, block_name) = {
+            let world = self.ecs.world();
+            let uuid = world.get::<PlayerUuid>(_entity).map(|u| u.0.to_string()).unwrap_or_default();
+            let name = self.blocks.get_by_runtime_id(block_runtime_id).map(|b| b.string_id.clone()).unwrap_or("unknown".to_string());
+            (uuid, name)
+        };
+
+        if let Some(mut event_buffer) = self.ecs.world_mut().get_resource_mut::<EventBuffer>() {
+            event_buffer.push(PluginEvent::BlockPlace {
+                player_id,
+                x,
+                y,
+                z,
+                block_name,
+            });
+        }
+
         self.place_block(x, y, z, block_runtime_id);
     }
 
