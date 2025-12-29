@@ -21,8 +21,9 @@ pub enum NetworkEvent {
         uuid: Option<String>,
         runtime_id: i64,
         initial_position: DVec3,
-        /// Channel to send packets to this player.
-        outbound_tx: mpsc::UnboundedSender<McpePacket>,
+        /// Bounded channel to send packets to this player.
+        /// Uses bounded capacity to prevent memory explosion on slow connections.
+        outbound_tx: mpsc::Sender<McpePacket>,
     },
 
     /// Player sent a packet.

@@ -3,9 +3,25 @@
 use bevy_ecs::prelude::*;
 
 use super::components::*;
+use crate::world::ecs::{ChunkLoader, LastPublisherState};
 
 /// Bundle for spawning a player entity.
 /// Contains all components needed to spawn a player in the ECS.
+///
+/// This bundle includes ALL components needed for a player to function properly,
+/// eliminating the need for systems to add components after spawn (which causes
+/// archetype changes).
+///
+/// Components included:
+/// - Core identity: Player, PlayerName, PlayerUuid, PlayerSession, RuntimeEntityId
+/// - Transform: Position, Rotation
+/// - Game state: GameMode, PlayerState, PlayerInput, BreakingState
+/// - Chunk streaming: ChunkRadius, ChunkLoader, LastPublisherState, SpatialChunk
+/// - Network: LastBroadcastPosition
+/// - Inventory: MainInventory, ArmourInventory, OffhandSlot, HeldSlot, CursorItem, etc.
+///
+/// Note: Player spawning emits a `PlayerSpawnedEvent` (not a marker component)
+/// to trigger broadcast to other players without archetype changes.
 #[derive(Bundle)]
 pub struct PlayerBundle {
     pub player: Player,
@@ -21,7 +37,10 @@ pub struct PlayerBundle {
     pub chunk_radius: ChunkRadius,
     pub breaking_state: BreakingState,
     pub spatial_chunk: SpatialChunk,
-    pub pending_spawn: PendingSpawnBroadcast,
+    pub last_broadcast: LastBroadcastPosition,
+    // Chunk streaming components (Phase 7: included at spawn to avoid archetype changes)
+    pub chunk_loader: ChunkLoader,
+    pub last_publisher_state: LastPublisherState,
     // Inventory components
     pub main_inventory: MainInventory,
     pub armour: ArmourInventory,

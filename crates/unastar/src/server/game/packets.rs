@@ -244,7 +244,7 @@ impl GameServer {
                     runtime_entity_id: -1, // -1 for player's own inventory
                 }));
 
-                debug!("Sent ContainerOpen packet: {:?}", result.is_ok());
+                debug!("Sent ContainerOpen packet: {:?}", result);
 
                 // Mark inventory as opened
                 let world = self.ecs.world_mut();

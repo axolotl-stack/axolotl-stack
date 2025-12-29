@@ -88,6 +88,72 @@ impl BiomeNoise {
         ]
     }
 
+    /// Sample climate at 4 positions simultaneously using SIMD.
+    /// Returns 4 climate arrays, one per input position.
+    /// All positions share the same Y coordinate for efficiency.
+    pub fn sample_climate_4(&self, x: [i32; 4], y: i32, z: [i32; 4]) -> [[i64; 6]; 4] {
+        // Quarter coordinates (biome resolution)
+        let qx = [
+            (x[0] >> 2) as f64,
+            (x[1] >> 2) as f64,
+            (x[2] >> 2) as f64,
+            (x[3] >> 2) as f64,
+        ];
+        let qy = (y >> 2) as f64;
+        let qz = [
+            (z[0] >> 2) as f64,
+            (z[1] >> 2) as f64,
+            (z[2] >> 2) as f64,
+            (z[3] >> 2) as f64,
+        ];
+
+        // Sample all 5 noise parameters using SIMD batch sampling
+        let temp = self.temperature.sample_4(qx, qy, qz);
+        let humid = self.humidity.sample_4(qx, qy, qz);
+        let cont = self.continentalness.sample_4(qx, qy, qz);
+        let eros = self.erosion.sample_4(qx, qy, qz);
+        let weird = self.weirdness.sample_4(qx, qy, qz);
+
+        // Depth is derived from Y position (same for all 4)
+        let depth = Self::depth_from_y(y);
+
+        // Build result arrays
+        [
+            [
+                (temp[0] * 10000.0) as i64,
+                (humid[0] * 10000.0) as i64,
+                (cont[0] * 10000.0) as i64,
+                (eros[0] * 10000.0) as i64,
+                depth,
+                (weird[0] * 10000.0) as i64,
+            ],
+            [
+                (temp[1] * 10000.0) as i64,
+                (humid[1] * 10000.0) as i64,
+                (cont[1] * 10000.0) as i64,
+                (eros[1] * 10000.0) as i64,
+                depth,
+                (weird[1] * 10000.0) as i64,
+            ],
+            [
+                (temp[2] * 10000.0) as i64,
+                (humid[2] * 10000.0) as i64,
+                (cont[2] * 10000.0) as i64,
+                (eros[2] * 10000.0) as i64,
+                depth,
+                (weird[2] * 10000.0) as i64,
+            ],
+            [
+                (temp[3] * 10000.0) as i64,
+                (humid[3] * 10000.0) as i64,
+                (cont[3] * 10000.0) as i64,
+                (eros[3] * 10000.0) as i64,
+                depth,
+                (weird[3] * 10000.0) as i64,
+            ],
+        ]
+    }
+
     /// Calculate depth parameter from Y coordinate.
     fn depth_from_y(y: i32) -> i64 {
         // Depth increases as we go deeper, decreases higher

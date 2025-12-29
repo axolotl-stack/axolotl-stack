@@ -60,7 +60,8 @@ pub struct PlayerSpawnData {
     pub uuid: Option<String>,
     pub runtime_id: i64,
     pub position: DVec3,
-    pub outbound_tx: mpsc::UnboundedSender<McpePacket>,
+    /// Bounded outbound channel to prevent memory explosion on slow connections.
+    pub outbound_tx: mpsc::Sender<McpePacket>,
     pub chunk_radius: i32,
 }
 

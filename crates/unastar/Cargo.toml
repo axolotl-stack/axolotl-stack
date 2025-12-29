@@ -29,3 +29,14 @@ lru = "0.12"
 parking_lot = "0.12"
 lz4_flex = "0.11"
 crc32fast = "1.4"
+
+#dhat = "0.3"
+# tracy-client = "0.18"
+bitflags = "2.6"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "world_generation"
+harness = false

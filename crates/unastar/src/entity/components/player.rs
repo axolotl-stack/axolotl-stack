@@ -1,6 +1,10 @@
 //! Player-specific components.
 
+use std::sync::atomic::{AtomicU32, Ordering};
+
+use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::prelude::*;
+use bevy_ecs::world::DeferredWorld;
 use jolyne::valentine::McpePacket;
 use tokio::sync::mpsc;
 use uuid::Uuid;
@@ -26,7 +30,11 @@ pub struct PlayerSession {
     pub display_name: String,
     pub xuid: Option<String>,
     pub uuid: Option<String>,
-    pub outbound_tx: mpsc::UnboundedSender<McpePacket>,
+    /// Bounded outbound channel to prevent memory explosion on slow connections.
+    pub outbound_tx: mpsc::Sender<McpePacket>,
+    /// Count of dropped packets due to channel being full.
+    /// Uses atomic for interior mutability, allowing `send()` to take `&self`.
+    packets_dropped: AtomicU32,
 }
 
 impl std::fmt::Debug for PlayerSession {
@@ -36,14 +44,65 @@ impl std::fmt::Debug for PlayerSession {
             .field("display_name", &self.display_name)
             .field("xuid", &self.xuid)
             .field("uuid", &self.uuid)
+            .field(
+                "packets_dropped",
+                &self.packets_dropped.load(Ordering::Relaxed),
+            )
             .finish()
     }
 }
 
 impl PlayerSession {
+    /// Create a new PlayerSession.
+    pub fn new(
+        session_id: u64,
+        display_name: String,
+        xuid: Option<String>,
+        uuid: Option<String>,
+        outbound_tx: mpsc::Sender<McpePacket>,
+    ) -> Self {
+        Self {
+            session_id,
+            display_name,
+            xuid,
+            uuid,
+            outbound_tx,
+            packets_dropped: AtomicU32::new(0),
+        }
+    }
+
     /// Send a packet to this player.
-    pub fn send(&self, packet: McpePacket) -> Result<(), mpsc::error::SendError<McpePacket>> {
-        self.outbound_tx.send(packet)
+    ///
+    /// Uses `try_send` to avoid blocking the game thread.
+    /// If the channel is full (client connection is slow), the packet is dropped
+    /// and the client will request it again. This prevents memory explosion
+    /// from accumulating packets for slow connections.
+    ///
+    /// Returns `true` if the packet was sent, `false` if dropped.
+    pub fn send(&self, packet: McpePacket) -> bool {
+        match self.outbound_tx.try_send(packet) {
+            Ok(()) => true,
+            Err(mpsc::error::TrySendError::Full(_)) => {
+                let dropped = self.packets_dropped.fetch_add(1, Ordering::Relaxed) + 1;
+                if dropped == 1 || dropped % 100 == 0 {
+                    tracing::warn!(
+                        session_id = %self.session_id,
+                        packets_dropped = dropped,
+                        "outbound channel full, dropping packet - client connection may be slow"
+                    );
+                }
+                false
+            }
+            Err(mpsc::error::TrySendError::Closed(_)) => {
+                // Channel closed, player is disconnecting
+                false
+            }
+        }
+    }
+
+    /// Get the number of dropped packets.
+    pub fn packets_dropped(&self) -> u32 {
+        self.packets_dropped.load(Ordering::Relaxed)
     }
 }
 
@@ -243,15 +302,9 @@ impl BreakingState {
 // Broadcast-related components
 // =============================================================================
 
-/// Component marking a player as newly spawned this tick.
-/// Removed after broadcasting to other players.
-#[derive(Component, Debug)]
-pub struct PendingSpawnBroadcast;
-
-/// Component marking a player for despawn broadcast.
-/// Added when player is about to be removed.
-#[derive(Component, Debug)]
-pub struct PendingDespawnBroadcast;
+// NOTE: PendingSpawnBroadcast and PendingDespawnBroadcast have been removed.
+// They have been replaced by PlayerSpawnedEvent and PlayerDespawnedEvent (in world::ecs::events)
+// to eliminate archetype changes during player spawn/despawn.
 
 /// Component tracking the last broadcast position.
 /// Used to detect significant movement for broadcasting.
@@ -266,7 +319,15 @@ pub struct LastBroadcastPosition {
 
 /// Component tracking the player's current chunk for spatial hashing.
 /// Updated when player crosses chunk boundaries.
+///
+/// Uses component hooks to automatically synchronize with EntityGrid:
+/// - `on_insert`: Adds entity to the grid at its chunk position
+/// - `on_remove`: Removes entity from the grid
+///
+/// Note: Chunk boundary crossing during movement is handled by `sync_spatial_chunks` system,
+/// which updates this component. The hooks then fire to update EntityGrid.
 #[derive(Component, Debug, Default, Clone, Copy)]
+#[component(on_insert = spatial_chunk_on_insert, on_remove = spatial_chunk_on_remove)]
 pub struct SpatialChunk {
     pub x: i32,
     pub z: i32,
@@ -285,6 +346,30 @@ impl SpatialChunk {
     /// Get as tuple key.
     pub fn as_tuple(&self) -> (i32, i32) {
         (self.x, self.z)
+    }
+}
+
+/// Hook called when SpatialChunk is inserted.
+/// Adds the entity to EntityGrid at its chunk position.
+fn spatial_chunk_on_insert(mut world: DeferredWorld<'_>, context: HookContext) {
+    let entity = context.entity;
+    let Some(chunk) = world.get::<SpatialChunk>(entity).copied() else {
+        return;
+    };
+    if let Some(mut grid) = world.get_resource_mut::<crate::server::broadcast::EntityGrid>() {
+        grid.insert(chunk.as_tuple(), entity);
+    }
+}
+
+/// Hook called when SpatialChunk is removed.
+/// Removes the entity from EntityGrid.
+fn spatial_chunk_on_remove(mut world: DeferredWorld<'_>, context: HookContext) {
+    let entity = context.entity;
+    let Some(chunk) = world.get::<SpatialChunk>(entity).copied() else {
+        return;
+    };
+    if let Some(mut grid) = world.get_resource_mut::<crate::server::broadcast::EntityGrid>() {
+        grid.remove(chunk.as_tuple(), entity);
     }
 }
 

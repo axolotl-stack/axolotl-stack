@@ -17,8 +17,8 @@ use tracing::{debug, trace};
 
 use crate::entity::components::{ChunkRadius, Player, PlayerSession, Position};
 use crate::world::ecs::{
-    ChunkData, ChunkEntities, ChunkLoader, ChunkManager, ChunkModified, ChunkPendingUnload,
-    ChunkPosition, ChunkState, ChunkTicking, ChunkViewers,
+    ChunkData, ChunkEntities, ChunkLoader, ChunkManager, ChunkPendingUnload, ChunkPosition,
+    ChunkState, ChunkStateFlags, ChunkTickingState, ChunkViewers, PendingChunkGenerations,
 };
 use jolyne::valentine::types::{BlockCoordinates, UpdateBlockFlags};
 use jolyne::valentine::{
@@ -61,10 +61,10 @@ impl ChunkLoadConfig {
     }
 }
 
-/// Marker component for players that are disconnecting.
-/// Added before despawn to allow cleanup systems to access their ChunkLoader.
-#[derive(Component, Debug)]
-pub struct PlayerDisconnecting;
+// NOTE: PlayerDisconnecting marker has been removed.
+// ChunkLoader now has an on_remove hook that automatically cleans up
+// chunk viewers when the component is removed during entity despawn.
+// See loader.rs for the implementation.
 
 /// Component tracking the last publisher position sent to client.
 /// Used to avoid spamming NetworkChunkPublisherUpdate.
@@ -77,44 +77,13 @@ pub struct LastPublisherState {
     pub queue_was_empty: bool,
 }
 
-/// System: Initialize ChunkLoader for new players.
-/// Runs when a player spawns but doesn't have a ChunkLoader yet.
-pub fn initialize_chunk_loaders(
-    mut commands: Commands,
-    players: Query<(Entity, &Position, &ChunkRadius), (With<Player>, Without<ChunkLoader>)>,
-) {
-    for (entity, position, radius) in players.iter() {
-        let chunk_x = (position.0.x / 16.0).floor() as i32;
-        let chunk_z = (position.0.z / 16.0).floor() as i32;
-
-        let mut loader = ChunkLoader::new(radius.0);
-        // Initialize loader at player's position and build queue
-        loader.move_to(chunk_x, chunk_z);
-
-        // If move_to was a no-op (same position), force reload
-        if !loader.has_pending() {
-            loader.force_reload();
-        }
-
-        commands.entity(entity).insert((
-            loader,
-            LastPublisherState {
-                // Use impossible values so first update always triggers
-                chunk_x: i32::MIN,
-                chunk_z: i32::MIN,
-                radius: 0,
-                queue_was_empty: false,
-            },
-        ));
-
-        trace!(
-            entity = ?entity,
-            chunk = ?(chunk_x, chunk_z),
-            radius = radius.0,
-            "Initialized ChunkLoader for player"
-        );
-    }
-}
+// NOTE: initialize_chunk_loaders has been removed.
+//
+// ChunkLoader and LastPublisherState are now included in PlayerBundle at spawn time.
+// This eliminates archetype changes that occurred when these components were
+// added by a system after the player entity was spawned.
+//
+// The initialization logic that was here is now in GameServer::spawn_player().
 
 /// System: Update ChunkLoaders when players move.
 /// Evicts old chunks and queues new ones.
@@ -232,7 +201,7 @@ pub fn process_chunk_load_queues(
             let block_y = position.0.y.floor() as i32;
             let block_z = position.0.z.floor() as i32;
 
-            if let Err(e) = session.send(McpePacket::from(NetworkChunkPublisherUpdatePacket {
+            if !session.send(McpePacket::from(NetworkChunkPublisherUpdatePacket {
                 coordinates: BlockCoordinates {
                     x: block_x,
                     y: block_y,
@@ -241,7 +210,7 @@ pub fn process_chunk_load_queues(
                 radius: publisher_radius,
                 saved_chunks: vec![],
             })) {
-                debug!(player = ?player_entity, error = ?e, "Failed to send NetworkChunkPublisherUpdate");
+                debug!(player = ?player_entity, "Failed to send NetworkChunkPublisherUpdate (channel full or closed)");
                 continue;
             }
 
@@ -250,7 +219,15 @@ pub fn process_chunk_load_queues(
             publisher_state.radius = publisher_radius;
         }
 
-        // Process up to N chunks from the queue
+        // If async generation is enabled, this system is a no-op for chunk loading.
+        // request_chunk_generation handles everything for vanilla worlds.
+        // We still update publisher state above, but skip chunk processing.
+        if chunk_manager.has_async_generation() {
+            publisher_state.queue_was_empty = !loader.has_pending();
+            continue;
+        }
+
+        // Non-async path (superflat, void, etc) - use synchronous get_or_create
         let mut sent_count = 0;
         let mut retry_count = 0;
 
@@ -259,24 +236,29 @@ pub fn process_chunk_load_queues(
                 break;
             };
 
-            // Get or create chunk entity - returns (entity, Option<newly_generated_chunk>)
+            // Get or create chunk entity - returns (entity, Option<(encoded_biomes, highest_subchunk)>)
+            // Phase 3: Now returns pre-encoded data to avoid ~200KB chunk clone
             // This also registers the player as a pending viewer in the ChunkManager
-            let (chunk_entity, new_chunk_data) =
+            let (chunk_entity, new_chunk_encoded) =
                 chunk_manager.get_or_create(cx, cz, &mut commands, player_entity);
 
-            // Get chunk data from either the returned new chunk or query the existing ChunkData component
-            let chunk_data_result = if let Some(ref chunk) = new_chunk_data {
-                // Newly created - use the returned data directly
-                Some((chunk.encode_biomes(), chunk.highest_subchunk()))
-            } else {
-                // Existing chunk - read from ChunkData component
-                chunks.get(chunk_entity).ok().map(|(_, chunk_data)| {
-                    (
-                        chunk_data.inner.encode_biomes(),
-                        chunk_data.inner.highest_subchunk(),
-                    )
-                })
-            };
+            // Track if this is a new chunk for logging
+            let is_new_chunk = new_chunk_encoded.is_some();
+
+            // Get chunk data from either the returned pre-encoded data or query the existing ChunkData component
+            let chunk_data_result =
+                if let Some((encoded_biomes, highest_subchunk)) = new_chunk_encoded {
+                    // Newly created - use the pre-encoded data directly (Phase 3: no clone!)
+                    Some((encoded_biomes, highest_subchunk))
+                } else {
+                    // Existing chunk - read from ChunkData component
+                    chunks.get(chunk_entity).ok().map(|(_, chunk_data)| {
+                        (
+                            chunk_data.inner.encode_biomes(),
+                            chunk_data.inner.highest_subchunk(),
+                        )
+                    })
+                };
 
             let (payload, highest_subchunk) = match chunk_data_result {
                 Some(data) => data,
@@ -315,12 +297,11 @@ pub fn process_chunk_load_queues(
                 payload,
             }));
 
-            if let Err(e) = send_result {
+            if !send_result {
                 debug!(
                     player = ?player_entity,
                     chunk = ?(cx, cz),
-                    error = ?e,
-                    "Failed to send chunk packet - will retry next tick"
+                    "Failed to send chunk packet (channel full or closed) - will retry next tick"
                 );
                 // Don't mark as loaded - leave in queue to retry
                 // Break instead of continue to avoid burning through the whole queue on network errors
@@ -335,7 +316,7 @@ pub fn process_chunk_load_queues(
             trace!(
                 chunk = ?(cx, cz),
                 highest_subchunk = highest_subchunk,
-                is_new = new_chunk_data.is_some(),
+                is_new = is_new_chunk,
                 "Sent LevelChunk packet"
             );
 
@@ -366,6 +347,221 @@ pub fn process_chunk_load_queues(
                 retry_count,
                 "Player has pending chunks but none were sent this tick (may need command flush)"
             );
+        }
+    }
+}
+
+// =============================================================================
+// Async Chunk Generation Systems (Phase 1 performance optimization)
+// =============================================================================
+
+/// System: Request async chunk generation for vanilla worlds.
+///
+/// This system handles the initial request phase for async generation:
+/// - Pops chunks from player load queues
+/// - For existing chunks: handles them immediately (send packet)
+/// - For new chunks: submits generation requests to the background worker
+/// - Tracks pending generations in `PendingChunkGenerations`
+///
+/// Non-blocking: generation happens in background, this just queues requests.
+pub fn request_chunk_generation(
+    mut chunk_manager: ResMut<ChunkManager>,
+    mut pending_gens: ResMut<PendingChunkGenerations>,
+    config: Res<ChunkLoadConfig>,
+    mut players: Query<(Entity, &PlayerSession, &mut ChunkLoader), With<Player>>,
+    chunks: Query<&ChunkData>,
+) {
+    // Skip if no async generation available (non-vanilla worlds)
+    if !chunk_manager.has_async_generation() {
+        return;
+    }
+
+    // Limit total pending generations to prevent memory growth
+    const MAX_PENDING: usize = 64;
+
+    for (player_entity, session, mut loader) in players.iter_mut() {
+        let mut processed = 0;
+
+        while processed < config.chunks_per_tick {
+            // Check if we can queue more generations
+            if pending_gens.len() >= MAX_PENDING {
+                break;
+            }
+
+            let Some((cx, cz)) = loader.next_to_load() else {
+                break;
+            };
+
+            // Check if chunk already exists
+            if let Some(chunk_entity) = chunk_manager.get_by_coords(cx, cz) {
+                // Chunk exists - send it immediately
+                if let Ok(chunk_data) = chunks.get(chunk_entity) {
+                    let payload = chunk_data.inner.encode_biomes();
+                    let highest_subchunk = chunk_data.inner.highest_subchunk();
+
+                    let packet = LevelChunkPacket {
+                        x: cx,
+                        z: cz,
+                        dimension: config.dimension,
+                        sub_chunk_count: crate::world::request_mode::LIMITED,
+                        highest_subchunk_count: Some(highest_subchunk),
+                        blobs: None,
+                        payload,
+                    };
+
+                    if session.send(McpePacket::from(packet)) {
+                        loader.mark_loaded(cx, cz);
+                        chunk_manager
+                            .pending_viewers
+                            .entry((cx, cz))
+                            .or_default()
+                            .push(player_entity);
+                        trace!(
+                            chunk = ?(cx, cz),
+                            player = ?player_entity,
+                            "Sent existing chunk"
+                        );
+                    }
+                }
+                processed += 1;
+                continue;
+            }
+
+            // Skip if already pending generation (another player requested it)
+            if chunk_manager.is_generation_pending(cx, cz) {
+                // Just register as a viewer, will get chunk when generation completes
+                chunk_manager
+                    .pending_generation
+                    .get_mut(&(cx, cz))
+                    .map(|viewers| viewers.push(player_entity));
+                processed += 1;
+                continue;
+            }
+
+            // Request async generation
+            if let Some(receiver) = chunk_manager.request_generation(cx, cz, player_entity) {
+                pending_gens.add(cx, cz, receiver);
+                processed += 1;
+
+                trace!(
+                    player = ?player_entity,
+                    chunk = ?(cx, cz),
+                    pending_total = pending_gens.len(),
+                    "Requested async chunk generation"
+                );
+            }
+        }
+    }
+}
+
+/// System: Process completed async chunk generations.
+///
+/// This system handles the completion phase:
+/// - Polls pending generation receivers (non-blocking)
+/// - Spawns chunk entities for completed generations
+/// - Sends chunk data to waiting players
+/// - Marks chunks as loaded in player's ChunkLoader
+/// - Cleans up tracking state
+pub fn process_completed_generations(
+    mut commands: Commands,
+    mut chunk_manager: ResMut<ChunkManager>,
+    mut pending_gens: ResMut<PendingChunkGenerations>,
+    config: Res<ChunkLoadConfig>,
+    sessions: Query<&PlayerSession>,
+    mut loaders: Query<&mut ChunkLoader>,
+) {
+    if pending_gens.is_empty() {
+        return;
+    }
+
+    let mut completed = Vec::new();
+
+    // Check for completed generations (non-blocking)
+    pending_gens.pending.retain_mut(|pending| {
+        match pending.receiver.try_recv() {
+            Ok(chunk) => {
+                completed.push((pending.x, pending.z, chunk));
+                false // Remove from pending
+            }
+            Err(tokio::sync::oneshot::error::TryRecvError::Empty) => {
+                true // Keep waiting
+            }
+            Err(tokio::sync::oneshot::error::TryRecvError::Closed) => {
+                tracing::warn!(
+                    chunk = ?(pending.x, pending.z),
+                    "Generation channel closed unexpectedly"
+                );
+                // Clean up the manager's tracking too
+                let _ = chunk_manager.complete_generation(pending.x, pending.z);
+                false // Remove from pending
+            }
+        }
+    });
+
+    // Process completed chunks
+    for (x, z, chunk) in completed {
+        // Get viewers that were waiting for this chunk
+        let viewers = chunk_manager.complete_generation(x, z).unwrap_or_default();
+
+        // Encode BEFORE spawning to avoid clone
+        let biome_data = chunk.encode_biomes();
+        let highest_subchunk = chunk.highest_subchunk();
+
+        // Spawn chunk entity
+        let pos = ChunkPosition::new(x, z);
+        let entity = commands
+            .spawn((
+                pos,
+                ChunkData::new(chunk), // Move, not clone
+                ChunkState::Loaded,
+                ChunkViewers::default(),
+                ChunkEntities::default(),
+                ChunkStateFlags::new_generated(),
+            ))
+            .id();
+
+        chunk_manager.insert(pos, entity);
+
+        trace!(
+            chunk = ?(x, z),
+            viewers = viewers.len(),
+            highest_subchunk,
+            "Async chunk generation complete, spawned entity"
+        );
+
+        // Send chunk to all waiting viewers
+        for viewer_entity in viewers {
+            if let Ok(session) = sessions.get(viewer_entity) {
+                let packet = LevelChunkPacket {
+                    x,
+                    z,
+                    dimension: config.dimension,
+                    sub_chunk_count: crate::world::request_mode::LIMITED,
+                    highest_subchunk_count: Some(highest_subchunk),
+                    blobs: None,
+                    payload: biome_data.clone(),
+                };
+
+                if session.send(McpePacket::from(packet)) {
+                    // Mark chunk as loaded in player's ChunkLoader
+                    if let Ok(mut loader) = loaders.get_mut(viewer_entity) {
+                        loader.mark_loaded(x, z);
+                    }
+
+                    trace!(
+                        chunk = ?(x, z),
+                        viewer = ?viewer_entity,
+                        "Sent async-generated chunk to viewer"
+                    );
+                }
+            }
+
+            // Add viewer to pending_viewers for flush_pending_viewers to handle
+            chunk_manager
+                .pending_viewers
+                .entry((x, z))
+                .or_default()
+                .push(viewer_entity);
         }
     }
 }
@@ -447,10 +643,10 @@ pub fn process_chunk_unloads(
         &mut ChunkPendingUnload,
         Option<&ChunkEntities>,
         Option<&ChunkData>,
-        Option<&ChunkModified>,
+        Option<&ChunkStateFlags>,
     )>,
 ) {
-    for (entity, pos, mut pending, chunk_entities, chunk_data, modified) in chunks.iter_mut() {
+    for (entity, pos, mut pending, chunk_entities, chunk_data, state_flags) in chunks.iter_mut() {
         if pending.tick() {
             // Grace period expired - unload the chunk
 
@@ -465,8 +661,9 @@ pub fn process_chunk_unloads(
                 }
             }
 
-            // Save modified chunks before despawning
-            if modified.is_some() {
+            // Save modified chunks before despawning (check dirty flag)
+            let is_dirty = state_flags.map(|f| f.is_dirty()).unwrap_or(false);
+            if is_dirty {
                 if let Some(chunk_data) = chunk_data {
                     if let Some(provider) = chunk_manager.provider() {
                         let chunk_pos = crate::world::ChunkPos::new(pos.x, pos.z);
@@ -546,31 +743,32 @@ pub fn flush_pending_viewers(
     chunk_manager.pending_viewers = still_pending;
 }
 
-/// System: Update ChunkTicking markers based on simulation distance.
+/// System: Update ChunkStateFlags::TICKING based on simulation distance.
 ///
-/// OPTIMIZED: Iterates players × SimDist² instead of chunks × players.
-/// For 50 players with sim_dist=6: ~7,200 checks vs 250,000+ with old approach.
+/// OPTIMIZED (Phase 2): Uses bitflags mutation instead of component insert/remove,
+/// avoiding all archetype thrashing. Reuses a persistent HashSet via ChunkTickingState
+/// to eliminate per-tick allocations (~57KB/tick with many players).
 pub fn update_chunk_ticking(
-    mut commands: Commands,
     config: Res<ChunkLoadConfig>,
-    chunk_manager: Res<ChunkManager>,
+    mut ticking_state: ResMut<ChunkTickingState>,
     players: Query<&Position, With<Player>>,
-    ticking_chunks: Query<(Entity, &ChunkPosition), With<ChunkTicking>>,
+    mut chunks: Query<(&ChunkPosition, &mut ChunkStateFlags)>,
 ) {
-    // Fast path: no players = no ticking chunks
+    let sim_dist = config.simulation_distance;
+
+    // Fast path: no players = clear all ticking flags
     if players.is_empty() {
-        // Remove ticking from all
-        for (entity, _) in ticking_chunks.iter() {
-            commands.entity(entity).remove::<ChunkTicking>();
+        for (_, mut state) in chunks.iter_mut() {
+            if state.is_ticking() {
+                state.set_ticking(false);
+            }
         }
         return;
     }
 
-    let sim_dist = config.simulation_distance;
-
-    // Collect all chunks that SHOULD be ticking (set for dedup across players)
+    // Clear and reuse the HashSet instead of allocating new
     // O(Players × SimDist²) - e.g., 50 players × 6² = 1,800 entries max
-    let mut should_tick = std::collections::HashSet::new();
+    ticking_state.should_tick.clear();
 
     for pos in players.iter() {
         let cx = (pos.0.x / 16.0).floor() as i32;
@@ -578,63 +776,32 @@ pub fn update_chunk_ticking(
 
         for x in (cx - sim_dist)..=(cx + sim_dist) {
             for z in (cz - sim_dist)..=(cz + sim_dist) {
-                should_tick.insert((x, z));
+                ticking_state.should_tick.insert((x, z));
             }
         }
     }
 
-    // Add ChunkTicking to chunks that should tick but don't have it
-    for (x, z) in &should_tick {
-        if let Some(chunk_entity) = chunk_manager.get_by_coords(*x, *z) {
-            // try_insert avoids archetype fragmentation if already present
-            commands.entity(chunk_entity).try_insert(ChunkTicking);
-        }
-    }
+    // Update chunk flags - no archetype changes!
+    // Simply mutate the bitflag instead of inserting/removing components
+    for (pos, mut state) in chunks.iter_mut() {
+        let is_in_range = ticking_state.should_tick.contains(&pos.as_tuple());
+        if state.is_ticking() != is_in_range {
+            state.set_ticking(is_in_range);
 
-    // Remove ChunkTicking from chunks that are currently ticking but shouldn't be
-    // O(currently_ticking_chunks) which is bounded by sim distance union across players
-    for (entity, pos) in ticking_chunks.iter() {
-        if !should_tick.contains(&(pos.x, pos.z)) {
-            commands.entity(entity).remove::<ChunkTicking>();
-
-            trace!(
-                chunk = ?(pos.x, pos.z),
-                "Chunk stopped ticking (outside sim distance)"
-            );
-        }
-    }
-}
-
-/// System: Clean up chunk views when player is disconnecting.
-/// Uses ChunkLoader's known set instead of full world scan.
-///
-/// OPTIMIZED: O(player's loaded chunks) instead of O(all chunks).
-pub fn cleanup_disconnecting_player_views(
-    mut commands: Commands,
-    chunk_manager: Res<ChunkManager>,
-    mut chunks: Query<&mut ChunkViewers>,
-    disconnecting: Query<(Entity, &ChunkLoader), With<PlayerDisconnecting>>,
-) {
-    for (player_entity, loader) in disconnecting.iter() {
-        // Only iterate chunks this player actually had loaded
-        for (cx, cz) in loader.loaded_chunks() {
-            if let Some(chunk_entity) = chunk_manager.get_by_coords(*cx, *cz) {
-                if let Ok(mut viewers) = chunks.get_mut(chunk_entity) {
-                    viewers.remove(player_entity);
-                }
+            if !is_in_range {
+                trace!(
+                    chunk = ?(pos.x, pos.z),
+                    "Chunk stopped ticking (outside sim distance)"
+                );
             }
         }
-
-        trace!(
-            player = ?player_entity,
-            chunks_cleaned = loader.loaded_count(),
-            "Cleaned up chunk views for disconnecting player"
-        );
-
-        // Now safe to fully despawn
-        commands.entity(player_entity).despawn();
     }
 }
+
+// NOTE: cleanup_disconnecting_player_views system has been removed.
+// ChunkLoader's on_remove hook now handles cleanup automatically when
+// the entity is despawned. This eliminates the need for the
+// PlayerDisconnecting marker and the explicit cleanup system.
 
 // ============================================================================
 // Block Update Broadcasting
@@ -708,23 +875,76 @@ pub fn world_to_local_coords(world_x: i32, world_y: i32, world_z: i32) -> (u8, i
     (local_x, local_y, local_z)
 }
 
+// ============================================================================
+// Block Update Observer
+// ============================================================================
+
+use super::events::BlockChanged;
+
+/// Observer for immediate reaction to block changes.
+///
+/// This observer fires synchronously within the same tick as the block change,
+/// enabling immediate game logic reactions:
+/// - Mark chunk dirty for persistence
+/// - TODO: Check neighbor blocks for physics (sand falling, etc.)
+/// - TODO: Update lighting
+/// - TODO: Trigger redstone updates
+///
+/// Register with: `world.add_observer(on_block_changed)`
+pub fn on_block_changed(trigger: On<BlockChanged>, mut chunks: Query<&mut ChunkStateFlags>) {
+    let event = trigger.event();
+
+    // Mark chunk dirty for persistence
+    if let Ok(mut state) = chunks.get_mut(event.chunk_entity) {
+        state.mark_dirty();
+    }
+
+    trace!(
+        chunk = ?event.chunk_entity,
+        pos = ?event.block_pos,
+        old = event.old_block,
+        new = event.new_block,
+        "Block changed (observer)"
+    );
+
+    // TODO: Check neighbor blocks for physics (sand falling, etc.)
+    // TODO: Update lighting
+    // TODO: Trigger redstone updates
+}
+
 /// Plugin-like function to add all chunk systems to a schedule.
 /// Call this during ECS setup.
+///
+/// NOTE: initialize_chunk_loaders was removed. ChunkLoader and LastPublisherState
+/// are now included in PlayerBundle at spawn time to avoid archetype changes.
+///
+/// NOTE: cleanup_disconnecting_player_views was removed. ChunkLoader's on_remove
+/// hook now handles cleanup automatically when player entities are despawned.
+///
+/// ## Async Generation (Phase 1 performance optimization)
+///
+/// For vanilla worlds, chunk generation is handled asynchronously:
+/// - `request_chunk_generation` - Queues chunks for async generation (non-blocking)
+/// - `process_completed_generations` - Spawns entities for completed generations
+/// - `process_chunk_load_queues` - Handles sync cases (existing chunks, disk loads, superflat)
+///
+/// This prevents 300ms+ terrain generation from blocking the tick loop.
 pub fn register_chunk_systems(schedule: &mut bevy_ecs::schedule::Schedule) {
     use crate::ecs::ChunkSet;
 
     schedule.add_systems(
         (
-            initialize_chunk_loaders,
+            // NOTE: initialize_chunk_loaders removed - components now in PlayerBundle
             update_chunk_loaders,
-            flush_pending_viewers, // Add flush system
-            process_chunk_load_queues,
+            flush_pending_viewers,
+            request_chunk_generation,      // NEW: Non-blocking async request
+            process_completed_generations, // NEW: Process async results
+            process_chunk_load_queues,     // Handles sync cases + existing chunks
             handle_radius_changes,
             schedule_chunk_unloads,
             cancel_chunk_unloads,
             process_chunk_unloads,
             update_chunk_ticking,
-            cleanup_disconnecting_player_views,
         )
             .chain()
             .in_set(ChunkSet),
@@ -738,7 +958,7 @@ mod tests {
     #[test]
     fn test_chunk_load_config_default() {
         let config = ChunkLoadConfig::default();
-        assert_eq!(config.chunks_per_tick, 4);
+        assert_eq!(config.chunks_per_tick, 16); // Increased from 8 after generator optimization
         assert_eq!(config.dimension, 0);
         assert_eq!(config.simulation_distance, 6);
         assert_eq!(config.unload_grace_ticks, 100);

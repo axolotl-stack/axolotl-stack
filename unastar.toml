@@ -59,7 +59,7 @@ mode = "infinite"
 
 [world.generator]
 # kinds: "super_flat" | "void_spawn_platform" | "vanilla"
-kind = "super_flat"
+kind = "vanilla"
 seed = 1111
 
 [players]

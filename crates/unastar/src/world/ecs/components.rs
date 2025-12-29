@@ -2,6 +2,70 @@
 
 use crate::world::Chunk;
 use bevy_ecs::prelude::*;
+use bitflags::bitflags;
+use std::collections::HashSet;
+use tokio::sync::oneshot;
+
+bitflags! {
+    /// Chunk state flags for frequently-toggled state.
+    /// Using bitflags instead of marker components avoids archetype thrashing.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+    pub struct ChunkFlags: u8 {
+        /// Chunk is within simulation distance of at least one player.
+        /// Receives random ticks and entity updates.
+        const TICKING = 1 << 0;
+
+        /// Chunk has been modified since last save.
+        /// Used by persistence system to know what needs saving.
+        const DIRTY = 1 << 1;
+
+        /// Chunk block data has changed and needs network re-encoding.
+        /// Used by broadcast system to re-encode and send to viewers.
+        const NEEDS_REBROADCAST = 1 << 2;
+    }
+}
+
+/// Component holding chunk state flags.
+/// Replaces marker components ChunkTicking, ChunkModified, ChunkDirty
+/// to avoid archetype thrashing from frequent insert/remove.
+#[derive(Component, Debug, Clone, Copy, Default)]
+pub struct ChunkStateFlags {
+    pub flags: ChunkFlags,
+}
+
+impl ChunkStateFlags {
+    pub fn is_ticking(&self) -> bool {
+        self.flags.contains(ChunkFlags::TICKING)
+    }
+
+    pub fn set_ticking(&mut self, ticking: bool) {
+        self.flags.set(ChunkFlags::TICKING, ticking);
+    }
+
+    pub fn is_dirty(&self) -> bool {
+        self.flags.contains(ChunkFlags::DIRTY)
+    }
+
+    pub fn mark_dirty(&mut self) {
+        self.flags.insert(ChunkFlags::DIRTY);
+    }
+
+    pub fn clear_dirty(&mut self) {
+        self.flags.remove(ChunkFlags::DIRTY);
+    }
+
+    pub fn needs_rebroadcast(&self) -> bool {
+        self.flags.contains(ChunkFlags::NEEDS_REBROADCAST)
+    }
+
+    pub fn mark_needs_rebroadcast(&mut self) {
+        self.flags.insert(ChunkFlags::NEEDS_REBROADCAST);
+    }
+
+    pub fn clear_needs_rebroadcast(&mut self) {
+        self.flags.remove(ChunkFlags::NEEDS_REBROADCAST);
+    }
+}
 
 /// Chunk position component (mirrors world::ChunkPos but as ECS component).
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -89,20 +153,9 @@ impl ChunkState {
     }
 }
 
-/// Marker component for chunks modified since last save.
-/// Separate from ChunkState to allow Loaded + Modified simultaneously.
-#[derive(Component, Debug)]
-pub struct ChunkModified;
-
-/// Marker component for chunks that need network re-encoding.
-/// Add this when blocks are modified to trigger broadcast to viewers.
-#[derive(Component, Debug)]
-pub struct ChunkDirty;
-
-/// Marker component for chunks within simulation distance.
-/// These chunks receive random ticks and entity update systems.
-#[derive(Component, Debug)]
-pub struct ChunkTicking;
+// NOTE: ChunkModified, ChunkDirty, and ChunkTicking marker components have been
+// replaced by ChunkStateFlags bitflags to avoid archetype thrashing.
+// See ChunkStateFlags at the top of this file.
 
 /// Marker component for chunks pending unload.
 /// Set a grace period before actually despawning.
@@ -141,21 +194,23 @@ impl ChunkPendingUnload {
 /// - Broadcasting block updates
 /// - Entity spawn/despawn visibility
 /// - Determining when chunks can unload (no viewers = can unload)
+///
+/// Uses HashSet for O(1) insert/remove/contains operations.
 #[derive(Component, Debug, Default)]
 pub struct ChunkViewers {
     /// Player entities with this chunk in their view radius.
-    pub entities: Vec<Entity>,
+    entities: HashSet<Entity>,
 }
 
 impl ChunkViewers {
-    pub fn insert(&mut self, entity: Entity) {
-        if !self.entities.contains(&entity) {
-            self.entities.push(entity);
-        }
+    /// Insert a viewer. Returns true if the entity was newly inserted.
+    pub fn insert(&mut self, entity: Entity) -> bool {
+        self.entities.insert(entity)
     }
 
-    pub fn remove(&mut self, entity: Entity) {
-        self.entities.retain(|&e| e != entity);
+    /// Remove a viewer. Returns true if the entity was present.
+    pub fn remove(&mut self, entity: Entity) -> bool {
+        self.entities.remove(&entity)
     }
 
     pub fn contains(&self, entity: Entity) -> bool {
@@ -231,6 +286,77 @@ impl ChunkEntities {
     }
 }
 
+// =============================================================================
+// Async Chunk Generation Resources (Phase 1 performance optimization)
+// =============================================================================
+
+/// A single pending chunk generation request.
+pub struct PendingGeneration {
+    /// Chunk X coordinate.
+    pub x: i32,
+    /// Chunk Z coordinate.
+    pub z: i32,
+    /// Receiver for the generated chunk data.
+    pub receiver: oneshot::Receiver<Chunk>,
+}
+
+/// Resource tracking pending async chunk generation results.
+///
+/// The async generation worker sends chunks via oneshot channels.
+/// This resource collects those receivers so systems can poll for
+/// completed generations without blocking.
+#[derive(Resource, Default)]
+pub struct PendingChunkGenerations {
+    /// List of pending generation receivers to poll.
+    pub pending: Vec<PendingGeneration>,
+}
+
+impl PendingChunkGenerations {
+    /// Add a new pending generation.
+    pub fn add(&mut self, x: i32, z: i32, receiver: oneshot::Receiver<Chunk>) {
+        self.pending.push(PendingGeneration { x, z, receiver });
+    }
+
+    /// Get the count of pending generations.
+    pub fn len(&self) -> usize {
+        self.pending.len()
+    }
+
+    /// Check if there are no pending generations.
+    pub fn is_empty(&self) -> bool {
+        self.pending.is_empty()
+    }
+}
+
+/// Helper struct to create ChunkStateFlags with the appropriate initial state.
+impl ChunkStateFlags {
+    /// Create state flags for a newly generated chunk (dirty, not ticking).
+    pub fn new_generated() -> Self {
+        let mut flags = Self::default();
+        flags.mark_dirty();
+        flags
+    }
+}
+
+// =============================================================================
+// Chunk Ticking State (Phase 2 performance optimization)
+// =============================================================================
+
+/// Resource for reusable chunk ticking calculation.
+///
+/// Eliminates per-tick HashSet allocation (~57KB per tick with many players)
+/// by reusing a persistent HashSet that is cleared and refilled each tick.
+///
+/// ## Performance Note
+/// - Old: `let should_tick = HashSet::new()` every tick → allocates ~57KB
+/// - New: `ticking_state.should_tick.clear()` → zero allocation
+#[derive(Resource, Default)]
+pub struct ChunkTickingState {
+    /// Reusable set of chunk coordinates that should be ticking.
+    /// Cleared at start of each tick, filled with chunks in simulation distance.
+    pub should_tick: HashSet<(i32, i32)>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -274,19 +400,20 @@ mod tests {
         let mut viewers = ChunkViewers::default();
 
         assert!(viewers.is_empty());
-        viewers.insert(e1);
+        assert!(viewers.insert(e1)); // returns true for new insert
         assert_eq!(viewers.len(), 1);
-        viewers.insert(e1); // duplicate, no-op
+        assert!(!viewers.insert(e1)); // returns false for duplicate
         assert_eq!(viewers.len(), 1);
-        viewers.insert(e2);
+        assert!(viewers.insert(e2));
         assert_eq!(viewers.len(), 2);
         assert!(viewers.contains(e1));
         assert!(viewers.contains(e2));
 
-        viewers.remove(e1);
+        assert!(viewers.remove(e1)); // returns true when present
         assert_eq!(viewers.len(), 1);
         assert!(!viewers.contains(e1));
         assert!(viewers.contains(e2));
+        assert!(!viewers.remove(e1)); // returns false when not present
     }
 
     #[test]

@@ -6,10 +6,10 @@
 mod climate;
 mod constants;
 pub mod flat;
-mod noise;
+pub mod noise;
 mod structures;
 mod terrain;
-mod xoroshiro;
+pub mod xoroshiro;
 
 pub use climate::BiomeNoise;
 pub use constants::Biome;

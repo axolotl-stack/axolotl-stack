@@ -255,10 +255,7 @@ impl GameServer {
             container: container_name.clone(),
             storage_item: empty_item.clone(),
         }));
-        debug!(
-            "Sent main inventory (36 slots, window=0): {:?}",
-            result.is_ok()
-        );
+        debug!("Sent main inventory (36 slots, window=0): {:?}", result);
 
         // Offhand: 1 empty slot
         let result = session.send(McpePacket::from(InventoryContentPacket {
@@ -270,10 +267,7 @@ impl GameServer {
             },
             storage_item: empty_item.clone(),
         }));
-        debug!(
-            "Sent offhand inventory (1 slot, window=119): {:?}",
-            result.is_ok()
-        );
+        debug!("Sent offhand inventory (1 slot, window=119): {:?}", result);
 
         // Armor: 4 empty slots (helmet, chestplate, leggings, boots)
         let result = session.send(McpePacket::from(InventoryContentPacket {
@@ -285,10 +279,7 @@ impl GameServer {
             },
             storage_item: empty_item.clone(),
         }));
-        debug!(
-            "Sent armor inventory (4 slots, window=120): {:?}",
-            result.is_ok()
-        );
+        debug!("Sent armor inventory (4 slots, window=120): {:?}", result);
 
         // UI inventory (crafting grid, cursor, etc.)
         // The UI inventory needs a larger size to support crafting operations
@@ -301,10 +292,7 @@ impl GameServer {
             },
             storage_item: empty_item,
         }));
-        debug!(
-            "Sent UI inventory (51 slots, window=124): {:?}",
-            result.is_ok()
-        );
+        debug!("Sent UI inventory (51 slots, window=124): {:?}", result);
     }
 
     /// Send creative content to the client.
@@ -376,10 +364,6 @@ impl GameServer {
             items: vec![], // But no items for now
         }));
 
-        debug!(
-            "Sent creative content ({} items): {:?}",
-            item_count,
-            result.is_ok()
-        );
+        debug!("Sent creative content ({} items): {:?}", item_count, result);
     }
 }

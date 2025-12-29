@@ -318,14 +318,99 @@ pub struct SubChunk {
     storage: PalettedStorage,
 }
 
-/// Block storage using a palette for compression.
+/// Valid bit widths for block storage (matches Bedrock protocol).
+/// Note: 7 is skipped because 32/7 = 4.57 wastes too much padding.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum PaletteSize {
+    Bits0 = 0,   // Single value, no indices
+    Bits1 = 1,   // 2 palette entries max
+    Bits2 = 2,   // 4 palette entries max
+    Bits3 = 3,   // 8 palette entries max
+    Bits4 = 4,   // 16 palette entries max
+    Bits5 = 5,   // 32 palette entries max
+    Bits6 = 6,   // 64 palette entries max
+    Bits8 = 8,   // 256 palette entries max
+    Bits16 = 16, // 65536 palette entries max
+}
+
+impl PaletteSize {
+    /// Number of u32 words needed for 4096 block indices.
+    pub const fn word_count(self) -> usize {
+        match self {
+            Self::Bits0 => 0,
+            Self::Bits1 => 128,   // 4096 / 32
+            Self::Bits2 => 256,   // 4096 / 16
+            Self::Bits3 => 410,   // ceil(4096 / 10) - 10 indices per word
+            Self::Bits4 => 512,   // 4096 / 8
+            Self::Bits5 => 683,   // ceil(4096 / 6) - 6 indices per word
+            Self::Bits6 => 820,   // ceil(4096 / 5) - 5 indices per word
+            Self::Bits8 => 1024,  // 4096 / 4
+            Self::Bits16 => 2048, // 4096 / 2
+        }
+    }
+
+    /// Indices that fit per u32 word.
+    pub const fn indices_per_word(self) -> usize {
+        match self {
+            Self::Bits0 => 0,
+            Self::Bits1 => 32,
+            Self::Bits2 => 16,
+            Self::Bits3 => 10,
+            Self::Bits4 => 8,
+            Self::Bits5 => 6,
+            Self::Bits6 => 5,
+            Self::Bits8 => 4,
+            Self::Bits16 => 2,
+        }
+    }
+
+    /// Minimum size needed for a palette length.
+    pub fn from_palette_len(len: usize) -> Self {
+        match len {
+            0..=1 => Self::Bits0,
+            2 => Self::Bits1,
+            3..=4 => Self::Bits2,
+            5..=8 => Self::Bits3,
+            9..=16 => Self::Bits4,
+            17..=32 => Self::Bits5,
+            33..=64 => Self::Bits6,
+            65..=256 => Self::Bits8,
+            _ => Self::Bits16,
+        }
+    }
+
+    /// Parse from wire format bits value.
+    pub fn from_bits(bits: u8) -> Option<Self> {
+        match bits {
+            0 => Some(Self::Bits0),
+            1 => Some(Self::Bits1),
+            2 => Some(Self::Bits2),
+            3 => Some(Self::Bits3),
+            4 => Some(Self::Bits4),
+            5 => Some(Self::Bits5),
+            6 => Some(Self::Bits6),
+            8 => Some(Self::Bits8),
+            16 => Some(Self::Bits16),
+            _ => None,
+        }
+    }
+}
+
+/// Bit-packed block storage using variable-width indices.
+///
+/// Memory usage (indices only):
+/// - 0 bits: 0 bytes (single block type)
+/// - 4 bits: 2,048 bytes (typical terrain)
+/// - 8 bits: 4,096 bytes (complex areas)
 #[derive(Debug, Clone)]
 pub struct PalettedStorage {
-    /// Palette of runtime block IDs (unique blocks in this storage).
+    /// Palette of unique runtime block IDs.
     palette: Vec<u32>,
-    /// Block indices into the palette (4096 values, one per block).
-    /// Only used if palette.len() > 1.
-    indices: Vec<u16>,
+    /// Current bit width (determines storage format).
+    size: PaletteSize,
+    /// Bit-packed indices into palette. Empty when size == Bits0.
+    indices: Vec<u32>,
 }
 
 impl Chunk {
@@ -679,80 +764,65 @@ impl SubChunk {
 }
 
 impl PalettedStorage {
-    /// Create storage with a single block type (most efficient).
+    /// Create storage with a single block type (0 bytes for indices).
     fn single_block(runtime_id: u32) -> Self {
         Self {
             palette: vec![runtime_id],
+            size: PaletteSize::Bits0,
             indices: vec![],
         }
     }
 
     /// Fill an entire Y layer with a block.
     fn fill_layer(&mut self, y: usize, block_id: u32) {
-        // Ensure we have the block in palette
         let palette_idx = self.get_or_add_palette_entry(block_id);
 
-        // Initialize indices if needed
-        if self.indices.is_empty() && self.palette.len() > 1 {
-            // Was single block, now has multiple - fill with index 0
-            self.indices = vec![0; BLOCKS_PER_SUBCHUNK];
+        // If still single-value, nothing more to do
+        if self.size == PaletteSize::Bits0 {
+            return;
         }
 
         // Fill the layer
-        // Bedrock uses XZY index order: index = (x << 8) | (z << 4) | y
-        if !self.indices.is_empty() {
-            #[cfg(target_arch = "x86_64")]
-            unsafe {
-                self.fill_layer_simd(y, palette_idx);
-            }
-
-            #[cfg(not(target_arch = "x86_64"))]
-            for x in 0..SUBCHUNK_SIZE {
-                for z in 0..SUBCHUNK_SIZE {
-                    // XZY order: index = (x * 256) + (z * 16) + y
-                    let idx = (x << 8) | (z << 4) | y;
-                    self.indices[idx] = palette_idx;
-                }
-            }
-        }
-    }
-
-    /// Fill an entire Y layer using SIMD (x86_64).
-    #[cfg(target_arch = "x86_64")]
-    #[target_feature(enable = "sse2")]
-    unsafe fn fill_layer_simd(&mut self, y: usize, palette_idx: u16) {
-        // Bedrock uses XZY index order: (x << 8) | (z << 4) | y
-        // This means Y varies fastest, so indices for a single Y layer are strided by 16.
-        // SIMD scatter is not efficient here, so we use a scalar loop.
-        // We keep the function signature and unsafe block to satisfy the implementation plan
-        // and allow for future optimization if layout changes.
-
         for x in 0..SUBCHUNK_SIZE {
             for z in 0..SUBCHUNK_SIZE {
-                let idx = (x << 8) | (z << 4) | y;
-                *self.indices.get_unchecked_mut(idx) = palette_idx;
+                self.set_palette_index(x, y, z, palette_idx);
             }
         }
     }
 
-    /// Get block runtime ID at the given local coordinates (0-15 each).
+    /// Get block runtime ID at local coordinates (0-15 each).
     #[inline]
     fn get_block(&self, x: usize, y: usize, z: usize) -> u32 {
-        if self.palette.len() == 1 {
-            // Single-value palette
-            self.palette[0]
-        } else {
-            // XZY index order: (x << 8) | (z << 4) | y
-            let idx = (x << 8) | (z << 4) | y;
-            let palette_idx = self.indices.get(idx).copied().unwrap_or(0) as usize;
-            self.palette
-                .get(palette_idx)
-                .copied()
-                .unwrap_or(*blocks::AIR)
+        // Fast path: single-value palette
+        if self.size == PaletteSize::Bits0 {
+            return self.palette[0];
         }
+
+        let palette_idx = self.get_palette_index(x, y, z);
+        self.palette
+            .get(palette_idx as usize)
+            .copied()
+            .unwrap_or(*blocks::AIR)
     }
 
-    /// Set block runtime ID at the given local coordinates (0-15 each).
+    /// Get palette index using bit unpacking.
+    #[inline]
+    fn get_palette_index(&self, x: usize, y: usize, z: usize) -> u16 {
+        // XZY order: (x << 8) | (z << 4) | y
+        let block_idx = (x << 8) | (z << 4) | y;
+        let bits = self.size as usize;
+        let indices_per_word = self.size.indices_per_word();
+
+        let word_idx = block_idx / indices_per_word;
+        let idx_in_word = block_idx % indices_per_word;
+        let bit_pos = idx_in_word * bits;
+
+        let mask = (1u32 << bits) - 1;
+        let word = self.indices.get(word_idx).copied().unwrap_or(0);
+        ((word >> bit_pos) & mask) as u16
+    }
+
+    /// Set block runtime ID at local coordinates (0-15 each).
     /// Returns the previous runtime ID.
     fn set_block(&mut self, x: usize, y: usize, z: usize, block_id: u32) -> u32 {
         let old = self.get_block(x, y, z);
@@ -762,85 +832,107 @@ impl PalettedStorage {
 
         let palette_idx = self.get_or_add_palette_entry(block_id);
 
-        // Initialize indices if needed (transitioning from single-value palette)
-        if self.indices.is_empty() && self.palette.len() > 1 {
-            self.indices = vec![0; BLOCKS_PER_SUBCHUNK];
+        // If still single-value, nothing more to do
+        if self.size == PaletteSize::Bits0 {
+            return old;
         }
 
-        if !self.indices.is_empty() {
-            // XZY index order: (x << 8) | (z << 4) | y
-            let idx = (x << 8) | (z << 4) | y;
-            self.indices[idx] = palette_idx;
-        }
-
+        self.set_palette_index(x, y, z, palette_idx);
         old
     }
 
-    /// Get palette index for a block, adding it if needed.
+    /// Set palette index using bit packing.
+    #[inline]
+    fn set_palette_index(&mut self, x: usize, y: usize, z: usize, index: u16) {
+        let block_idx = (x << 8) | (z << 4) | y;
+        let bits = self.size as usize;
+        let indices_per_word = self.size.indices_per_word();
+
+        let word_idx = block_idx / indices_per_word;
+        let idx_in_word = block_idx % indices_per_word;
+        let bit_pos = idx_in_word * bits;
+
+        let mask = (1u32 << bits) - 1;
+        let word = &mut self.indices[word_idx];
+        *word = (*word & !(mask << bit_pos)) | ((index as u32 & mask) << bit_pos);
+    }
+
+    /// Get palette index for a block, adding if needed. May trigger resize.
     fn get_or_add_palette_entry(&mut self, block_id: u32) -> u16 {
+        // Check if already in palette
         for (i, &id) in self.palette.iter().enumerate() {
             if id == block_id {
                 return i as u16;
             }
         }
-        let idx = self.palette.len() as u16;
+
+        // Add new entry
+        let new_idx = self.palette.len();
         self.palette.push(block_id);
-        idx
+
+        // Check if resize needed
+        let needed_size = PaletteSize::from_palette_len(self.palette.len());
+        if (needed_size as u8) > (self.size as u8) {
+            self.grow_to(needed_size);
+        }
+
+        new_idx as u16
+    }
+
+    /// Grow storage to a larger bit width, preserving all data.
+    fn grow_to(&mut self, new_size: PaletteSize) {
+        let old_size = self.size;
+
+        // Transitioning from single-value to multi-value
+        if old_size == PaletteSize::Bits0 {
+            self.size = new_size;
+            self.indices = vec![0u32; new_size.word_count()];
+            return;
+        }
+
+        // Copy all indices to new storage
+        let old_indices = std::mem::take(&mut self.indices);
+        let old_bits = old_size as usize;
+        let old_ipw = old_size.indices_per_word();
+        let old_mask = (1u32 << old_bits) - 1;
+
+        self.size = new_size;
+        self.indices = vec![0u32; new_size.word_count()];
+
+        for block_idx in 0..BLOCKS_PER_SUBCHUNK {
+            // Read from old
+            let old_word_idx = block_idx / old_ipw;
+            let old_idx_in_word = block_idx % old_ipw;
+            let old_bit_pos = old_idx_in_word * old_bits;
+            let old_word = old_indices.get(old_word_idx).copied().unwrap_or(0);
+            let palette_idx = ((old_word >> old_bit_pos) & old_mask) as u16;
+
+            // Write to new
+            let x = block_idx >> 8;
+            let z = (block_idx >> 4) & 0xF;
+            let y = block_idx & 0xF;
+            self.set_palette_index(x, y, z, palette_idx);
+        }
     }
 
     /// Calculate bits needed per block index.
     fn bits_per_block(&self) -> u8 {
-        if self.palette.len() <= 1 {
-            0
-        } else if self.palette.len() <= 2 {
-            1
-        } else if self.palette.len() <= 4 {
-            2
-        } else if self.palette.len() <= 8 {
-            3
-        } else if self.palette.len() <= 16 {
-            4
-        } else if self.palette.len() <= 32 {
-            5
-        } else if self.palette.len() <= 64 {
-            6
-        } else if self.palette.len() <= 128 {
-            7
-        } else if self.palette.len() <= 256 {
-            8
-        } else {
-            16
-        }
+        self.size as u8
     }
 
     /// Encode this storage for network transmission.
     fn encode(&self, buf: &mut BytesMut) {
-        let bits = self.bits_per_block();
+        let bits = self.size as u8;
 
         // Network encoding header: (bits_per_block << 1) | 1
-        let header = (bits << 1) | 1;
-        buf.put_u8(header);
+        buf.put_u8((bits << 1) | 1);
 
         if bits == 0 {
             // Single-value: just the palette entry as signed varint
             write_signed_varint32(buf, self.palette[0] as i32);
         } else {
-            // Multi-value: word-aligned indices followed by palette
-
-            // Calculate how many indices fit per 32-bit word
-            let indices_per_word = 32 / bits as usize;
-            let word_count = (BLOCKS_PER_SUBCHUNK + indices_per_word - 1) / indices_per_word;
-
-            // Encode indices as packed u32 words
-            for word_idx in 0..word_count {
-                let mut word: u32 = 0;
-                for i in 0..indices_per_word {
-                    let block_idx = word_idx * indices_per_word + i;
-                    if block_idx < BLOCKS_PER_SUBCHUNK {
-                        let palette_idx = self.indices.get(block_idx).copied().unwrap_or(0) as u32;
-                        word |= (palette_idx & ((1 << bits) - 1)) << (i * bits as usize);
-                    }
-                }
+            // Write packed u32 words in little-endian
+            for &word in &self.indices {
                 buf.put_u32_le(word);
             }
 
@@ -865,68 +957,55 @@ impl PalettedStorage {
         let bits = header >> 1;
         let mut offset = 1;
 
+        let size = PaletteSize::from_bits(bits)
+            .ok_or_else(|| format!("Unsupported bit width: {}", bits))?;
+
         if bits == 0 {
             // Single-value palette
             let (value, consumed) =
                 read_signed_varint32(&data[offset..]).ok_or("Failed to read palette value")?;
             offset += consumed;
 
-            Ok((
+            return Ok((
                 Self {
                     palette: vec![value as u32],
+                    size: PaletteSize::Bits0,
                     indices: vec![],
                 },
                 offset,
-            ))
-        } else {
-            // Multi-value palette
-            let indices_per_word = 32 / bits as usize;
-            let word_count = (BLOCKS_PER_SUBCHUNK + indices_per_word - 1) / indices_per_word;
-            let word_bytes = word_count * 4;
-
-            if data.len() < offset + word_bytes {
-                return Err("Not enough data for indices".to_string());
-            }
-
-            // Read packed indices
-            let mut indices = vec![0u16; BLOCKS_PER_SUBCHUNK];
-            let mask = (1u32 << bits) - 1;
-
-            for word_idx in 0..word_count {
-                let word_offset = offset + word_idx * 4;
-                let word = u32::from_le_bytes([
-                    data[word_offset],
-                    data[word_offset + 1],
-                    data[word_offset + 2],
-                    data[word_offset + 3],
-                ]);
-
-                for i in 0..indices_per_word {
-                    let block_idx = word_idx * indices_per_word + i;
-                    if block_idx < BLOCKS_PER_SUBCHUNK {
-                        let palette_idx = (word >> (i * bits as usize)) & mask;
-                        indices[block_idx] = palette_idx as u16;
-                    }
-                }
-            }
-            offset += word_bytes;
-
-            // Read palette length
-            let (palette_len, consumed) =
-                read_signed_varint32(&data[offset..]).ok_or("Failed to read palette length")?;
-            offset += consumed;
-
-            // Read palette entries
-            let mut palette = Vec::with_capacity(palette_len as usize);
-            for _ in 0..palette_len {
-                let (value, consumed) =
-                    read_signed_varint32(&data[offset..]).ok_or("Failed to read palette entry")?;
-                offset += consumed;
-                palette.push(value as u32);
-            }
-
-            Ok((Self { palette, indices }, offset))
+            ));
         }
+
+        // Multi-value: read packed indices
+        let word_count = size.word_count();
+        let word_bytes = word_count * 4;
+
+        if data.len() < offset + word_bytes {
+            return Err("Not enough data for indices".to_string());
+        }
+
+        let mut indices = Vec::with_capacity(word_count);
+        for i in 0..word_count {
+            let wo = offset + i * 4;
+            let word = u32::from_le_bytes([data[wo], data[wo + 1], data[wo + 2], data[wo + 3]]);
+            indices.push(word);
+        }
+        offset += word_bytes;
+
+        // Read palette
+        let (palette_len, consumed) =
+            read_signed_varint32(&data[offset..]).ok_or("Failed to read palette length")?;
+        offset += consumed;
+
+        let mut palette = Vec::with_capacity(palette_len as usize);
+        for _ in 0..palette_len {
+            let (value, consumed) =
+                read_signed_varint32(&data[offset..]).ok_or("Failed to read palette entry")?;
+            offset += consumed;
+            palette.push(value as u32);
+        }
+
+        Ok((Self { palette, size, indices }, offset))
     }
 }
 
@@ -1056,5 +1135,119 @@ mod tests {
         assert_eq!(data[0], 9);
         assert_eq!(data[1], 1);
         assert_eq!(data[2] as i8, 0);
+    }
+
+    #[test]
+    fn test_palette_size_word_counts() {
+        assert_eq!(PaletteSize::Bits0.word_count(), 0);
+        assert_eq!(PaletteSize::Bits1.word_count(), 128);
+        assert_eq!(PaletteSize::Bits4.word_count(), 512);
+        assert_eq!(PaletteSize::Bits8.word_count(), 1024);
+        assert_eq!(PaletteSize::Bits16.word_count(), 2048);
+    }
+
+    #[test]
+    fn test_single_block_zero_indices() {
+        let storage = PalettedStorage::single_block(*blocks::AIR);
+        assert_eq!(storage.size, PaletteSize::Bits0);
+        assert!(storage.indices.is_empty());
+        assert_eq!(storage.get_block(0, 0, 0), *blocks::AIR);
+        assert_eq!(storage.get_block(15, 15, 15), *blocks::AIR);
+    }
+
+    #[test]
+    fn test_storage_growth() {
+        let mut storage = PalettedStorage::single_block(*blocks::AIR);
+
+        // Add second block type - should grow to Bits1
+        storage.set_block(0, 0, 0, *blocks::STONE);
+        assert_eq!(storage.size, PaletteSize::Bits1);
+        assert_eq!(storage.indices.len(), 128); // 512 bytes
+
+        // Verify both blocks readable
+        assert_eq!(storage.get_block(0, 0, 0), *blocks::STONE);
+        assert_eq!(storage.get_block(1, 0, 0), *blocks::AIR);
+    }
+
+    #[test]
+    fn test_memory_reduction() {
+        // Typical terrain: ~10 block types = 4 bits
+        let mut storage = PalettedStorage::single_block(*blocks::AIR);
+        for i in 0..10 {
+            storage.set_block(i, 0, 0, i as u32);
+        }
+
+        assert_eq!(storage.size, PaletteSize::Bits4);
+        // 512 words × 4 bytes = 2048 bytes (vs 8192 with Vec<u16>)
+        assert_eq!(storage.indices.len() * 4, 2048);
+    }
+
+    #[test]
+    fn test_encode_decode_roundtrip() {
+        let mut storage = PalettedStorage::single_block(*blocks::AIR);
+        storage.set_block(5, 5, 5, *blocks::STONE);
+        storage.set_block(10, 10, 10, *blocks::DIRT);
+
+        let mut buf = BytesMut::new();
+        storage.encode(&mut buf);
+
+        let (decoded, _) = PalettedStorage::decode(&buf).unwrap();
+
+        assert_eq!(decoded.get_block(0, 0, 0), *blocks::AIR);
+        assert_eq!(decoded.get_block(5, 5, 5), *blocks::STONE);
+        assert_eq!(decoded.get_block(10, 10, 10), *blocks::DIRT);
+    }
+
+    #[test]
+    fn test_all_palette_sizes() {
+        // Test that we can write and read at various palette sizes
+        for &(block_count, expected_size) in &[
+            (1, PaletteSize::Bits0),
+            (2, PaletteSize::Bits1),
+            (4, PaletteSize::Bits2),
+            (8, PaletteSize::Bits3),
+            (16, PaletteSize::Bits4),
+            (32, PaletteSize::Bits5),
+            (64, PaletteSize::Bits6),
+        ] {
+            let mut storage = PalettedStorage::single_block(0);
+            for i in 1..block_count {
+                storage.set_block(i as usize % 16, (i as usize / 16) % 16, 0, i as u32);
+            }
+            assert_eq!(
+                storage.size, expected_size,
+                "Expected {:?} for {} blocks, got {:?}",
+                expected_size, block_count, storage.size
+            );
+
+            // Verify all blocks can be read back
+            for i in 1..block_count {
+                let x = i as usize % 16;
+                let y = (i as usize / 16) % 16;
+                assert_eq!(storage.get_block(x, y, 0), i as u32);
+            }
+        }
+    }
+
+    #[test]
+    fn test_fill_layer_bit_packed() {
+        let mut storage = PalettedStorage::single_block(*blocks::AIR);
+
+        // Fill layer 0 with stone
+        storage.fill_layer(0, *blocks::STONE);
+
+        // Check all blocks in layer 0 are stone
+        for x in 0..16 {
+            for z in 0..16 {
+                assert_eq!(storage.get_block(x, 0, z), *blocks::STONE);
+            }
+        }
+
+        // Check layer 1 is still air
+        for x in 0..16 {
+            for z in 0..16 {
+                assert_eq!(storage.get_block(x, 1, z), *blocks::AIR);
+            }
+        }
     }
 }

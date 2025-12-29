@@ -58,7 +58,7 @@ pub struct BlazeConfig {
 impl Default for BlazeConfig {
     fn default() -> Self {
         Self {
-            cache_capacity: 4096,
+            cache_capacity: 512,
             compression: Compression::Lz4,
             flush_interval_ms: 100,
         }

@@ -103,18 +103,34 @@ impl VanillaGenerator {
         let center_biome = self.get_biome(chunk_x * 16 + 8, chunk_z * 16 + 8);
         chunk.set_biome(Self::to_bedrock_biome_id(center_biome));
 
-        // Generate terrain
+        // Generate terrain using SIMD batch sampling (4 columns at a time)
         for local_z in 0u8..16 {
-            for local_x in 0u8..16 {
-                let world_x = chunk_x * 16 + local_x as i32;
+            // Process 4 columns at a time for SIMD efficiency
+            for local_x_batch in (0u8..16).step_by(4) {
+                let world_x = [
+                    chunk_x * 16 + local_x_batch as i32,
+                    chunk_x * 16 + local_x_batch as i32 + 1,
+                    chunk_x * 16 + local_x_batch as i32 + 2,
+                    chunk_x * 16 + local_x_batch as i32 + 3,
+                ];
                 let world_z = chunk_z * 16 + local_z as i32;
 
-                // Sample climate once per column
-                let climate = self.biome_noise.sample_climate(world_x, 0, world_z);
-                let height = self.get_height_from_climate(world_x, world_z, &climate);
-                let biome = BiomeNoise::lookup_biome(&climate);
+                // Batch sample climate for 4 columns using SIMD
+                let climates = self.biome_noise.sample_climate_4(
+                    world_x,
+                    0,
+                    [world_z, world_z, world_z, world_z],
+                );
 
-                self.build_column(&mut chunk, local_x, local_z, height, biome);
+                // Process each of the 4 columns
+                for i in 0..4 {
+                    let local_x = local_x_batch + i as u8;
+                    let climate = &climates[i];
+                    let height = self.get_height_from_climate(world_x[i], world_z, climate);
+                    let biome = BiomeNoise::lookup_biome(climate);
+
+                    self.build_column(&mut chunk, local_x, local_z, height, biome);
+                }
             }
         }
 
@@ -838,54 +854,103 @@ impl VanillaGenerator {
     }
 
     /// Add stone variants (granite, diorite, andesite) and deepslate underground.
+    /// Uses SIMD batching to process 4 X positions at a time.
     fn add_stone_variants(&self, chunk: &mut Chunk, chunk_x: i32, chunk_z: i32) {
-        for local_z in 0u8..16 {
-            for local_x in 0u8..16 {
-                let world_x = chunk_x * 16 + local_x as i32;
+        for y in -60i16..80 {
+            let fy = y as f64;
+            let transition = if y < 0 {
+                ((-y) as f64 / 8.0).min(1.0)
+            } else {
+                0.0
+            };
+
+            for local_z in 0u8..16 {
                 let world_z = chunk_z * 16 + local_z as i32;
-                let fx = world_x as f64;
                 let fz = world_z as f64;
 
-                for y in -60i16..80 {
-                    let current = chunk.get_block(local_x, y, local_z);
-                    if current != *blocks::STONE {
+                // Process 4 X positions at a time using SIMD
+                for local_x_batch in (0u8..16).step_by(4) {
+                    let fx = [
+                        (chunk_x * 16 + local_x_batch as i32) as f64,
+                        (chunk_x * 16 + local_x_batch as i32 + 1) as f64,
+                        (chunk_x * 16 + local_x_batch as i32 + 2) as f64,
+                        (chunk_x * 16 + local_x_batch as i32 + 3) as f64,
+                    ];
+
+                    // Check which positions have stone (we need to process)
+                    let stones = [
+                        chunk.get_block(local_x_batch, y, local_z) == *blocks::STONE,
+                        chunk.get_block(local_x_batch + 1, y, local_z) == *blocks::STONE,
+                        chunk.get_block(local_x_batch + 2, y, local_z) == *blocks::STONE,
+                        chunk.get_block(local_x_batch + 3, y, local_z) == *blocks::STONE,
+                    ];
+
+                    // Skip if no stone blocks in this batch
+                    if !stones[0] && !stones[1] && !stones[2] && !stones[3] {
                         continue;
                     }
 
-                    let fy = y as f64;
+                    // Batch sample noise for deepslate (only if y < 0)
+                    let deepslate_noise = if y < 0 {
+                        let x_scaled = [fx[0] * 0.1, fx[1] * 0.1, fx[2] * 0.1, fx[3] * 0.1];
+                        let z_scaled = [fz * 0.1, fz * 0.1, fz * 0.1, fz * 0.1];
+                        self.detail_noise.sample_4(x_scaled, fy * 0.1, z_scaled)
+                    } else {
+                        [0.0; 4]
+                    };
 
-                    // Deepslate below Y=0
-                    if y < 0 {
-                        let transition = ((-y) as f64 / 8.0).min(1.0);
-                        let noise = self.detail_noise.sample(fx * 0.1, fy * 0.1, fz * 0.1);
-                        if noise < transition - 0.3 {
+                    // Batch sample variant noises
+                    let x_v1 = [fx[0] * 0.05, fx[1] * 0.05, fx[2] * 0.05, fx[3] * 0.05];
+                    let z_v1 = [fz * 0.05, fz * 0.05, fz * 0.05, fz * 0.05];
+                    let variant1 = self.tree_noise.sample_4(x_v1, fy * 0.05, z_v1);
+
+                    let x_v2 = [
+                        fx[0] * 0.08 + 100.0,
+                        fx[1] * 0.08 + 100.0,
+                        fx[2] * 0.08 + 100.0,
+                        fx[3] * 0.08 + 100.0,
+                    ];
+                    let z_v2 = [
+                        fz * 0.08 + 100.0,
+                        fz * 0.08 + 100.0,
+                        fz * 0.08 + 100.0,
+                        fz * 0.08 + 100.0,
+                    ];
+                    let variant2 = self.detail_noise.sample_4(x_v2, fy * 0.08, z_v2);
+
+                    // Apply results for each position
+                    for i in 0..4 {
+                        if !stones[i] {
+                            continue;
+                        }
+
+                        let local_x = local_x_batch + i as u8;
+
+                        // Deepslate below Y=0
+                        if y < 0 && deepslate_noise[i] < transition - 0.3 {
                             chunk.set_block(local_x, y, local_z, *blocks::DEEPSLATE);
                             continue;
                         }
-                    }
 
-                    // Stone variant blobs using 3D noise
-                    // Use tree_noise and detail_noise with offsets to replace deleted noises
-                    let variant_noise = self.tree_noise.sample(fx * 0.05, fy * 0.05, fz * 0.05);
-                    let variant_noise2 =
-                        self.detail_noise
-                            .sample(fx * 0.08 + 100.0, fy * 0.08, fz * 0.08 + 100.0);
+                        let v1 = variant1[i];
+                        let v2 = variant2[i];
 
-                    // Granite blobs (more common in upper levels)
-                    if variant_noise > 0.6 && variant_noise2 > 0.5 && y > -20 {
-                        chunk.set_block(local_x, y, local_z, *blocks::GRANITE);
-                    }
-                    // Diorite blobs
-                    else if variant_noise < -0.6 && variant_noise2 > 0.5 && y > -40 {
-                        chunk.set_block(local_x, y, local_z, *blocks::DIORITE);
-                    }
-                    // Andesite blobs (more common in lower levels)
-                    else if variant_noise2 < -0.6 && variant_noise.abs() < 0.4 && y > -50 {
-                        chunk.set_block(local_x, y, local_z, *blocks::ANDESITE);
-                    }
-                    // Tuff around Y=0
-                    else if y < 10 && y > -20 && variant_noise > 0.5 && variant_noise2 < -0.3 {
-                        chunk.set_block(local_x, y, local_z, *blocks::TUFF);
+                        // Granite blobs (more common in upper levels)
+                        if v1 > 0.6 && v2 > 0.5 && y > -20 {
+                            chunk.set_block(local_x, y, local_z, *blocks::GRANITE);
+                        }
+                        // Diorite blobs
+                        else if v1 < -0.6 && v2 > 0.5 && y > -40 {
+                            chunk.set_block(local_x, y, local_z, *blocks::DIORITE);
+                        }
+                        // Andesite blobs (more common in lower levels)
+                        else if v2 < -0.6 && v1.abs() < 0.4 && y > -50 {
+                            chunk.set_block(local_x, y, local_z, *blocks::ANDESITE);
+                        }
+                        // Tuff around Y=0
+                        else if y < 10 && y > -20 && v1 > 0.5 && v2 < -0.3 {
+                            chunk.set_block(local_x, y, local_z, *blocks::TUFF);
+                        }
                     }
                 }
             }
@@ -893,6 +958,7 @@ impl VanillaGenerator {
     }
 
     /// Add ore veins using vanilla-like height distributions.
+    /// Uses SIMD batching to process 4 X positions at a time.
     fn add_ores(&self, chunk: &mut Chunk, chunk_x: i32, chunk_z: i32) {
         // Use deterministic RNG for ore placement
         let ore_seed = self
@@ -901,120 +967,178 @@ impl VanillaGenerator {
             .wrapping_add((chunk_z as i64).wrapping_mul(132897987541))
             .wrapping_mul(0xDEADBEEF);
 
-        for local_z in 0u8..16 {
-            for local_x in 0u8..16 {
-                let world_x = chunk_x * 16 + local_x as i32;
+        for y in -60i16..128 {
+            let fy = y as f64;
+
+            for local_z in 0u8..16 {
                 let world_z = chunk_z * 16 + local_z as i32;
-                let fx = world_x as f64;
                 let fz = world_z as f64;
 
-                for y in -60i16..128 {
-                    let current = chunk.get_block(local_x, y, local_z);
-                    let is_stone = current == *blocks::STONE;
-                    let is_deepslate = current == *blocks::DEEPSLATE;
+                // Process 4 X positions at a time using SIMD
+                for local_x_batch in (0u8..16).step_by(4) {
+                    let world_x = [
+                        chunk_x * 16 + local_x_batch as i32,
+                        chunk_x * 16 + local_x_batch as i32 + 1,
+                        chunk_x * 16 + local_x_batch as i32 + 2,
+                        chunk_x * 16 + local_x_batch as i32 + 3,
+                    ];
+                    let fx = [
+                        world_x[0] as f64,
+                        world_x[1] as f64,
+                        world_x[2] as f64,
+                        world_x[3] as f64,
+                    ];
 
-                    if !is_stone && !is_deepslate {
+                    // Check which positions have stone or deepslate
+                    let blocks_at = [
+                        chunk.get_block(local_x_batch, y, local_z),
+                        chunk.get_block(local_x_batch + 1, y, local_z),
+                        chunk.get_block(local_x_batch + 2, y, local_z),
+                        chunk.get_block(local_x_batch + 3, y, local_z),
+                    ];
+
+                    let is_stone = [
+                        blocks_at[0] == *blocks::STONE,
+                        blocks_at[1] == *blocks::STONE,
+                        blocks_at[2] == *blocks::STONE,
+                        blocks_at[3] == *blocks::STONE,
+                    ];
+                    let is_deepslate = [
+                        blocks_at[0] == *blocks::DEEPSLATE,
+                        blocks_at[1] == *blocks::DEEPSLATE,
+                        blocks_at[2] == *blocks::DEEPSLATE,
+                        blocks_at[3] == *blocks::DEEPSLATE,
+                    ];
+
+                    let needs_processing = [
+                        is_stone[0] || is_deepslate[0],
+                        is_stone[1] || is_deepslate[1],
+                        is_stone[2] || is_deepslate[2],
+                        is_stone[3] || is_deepslate[3],
+                    ];
+
+                    // Skip if no stone/deepslate blocks in this batch
+                    if !needs_processing[0]
+                        && !needs_processing[1]
+                        && !needs_processing[2]
+                        && !needs_processing[3]
+                    {
                         continue;
                     }
 
-                    let fy = y as f64;
+                    // Batch sample all 3 ore noises using SIMD
+                    let x_n1 = [fx[0] * 0.15, fx[1] * 0.15, fx[2] * 0.15, fx[3] * 0.15];
+                    let z_n1 = [fz * 0.15, fz * 0.15, fz * 0.15, fz * 0.15];
+                    let ore_noise1 = self.detail_noise.sample_4(x_n1, fy * 0.15, z_n1);
 
-                    // Use different noise frequencies for each ore
-                    let ore_noise1 = self.detail_noise.sample(fx * 0.15, fy * 0.15, fz * 0.15);
-                    // Use different offsets for tree_noise to simulate mountain/hill noise
-                    let ore_noise2 =
-                        self.tree_noise
-                            .sample(fx * 0.2 + 50.0, fy * 0.2, fz * 0.2 + 50.0);
-                    let ore_noise3 =
-                        self.tree_noise
-                            .sample(fx * 0.12 + 100.0, fy * 0.12 + 100.0, fz * 0.12);
+                    let x_n2 = [
+                        fx[0] * 0.2 + 50.0,
+                        fx[1] * 0.2 + 50.0,
+                        fx[2] * 0.2 + 50.0,
+                        fx[3] * 0.2 + 50.0,
+                    ];
+                    let z_n2 = [
+                        fz * 0.2 + 50.0,
+                        fz * 0.2 + 50.0,
+                        fz * 0.2 + 50.0,
+                        fz * 0.2 + 50.0,
+                    ];
+                    let ore_noise2 = self.tree_noise.sample_4(x_n2, fy * 0.2, z_n2);
 
-                    // Position-based hash for variety
-                    let hash = ((world_x.wrapping_mul(1337)
-                        ^ world_z.wrapping_mul(7919)
-                        ^ (y as i32).wrapping_mul(13)) as u32)
-                        ^ (ore_seed as u32);
-                    let hash_f = (hash % 1000) as f64 / 1000.0;
+                    let x_n3 = [
+                        fx[0] * 0.12 + 100.0,
+                        fx[1] * 0.12 + 100.0,
+                        fx[2] * 0.12 + 100.0,
+                        fx[3] * 0.12 + 100.0,
+                    ];
+                    let z_n3 = [fz * 0.12, fz * 0.12, fz * 0.12, fz * 0.12];
+                    let ore_noise3 = self.tree_noise.sample_4(x_n3, fy * 0.12 + 100.0, z_n3);
 
-                    // Coal ore: Y 5-128, very common
-                    if y >= 5 && y <= 128 && ore_noise1 > 0.75 - (y as f64 / 300.0) {
-                        let ore = if is_deepslate {
-                            *blocks::DEEPSLATE_COAL_ORE
-                        } else {
-                            *blocks::COAL_ORE
-                        };
-                        chunk.set_block(local_x, y, local_z, ore);
-                    }
-                    // Iron ore: Y -60 to 64, common
-                    else if y >= -60 && y <= 64 && ore_noise2 > 0.78 {
-                        let ore = if is_deepslate {
-                            *blocks::DEEPSLATE_IRON_ORE
-                        } else {
-                            *blocks::IRON_ORE
-                        };
-                        chunk.set_block(local_x, y, local_z, ore);
-                    }
-                    // Copper ore: Y -16 to 112, moderately common
-                    else if y >= -16 && y <= 112 && ore_noise1 < -0.78 && ore_noise3 > 0.3 {
-                        let ore = if is_deepslate {
-                            *blocks::DEEPSLATE_COPPER_ORE
-                        } else {
-                            *blocks::COPPER_ORE
-                        };
-                        chunk.set_block(local_x, y, local_z, ore);
-                    }
-                    // Gold ore: Y -60 to 32, uncommon
-                    else if y >= -60 && y <= 32 && ore_noise3 > 0.85 {
-                        let ore = if is_deepslate {
-                            *blocks::DEEPSLATE_GOLD_ORE
-                        } else {
-                            *blocks::GOLD_ORE
-                        };
-                        chunk.set_block(local_x, y, local_z, ore);
-                    }
-                    // Redstone ore: Y -60 to 16, moderately common deep
-                    else if y >= -60 && y <= 16 && ore_noise2 < -0.78 {
-                        let ore = if is_deepslate {
-                            *blocks::DEEPSLATE_REDSTONE_ORE
-                        } else {
-                            *blocks::REDSTONE_ORE
-                        };
-                        chunk.set_block(local_x, y, local_z, ore);
-                    }
-                    // Lapis ore: Y -60 to 64, rare, peaks at Y=0
-                    else if y >= -60 && y <= 64 && ore_noise3 < -0.88 && hash_f > 0.7 {
-                        let ore = if is_deepslate {
-                            *blocks::DEEPSLATE_LAPIS_ORE
-                        } else {
-                            *blocks::LAPIS_ORE
-                        };
-                        chunk.set_block(local_x, y, local_z, ore);
-                    }
-                    // Diamond ore: Y -60 to 16, very rare
-                    else if y >= -60 && y <= 16 && ore_noise1 > 0.92 && ore_noise2 > 0.5 {
-                        let ore = if is_deepslate {
-                            *blocks::DEEPSLATE_DIAMOND_ORE
-                        } else {
-                            *blocks::DIAMOND_ORE
-                        };
-                        chunk.set_block(local_x, y, local_z, ore);
-                    }
-                    // Emerald ore: Y -16 to 320 in mountains only, extremely rare
-                    else if y >= -16
-                        && y <= 100
-                        && ore_noise1 > 0.95
-                        && ore_noise2 < -0.5
-                        && ore_noise3 > 0.7
-                    {
-                        let biome = self.get_biome(world_x, world_z);
-                        if matches!(biome, Biome::WindsweptHills | Biome::SnowyTaiga) {
-                            let ore = if is_deepslate {
-                                *blocks::DEEPSLATE_EMERALD_ORE
-                            } else {
-                                *blocks::EMERALD_ORE
-                            };
-                            chunk.set_block(local_x, y, local_z, ore);
+                    // Apply results for each position
+                    for i in 0..4 {
+                        if !needs_processing[i] {
+                            continue;
                         }
+
+                        let local_x = local_x_batch + i as u8;
+                        let n1 = ore_noise1[i];
+                        let n2 = ore_noise2[i];
+                        let n3 = ore_noise3[i];
+
+                        // Position-based hash for variety
+                        let hash = ((world_x[i].wrapping_mul(1337)
+                            ^ world_z.wrapping_mul(7919)
+                            ^ (y as i32).wrapping_mul(13))
+                            as u32)
+                            ^ (ore_seed as u32);
+                        let hash_f = (hash % 1000) as f64 / 1000.0;
+
+                        let ore = if y >= 5 && y <= 128 && n1 > 0.75 - (y as f64 / 300.0) {
+                            // Coal ore
+                            if is_deepslate[i] {
+                                *blocks::DEEPSLATE_COAL_ORE
+                            } else {
+                                *blocks::COAL_ORE
+                            }
+                        } else if y >= -60 && y <= 64 && n2 > 0.78 {
+                            // Iron ore
+                            if is_deepslate[i] {
+                                *blocks::DEEPSLATE_IRON_ORE
+                            } else {
+                                *blocks::IRON_ORE
+                            }
+                        } else if y >= -16 && y <= 112 && n1 < -0.78 && n3 > 0.3 {
+                            // Copper ore
+                            if is_deepslate[i] {
+                                *blocks::DEEPSLATE_COPPER_ORE
+                            } else {
+                                *blocks::COPPER_ORE
+                            }
+                        } else if y >= -60 && y <= 32 && n3 > 0.85 {
+                            // Gold ore
+                            if is_deepslate[i] {
+                                *blocks::DEEPSLATE_GOLD_ORE
+                            } else {
+                                *blocks::GOLD_ORE
+                            }
+                        } else if y >= -60 && y <= 16 && n2 < -0.78 {
+                            // Redstone ore
+                            if is_deepslate[i] {
+                                *blocks::DEEPSLATE_REDSTONE_ORE
+                            } else {
+                                *blocks::REDSTONE_ORE
+                            }
+                        } else if y >= -60 && y <= 64 && n3 < -0.88 && hash_f > 0.7 {
+                            // Lapis ore
+                            if is_deepslate[i] {
+                                *blocks::DEEPSLATE_LAPIS_ORE
+                            } else {
+                                *blocks::LAPIS_ORE
+                            }
+                        } else if y >= -60 && y <= 16 && n1 > 0.92 && n2 > 0.5 {
+                            // Diamond ore
+                            if is_deepslate[i] {
+                                *blocks::DEEPSLATE_DIAMOND_ORE
+                            } else {
+                                *blocks::DIAMOND_ORE
+                            }
+                        } else if y >= -16 && y <= 100 && n1 > 0.95 && n2 < -0.5 && n3 > 0.7 {
+                            // Emerald ore (mountains only)
+                            let biome = self.get_biome(world_x[i], world_z);
+                            if matches!(biome, Biome::WindsweptHills | Biome::SnowyTaiga) {
+                                if is_deepslate[i] {
+                                    *blocks::DEEPSLATE_EMERALD_ORE
+                                } else {
+                                    *blocks::EMERALD_ORE
+                                }
+                            } else {
+                                continue;
+                            }
+                        } else {
+                            continue;
+                        };
+
+                        chunk.set_block(local_x, y, local_z, ore);
                     }
                 }
             }

@@ -1,0 +1,3 @@
+[build]
+# This enables AVX2, FMA, and other CPU-specific instructions
+rustflags = ["-C", "target-cpu=native"]

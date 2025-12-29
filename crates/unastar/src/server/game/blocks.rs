@@ -1,14 +1,25 @@
 //! Block breaking and animation handling.
 //!
 //! Contains block breaking logic, crack animations, and hardness calculations.
+//!
+//! ## Event Architecture
+//!
+//! Block changes trigger two types of events:
+//! - `BlockChanged`: Observer trigger for immediate game logic (physics, lighting)
+//! - `BlockBroadcastEvent`: Event for batched network broadcasting
+//!
+//! The observer marks chunks dirty for persistence. Network packets are sent
+//! directly for now (particles, sounds, UpdateBlock), with future batching
+//! support via `BlockBroadcastEvent`.
 
 use bevy_ecs::entity::Entity;
+use glam::IVec3;
 use tracing::{debug, info, trace};
 
 use super::GameServer;
 use crate::entity::components::{BreakingState, PlayerSession};
 use crate::world::chunk::blocks;
-use crate::world::ecs::{ChunkManager, ChunkViewers};
+use crate::world::ecs::{BlockBroadcastEvent, BlockChanged, ChunkManager, ChunkViewers};
 use crate::world::ecs::{world_to_chunk_coords, world_to_local_coords};
 use jolyne::valentine::blocks::BLOCKS;
 use jolyne::valentine::types::{Action, BlockCoordinates, Vec3F};
@@ -346,10 +357,37 @@ impl GameServer {
                 return;
             }
 
-            // Mark chunk as modified for persistence
-            world
-                .entity_mut(chunk_entity)
-                .insert(crate::world::ecs::ChunkModified);
+            // Mark chunk as needing rebroadcast (for chunk systems)
+            // Note: mark_dirty() is now handled by the BlockChanged observer
+            if let Some(mut state_flags) =
+                world.get_mut::<crate::world::ecs::ChunkStateFlags>(chunk_entity)
+            {
+                state_flags.mark_needs_rebroadcast();
+            }
+        }
+
+        // Trigger BlockChanged observer for immediate game logic (physics, lighting, etc.)
+        // This fires synchronously within this tick, and the observer marks the chunk dirty.
+        {
+            let world = self.ecs.world_mut();
+            world.trigger(BlockChanged {
+                chunk_entity,
+                block_pos: IVec3::new(x, y, z),
+                old_block: original_block_id,
+                new_block: *blocks::AIR,
+            });
+        }
+
+        // Send BlockBroadcastEvent for batched network broadcasting
+        // Note: Currently we still send packets directly below for particles/sounds.
+        // The event is for future batched UpdateBlock packet optimization.
+        {
+            let world = self.ecs.world_mut();
+            world.write_message(BlockBroadcastEvent {
+                chunk_entity,
+                block_pos: IVec3::new(x, y, z),
+                new_block: *blocks::AIR,
+            });
         }
 
         // Spawn item drop if breaking player is in survival mode
@@ -677,6 +715,16 @@ impl GameServer {
             return;
         };
 
+        // Get old block ID before placing (for observer)
+        let old_block_id = {
+            let world = self.ecs.world();
+            if let Some(chunk_data) = world.get::<crate::world::ecs::ChunkData>(chunk_entity) {
+                chunk_data.inner.get_block(local_x, local_y, local_z)
+            } else {
+                0
+            }
+        };
+
         // Update chunk data
         {
             let world = self.ecs.world_mut();
@@ -690,10 +738,34 @@ impl GameServer {
                 return;
             }
 
-            // Mark modified
-            world
-                .entity_mut(chunk_entity)
-                .insert(crate::world::ecs::ChunkModified);
+            // Mark chunk as needing rebroadcast (for chunk systems)
+            // Note: mark_dirty() is now handled by the BlockChanged observer
+            if let Some(mut state_flags) =
+                world.get_mut::<crate::world::ecs::ChunkStateFlags>(chunk_entity)
+            {
+                state_flags.mark_needs_rebroadcast();
+            }
+        }
+
+        // Trigger BlockChanged observer for immediate game logic (physics, lighting, etc.)
+        {
+            let world = self.ecs.world_mut();
+            world.trigger(BlockChanged {
+                chunk_entity,
+                block_pos: IVec3::new(x, y, z),
+                old_block: old_block_id,
+                new_block: block_runtime_id,
+            });
+        }
+
+        // Send BlockBroadcastEvent for batched network broadcasting
+        {
+            let world = self.ecs.world_mut();
+            world.write_message(BlockBroadcastEvent {
+                chunk_entity,
+                block_pos: IVec3::new(x, y, z),
+                new_block: block_runtime_id,
+            });
         }
 
         // Broadcast to viewers

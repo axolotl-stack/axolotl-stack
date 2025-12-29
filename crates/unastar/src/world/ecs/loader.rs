@@ -4,9 +4,21 @@
 //! - Center-outward load ordering for better visual experience
 //! - Efficient eviction of out-of-range chunks when moving
 //! - Integration with chunk viewer tracking
+//!
+//! ## Component Hook
+//!
+//! `ChunkLoader` implements a custom `on_remove` hook that automatically
+//! cleans up chunk viewers when the component is removed. This ensures
+//! that when a player entity is despawned, they are removed from all
+//! `ChunkViewers` components without needing a separate cleanup system.
 
+use bevy_ecs::component::{Mutable, StorageType};
+use bevy_ecs::lifecycle::{ComponentHook, HookContext};
 use bevy_ecs::prelude::*;
+use bevy_ecs::world::DeferredWorld;
 use std::collections::HashSet;
+
+use crate::world::ecs::{ChunkManager, ChunkViewers};
 
 /// Per-player chunk loader component.
 ///
@@ -16,7 +28,13 @@ use std::collections::HashSet;
 /// - Efficient updates when the player moves or radius changes
 ///
 /// This replaces the simpler `SentChunks` with more sophisticated ordering.
-#[derive(Component, Debug)]
+///
+/// ## Automatic Cleanup
+///
+/// When this component is removed (e.g., player despawn), an `on_remove` hook
+/// automatically removes the player from all `ChunkViewers` they were viewing.
+/// This eliminates the need for a separate cleanup system or marker component.
+#[derive(Debug)]
 pub struct ChunkLoader {
     /// Current chunk position (center of view).
     position: (i32, i32),
@@ -90,6 +108,12 @@ impl ChunkLoader {
     /// Returns chunks in center-outward order.
     pub fn next_to_load(&mut self) -> Option<(i32, i32)> {
         self.load_queue.pop()
+    }
+
+    /// Peek at the next chunk to load without removing it from the queue.
+    /// Returns chunks in center-outward order.
+    pub fn peek_next_to_load(&self) -> Option<(i32, i32)> {
+        self.load_queue.last().copied()
     }
 
     /// Update position, evicting out-of-range chunks and repopulating queue.
@@ -198,6 +222,60 @@ impl ChunkLoader {
         let evicted: Vec<_> = self.loaded.drain().collect();
         self.rebuild_queue_and_evict();
         evicted
+    }
+}
+
+// Manual Component implementation with on_remove hook for automatic cleanup.
+impl Component for ChunkLoader {
+    const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
+
+    fn on_remove() -> Option<ComponentHook> {
+        Some(|mut world: DeferredWorld<'_>, context: HookContext| {
+            let player_entity = context.entity;
+
+            // Collect the loaded chunks before accessing other components
+            let loaded_chunks: Vec<(i32, i32)> = world
+                .get::<ChunkLoader>(player_entity)
+                .map(|loader| loader.loaded.iter().copied().collect())
+                .unwrap_or_default();
+
+            if loaded_chunks.is_empty() {
+                return;
+            }
+
+            // Get chunk entities from ChunkManager
+            let chunk_entities: Vec<bevy_ecs::entity::Entity> = {
+                let Some(chunk_manager) = world.get_resource::<ChunkManager>() else {
+                    tracing::warn!(
+                        player = ?player_entity,
+                        "ChunkManager not available during ChunkLoader cleanup"
+                    );
+                    return;
+                };
+
+                loaded_chunks
+                    .iter()
+                    .filter_map(|(cx, cz)| chunk_manager.get_by_coords(*cx, *cz))
+                    .collect()
+            };
+
+            // Remove player from each chunk's viewers
+            let mut cleaned = 0;
+            for chunk_entity in chunk_entities {
+                if let Some(mut viewers) = world.get_mut::<ChunkViewers>(chunk_entity) {
+                    if viewers.remove(player_entity) {
+                        cleaned += 1;
+                    }
+                }
+            }
+
+            tracing::trace!(
+                player = ?player_entity,
+                chunks_cleaned = cleaned,
+                "ChunkLoader on_remove: cleaned up chunk viewers"
+            );
+        })
     }
 }
 

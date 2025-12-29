@@ -258,8 +258,11 @@ impl GameServer {
 
         let world = self.ecs.world();
         if let Some(session) = world.get::<PlayerSession>(entity) {
-            if let Err(e) = session.send(McpePacket::from(response)) {
-                debug!(session_id, error = ?e, "Failed to send SubChunk response");
+            if !session.send(McpePacket::from(response)) {
+                debug!(
+                    session_id,
+                    "Failed to send SubChunk response (channel full or closed)"
+                );
             }
         }
     }

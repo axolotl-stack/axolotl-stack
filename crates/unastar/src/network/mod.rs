@@ -17,12 +17,13 @@ pub use events::{NetworkEvent, SessionId};
 /// Uses `NetworkEvent` to communicate with the main thread.
 ///
 /// The `tick_rx` receives tick signals - on each tick, buffered packets are flushed.
+/// The `outbound_rx` is bounded to prevent memory explosion on slow connections.
 pub fn spawn_network_task(
     stream: BedrockStream<Play, ServerRole, jolyne::stream::transport::RakNetTransport>,
     session_id: SessionId,
     display_name: String,
     event_tx: mpsc::UnboundedSender<NetworkEvent>,
-    outbound_rx: mpsc::UnboundedReceiver<McpePacket>,
+    outbound_rx: mpsc::Receiver<McpePacket>,
     tick_rx: broadcast::Receiver<()>,
 ) {
     tokio::spawn(async move {
@@ -43,7 +44,7 @@ async fn run_network_loop(
     mut stream: BedrockStream<Play, ServerRole, jolyne::stream::transport::RakNetTransport>,
     session_id: SessionId,
     event_tx: mpsc::UnboundedSender<NetworkEvent>,
-    mut outbound_rx: mpsc::UnboundedReceiver<McpePacket>,
+    mut outbound_rx: mpsc::Receiver<McpePacket>,
     mut tick_rx: broadcast::Receiver<()>,
 ) {
     loop {
@@ -93,7 +94,7 @@ async fn run_network_loop(
                 }
             }
 
-            // Priority 3: Queue outbound packets and flush immediately for responsive gameplay
+            // Priority 3: Queue outbound packets (batched flush on tick signal)
             Some(packet) = outbound_rx.recv() => {
                 if let Err(e) = stream.send_packet(packet).await {
                     warn!(session_id, "Send failed: {:?}", e);
@@ -106,11 +107,8 @@ async fn run_network_loop(
                         return;
                     }
                 }
-                // Flush immediately for responsive effects (block break, sounds, etc.)
-                if let Err(e) = stream.flush().await {
-                    warn!(session_id, "Flush failed: {:?}", e);
-                    return;
-                }
+                // NO flush here - packets accumulate until tick signal for efficient batching
+                // This reduces compression operations from N per tick to 1 per tick
             }
         }
     }

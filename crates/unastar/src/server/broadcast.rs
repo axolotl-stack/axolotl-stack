@@ -17,9 +17,10 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 use crate::entity::components::{
-    GameMode, LastBroadcastPosition, PendingDespawnBroadcast, PendingSpawnBroadcast, Player,
-    PlayerName, PlayerSession, PlayerUuid, Position, Rotation, RuntimeEntityId, SpatialChunk,
+    GameMode, LastBroadcastPosition, Player, PlayerName, PlayerSession, PlayerUuid, Position,
+    Rotation, RuntimeEntityId, SpatialChunk,
 };
+use crate::world::ecs::{PlayerDespawnedEvent, PlayerSpawnedEvent};
 
 /// Spatial hash grid for efficient neighbor lookups.
 /// Maps chunk coordinates to lists of entities in that chunk.
@@ -159,14 +160,16 @@ const ROTATION_THRESHOLD: f32 = 1.0;
 /// System: Broadcast newly spawned players to all existing players,
 /// and send existing players to the new player.
 ///
-/// Also inserts new players into the EntityGrid for spatial lookups.
+/// Reads `PlayerSpawnedEvent` events instead of querying for marker components,
+/// eliminating archetype changes when players spawn.
+///
+/// Note: EntityGrid insertion is handled by SpatialChunk's on_insert hook.
 /// Runs in NetworkSendSet after all spawn logic is complete.
 pub fn broadcast_spawn_system(
-    mut commands: Commands,
-    mut grid: ResMut<EntityGrid>,
+    mut events: MessageReader<PlayerSpawnedEvent>,
+    // Query for new players by entity from the event
     new_players: Query<
         (
-            Entity,
             &RuntimeEntityId,
             &PlayerUuid,
             &PlayerName,
@@ -174,10 +177,10 @@ pub fn broadcast_spawn_system(
             &Rotation,
             &GameMode,
             &PlayerSession,
-            &SpatialChunk,
         ),
-        With<PendingSpawnBroadcast>,
+        With<Player>,
     >,
+    // Query for all existing players (to send to new player and to broadcast new player to them)
     existing_players: Query<
         (
             Entity,
@@ -189,23 +192,22 @@ pub fn broadcast_spawn_system(
             &GameMode,
             &PlayerSession,
         ),
-        (With<Player>, Without<PendingSpawnBroadcast>),
+        With<Player>,
     >,
 ) {
-    for (
-        new_entity,
-        new_rid,
-        new_uuid,
-        new_name,
-        new_pos,
-        new_rot,
-        new_mode,
-        new_session,
-        spatial,
-    ) in new_players.iter()
-    {
-        // Insert into EntityGrid for spatial lookups
-        grid.insert(spatial.as_tuple(), new_entity);
+    for event in events.read() {
+        let new_entity = event.entity;
+
+        // Get the new player's data
+        let Ok((new_rid, new_uuid, new_name, new_pos, new_rot, new_mode, new_session)) =
+            new_players.get(new_entity)
+        else {
+            // Entity may have been despawned between event emission and processing
+            tracing::warn!(entity = ?new_entity, "PlayerSpawnedEvent for non-existent entity");
+            continue;
+        };
+
+        // Note: EntityGrid insertion handled by SpatialChunk on_insert hook
 
         let new_packet = build_add_player_packet(
             new_rid.0,
@@ -216,8 +218,11 @@ pub fn broadcast_spawn_system(
             *new_mode,
         );
 
-        // Send new player to all existing players
-        for (_, _, _, _, _, _, _, other_session) in existing_players.iter() {
+        // Send new player to all existing players (except themselves)
+        for (other_entity, _, _, _, _, _, _, other_session) in existing_players.iter() {
+            if other_entity == new_entity {
+                continue;
+            }
             let _ = other_session.send(McpePacket::from(new_packet.clone()));
         }
 
@@ -247,39 +252,35 @@ pub fn broadcast_spawn_system(
             let _ = new_session.send(McpePacket::from(other_packet));
         }
 
-        // Remove the pending marker and add LastBroadcastPosition
-        commands
-            .entity(new_entity)
-            .remove::<PendingSpawnBroadcast>();
-        commands.entity(new_entity).insert(LastBroadcastPosition {
-            x: new_pos.0.x,
-            y: new_pos.0.y,
-            z: new_pos.0.z,
-            yaw: new_rot.yaw,
-            pitch: new_rot.pitch,
-        });
+        // LastBroadcastPosition is now included in PlayerBundle at spawn time,
+        // so no need to insert it here. This avoids an archetype change.
     }
 }
 
-/// System: Update EntityGrid when players cross chunk boundaries.
+/// System: Updates SpatialChunk when player crosses chunk boundaries.
+///
+/// Only runs on players with Changed<Position>, avoiding polling all players.
+/// When SpatialChunk is mutated, the component's on_insert hook does NOT fire
+/// (hooks only fire on insert/remove, not mutation), so we manually update
+/// the EntityGrid here.
 ///
 /// Runs before broadcast systems to ensure spatial data is current.
-pub fn update_spatial_grid_system(
+pub fn sync_spatial_chunks(
     mut grid: ResMut<EntityGrid>,
-    mut players: Query<(Entity, &Position, &mut SpatialChunk), With<Player>>,
+    mut players: Query<(Entity, &Position, &mut SpatialChunk), (With<Player>, Changed<Position>)>,
 ) {
-    for (entity, pos, mut tracker) in players.iter_mut() {
+    for (entity, pos, mut spatial) in players.iter_mut() {
         let new_x = (pos.0.x.floor() as i32) >> 4;
         let new_z = (pos.0.z.floor() as i32) >> 4;
 
-        if tracker.x != new_x || tracker.z != new_z {
+        if spatial.x != new_x || spatial.z != new_z {
             // Remove from old bucket
-            grid.remove((tracker.x, tracker.z), entity);
+            grid.remove((spatial.x, spatial.z), entity);
             // Insert into new bucket
             grid.insert((new_x, new_z), entity);
-            // Update tracker
-            tracker.x = new_x;
-            tracker.z = new_z;
+            // Update the component
+            spatial.x = new_x;
+            spatial.z = new_z;
         }
     }
 }
@@ -371,20 +372,26 @@ pub fn broadcast_movement_system(
     }
 }
 
-/// System: Broadcast despawn for players marked for removal.
+/// System: Broadcast despawn for players being removed.
+///
+/// Reads `PlayerDespawnedEvent` events instead of querying for marker components,
+/// eliminating archetype changes when players despawn.
 ///
 /// Runs in NetworkSendSet before CleanupSet removes the entities.
-/// Also cleans up EntityGrid.
+/// Note: EntityGrid cleanup is handled by SpatialChunk's on_remove hook.
+/// Note: ChunkViewers cleanup is handled by ChunkLoader's on_remove hook.
 pub fn broadcast_despawn_system(
-    mut grid: ResMut<EntityGrid>,
-    despawning: Query<(Entity, &RuntimeEntityId, &SpatialChunk), With<PendingDespawnBroadcast>>,
+    mut events: MessageReader<PlayerDespawnedEvent>,
     all_sessions: Query<(Entity, &PlayerSession), With<Player>>,
 ) {
-    for (despawn_entity, rid, spatial) in despawning.iter() {
-        // Remove from spatial grid
-        grid.remove(spatial.as_tuple(), despawn_entity);
+    for event in events.read() {
+        let despawn_entity = event.entity;
+        let runtime_id = event.runtime_id;
 
-        let remove_packet = build_remove_entity_packet(rid.0);
+        // Note: EntityGrid removal handled by SpatialChunk on_remove hook
+        // Note: ChunkViewers removal handled by ChunkLoader on_remove hook
+
+        let remove_packet = build_remove_entity_packet(runtime_id);
 
         // Send to all OTHER players
         for (other_entity, other_session) in all_sessions.iter() {
@@ -392,6 +399,23 @@ pub fn broadcast_despawn_system(
                 let _ = other_session.send(McpePacket::from(remove_packet.clone()));
             }
         }
+    }
+}
+
+/// System: Despawn entities that emitted PlayerDespawnedEvent.
+///
+/// Runs in CleanupSet after broadcast_despawn_system has sent packets.
+/// Component on_remove hooks (SpatialChunk, ChunkLoader) handle cleanup automatically.
+///
+/// Note: We re-read the events here since we need to despawn the entities
+/// after the broadcast system has processed them. Events are double-buffered,
+/// so reading them in multiple systems within the same tick is safe.
+pub fn cleanup_despawned_entities(
+    mut commands: Commands,
+    mut events: MessageReader<PlayerDespawnedEvent>,
+) {
+    for event in events.read() {
+        commands.entity(event.entity).despawn();
     }
 }
 
@@ -513,5 +537,83 @@ pub fn tick_block_breaking(
                 "Block cracking tick (with particles/sound)"
             );
         }
+    }
+}
+
+// =============================================================================
+// Batched Block Update Broadcasting
+// =============================================================================
+
+use crate::world::ecs::BlockBroadcastEvent;
+use jolyne::valentine::UpdateBlockPacket;
+use jolyne::valentine::types::UpdateBlockFlags;
+
+/// System: Batch block updates and broadcast to chunk viewers.
+///
+/// Reads all `BlockBroadcastEvent` events from the current tick, groups them
+/// by chunk entity, and sends batched `UpdateBlockPacket`s to viewers.
+/// This reduces network overhead when multiple blocks change in the same tick.
+///
+/// Note: This system focuses on `UpdateBlockPacket` only. Particles and sounds
+/// are still sent directly by `break_block`/`place_block` for now.
+pub fn broadcast_block_updates(
+    mut events: MessageReader<BlockBroadcastEvent>,
+    chunks: Query<&ChunkViewers>,
+    sessions: Query<&PlayerSession>,
+) {
+    // Group events by chunk for efficient packet bundling
+    let mut updates_by_chunk: HashMap<Entity, Vec<BlockBroadcastEvent>> = HashMap::new();
+
+    for event in events.read() {
+        updates_by_chunk
+            .entry(event.chunk_entity)
+            .or_default()
+            .push(event.clone());
+    }
+
+    // No events this tick
+    if updates_by_chunk.is_empty() {
+        return;
+    }
+
+    let mut total_packets_sent = 0usize;
+
+    // Send batched updates to viewers
+    for (chunk_entity, updates) in updates_by_chunk {
+        let Ok(viewers) = chunks.get(chunk_entity) else {
+            continue;
+        };
+
+        // Build packets for all updates in this chunk
+        let packets: Vec<UpdateBlockPacket> = updates
+            .iter()
+            .map(|update| UpdateBlockPacket {
+                position: jolyne::valentine::types::BlockCoordinates {
+                    x: update.block_pos.x,
+                    y: update.block_pos.y,
+                    z: update.block_pos.z,
+                },
+                block_runtime_id: update.new_block as i32,
+                flags: UpdateBlockFlags::NEIGHBORS | UpdateBlockFlags::NETWORK,
+                layer: 0,
+            })
+            .collect();
+
+        // Send all packets to each viewer
+        for viewer in viewers.iter() {
+            if let Ok(session) = sessions.get(viewer) {
+                for packet in &packets {
+                    let _ = session.send(McpePacket::from(packet.clone()));
+                    total_packets_sent += 1;
+                }
+            }
+        }
+    }
+
+    if total_packets_sent > 0 {
+        tracing::trace!(
+            packets = total_packets_sent,
+            "Broadcast block updates (batched)"
+        );
     }
 }

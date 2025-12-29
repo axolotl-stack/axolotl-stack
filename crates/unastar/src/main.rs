@@ -9,8 +9,21 @@ use tracing_subscriber::EnvFilter;
 use unastar::config::UnastarConfig;
 use unastar::server::UnastarServer;
 
+/*
+#[global_allocator]
+static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
+    tracy_client::ProfiledAllocator::new(std::alloc::System, 100);
+*/
+
+/*
+#[global_allocator]
+static ALLOC: dhat::Alloc = dhat::Alloc; 
+*/
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // let _profiler = dhat::Profiler::new_heap();
+
     // Initialize tracing
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
     tracing_subscriber::fmt().with_env_filter(env_filter).init();

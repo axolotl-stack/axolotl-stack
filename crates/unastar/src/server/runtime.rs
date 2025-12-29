@@ -351,8 +351,12 @@ fn spawn_accept_loop(
                                 // set to manual flushing.
                                 play_stream.set_auto_flush(false);
 
-                                // Create outbound channel
-                                let (outbound_tx, outbound_rx) = mpsc::unbounded_channel();
+                                // Create bounded outbound channel to prevent memory explosion.
+                                // Bound to ~50MB worth of packets (assuming average 50KB per packet = 1024 packets).
+                                // This prevents memory explosion while allowing reasonable buffering.
+                                const OUTBOUND_CHANNEL_CAPACITY: usize = 1024;
+                                let (outbound_tx, outbound_rx) =
+                                    mpsc::channel(OUTBOUND_CHANNEL_CAPACITY);
 
                                 // Send joined event
                                 if event_tx

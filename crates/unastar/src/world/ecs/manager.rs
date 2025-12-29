@@ -5,8 +5,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::components::{
-    ChunkData, ChunkEntities, ChunkModified, ChunkPosition, ChunkState, ChunkViewers,
+    ChunkData, ChunkEntities, ChunkPosition, ChunkState, ChunkStateFlags, ChunkViewers,
 };
+use super::generation_worker::ChunkGenerationWorker;
 use crate::storage::WorldProvider;
 use crate::world::{Chunk, ChunkPos, WorldConfig, WorldGenerator};
 
@@ -25,28 +26,40 @@ pub struct ChunkManager {
     world_config: WorldConfig,
     /// Optional world provider for loading chunks from disk.
     provider: Option<Arc<dyn WorldProvider>>,
-    /// Cached VanillaGenerator for chunk generation (avoids creating per-chunk).
-    vanilla_generator: Option<Box<crate::world::generator::VanillaGenerator>>,
+    /// Cached VanillaGenerator for chunk generation (Arc for sharing with worker).
+    vanilla_generator: Option<Arc<crate::world::generator::VanillaGenerator>>,
     /// Chunks that need viewers added once their entity is fully spawned/ready.
     pub pending_viewers: HashMap<(i32, i32), Vec<Entity>>,
+    /// Track pending async generation requests (chunk coords -> waiting viewers).
+    pub pending_generation: HashMap<(i32, i32), Vec<Entity>>,
+    /// Async chunk generation worker (only for vanilla generation).
+    generation_worker: Option<ChunkGenerationWorker>,
 }
 
 impl ChunkManager {
     /// Create a new chunk manager with the given world configuration.
     pub fn new(world_config: WorldConfig) -> Self {
-        // Pre-create VanillaGenerator if using vanilla world type
+        // Pre-create VanillaGenerator if using vanilla world type (Arc for sharing)
         let vanilla_generator = match &world_config.generator {
-            WorldGenerator::Vanilla { seed } => Some(Box::new(
+            WorldGenerator::Vanilla { seed } => Some(Arc::new(
                 crate::world::generator::VanillaGenerator::new(*seed),
             )),
             _ => None,
         };
+
+        // Create async generation worker for vanilla generation
+        let generation_worker = vanilla_generator
+            .as_ref()
+            .map(|generator| ChunkGenerationWorker::spawn(generator.clone()));
+
         Self {
             chunks: HashMap::new(),
             world_config,
             provider: None,
             vanilla_generator,
             pending_viewers: HashMap::new(),
+            pending_generation: HashMap::new(),
+            generation_worker,
         }
     }
 
@@ -183,7 +196,7 @@ impl ChunkManager {
     /// Returns (chunk, was_loaded) where was_loaded indicates if the chunk
     /// was loaded from disk (true) or newly generated (false).
     ///
-    /// Newly generated chunks should be marked with ChunkModified for persistence.
+    /// Newly generated chunks have the DIRTY flag set in ChunkStateFlags for persistence.
     pub fn load_or_generate_chunk(&self, x: i32, z: i32) -> (Chunk, bool) {
         let pos = ChunkPos::new(x, z);
         let dim = self.world_config.dimension;
@@ -211,17 +224,22 @@ impl ChunkManager {
 
     /// Get or create a chunk entity using deferred Commands.
     /// If the chunk doesn't exist, loads from disk or generates it and spawns an entity.
-    /// Returns (entity, Some(chunk_data)) for newly created chunks, or (entity, None) for existing chunks.
-    /// The returned chunk data can be used immediately without waiting for Commands to flush.
     ///
-    /// Newly generated (not loaded) chunks are marked with ChunkModified for persistence.
+    /// Returns `(entity, Some((encoded_biomes, highest_subchunk)))` for newly created chunks,
+    /// or `(entity, None)` for existing chunks.
+    ///
+    /// ## Phase 3 Optimization
+    /// Encodes chunk data BEFORE spawning to avoid cloning ~200KB chunk data.
+    /// The encoded data is returned for immediate network transmission.
+    ///
+    /// Newly generated (not loaded) chunks have the DIRTY flag set in ChunkStateFlags for persistence.
     pub fn get_or_create(
         &mut self,
         x: i32,
         z: i32,
         commands: &mut Commands,
         viewer: Entity,
-    ) -> (Entity, Option<Chunk>) {
+    ) -> (Entity, Option<(Vec<u8>, u16)>) {
         // Check if chunk entity already exists
         if let Some(entity) = self.get_by_coords(x, z) {
             // Chunk exists - add viewer to pending list for flush_pending_viewers to handle
@@ -233,21 +251,28 @@ impl ChunkManager {
         let (chunk_data, was_loaded) = self.load_or_generate_chunk(x, z);
         let pos = ChunkPosition::new(x, z);
 
-        // Build entity with components
-        let mut entity_commands = commands.spawn((
-            pos,
-            ChunkData::new(chunk_data.clone()),
-            ChunkState::Loaded,
-            ChunkViewers::default(),
-            ChunkEntities::default(),
-        ));
+        // Encode BEFORE spawning to avoid clone (Phase 3 optimization)
+        // This saves ~200KB allocation per new chunk
+        let encoded_biomes = chunk_data.encode_biomes();
+        let highest_subchunk = chunk_data.highest_subchunk();
 
-        // Mark as modified if newly generated (needs saving)
+        // Build entity with components
+        // If newly generated (not loaded from disk), mark dirty for persistence
+        let mut state_flags = ChunkStateFlags::default();
         if !was_loaded {
-            entity_commands.insert(ChunkModified);
+            state_flags.mark_dirty();
         }
 
-        let entity = entity_commands.id();
+        let entity = commands
+            .spawn((
+                pos,
+                ChunkData::new(chunk_data), // Move, not clone!
+                ChunkState::Loaded,
+                ChunkViewers::default(),
+                ChunkEntities::default(),
+                state_flags,
+            ))
+            .id();
 
         // Register the entity in our lookup map
         self.insert(pos, entity);
@@ -255,7 +280,71 @@ impl ChunkManager {
         // Add viewer to pending list - flush_pending_viewers will apply it once entity is ready
         self.pending_viewers.entry((x, z)).or_default().push(viewer);
 
-        (entity, Some(chunk_data))
+        (entity, Some((encoded_biomes, highest_subchunk)))
+    }
+
+    // =========================================================================
+    // Async Generation API (Phase 1 performance optimization)
+    // =========================================================================
+
+    /// Check if chunk generation is already pending for these coordinates.
+    pub fn is_generation_pending(&self, x: i32, z: i32) -> bool {
+        self.pending_generation.contains_key(&(x, z))
+    }
+
+    /// Check if this manager uses async generation (vanilla worlds only).
+    pub fn has_async_generation(&self) -> bool {
+        self.generation_worker.is_some()
+    }
+
+    /// Request chunk generation asynchronously.
+    ///
+    /// Returns `Some(receiver)` if generation was started, `None` if:
+    /// - Chunk already exists
+    /// - Chunk is already being generated
+    /// - No async worker available (non-vanilla generator)
+    ///
+    /// The viewer entity is tracked so they can be notified when generation completes.
+    pub fn request_generation(
+        &mut self,
+        x: i32,
+        z: i32,
+        viewer: Entity,
+    ) -> Option<tokio::sync::oneshot::Receiver<Chunk>> {
+        // Already loaded?
+        if self.chunks.contains_key(&(x, z)) {
+            self.pending_viewers.entry((x, z)).or_default().push(viewer);
+            return None;
+        }
+
+        // Already being generated?
+        if let Some(viewers) = self.pending_generation.get_mut(&(x, z)) {
+            viewers.push(viewer);
+            return None;
+        }
+
+        // Start generation via worker
+        if let Some(worker) = &self.generation_worker {
+            if let Some(receiver) = worker.generate(x, z) {
+                self.pending_generation.insert((x, z), vec![viewer]);
+                return Some(receiver);
+            }
+        }
+
+        None
+    }
+
+    /// Complete a pending generation request.
+    ///
+    /// Returns the list of viewer entities that were waiting for this chunk,
+    /// or `None` if no generation was pending for these coordinates.
+    pub fn complete_generation(&mut self, x: i32, z: i32) -> Option<Vec<Entity>> {
+        self.pending_generation.remove(&(x, z))
+    }
+
+    /// Get the count of pending generation requests.
+    pub fn pending_generation_count(&self) -> usize {
+        self.pending_generation.len()
     }
 }
 
@@ -289,6 +378,10 @@ impl ChunkManagerWorldExt for bevy_ecs::world::World {
         };
 
         // Spawn entity with components
+        // Mark newly generated chunks as dirty for persistence
+        let mut state_flags = ChunkStateFlags::default();
+        state_flags.mark_dirty();
+
         let entity = self
             .spawn((
                 pos,
@@ -296,6 +389,7 @@ impl ChunkManagerWorldExt for bevy_ecs::world::World {
                 ChunkState::Loaded,
                 ChunkViewers::default(),
                 ChunkEntities::default(),
+                state_flags,
             ))
             .id();
 

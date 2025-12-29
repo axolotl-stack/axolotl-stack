@@ -3613,9 +3613,11 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "bevy_ecs",
+ "bitflags 2.10.0",
  "bleveldb",
  "bytes",
  "crc32fast",
+ "criterion",
  "glam",
  "jolyne",
  "lru",

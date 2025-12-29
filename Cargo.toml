@@ -19,6 +19,14 @@ edition = "2024"
 license = "MIT"
 repository = "https://github.com/axolotl-stack/axolotl-stack"
 
+[profile.release]
+opt-level = 3           # Max optimization
+lto = "fat"             # Link Time Optimization (slower build, faster code)
+codegen-units = 1       # Reduce parallelism to improve code quality
+panic = "abort"         # Remove stack unwinding (smaller/faster binary)
+strip = false            # Remove symbols (smaller binary)
+debug = 1
+
 [workspace.dependencies]
 # Async runtime
 tokio = { version = "1.48", default-features = false }

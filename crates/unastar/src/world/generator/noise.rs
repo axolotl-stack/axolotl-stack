@@ -1,13 +1,17 @@
 //! Accurate Perlin and octave noise implementation based on cubiomes.
 //! This implementation matches Minecraft's exact terrain generation algorithms.
+//!
+//! The permutation table is stored as i32 to enable efficient SIMD gather operations
+//! on x86_64 using AVX2 instructions.
 
 use super::xoroshiro::Xoroshiro128;
 
 /// 3D Perlin noise generator - cubiomes-accurate implementation.
 #[derive(Debug, Clone)]
 pub struct PerlinNoise {
-    /// Permutation table (257 entries for wrapping)
-    pub d: [u8; 257],
+    /// Permutation table (257 entries for wrapping).
+    /// Stored as i32 for efficient SIMD gather operations.
+    pub d: [i32; 257],
     /// X offset
     pub a: f64,
     /// Y offset
@@ -18,8 +22,8 @@ pub struct PerlinNoise {
     pub amplitude: f64,
     /// Lacunarity (frequency multiplier)
     pub lacunarity: f64,
-    /// Precomputed floor(b) mod 256
-    h2: u8,
+    /// Precomputed floor(b) mod 256 (as i32 for SIMD compatibility)
+    h2: i32,
     /// Precomputed b - floor(b)
     d2: f64,
     /// Precomputed smoothstep(d2)
@@ -29,13 +33,13 @@ pub struct PerlinNoise {
 impl Default for PerlinNoise {
     fn default() -> Self {
         Self {
-            d: [0; 257],
+            d: [0i32; 257],
             a: 0.0,
             b: 0.0,
             c: 0.0,
             amplitude: 1.0,
             lacunarity: 1.0,
-            h2: 0,
+            h2: 0i32,
             d2: 0.0,
             t2: 0.0,
         }
@@ -49,11 +53,12 @@ impl PerlinNoise {
         let b = rng.next_double() * 256.0;
         let c = rng.next_double() * 256.0;
 
-        let mut d = [0u8; 257];
+        // Initialize permutation table as i32 for SIMD gather operations
+        let mut d = [0i32; 257];
 
         // Initialize with identity
         for i in 0..256 {
-            d[i] = i as u8;
+            d[i] = i as i32;
         }
 
         // Fisher-Yates shuffle
@@ -67,7 +72,7 @@ impl PerlinNoise {
         // Precompute y-related values
         let i2 = b.floor();
         let d2 = b - i2;
-        let h2 = (i2 as i32) as u8;
+        let h2 = (i2 as i32) & 255;
         let t2 = d2 * d2 * d2 * (d2 * (d2 * 6.0 - 15.0) + 10.0);
 
         Self {
@@ -92,7 +97,7 @@ impl PerlinNoise {
             let y = y + self.b;
             let i2 = y.floor();
             let d2 = y - i2;
-            let h2 = (i2 as i32) as u8;
+            let h2 = (i2 as i32) & 255;
             let t2 = d2 * d2 * d2 * (d2 * (d2 * 6.0 - 15.0) + 10.0);
             (d2, h2, t2)
         };
@@ -105,37 +110,32 @@ impl PerlinNoise {
         let d1 = d1 - i1;
         let d3 = d3 - i3;
 
-        let h1 = (i1 as i32) as u8;
-        let h3 = (i3 as i32) as u8;
+        let h1 = (i1 as i32) & 255;
+        let h3 = (i3 as i32) & 255;
 
         let t1 = d1 * d1 * d1 * (d1 * (d1 * 6.0 - 15.0) + 10.0);
         let t3 = d3 * d3 * d3 * (d3 * (d3 * 6.0 - 15.0) + 10.0);
 
         let idx = &self.d;
 
-        // Calculate hash indices
-        let a1 = idx[h1 as usize].wrapping_add(h2);
-        let b1 = idx[h1.wrapping_add(1) as usize].wrapping_add(h2);
+        // Calculate hash indices using i32 arithmetic with masking
+        let a1 = (idx[h1 as usize] + h2) & 255;
+        let b1 = (idx[((h1 + 1) & 255) as usize] + h2) & 255;
 
-        let a2 = idx[a1 as usize].wrapping_add(h3);
-        let a3 = idx[a1.wrapping_add(1) as usize].wrapping_add(h3);
-        let b2 = idx[b1 as usize].wrapping_add(h3);
-        let b3 = idx[b1.wrapping_add(1) as usize].wrapping_add(h3);
+        let a2 = (idx[a1 as usize] + h3) & 255;
+        let a3 = (idx[((a1 + 1) & 255) as usize] + h3) & 255;
+        let b2 = (idx[b1 as usize] + h3) & 255;
+        let b3 = (idx[((b1 + 1) & 255) as usize] + h3) & 255;
 
         // Calculate gradients and interpolate
         let l1 = indexed_lerp(idx[a2 as usize], d1, d2, d3);
         let l2 = indexed_lerp(idx[b2 as usize], d1 - 1.0, d2, d3);
         let l3 = indexed_lerp(idx[a3 as usize], d1, d2 - 1.0, d3);
         let l4 = indexed_lerp(idx[b3 as usize], d1 - 1.0, d2 - 1.0, d3);
-        let l5 = indexed_lerp(idx[a2.wrapping_add(1) as usize], d1, d2, d3 - 1.0);
-        let l6 = indexed_lerp(idx[b2.wrapping_add(1) as usize], d1 - 1.0, d2, d3 - 1.0);
-        let l7 = indexed_lerp(idx[a3.wrapping_add(1) as usize], d1, d2 - 1.0, d3 - 1.0);
-        let l8 = indexed_lerp(
-            idx[b3.wrapping_add(1) as usize],
-            d1 - 1.0,
-            d2 - 1.0,
-            d3 - 1.0,
-        );
+        let l5 = indexed_lerp(idx[((a2 + 1) & 255) as usize], d1, d2, d3 - 1.0);
+        let l6 = indexed_lerp(idx[((b2 + 1) & 255) as usize], d1 - 1.0, d2, d3 - 1.0);
+        let l7 = indexed_lerp(idx[((a3 + 1) & 255) as usize], d1, d2 - 1.0, d3 - 1.0);
+        let l8 = indexed_lerp(idx[((b3 + 1) & 255) as usize], d1 - 1.0, d2 - 1.0, d3 - 1.0);
 
         // Trilinear interpolation
         let l1 = lerp(t1, l1, l2);
@@ -154,94 +154,282 @@ impl PerlinNoise {
         self.sample(x, 0.0, z)
     }
 
-    /// Sample 4 noise values simultaneously using SIMD (x86_64).
+    /// Sample 4 noise values simultaneously using SIMD (x86_64 with AVX2).
     #[cfg(target_arch = "x86_64")]
     pub fn sample_4(&self, x: [f64; 4], y: f64, z: [f64; 4]) -> [f64; 4] {
         use std::arch::x86_64::*;
 
+        // Y processing (shared scalar path for all 4 samples)
+        let (d2, h2, t2) = if y == 0.0 {
+            (self.d2, self.h2, self.t2)
+        } else {
+            let y = y + self.b;
+            let i2 = y.floor();
+            let d2 = y - i2;
+            let h2 = (i2 as i32) & 255;
+            let t2 = d2 * d2 * d2 * (d2 * (d2 * 6.0 - 15.0) + 10.0);
+            (d2, h2, t2)
+        };
+
         unsafe {
-            // Load X and Z coordinates into SIMD registers
-            let x_simd = _mm256_loadu_pd(x.as_ptr());
-            let z_simd = _mm256_loadu_pd(z.as_ptr());
+            // Load X and Z coordinates
+            let x_vec = _mm256_loadu_pd(x.as_ptr());
+            let z_vec = _mm256_loadu_pd(z.as_ptr());
 
             // Add offsets
-            let a_broadcast = _mm256_set1_pd(self.a);
-            let c_broadcast = _mm256_set1_pd(self.c);
-            let d1 = _mm256_add_pd(x_simd, a_broadcast);
-            let d3 = _mm256_add_pd(z_simd, c_broadcast);
+            let a_bc = _mm256_set1_pd(self.a);
+            let c_bc = _mm256_set1_pd(self.c);
+            let d1_vec = _mm256_add_pd(x_vec, a_bc);
+            let d3_vec = _mm256_add_pd(z_vec, c_bc);
 
-            // Floor operation
-            let i1 = _mm256_floor_pd(d1);
-            let i3 = _mm256_floor_pd(d3);
+            // Floor
+            let i1_vec = _mm256_floor_pd(d1_vec);
+            let i3_vec = _mm256_floor_pd(d3_vec);
 
-            // Subtract to get fractional parts
-            let d1_frac = _mm256_sub_pd(d1, i1);
-            let d3_frac = _mm256_sub_pd(d3, i3);
+            // Fractional parts (d1, d3)
+            let d1_frac = _mm256_sub_pd(d1_vec, i1_vec);
+            let d3_frac = _mm256_sub_pd(d3_vec, i3_vec);
 
-            // Smoothstep calculation: t = d³(d(6d - 15) + 10)
-            let six = _mm256_set1_pd(6.0);
-            let fifteen = _mm256_set1_pd(15.0);
-            let ten = _mm256_set1_pd(10.0);
+            // Convert floor to i32 for hash indices
+            let i1_i32 = _mm256_cvtpd_epi32(i1_vec);
+            let i3_i32 = _mm256_cvtpd_epi32(i3_vec);
 
-            let t1 = smoothstep_simd(d1_frac, six, fifteen, ten);
-            let t3 = smoothstep_simd(d3_frac, six, fifteen, ten); // Note: unused in this partial implementation but kept for structure
+            // Mask to 255
+            let mask_255 = _mm_set1_epi32(255);
+            let h1_vec = _mm_and_si128(i1_i32, mask_255);
+            let h3_vec = _mm_and_si128(i3_i32, mask_255);
 
-            // Use scalar fallback for the rest gradient calculation as it requires gathering from permutation table
-            // Ideally we would gather using AVX2 but that is complex for u8 permutation table
-            let mut results = [0.0; 4];
-            for i in 0..4 {
-                results[i] = self.sample(x[i], y, z[i]);
-            }
-            results
+            // Smoothstep for t1 and t3
+            let t1_vec = smoothstep_simd_256(d1_frac);
+            let t3_vec = smoothstep_simd_256(d3_frac);
+
+            // --- Hashing (AVX2 Gather) ---
+            let perm_ptr = self.d.as_ptr(); // Requires self.d to be [i32; 257]
+
+            // h1 lookup
+            let a1_base = _mm_i32gather_epi32::<4>(perm_ptr, h1_vec);
+
+            // h1 + 1 lookup
+            let h1_plus1 = _mm_and_si128(_mm_add_epi32(h1_vec, _mm_set1_epi32(1)), mask_255);
+            let b1_base = _mm_i32gather_epi32::<4>(perm_ptr, h1_plus1);
+
+            // Add h2
+            let h2_bc = _mm_set1_epi32(h2);
+            let a1 = _mm_and_si128(_mm_add_epi32(a1_base, h2_bc), mask_255);
+            let b1 = _mm_and_si128(_mm_add_epi32(b1_base, h2_bc), mask_255);
+
+            // Next layer lookups
+            let a1_plus1 = _mm_and_si128(_mm_add_epi32(a1, _mm_set1_epi32(1)), mask_255);
+            let b1_plus1 = _mm_and_si128(_mm_add_epi32(b1, _mm_set1_epi32(1)), mask_255);
+
+            let a2 = _mm_and_si128(
+                _mm_add_epi32(_mm_i32gather_epi32::<4>(perm_ptr, a1), h3_vec),
+                mask_255,
+            );
+            let a3 = _mm_and_si128(
+                _mm_add_epi32(_mm_i32gather_epi32::<4>(perm_ptr, a1_plus1), h3_vec),
+                mask_255,
+            );
+            let b2 = _mm_and_si128(
+                _mm_add_epi32(_mm_i32gather_epi32::<4>(perm_ptr, b1), h3_vec),
+                mask_255,
+            );
+            let b3 = _mm_and_si128(
+                _mm_add_epi32(_mm_i32gather_epi32::<4>(perm_ptr, b1_plus1), h3_vec),
+                mask_255,
+            );
+
+            // Final Gradient Index Lookups (The "grad" values)
+            let grad_a2 = _mm_i32gather_epi32::<4>(perm_ptr, a2);
+            let grad_b2 = _mm_i32gather_epi32::<4>(perm_ptr, b2);
+            let grad_a3 = _mm_i32gather_epi32::<4>(perm_ptr, a3);
+            let grad_b3 = _mm_i32gather_epi32::<4>(perm_ptr, b3);
+
+            let a2_p1 = _mm_and_si128(_mm_add_epi32(a2, _mm_set1_epi32(1)), mask_255);
+            let b2_p1 = _mm_and_si128(_mm_add_epi32(b2, _mm_set1_epi32(1)), mask_255);
+            let a3_p1 = _mm_and_si128(_mm_add_epi32(a3, _mm_set1_epi32(1)), mask_255);
+            let b3_p1 = _mm_and_si128(_mm_add_epi32(b3, _mm_set1_epi32(1)), mask_255);
+
+            let grad_a2p1 = _mm_i32gather_epi32::<4>(perm_ptr, a2_p1);
+            let grad_b2p1 = _mm_i32gather_epi32::<4>(perm_ptr, b2_p1);
+            let grad_a3p1 = _mm_i32gather_epi32::<4>(perm_ptr, a3_p1);
+            let grad_b3p1 = _mm_i32gather_epi32::<4>(perm_ptr, b3_p1);
+
+            // --- Compute Gradients (Branchless SIMD) ---
+            let d2_bc = _mm256_set1_pd(d2);
+            let one = _mm256_set1_pd(1.0);
+            let d1_m1 = _mm256_sub_pd(d1_frac, one);
+            let d2_m1 = _mm256_sub_pd(d2_bc, one);
+            let d3_m1 = _mm256_sub_pd(d3_frac, one);
+
+            // 8 gradient dot products (using the new bitwise function)
+            let l1 = indexed_lerp_simd(grad_a2, d1_frac, d2_bc, d3_frac);
+            let l2 = indexed_lerp_simd(grad_b2, d1_m1, d2_bc, d3_frac);
+            let l3 = indexed_lerp_simd(grad_a3, d1_frac, d2_m1, d3_frac);
+            let l4 = indexed_lerp_simd(grad_b3, d1_m1, d2_m1, d3_frac);
+            let l5 = indexed_lerp_simd(grad_a2p1, d1_frac, d2_bc, d3_m1);
+            let l6 = indexed_lerp_simd(grad_b2p1, d1_m1, d2_bc, d3_m1);
+            let l7 = indexed_lerp_simd(grad_a3p1, d1_frac, d2_m1, d3_m1);
+            let l8 = indexed_lerp_simd(grad_b3p1, d1_m1, d2_m1, d3_m1);
+
+            // --- Trilinear Interpolation ---
+            let l1 = lerp_simd(t1_vec, l1, l2);
+            let l3 = lerp_simd(t1_vec, l3, l4);
+            let l5 = lerp_simd(t1_vec, l5, l6);
+            let l7 = lerp_simd(t1_vec, l7, l8);
+
+            let t2_bc = _mm256_set1_pd(t2);
+            let l1 = lerp_simd(t2_bc, l1, l3);
+            let l5 = lerp_simd(t2_bc, l5, l7);
+
+            let result = lerp_simd(t3_vec, l1, l5);
+
+            let mut out = [0.0f64; 4];
+            _mm256_storeu_pd(out.as_mut_ptr(), result);
+            out
         }
     }
+
+    /// Non-SIMD fallback for sample_4 on non-x86_64 platforms.
+    #[cfg(not(target_arch = "x86_64"))]
+    pub fn sample_4(&self, x: [f64; 4], y: f64, z: [f64; 4]) -> [f64; 4] {
+        [
+            self.sample(x[0], y, z[0]),
+            self.sample(x[1], y, z[1]),
+            self.sample(x[2], y, z[2]),
+            self.sample(x[3], y, z[3]),
+        ]
+    }
 }
 
-/// Helper for SIMD smoothstep
+/// SIMD smoothstep: t³(t(6t - 15) + 10)
 #[inline]
 #[cfg(target_arch = "x86_64")]
-unsafe fn smoothstep_simd(
-    d: std::arch::x86_64::__m256d,
-    six: std::arch::x86_64::__m256d,
-    fifteen: std::arch::x86_64::__m256d,
-    ten: std::arch::x86_64::__m256d,
-) -> std::arch::x86_64::__m256d {
+unsafe fn smoothstep_simd_256(d: std::arch::x86_64::__m256d) -> std::arch::x86_64::__m256d {
     use std::arch::x86_64::*;
 
-    // t = d³(d(6d - 15) + 10)
-    let d_sq = _mm256_mul_pd(d, d);
-    let d_cube = _mm256_mul_pd(d_sq, d);
+    unsafe {
+        let six = _mm256_set1_pd(6.0);
+        let fifteen = _mm256_set1_pd(15.0);
+        let ten = _mm256_set1_pd(10.0);
 
-    let inner = _mm256_mul_pd(six, d);
-    let inner = _mm256_sub_pd(inner, fifteen);
-    let inner = _mm256_mul_pd(inner, d);
-    let inner = _mm256_add_pd(inner, ten);
-
-    _mm256_mul_pd(d_cube, inner)
+        let inner = _mm256_add_pd(
+            _mm256_mul_pd(_mm256_sub_pd(_mm256_mul_pd(d, six), fifteen), d),
+            ten,
+        );
+        let d3 = _mm256_mul_pd(_mm256_mul_pd(d, d), d);
+        _mm256_mul_pd(d3, inner)
+    }
 }
 
-/// Indexed gradient function - matches cubiomes exactly.
-#[inline]
-fn indexed_lerp(idx: u8, a: f64, b: f64, c: f64) -> f64 {
-    match idx & 0xf {
-        0 => a + b,
-        1 => -a + b,
-        2 => a - b,
-        3 => -a - b,
-        4 => a + c,
-        5 => -a + c,
-        6 => a - c,
-        7 => -a - c,
-        8 => b + c,
-        9 => -b + c,
-        10 => b - c,
-        11 => -b - c,
-        12 => a + b,
-        13 => -b + c,
-        14 => -a + b,
-        15 => -b - c,
-        _ => unreachable!(),
+/// SIMD lerp: a + t * (b - a)
+#[inline(always)]
+#[cfg(target_arch = "x86_64")]
+unsafe fn lerp_simd(
+    t: std::arch::x86_64::__m256d,
+    a: std::arch::x86_64::__m256d,
+    b: std::arch::x86_64::__m256d,
+) -> std::arch::x86_64::__m256d {
+    use std::arch::x86_64::*;
+    unsafe { _mm256_add_pd(a, _mm256_mul_pd(t, _mm256_sub_pd(b, a))) }
+}
+
+/// True SIMD gradient calculation (AVX2).
+///
+/// Instead of extracting to scalar, this uses bitwise logic to select
+/// coordinates (u, v) and apply signs based on the hash bits.
+///
+/// Logic matches Standard/Improved Perlin:
+/// u = (h < 8) ? x : y
+/// v = (h < 4) ? y : ((h == 12 || h == 14) ? x : z)
+/// result = ((h & 1) ? -u : u) + ((h & 2) ? -v : v)
+#[inline(always)]
+unsafe fn indexed_lerp_simd(
+    idx_128: std::arch::x86_64::__m128i, // 4 integer indices (0-15)
+    x: std::arch::x86_64::__m256d,
+    y: std::arch::x86_64::__m256d,
+    z: std::arch::x86_64::__m256d,
+) -> std::arch::x86_64::__m256d {
+    use std::arch::x86_64::*;
+    unsafe {
+        // 1. Prepare Masks
+        // Convert indices to doubles for easy comparison (0.0 .. 15.0)
+        let h_dbl = _mm256_cvtepi32_pd(idx_128);
+        // Convert indices to 64-bit ints for bitwise checks
+        let h_long = _mm256_cvtepi32_epi64(idx_128);
+
+        // Constants
+        let eight = _mm256_set1_pd(8.0);
+        let four = _mm256_set1_pd(4.0);
+        let twelve = _mm256_set1_pd(12.0);
+        let fourteen = _mm256_set1_pd(14.0);
+
+        // 2. Select U: (h < 8) ? x : y
+        // CMP_LT_OQ: Less Than, Ordered, Quiet
+        let mask_u = _mm256_cmp_pd(h_dbl, eight, _CMP_LT_OQ);
+        let u = _mm256_blendv_pd(y, x, mask_u); // Select x if mask is 1, else y
+
+        // 3. Select V: (h < 4) ? y : ((h == 12 || h == 14) ? x : z)
+        // Mask: h < 4
+        let mask_less_4 = _mm256_cmp_pd(h_dbl, four, _CMP_LT_OQ);
+        // Mask: h == 12 or h == 14
+        let mask_12 = _mm256_cmp_pd(h_dbl, twelve, _CMP_EQ_OQ);
+        let mask_14 = _mm256_cmp_pd(h_dbl, fourteen, _CMP_EQ_OQ);
+        let mask_12_14 = _mm256_or_pd(mask_12, mask_14);
+
+        // Logic: If 12/14, pick X. Else pick Z.
+        let v_base = _mm256_blendv_pd(z, x, mask_12_14);
+        // Logic: If < 4, pick Y. Else pick v_base.
+        let v = _mm256_blendv_pd(v_base, y, mask_less_4);
+
+        // 4. Apply Signs
+        // Term 1: If (h & 1) is true, negate u
+        let one_i64 = _mm256_set1_epi64x(1);
+        let mask_bit1_i = _mm256_cmpeq_epi64(_mm256_and_si256(h_long, one_i64), one_i64);
+        let mask_bit1 = _mm256_castsi256_pd(mask_bit1_i);
+
+        // Term 2: If (h & 2) is true, negate v
+        let two_i64 = _mm256_set1_epi64x(2);
+        let mask_bit2_i = _mm256_cmpeq_epi64(_mm256_and_si256(h_long, two_i64), two_i64);
+        let mask_bit2 = _mm256_castsi256_pd(mask_bit2_i);
+
+        // Compute both versions
+        let neg_u = _mm256_sub_pd(_mm256_setzero_pd(), u);
+        let neg_v = _mm256_sub_pd(_mm256_setzero_pd(), v);
+
+        // Select based on bit masks
+        let term1 = _mm256_blendv_pd(u, neg_u, mask_bit1);
+        let term2 = _mm256_blendv_pd(v, neg_v, mask_bit2);
+
+        // 5. Final Addition
+        _mm256_add_pd(term1, term2)
     }
+}
+
+/// Indexed gradient function (Scalar).
+/// This matches the SIMD logic but for single values.
+#[inline(always)]
+fn indexed_lerp(idx: i32, x: f64, y: f64, z: f64) -> f64 {
+    // The bitwise logic is often faster than the 16-way match
+    // because it avoids branch misprediction penalties.
+
+    // u = h < 8 ? x : y
+    let u = if idx < 8 { x } else { y };
+
+    // v = h < 4 ? y : (h == 12 || h == 14 ? x : z)
+    let v = if idx < 4 {
+        y
+    } else if idx == 12 || idx == 14 {
+        x
+    } else {
+        z
+    };
+
+    // calculate (h&1 ? -u : u) + (h&2 ? -v : v)
+    let u_final = if (idx & 1) != 0 { -u } else { u };
+    let v_final = if (idx & 2) != 0 { -v } else { v };
+
+    u_final + v_final
 }
 
 /// Linear interpolation.
@@ -361,50 +549,43 @@ impl OctaveNoise {
         value
     }
 
+    /// Sample 4 noise values simultaneously using SIMD.
+    /// Each input is an array of 4 coordinates to sample at.
     #[cfg(target_arch = "x86_64")]
-    pub fn sample_simd(&self, x: f64, y: f64, z: f64) -> f64 {
-        use std::arch::x86_64::*;
+    pub fn sample_4(&self, x: [f64; 4], y: f64, z: [f64; 4]) -> [f64; 4] {
+        let mut values = [0.0f64; 4];
 
-        // Process 4 octaves at a time if we have enough
-        let mut value = 0.0;
-        let chunks = self.octaves.chunks(4);
+        for octave in &self.octaves {
+            let lf = octave.lacunarity;
 
-        for chunk in chunks {
-            if chunk.len() == 4 {
-                unsafe {
-                    // Load 4 lacunarities
-                    let lf = [
-                        chunk[0].lacunarity,
-                        chunk[1].lacunarity,
-                        chunk[2].lacunarity,
-                        chunk[3].lacunarity,
-                    ];
-                    let lf_simd = _mm256_loadu_pd(lf.as_ptr());
+            // Scale all 4 x and z coordinates
+            let ax = [x[0] * lf, x[1] * lf, x[2] * lf, x[3] * lf];
+            let ay = y * lf;
+            let az = [z[0] * lf, z[1] * lf, z[2] * lf, z[3] * lf];
 
-                    // Scale coordinates
-                    let x_simd = _mm256_set1_pd(x);
-                    let ax = _mm256_mul_pd(x_simd, lf_simd);
+            // Use SIMD sample_4 for all 4 points
+            let pv = octave.sample_4(ax, ay, az);
 
-                    // For now, fallback to scalar sample because complete SIMD Perlin is complex
-                    // to implement without full gather support for the permutation table.
-                    // But we structure it for future expansion.
-                    for octave in chunk {
-                        let lf = octave.lacunarity;
-                        let pv = octave.sample(x * lf, y * lf, z * lf);
-                        value += octave.amplitude * pv;
-                    }
-                }
-            } else {
-                // Fallback for remaining octaves
-                for octave in chunk {
-                    let lf = octave.lacunarity;
-                    let pv = octave.sample(x * lf, y * lf, z * lf);
-                    value += octave.amplitude * pv;
-                }
-            }
+            // Accumulate with amplitude
+            let amp = octave.amplitude;
+            values[0] += amp * pv[0];
+            values[1] += amp * pv[1];
+            values[2] += amp * pv[2];
+            values[3] += amp * pv[3];
         }
 
-        value
+        values
+    }
+
+    /// Non-SIMD fallback for sample_4 on non-x86_64 platforms.
+    #[cfg(not(target_arch = "x86_64"))]
+    pub fn sample_4(&self, x: [f64; 4], y: f64, z: [f64; 4]) -> [f64; 4] {
+        [
+            self.sample(x[0], y, z[0]),
+            self.sample(x[1], y, z[1]),
+            self.sample(x[2], y, z[2]),
+            self.sample(x[3], y, z[3]),
+        ]
     }
 }
 
@@ -477,5 +658,143 @@ impl DoublePerlinNoise {
         const F: f64 = 337.0 / 331.0;
         let v = self.oct_a.sample(x, y, z) + self.oct_b.sample(x * F, y * F, z * F);
         v * self.amplitude
+    }
+
+    /// Sample 4 double Perlin noise values simultaneously using SIMD.
+    pub fn sample_4(&self, x: [f64; 4], y: f64, z: [f64; 4]) -> [f64; 4] {
+        const F: f64 = 337.0 / 331.0;
+
+        // Sample oct_a at original coordinates
+        let va = self.oct_a.sample_4(x, y, z);
+
+        // Sample oct_b at scaled coordinates
+        let x_scaled = [x[0] * F, x[1] * F, x[2] * F, x[3] * F];
+        let y_scaled = y * F;
+        let z_scaled = [z[0] * F, z[1] * F, z[2] * F, z[3] * F];
+        let vb = self.oct_b.sample_4(x_scaled, y_scaled, z_scaled);
+
+        // Combine and scale by amplitude
+        let amp = self.amplitude;
+        [
+            (va[0] + vb[0]) * amp,
+            (va[1] + vb[1]) * amp,
+            (va[2] + vb[2]) * amp,
+            (va[3] + vb[3]) * amp,
+        ]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_perlin_noise_deterministic() {
+        // Test that noise is deterministic with same seed
+        let mut rng1 = Xoroshiro128::from_seed(12345);
+        let mut rng2 = Xoroshiro128::from_seed(12345);
+
+        let noise1 = PerlinNoise::new(&mut rng1);
+        let noise2 = PerlinNoise::new(&mut rng2);
+
+        // Same seed should produce same results
+        assert_eq!(noise1.sample(0.0, 0.0, 0.0), noise2.sample(0.0, 0.0, 0.0));
+        assert_eq!(noise1.sample(1.5, 2.5, 3.5), noise2.sample(1.5, 2.5, 3.5));
+    }
+
+    #[test]
+    fn test_perlin_noise_range() {
+        // Perlin noise should be in [-1, 1] range
+        let mut rng = Xoroshiro128::from_seed(42);
+        let noise = PerlinNoise::new(&mut rng);
+
+        for x in -10..10 {
+            for z in -10..10 {
+                let value = noise.sample(x as f64 * 0.5, 0.0, z as f64 * 0.5);
+                assert!(
+                    value >= -2.0 && value <= 2.0,
+                    "Noise value {} out of expected range at ({}, {})",
+                    value,
+                    x,
+                    z
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[cfg(target_arch = "x86_64")]
+    fn test_sample_4_matches_scalar() {
+        // Test that SIMD sample_4 produces same results as scalar sample
+        let mut rng = Xoroshiro128::from_seed(98765);
+        let noise = PerlinNoise::new(&mut rng);
+
+        // Test various coordinates
+        let test_coords = [
+            ([0.0, 1.0, 2.0, 3.0], 0.0, [0.0, 0.0, 0.0, 0.0]),
+            ([0.0, 0.0, 0.0, 0.0], 0.0, [0.0, 1.0, 2.0, 3.0]),
+            ([0.5, 1.5, 2.5, 3.5], 0.0, [0.5, 1.5, 2.5, 3.5]),
+            ([-1.0, 0.0, 1.0, 2.0], 0.0, [-2.0, -1.0, 0.0, 1.0]),
+            ([10.0, 20.0, 30.0, 40.0], 0.0, [5.0, 15.0, 25.0, 35.0]),
+        ];
+
+        for (x, y, z) in test_coords {
+            let simd_results = noise.sample_4(x, y, z);
+            for i in 0..4 {
+                let scalar_result = noise.sample(x[i], y, z[i]);
+                let diff = (simd_results[i] - scalar_result).abs();
+                assert!(
+                    diff < 1e-10,
+                    "SIMD and scalar mismatch at ({}, {}, {}): SIMD={}, scalar={}, diff={}",
+                    x[i],
+                    y,
+                    z[i],
+                    simd_results[i],
+                    scalar_result,
+                    diff
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[cfg(target_arch = "x86_64")]
+    fn test_sample_4_with_nonzero_y() {
+        // Test sample_4 with non-zero y coordinate
+        let mut rng = Xoroshiro128::from_seed(11111);
+        let noise = PerlinNoise::new(&mut rng);
+
+        let x = [0.0, 1.0, 2.0, 3.0];
+        let y = 1.5;
+        let z = [0.0, 1.0, 2.0, 3.0];
+
+        let simd_results = noise.sample_4(x, y, z);
+        for i in 0..4 {
+            let scalar_result = noise.sample(x[i], y, z[i]);
+            let diff = (simd_results[i] - scalar_result).abs();
+            assert!(
+                diff < 1e-10,
+                "SIMD and scalar mismatch with y={}: SIMD={}, scalar={}, diff={}",
+                y,
+                simd_results[i],
+                scalar_result,
+                diff
+            );
+        }
+    }
+
+    #[test]
+    fn test_permutation_table_i32() {
+        // Verify the permutation table contains valid values
+        let mut rng = Xoroshiro128::from_seed(54321);
+        let noise = PerlinNoise::new(&mut rng);
+
+        // All values should be in 0..256 range
+        for &val in &noise.d[..256] {
+            assert!(val >= 0 && val < 256, "Invalid permutation value: {}", val);
+        }
+
+        // Wrap value should match first value
+        assert_eq!(noise.d[256], noise.d[0]);
     }
 }

@@ -28,22 +28,25 @@ use tracing::{info, trace, warn};
 
 use crate::command::CommandRegistry;
 use crate::config::{PlayerDataStore, PlayerLastPosition, SpawnLocation};
-use crate::ecs::{EntityLogicSet, NetworkSendSet, UnastarEcs};
+use crate::ecs::{CleanupSet, EntityLogicSet, NetworkSendSet, UnastarEcs};
 use crate::entity::bundles::PlayerBundle;
 use crate::entity::components::transform::{Position, Rotation};
 use crate::entity::components::{
     ArmourInventory, BreakingState, ChunkRadius, CursorItem, GameMode, HeldSlot, InventoryOpened,
-    ItemStackRequestState, MainInventory, OffhandSlot, PendingDespawnBroadcast,
-    PendingSpawnBroadcast, Player, PlayerInput, PlayerName, PlayerSession, PlayerState, PlayerUuid,
-    RuntimeEntityId, SpatialChunk,
+    ItemStackRequestState, LastBroadcastPosition, MainInventory, OffhandSlot, Player, PlayerInput,
+    PlayerName, PlayerSession, PlayerState, PlayerUuid, RuntimeEntityId, SpatialChunk,
 };
 use crate::network::SessionId;
 use crate::registry::{BiomeRegistry, BlockRegistry, EntityRegistry, ItemRegistry};
 use crate::server::broadcast::{
-    EntityGrid, broadcast_despawn_system, broadcast_movement_system, broadcast_spawn_system,
-    tick_block_breaking, update_spatial_grid_system,
+    EntityGrid, broadcast_block_updates, broadcast_despawn_system, broadcast_movement_system,
+    broadcast_spawn_system, cleanup_despawned_entities, sync_spatial_chunks, tick_block_breaking,
 };
-use crate::world::ecs::{ChunkLoadConfig, register_chunk_systems};
+use crate::world::ecs::{
+    BlockBroadcastEvent, ChunkLoadConfig, ChunkLoader, ChunkTickingState, LastPublisherState,
+    PendingChunkGenerations, PlayerDespawnedEvent, PlayerSpawnedEvent, on_block_changed,
+    register_chunk_systems,
+};
 use crate::world::{ChunkManager, WorldConfig};
 
 // Re-export public types
@@ -139,6 +142,27 @@ impl GameServer {
         ecs.world_mut()
             .insert_resource(ChunkLoadConfig::from_server_config(&config));
 
+        // Add async chunk generation tracking resource (Phase 1 perf optimization)
+        ecs.world_mut().init_resource::<PendingChunkGenerations>();
+
+        // Add chunk ticking state for reusable HashSet (Phase 2 perf optimization)
+        ecs.world_mut().init_resource::<ChunkTickingState>();
+
+        // Register BlockBroadcastEvent for batched block update broadcasting
+        ecs.world_mut()
+            .init_resource::<bevy_ecs::message::Messages<BlockBroadcastEvent>>();
+
+        // Register PlayerSpawnedEvent and PlayerDespawnedEvent for spawn/despawn broadcasting
+        // These replace marker components (PendingSpawnBroadcast, PendingDespawnBroadcast)
+        // to eliminate archetype changes during player spawn/despawn
+        ecs.world_mut()
+            .init_resource::<bevy_ecs::message::Messages<PlayerSpawnedEvent>>();
+        ecs.world_mut()
+            .init_resource::<bevy_ecs::message::Messages<PlayerDespawnedEvent>>();
+
+        // Register BlockChanged observer for immediate game logic reactions
+        ecs.world_mut().add_observer(on_block_changed);
+
         // Register chunk management systems
         register_chunk_systems(ecs.schedule_mut());
 
@@ -147,17 +171,24 @@ impl GameServer {
             .add_systems(tick_block_breaking.in_set(EntityLogicSet));
 
         // Register broadcast systems in NetworkSendSet
-        // update_spatial_grid_system must run before broadcasts for accurate lookups
+        // sync_spatial_chunks must run before broadcasts for accurate lookups
+        // broadcast_block_updates reads BlockBroadcastEvent for batched block updates
         ecs.schedule_mut().add_systems(
             (
-                update_spatial_grid_system,
+                sync_spatial_chunks,
                 broadcast_spawn_system,
                 broadcast_movement_system,
                 broadcast_despawn_system,
+                broadcast_block_updates,
             )
                 .chain()
                 .in_set(NetworkSendSet),
         );
+
+        // Register cleanup system for despawning entities after broadcast
+        // Component on_remove hooks (SpatialChunk, ChunkLoader) handle cleanup automatically
+        ecs.schedule_mut()
+            .add_systems(cleanup_despawned_entities.in_set(CleanupSet));
 
         info!(
             items = items.len(),
@@ -278,26 +309,26 @@ impl GameServer {
     /// Save all modified chunks to the world provider.
     ///
     /// Returns the number of chunks saved.
-    /// After saving, removes the `ChunkModified` marker from saved chunks.
+    /// After saving, clears the DIRTY flag from saved chunks.
     pub async fn save_all_chunks(&mut self) -> usize {
-        use crate::world::ecs::{ChunkData, ChunkModified, ChunkPosition};
+        use crate::world::ecs::{ChunkData, ChunkPosition, ChunkStateFlags};
 
         let provider = match &self.world_provider {
             Some(p) => p.clone(),
             None => return 0,
         };
 
-        // Collect modified chunks from ECS using a proper query
+        // Collect modified chunks from ECS using a proper query (check dirty flag)
         let chunks_to_save: Vec<(Entity, i32, i32, crate::storage::ChunkColumn)> = {
             let world = self.ecs.world_mut();
 
-            // Use QueryState to properly query entities with all three components
-            let mut query =
-                world.query_filtered::<(Entity, &ChunkPosition, &ChunkData), With<ChunkModified>>();
+            // Use QueryState to query entities with all components and filter by dirty flag
+            let mut query = world.query::<(Entity, &ChunkPosition, &ChunkData, &ChunkStateFlags)>();
 
             query
                 .iter(&world)
-                .map(|(entity, pos, data)| {
+                .filter(|(_, _, _, state)| state.is_dirty())
+                .map(|(entity, pos, data, _)| {
                     let column = crate::storage::ChunkColumn::new(data.inner.clone());
                     (entity, pos.x, pos.z, column)
                 })
@@ -318,13 +349,13 @@ impl GameServer {
             }
         }
 
-        // Remove ChunkModified marker from successfully saved chunks
+        // Clear dirty flag from successfully saved chunks
         {
             let world = self.ecs.world_mut();
             for entity in saved_entities {
                 // Entity may have been despawned during async save
-                if let Ok(mut entity_mut) = world.get_entity_mut(entity) {
-                    entity_mut.remove::<ChunkModified>();
+                if let Some(mut state_flags) = world.get_mut::<ChunkStateFlags>(entity) {
+                    state_flags.clear_dirty();
                 }
             }
         }
@@ -347,6 +378,20 @@ impl GameServer {
         let player_name = data.display_name.clone();
 
         let position = Position(data.position);
+        let runtime_id = data.runtime_id;
+
+        // Calculate chunk position for ChunkLoader initialization
+        let chunk_x = (position.0.x / 16.0).floor() as i32;
+        let chunk_z = (position.0.z / 16.0).floor() as i32;
+
+        // Create and initialize ChunkLoader at player's position
+        let mut chunk_loader = ChunkLoader::new(data.chunk_radius);
+        chunk_loader.move_to(chunk_x, chunk_z);
+        // If move_to was a no-op (same position), force reload
+        if !chunk_loader.has_pending() {
+            chunk_loader.force_reload();
+        }
+
         let entity = self
             .ecs
             .world_mut()
@@ -354,14 +399,14 @@ impl GameServer {
                 player: Player,
                 name: PlayerName(player_name),
                 uuid: PlayerUuid(player_uuid),
-                session: PlayerSession {
-                    session_id: data.session_id,
-                    display_name: data.display_name,
-                    xuid: data.xuid,
-                    uuid: data.uuid,
-                    outbound_tx: data.outbound_tx,
-                },
-                runtime_id: RuntimeEntityId(data.runtime_id),
+                session: PlayerSession::new(
+                    data.session_id,
+                    data.display_name,
+                    data.xuid,
+                    data.uuid,
+                    data.outbound_tx,
+                ),
+                runtime_id: RuntimeEntityId(runtime_id),
                 position: position.clone(),
                 rotation: Rotation::default(),
                 game_mode: self.config.default_gamemode,
@@ -370,7 +415,22 @@ impl GameServer {
                 chunk_radius: ChunkRadius(data.chunk_radius),
                 breaking_state: BreakingState::default(),
                 spatial_chunk: SpatialChunk::from_position(&position),
-                pending_spawn: PendingSpawnBroadcast,
+                last_broadcast: LastBroadcastPosition {
+                    x: position.0.x,
+                    y: position.0.y,
+                    z: position.0.z,
+                    yaw: 0.0,
+                    pitch: 0.0,
+                },
+                // Chunk streaming components (Phase 7: included at spawn to avoid archetype changes)
+                chunk_loader,
+                last_publisher_state: LastPublisherState {
+                    // Use impossible values so first update always triggers
+                    chunk_x: i32::MIN,
+                    chunk_z: i32::MIN,
+                    radius: 0,
+                    queue_was_empty: false,
+                },
                 // Inventory components (all start empty for new players)
                 main_inventory: MainInventory::default(),
                 armour: ArmourInventory::default(),
@@ -387,11 +447,18 @@ impl GameServer {
             session_map.insert(data.session_id, entity);
         }
 
+        // Emit PlayerSpawnedEvent for broadcast system (replaces PendingSpawnBroadcast marker)
+        self.ecs.world_mut().write_message(PlayerSpawnedEvent {
+            entity,
+            position: data.position,
+            runtime_id,
+        });
+
         // Send join packets
         self.send_join_packets(entity);
 
-        // Note: Initial chunks are sent by the ECS ChunkLoader system
-        // (initialize_chunk_loaders -> process_chunk_load_queues)
+        // Note: Initial chunks are sent by the ECS chunk systems
+        // (process_chunk_load_queues reads from ChunkLoader which is already initialized)
 
         info!(session_id = data.session_id, "Player spawned as ECS entity");
         entity
@@ -436,27 +503,42 @@ impl GameServer {
             })
         };
 
-        // Remove from session map and get entity for processing
-        let entity = {
+        // Get entity data for despawn event before removal
+        let despawn_data: Option<(Entity, i64, (i32, i32))> = {
+            let session_map = self.ecs.world().get_resource::<SessionEntityMap>();
+            session_map.and_then(|map| {
+                let entity = map.get(session_id)?;
+                let world = self.ecs.world();
+                let runtime_id = world.get::<RuntimeEntityId>(entity)?.0;
+                let spatial = world.get::<SpatialChunk>(entity)?;
+                Some((entity, runtime_id, spatial.as_tuple()))
+            })
+        };
+
+        // Remove from session map
+        {
             let mut session_map = match self.ecs.world_mut().get_resource_mut::<SessionEntityMap>()
             {
                 Some(map) => map,
                 None => return,
             };
-            match session_map.remove(session_id) {
-                Some(e) => e,
-                None => return,
+            if session_map.remove(session_id).is_none() {
+                return;
             }
+        }
+
+        let Some((entity, runtime_id, spatial_chunk)) = despawn_data else {
+            return;
         };
 
-        // Mark entity for despawn broadcast and chunk cleanup
-        // PlayerDisconnecting triggers cleanup_disconnecting_player_views system
-        // PendingDespawnBroadcast triggers broadcast_despawn_system
-        // The ECS systems will handle cleanup and despawn on next tick
-        self.ecs.world_mut().entity_mut(entity).insert((
-            PendingDespawnBroadcast,
-            crate::world::ecs::PlayerDisconnecting,
-        ));
+        // Emit PlayerDespawnedEvent for broadcast system (replaces PendingDespawnBroadcast marker)
+        // cleanup_despawned_entities in CleanupSet will despawn the entity
+        // ChunkLoader's on_remove hook automatically cleans up chunk viewers
+        self.ecs.world_mut().write_message(PlayerDespawnedEvent {
+            entity,
+            runtime_id,
+            spatial_chunk,
+        });
 
         // Save position if configured (legacy TOML format)
         if self.save_previous_position {
