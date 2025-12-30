@@ -309,9 +309,25 @@ impl NoiseInterpolator {
 }
 
 impl DensityFunction for NoiseInterpolator {
-    fn compute(&self, _ctx: &dyn FunctionContext) -> f64 {
-        // When used as a density function, return the current interpolated value
-        self.get_value()
+    fn compute(&self, ctx: &dyn FunctionContext) -> f64 {
+        // CRITICAL FIX: Only return cached/interpolated value if we are actually
+        // running inside the NoiseChunk interpolation loop.
+        //
+        // If a different context (like SinglePointContext from Aquifer) calls this,
+        // we MUST compute fresh by delegating to the wrapped function.
+        //
+        // This matches Java's behavior in NoiseChunk.NoiseInterpolator.compute():
+        //   if (functionContext != NoiseChunk.this) {
+        //       return this.noiseFiller.compute(functionContext);
+        //   }
+        //
+        // Without this check, the Aquifer and other systems get stale cached values
+        // which causes "infinite line" artifacts and caves being flooded.
+        if ctx.is_noise_chunk() {
+            self.get_value()
+        } else {
+            self.wrapped.compute(ctx)
+        }
     }
 
     fn map_all(&self, visitor: &dyn Visitor) -> Arc<dyn DensityFunction> {
@@ -491,10 +507,14 @@ impl CacheAllInCell {
 }
 
 impl DensityFunction for CacheAllInCell {
-    fn compute(&self, _ctx: &dyn FunctionContext) -> f64 {
-        // This should be used via get() after fill_cell()
-        // Fallback: compute directly
-        0.0
+    fn compute(&self, ctx: &dyn FunctionContext) -> f64 {
+        // CRITICAL: Like NoiseInterpolator, CacheAllInCell must compute fresh when
+        // called from outside the NoiseChunk context (e.g., from Aquifer).
+        // Java: if (functionContext != NoiseChunk.this) return this.noiseFiller.compute(functionContext);
+        //
+        // This was previously returning 0.0, which caused systems like Aquifer
+        // to get wrong density values and create visual artifacts.
+        self.wrapped.compute(ctx)
     }
 
     fn map_all(&self, visitor: &dyn Visitor) -> Arc<dyn DensityFunction> {

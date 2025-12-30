@@ -75,6 +75,11 @@ pub async fn accept_join_sequence(
 }
 
 /// Resolves the spawn location for a player based on config rules.
+///
+/// IMPORTANT: This function trusts user-configured spawn locations directly.
+/// For vanilla worlds, users should configure an appropriate spawn point in the config.
+/// The expensive `find_safe_spawn()` is only called as a last resort when no location
+/// is configured at all.
 pub async fn resolve_spawn_location(
     config: &UnastarConfig,
     identity: &ValidatedIdentity,
@@ -90,8 +95,9 @@ pub async fn resolve_spawn_location(
         StartGamePacketDimension::End => 2,
     };
 
-    // Check for previous position first
+    // Check spawn rules in order
     for rule in &config.spawn_rules {
+        // Check for previous position first if enabled
         if rule.previous_position {
             if let Some(uuid) = uuid {
                 if let Ok(Some(last)) = player_data_store.load_last_position(uuid).await {
@@ -101,50 +107,27 @@ pub async fn resolve_spawn_location(
                 }
             }
         }
+        // Use configured location directly (trust the user's config)
         if rule.always_at_location {
             if let Some(location) = rule.location {
-                // If using Vanilla generator, verify spawn is safe
-                if let crate::world::WorldGenerator::Vanilla { seed } = config.world.generator {
-                    let generator = crate::world::generator::VanillaGenerator::new(seed);
-                    let height = generator.find_safe_spawn();
-                    // Use safe spawn Y if configured Y seems underground
-                    if location.y < height.1 as f32 - 10.0 {
-                        return SpawnLocation {
-                            x: height.0 as f32 + 0.5,
-                            y: height.1 as f32,
-                            z: height.2 as f32 + 0.5,
-                            yaw: location.yaw,
-                            pitch: location.pitch,
-                        };
-                    }
-                }
                 return location;
             }
         }
     }
 
-    // Fallback: if any rule has a location, use it.
+    // Fallback: if any rule has a location, use it directly
     if let Some(location) = config.spawn_rules.iter().find_map(|r| r.location) {
-        // If using Vanilla generator, verify spawn is safe
-        if let crate::world::WorldGenerator::Vanilla { seed } = config.world.generator {
-            let generator = crate::world::generator::VanillaGenerator::new(seed);
-            let height = generator.find_safe_spawn();
-            // Use safe spawn if configured Y seems underground
-            if location.y < height.1 as f32 - 10.0 {
-                return SpawnLocation {
-                    x: height.0 as f32 + 0.5,
-                    y: height.1 as f32,
-                    z: height.2 as f32 + 0.5,
-                    yaw: location.yaw,
-                    pitch: location.pitch,
-                };
-            }
-        }
         return location;
     }
 
-    // Final fallback: use safe spawn for Vanilla, or template spawn otherwise
+    // Final fallback: use template spawn (for non-vanilla) or search for safe spawn (vanilla)
+    // NOTE: find_safe_spawn() is expensive and should be avoided by configuring spawn in config.
+    // This is only called when no spawn location is configured at all.
     if let crate::world::WorldGenerator::Vanilla { seed } = config.world.generator {
+        tracing::warn!(
+            "No spawn location configured for vanilla world - searching for safe spawn. \
+             This is slow! Configure [[spawn_rules]] with a location in your config."
+        );
         let generator = crate::world::generator::VanillaGenerator::new(seed);
         let (x, y, z) = generator.find_safe_spawn();
         return SpawnLocation {

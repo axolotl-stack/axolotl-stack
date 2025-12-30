@@ -107,6 +107,14 @@ impl Noise {
     pub fn with_holder(noise: NoiseHolder) -> Self {
         Self::new(noise, 1.0, 1.0)
     }
+
+    pub fn with_scales(self, xz_scale: f64, y_scale: f64) -> Self {
+        Self {
+            noise: self.noise,
+            xz_scale,
+            y_scale,
+        }
+    }
 }
 
 impl DensityFunction for Noise {

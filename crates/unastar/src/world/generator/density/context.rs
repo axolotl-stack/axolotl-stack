@@ -14,6 +14,16 @@ pub trait FunctionContext: Send + Sync {
 
     /// Get the Z coordinate of the current block.
     fn block_z(&self) -> i32;
+
+    /// Returns true if this context is a NoiseChunk (the main interpolation loop).
+    ///
+    /// This is critical for caching behavior: when false, caches like NoiseInterpolator
+    /// should compute fresh values instead of returning cached interpolated values.
+    /// This allows systems like Aquifer to query arbitrary positions without getting
+    /// stale cached data from the main generation loop.
+    fn is_noise_chunk(&self) -> bool {
+        false
+    }
 }
 
 /// Provider for batch context iteration.

@@ -186,13 +186,6 @@ impl SurfaceSystem {
                     }
 
                     stone_depth_above += 1;
-                    
-                    // Optimization: if we are deep enough and above deepslate transition, 
-                    // we can stop applying complex surface rules.
-                    // But we must continue for deepslate/bedrock which starts at Y < 10.
-                    if stone_depth_above > 20 && y > 10 {
-                         break;
-                    }
                 }
             }
         }

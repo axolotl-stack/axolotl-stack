@@ -143,6 +143,8 @@ impl VanillaGenerator {
     /// 7. Place blocks based on density and aquifer output
     /// 8. Apply surface rules for biome-specific blocks
     pub fn generate_chunk(&self, chunk_x: i32, chunk_z: i32) -> Chunk {
+        use super::density::SinglePointContext; // Import SinglePointContext
+
         let mut chunk = Chunk::new(chunk_x, chunk_z);
 
         // Cell configuration matching Java Edition
@@ -165,7 +167,7 @@ impl VanillaGenerator {
         let visitor = WrapVisitor::new(&noise_chunk);
         let router = self.router.map_all(&visitor);
 
-        // Create aquifer system for underground water/lava pockets
+        // Create aquifer system
         let fluid_picker = Box::new(OverworldFluidPicker::new(Self::SEA_LEVEL));
         let mut aquifer = NoiseBasedAquifer::new(
             chunk_x,
@@ -183,9 +185,7 @@ impl VanillaGenerator {
             fluid_picker,
         );
 
-        // Create ore veinifier for tuff/granite and ore veins
-        // This adds copper ore veins with granite filler (Y: 0-50)
-        // and iron ore veins with tuff filler (Y: -60 to -8)
+        // Create ore veinifier
         let ore_veinifier = OreVeinifier::new(
             router.vein_toggle.clone(),
             router.vein_ridged.clone(),
@@ -216,35 +216,35 @@ impl VanillaGenerator {
                         noise_chunk.update_for_y(y_in_cell, t_y);
 
                         for x_in_cell in 0..cell_width {
-                            let _block_x = chunk_x * 16 + cell_x * cell_width + x_in_cell;
+                            let block_x = chunk_x * 16 + cell_x * cell_width + x_in_cell;
                             let t_x = x_in_cell as f64 / cell_width as f64;
                             noise_chunk.update_for_x(x_in_cell, t_x);
 
                             for z_in_cell in 0..cell_width {
-                                let _block_z = chunk_z * 16 + cell_z * cell_width + z_in_cell;
+                                let block_z = chunk_z * 16 + cell_z * cell_width + z_in_cell;
                                 let t_z = z_in_cell as f64 / cell_width as f64;
                                 noise_chunk.update_for_z(z_in_cell, t_z);
 
-                                // Get density from router
+                                // 1. INTERPOLATION CONTEXT: Use noise_chunk for interpolated density
+                                // This requires the t_x/t_y/t_z state from the chunk
                                 let density = router.final_density.compute(&noise_chunk);
 
+                                // 2. DISCRETE CONTEXT: Create specific context for this block
+                                // This guarantees OreVeinifier sees the exact X/Y/Z, fixing pillars
+                                let ctx = SinglePointContext::new(block_x, block_y, block_z);
+
                                 // Determine block using MaterialRuleList pattern:
-                                // 1. First try aquifer (handles air/water/lava)
-                                // 2. Then try ore veinifier (replaces stone with ore/filler)
-                                // 3. Default to stone for solid blocks
-                                let block = if let Some(fluid_block) = aquifer.compute_substance(&noise_chunk, density) {
-                                    // Aquifer determined the block (air or fluid)
+                                // Pass 'ctx' to aquifer and veinifier instead of '&noise_chunk'
+                                let block = if let Some(fluid_block) = aquifer.compute_substance(&ctx, density) {
                                     fluid_block
                                 } else if density > 0.0 {
-                                    // Solid block - check ore veinifier for tuff/granite/ore
-                                    if let Some(vein_block) = ore_veinifier.compute(&noise_chunk) {
+                                    // Solid block - check ore veinifier
+                                    if let Some(vein_block) = ore_veinifier.compute(&ctx) {
                                         vein_block
                                     } else {
-                                        // Default to stone (surface rules will replace later)
                                         *blocks::STONE
                                     }
                                 } else {
-                                    // This shouldn't happen since aquifer handles negative density
                                     *blocks::AIR
                                 };
 
@@ -259,39 +259,19 @@ impl VanillaGenerator {
                     }
                 }
             }
-
             noise_chunk.swap_slices();
         }
 
         noise_chunk.stop_interpolation();
 
-        // Apply surface rules to replace stone with biome-appropriate surface blocks
+        // Apply surface rules
         self.surface_system.build_surface(&mut chunk, chunk_x, chunk_z);
 
-        /*
-        // Add stone variants (granite, diorite, andesite, deepslate)
-        self.add_stone_variants(&mut chunk, chunk_x, chunk_z);
+        // Apply carvers (caves and ravines)
+        self.carve_caves(&mut chunk, chunk_x, chunk_z, &mut aquifer);
+        self.carve_ravines(&mut chunk, chunk_x, chunk_z, &mut aquifer);
 
-        // Add ores
-        self.add_ores(&mut chunk, chunk_x, chunk_z);
-
-        // Carve caves and ravines
-        self.carve_caves(&mut chunk, chunk_x, chunk_z);
-        self.carve_ravines(&mut chunk, chunk_x, chunk_z);
-
-        // Add trees
-        if !self.has_structure_in_chunk(chunk_x, chunk_z) {
-            self.add_trees(&mut chunk, chunk_x, chunk_z);
-        }
-
-        // Add vegetation (flowers, grass)
-        self.add_vegetation(&mut chunk, chunk_x, chunk_z);
-
-        // Add structures
-        self.add_structures(&mut chunk, chunk_x, chunk_z);
-
-        */
-        // Sample center biome for the chunk (for grass/foliage color)
+        // Sample center biome
         let center_biome = self.get_biome(chunk_x * 16 + 8, chunk_z * 16 + 8);
         chunk.set_biome(Self::to_bedrock_biome_id(center_biome));
 
@@ -1145,7 +1125,7 @@ impl VanillaGenerator {
 
     /// Carve caves into the chunk using vanilla worm algorithm.
     /// Ported from MapGenCaves.java
-    fn carve_caves(&self, chunk: &mut Chunk, chunk_x: i32, chunk_z: i32) {
+    fn carve_caves(&self, chunk: &mut Chunk, chunk_x: i32, chunk_z: i32, aquifer: &mut NoiseBasedAquifer) {
         use std::f64::consts::PI;
 
         // Check nearby chunks for cave starts that might reach into this chunk
@@ -1180,7 +1160,7 @@ impl VanillaGenerator {
                     if rng.next_int(4) == 0 {
                         // Large room
                         self.carve_cave_room(
-                            chunk, chunk_x, chunk_z, &mut rng, start_x, start_y, start_z,
+                            chunk, chunk_x, chunk_z, &mut rng, start_x, start_y, start_z, aquifer,
                         );
                         branches += rng.next_int(4);
                     }
@@ -1208,6 +1188,7 @@ impl VanillaGenerator {
                             0,
                             0,
                             1.0,
+                            aquifer,
                         );
                     }
                 }
@@ -1225,6 +1206,7 @@ impl VanillaGenerator {
         x: f64,
         y: f64,
         z: f64,
+        aquifer: &mut NoiseBasedAquifer,
     ) {
         let width = 1.0 + rng.next_float() * 6.0;
         self.carve_cave_tunnel(
@@ -1241,6 +1223,7 @@ impl VanillaGenerator {
             -1,
             -1,
             0.5,
+            aquifer,
         );
     }
 
@@ -1260,8 +1243,10 @@ impl VanillaGenerator {
         start_idx: i32,
         end_idx: i32,
         height_ratio: f64,
+        aquifer: &mut NoiseBasedAquifer,
     ) {
         use std::f64::consts::PI;
+        use super::density::SinglePointContext;
 
         let center_x = (chunk_x * 16 + 8) as f64;
         let center_z = (chunk_z * 16 + 8) as f64;
@@ -1330,6 +1315,7 @@ impl VanillaGenerator {
                     i,
                     end_idx,
                     1.0,
+                    aquifer,
                 );
                 self.carve_cave_tunnel(
                     chunk,
@@ -1345,6 +1331,7 @@ impl VanillaGenerator {
                     i,
                     end_idx,
                     1.0,
+                    aquifer,
                 );
                 return;
             }
@@ -1388,25 +1375,35 @@ impl VanillaGenerator {
                                     if dy > -0.7 && dx * dx + dy * dy + dz * dz < 1.0 {
                                         let current =
                                             chunk.get_block(lx as u8, ly as i16, lz as u8);
-                                        // Only carve stone, dirt, grass - not water
+                                        // Only carve stone, dirt, grass - not water or bedrock
                                         if current != *blocks::WATER && current != *blocks::BEDROCK
                                         {
-                                            // Lava below Y=10
-                                            if ly < 10 {
-                                                chunk.set_block(
-                                                    lx as u8,
-                                                    ly as i16,
-                                                    lz as u8,
-                                                    *blocks::LAVA,
-                                                );
+                                            // Java carvers use aquifer.computeSubstance(pos, 0.0)
+                                            // density=0.0 forces aquifer to decide fluid vs air
+                                            // Java: lava_level is "above_bottom: 8" = -64 + 8 = -56
+                                            const CARVER_LAVA_LEVEL: i32 = -56;
+
+                                            let world_x = lx + chunk_x * 16;
+                                            let world_z = lz + chunk_z * 16;
+                                            let ctx = SinglePointContext::new(world_x, ly, world_z);
+
+                                            let block = if ly <= CARVER_LAVA_LEVEL {
+                                                *blocks::LAVA
                                             } else {
-                                                chunk.set_block(
-                                                    lx as u8,
-                                                    ly as i16,
-                                                    lz as u8,
-                                                    *blocks::AIR,
-                                                );
-                                            }
+                                                match aquifer.compute_substance(&ctx, 0.0) {
+                                                    Some(block_id) => {
+                                                        // Above lava level, carvers should only place air or water
+                                                        // Don't place aquifer-sourced lava - it creates floating blobs
+                                                        if block_id == *blocks::LAVA {
+                                                            *blocks::AIR
+                                                        } else {
+                                                            block_id
+                                                        }
+                                                    }
+                                                    None => continue, // Barrier - skip carving this block
+                                                }
+                                            };
+                                            chunk.set_block(lx as u8, ly as i16, lz as u8, block);
                                         }
                                     }
                                 }
@@ -1424,7 +1421,7 @@ impl VanillaGenerator {
 
     /// Carve ravines (vanilla-accurate from MapGenRavine.java)
     /// Ravines are rarer but larger than caves, with a distinctive tall/narrow shape
-    fn carve_ravines(&self, chunk: &mut Chunk, chunk_x: i32, chunk_z: i32) {
+    fn carve_ravines(&self, chunk: &mut Chunk, chunk_x: i32, chunk_z: i32, aquifer: &mut NoiseBasedAquifer) {
         use std::f64::consts::PI;
 
         // Check nearby chunks for ravine starts
@@ -1470,6 +1467,7 @@ impl VanillaGenerator {
                     0,
                     0,
                     3.0, // Height ratio of 3 makes ravines tall/narrow
+                    aquifer,
                 );
             }
         }
@@ -1491,8 +1489,10 @@ impl VanillaGenerator {
         start_idx: i32,
         end_idx: i32,
         height_ratio: f64,
+        aquifer: &mut NoiseBasedAquifer,
     ) {
         use std::f64::consts::PI;
+        use super::density::SinglePointContext;
 
         let center_x = (chunk_x * 16 + 8) as f64;
         let center_z = (chunk_z * 16 + 8) as f64;
@@ -1578,21 +1578,32 @@ impl VanillaGenerator {
                                             chunk.get_block(lx as u8, ly as i16, lz as u8);
                                         if current != *blocks::WATER && current != *blocks::BEDROCK
                                         {
-                                            if ly < 10 {
-                                                chunk.set_block(
-                                                    lx as u8,
-                                                    ly as i16,
-                                                    lz as u8,
-                                                    *blocks::LAVA,
-                                                );
+                                            // Java carvers use aquifer.computeSubstance(pos, 0.0)
+                                            // density=0.0 forces aquifer to decide fluid vs air
+                                            // Java: lava_level is "above_bottom: 8" = -64 + 8 = -56
+                                            const CARVER_LAVA_LEVEL: i32 = -56;
+
+                                            let world_x = lx + chunk_x * 16;
+                                            let world_z = lz + chunk_z * 16;
+                                            let ctx = SinglePointContext::new(world_x, ly, world_z);
+
+                                            let block = if ly <= CARVER_LAVA_LEVEL {
+                                                *blocks::LAVA
                                             } else {
-                                                chunk.set_block(
-                                                    lx as u8,
-                                                    ly as i16,
-                                                    lz as u8,
-                                                    *blocks::AIR,
-                                                );
-                                            }
+                                                match aquifer.compute_substance(&ctx, 0.0) {
+                                                    Some(block_id) => {
+                                                        // Above lava level, carvers should only place air or water
+                                                        // Don't place aquifer-sourced lava - it creates floating blobs
+                                                        if block_id == *blocks::LAVA {
+                                                            *blocks::AIR
+                                                        } else {
+                                                            block_id
+                                                        }
+                                                    }
+                                                    None => continue, // Barrier - skip carving this block
+                                                }
+                                            };
+                                            chunk.set_block(lx as u8, ly as i16, lz as u8, block);
                                         }
                                     }
                                 }

@@ -2,6 +2,9 @@
 //!
 //! Offloads chunk generation to `tokio::spawn_blocking` to prevent
 //! blocking the main ECS tick loop during vanilla terrain generation.
+//!
+//! The worker spawns generation tasks in parallel, allowing multiple chunks
+//! to generate concurrently on tokio's blocking thread pool.
 
 use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot};
@@ -21,6 +24,9 @@ pub struct ChunkGenRequest {
 /// Send requests via `generate()` and receive chunks through the returned receiver.
 /// The worker runs chunk generation on tokio's blocking thread pool to avoid
 /// blocking the async runtime or ECS systems.
+///
+/// Generation requests are processed in parallel - multiple chunks can generate
+/// concurrently, limited only by tokio's blocking thread pool size.
 #[derive(Clone)]
 pub struct ChunkGenerationWorker {
     request_tx: mpsc::UnboundedSender<ChunkGenRequest>,
@@ -31,6 +37,7 @@ impl ChunkGenerationWorker {
     ///
     /// The worker will process generation requests asynchronously using
     /// `tokio::spawn_blocking` for CPU-intensive terrain generation.
+    /// Requests are processed in parallel for maximum throughput.
     pub fn spawn(generator: Arc<VanillaGenerator>) -> Self {
         let (request_tx, request_rx) = mpsc::unbounded_channel();
 
@@ -54,6 +61,9 @@ impl ChunkGenerationWorker {
     }
 
     /// Internal worker loop that processes generation requests.
+    ///
+    /// Spawns each generation task without awaiting, allowing parallel execution
+    /// on tokio's blocking thread pool.
     async fn run_worker(
         generator: Arc<VanillaGenerator>,
         mut request_rx: mpsc::UnboundedReceiver<ChunkGenRequest>,
@@ -63,18 +73,26 @@ impl ChunkGenerationWorker {
             let x = req.x;
             let z = req.z;
 
-            // Use spawn_blocking for CPU-intensive generation
-            let result = tokio::task::spawn_blocking(move || gen_clone.generate_chunk(x, z)).await;
+            // Spawn without awaiting - allows parallel generation!
+            // Each task runs on tokio's blocking thread pool.
+            tokio::spawn(async move {
+                let result =
+                    tokio::task::spawn_blocking(move || gen_clone.generate_chunk(x, z)).await;
 
-            if let Ok(chunk) = result {
-                // Send result back; ignore error if receiver was dropped
-                let _ = req.response_tx.send(chunk);
-            } else {
-                tracing::warn!(
-                    chunk = ?(x, z),
-                    "Chunk generation task panicked or was cancelled"
-                );
-            }
+                match result {
+                    Ok(chunk) => {
+                        // Send result back; ignore error if receiver was dropped
+                        let _ = req.response_tx.send(chunk);
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            chunk = ?(x, z),
+                            error = %e,
+                            "Chunk generation task panicked or was cancelled"
+                        );
+                    }
+                }
+            });
         }
 
         tracing::debug!("Chunk generation worker shutting down");
