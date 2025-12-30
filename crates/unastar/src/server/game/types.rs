@@ -6,15 +6,20 @@ use bevy_ecs::prelude::*;
 use glam::DVec3;
 use jolyne::valentine::McpePacket;
 use std::collections::HashMap;
+use std::sync::Arc;
 use tokio::sync::mpsc;
 
 use crate::config::PlayerLastPosition;
 use crate::network::SessionId;
 
 use jolyne::valentine::{
-    TextPacket, TextPacketCategory, TextPacketContent, TextPacketContentMessageOnly,
-    TextPacketExtra, TextPacketExtraJson, TextPacketType,
+    TextPacket, TextPacketCategory, TextPacketContent, TextPacketContentAuthored, TextPacketExtra,
+    TextPacketExtraAnnouncement, TextPacketType,
 };
+
+/// Wrapper for WorldTemplate to serve as an ECS Resource.
+#[derive(Resource)]
+pub struct ServerWorldTemplate(pub Arc<jolyne::WorldTemplate>);
 
 /// Mapping from session ID to ECS entity.
 #[derive(Resource, Default)]
@@ -75,22 +80,18 @@ pub struct PlayerPersistenceData {
 pub fn system_text(message: &str) -> TextPacket {
     TextPacket {
         needs_translation: false,
-        category: TextPacketCategory::MessageOnly,
-        content: Some(TextPacketContent::MessageOnly(Box::new(
-            TextPacketContentMessageOnly {
-                raw: message.to_string(),
-                tip: String::new(),
-                system_message: message.to_string(),
-                text_object_whisper: String::new(),
-                text_object_announcement: String::new(),
-                text_object: String::new(),
-            },
-        ))),
-        type_: TextPacketType::System,
-        extra: Some(TextPacketExtra::System(TextPacketExtraJson {
+        category: TextPacketCategory::Authored,
+        content: Some(TextPacketContent::Authored(TextPacketContentAuthored {
+            chat: "chat".to_string(),
+            whisper: "whisper".to_string(),
+            announcement: "announcement".to_string(),
+        })),
+        type_: TextPacketType::Chat,
+        extra: Some(TextPacketExtra::Chat(TextPacketExtraAnnouncement {
+            source_name: "§ePlugin§r".to_string(),
             message: message.to_string(),
         })),
-        xuid: String::new(),
+        xuid: "0".to_string(),
         platform_chat_id: String::new(),
         filtered_message: None,
     }

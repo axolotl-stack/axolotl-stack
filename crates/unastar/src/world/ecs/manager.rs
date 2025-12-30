@@ -48,9 +48,10 @@ impl ChunkManager {
         };
 
         // Create async generation worker for vanilla generation
-        let generation_worker = vanilla_generator
-            .as_ref()
-            .map(|generator| ChunkGenerationWorker::spawn(generator.clone()));
+        let generation_worker = None;
+            // vanilla_generator
+            // .as_ref()
+            // .map(|generator| ChunkGenerationWorker::spawn(generator.clone()));
 
         Self {
             chunks: HashMap::new(),

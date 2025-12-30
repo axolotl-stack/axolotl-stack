@@ -45,6 +45,8 @@ pub struct ChunkLoader {
     load_queue: Vec<(i32, i32)>,
     /// Set of chunks currently loaded for this viewer.
     loaded: HashSet<(i32, i32)>,
+    /// Internal counter for tracking chunks sent in the current tick.
+    pub(super) sent_this_tick: usize,
 }
 
 impl Default for ChunkLoader {
@@ -61,6 +63,7 @@ impl ChunkLoader {
             radius: radius.max(1),
             load_queue: Vec::new(),
             loaded: HashSet::new(),
+            sent_this_tick: 0,
         }
     }
 
@@ -114,6 +117,14 @@ impl ChunkLoader {
     /// Returns chunks in center-outward order.
     pub fn peek_next_to_load(&self) -> Option<(i32, i32)> {
         self.load_queue.last().copied()
+    }
+
+    /// Re-queues a chunk at the front of the queue to be retried next.
+    pub(super) fn requeue_front(&mut self, x: i32, z: i32) {
+        // Avoid duplicates if it's somehow still in the queue
+        if !self.load_queue.contains(&(x, z)) {
+            self.load_queue.push((x, z));
+        }
     }
 
     /// Update position, evicting out-of-range chunks and repopulating queue.

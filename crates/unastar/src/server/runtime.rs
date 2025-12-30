@@ -123,6 +123,7 @@ impl UnastarServer {
         
         // Load plugins from "plugins" directory relative to CWD
         let plugins_dir = std::env::current_dir()?.join("plugins");
+        info!(path = %plugins_dir.display(), "Loading plugins from directory");
         if let Err(e) = plugin_manager.load_plugins(&plugins_dir).await {
             warn!(error = %e, "Failed to load plugins");
         }
@@ -265,15 +266,12 @@ impl UnastarServer {
 
                     let events_elapsed = tick_start.elapsed();
 
-                    // 1. Run game simulation (Physics, Logic, Chunks)
+                    // Run game tick (this queues packets to broadcast systems)
                     let tick_logic_start = std::time::Instant::now();
-                    self.server.tick_simulation();
+                    self.server.tick();
                     
-                    // 2. Run plugin tick (Plugins can react to sim and modify state before broadcast)
+                    // Run plugin tick
                     self.plugin_manager.tick(self.server.ecs.world_mut()).await;
-
-                    // 3. Run post-simulation (Network Broadcast, Cleanup)
-                    self.server.tick_post_simulation();
 
                     let tick_logic_elapsed = tick_logic_start.elapsed();
 

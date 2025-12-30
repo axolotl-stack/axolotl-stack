@@ -11,6 +11,8 @@ impl std::fmt::Display for PluginId {
     }
 }
 
+use unastar_api::EventKind;
+
 /// The manifest file (`plugin.toml`) for a plugin.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginManifest {
@@ -27,7 +29,7 @@ pub struct PluginManifest {
     pub capabilities: HashSet<PluginCapability>,
     /// Events this plugin subscribes to.
     #[serde(default)]
-    pub subscriptions: HashSet<String>,
+    pub subscriptions: HashSet<EventKind>,
     /// Performance limits.
     #[serde(default)]
     pub limits: PluginLimits,

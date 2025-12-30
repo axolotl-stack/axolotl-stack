@@ -5,6 +5,7 @@ pub mod config;
 pub mod connect;
 pub mod game;
 pub mod runtime;
+pub mod timer;
 
 pub use config::ServerConfig;
 pub use connect::{accept_join_sequence, resolve_spawn_location};

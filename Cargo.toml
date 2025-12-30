@@ -8,6 +8,7 @@ members = [
     "crates/jolyne",
     "crates/unastar",
     "crates/unastar-api",
+    "crates/unastar-api-macros",
     "crates/valentine",
     "crates/valentine_gen",
     "crates/tokio-raknet",

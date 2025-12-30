@@ -2,7 +2,7 @@
 
 use bevy_ecs::prelude::*;
 
-use super::events::*;
+use super::events::{EventBuffer, ActionQueue};
 use super::resources::*;
 use super::schedules::*;
 
@@ -11,8 +11,7 @@ use super::schedules::*;
 /// Manages the ECS World and schedules for the game tick loop.
 pub struct UnastarEcs {
     world: World,
-    sim_schedule: Schedule,
-    post_sim_schedule: Schedule,
+    tick_schedule: Schedule,
 }
 
 impl UnastarEcs {
@@ -25,21 +24,13 @@ impl UnastarEcs {
         world.insert_resource(EventBuffer::default());
         world.insert_resource(ActionQueue::default());
 
-        // Build simulation schedule
-        let mut sim_schedule = Schedule::default();
-        sim_schedule.configure_sets(
+        // Build tick schedule with ordered system sets
+        let mut tick_schedule = Schedule::default();
+        tick_schedule.configure_sets(
             (
                 PhysicsSet,
                 EntityLogicSet,
                 ChunkSet,
-            )
-                .chain(),
-        );
-
-        // Build post-simulation schedule (Network + Cleanup)
-        let mut post_sim_schedule = Schedule::default();
-        post_sim_schedule.configure_sets(
-            (
                 NetworkSendSet,
                 CleanupSet,
             )
@@ -47,29 +38,17 @@ impl UnastarEcs {
         );
 
         // Add the tick increment system to cleanup
-        post_sim_schedule.add_systems(increment_tick.in_set(CleanupSet));
+        tick_schedule.add_systems(increment_tick.in_set(CleanupSet));
 
         Self {
             world,
-            sim_schedule,
-            post_sim_schedule,
+            tick_schedule,
         }
     }
 
-    /// Run the simulation phase of the tick.
-    pub fn tick_simulation(&mut self) {
-        self.sim_schedule.run(&mut self.world);
-    }
-
-    /// Run the post-simulation phase (network sending, cleanup).
-    pub fn tick_post_simulation(&mut self) {
-        self.post_sim_schedule.run(&mut self.world);
-    }
-
-    /// Run one full game tick (sim + post-sim).
+    /// Run one game tick.
     pub fn tick(&mut self) {
-        self.tick_simulation();
-        self.tick_post_simulation();
+        self.tick_schedule.run(&mut self.world);
     }
 
     /// Get mutable access to the ECS world.
@@ -82,16 +61,9 @@ impl UnastarEcs {
         &self.world
     }
 
-    /// Get the simulation schedule for adding systems.
-    /// Note: Systems added here run BEFORE plugins.
+    /// Get the tick schedule for adding systems.
     pub fn schedule_mut(&mut self) -> &mut Schedule {
-        &mut self.sim_schedule
-    }
-
-    /// Get the post-simulation schedule for adding systems.
-    /// Note: Systems added here run AFTER plugins.
-    pub fn post_schedule_mut(&mut self) -> &mut Schedule {
-        &mut self.post_sim_schedule
+        &mut self.tick_schedule
     }
 }
 

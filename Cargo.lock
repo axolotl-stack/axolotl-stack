@@ -1475,6 +1475,7 @@ version = "0.1.0"
 dependencies = [
  "serde_json",
  "unastar_api",
+ "unastar_api_macros",
 ]
 
 [[package]]
@@ -4375,6 +4376,16 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+ "unastar_api_macros",
+]
+
+[[package]]
+name = "unastar_api_macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

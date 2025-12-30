@@ -628,7 +628,9 @@ impl GameServer {
     /// When a player sends a chat message, we need to format it and
     /// broadcast it to the appropriate recipients.
     pub(super) fn handle_text(&mut self, session_id: SessionId, entity: Entity, pk: &TextPacket) {
+        use crate::ecs::events::EventBuffer;
         use crate::entity::components::PlayerName;
+        use crate::entity::components::PlayerUuid;
         use jolyne::valentine::TextPacketExtra;
 
         debug!(
@@ -650,27 +652,16 @@ impl GameServer {
             return;
         };
 
-        // Get sender's name
+        // Get sender's name and UUID
         let world = self.ecs.world();
-        let (sender_name, player_uuid) = {
-            let name = world
-                .get::<crate::entity::components::PlayerName>(entity)
-                .map(|n| n.0.clone())
-                .unwrap_or_else(|| "Unknown".to_string());
-            let uuid = world
-                .get::<crate::entity::components::PlayerUuid>(entity)
-                .map(|u| u.0.to_string())
-                .unwrap_or_else(|| "".to_string());
-            (name, uuid)
-        };
-
-        // Push PlayerChat event to EventBuffer for plugins
-        if let Some(mut event_buffer) = self.ecs.world_mut().get_resource_mut::<crate::ecs::events::EventBuffer>() {
-            event_buffer.push(unastar_api::PluginEvent::PlayerChat {
-                player_id: player_uuid,
-                message: message.clone(),
-            });
-        }
+        let sender_name = world
+            .get::<PlayerName>(entity)
+            .map(|n| n.0.clone())
+            .unwrap_or_else(|| "Unknown".to_string());
+        let sender_uuid = world
+            .get::<PlayerUuid>(entity)
+            .map(|u| u.0.to_string())
+            .unwrap_or_default();
 
         match pk.type_ {
             TextPacketType::Chat => {
@@ -679,6 +670,17 @@ impl GameServer {
                     message = %message,
                     "Chat message"
                 );
+
+                // Emit PlayerChat event to plugins
+                if let Some(mut event_buffer) =
+                    self.ecs.world_mut().get_resource_mut::<EventBuffer>()
+                {
+                    event_buffer.push(crate::ecs::events::ServerEvent::PlayerChat {
+                        entity,
+                        player_id: sender_uuid.clone(),
+                        message: message.clone(),
+                    });
+                }
 
                 // Clone the incoming packet to preserve all protocol-specific fields (XUID, platforms, etc.)
                 let mut broadcast_packet = pk.clone();
