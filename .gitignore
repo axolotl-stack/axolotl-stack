@@ -23,5 +23,5 @@ worlds/
 # Auto Claude data directory
 .auto-claude/
 
-/dragonfly
 /java-ed-world
+/dragonfly

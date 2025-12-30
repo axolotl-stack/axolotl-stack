@@ -190,6 +190,8 @@ impl NoiseChunk {
         *self.interpolating.write().unwrap() = true;
         *self.cell_x.write().unwrap() = 0;
 
+        *self.in_cell_x.write().unwrap() = 0;
+
         // Fill slice0 for all interpolators
         for interp in self.interpolators.read().unwrap().iter() {
             interp.fill_slice(
@@ -211,6 +213,8 @@ impl NoiseChunk {
     /// processing this cell to prepare for the next.
     pub fn advance_cell_x(&self, cell_x: i32) {
         *self.cell_x.write().unwrap() = cell_x;
+
+        *self.in_cell_x.write().unwrap() = 0;
 
         // Fill slice1 with the next X slice
         let block_x = self.min_block_x + (cell_x + 1) * self.cell_width;
@@ -357,6 +361,14 @@ impl FunctionContext for NoiseChunk {
             + *self.cell_z.read().unwrap() * self.cell_width
             + *self.in_cell_z.read().unwrap()
     }
+
+    /// NoiseChunk is the main interpolation loop context.
+    /// When this returns true, caches like NoiseInterpolator return cached values.
+    /// When other contexts (like SinglePointContext) call compute(), this returns false
+    /// and caches should compute fresh values.
+    fn is_noise_chunk(&self) -> bool {
+        true
+    }
 }
 
 /// Visitor that wraps density functions with cache implementations.
@@ -419,8 +431,8 @@ impl<'a> Visitor for WrapVisitor<'a> {
         if let Some(marker) = func.as_any().downcast_ref::<CacheAllInCellMarker>() {
             let cache = Arc::new(CacheAllInCell::new(
                 marker.wrapped.clone(),
-                self.noise_chunk.cell_width,
-                self.noise_chunk.cell_height
+                self.noise_chunk.cell_width + 1,
+                self.noise_chunk.cell_height + 1,
             ));
             self.noise_chunk.register_cell_cache(cache.clone());
             return cache;
@@ -446,8 +458,8 @@ impl<'a> Visitor for InterpolatorWrapVisitor<'a> {
         // Create an interpolator for this function
         let interp = Arc::new(NoiseInterpolator::new(
             func,
-            self.noise_chunk.cell_count_xz as usize,
-            self.noise_chunk.cell_count_y as usize,
+            self.noise_chunk.cell_count_xz as usize + 1,
+            self.noise_chunk.cell_count_y as usize + 1,
         ));
         self.noise_chunk.register_interpolator(interp.clone());
         interp

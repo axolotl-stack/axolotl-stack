@@ -11,14 +11,15 @@
 //! 5. Final density with blending and interpolation
 
 use super::function::DensityFunction;
-use super::markers::{CacheOnceMarker, FlatCacheMarker, Interpolated};
+use super::markers::{Cache2DMarker, CacheOnceMarker, FlatCacheMarker, Interpolated};
 use super::math::{
-    Clamp, Constant, Mapped, MappedType, RangeChoice, TwoArg, TwoArgType, YClampedGradient, YCoord,
+    Clamp, Constant, FindTopSurface, Mapped, MappedType, RangeChoice, TwoArg, TwoArgType,
+    YClampedGradient, YCoord,
 };
 use super::noise_funcs::{Noise, NoiseHolder, NoiseParams, RarityType, ShiftA, ShiftB, ShiftedNoise, WeirdScaledSampler};
 use super::router::NoiseRouter;
 use super::spline::SplineBuilder;
-use super::terrain_funcs::Slide;
+use super::terrain_funcs::{BlendedNoise, Slide};
 use crate::world::generator::noise::DoublePerlinNoise;
 use crate::world::generator::xoroshiro::Xoroshiro128;
 use std::sync::Arc;
@@ -64,17 +65,20 @@ fn aquifer_barrier_params() -> NoiseParams {
 
 /// Noise parameters for aquifer floodedness.
 fn aquifer_floodedness_params() -> NoiseParams {
-    NoiseParams::new(-7, vec![1.0, 0.5, 0.0, 0.0, 0.0])
+    // Java: firstOctave=-7, amplitudes=[1.0]
+    NoiseParams::new(-7, vec![1.0])
 }
 
 /// Noise parameters for aquifer spread.
 fn aquifer_spread_params() -> NoiseParams {
-    NoiseParams::new(-5, vec![1.0, 0.0, 1.0])
+    // Java: firstOctave=-5, amplitudes=[1.0]
+    NoiseParams::new(-5, vec![1.0])
 }
 
 /// Noise parameters for aquifer lava.
 fn aquifer_lava_params() -> NoiseParams {
-    NoiseParams::new(-1, vec![1.0, 1.0])
+    // Java: firstOctave=-1, amplitudes=[1.0]
+    NoiseParams::new(-1, vec![1.0])
 }
 
 /// Noise parameters for ore vein A (toggle).
@@ -95,6 +99,20 @@ fn ore_gap_params() -> NoiseParams {
 // ============================================================================
 // Cave Noise Parameter Definitions
 // ============================================================================
+
+/// Noise parameters for cave layer.
+/// Creates horizontal layered cave regions.
+fn cave_layer_params() -> NoiseParams {
+    // firstOctave: -8, amplitudes: [1.0]
+    NoiseParams::new(-8, vec![1.0])
+}
+
+/// Noise parameters for cave cheese.
+/// Creates the main rounded cheese-like caverns.
+fn cave_cheese_params() -> NoiseParams {
+    // firstOctave: -8, amplitudes: [0.5, 1.0, 2.0, 1.0, 2.0, 1.0, 0.0, 2.0, 0.0]
+    NoiseParams::new(-8, vec![0.5, 1.0, 2.0, 1.0, 2.0, 1.0, 0.0, 2.0, 0.0])
+}
 
 /// Noise parameters for cave entrance.
 fn cave_entrance_params() -> NoiseParams {
@@ -350,6 +368,16 @@ fn cube(input: Arc<dyn DensityFunction>) -> Arc<dyn DensityFunction> {
     Arc::new(Mapped::new(MappedType::Cube, input))
 }
 
+/// Create a square operation.
+fn square(input: Arc<dyn DensityFunction>) -> Arc<dyn DensityFunction> {
+    Arc::new(Mapped::new(MappedType::Square, input))
+}
+
+/// Create an invert operation (1/x).
+fn invert(input: Arc<dyn DensityFunction>) -> Arc<dyn DensityFunction> {
+    Arc::new(Mapped::new(MappedType::Invert, input))
+}
+
 /// Create a Y coordinate function.
 fn y_coord() -> Arc<dyn DensityFunction> {
     Arc::new(YCoord::new())
@@ -384,6 +412,142 @@ fn weird_scaled_sampler(
     rarity_type: RarityType,
 ) -> Arc<dyn DensityFunction> {
     Arc::new(WeirdScaledSampler::new(input, noise, rarity_type))
+}
+
+/// Create a 2D cache marker (caches per XZ column, ignores Y).
+fn cache_2d(input: Arc<dyn DensityFunction>) -> Arc<dyn DensityFunction> {
+    Arc::new(Cache2DMarker::new(input))
+}
+
+// ============================================================================
+// Preliminary Surface Level Builders
+// ============================================================================
+
+/// Build the density function for preliminary_surface_level.
+///
+/// This matches Java's overworld.json "preliminary_surface_level.density" exactly.
+/// It's the terrain shaping formula WITHOUT squeeze, used to find where terrain
+/// transitions from air to solid for aquifer calculations.
+///
+/// The formula (from overworld.json):
+/// ```text
+/// add(-0.390625,                           // bottom_slide_target
+///     add(0.1171875,                       // top_slide_target (negated)
+///         mul(y_gradient(-64, -40, 0, 1),  // bottom fade
+///             add(-0.1171875,
+///                 add(-0.078125,           // top_slide_target
+///                     mul(y_gradient(240, 256, 1, 0),  // top fade
+///                         add(0.078125,
+///                             clamp(-64, 64,
+///                                 add(-0.703125,
+///                                     mul(4.0,
+///                                         quarter_negative(
+///                                             mul(
+///                                                 add(y_gradient(-64, 320, 1.5, -1.5), offset),
+///                                                 factor
+///                                             )
+///                                         )
+///                                     )
+///                                 )
+///                             )
+///                         )
+///                     )
+///                 )
+///             )
+///         )
+///     )
+/// )
+/// ```
+fn build_preliminary_surface_density(
+    offset_2d: Arc<dyn DensityFunction>,
+    factor_2d: Arc<dyn DensityFunction>,
+) -> Arc<dyn DensityFunction> {
+    // Core terrain formula: 4 * quarter_negative((y_gradient + offset) * factor)
+    // This is noise_gradient_density without squeeze
+    let y_grad = y_gradient(-64, 320, 1.5, -1.5);
+    let depth = add(y_grad, offset_2d);
+    let product = mul(depth, factor_2d);
+    let quarter_neg = quarter_negative(product);
+    let core_terrain = mul(constant(4.0), quarter_neg);
+
+    // Clamp to [-64, 64] - this prevents extreme values
+    let clamped = clamp(
+        add(constant(-0.703125), core_terrain),
+        -64.0,
+        64.0,
+    );
+
+    // Top slide fade: y_gradient(240, 256, 1.0, 0.0)
+    // At Y=240, multiplier is 1.0; at Y=256+, multiplier is 0.0
+    let top_slide_gradient = y_gradient(240, 256, 1.0, 0.0);
+
+    // add(0.078125, clamped) then multiply by top gradient
+    let with_top_target = add(constant(0.078125), clamped);
+    let top_faded = mul(top_slide_gradient, with_top_target);
+
+    // add(-0.078125, top_faded)
+    let after_top = add(constant(-0.078125), top_faded);
+
+    // add(-0.1171875, after_top)
+    let inner = add(constant(-0.1171875), after_top);
+
+    // Bottom slide fade: y_gradient(-64, -40, 0.0, 1.0)
+    // At Y=-64, multiplier is 0.0; at Y=-40+, multiplier is 1.0
+    let bottom_slide_gradient = y_gradient(-64, -40, 0.0, 1.0);
+
+    // Multiply by bottom gradient
+    let bottom_faded = mul(bottom_slide_gradient, inner);
+
+    // add(0.1171875, bottom_faded) - this is the top_slide_target (negated direction)
+    let with_bottom_offset = add(constant(0.1171875), bottom_faded);
+
+    // add(-0.390625, ...) - this is the bottom_slide_target
+    add(constant(-0.390625), with_bottom_offset)
+}
+
+/// Build the upper_bound function for preliminary_surface_level.
+///
+/// This matches Java's overworld.json "preliminary_surface_level.upper_bound" exactly.
+/// It calculates the maximum possible surface height for a given XZ position,
+/// which determines where FindTopSurface starts its downward search.
+///
+/// The formula (from overworld.json):
+/// ```text
+/// clamp(-40, 320,
+///     add(128,
+///         mul(-128,
+///             add(
+///                 mul(0.2734375, invert(factor)),
+///                 mul(-1.0, offset)
+///             )
+///         )
+///     )
+/// )
+/// ```
+fn build_preliminary_upper_bound(
+    offset_2d: Arc<dyn DensityFunction>,
+    factor_2d: Arc<dyn DensityFunction>,
+) -> Arc<dyn DensityFunction> {
+    // invert(factor) = 1/factor
+    let inv_factor = invert(factor_2d);
+
+    // 0.2734375 * (1/factor)
+    let factor_term = mul(constant(0.2734375), inv_factor);
+
+    // -1.0 * offset
+    let offset_term = mul(constant(-1.0), offset_2d);
+
+    // factor_term + offset_term
+    let combined = add(factor_term, offset_term);
+
+    // -128 * combined
+    let scaled = mul(constant(-128.0), combined);
+
+    // 128 + scaled
+    let result = add(constant(128.0), scaled);
+
+    // clamp(-40, 320, result)
+    clamp(result, -40.0, 320.0)
 }
 
 // ============================================================================
@@ -529,6 +693,49 @@ fn build_spaghetti_roughness_function(seed: i64) -> Arc<dyn DensityFunction> {
     let part2 = add(constant(-0.4), abs(rough_func));
 
     cache_once(mul(part1, part2))
+}
+
+/// Build the cave layer density function.
+///
+/// Formula: 4.0 * square(noise(cave_layer, xz_scale=1.0, y_scale=8.0))
+/// Creates horizontal layered cave regions.
+fn build_cave_layer(seed: i64) -> Arc<dyn DensityFunction> {
+    let cave_layer_noise = create_noise(cave_layer_params(), seed, "cave_layer");
+
+    // noise(cave_layer, xz_scale=1.0, y_scale=8.0)
+    let cave_layer_func = noise_with_scales(cave_layer_noise, 1.0, 8.0);
+
+    // 4.0 * square(noise)
+    mul(constant(4.0), square(cave_layer_func))
+}
+
+/// Build the cave cheese density function.
+///
+/// Formula:
+///   cheese_noise = clamp(0.27 + noise(cave_cheese, xz=1.0, y=0.667), -1, 1)
+///   pressure_term = clamp(1.5 + (-0.64 * sloped_cheese), 0, 0.5)
+///   result = cheese_noise + pressure_term
+///
+/// The pressure term makes caves larger underground (where sloped_cheese is positive/high).
+fn build_cave_cheese(seed: i64, sloped_cheese: Arc<dyn DensityFunction>) -> Arc<dyn DensityFunction> {
+    let cave_cheese_noise = create_noise(cave_cheese_params(), seed, "cave_cheese");
+
+    // noise(cave_cheese, xz_scale=1.0, y_scale=0.6666666666666666)
+    let cheese_func = noise_with_scales(cave_cheese_noise, 1.0, 2.0 / 3.0);
+
+    // clamp(0.27 + noise, -1, 1)
+    let cheese_noise = clamp(add(constant(0.27), cheese_func), -1.0, 1.0);
+
+    // pressure_term = clamp(1.5 + (-0.64 * sloped_cheese), 0.0, 0.5)
+    // This makes caves larger when underground (high terrain density)
+    let pressure_term = clamp(
+        add(constant(1.5), mul(constant(-0.64), sloped_cheese)),
+        0.0,
+        0.5,
+    );
+
+    // cheese_noise + pressure_term
+    add(cheese_noise, pressure_term)
 }
 
 /// Build the pillars density function.
@@ -842,11 +1049,6 @@ pub fn build_overworld_router(seed: i64) -> NoiseRouter {
     // Combine with offset to get actual depth relative to terrain surface
     let depth = add(depth, offset_spline.clone());
 
-    // ========== Create Preliminary Surface Level ==========
-
-    // This is used for surface detection before full density evaluation
-    let preliminary_surface_level = flat_cached(offset_spline.clone());
-
     // ========== Build Sloped Cheese Terrain ==========
 
     // The main terrain density formula from Java Edition:
@@ -863,10 +1065,66 @@ pub fn build_overworld_router(seed: i64) -> NoiseRouter {
     // This applies quarterNegative to the product and multiplies by 4.0
     let terrain_shaped = noise_gradient_density(factor_spline.clone(), terrain_base.clone());
 
-    // Apply sliding to smooth edges at world height limits
-    // Note: Java's postProcess (mul 0.64 + squeeze) is applied AFTER all cave operations
-    // in the Create Final Density section below
-    let terrain_with_slide = slide(terrain_shaped);
+    // ========== Create Preliminary Surface Level ==========
+    //
+    // The preliminary_surface_level determines where the terrain surface is for aquifer
+    // calculations. It uses FindTopSurface to search downward from upper_bound.
+    //
+    // IMPORTANT: Java's overworld.json defines a SPECIFIC density function for this,
+    // which is the terrain formula with slide applied but WITHOUT squeeze or caves.
+    // This is NOT the same as terrain_shaped!
+    //
+    // We wrap offset_spline and factor_spline in cache_2d to match Java's behavior:
+    // "minecraft:cache_2d" { "argument": "minecraft:overworld/offset" }
+    // "minecraft:cache_2d" { "argument": "minecraft:overworld/factor" }
+    let offset_2d = cache_2d(offset_spline.clone());
+    let factor_2d = cache_2d(factor_spline.clone());
+
+    // Build the density function that matches Java's overworld.json exactly
+    let preliminary_density = build_preliminary_surface_density(
+        offset_2d.clone(),
+        factor_2d.clone(),
+    );
+
+    // Build the upper_bound function that matches Java's overworld.json exactly
+    let preliminary_upper_bound = build_preliminary_upper_bound(
+        offset_2d,
+        factor_2d,
+    );
+
+    // Build the preliminary_surface_level using FindTopSurface
+    let preliminary_surface_level: Arc<dyn DensityFunction> = Arc::new(FindTopSurface::new(
+        preliminary_density,
+        preliminary_upper_bound,
+        -64,  // lower_bound
+        8,    // cell_height
+    ));
+
+    // ========== Build Base 3D Noise (BlendedNoise) ==========
+    //
+    // Java's sloped_cheese = terrain_shaped + base_3d_noise
+    // The base_3d_noise adds small-scale 3D variation to terrain density,
+    // which is CRITICAL for proper cave generation. Without it, caves form
+    // too uniformly and cheese caves open at inappropriate locations.
+    //
+    // Java's base_3d_noise config:
+    //   xz_scale: 0.25, y_scale: 0.125
+    //   xz_factor: 80.0, y_factor: 160.0
+    //   smear_scale_multiplier: 8.0
+    let salted_seed = hash_seed(seed, "terrain");
+    let mut terrain_rng = Xoroshiro128::from_seed(salted_seed);
+    let base_3d_noise: Arc<dyn DensityFunction> = Arc::new(BlendedNoise::new(
+        &mut terrain_rng,
+        0.25,   // xz_scale
+        0.125,  // y_scale
+        80.0,   // xz_factor
+        160.0,  // y_factor
+        8.0,    // smear_scale_multiplier
+    ));
+
+    // sloped_cheese = terrain_shaped + base_3d_noise
+    // This is what Java uses for cave generation decisions (before slide)
+    let sloped_cheese = add(terrain_shaped, base_3d_noise);
 
     // ========== Build Cave Density Functions ==========
 
@@ -875,24 +1133,43 @@ pub fn build_overworld_router(seed: i64) -> NoiseRouter {
     let spaghetti_roughness = build_spaghetti_roughness_function(seed);
     let pillars = build_pillars(seed);
     let spaghetti_2d = build_spaghetti_2d(seed, spaghetti_2d_thickness_modulator);
-    let cave_entrances = build_cave_entrances(seed, spaghetti_roughness);
+    let cave_entrances = build_cave_entrances(seed, spaghetti_roughness.clone());
     let noodle_caves = build_noodle_caves(seed);
+
+    // NEW: Build the main cave systems (cheese and layer caves)
+    // These are the primary cave creators in vanilla 1.18+
+    let cave_layer = build_cave_layer(seed);
+    // cave_cheese needs sloped_cheese (NOT terrain_with_slide) for the pressure term
+    // Java's cave_cheese references "minecraft:overworld/sloped_cheese" directly
+    let cave_cheese = build_cave_cheese(seed, sloped_cheese.clone());
 
     // ========== Combine Terrain with Caves (Java's underground logic) ==========
     //
-    // In Java (NoiseRouterData.java:355-356), the structure is:
+    // In Java (NoiseRouterData.java / overworld.json final_density), the structure is:
     //   rangeChoice(slopedCheese, -1000000.0, 1.5625,
-    //       min(slopedCheese, entrances * 5),  // When in air/at surface
-    //       underground(...)                    // When underground (>= 1.5625)
+    //       min(slopedCheese, entrances * 5),     // When in air/at surface
+    //       max(                                   // When underground (>= 1.5625)
+    //           min(min(min(
+    //               add(cave_layer, cave_cheese),   // Main cheese/layer caves
+    //               entrances),
+    //               spaghetti_2d + roughness),
+    //           ),
+    //           pillars_thresholded
+    //       )
     //   )
+    //   Then: min(..., noodle)
+    //
+    // IMPORTANT: Java uses sloped_cheese (before slide) for rangeChoice input and
+    // for the surface branch min. The slide is applied to the OUTER result later.
     //
     // Key insight: Pillars ONLY exist in the underground() branch, which is only
     // called when terrain density >= 1.5625 (solid underground). This prevents
     // pillars from appearing in the sky!
 
     // Surface/air branch: just apply cave entrances (scaled by 5 in Java)
+    // Uses sloped_cheese, not terrain_with_slide
     let entrances_scaled = mul(constant(5.0), cave_entrances.clone());
-    let surface_with_entrances = min(terrain_with_slide.clone(), entrances_scaled);
+    let surface_with_entrances = min(sloped_cheese.clone(), entrances_scaled);
 
     // Underground branch: full cave system with pillars
     // In Java's underground(), pillars are thresholded with rangeChoice:
@@ -905,28 +1182,41 @@ pub fn build_overworld_router(seed: i64) -> NoiseRouter {
         pillars,
     );
 
-    // Build underground caves: min of all cave types, then max with pillars
+    // Main cave carving: cave_layer + cave_cheese creates the bulk of caves
+    let main_caves = add(cave_layer, cave_cheese);
+
+    // Combine spaghetti with roughness (thin horizontal tunnels)
+    let spaghetti_with_roughness = add(spaghetti_2d, spaghetti_roughness);
+
+    // Build underground caves following Java's exact structure (lines 85-155 of overworld.json):
+    // max(
+    //     min(min(add(cave_layer, cave_cheese), entrances), spaghetti_2d + roughness),
+    //     pillars_thresholded
+    // )
+    // Note: NO terrain in the min chain - the rangeChoice already ensures we're underground
     let underground_caves = min(
-        min(
-            min(terrain_with_slide.clone(), cave_entrances),
-            spaghetti_2d,
-        ),
-        noodle_caves,
+        min(main_caves, cave_entrances),
+        spaghetti_with_roughness,
     );
     let underground_with_pillars = max(underground_caves, pillars_thresholded);
 
-    // Use rangeChoice to select between surface and underground based on terrain density
-    // If terrain < 1.5625 (air/surface): use surface_with_entrances (no pillars)
-    // If terrain >= 1.5625 (underground): use underground_with_pillars (with pillars)
+    // Use rangeChoice to select between surface and underground based on sloped_cheese
+    // IMPORTANT: Java uses sloped_cheese (not terrain_with_slide) as the rangeChoice input!
+    // If sloped_cheese < 1.5625 (air/surface): use surface_with_entrances
+    // If sloped_cheese >= 1.5625 (underground): use underground_with_pillars
     let terrain_with_caves = range_choice(
-        terrain_with_slide.clone(),
+        sloped_cheese.clone(),
         -1000000.0,
         1.5625,  // SURFACE_DENSITY_THRESHOLD from Java
-        surface_with_entrances,    // When terrain < 1.5625 (air/surface)
-        underground_with_pillars,  // When terrain >= 1.5625 (underground)
+        surface_with_entrances,    // When sloped_cheese < 1.5625 (air/surface)
+        underground_with_pillars,  // When sloped_cheese >= 1.5625 (underground)
     );
 
     // ========== Create Final Density ==========
+
+    // Apply slide to terrain_with_caves (Java does this inline in overworld.json lines 42-68)
+    // The slide smooths terrain at world height limits
+    let terrain_with_slide = slide(terrain_with_caves);
 
     // Apply Java's postProcess transformation:
     // 1. interpolated(...) - marks for trilinear interpolation
@@ -936,15 +1226,23 @@ pub fn build_overworld_router(seed: i64) -> NoiseRouter {
     // This is CRITICAL for fixing:
     // - Grid lines / cell edge artifacts (squeeze dampens extreme values)
     // - Stone pillars from sky (squeeze clamps runaway positive values)
-    let interpolated_density = interpolated(terrain_with_caves);
+    let interpolated_density = interpolated(terrain_with_slide);
     let dampened_density = mul(constant(0.64), interpolated_density);
-    let final_density = squeeze(dampened_density);
+    let squeezed_density = squeeze(dampened_density);
+
+    // Apply noodle caves as the FINAL min operation
+    // Java (overworld.json line 30-167):
+    //   final_density = min(squeeze(0.64 * interpolated(...)), noodle)
+    // This creates thin, winding tunnels that carve through the terrain
+    let final_density = min(squeezed_density, noodle_caves);
 
     // ========== Create Aquifer Functions ==========
+    // Java: DensityFunctions.noise(holder, yScale) uses xz_scale=1.0 and y_scale=yScale
+    // See NoiseRouterData.java lines 335-338
 
-    let barrier_noise: Arc<dyn DensityFunction> = Arc::new(Noise::with_holder(barrier_noise_holder));
-    let fluid_level_floodedness: Arc<dyn DensityFunction> = Arc::new(Noise::with_holder(floodedness_noise_holder));
-    let fluid_level_spread: Arc<dyn DensityFunction> = Arc::new(Noise::with_holder(spread_noise_holder));
+    let barrier_noise: Arc<dyn DensityFunction> = Arc::new(Noise::new(barrier_noise_holder, 1.0, 0.5));
+    let fluid_level_floodedness: Arc<dyn DensityFunction> = Arc::new(Noise::new(floodedness_noise_holder, 1.0, 0.67));
+    let fluid_level_spread: Arc<dyn DensityFunction> = Arc::new(Noise::new(spread_noise_holder, 1.0, 5.0 / 7.0));  // 0.7142857142857143
     let lava_noise: Arc<dyn DensityFunction> = Arc::new(Noise::with_holder(lava_noise_holder));
 
     // ========== Create Ore Vein Functions ==========
@@ -1093,6 +1391,91 @@ mod tests {
 
         assert_eq!(hash1, hash2, "Same salt should produce same hash");
         assert_ne!(hash1, hash3, "Different salts should produce different hashes");
+    }
+
+    #[test]
+    fn test_preliminary_surface_level_returns_y_heights() {
+        let router = build_overworld_router(12345);
+
+        // preliminary_surface_level should return actual Y heights, not density values!
+        // Test at various XZ positions
+        for (x, z) in [(0, 0), (100, 200), (-50, 150), (1000, 1000)] {
+            let ctx = SinglePointContext::new(x, 0, z);
+            let surface_y = router.preliminary_surface_level.compute(&ctx);
+
+            eprintln!("({}, {}): preliminary_surface_level = {}", x, z, surface_y);
+
+            // Surface Y should be a reasonable Y coordinate (not a density value like 0.1)
+            // Typical overworld surface is between 60-100, but could vary
+            assert!(
+                surface_y >= -64.0 && surface_y <= 320.0,
+                "Surface level {} at ({}, {}) is out of world bounds",
+                surface_y, x, z
+            );
+
+            // Most importantly, it should NOT be a tiny value like a density
+            // (unless we're at the ocean floor). Surface is typically Y 60-100.
+            // Even ocean floor is around Y 40-50.
+            if surface_y < 10.0 {
+                // If below Y=10, something might be wrong - should at least find bedrock
+                eprintln!(
+                    "WARNING: Very low surface at ({}, {}): Y={}. This could indicate ocean or deep valley.",
+                    x, z, surface_y
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_psl_density_at_y_levels() {
+        // Test what the PSL density function returns at various Y levels
+        // This helps diagnose why FindTopSurface might be returning low values
+        let router = build_overworld_router(12345);
+
+        let x = 0;
+        let z = 0;
+
+        eprintln!("\nFinal density values at ({}, {}):", x, z);
+        eprintln!("Y level | final_density | (> 0 means solid)");
+        eprintln!("--------|---------------|------------------");
+
+        // Test final densities at various Y levels (search happens top to bottom)
+        // FindTopSurface searches in steps of 8, so test 8-aligned Y values
+        for y in [320, 256, 200, 128, 96, 88, 80, 72, 64, 56, 48, 40, 32, 0, -64] {
+            let ctx = SinglePointContext::new(x, y, z);
+            let final_d = router.final_density.compute(&ctx);
+
+            let marker = if final_d > 0.0 { "<-- SOLID" } else { "" };
+            eprintln!("Y={:4} | {:+.6} {}", y, final_d, marker);
+        }
+
+        // The preliminary_surface_level result
+        let ctx_psl = SinglePointContext::new(x, 0, z);
+        let psl = router.preliminary_surface_level.compute(&ctx_psl);
+        eprintln!("\npreliminary_surface_level = {}", psl);
+
+        // Also check what terrain_shaped returns at various Y
+        eprintln!("\nterrain_shaped values (used by FindTopSurface):");
+        for y in [128, 96, 88, 80, 72, 64, 56, 48] {
+            let ctx = SinglePointContext::new(x, y, z);
+            // We can't directly access terrain_shaped, but let's check
+            // what the climate functions return to understand upper_bound
+        }
+
+        // Check offset and factor to understand upper_bound
+        // upper_bound = clamp(-40, 320, 128 - 128 * (0.2734375/factor - offset))
+        let ctx_climate = SinglePointContext::new(x, 64, z);
+        let offset = 0.0688; // From earlier test (at Y=64, depth=0.0688 which includes y_gradient)
+        // depth = y_gradient + offset_spline, so offset_spline ≈ depth - y_gradient(64)
+        // y_gradient(64) for range (-64,320,1.5,-1.5) = 1.5 + (64+64)/(320+64)*(-1.5-1.5) = 1.5 - 128/384*3 = 1.5 - 1 = 0.5
+        // So offset_spline ≈ 0.0688 - 0.5 = -0.43 (approximately)
+        // But this is combined with factor...
+
+        // Based on FindTopSurface returning 56:
+        // floor(upper_bound/8)*8 = 56, so upper_bound is in range [56, 64)
+        // This means upper_bound is too low!
+        eprintln!("\nNote: If PSL=56, then upper_bound must be in [56,64). This is too low!");
+        eprintln!("The search never checks Y=72 where final_density > 0");
     }
 
     #[test]

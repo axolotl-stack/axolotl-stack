@@ -1,6 +1,6 @@
 //! Mathematical density function operations.
 
-use super::context::{ContextProvider, FunctionContext};
+use super::context::{ContextProvider, FunctionContext, SinglePointContext};
 use super::function::{DensityFunction, Visitor};
 use std::sync::Arc;
 
@@ -591,6 +591,98 @@ impl DensityFunction for YCoord {
     fn max_value(&self) -> f64 {
         // World Y range
         320.0
+    }
+}
+
+/// Find top surface density function.
+///
+/// Java's `minecraft:find_top_surface` - searches from upper_bound downward
+/// in steps of cell_height to find where density transitions from <= 0 to > 0.
+/// This finds the approximate surface Y level.
+///
+/// Used for preliminary_surface_level in aquifer calculations.
+#[derive(Clone)]
+pub struct FindTopSurface {
+    /// The density function to evaluate (terrain density without caves)
+    pub density: Arc<dyn DensityFunction>,
+    /// Upper bound function that gives max possible surface height
+    pub upper_bound: Arc<dyn DensityFunction>,
+    /// Lower search bound (minimum Y to search)
+    pub lower_bound: i32,
+    /// Search step size (typically 8)
+    pub cell_height: i32,
+}
+
+impl FindTopSurface {
+    /// Create a new find top surface function.
+    pub fn new(
+        density: Arc<dyn DensityFunction>,
+        upper_bound: Arc<dyn DensityFunction>,
+        lower_bound: i32,
+        cell_height: i32,
+    ) -> Self {
+        Self {
+            density,
+            upper_bound,
+            lower_bound,
+            cell_height,
+        }
+    }
+}
+
+impl DensityFunction for FindTopSurface {
+    fn compute(&self, ctx: &dyn FunctionContext) -> f64 {
+        // Java: int i = Mth.floor(this.upperBound.compute(ctx) / this.cellHeight) * this.cellHeight;
+        let upper = self.upper_bound.compute(ctx);
+        let cell_height_f = self.cell_height as f64;
+        let i = (upper / cell_height_f).floor() as i32 * self.cell_height;
+
+        // Java: if (i <= this.lowerBound) return this.lowerBound;
+        if i <= self.lower_bound {
+            return self.lower_bound as f64;
+        }
+
+        // Search from top to bottom in steps of cell_height
+        // Java: for (int j = i; j >= this.lowerBound; j -= this.cellHeight)
+        let x = ctx.block_x();
+        let z = ctx.block_z();
+        let mut j = i;
+        while j >= self.lower_bound {
+            // Evaluate density at this Y level
+            // Java: if (this.density.compute(new SinglePointContext(ctx.blockX(), j, ctx.blockZ())) > 0.0)
+            let search_ctx = SinglePointContext::new(x, j, z);
+            if self.density.compute(&search_ctx) > 0.0 {
+                return j as f64;
+            }
+            j -= self.cell_height;
+        }
+
+        // Java: return this.lowerBound;
+        self.lower_bound as f64
+    }
+
+    fn fill_array(&self, values: &mut [f64], provider: &dyn ContextProvider) {
+        // This function is expensive, so we evaluate per-point
+        provider.fill_all_directly(values, self);
+    }
+
+    fn map_all(&self, visitor: &dyn Visitor) -> Arc<dyn DensityFunction> {
+        let new_density = self.density.map_all(visitor);
+        let new_upper = self.upper_bound.map_all(visitor);
+        visitor.apply(Arc::new(FindTopSurface::new(
+            new_density,
+            new_upper,
+            self.lower_bound,
+            self.cell_height,
+        )))
+    }
+
+    fn min_value(&self) -> f64 {
+        self.lower_bound as f64
+    }
+
+    fn max_value(&self) -> f64 {
+        self.upper_bound.max_value().max(self.lower_bound as f64)
     }
 }
 

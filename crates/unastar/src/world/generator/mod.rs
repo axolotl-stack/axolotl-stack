@@ -15,6 +15,7 @@ mod structures;
 pub mod surface;
 mod terrain;
 pub mod xoroshiro;
+mod repro_bug;
 
 pub use climate::BiomeNoise;
 pub use constants::Biome;

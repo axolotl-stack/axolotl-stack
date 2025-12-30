@@ -3,8 +3,8 @@
 //! This module builds the surface rules for the overworld dimension,
 //! matching vanilla Minecraft's surface generation.
 
-use super::condition::{BiomeCheck, Hole, Not, Steep, StoneDepthCheck, VerticalGradient, WaterCheck, YCheck};
-use super::context::{CaveSurface, VerticalAnchor};
+use super::condition::{AbovePreliminarySurface, BiomeCheck, Hole, Steep, StoneDepthCheck, VerticalGradient, WaterCheck};
+use super::context::CaveSurface;
 use super::rule::{BlockRule, Rule, SequenceRule, TestRule};
 use crate::world::chunk::blocks;
 use crate::world::generator::constants::Biome;
@@ -13,58 +13,53 @@ use crate::world::generator::constants::Biome;
 ///
 /// This creates a hierarchical rule structure that:
 /// 1. Places bedrock at the world bottom
-/// 2. Applies biome-specific surface blocks
+/// 2. Applies biome-specific surface blocks (only above preliminary surface)
 /// 3. Handles underwater surfaces
 /// 4. Places deepslate in deep regions
+///
+/// CRITICAL: Main surface rules are wrapped in AbovePreliminarySurface to prevent
+/// grass/dirt from appearing on cave ceilings and floors. This matches Java's
+/// behavior where surface rules only apply above the computed preliminary surface level.
 pub fn build_overworld_surface_rule(seed: i64) -> Box<dyn Rule> {
     Box::new(SequenceRule::new(vec![
         // Bedrock floor (Y=-64 to Y=-60 with gradient)
         build_bedrock_rule(seed),
-        // Deepslate layer (Y=-64 to Y=0, replacing stone)
-        build_deepslate_rule(),
-        // Main surface rules
-        build_surface_rules(),
+        // Main surface rules - WRAPPED in AbovePreliminarySurface condition
+        // This is critical: prevents grass appearing on cave floors/ceilings
+        Box::new(TestRule::new(
+            Box::new(AbovePreliminarySurface),
+            build_surface_rules(),
+        )),
+        // Deepslate layer (Y=0 to Y=8, replacing stone) - applied everywhere underground
+        build_deepslate_rule(seed),
     ]))
 }
 
 /// Build bedrock rule with randomized top.
+///
+/// Java's bedrock floor uses a simple vertical_gradient:
+/// - true_at_and_below: above_bottom(0) = Y=-64 (guaranteed bedrock)
+/// - false_at_and_above: above_bottom(5) = Y=-59 (no bedrock)
+/// - Between Y=-63 and Y=-60: random gradient from 100% to 0%
 fn build_bedrock_rule(seed: i64) -> Box<dyn Rule> {
+    // Simple vertical gradient: 100% at Y=-64, 0% at Y=-59
     Box::new(TestRule::new(
-        // Apply in the bedrock zone
-        Box::new(YCheck {
-            anchor: VerticalAnchor::AboveBottom(5), // Y >= -59
-            surface_depth_multiplier: 0,
-            add_stone_depth: false,
-        }),
-        // But only below Y=-60 with gradient
-        Box::new(TestRule::new(
-            Box::new(Not::new(Box::new(YCheck::above_bottom(5)))),
-            // Always bedrock at bottom, gradient above
-            Box::new(SequenceRule::new(vec![
-                // Solid bedrock at Y=-64
-                Box::new(TestRule::new(
-                    Box::new(Not::new(Box::new(YCheck::above_bottom(1)))),
-                    Box::new(BlockRule::new(*blocks::BEDROCK)),
-                )),
-                // Gradient bedrock Y=-63 to Y=-60
-                Box::new(TestRule::new(
-                    Box::new(VerticalGradient::new(-64, -60, seed)),
-                    Box::new(BlockRule::new(*blocks::BEDROCK)),
-                )),
-            ])),
-        )),
+        Box::new(VerticalGradient::new(-64, -59, seed)),
+        Box::new(BlockRule::new(*blocks::BEDROCK)),
     ))
 }
 
 /// Build deepslate transition rule.
-fn build_deepslate_rule() -> Box<dyn Rule> {
-    // Deepslate below Y=0 with gradient at top
+///
+/// Java's deepslate uses a simple vertical_gradient:
+/// - true_at_and_below: absolute Y=0 (guaranteed deepslate)
+/// - false_at_and_above: absolute Y=8 (no deepslate)
+/// - Between Y=1 and Y=7: random gradient from 100% to 0%
+fn build_deepslate_rule(seed: i64) -> Box<dyn Rule> {
+    // Simple vertical gradient: 100% at Y=0, 0% at Y=8
     Box::new(TestRule::new(
-        Box::new(Not::new(Box::new(YCheck::at(8)))),
-        Box::new(TestRule::new(
-            Box::new(Not::new(Box::new(StoneDepthCheck::floor(0)))), // Only underground
-            Box::new(BlockRule::new(*blocks::DEEPSLATE)),
-        )),
+        Box::new(VerticalGradient::new(0, 8, seed)),
+        Box::new(BlockRule::new(*blocks::DEEPSLATE)),
     ))
 }
 
@@ -318,6 +313,7 @@ mod tests {
         ctx.stone_depth_above = 0;
         ctx.surface_depth = 3;
         ctx.water_height = i32::MIN; // No water
+        ctx.min_surface_level = 60; // Above preliminary surface
 
         let result = rule.try_apply(&ctx);
         // Desert should get sand at surface
@@ -333,6 +329,7 @@ mod tests {
         ctx.stone_depth_above = 0;
         ctx.surface_depth = 3;
         ctx.water_height = i32::MIN;
+        ctx.min_surface_level = 60; // Above preliminary surface
 
         let result = rule.try_apply(&ctx);
         // Plains should get grass at surface
@@ -348,6 +345,7 @@ mod tests {
         ctx.stone_depth_above = 0;
         ctx.surface_depth = 3;
         ctx.water_height = i32::MIN;
+        ctx.min_surface_level = 60; // Above preliminary surface
 
         let result = rule.try_apply(&ctx);
         // Snowy biomes should get snow
@@ -363,6 +361,7 @@ mod tests {
         ctx.stone_depth_above = 0;
         ctx.surface_depth = 3;
         ctx.water_height = 63; // Underwater
+        ctx.min_surface_level = 45; // Above preliminary surface
 
         let result = rule.try_apply(&ctx);
         // Ocean floor should be sand
@@ -379,9 +378,27 @@ mod tests {
         ctx.surface_depth = 3;
         ctx.water_height = i32::MIN;
         ctx.steep = true;
+        ctx.min_surface_level = 95; // Above preliminary surface
 
         let result = rule.try_apply(&ctx);
         // Steep mountain should be stone
         assert_eq!(result, Some(*blocks::STONE), "Steep mountain should be stone");
+    }
+
+    #[test]
+    fn test_cave_floor_no_grass() {
+        // This is the critical test - cave floors should NOT get grass
+        let rule = build_overworld_surface_rule(12345);
+        let mut ctx = SurfaceContext::default();
+        ctx.biome = Biome::Plains;
+        ctx.block_y = 30; // Deep underground
+        ctx.stone_depth_above = 0; // First solid block after cave air
+        ctx.surface_depth = 3;
+        ctx.water_height = i32::MIN;
+        ctx.min_surface_level = 60; // Surface is at Y=60, we're below it
+
+        let result = rule.try_apply(&ctx);
+        // Cave floor should NOT get grass - AbovePreliminarySurface should block it
+        assert_eq!(result, None, "Cave floor should not get grass");
     }
 }

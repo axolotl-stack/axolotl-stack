@@ -59,10 +59,10 @@ mod blend;
 mod cache;
 mod chunk;
 mod context;
-mod function;
+pub(crate) mod function;
 mod markers;
 mod math;
-mod noise_funcs;
+pub(crate) mod noise_funcs;
 mod overworld;
 mod router;
 mod spline;
@@ -75,8 +75,8 @@ pub use function::{DensityFunction, IdentityVisitor, Visitor};
 
 // Re-export math functions
 pub use math::{
-    lerp, lerp3, Clamp, Constant, Mapped, MappedType, MulOrAdd, RangeChoice, TwoArg, TwoArgType,
-    YClampedGradient, YCoord,
+    lerp, lerp3, Clamp, Constant, FindTopSurface, Mapped, MappedType, MulOrAdd, RangeChoice,
+    TwoArg, TwoArgType, YClampedGradient, YCoord,
 };
 
 // Re-export cache implementations

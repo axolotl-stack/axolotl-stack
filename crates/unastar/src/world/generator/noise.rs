@@ -128,14 +128,15 @@ impl PerlinNoise {
         let b3 = (idx[((b1 + 1) & 255) as usize] + h3) & 255;
 
         // Calculate gradients and interpolate
-        let l1 = indexed_lerp(idx[a2 as usize], d1, d2, d3);
-        let l2 = indexed_lerp(idx[b2 as usize], d1 - 1.0, d2, d3);
-        let l3 = indexed_lerp(idx[a3 as usize], d1, d2 - 1.0, d3);
-        let l4 = indexed_lerp(idx[b3 as usize], d1 - 1.0, d2 - 1.0, d3);
-        let l5 = indexed_lerp(idx[((a2 + 1) & 255) as usize], d1, d2, d3 - 1.0);
-        let l6 = indexed_lerp(idx[((b2 + 1) & 255) as usize], d1 - 1.0, d2, d3 - 1.0);
-        let l7 = indexed_lerp(idx[((a3 + 1) & 255) as usize], d1, d2 - 1.0, d3 - 1.0);
-        let l8 = indexed_lerp(idx[((b3 + 1) & 255) as usize], d1 - 1.0, d2 - 1.0, d3 - 1.0);
+        // Note: Mask with & 15 to get gradient index in 0..15 range (Perlin uses 12 gradients)
+        let l1 = indexed_lerp(idx[a2 as usize] & 15, d1, d2, d3);
+        let l2 = indexed_lerp(idx[b2 as usize] & 15, d1 - 1.0, d2, d3);
+        let l3 = indexed_lerp(idx[a3 as usize] & 15, d1, d2 - 1.0, d3);
+        let l4 = indexed_lerp(idx[b3 as usize] & 15, d1 - 1.0, d2 - 1.0, d3);
+        let l5 = indexed_lerp(idx[((a2 + 1) & 255) as usize] & 15, d1, d2, d3 - 1.0);
+        let l6 = indexed_lerp(idx[((b2 + 1) & 255) as usize] & 15, d1 - 1.0, d2, d3 - 1.0);
+        let l7 = indexed_lerp(idx[((a3 + 1) & 255) as usize] & 15, d1, d2 - 1.0, d3 - 1.0);
+        let l8 = indexed_lerp(idx[((b3 + 1) & 255) as usize] & 15, d1 - 1.0, d2 - 1.0, d3 - 1.0);
 
         // Trilinear interpolation
         let l1 = lerp(t1, l1, l2);
@@ -345,18 +346,23 @@ unsafe fn lerp_simd(
 /// result = ((h & 1) ? -u : u) + ((h & 2) ? -v : v)
 #[inline(always)]
 unsafe fn indexed_lerp_simd(
-    idx_128: std::arch::x86_64::__m128i, // 4 integer indices (0-15)
+    idx_128: std::arch::x86_64::__m128i, // 4 integer indices from permutation table
     x: std::arch::x86_64::__m256d,
     y: std::arch::x86_64::__m256d,
     z: std::arch::x86_64::__m256d,
 ) -> std::arch::x86_64::__m256d {
     use std::arch::x86_64::*;
     unsafe {
+        // Mask indices to 0..15 range (critical for correct gradient selection)
+        // Permutation table contains 0-255, but gradient logic expects 0-15
+        let mask_15 = _mm_set1_epi32(15);
+        let idx_masked = _mm_and_si128(idx_128, mask_15);
+
         // 1. Prepare Masks
         // Convert indices to doubles for easy comparison (0.0 .. 15.0)
-        let h_dbl = _mm256_cvtepi32_pd(idx_128);
+        let h_dbl = _mm256_cvtepi32_pd(idx_masked);
         // Convert indices to 64-bit ints for bitwise checks
-        let h_long = _mm256_cvtepi32_epi64(idx_128);
+        let h_long = _mm256_cvtepi32_epi64(idx_masked);
 
         // Constants
         let eight = _mm256_set1_pd(8.0);
@@ -465,6 +471,7 @@ pub struct OctaveNoise {
 impl OctaveNoise {
     /// Create octave noise with given amplitudes (cubiomes-accurate xOctaveInit).
     pub fn new(rng: &mut Xoroshiro128, amplitudes: &[f64], omin: i32) -> Self {
+        /*
         // Precomputed lacunarity table for -omin = 0..12
         let lacuna_ini: [f64; 13] = [
             1.0,
@@ -481,7 +488,7 @@ impl OctaveNoise {
             0.00048828125,
             0.000244140625,
         ];
-
+        */
         // Precomputed persistence table for len = 0..10
         let persist_ini: [f64; 11] = [
             0.0,
@@ -499,11 +506,7 @@ impl OctaveNoise {
 
         let len = amplitudes.len();
         let lacuna_idx = (-omin) as usize;
-        let mut lacuna = if lacuna_idx < lacuna_ini.len() {
-            lacuna_ini[lacuna_idx]
-        } else {
-            2.0_f64.powi(omin)
-        };
+        let mut lacuna = 1.0;
 
         let mut persist = if len < persist_ini.len() {
             persist_ini[len]
@@ -594,6 +597,7 @@ impl OctaveNoise {
 pub struct DoublePerlinNoise {
     /// Amplitude for combination
     pub amplitude: f64,
+    pub frequency: f64,
     /// First octave noise
     pub oct_a: OctaveNoise,
     /// Second octave noise
@@ -645,9 +649,11 @@ impl DoublePerlinNoise {
         } else {
             0.0
         };
+        let frequency = 2.0f64.powi(omin);
 
         Self {
             amplitude,
+            frequency,
             oct_a,
             oct_b,
         }
@@ -656,24 +662,33 @@ impl DoublePerlinNoise {
     /// Sample double Perlin noise.
     pub fn sample(&self, x: f64, y: f64, z: f64) -> f64 {
         const F: f64 = 337.0 / 331.0;
-        let v = self.oct_a.sample(x, y, z) + self.oct_b.sample(x * F, y * F, z * F);
+        let nx = x * self.frequency;
+        let ny = y * self.frequency;
+        let nz = z * self.frequency;
+
+        let v = self.oct_a.sample(nx, ny, nz) + self.oct_b.sample(nx * F, ny * F, nz * F);
         v * self.amplitude
     }
 
     /// Sample 4 double Perlin noise values simultaneously using SIMD.
     pub fn sample_4(&self, x: [f64; 4], y: f64, z: [f64; 4]) -> [f64; 4] {
         const F: f64 = 337.0 / 331.0;
+        let freq = self.frequency;
 
-        // Sample oct_a at original coordinates
-        let va = self.oct_a.sample_4(x, y, z);
+        // Apply frequency
+        let nx = [x[0] * freq, x[1] * freq, x[2] * freq, x[3] * freq];
+        let ny = y * freq;
+        let nz = [z[0] * freq, z[1] * freq, z[2] * freq, z[3] * freq];
 
-        // Sample oct_b at scaled coordinates
-        let x_scaled = [x[0] * F, x[1] * F, x[2] * F, x[3] * F];
-        let y_scaled = y * F;
-        let z_scaled = [z[0] * F, z[1] * F, z[2] * F, z[3] * F];
-        let vb = self.oct_b.sample_4(x_scaled, y_scaled, z_scaled);
+        // Sample
+        let va = self.oct_a.sample_4(nx, ny, nz);
+        
+        // Calculate B coordinates
+        let nx_b = [nx[0] * F, nx[1] * F, nx[2] * F, nx[3] * F];
+        let ny_b = ny * F;
+        let nz_b = [nz[0] * F, nz[1] * F, nz[2] * F, nz[3] * F];
+        let vb = self.oct_b.sample_4(nx_b, ny_b, nz_b);
 
-        // Combine and scale by amplitude
         let amp = self.amplitude;
         [
             (va[0] + vb[0]) * amp,
@@ -1039,5 +1054,59 @@ mod tests {
 
         // Wrap value should match first value
         assert_eq!(noise.d[256], noise.d[0]);
+    }
+
+    #[test]
+    fn test_perlin_noise_z_variation() {
+        // This test ensures noise varies along Z axis (catches the & 15 mask bug)
+        // Without proper masking, noise would create "lines" along certain axes
+        let mut rng = Xoroshiro128::from_seed(42);
+        let noise = PerlinNoise::new(&mut rng);
+
+        // Sample at same X,Y but different Z values
+        let v1 = noise.sample(5.0, 5.0, 0.0);
+        let v2 = noise.sample(5.0, 5.0, 1.0);
+        let v3 = noise.sample(5.0, 5.0, 2.0);
+
+        // Values should differ (not be identical "lines")
+        assert!(
+            (v1 - v2).abs() > 0.001 || (v2 - v3).abs() > 0.001,
+            "Noise should vary along Z axis: v1={}, v2={}, v3={}",
+            v1, v2, v3
+        );
+    }
+
+    #[test]
+    fn test_perlin_noise_all_axes_variation() {
+        // More comprehensive test for variation along all axes
+        let mut rng = Xoroshiro128::from_seed(12345);
+        let noise = PerlinNoise::new(&mut rng);
+
+        // Test X variation
+        let x1 = noise.sample(0.0, 5.0, 5.0);
+        let x2 = noise.sample(1.0, 5.0, 5.0);
+        assert!(
+            (x1 - x2).abs() > 0.0001,
+            "Noise should vary along X axis: x1={}, x2={}",
+            x1, x2
+        );
+
+        // Test Y variation
+        let y1 = noise.sample(5.0, 0.0, 5.0);
+        let y2 = noise.sample(5.0, 1.0, 5.0);
+        assert!(
+            (y1 - y2).abs() > 0.0001,
+            "Noise should vary along Y axis: y1={}, y2={}",
+            y1, y2
+        );
+
+        // Test Z variation
+        let z1 = noise.sample(5.0, 5.0, 0.0);
+        let z2 = noise.sample(5.0, 5.0, 1.0);
+        assert!(
+            (z1 - z2).abs() > 0.0001,
+            "Noise should vary along Z axis: z1={}, z2={}",
+            z1, z2
+        );
     }
 }
