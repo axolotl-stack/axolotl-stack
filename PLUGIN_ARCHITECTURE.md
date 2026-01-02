@@ -13,29 +13,38 @@ Key Goals:
 
 ```mermaid
 graph TD
-    Server[Unastar Server] -->|Loads DLL| Loader[PluginLoader]
-    Loader -->|Calls _create_plugin| PluginDLL[Plugin DLL]
-    PluginDLL -->|Returns RawPlugin_TO| Server
-    Server -->|Ticks| RawPlugin[RawPlugin (ABI stable)]
-    RawPlugin -->|Bridge| UserPlugin[User Plugin (Clean API)]
-    
-    subgraph "Server Side"
-    Server
-    Loader
+    Server[Unastar Server]
+    Loader[PluginLoader]
     Registry[PluginRegistry]
+    PluginDLL[Plugin DLL]
+    RawPlugin[PluginVTable extern C]
+    UserPlugin[User Plugin safe Rust API]
+
+    Server -->|loads dll or so| Loader
+    Loader -->|dlsym unastar_plugin_entry| PluginDLL
+    PluginDLL -->|returns PluginVTable pointer| Loader
+    Loader -->|registers vtable| Registry
+
+    Server -->|dispatch tick and events| Registry
+    Registry -->|calls extern C functions| RawPlugin
+    RawPlugin -->|delegates calls| UserPlugin
+
+    subgraph ServerSide[Server Side]
+        Server
+        Loader
+        Registry
     end
 
-    subgraph "ABI Boundary (unastar-api/native)"
-    RawPlugin
-    RawPluginHost
+    subgraph PluginSide[Plugin Side]
+        PluginDLL
+        UserPlugin
     end
 
-    subgraph "Plugin Side"
-    PluginDLL
-    UserPlugin
+    subgraph ABI[ABI Boundary C ABI]
+        RawPlugin
     end
+
 ```
-
 ## The Bridge Pattern
 
 To satisfy both ABI stability (which requires `abi_stable` types like `RStr`) and clean API (standard types like `&str`), we use a **Bridge Pattern**.
