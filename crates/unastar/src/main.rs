@@ -17,7 +17,7 @@ static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
 
 /*
 #[global_allocator]
-static ALLOC: dhat::Alloc = dhat::Alloc; 
+static ALLOC: dhat::Alloc = dhat::Alloc;
 */
 
 #[tokio::main]
@@ -28,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
     tracing_subscriber::fmt().with_env_filter(env_filter).init();
 
-    info!("Unastar Server starting...");
+    info!("Unastar Server starting... (FIXED VERSION 1.1 - EventBuffer Clear)");
 
     // Load config (creates `unastar.toml` on first run).
     let config_path = std::env::var("UNASTAR_CONFIG").unwrap_or_else(|_| "unastar.toml".into());

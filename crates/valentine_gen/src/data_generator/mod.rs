@@ -58,6 +58,7 @@ pub struct DataPaths {
     pub block_states: Option<std::path::PathBuf>,
     pub entities: Option<std::path::PathBuf>,
     pub biomes: Option<std::path::PathBuf>,
+    pub legacy: Option<std::path::PathBuf>,
 }
 
 /// Generate data modules for a specific version.
@@ -89,12 +90,12 @@ pub fn generate_version_data(
                 let block_states_path = paths.block_states.as_ref();
                 if let Some(states_path) = block_states_path {
                     if states_path.exists() {
-                        generate_blocks(path, states_path, output_dir)?;
+                        generate_blocks(path, states_path, paths.legacy.as_deref(), output_dir)?;
                         generated.push("blocks");
                     }
                 } else {
                     // No blockStates available, generate without state types
-                    generate_blocks(path, path, output_dir)?;
+                    generate_blocks(path, path, paths.legacy.as_deref(), output_dir)?;
                     generated.push("blocks");
                 }
             }

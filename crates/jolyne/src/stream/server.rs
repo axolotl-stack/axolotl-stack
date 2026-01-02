@@ -455,6 +455,7 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
             }
         }
 
+        tracing::info!("Sending CreativeContent and PlayerSpawn status...");
         self.transport
             .send_batch(&[
                 McpePacket::from(ChunkRadiusUpdatePacket {
@@ -468,6 +469,8 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
                 }),
             ])
             .await?;
+
+        tracing::info!("Batch sent successfully, waiting for ServerboundLoadingScreen type 1...");
 
         // 4. Loading Screen Handshake (Types 1 & 2)
         loop {

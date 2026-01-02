@@ -5550,7 +5550,10 @@ impl crate::bedrock::codec::BedrockCodec for ItemExtraDataWithoutBlockingTick {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let has_nbt = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let has_nbt =
+            <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
+                .0
+                != 0;
         let nbt = if has_nbt {
             Some(
                 <ItemExtraDataWithoutBlockingTickNbt as crate::bedrock::codec::BedrockCodec>::decode(
@@ -5724,7 +5727,10 @@ impl crate::bedrock::codec::BedrockCodec for ItemExtraDataWithBlockingTick {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let has_nbt = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let has_nbt =
+            <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
+                .0
+                != 0;
         let nbt = if has_nbt {
             Some(
                 <ItemExtraDataWithoutBlockingTickNbt as crate::bedrock::codec::BedrockCodec>::decode(
@@ -5902,16 +5908,46 @@ impl crate::bedrock::codec::BedrockCodec for ItemContent {
         args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
+        println!("DEBUG: Decoding ItemContent. Rem: {}", buf.remaining());
         let count =
             <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
                 .0;
+        println!(
+            "DEBUG: Item count: {}. Raw bytes: {:?}. Rem: {}",
+            count,
+            count.to_le_bytes(),
+            buf.remaining()
+        );
+
+        if count == 0 {
+            return Ok(Self {
+                count,
+                metadata: 0,
+                has_stack_id: 0,
+                stack_id: None,
+                block_runtime_id: 0,
+                extra: ItemContentExtra::Default(Default::default()),
+            });
+        }
+
         let metadata =
             <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
+        println!(
+            "DEBUG: Item metadata: {}. Rem: {}",
+            metadata,
+            buf.remaining()
+        );
         let has_stack_id = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        println!(
+            "DEBUG: Item has_stack_id: {} (0x{:X}). Rem: {}",
+            has_stack_id,
+            has_stack_id,
+            buf.remaining()
+        );
         let stack_id = if (has_stack_id) != 0 {
             Some(
                 <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -5923,70 +5959,100 @@ impl crate::bedrock::codec::BedrockCodec for ItemContent {
         } else {
             None
         };
+        println!(
+            "DEBUG: Item stack_id: {:?}. Rem: {}",
+            stack_id,
+            buf.remaining()
+        );
         let block_runtime_id =
             <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
+        println!(
+            "DEBUG: Item block_runtime_id: {}. Rem: {}",
+            block_runtime_id,
+            buf.remaining()
+        );
         let extra = match args.network_id {
             x if x == args.shield_item_id => ItemContentExtra::ShieldItemId({
+                println!("DEBUG: ItemContentExtra::ShieldItemId decoding...");
                 let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                             buf,
                             (),
                         )?
                         .0) as i64;
+                println!(
+                    "DEBUG: ShieldItemId len_raw: {}. Rem: {}",
+                    len_raw,
+                    buf.remaining()
+                );
                 if len_raw < 0 {
                     return Err(crate::bedrock::error::DecodeError::NegativeLength {
                         value: len_raw,
                     });
                 }
-                let len = len_raw as usize;
-                if buf.remaining() < len {
-                    return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
-                        declared: len,
-                        available: buf.remaining(),
-                    });
+                if len_raw == 0 {
+                    Default::default()
+                } else {
+                    let len = len_raw as usize;
+                    if buf.remaining() < len {
+                        return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                            declared: len,
+                            available: buf.remaining(),
+                        });
+                    }
+                    let mut slice = bytes::Buf::take(&mut *buf, len);
+                    let value = {
+                        let buf = &mut slice;
+                        <ItemExtraDataWithBlockingTick as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                    };
+                    let _ = slice.remaining();
+                    value
                 }
-                let mut slice = bytes::Buf::take(&mut *buf, len);
-                let value = {
-                    let buf = &mut slice;
-                    <ItemExtraDataWithBlockingTick as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?
-                };
-                let _ = slice.remaining();
-                value
             }),
             _ => ItemContentExtra::Default({
+                println!("DEBUG: ItemContentExtra::Default decoding...");
                 let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                             buf,
                             (),
                         )?
                         .0) as i64;
+                println!(
+                    "DEBUG: Default len_raw: {}. Rem: {}",
+                    len_raw,
+                    buf.remaining()
+                );
                 if len_raw < 0 {
                     return Err(crate::bedrock::error::DecodeError::NegativeLength {
                         value: len_raw,
                     });
                 }
-                let len = len_raw as usize;
-                if buf.remaining() < len {
-                    return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
-                        declared: len,
-                        available: buf.remaining(),
-                    });
+                if len_raw == 0 {
+                    Default::default()
+                } else {
+                    let len = len_raw as usize;
+                    if buf.remaining() < len {
+                        return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                            declared: len,
+                            available: buf.remaining(),
+                        });
+                    }
+                    let mut slice = bytes::Buf::take(&mut *buf, len);
+                    let value = {
+                        let buf = &mut slice;
+                        <ItemExtraDataWithoutBlockingTick as crate::bedrock::codec::BedrockCodec>::decode(
+                                buf,
+                                (),
+                            )?
+                    };
+                    let _ = slice.remaining();
+                    value
                 }
-                let mut slice = bytes::Buf::take(&mut *buf, len);
-                let value = {
-                    let buf = &mut slice;
-                    <ItemExtraDataWithoutBlockingTick as crate::bedrock::codec::BedrockCodec>::decode(
-                            buf,
-                            (),
-                        )?
-                };
-                let _ = slice.remaining();
-                value
             }),
         };
         Ok(Self {
@@ -6030,13 +6096,35 @@ impl crate::bedrock::codec::BedrockCodec for Item {
         args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
+        println!("DEBUG: ===== Decoding Item. Rem: {} =====", buf.remaining());
+
+        // Check if we have enough bytes for at least the network_id (VarInt minimum is 1 byte)
+        if buf.remaining() < 1 {
+            println!(
+                "ERROR: Not enough bytes to decode Item network_id. Rem: {}",
+                buf.remaining()
+            );
+            return Err(crate::bedrock::error::DecodeError::UnexpectedEof {
+                needed: 1,
+                available: buf.remaining(),
+            });
+        }
+
         let network_id =
             <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
+        println!(
+            "DEBUG: Item network_id: {} (0x{:X}). Rem: {}",
+            network_id,
+            network_id,
+            buf.remaining()
+        );
+
         let content = if (network_id) != 0 {
+            println!("DEBUG: Item has content, decoding ItemContent...");
             Some(Box::new(
                 <ItemContent as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
@@ -6047,8 +6135,13 @@ impl crate::bedrock::codec::BedrockCodec for Item {
                 )?,
             ))
         } else {
+            println!("DEBUG: Item network_id is 0, no content");
             None
         };
+        println!(
+            "DEBUG: ===== Item decode complete. Rem: {} =====",
+            buf.remaining()
+        );
         Ok(Self {
             network_id,
             content,
@@ -15240,6 +15333,8 @@ pub enum TransactionActionsItemSourceType {
     Global = 1,
     WorldInteraction = 2,
     Creative = 3,
+    // Manually added to fix crash (protocol update?)
+    Creative2 = 248,
     CraftSlot = 100,
     Craft = 99999,
 }
@@ -15263,6 +15358,7 @@ impl crate::bedrock::codec::BedrockCodec for TransactionActionsItemSourceType {
             1 => Ok(TransactionActionsItemSourceType::Global),
             2 => Ok(TransactionActionsItemSourceType::WorldInteraction),
             3 => Ok(TransactionActionsItemSourceType::Creative),
+            248 => Ok(TransactionActionsItemSourceType::Creative2),
             100 => Ok(TransactionActionsItemSourceType::CraftSlot),
             99999 => Ok(TransactionActionsItemSourceType::Craft),
             _ => Err(crate::bedrock::error::DecodeError::InvalidEnumValue {
@@ -15300,6 +15396,7 @@ pub enum WindowIdVarint {
     None = -1,
     Inventory = 0,
     First = 1,
+    Unknown3 = 3,
     Last = 100,
     Offhand = 119,
     Armor = 120,
@@ -15307,6 +15404,7 @@ pub enum WindowIdVarint {
     Hotbar = 122,
     FixedInventory = 123,
     Ui = 124,
+    Creative2 = 248,
 }
 impl crate::bedrock::codec::BedrockCodec for WindowIdVarint {
     type Args = ();
@@ -15344,6 +15442,7 @@ impl crate::bedrock::codec::BedrockCodec for WindowIdVarint {
             -1 => Ok(WindowIdVarint::None),
             0 => Ok(WindowIdVarint::Inventory),
             1 => Ok(WindowIdVarint::First),
+            3 => Ok(WindowIdVarint::Unknown3),
             100 => Ok(WindowIdVarint::Last),
             119 => Ok(WindowIdVarint::Offhand),
             120 => Ok(WindowIdVarint::Armor),
@@ -15351,6 +15450,7 @@ impl crate::bedrock::codec::BedrockCodec for WindowIdVarint {
             122 => Ok(WindowIdVarint::Hotbar),
             123 => Ok(WindowIdVarint::FixedInventory),
             124 => Ok(WindowIdVarint::Ui),
+            248 => Ok(WindowIdVarint::Creative2),
             _ => Err(crate::bedrock::error::DecodeError::InvalidEnumValue {
                 enum_name: stringify!(WindowIdVarint),
                 value: val as i64,
@@ -15452,15 +15552,18 @@ pub struct TransactionActionsItem {
     pub slot: i32,
     pub old_item: Item,
     pub new_item: Item,
+    pub stack_network_id: Option<i32>,
 }
 #[derive(Debug, Clone)]
 pub struct TransactionActionsItemArgs {
     pub shield_item_id: i32,
+    pub has_stack_net_ids: bool,
 }
 impl<'a> From<&'a crate::bedrock::context::BedrockSession> for TransactionActionsItemArgs {
     fn from(source: &'a crate::bedrock::context::BedrockSession) -> Self {
         Self {
             shield_item_id: source.shield_item_id,
+            has_stack_net_ids: false,
         }
     }
 }
@@ -15468,6 +15571,9 @@ impl crate::bedrock::codec::BedrockCodec for TransactionActionsItem {
     type Args = TransactionActionsItemArgs;
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
+        if let Some(id) = self.stack_network_id {
+            crate::bedrock::codec::VarInt(id).encode(buf)?;
+        }
         self.source_type.encode(buf)?;
         if let Some(v) = &self.content {
             match v {
@@ -15495,6 +15601,17 @@ impl crate::bedrock::codec::BedrockCodec for TransactionActionsItem {
         args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
+        let stack_network_id = if args.has_stack_net_ids {
+            Some(
+                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+                    buf,
+                    (),
+                )?
+                .0,
+            )
+        } else {
+            None
+        };
         let source_type =
             <TransactionActionsItemSourceType as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
@@ -15566,6 +15683,7 @@ impl crate::bedrock::codec::BedrockCodec for TransactionActionsItem {
             slot,
             old_item,
             new_item,
+            stack_network_id,
         })
     }
 }
@@ -15825,46 +15943,92 @@ impl crate::bedrock::codec::BedrockCodec for TransactionUseItem {
         args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
+        println!(
+            "DEBUG: Decoding TransactionUseItem. Rem: {}",
+            buf.remaining()
+        );
         let action_type =
             <TransactionUseItemActionType as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        println!(
+            "DEBUG: action_type: {:?}. Rem: {}",
+            action_type,
+            buf.remaining()
+        );
         let trigger_type =
             <TransactionUseItemTriggerType as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?;
+        println!(
+            "DEBUG: trigger_type: {:?}. Rem: {}",
+            trigger_type,
+            buf.remaining()
+        );
         let block_position =
             <BlockCoordinates as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        println!(
+            "DEBUG: block_position: {:?}. Rem: {}",
+            block_position,
+            buf.remaining()
+        );
         let face =
             <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
+        println!("DEBUG: face: {}. Rem: {}", face, buf.remaining());
         let hotbar_slot =
             <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
+        println!(
+            "DEBUG: hotbar_slot: {}. Rem: {}",
+            hotbar_slot,
+            buf.remaining()
+        );
         let held_item = <Item as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             ItemArgs {
                 shield_item_id: args.shield_item_id,
             },
         )?;
+        println!("DEBUG: held_item decoded. Rem: {}", buf.remaining());
         let player_pos = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        println!(
+            "DEBUG: player_pos: {:?}. Rem: {}",
+            player_pos,
+            buf.remaining()
+        );
         let click_pos = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        println!(
+            "DEBUG: click_pos: {:?}. Rem: {}",
+            click_pos,
+            buf.remaining()
+        );
         let block_runtime_id =
             <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
+        println!(
+            "DEBUG: block_runtime_id: {}. Rem: {}",
+            block_runtime_id,
+            buf.remaining()
+        );
         let client_prediction =
             <TransactionUseItemClientPrediction as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?;
+        println!(
+            "DEBUG: client_prediction: {:?}. Rem: {}",
+            client_prediction,
+            buf.remaining()
+        );
         Ok(Self {
             action_type,
             trigger_type,
@@ -16006,6 +16170,7 @@ pub struct Transaction {
     pub legacy: TransactionLegacy,
     pub transaction_type: TransactionTransactionType,
     pub actions: TransactionActions,
+    pub has_stack_net_ids: bool,
     pub transaction_data: Option<TransactionTransactionData>,
 }
 #[derive(Debug, Clone)]
@@ -16027,6 +16192,7 @@ impl crate::bedrock::codec::BedrockCodec for Transaction {
         self.transaction_type.encode(buf)?;
         let len = self.actions.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
+        self.has_stack_net_ids.encode(buf)?;
         for item in &self.actions {
             item.encode(buf)?;
         }
@@ -16051,22 +16217,24 @@ impl crate::bedrock::codec::BedrockCodec for Transaction {
         buf: &mut B,
         args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
-        let _ = buf;
         let legacy = <TransactionLegacy as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let transaction_type =
             <TransactionTransactionType as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let action_count =
+            <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let has_stack_net_ids = false;
         let actions = {
             let res: TransactionActions = {
-                let raw =
-                    <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?
-                    .0 as i64;
-                if raw < 0 {
-                    return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                if action_count < 0 {
+                    return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                        value: action_count as i64,
+                    });
                 }
-                let len = raw as usize;
+                let len = action_count as usize;
                 let mut tmp_vec = Vec::with_capacity(len);
                 for _ in 0..len {
                     tmp_vec.push(
@@ -16074,6 +16242,7 @@ impl crate::bedrock::codec::BedrockCodec for Transaction {
                             buf,
                             TransactionActionsItemArgs {
                                 shield_item_id: args.shield_item_id,
+                                has_stack_net_ids,
                             },
                         )?,
                     );
@@ -16128,14 +16297,13 @@ impl crate::bedrock::codec::BedrockCodec for Transaction {
                     ),
                 )
             }
-            TransactionTransactionType::Normal => {
-                Some(TransactionTransactionData::Normal)
-            }
+            TransactionTransactionType::Normal => Some(TransactionTransactionData::Normal),
         };
         Ok(Self {
             legacy,
             transaction_type,
             actions,
+            has_stack_net_ids,
             transaction_data,
         })
     }
@@ -22444,6 +22612,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerAuthInputPacketTransaction {
                             buf,
                             TransactionActionsItemArgs {
                                 shield_item_id: args.shield_item_id,
+                                has_stack_net_ids: false,
                             },
                         )?,
                     );

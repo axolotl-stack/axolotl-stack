@@ -10,11 +10,11 @@ pub mod mcpe;
 pub use mcpe::*;
 pub mod common;
 pub use common::*;
-pub mod biomes;
-pub mod blocks;
-pub mod entities;
 pub mod items;
+pub mod blocks;
 pub mod states;
+pub mod entities;
+pub mod biomes;
 pub mod bedrock {
     pub use valentine_bedrock_core::bedrock::codec;
     pub use valentine_bedrock_core::bedrock::context;

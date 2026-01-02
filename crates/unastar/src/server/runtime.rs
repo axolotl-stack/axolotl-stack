@@ -128,6 +128,7 @@ impl UnastarServer {
             warn!(error = %e, "Failed to load plugins");
         }
 
+        info!("Plugin manager initialized, creating server struct");
         Ok(Self {
             config,
             player_data_store,
@@ -141,6 +142,7 @@ impl UnastarServer {
     ///
     /// This binds the listener, spawns the accept loop, and runs the tick loop until shutdown.
     pub async fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        info!("run() called, starting server initialization");
         let default_chunk_radius = self.server.config.default_chunk_radius;
 
         // Build listener config from server settings
@@ -270,10 +272,8 @@ impl UnastarServer {
                     let tick_logic_start = std::time::Instant::now();
                     self.server.tick();
                     
-                    // Run plugin tick
-                    self.plugin_manager.tick(self.server.ecs.world_mut()).await;
-
-                    let tick_logic_elapsed = tick_logic_start.elapsed();
+                                    // Run plugin tick
+                                    self.plugin_manager.tick(self.server.ecs.world_mut()).await;                    let tick_logic_elapsed = tick_logic_start.elapsed();
 
                     // Signal all network tasks to flush their buffers
                     let _ = tick_tx.send(());

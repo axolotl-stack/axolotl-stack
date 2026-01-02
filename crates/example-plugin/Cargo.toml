@@ -4,9 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [lib]
-crate-type = ["cdylib"]
+# No longer cdylib - just a regular Rust library
+crate-type = ["rlib", "cdylib"]
 
 [dependencies]
-unastar_api = { path = "../unastar-api" }
-unastar_api_macros = { path = "../unastar-api-macros" }
-serde_json = "1.0"
+# Native plugin dependencies
+unastar_api = { path = "../unastar-api", features = ["native"] }
+bevy_ecs = { workspace = true }
+tracing.workspace = true
+abi_stable = "0.11"

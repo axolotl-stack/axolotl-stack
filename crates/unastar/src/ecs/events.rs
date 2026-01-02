@@ -35,6 +35,50 @@ pub enum ServerEvent {
     Timer {
         id: u64,
     },
+    PlayerMove {
+        entity: Entity,
+        from: (f64, f64, f64),
+        to: (f64, f64, f64),
+    },
+    PlayerJump {
+        entity: Entity,
+    },
+    PlayerToggleSneak {
+        entity: Entity,
+        is_sneaking: bool,
+    },
+    PlayerToggleSprint {
+        entity: Entity,
+        is_sprinting: bool,
+    },
+    PlayerQuit {
+        entity: Entity,
+    },
+    PlayerHeldSlotChange {
+        entity: Entity,
+        old_slot: u8,
+        new_slot: u8,
+    },
+    PlayerStartBreak {
+        entity: Entity,
+        position: (i32, i32, i32),
+        face: u8,
+    },
+    PlayerInteractBlock {
+        entity: Entity,
+        position: (i32, i32, i32),
+        face: u8,
+    },
+    PlayerItemUse {
+        entity: Entity,
+    },
+    PlayerSwing {
+        entity: Entity,
+    },
+    TaskComplete {
+        task_id: u32,
+        result: unastar_api::TaskResult,
+    },
 }
 
 impl ServerEvent {
@@ -47,6 +91,17 @@ impl ServerEvent {
             ServerEvent::BlockBreak { .. } => EventKind::BlockBreak,
             ServerEvent::BlockPlace { .. } => EventKind::BlockPlace,
             ServerEvent::Timer { .. } => EventKind::Timer,
+            ServerEvent::PlayerMove { .. } => EventKind::PlayerMove,
+            ServerEvent::PlayerJump { .. } => EventKind::PlayerJump,
+            ServerEvent::PlayerToggleSneak { .. } => EventKind::PlayerToggleSneak,
+            ServerEvent::PlayerToggleSprint { .. } => EventKind::PlayerToggleSprint,
+            ServerEvent::PlayerQuit { .. } => EventKind::PlayerQuit,
+            ServerEvent::PlayerHeldSlotChange { .. } => EventKind::PlayerHeldSlotChange,
+            ServerEvent::PlayerStartBreak { .. } => EventKind::PlayerStartBreak,
+            ServerEvent::PlayerInteractBlock { .. } => EventKind::PlayerInteractBlock,
+            ServerEvent::PlayerItemUse { .. } => EventKind::PlayerItemUse,
+            ServerEvent::PlayerSwing { .. } => EventKind::PlayerSwing,
+            ServerEvent::TaskComplete { .. } => EventKind::TaskComplete,
         }
     }
 }

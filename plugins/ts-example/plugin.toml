@@ -1,5 +1,0 @@
-id = "axolotl.example-ts"
-name = "TS Example Plugin"
-version = "0.1.0"
-api_version = "0.1.0"
-subscriptions = ["player_chat", "tick"]

@@ -21,6 +21,14 @@ use jolyne::valentine::{
 #[derive(Resource)]
 pub struct ServerWorldTemplate(pub Arc<jolyne::WorldTemplate>);
 
+/// Wrapper for ItemRegistry to serve as an ECS Resource.
+#[derive(Resource)]
+pub struct ItemRegistryResource(pub Arc<crate::registry::ItemRegistry>);
+
+/// Wrapper for BlockRegistry to serve as an ECS Resource.
+#[derive(Resource)]
+pub struct BlockRegistryResource(pub Arc<crate::registry::BlockRegistry>);
+
 /// Mapping from session ID to ECS entity.
 #[derive(Resource, Default)]
 pub struct SessionEntityMap {

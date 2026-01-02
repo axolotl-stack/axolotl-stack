@@ -17,19 +17,16 @@ bind_address = "0.0.0.0:19132"
 motd = "Unastar Server"
 
 # Soft maximum: connection acceptance still depends on upstream layers.
-max_players = 2000
-
-# Default gamemode for new players
-default_gamemode = "creative"
+max_players = 20
 
 # Chunk radius we will *advertise* to clients and stream.
 # (Clients may request a different radius; we clamp it by `max_chunk_radius`.)
-default_chunk_radius = 16
-max_chunk_radius = 32
+default_chunk_radius = 4
+max_chunk_radius = 12
 
 # Authentication settings
 # Xbox Live authentication. Set to false for offline/cracked clients.
-online_mode = false
+online_mode = true
 # Allow legacy JWT chains (self-signed/guest). Required for stress testing.
 allow_legacy_auth = true
 # Enable encryption handshake. Set to false for debugging.
@@ -38,12 +35,6 @@ encryption_enabled = true
 [world]
 # Dimension ID: 0 = Overworld, 1 = Nether, 2 = End
 dimension = 0
-
-# Storage provider: "level_db" (default, Bedrock-compatible) or "blaze_db" (high-performance)
-storage_provider = "blaze_db"
-
-# BlazeDB cache size in chunks (only used if storage_provider = "blaze_db")
-blazedb_cache_chunks = 512
 
 [world.bounds]
 # Bounds are applied to *terrain generation* (non-air). Chunks outside bounds
@@ -58,16 +49,30 @@ mode = "infinite"
 # max_z = 64
 
 [world.generator]
-# kinds: "super_flat" | "void_spawn_platform" | "vanilla"
-kind = "super_flat"
-seed = 13839202835
+# kinds: "flat_stone" | "void_spawn_platform"
+kind = "void_spawn_platform"
+# For void worlds, generate a stone platform at chunk coords [-r..r].
+platform_radius_chunks = 1
+
+[world.storage]
+# Directory for world data (relative to working dir).
+data_dir = "worlds"
+# Enable LevelDB-based chunk persistence.
+leveldb_enabled = true
+# Save modified chunks on shutdown.
+save_on_shutdown = true
 
 [players]
-# Where Unastar stores per-player files (e.g. last known position).
-data_dir = "playerdata"
+data_dir = "player_data"
 
-# If true, Unastar writes a player's last known position on disconnect.
+# If true, Unastar writes a player's last known position on disconnect (legacy TOML format).
 save_previous_position = true
+
+# Enable LevelDB-based player persistence (recommended).
+leveldb_enabled = true
+
+# Save player data on disconnect (requires leveldb_enabled).
+save_on_disconnect = true
 
 # Spawn rules.
 #
@@ -84,6 +89,7 @@ save_previous_position = true
 [[spawn_rules]]
 name = "main"
 
+# Where Unastar stores per-player files (e.g. last known position).
 # If true, try to place returning players at their last saved position.
 previous_position = true
 

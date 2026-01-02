@@ -6,7 +6,11 @@
 mod blocks;
 mod chunks;
 mod commands;
+pub mod host;
 mod join;
+mod packet_domains;
+mod packet_router;
+mod packet_routing;
 mod packets;
 mod plugins;
 pub mod types;
@@ -118,10 +122,37 @@ impl GameServer {
             .init_resource::<bevy_ecs::message::Messages<PlayerSpawnedEvent>>();
         ecs.world_mut()
             .init_resource::<bevy_ecs::message::Messages<PlayerDespawnedEvent>>();
+
+        // Initialize packet routing queues
+        ecs.world_mut()
+            .insert_resource(packet_routing::PacketQueues::default());
+
+        // Initialize native plugin registry
+        let mut plugin_registry = crate::plugin::PluginRegistry::new();
+
+        // Load static plugins (development)
+        plugin_registry.add_plugin(example_plugin::_create_plugin(), ecs.world_mut());
+
+        // Load dynamic plugins
+        let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        let plugins_dir = cwd.join("plugins");
+        let loaded_plugins = crate::plugin::loader::PluginLoader::load_from_dir(plugins_dir);
+        for plugin in loaded_plugins {
+            plugin_registry.add_plugin(plugin, ecs.world_mut());
+        }
+
+        ecs.world_mut().insert_resource(plugin_registry);
+        ecs.world_mut()
+            .insert_resource(unastar_api::native::NativeActionQueue::default());
+
         ecs.world_mut().add_observer(on_block_changed);
         register_chunk_systems(ecs.schedule_mut());
         ecs.schedule_mut().add_systems(
-            (tick_block_breaking, plugins::process_plugin_actions).in_set(EntityLogicSet),
+            (
+                tick_block_breaking,
+                (sync_native_actions, plugins::process_plugin_actions).chain(),
+            )
+                .in_set(EntityLogicSet),
         );
         ecs.schedule_mut().add_systems(
             (
@@ -136,6 +167,11 @@ impl GameServer {
         );
         ecs.schedule_mut()
             .add_systems(cleanup_despawned_entities.in_set(CleanupSet));
+
+        ecs.world_mut()
+            .insert_resource(types::ItemRegistryResource(Arc::new(items.clone())));
+        ecs.world_mut()
+            .insert_resource(types::BlockRegistryResource(Arc::new(blocks.clone())));
 
         info!("Registries loaded");
         Self {
@@ -297,7 +333,13 @@ impl GameServer {
 
         let creative_data = match CreativeInventoryData::load() {
             Ok(data) => data,
-            Err(_) => return CreativeContentPacket::default(),
+            Err(e) => {
+                warn!(
+                    "Failed to load creative inventory data: {}. Using empty creative content.",
+                    e
+                );
+                return CreativeContentPacket::default();
+            }
         };
 
         let mut protocol_groups = Vec::new();
@@ -322,25 +364,37 @@ impl GameServer {
                 });
 
                 for creative_item in &group.items {
-                    if let Some(item) = items.get_by_name(creative_item.item_id()) {
-                        let block_runtime_id = blocks
-                            .get_by_name(creative_item.item_id())
-                            .map_or(0, |b| b.default_state_id as i32);
-                        items_list.push(CreativeContentPacketItemsItem {
-                            entry_id: entry_id_counter,
-                            item: ItemLegacy {
-                                network_id: item.id as i32,
-                                content: Some(Box::new(ItemLegacyContent {
-                                    count: 1,
-                                    metadata: creative_item.damage().into(),
-                                    block_runtime_id,
-                                    extra: ItemLegacyContentExtra::default(),
-                                })),
-                            },
-                            group_index: global_group_index,
+                    // Always increment entry_id to maintain correct indexing with client
+                    let item_network_id = items
+                        .get_by_name(creative_item.item_id())
+                        .map(|item| item.id as i32)
+                        .unwrap_or_else(|| {
+                            // Item not found in registry - use placeholder
+                            warn!(
+                                "Creative item not found in registry: {}",
+                                creative_item.item_id()
+                            );
+                            1 // Use dirt as placeholder
                         });
-                        entry_id_counter += 1;
-                    }
+
+                    let block_runtime_id = blocks
+                        .get_by_name(creative_item.item_id())
+                        .map_or(0, |b| b.default_state_id as i32);
+
+                    items_list.push(CreativeContentPacketItemsItem {
+                        entry_id: entry_id_counter,
+                        item: ItemLegacy {
+                            network_id: item_network_id,
+                            content: Some(Box::new(ItemLegacyContent {
+                                count: 1,
+                                metadata: creative_item.damage().into(),
+                                block_runtime_id,
+                                extra: ItemLegacyContentExtra::default(),
+                            })),
+                        },
+                        group_index: global_group_index,
+                    });
+                    entry_id_counter += 1;
                 }
                 global_group_index += 1;
             }
@@ -355,5 +409,21 @@ impl GameServer {
 impl Default for GameServer {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// System to bridge NativeActionQueue (from native plugins) to ActionQueue (processed by server).
+fn sync_native_actions(
+    mut native_queue: ResMut<unastar_api::native::NativeActionQueue>,
+    mut action_queue: ResMut<crate::ecs::events::ActionQueue>,
+) {
+    if !native_queue.actions.is_empty() {
+        action_queue.push(unastar_api::PluginAction::Log {
+            level: unastar_api::LogLevel::Info,
+            message: format!("Syncing {} native actions", native_queue.actions.len()),
+        });
+        for action in native_queue.actions.drain(..) {
+            action_queue.push(action);
+        }
     }
 }

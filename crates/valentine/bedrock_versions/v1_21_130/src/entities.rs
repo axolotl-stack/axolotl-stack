@@ -1,7 +1,7 @@
 //! Generated vanilla entity data.
 //! Do not edit: regenerate with valentine_gen.
 
-pub use valentine_bedrock_core::entity::*;
+pub use valentine_bedrock_core::entity::{EntityData, EntityType};
 
 /// Chicken
 pub const CHICKEN: EntityData = EntityData {
