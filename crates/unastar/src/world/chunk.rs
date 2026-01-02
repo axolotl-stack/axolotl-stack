@@ -35,6 +35,7 @@ const SUBCHUNK_VERSION: u8 = 9;
 /// Uses default_state_id() from valentine-generated block definitions.
 pub mod blocks {
     use jolyne::valentine::blocks::BLOCKS;
+    use std::collections::HashMap;
     use std::sync::LazyLock;
 
     /// Lookup a block's default state ID by string ID.
@@ -46,6 +47,25 @@ pub mod blocks {
         }
         // Fallback to air if not found
         lookup("minecraft:air")
+    }
+
+    /// Pre-built block name -> ID lookup map for surface rules.
+    /// This provides O(1) lookup for generated surface rules.
+    static BLOCK_LOOKUP: LazyLock<HashMap<String, u32>> = LazyLock::new(|| {
+        let mut map = HashMap::new();
+        for block in BLOCKS.iter() {
+            map.insert(block.string_id().to_string(), block.default_state_id());
+        }
+        map
+    });
+
+    /// Get block ID by name. Returns AIR if not found.
+    ///
+    /// This is the primary lookup function for surface rules.
+    /// It uses a pre-built HashMap for O(1) lookup.
+    #[inline]
+    pub fn get_block_id(name: &str) -> u32 {
+        BLOCK_LOOKUP.get(name).copied().unwrap_or(*AIR)
     }
 
     // Core blocks

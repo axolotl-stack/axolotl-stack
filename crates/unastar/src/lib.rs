@@ -3,6 +3,8 @@
 //! The core server implementation for Minecraft Bedrock Edition.
 //! Uses ECS (bevy_ecs) for entity and player state management.
 
+#![feature(portable_simd)]
+
 pub mod command;
 pub mod config;
 pub mod ecs;

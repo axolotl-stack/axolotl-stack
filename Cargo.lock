@@ -3633,9 +3633,22 @@ dependencies = [
  "toml_edit 0.22.27",
  "tracing",
  "tracing-subscriber",
+ "unastar_noise",
  "uuid",
  "valentine",
  "zuri_nbt",
+]
+
+[[package]]
+name = "unastar_noise"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "syn",
+ "walkdir",
 ]
 
 [[package]]

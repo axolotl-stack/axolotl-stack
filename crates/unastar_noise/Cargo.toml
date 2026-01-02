@@ -1,0 +1,21 @@
+[package]
+name = "unastar_noise"
+version = "0.1.0"
+edition.workspace = true
+build = "build.rs"
+
+[features]
+default = []
+# Enable debug logging for worldgen verification (FlatCache grid positions, lookup indices, etc.)
+debug-worldgen = []
+
+[dependencies]
+# Runtime dependencies - none for now, types are self-contained
+
+[build-dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+walkdir = "2"
+syn = { version = "2", features = ["full", "extra-traits"] }
+quote = "1"
+proc-macro2 = "1"

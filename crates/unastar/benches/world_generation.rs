@@ -84,7 +84,7 @@ fn bench_perlin_noise(c: &mut Criterion) {
     group.bench_function("sample_4_simd", |b| {
         let x = [1.5, 2.5, 3.5, 4.5];
         let z = [3.5, 3.5, 3.5, 3.5];
-        b.iter(|| black_box(noise.sample_4(black_box(x), black_box(2.5), black_box(z))))
+        b.iter(|| black_box(noise.sample_4_arrays(black_box(x), black_box(2.5), black_box(z))))
     });
 
     // Compare: 4 single samples
@@ -122,7 +122,7 @@ fn bench_octave_noise(c: &mut Criterion) {
     group.bench_function("sample_4_simd", |b| {
         let x = [0.1, 0.2, 0.3, 0.4];
         let z = [0.3, 0.3, 0.3, 0.3];
-        b.iter(|| black_box(noise.sample_4(black_box(x), black_box(0.2), black_box(z))))
+        b.iter(|| black_box(noise.sample_4_arrays(black_box(x), black_box(0.2), black_box(z))))
     });
 
     // Compare: 4 single samples

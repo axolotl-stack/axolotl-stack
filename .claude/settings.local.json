@@ -4,7 +4,9 @@
       "Skill(research_codebase)",
       "Skill(research_codebase:*)",
       "Bash(cargo check:*)",
-      "Bash(cargo test:*)"
+      "Bash(cargo test:*)",
+      "Bash(cargo clean:*)",
+      "Bash(cargo build:*)"
     ]
   }
 }

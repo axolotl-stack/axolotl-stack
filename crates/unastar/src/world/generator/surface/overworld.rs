@@ -2,12 +2,18 @@
 //!
 //! This module builds the surface rules for the overworld dimension,
 //! matching vanilla Minecraft's surface generation.
+//!
+//! # Block Lookup
+//!
+//! Rules use block names (e.g., "minecraft:grass_block") which are resolved
+//! at apply time via a closure. This allows the rules to be used with custom
+//! block registries.
 
-use super::condition::{AbovePreliminarySurface, BiomeCheck, Hole, Steep, StoneDepthCheck, VerticalGradient, WaterCheck};
-use super::context::CaveSurface;
-use super::rule::{BlockRule, Rule, SequenceRule, TestRule};
-use crate::world::chunk::blocks;
-use crate::world::generator::constants::Biome;
+use unastar_noise::surface::{
+    AbovePreliminarySurface, BiomeCheck, BlockRule, CaveSurface, Hole, Rule, SequenceRule, Steep,
+    StoneDepthCheck, TestRule, VerticalGradient, WaterCheck,
+};
+use unastar_noise::Biome;
 
 /// Build the overworld surface rule matching vanilla.
 ///
@@ -45,7 +51,7 @@ fn build_bedrock_rule(seed: i64) -> Box<dyn Rule> {
     // Simple vertical gradient: 100% at Y=-64, 0% at Y=-59
     Box::new(TestRule::new(
         Box::new(VerticalGradient::new(-64, -59, seed)),
-        Box::new(BlockRule::new(*blocks::BEDROCK)),
+        Box::new(BlockRule::new("minecraft:bedrock")),
     ))
 }
 
@@ -59,7 +65,7 @@ fn build_deepslate_rule(seed: i64) -> Box<dyn Rule> {
     // Simple vertical gradient: 100% at Y=0, 0% at Y=8
     Box::new(TestRule::new(
         Box::new(VerticalGradient::new(0, 8, seed)),
-        Box::new(BlockRule::new(*blocks::DEEPSLATE)),
+        Box::new(BlockRule::new("minecraft:deepslate")),
     ))
 }
 
@@ -121,12 +127,12 @@ fn build_frozen_surface_rules() -> Box<dyn Rule> {
             // Top layer: snow block
             Box::new(TestRule::new(
                 Box::new(StoneDepthCheck::floor(0)),
-                Box::new(BlockRule::new(*blocks::SNOW_BLOCK)),
+                Box::new(BlockRule::new("minecraft:snow_block")),
             )),
             // Below: packed ice or dirt
             Box::new(TestRule::new(
                 Box::new(StoneDepthCheck::floor_with_depth(1, true)),
-                Box::new(BlockRule::new(*blocks::DIRT)),
+                Box::new(BlockRule::new("minecraft:dirt")),
             )),
         ])),
     ))
@@ -142,12 +148,12 @@ fn build_sandy_surface_rules() -> Box<dyn Rule> {
             // Top layers: sand
             Box::new(TestRule::new(
                 Box::new(StoneDepthCheck::floor_with_depth(0, true)),
-                Box::new(BlockRule::new(*blocks::SAND)),
+                Box::new(BlockRule::new("minecraft:sand")),
             )),
             // Deeper: sandstone (in desert)
             Box::new(TestRule::new(
                 Box::new(BiomeCheck::single(Biome::Desert)),
-                Box::new(BlockRule::new(*blocks::SANDSTONE)),
+                Box::new(BlockRule::new("minecraft:sandstone")),
             )),
         ])),
     ))
@@ -167,12 +173,12 @@ fn build_mountain_surface_rules() -> Box<dyn Rule> {
             // Steep slopes: exposed stone
             Box::new(TestRule::new(
                 Box::new(Steep),
-                Box::new(BlockRule::new(*blocks::STONE)),
+                Box::new(BlockRule::new("minecraft:stone")),
             )),
             // Flat areas: grass or gravel
             Box::new(TestRule::new(
                 Box::new(StoneDepthCheck::floor(0)),
-                Box::new(BlockRule::new(*blocks::GRASS_BLOCK)),
+                Box::new(BlockRule::new("minecraft:grass_block")),
             )),
         ])),
     ))
@@ -186,12 +192,12 @@ fn build_swamp_surface_rules() -> Box<dyn Rule> {
             // Top: grass
             Box::new(TestRule::new(
                 Box::new(StoneDepthCheck::floor(0)),
-                Box::new(BlockRule::new(*blocks::GRASS_BLOCK)),
+                Box::new(BlockRule::new("minecraft:grass_block")),
             )),
             // Below: dirt or clay
             Box::new(TestRule::new(
                 Box::new(StoneDepthCheck::floor_with_depth(1, true)),
-                Box::new(BlockRule::new(*blocks::DIRT)),
+                Box::new(BlockRule::new("minecraft:dirt")),
             )),
         ])),
     ))
@@ -209,12 +215,12 @@ fn build_savanna_surface_rules() -> Box<dyn Rule> {
             // Top: grass (occasionally coarse dirt handled elsewhere)
             Box::new(TestRule::new(
                 Box::new(StoneDepthCheck::floor(0)),
-                Box::new(BlockRule::new(*blocks::GRASS_BLOCK)),
+                Box::new(BlockRule::new("minecraft:grass_block")),
             )),
             // Below: dirt
             Box::new(TestRule::new(
                 Box::new(StoneDepthCheck::floor_with_depth(1, true)),
-                Box::new(BlockRule::new(*blocks::DIRT)),
+                Box::new(BlockRule::new("minecraft:dirt")),
             )),
         ])),
     ))
@@ -226,17 +232,17 @@ fn build_default_surface_rules() -> Box<dyn Rule> {
         // Check for hole (no surface)
         Box::new(TestRule::new(
             Box::new(Hole),
-            Box::new(BlockRule::new(*blocks::STONE)),
+            Box::new(BlockRule::new("minecraft:stone")),
         )),
         // Top layer: grass
         Box::new(TestRule::new(
             Box::new(StoneDepthCheck::floor(0)),
-            Box::new(BlockRule::new(*blocks::GRASS_BLOCK)),
+            Box::new(BlockRule::new("minecraft:grass_block")),
         )),
         // Below grass: dirt
         Box::new(TestRule::new(
             Box::new(StoneDepthCheck::floor_with_depth(1, true)),
-            Box::new(BlockRule::new(*blocks::DIRT)),
+            Box::new(BlockRule::new("minecraft:dirt")),
         )),
     ]))
 }
@@ -260,12 +266,12 @@ fn build_underwater_rules() -> Box<dyn Rule> {
                 // Top: sand or gravel depending on depth
                 Box::new(TestRule::new(
                     Box::new(StoneDepthCheck::floor(0)),
-                    Box::new(BlockRule::new(*blocks::SAND)),
+                    Box::new(BlockRule::new("minecraft:sand")),
                 )),
                 // Below: sand
                 Box::new(TestRule::new(
                     Box::new(StoneDepthCheck::floor_with_depth(1, true)),
-                    Box::new(BlockRule::new(*blocks::SAND)),
+                    Box::new(BlockRule::new("minecraft:sand")),
                 )),
             ])),
         )),
@@ -275,18 +281,18 @@ fn build_underwater_rules() -> Box<dyn Rule> {
             Box::new(SequenceRule::new(vec![
                 Box::new(TestRule::new(
                     Box::new(StoneDepthCheck::floor(0)),
-                    Box::new(BlockRule::new(*blocks::SAND)),
+                    Box::new(BlockRule::new("minecraft:sand")),
                 )),
                 Box::new(TestRule::new(
                     Box::new(StoneDepthCheck::floor_with_depth(1, true)),
-                    Box::new(BlockRule::new(*blocks::CLAY)),
+                    Box::new(BlockRule::new("minecraft:clay")),
                 )),
             ])),
         )),
         // Default underwater: gravel
         Box::new(TestRule::new(
             Box::new(StoneDepthCheck::floor_with_depth(0, true)),
-            Box::new(BlockRule::new(*blocks::GRAVEL)),
+            Box::new(BlockRule::new("minecraft:gravel")),
         )),
     ]))
 }
@@ -294,14 +300,20 @@ fn build_underwater_rules() -> Box<dyn Rule> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::world::generator::surface::SurfaceContext;
+    use crate::world::chunk::blocks;
+    use unastar_noise::surface::SurfaceContext;
+
+    // Block lookup for tests
+    fn get_block(name: &str) -> u32 {
+        blocks::get_block_id(name)
+    }
 
     #[test]
     fn test_build_overworld_surface_rule() {
         let rule = build_overworld_surface_rule(12345);
         let ctx = SurfaceContext::default();
         // Should not panic
-        let _ = rule.try_apply(&ctx);
+        let _ = rule.try_apply(&ctx, &get_block);
     }
 
     #[test]
@@ -315,9 +327,13 @@ mod tests {
         ctx.water_height = i32::MIN; // No water
         ctx.min_surface_level = 60; // Above preliminary surface
 
-        let result = rule.try_apply(&ctx);
+        let result = rule.try_apply(&ctx, &get_block);
         // Desert should get sand at surface
-        assert_eq!(result, Some(*blocks::SAND), "Desert surface should be sand");
+        assert_eq!(
+            result,
+            Some(get_block("minecraft:sand")),
+            "Desert surface should be sand"
+        );
     }
 
     #[test]
@@ -331,9 +347,13 @@ mod tests {
         ctx.water_height = i32::MIN;
         ctx.min_surface_level = 60; // Above preliminary surface
 
-        let result = rule.try_apply(&ctx);
+        let result = rule.try_apply(&ctx, &get_block);
         // Plains should get grass at surface
-        assert_eq!(result, Some(*blocks::GRASS_BLOCK), "Plains surface should be grass");
+        assert_eq!(
+            result,
+            Some(get_block("minecraft:grass_block")),
+            "Plains surface should be grass"
+        );
     }
 
     #[test]
@@ -347,9 +367,13 @@ mod tests {
         ctx.water_height = i32::MIN;
         ctx.min_surface_level = 60; // Above preliminary surface
 
-        let result = rule.try_apply(&ctx);
+        let result = rule.try_apply(&ctx, &get_block);
         // Snowy biomes should get snow
-        assert_eq!(result, Some(*blocks::SNOW_BLOCK), "Snowy surface should be snow");
+        assert_eq!(
+            result,
+            Some(get_block("minecraft:snow_block")),
+            "Snowy surface should be snow"
+        );
     }
 
     #[test]
@@ -363,9 +387,13 @@ mod tests {
         ctx.water_height = 63; // Underwater
         ctx.min_surface_level = 45; // Above preliminary surface
 
-        let result = rule.try_apply(&ctx);
+        let result = rule.try_apply(&ctx, &get_block);
         // Ocean floor should be sand
-        assert_eq!(result, Some(*blocks::SAND), "Ocean floor should be sand");
+        assert_eq!(
+            result,
+            Some(get_block("minecraft:sand")),
+            "Ocean floor should be sand"
+        );
     }
 
     #[test]
@@ -380,9 +408,13 @@ mod tests {
         ctx.steep = true;
         ctx.min_surface_level = 95; // Above preliminary surface
 
-        let result = rule.try_apply(&ctx);
+        let result = rule.try_apply(&ctx, &get_block);
         // Steep mountain should be stone
-        assert_eq!(result, Some(*blocks::STONE), "Steep mountain should be stone");
+        assert_eq!(
+            result,
+            Some(get_block("minecraft:stone")),
+            "Steep mountain should be stone"
+        );
     }
 
     #[test]
@@ -397,7 +429,7 @@ mod tests {
         ctx.water_height = i32::MIN;
         ctx.min_surface_level = 60; // Surface is at Y=60, we're below it
 
-        let result = rule.try_apply(&ctx);
+        let result = rule.try_apply(&ctx, &get_block);
         // Cave floor should NOT get grass - AbovePreliminarySurface should block it
         assert_eq!(result, None, "Cave floor should not get grass");
     }

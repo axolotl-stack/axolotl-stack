@@ -1,5 +1,4 @@
 use crate::auth::XblToken;
-use crate::constants::endpoints;
 use crate::error::{XblError, XblResult};
 use serde::{Deserialize, Serialize};
 

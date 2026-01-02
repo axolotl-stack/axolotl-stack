@@ -27,9 +27,11 @@
 //! 6. Determine ore vs filler based on richness and gap noise
 
 use crate::world::chunk::blocks;
-use crate::world::generator::density::{DensityFunction, FunctionContext};
-use crate::world::generator::xoroshiro::Xoroshiro128;
-use std::sync::Arc;
+use crate::world::generator::density::{
+    FunctionContext, FlatCacheGrid, ColumnContext, NoiseRegistry,
+    compute_vein_toggle, compute_vein_ridged, compute_vein_gap,
+};
+use crate::world::generator::xoroshiro::PositionalRandomFactory;
 
 // ========== Constants from Java ==========
 
@@ -120,36 +122,33 @@ impl VeinType {
 /// This is a BlockStateFiller that gets chained after the aquifer in the
 /// material rule list. It returns `Some(block)` to override the block at
 /// a position, or `None` to let other fillers handle it.
-pub struct OreVeinifier {
-    /// Vein toggle noise (positive = copper, negative = iron).
-    vein_toggle: Arc<dyn DensityFunction>,
-    /// Ridged noise for vein shape.
-    vein_ridged: Arc<dyn DensityFunction>,
-    /// Gap noise to add breaks in veins.
-    vein_gap: Arc<dyn DensityFunction>,
-    /// Seed for positional RNG.
-    seed: i64,
+/// Uses AOT-compiled density functions for maximum performance.
+pub struct OreVeinifier<'a> {
+    /// Noise registry for computing density functions.
+    noises: &'a NoiseRegistry,
+    /// FlatCacheGrid for Y-independent values.
+    grid: &'a FlatCacheGrid,
+    /// Positional random factory for ore generation.
+    /// This matches Java's `RandomState.oreRandom()`.
+    ore_random: PositionalRandomFactory,
 }
 
-impl OreVeinifier {
-    /// Create a new ore veinifier.
+impl<'a> OreVeinifier<'a> {
+    /// Create a new ore veinifier using AOT-compiled density functions.
     ///
     /// # Arguments
-    /// * `vein_toggle` - Density function for vein type selection
-    /// * `vein_ridged` - Density function for vein ridge pattern
-    /// * `vein_gap` - Density function for gap/break pattern
-    /// * `seed` - World seed for positional RNG
+    /// * `noises` - Noise registry for computing density functions
+    /// * `grid` - FlatCacheGrid for Y-independent values
+    /// * `ore_random` - Positional random factory for ore RNG (from `PositionalRandomFactory::fork_ore_random()`)
     pub fn new(
-        vein_toggle: Arc<dyn DensityFunction>,
-        vein_ridged: Arc<dyn DensityFunction>,
-        vein_gap: Arc<dyn DensityFunction>,
-        seed: i64,
+        noises: &'a NoiseRegistry,
+        grid: &'a FlatCacheGrid,
+        ore_random: PositionalRandomFactory,
     ) -> Self {
         Self {
-            vein_toggle,
-            vein_ridged,
-            vein_gap,
-            seed,
+            noises,
+            grid,
+            ore_random,
         }
     }
 
@@ -157,11 +156,14 @@ impl OreVeinifier {
     ///
     /// Returns `Some(block_id)` if this position is part of an ore vein,
     /// or `None` if no vein block should be placed (let other fillers handle).
-    pub fn compute(&self, ctx: &dyn FunctionContext) -> Option<u32> {
-        let y = ctx.block_y();
+    pub fn compute(&self, ctx: &FunctionContext) -> Option<u32> {
+        let y = ctx.block_y;
+
+        // Create ColumnContext for this column
+        let col = ColumnContext::new(ctx.block_x, ctx.block_z, self.noises, self.grid);
 
         // Step 1: Compute vein toggle to determine vein type
-        let toggle_value = self.vein_toggle.compute(ctx);
+        let toggle_value = compute_vein_toggle(ctx, self.noises, self.grid, &col);
 
         // Determine vein type from toggle sign
         let vein_type = if toggle_value > 0.0 {
@@ -196,16 +198,15 @@ impl OreVeinifier {
         }
 
         // Step 5: Positional random check for solidness
-        let x = ctx.block_x();
-        let z = ctx.block_z();
-        let mut rng = self.create_positional_rng(x, y, z);
+        // Use the proper PositionalRandomFactory.at() matching Java's implementation
+        let mut rng = self.ore_random.at(ctx.block_x, y, ctx.block_z);
 
         if rng.next_float() > VEIN_SOLIDNESS {
             return None;
         }
 
         // Step 6: Check ridged noise for vein shape
-        let ridged = self.vein_ridged.compute(ctx);
+        let ridged = compute_vein_ridged(ctx, self.noises, self.grid, &col);
         if ridged >= 0.0 {
             return None;
         }
@@ -221,7 +222,7 @@ impl OreVeinifier {
 
         if rng.next_float() < richness as f32 {
             // Check gap noise
-            let gap = self.vein_gap.compute(ctx);
+            let gap = compute_vein_gap(ctx, self.noises, self.grid, &col);
             if gap > SKIP_ORE_IF_GAP_NOISE_IS_BELOW {
                 // Place ore (small chance of raw ore block)
                 if rng.next_float() < CHANCE_OF_RAW_ORE_BLOCK {
@@ -237,17 +238,6 @@ impl OreVeinifier {
             // Not rich enough for ore - place filler
             Some(vein_type.filler())
         }
-    }
-
-    /// Create a positional RNG for the given coordinates.
-    fn create_positional_rng(&self, x: i32, y: i32, z: i32) -> Xoroshiro128 {
-        // Mix coordinates into seed like Java's RandomSource.create(seed).at(x, y, z)
-        let pos_seed = self
-            .seed
-            .wrapping_add(x as i64 * 3129871)
-            .wrapping_add(y as i64 * 116129781)
-            .wrapping_add(z as i64 * 759463);
-        Xoroshiro128::from_seed(pos_seed)
     }
 }
 

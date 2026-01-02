@@ -1,30 +1,10 @@
 //! Evaluation context for density functions.
+//!
+//! This module provides context types for density function evaluation.
+//! With the new enum-based DensityFunction system, we use the generated
+//! FunctionContext struct for single-point evaluation.
 
-use std::sync::Arc;
-
-/// Context for density function evaluation.
-///
-/// Provides the current block coordinates being evaluated.
-pub trait FunctionContext: Send + Sync {
-    /// Get the X coordinate of the current block.
-    fn block_x(&self) -> i32;
-
-    /// Get the Y coordinate of the current block.
-    fn block_y(&self) -> i32;
-
-    /// Get the Z coordinate of the current block.
-    fn block_z(&self) -> i32;
-
-    /// Returns true if this context is a NoiseChunk (the main interpolation loop).
-    ///
-    /// This is critical for caching behavior: when false, caches like NoiseInterpolator
-    /// should compute fresh values instead of returning cached interpolated values.
-    /// This allows systems like Aquifer to query arbitrary positions without getting
-    /// stale cached data from the main generation loop.
-    fn is_noise_chunk(&self) -> bool {
-        false
-    }
-}
+use unastar_noise::FunctionContext;
 
 /// Provider for batch context iteration.
 ///
@@ -32,54 +12,55 @@ pub trait FunctionContext: Send + Sync {
 /// need to be evaluated in sequence.
 pub trait ContextProvider: Send + Sync {
     /// Get a context for the given index in the batch.
-    fn for_index(&self, index: usize) -> Arc<dyn FunctionContext>;
-
-    /// Fill all values directly using the provided function.
-    ///
-    /// This can be more efficient than individual `for_index` calls
-    /// when the provider can optimize batch access.
-    fn fill_all_directly(
-        &self,
-        values: &mut [f64],
-        func: &dyn super::function::DensityFunction,
-    ) {
-        for (i, value) in values.iter_mut().enumerate() {
-            *value = func.compute(self.for_index(i).as_ref());
-        }
-    }
+    fn for_index(&self, index: usize) -> FunctionContext;
 }
 
 /// Simple single-point context.
 ///
-/// Used for evaluating density at a specific coordinate.
+/// Convenience wrapper around FunctionContext for evaluating density at a specific coordinate.
 #[derive(Debug, Clone, Copy)]
 pub struct SinglePointContext {
-    /// X coordinate
-    pub x: i32,
-    /// Y coordinate
-    pub y: i32,
-    /// Z coordinate
-    pub z: i32,
+    inner: FunctionContext,
 }
 
 impl SinglePointContext {
     /// Create a new single point context.
     pub fn new(x: i32, y: i32, z: i32) -> Self {
-        Self { x, y, z }
+        Self {
+            inner: FunctionContext::new(x, y, z),
+        }
+    }
+
+    /// Get the inner FunctionContext.
+    pub fn as_context(&self) -> &FunctionContext {
+        &self.inner
+    }
+
+    /// Get block X coordinate.
+    pub fn block_x(&self) -> i32 {
+        self.inner.block_x
+    }
+
+    /// Get block Y coordinate.
+    pub fn block_y(&self) -> i32 {
+        self.inner.block_y
+    }
+
+    /// Get block Z coordinate.
+    pub fn block_z(&self) -> i32 {
+        self.inner.block_z
     }
 }
 
-impl FunctionContext for SinglePointContext {
-    fn block_x(&self) -> i32 {
-        self.x
+impl From<SinglePointContext> for FunctionContext {
+    fn from(ctx: SinglePointContext) -> Self {
+        ctx.inner
     }
+}
 
-    fn block_y(&self) -> i32 {
-        self.y
-    }
-
-    fn block_z(&self) -> i32 {
-        self.z
+impl AsRef<FunctionContext> for SinglePointContext {
+    fn as_ref(&self) -> &FunctionContext {
+        &self.inner
     }
 }
 

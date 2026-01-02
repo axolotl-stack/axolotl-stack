@@ -119,11 +119,11 @@ impl BiomeNoise {
         ];
 
         // Sample all 5 noise parameters using SIMD batch sampling
-        let temp = self.temperature.sample_4(qx, qy, qz);
-        let humid = self.humidity.sample_4(qx, qy, qz);
-        let cont = self.continentalness.sample_4(qx, qy, qz);
-        let eros = self.erosion.sample_4(qx, qy, qz);
-        let weird = self.weirdness.sample_4(qx, qy, qz);
+        let temp = self.temperature.sample_4_arrays(qx, qy, qz);
+        let humid = self.humidity.sample_4_arrays(qx, qy, qz);
+        let cont = self.continentalness.sample_4_arrays(qx, qy, qz);
+        let eros = self.erosion.sample_4_arrays(qx, qy, qz);
+        let weird = self.weirdness.sample_4_arrays(qx, qy, qz);
 
         // Depth is derived from Y position (same for all 4)
         let depth = Self::depth_from_y(y);
@@ -179,9 +179,13 @@ impl BiomeNoise {
         Self::lookup_biome(&climate)
     }
 
-    /// Lookup biome from climate parameters using simplified rules.
-    /// This is a simplified version - full vanilla uses a complex binary tree.
+    /// Lookup biome from climate parameters using vanilla biome tables.
+    ///
+    /// This implements the OverworldBiomeBuilder logic from Java Edition,
+    /// checking continentalness, erosion, and weirdness to select biomes.
     pub fn lookup_biome(climate: &[i64; 6]) -> Biome {
+        use unastar_noise::biome_tables::*;
+
         let temp = climate[Climate::Temperature as usize];
         let humid = climate[Climate::Humidity as usize];
         let cont = climate[Climate::Continentalness as usize];
@@ -189,133 +193,202 @@ impl BiomeNoise {
         let depth = climate[Climate::Depth as usize];
         let weird = climate[Climate::Weirdness as usize];
 
-        // Ocean check - low continentalness
-        if cont < -5000 {
-            return if temp < -4500 {
-                Biome::FrozenOcean
-            } else if temp < -1500 {
-                Biome::ColdOcean
-            } else if temp > 5000 {
-                Biome::WarmOcean
-            } else {
-                Biome::Ocean
-            };
+        let ti = temp_index(temp);
+        let hi = humid_index(humid);
+        let ei = erosion_index(erosion);
+
+        // Mushroom fields - extremely low continentalness
+        if cont < MUSHROOM_CONT {
+            return Biome::MushroomFields;
         }
 
         // Deep ocean
-        if cont < -7000 {
-            return if temp < -4500 {
-                Biome::DeepFrozenOcean
-            } else if temp < -1500 {
-                Biome::DeepColdOcean
-            } else {
-                Biome::DeepOcean
-            };
+        if cont < DEEP_OCEAN_CONT {
+            return OCEANS[0][ti];
         }
 
-        // Beach check
-        if cont >= -4500 && cont < -2000 && erosion > 4500 {
-            return if temp < -4500 {
-                Biome::SnowyBeach
-            } else {
-                Biome::Beach
-            };
+        // Ocean
+        if cont < OCEAN_CONT {
+            return OCEANS[1][ti];
         }
 
-        // River check (high erosion at medium continentalness)
-        if erosion > 7000 && cont > -3000 && cont < 3000 {
-            return if temp < -4500 {
-                Biome::FrozenRiver
-            } else {
-                Biome::River
-            };
+        // Underground biomes (depth > 0.2 scaled = 2000)
+        if depth > 2000 {
+            // Dripstone caves - high continentalness
+            if cont > 8000 {
+                return Biome::DripstoneCaves;
+            }
+            // Lush caves - high humidity
+            if humid > 7000 {
+                return Biome::LushCaves;
+            }
+            // Deep dark - low erosion, very deep
+            if ei <= 1 && depth > 9000 {
+                return Biome::DeepDark;
+            }
         }
 
-        // Mountain peaks
-        if cont > 6000 && erosion < -5000 {
-            return if temp < -4500 {
+        // Coast region
+        if cont < COAST_CONT {
+            // Stony shore at low erosion
+            if ei <= 2 {
+                return Biome::StonyShore;
+            }
+            // Beach at medium-high erosion
+            if ei >= 3 && ei <= 4 {
+                return Self::pick_beach(ti);
+            }
+        }
+
+        // Valley weirdness = rivers
+        let is_valley = weird.abs() < 500; // -0.05 to 0.05
+
+        if is_valley && cont >= COAST_CONT && cont < MID_INLAND_CONT {
+            // Rivers in valleys
+            if ei >= 2 && ei <= 5 {
+                return if ti == 0 {
+                    Biome::FrozenRiver
+                } else {
+                    Biome::River
+                };
+            }
+        }
+
+        // Swamp regions - high erosion, warm/temperate, inland
+        if ei == 6 && cont >= NEAR_INLAND_CONT {
+            if ti == 1 || ti == 2 {
+                return Biome::Swamp;
+            }
+            if ti >= 3 {
+                return Biome::MangroveSwamp;
+            }
+        }
+
+        // Determine which biome picker to use based on weirdness
+        let use_variant = weird > 0;
+
+        // Pick based on erosion and continentalness
+        match ei {
+            // Low erosion (0-1) - peaks and slopes
+            0 => Self::pick_peak_biome(ti, hi, use_variant),
+            1 => {
+                if cont >= MID_INLAND_CONT {
+                    Self::pick_slope_biome(ti, hi, use_variant)
+                } else {
+                    Self::pick_middle_or_badlands(ti, hi, use_variant)
+                }
+            }
+            // Medium erosion (2-3) - plateau and middle
+            2 => {
+                if cont >= MID_INLAND_CONT {
+                    Self::pick_plateau_biome(ti, hi, use_variant)
+                } else {
+                    Self::pick_middle_biome(ti, hi, use_variant)
+                }
+            }
+            3 => Self::pick_middle_or_badlands(ti, hi, use_variant),
+            // Higher erosion (4) - middle biomes
+            4 => Self::pick_middle_biome(ti, hi, use_variant),
+            // High erosion (5) - shattered/windswept
+            5 => {
+                if cont >= MID_INLAND_CONT {
+                    Self::pick_shattered_biome(ti, hi, use_variant)
+                } else if ti > 1 && hi < 4 && use_variant {
+                    Biome::WindsweptSavanna
+                } else {
+                    Self::pick_middle_biome(ti, hi, use_variant)
+                }
+            }
+            // Very high erosion (6) - middle or swamp (swamp handled above)
+            _ => Self::pick_middle_biome(ti, hi, use_variant),
+        }
+    }
+
+    fn pick_beach(ti: usize) -> Biome {
+        match ti {
+            0 => Biome::SnowyBeach,
+            4 => Biome::Desert, // Hot beaches are desert
+            _ => Biome::Beach,
+        }
+    }
+
+    fn pick_middle_biome(ti: usize, hi: usize, use_variant: bool) -> Biome {
+        use unastar_noise::biome_tables::*;
+        if use_variant {
+            if let Some(variant) = MIDDLE_BIOMES_VARIANT[ti][hi] {
+                return variant;
+            }
+        }
+        MIDDLE_BIOMES[ti][hi]
+    }
+
+    fn pick_middle_or_badlands(ti: usize, hi: usize, use_variant: bool) -> Biome {
+        if ti == 4 {
+            Self::pick_badlands(hi, use_variant)
+        } else {
+            Self::pick_middle_biome(ti, hi, use_variant)
+        }
+    }
+
+    fn pick_plateau_biome(ti: usize, hi: usize, use_variant: bool) -> Biome {
+        use unastar_noise::biome_tables::*;
+        if use_variant {
+            if let Some(variant) = PLATEAU_BIOMES_VARIANT[ti][hi] {
+                return variant;
+            }
+        }
+        PLATEAU_BIOMES[ti][hi]
+    }
+
+    fn pick_slope_biome(ti: usize, hi: usize, use_variant: bool) -> Biome {
+        // Cold slopes
+        if ti < 3 {
+            if hi <= 1 {
+                return Biome::SnowySlopes;
+            }
+            return Biome::Grove;
+        }
+        // Warm slopes use plateau biomes
+        Self::pick_plateau_biome(ti, hi, use_variant)
+    }
+
+    fn pick_peak_biome(ti: usize, hi: usize, use_variant: bool) -> Biome {
+        // Frozen peaks
+        if ti <= 2 {
+            return if use_variant {
                 Biome::FrozenPeaks
-            } else if temp < 0 {
+            } else {
                 Biome::JaggedPeaks
-            } else {
-                Biome::StonyPeaks
             };
         }
+        // Warm peaks
+        if ti == 3 {
+            return Biome::StonyPeaks;
+        }
+        // Hot peaks = badlands
+        Self::pick_badlands(hi, use_variant)
+    }
 
-        // High elevation slopes
-        if cont > 4000 && erosion < -2000 {
-            return if temp < -4500 {
-                Biome::SnowySlopes
-            } else if temp < 0 {
-                Biome::Grove
+    fn pick_badlands(hi: usize, use_variant: bool) -> Biome {
+        if hi < 2 {
+            return if use_variant {
+                Biome::ErodedBadlands
             } else {
-                Biome::Meadow
+                Biome::Badlands
             };
         }
-
-        // Land biomes based on temperature and humidity
-        match (temp, humid) {
-            // Frozen biomes
-            (t, _) if t < -4500 => {
-                if humid < -3500 {
-                    Biome::SnowyPlains
-                } else {
-                    Biome::SnowyTaiga
-                }
-            }
-            // Cold biomes
-            (t, h) if t < -1500 => {
-                if h < -3500 {
-                    Biome::Plains
-                } else if h < 3500 {
-                    Biome::Taiga
-                } else {
-                    Biome::OldGrowthPineTaiga
-                }
-            }
-            // Temperate biomes
-            (t, h) if t < 2000 => {
-                if h < -3500 {
-                    Biome::Plains
-                } else if h < 0 {
-                    Biome::Forest
-                } else if h < 3500 {
-                    Biome::BirchForest
-                } else {
-                    Biome::DarkForest
-                }
-            }
-            // Warm biomes
-            (t, h) if t < 5500 => {
-                if h < -3500 {
-                    if erosion > 5000 {
-                        Biome::Badlands
-                    } else {
-                        Biome::Desert
-                    }
-                } else if h < 0 {
-                    Biome::Savanna
-                } else if h < 3500 {
-                    Biome::Plains
-                } else {
-                    Biome::Jungle
-                }
-            }
-            // Hot biomes
-            (_, h) => {
-                if h < -3500 {
-                    Biome::Desert
-                } else if h < 3500 {
-                    if erosion > 5000 {
-                        Biome::Badlands
-                    } else {
-                        Biome::Desert
-                    }
-                } else {
-                    Biome::Jungle
-                }
-            }
+        if hi < 3 {
+            return Biome::Badlands;
         }
+        Biome::WoodedBadlands
+    }
+
+    fn pick_shattered_biome(ti: usize, hi: usize, use_variant: bool) -> Biome {
+        use unastar_noise::biome_tables::*;
+        if let Some(biome) = SHATTERED_BIOMES[ti][hi] {
+            return biome;
+        }
+        Self::pick_middle_biome(ti, hi, use_variant)
     }
 }
 

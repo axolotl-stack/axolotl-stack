@@ -1,8 +1,7 @@
 //! NoiseChunk - the cell-based interpolation engine.
 //!
-//! NoiseChunk manages the multi-level caching and trilinear interpolation
-//! system that makes 3D density evaluation practical. It divides a chunk
-//! into cells and uses sliding window slice caching to minimize noise evaluations.
+//! NoiseChunk manages chunk-level state for density function evaluation.
+//! Uses AOT-compiled density functions for maximum performance.
 //!
 //! ## Cell Structure
 //!
@@ -12,30 +11,14 @@
 //!
 //! Density is evaluated at cell corners and trilinearly interpolated
 //! for interior block positions.
-//!
-//! ## Traversal Order
-//!
-//! The chunk is traversed in a specific order to maximize cache reuse:
-//! - X outer loop (allows slice swapping)
-//! - Z middle loop
-//! - Y inner loop (descending for efficient surface detection)
 
-use super::cache::{Cache2D, CacheAllInCell, CacheOnce, FlatCache, NoiseInterpolator};
-use super::context::FunctionContext;
-use super::function::{DensityFunction, Visitor};
-use super::markers::{
-    Cache2DMarker, CacheAllInCellMarker, CacheOnceMarker, FlatCacheMarker, Interpolated,
-};
-use std::any::Any;
-use std::sync::{Arc, RwLock};
+use unastar_noise::{FunctionContext, FlatCacheGrid, ColumnContext, NoiseSource, compute_final_density};
+use super::lerp3;
 
 /// Cell-based noise chunk for caching and interpolation.
 ///
 /// This is the main orchestrator for density function evaluation within a chunk.
-/// It manages:
-/// - Cell configuration and traversal state
-/// - Multiple cache types (interpolators, flat caches, etc.)
-/// - Counter-based cache invalidation
+/// It manages cell configuration and traversal state.
 pub struct NoiseChunk {
     // Cell configuration
     /// Width of each cell in blocks (typically 4).
@@ -57,51 +40,19 @@ pub struct NoiseChunk {
 
     // Current cell position state
     /// Current cell X index.
-    cell_x: RwLock<i32>,
+    cell_x: i32,
     /// Current cell Y index.
-    cell_y: RwLock<i32>,
+    cell_y: i32,
     /// Current cell Z index.
-    cell_z: RwLock<i32>,
+    cell_z: i32,
 
     // Position within cell
     /// Current position within cell (0 to cell_width-1).
-    in_cell_x: RwLock<i32>,
+    in_cell_x: i32,
     /// Current position within cell (0 to cell_height-1).
-    in_cell_y: RwLock<i32>,
+    in_cell_y: i32,
     /// Current position within cell (0 to cell_width-1).
-    in_cell_z: RwLock<i32>,
-
-    // Interpolation parameters
-    /// Interpolation t value for Y axis (0.0 to 1.0).
-    t_y: RwLock<f64>,
-    /// Interpolation t value for X axis (0.0 to 1.0).
-    t_x: RwLock<f64>,
-    /// Interpolation t value for Z axis (0.0 to 1.0).
-    t_z: RwLock<f64>,
-
-    // Counters for cache invalidation
-    /// Counter that increments each interpolation step.
-    interpolation_counter: RwLock<u64>,
-    /// Counter for array fill operations.
-    array_counter: RwLock<u64>,
-
-    // State flags
-    /// Whether we're currently in interpolation mode.
-    interpolating: RwLock<bool>,
-    /// Whether we're filling a cell.
-    filling_cell: RwLock<bool>,
-
-    // Cache collections (populated during wrap())
-    /// Interpolators for trilinear interpolation.
-    interpolators: RwLock<Vec<Arc<NoiseInterpolator>>>,
-    /// Flat XZ caches.
-    flat_caches: RwLock<Vec<Arc<FlatCache>>>,
-    /// Single-point 2D caches.
-    cache_2d: RwLock<Vec<Arc<Cache2D>>>,
-    /// Once-per-step caches.
-    cache_once: RwLock<Vec<Arc<CacheOnce>>>,
-    /// Cell precomputation caches.
-    cell_caches: RwLock<Vec<Arc<CacheAllInCell>>>,
+    in_cell_z: i32,
 }
 
 impl NoiseChunk {
@@ -133,24 +84,12 @@ impl NoiseChunk {
             min_block_x: chunk_x * 16,
             min_block_y: min_y,
             min_block_z: chunk_z * 16,
-            cell_x: RwLock::new(0),
-            cell_y: RwLock::new(0),
-            cell_z: RwLock::new(0),
-            in_cell_x: RwLock::new(0),
-            in_cell_y: RwLock::new(0),
-            in_cell_z: RwLock::new(0),
-            t_y: RwLock::new(0.0),
-            t_x: RwLock::new(0.0),
-            t_z: RwLock::new(0.0),
-            interpolation_counter: RwLock::new(0),
-            array_counter: RwLock::new(0),
-            interpolating: RwLock::new(false),
-            filling_cell: RwLock::new(false),
-            interpolators: RwLock::new(Vec::new()),
-            flat_caches: RwLock::new(Vec::new()),
-            cache_2d: RwLock::new(Vec::new()),
-            cache_once: RwLock::new(Vec::new()),
-            cell_caches: RwLock::new(Vec::new()),
+            cell_x: 0,
+            cell_y: 0,
+            cell_z: 0,
+            in_cell_x: 0,
+            in_cell_y: 0,
+            in_cell_z: 0,
         }
     }
 
@@ -171,305 +110,125 @@ impl NoiseChunk {
         self.cell_count_y
     }
 
-    /// Get the current interpolation counter.
-    pub fn interpolation_counter(&self) -> u64 {
-        *self.interpolation_counter.read().unwrap()
+    /// Get current block X coordinate.
+    pub fn block_x(&self) -> i32 {
+        self.min_block_x + self.cell_x * self.cell_width + self.in_cell_x
     }
 
-    /// Check if currently interpolating.
-    pub fn is_interpolating(&self) -> bool {
-        *self.interpolating.read().unwrap()
+    /// Get current block Y coordinate.
+    pub fn block_y(&self) -> i32 {
+        self.min_block_y + self.cell_y * self.cell_height + self.in_cell_y
     }
 
-    // ========== Interpolation Control Methods ==========
-
-    /// Initialize for the first cell in X.
-    ///
-    /// Fills slice0 for all interpolators at cell_x = 0.
-    pub fn initialize_for_first_cell_x(&self) {
-        *self.interpolating.write().unwrap() = true;
-        *self.cell_x.write().unwrap() = 0;
-
-        *self.in_cell_x.write().unwrap() = 0;
-
-        // Fill slice0 for all interpolators
-        for interp in self.interpolators.read().unwrap().iter() {
-            interp.fill_slice(
-                true, // is_slice0
-                self.min_block_x,
-                self.min_block_y,
-                self.cell_height,
-                self.min_block_z,
-                self.cell_width,
-                self.cell_count_xz as usize,
-                self.cell_count_y as usize,
-            );
-        }
+    /// Get current block Z coordinate.
+    pub fn block_z(&self) -> i32 {
+        self.min_block_z + self.cell_z * self.cell_width + self.in_cell_z
     }
 
-    /// Advance to the next cell in X.
-    ///
-    /// Fills slice1 for the new X position. Call swap_slices() after
-    /// processing this cell to prepare for the next.
-    pub fn advance_cell_x(&self, cell_x: i32) {
-        *self.cell_x.write().unwrap() = cell_x;
-
-        *self.in_cell_x.write().unwrap() = 0;
-
-        // Fill slice1 with the next X slice
-        let block_x = self.min_block_x + (cell_x + 1) * self.cell_width;
-        for interp in self.interpolators.read().unwrap().iter() {
-            interp.fill_slice(
-                false, // is_slice1
-                block_x,
-                self.min_block_y,
-                self.cell_height,
-                self.min_block_z,
-                self.cell_width,
-                self.cell_count_xz as usize,
-                self.cell_count_y as usize,
-            );
-        }
+    /// Get the current position as a FunctionContext.
+    pub fn context(&self) -> FunctionContext {
+        FunctionContext::new(self.block_x(), self.block_y(), self.block_z())
     }
 
-    /// Select a cell by Y and Z indices.
-    ///
-    /// Loads the 8 corner values for interpolation.
-    pub fn select_cell_yz(&self, cell_y: i32, cell_z: i32) {
-        *self.cell_y.write().unwrap() = cell_y;
-        *self.cell_z.write().unwrap() = cell_z;
-
-        // Select corners for all interpolators
-        for interp in self.interpolators.read().unwrap().iter() {
-            interp.select_cell_yz(cell_y as usize, cell_z as usize);
-        }
-
-        // Fill cell caches if any
-        let base_x = self.min_block_x + *self.cell_x.read().unwrap() * self.cell_width;
-        let base_y = self.min_block_y + cell_y * self.cell_height;
-        let base_z = self.min_block_z + cell_z * self.cell_width;
-
-        *self.filling_cell.write().unwrap() = true;
-        for cache in self.cell_caches.read().unwrap().iter() {
-            cache.fill_cell(base_x, base_y, base_z);
-        }
-        *self.filling_cell.write().unwrap() = false;
+    /// Set cell position.
+    pub fn set_cell(&mut self, cell_x: i32, cell_y: i32, cell_z: i32) {
+        self.cell_x = cell_x;
+        self.cell_y = cell_y;
+        self.cell_z = cell_z;
     }
 
-    /// Update interpolation for Y position within cell.
-    ///
-    /// # Arguments
-    /// * `y_in_cell` - Position within cell (0 to cell_height-1)
-    /// * `t` - Interpolation parameter (0.0 to 1.0)
-    pub fn update_for_y(&self, y_in_cell: i32, t: f64) {
-        *self.in_cell_y.write().unwrap() = y_in_cell;
-        *self.t_y.write().unwrap() = t;
-
-        for interp in self.interpolators.read().unwrap().iter() {
-            interp.update_for_y(t);
-        }
+    /// Set position within cell.
+    pub fn set_in_cell(&mut self, x: i32, y: i32, z: i32) {
+        self.in_cell_x = x;
+        self.in_cell_y = y;
+        self.in_cell_z = z;
     }
 
-    /// Update interpolation for X position within cell.
-    ///
-    /// # Arguments
-    /// * `x_in_cell` - Position within cell (0 to cell_width-1)
-    /// * `t` - Interpolation parameter (0.0 to 1.0)
-    pub fn update_for_x(&self, x_in_cell: i32, t: f64) {
-        *self.in_cell_x.write().unwrap() = x_in_cell;
-        *self.t_x.write().unwrap() = t;
-
-        for interp in self.interpolators.read().unwrap().iter() {
-            interp.update_for_x(t);
-        }
-    }
-
-    /// Update interpolation for Z position within cell.
-    ///
-    /// This also increments the interpolation counter.
-    ///
-    /// # Arguments
-    /// * `z_in_cell` - Position within cell (0 to cell_width-1)
-    /// * `t` - Interpolation parameter (0.0 to 1.0)
-    pub fn update_for_z(&self, z_in_cell: i32, t: f64) {
-        *self.in_cell_z.write().unwrap() = z_in_cell;
-        *self.t_z.write().unwrap() = t;
-
-        for interp in self.interpolators.read().unwrap().iter() {
-            interp.update_for_z(t);
-        }
-
-        // Increment counter for cache invalidation
-        *self.interpolation_counter.write().unwrap() += 1;
-    }
-
-    /// Swap slices after completing a cell X iteration.
-    pub fn swap_slices(&self) {
-        for interp in self.interpolators.read().unwrap().iter() {
-            interp.swap_slices();
-        }
-    }
-
-    /// Stop interpolation mode.
-    pub fn stop_interpolation(&self) {
-        *self.interpolating.write().unwrap() = false;
-    }
-
-    // ========== Cache Registration ==========
-
-    /// Register an interpolator.
-    pub fn register_interpolator(&self, interp: Arc<NoiseInterpolator>) {
-        self.interpolators.write().unwrap().push(interp);
-    }
-
-    /// Register a flat cache.
-    pub fn register_flat_cache(&self, cache: Arc<FlatCache>) {
-        self.flat_caches.write().unwrap().push(cache);
-    }
-
-    /// Register a 2D cache.
-    pub fn register_cache_2d(&self, cache: Arc<Cache2D>) {
-        self.cache_2d.write().unwrap().push(cache);
-    }
-
-    /// Register a cache-once.
-    pub fn register_cache_once(&self, cache: Arc<CacheOnce>) {
-        self.cache_once.write().unwrap().push(cache);
-    }
-
-    /// Register a cell cache.
-    pub fn register_cell_cache(&self, cache: Arc<CacheAllInCell>) {
-        self.cell_caches.write().unwrap().push(cache);
-    }
 }
 
-impl FunctionContext for NoiseChunk {
-    fn block_x(&self) -> i32 {
-        self.min_block_x
-            + *self.cell_x.read().unwrap() * self.cell_width
-            + *self.in_cell_x.read().unwrap()
-    }
-
-    fn block_y(&self) -> i32 {
-        self.min_block_y
-            + *self.cell_y.read().unwrap() * self.cell_height
-            + *self.in_cell_y.read().unwrap()
-    }
-
-    fn block_z(&self) -> i32 {
-        self.min_block_z
-            + *self.cell_z.read().unwrap() * self.cell_width
-            + *self.in_cell_z.read().unwrap()
-    }
-
-    /// NoiseChunk is the main interpolation loop context.
-    /// When this returns true, caches like NoiseInterpolator return cached values.
-    /// When other contexts (like SinglePointContext) call compute(), this returns false
-    /// and caches should compute fresh values.
-    fn is_noise_chunk(&self) -> bool {
-        true
-    }
-}
-
-/// Visitor that wraps density functions with cache implementations.
+/// Interpolator that caches cell corner values for trilinear interpolation.
 ///
-/// When applied to a density function graph, this visitor replaces
-/// marker types (Interpolated, FlatCacheMarker, etc.) with actual
-/// cache implementations that are registered with the NoiseChunk.
-pub struct WrapVisitor<'a> {
-    /// Reference to the NoiseChunk for cache registration.
-    noise_chunk: &'a NoiseChunk,
+/// This is used to efficiently evaluate density functions across a cell
+/// by computing values at corners once and interpolating for interior points.
+pub struct CellInterpolator {
+    /// Cached corner values: [x0y0z0, x1y0z0, x0y1z0, x1y1z0, x0y0z1, x1y0z1, x0y1z1, x1y1z1]
+    corners: [f64; 8],
+    /// Cell dimensions
+    cell_width: i32,
+    cell_height: i32,
 }
 
-impl<'a> WrapVisitor<'a> {
-    /// Create a new wrap visitor.
-    pub fn new(noise_chunk: &'a NoiseChunk) -> Self {
-        Self { noise_chunk }
+impl CellInterpolator {
+    /// Create a new interpolator with the given cell dimensions.
+    pub fn new(cell_width: i32, cell_height: i32) -> Self {
+        Self {
+            corners: [0.0; 8],
+            cell_width,
+            cell_height,
+        }
     }
-}
 
-impl<'a> Visitor for WrapVisitor<'a> {
-    fn apply(&self, func: Arc<dyn DensityFunction>) -> Arc<dyn DensityFunction> {
-        // Check if this is a marker type that needs wrapping
-        if let Some(marker) = func.as_any().downcast_ref::<Interpolated>() {
-            let interp = Arc::new(NoiseInterpolator::new(
-                marker.wrapped.clone(),
-                self.noise_chunk.cell_count_xz as usize,
-                self.noise_chunk.cell_count_y as usize,
-            ));
-            self.noise_chunk.register_interpolator(interp.clone());
-            return interp;
-        }
-
-        if let Some(marker) = func.as_any().downcast_ref::<FlatCacheMarker>() {
-            // FlatCache needs to cover cell corners, which extend 1 cell beyond chunk edge.
-            // For a chunk of 16 blocks with cell_width=4, we have 5 corners (0,4,8,12,16).
-            // So cache size needs to be chunk_size + 1 to include the far edge corner.
-            let cache = Arc::new(FlatCache::new(
-                marker.wrapped.clone(),
-                self.noise_chunk.min_block_x,
-                self.noise_chunk.min_block_z,
-                17, // Chunk width + 1 for cell corner at far edge
-                17  // Chunk depth + 1 for cell corner at far edge
-            ));
-            self.noise_chunk.register_flat_cache(cache.clone());
-            return cache;
-        }
-
-        if let Some(marker) = func.as_any().downcast_ref::<Cache2DMarker>() {
-            let cache = Arc::new(Cache2D::new(marker.wrapped.clone()));
-            self.noise_chunk.register_cache_2d(cache.clone());
-            return cache;
-        }
-
-        if let Some(marker) = func.as_any().downcast_ref::<CacheOnceMarker>() {
-            let cache = Arc::new(CacheOnce::new(marker.wrapped.clone()));
-            self.noise_chunk.register_cache_once(cache.clone());
-            return cache;
-        }
-
-        if let Some(marker) = func.as_any().downcast_ref::<CacheAllInCellMarker>() {
-            let cache = Arc::new(CacheAllInCell::new(
-                marker.wrapped.clone(),
-                self.noise_chunk.cell_width + 1,
-                self.noise_chunk.cell_height + 1,
-            ));
-            self.noise_chunk.register_cell_cache(cache.clone());
-            return cache;
-        }
-
-        func
+    /// Set corner values directly (used when values are already computed).
+    pub fn set_corners(&mut self, corners: [f64; 8]) {
+        self.corners = corners;
     }
-}
 
-/// Visitor that creates interpolator wrappers for Interpolated markers.
-pub struct InterpolatorWrapVisitor<'a> {
-    noise_chunk: &'a NoiseChunk,
-}
+    /// Fill corner values for a cell using AOT compiled final_density function.
+    ///
+    /// This samples the 8 corners of a cell using the AOT-compiled density function,
+    /// which is significantly faster than interpreting a density function tree.
+    pub fn fill_cell_aot(
+        &mut self,
+        base_x: i32,
+        base_y: i32,
+        base_z: i32,
+        noises: &impl NoiseSource,
+        grid: &FlatCacheGrid,
+    ) {
+        let w = self.cell_width;
+        let h = self.cell_height;
 
-impl<'a> InterpolatorWrapVisitor<'a> {
-    pub fn new(noise_chunk: &'a NoiseChunk) -> Self {
-        Self { noise_chunk }
+        // Create ColumnContexts for each unique (X, Z) column
+        // Corners use 4 unique columns: (base_x, base_z), (base_x+w, base_z), (base_x, base_z+w), (base_x+w, base_z+w)
+        let col00 = ColumnContext::new(base_x, base_z, noises, grid);
+        let col10 = ColumnContext::new(base_x + w, base_z, noises, grid);
+        let col01 = ColumnContext::new(base_x, base_z + w, noises, grid);
+        let col11 = ColumnContext::new(base_x + w, base_z + w, noises, grid);
+
+        self.corners[0] = compute_final_density(&FunctionContext::new(base_x, base_y, base_z), noises, grid, &col00);
+        self.corners[1] = compute_final_density(&FunctionContext::new(base_x + w, base_y, base_z), noises, grid, &col10);
+        self.corners[2] = compute_final_density(&FunctionContext::new(base_x, base_y + h, base_z), noises, grid, &col00);
+        self.corners[3] = compute_final_density(&FunctionContext::new(base_x + w, base_y + h, base_z), noises, grid, &col10);
+        self.corners[4] = compute_final_density(&FunctionContext::new(base_x, base_y, base_z + w), noises, grid, &col01);
+        self.corners[5] = compute_final_density(&FunctionContext::new(base_x + w, base_y, base_z + w), noises, grid, &col11);
+        self.corners[6] = compute_final_density(&FunctionContext::new(base_x, base_y + h, base_z + w), noises, grid, &col01);
+        self.corners[7] = compute_final_density(&FunctionContext::new(base_x + w, base_y + h, base_z + w), noises, grid, &col11);
     }
-}
 
-impl<'a> Visitor for InterpolatorWrapVisitor<'a> {
-    fn apply(&self, func: Arc<dyn DensityFunction>) -> Arc<dyn DensityFunction> {
-        // Create an interpolator for this function
-        let interp = Arc::new(NoiseInterpolator::new(
-            func,
-            self.noise_chunk.cell_count_xz as usize + 1,
-            self.noise_chunk.cell_count_y as usize + 1,
-        ));
-        self.noise_chunk.register_interpolator(interp.clone());
-        interp
+    /// Interpolate value at the given position within the cell.
+    ///
+    /// # Arguments
+    /// * `x` - Position within cell (0 to cell_width-1)
+    /// * `y` - Position within cell (0 to cell_height-1)
+    /// * `z` - Position within cell (0 to cell_width-1)
+    pub fn interpolate(&self, x: i32, y: i32, z: i32) -> f64 {
+        let tx = x as f64 / self.cell_width as f64;
+        let ty = y as f64 / self.cell_height as f64;
+        let tz = z as f64 / self.cell_width as f64;
+
+        lerp3(
+            tx, ty, tz,
+            self.corners[0], self.corners[1],
+            self.corners[2], self.corners[3],
+            self.corners[4], self.corners[5],
+            self.corners[6], self.corners[7],
+        )
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::world::generator::density::math::Constant;
 
     #[test]
     fn test_noise_chunk_creation() {
@@ -483,7 +242,7 @@ mod tests {
 
     #[test]
     fn test_noise_chunk_block_coords() {
-        let chunk = NoiseChunk::new(1, 2, 4, 8, -64, 384);
+        let mut chunk = NoiseChunk::new(1, 2, 4, 8, -64, 384);
 
         // Initial position should be at min coords
         assert_eq!(chunk.block_x(), 16); // chunk_x * 16 = 1 * 16
@@ -491,70 +250,18 @@ mod tests {
         assert_eq!(chunk.block_z(), 32); // chunk_z * 16 = 2 * 16
 
         // Update position within cell
-        *chunk.cell_x.write().unwrap() = 1;
-        *chunk.in_cell_x.write().unwrap() = 2;
+        chunk.set_cell(1, 5, 0);
+        chunk.set_in_cell(2, 3, 0);
         assert_eq!(chunk.block_x(), 16 + 4 + 2); // min + cell_x*4 + in_cell
-
-        *chunk.cell_y.write().unwrap() = 5;
-        *chunk.in_cell_y.write().unwrap() = 3;
         assert_eq!(chunk.block_y(), -64 + 40 + 3); // min + cell_y*8 + in_cell
     }
 
     #[test]
-    fn test_interpolation_counter() {
-        let chunk = NoiseChunk::new(0, 0, 4, 8, -64, 384);
+    fn test_cell_interpolator() {
+        let interp = CellInterpolator::new(4, 8);
 
-        assert_eq!(chunk.interpolation_counter(), 0);
-
-        chunk.update_for_z(0, 0.0);
-        assert_eq!(chunk.interpolation_counter(), 1);
-
-        chunk.update_for_z(1, 0.25);
-        assert_eq!(chunk.interpolation_counter(), 2);
-    }
-
-    #[test]
-    fn test_noise_chunk_with_interpolator() {
-        let chunk = NoiseChunk::new(0, 0, 4, 8, -64, 384);
-
-        // Create a simple constant function
-        let func = Arc::new(Constant::new(1.0));
-
-        // Create and register an interpolator
-        let interp = Arc::new(NoiseInterpolator::new(func, 4, 48));
-        chunk.register_interpolator(interp);
-
-        // Should have one interpolator
-        assert_eq!(chunk.interpolators.read().unwrap().len(), 1);
-    }
-
-    #[test]
-    fn test_cell_traversal_simulation() {
-        let chunk = NoiseChunk::new(0, 0, 4, 8, -64, 384);
-
-        // Create a constant density function
-        let func = Arc::new(Constant::new(5.0));
-        let interp = Arc::new(NoiseInterpolator::new(func, 4, 48));
-        chunk.register_interpolator(interp.clone());
-
-        // Simulate traversal
-        chunk.initialize_for_first_cell_x();
-        assert!(chunk.is_interpolating());
-
-        // Advance through first X cell
-        chunk.advance_cell_x(0);
-
-        // Select a cell
-        chunk.select_cell_yz(24, 2); // Middle of world
-
-        // Update for a position
-        chunk.update_for_y(4, 0.5);
-        chunk.update_for_x(2, 0.5);
-        chunk.update_for_z(2, 0.5);
-
-        // The interpolator should have a value
-        let value = interp.get_value();
-        // With constant input, output should also be constant
-        assert!((value - 5.0).abs() < 0.001);
+        // Test that dimensions are stored correctly
+        assert_eq!(interp.cell_width, 4);
+        assert_eq!(interp.cell_height, 8);
     }
 }

@@ -4,12 +4,12 @@
 //! replacing stone with appropriate surface blocks based on biome
 //! and position.
 
-use super::context::SurfaceContext;
-use super::rule::Rule;
+use unastar_noise::noise::DoublePerlinNoise;
+use unastar_noise::surface::{Rule, SurfaceContext};
+use unastar_noise::xoroshiro::Xoroshiro128;
+
 use crate::world::chunk::{blocks, Chunk};
 use crate::world::generator::climate::BiomeNoise;
-use crate::world::generator::noise::DoublePerlinNoise;
-use crate::world::generator::xoroshiro::Xoroshiro128;
 
 /// System for applying surface rules to terrain.
 ///
@@ -112,6 +112,9 @@ impl SurfaceSystem {
 
         let mut ctx = SurfaceContext::new(chunk_x, chunk_z, min_y, max_y);
 
+        // Block lookup closure - converts block names to IDs
+        let get_block = |name: &str| blocks::get_block_id(name);
+
         for local_z in 0u8..16 {
             for local_x in 0u8..16 {
                 let world_x = chunk_x * 16 + local_x as i32;
@@ -178,7 +181,7 @@ impl SurfaceSystem {
                         // Use cached biome and skip expensive scan down
                         ctx.update_y(y, stone_depth_above, 0, water_height, column_biome);
 
-                        if let Some(new_block) = self.rule.try_apply(&ctx) {
+                        if let Some(new_block) = self.rule.try_apply(&ctx, &get_block) {
                             if new_block != block {
                                 chunk.set_block(local_x, y as i16, local_z, new_block);
                             }
@@ -204,21 +207,20 @@ impl std::fmt::Debug for SurfaceSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::world::generator::constants::Biome;
-    use crate::world::generator::surface::condition::BiomeCheck;
-    use crate::world::generator::surface::rule::{BlockRule, SequenceRule, TestRule};
+    use unastar_noise::surface::{BiomeCheck, BlockRule, SequenceRule, TestRule};
+    use unastar_noise::Biome;
 
     fn create_test_system() -> SurfaceSystem {
         let seed = 12345i64;
         let biome_noise = BiomeNoise::from_seed(seed);
 
-        // Simple rule: Desert -> Sand, else Grass
+        // Simple rule: Desert -> Sand, else Grass (using block names now)
         let rule: Box<dyn Rule> = Box::new(SequenceRule::new(vec![
             Box::new(TestRule::new(
                 Box::new(BiomeCheck::single(Biome::Desert)),
-                Box::new(BlockRule::new(*blocks::SAND)),
+                Box::new(BlockRule::new("minecraft:sand")),
             )),
-            Box::new(BlockRule::new(*blocks::GRASS_BLOCK)),
+            Box::new(BlockRule::new("minecraft:grass_block")),
         ]));
 
         SurfaceSystem::new(seed, rule, biome_noise)

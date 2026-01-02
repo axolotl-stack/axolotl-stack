@@ -6,6 +6,7 @@ members = [
     "crates/valentine/bedrock_versions/v1_21_130",
     "crates/jolyne",
     "crates/unastar",
+    "crates/unastar_noise",
     "crates/valentine_gen",
     "crates/tokio-raknet",
     "crates/tokio-nethernet",
@@ -26,6 +27,11 @@ codegen-units = 16      # Enable parallelism to speed up compilation
 panic = "abort"         # Remove stack unwinding (smaller/faster binary)
 strip = true            # Remove symbols (smaller binary)
 # debug = 1             # uncomment this to enable debug symbols
+
+# remember to unset this when not profiling benchs.
+[profile.bench]
+debug = true
+strip = false  # Ensure symbols aren't stripped
 
 [workspace.dependencies]
 # Async runtime
@@ -119,6 +125,7 @@ jolyne = { path = "crates/jolyne", default-features = false }
 tokio-raknet = { path = "crates/tokio-raknet", version = "0.3" }
 tokio-nethernet = { path = "crates/tokio-nethernet", default-features = false }
 axolotl-xbl = { path = "crates/axolotl-xbl" }
+unastar_noise = { path = "crates/unastar_noise" }
 
 # use our patched version that statically links in zlib and snappy.
 [patch.crates-io]

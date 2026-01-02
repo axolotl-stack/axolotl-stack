@@ -3,6 +3,7 @@
 //! This module implements terrain generation matching vanilla Minecraft 1.18+
 //! multi-noise biome system.
 
+// TODO: Refactor aquifer and ore_veinifier to use AOT-compiled density functions
 pub mod aquifer;
 pub mod carver;
 mod climate;
@@ -15,7 +16,6 @@ mod structures;
 pub mod surface;
 mod terrain;
 pub mod xoroshiro;
-mod repro_bug;
 
 pub use climate::BiomeNoise;
 pub use constants::Biome;

@@ -1,64 +1,35 @@
 //! Surface rules system for declarative block placement.
 //!
-//! This module implements Java Edition's surface rule system, which replaces
-//! procedural block placement with a declarative, condition-based approach.
+//! This module re-exports surface types from `unastar_noise` and provides
+//! the `SurfaceSystem` which applies rules to terrain chunks.
 //!
-//! ## Overview
+//! ## Block Lookup
 //!
-//! Surface rules determine what blocks appear at the terrain surface and
-//! underground based on conditions like:
-//! - Stone depth (distance from surface)
-//! - Y coordinate
-//! - Biome
-//! - Noise values
-//! - Water level
-//!
-//! ## Key Components
-//!
-//! - [`Condition`] - Trait for conditions that determine when rules apply
-//! - [`Rule`] - Trait for rules that produce block states
-//! - [`SurfaceContext`] - Context for rule evaluation
-//! - [`SurfaceSystem`] - Main system that applies rules to terrain
-//!
-//! ## Example
+//! Block IDs are resolved at apply time via a closure. This allows the
+//! generated rules in `unastar_noise` to work without depending on the
+//! block registry. When applying rules, pass a closure to convert block
+//! names to IDs:
 //!
 //! ```rust,ignore
 //! use unastar::world::generator::surface::*;
+//! use unastar::world::chunk::blocks;
 //!
-//! // Build a simple surface rule
-//! let rule = SequenceRule {
-//!     rules: vec![
-//!         // Desert biome -> sand
-//!         Box::new(TestRule {
-//!             condition: Box::new(BiomeCheck { biomes: vec![Biome::Desert] }),
-//!             then_run: Box::new(BlockRule { block: SAND }),
-//!         }),
-//!         // Default -> grass
-//!         Box::new(BlockRule { block: GRASS_BLOCK }),
-//!     ],
-//! };
+//! let rule: Box<dyn Rule> = build_overworld_surface_rule(seed);
+//!
+//! // Apply with block lookup closure
+//! if let Some(block_id) = rule.try_apply(&ctx, &|name| {
+//!     blocks::get_block_id(name)
+//! }) {
+//!     chunk.set_block(x, y, z, block_id);
+//! }
 //! ```
 
-mod condition;
-mod context;
+// Re-export all surface types from unastar_noise
+pub use unastar_noise::surface::*;
+
+// Keep the overworld builder and system locally
 mod overworld;
-mod rule;
 mod system;
 
-// Re-export conditions
-pub use condition::{
-    AbovePreliminarySurface, BiomeCheck, Condition, Hole, LazyCondition, NoiseThreshold, Not,
-    Steep, StoneDepthCheck, Temperature, VerticalGradient, WaterCheck, YCheck,
-};
-
-// Re-export context
-pub use context::{CaveSurface, SurfaceContext, VerticalAnchor};
-
-// Re-export rules
-pub use rule::{BandlandsRule, BlockRule, Rule, SequenceRule, TestRule};
-
-// Re-export system
-pub use system::SurfaceSystem;
-
-// Re-export overworld builder
 pub use overworld::build_overworld_surface_rule;
+pub use system::SurfaceSystem;

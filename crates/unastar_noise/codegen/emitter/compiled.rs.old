@@ -1,0 +1,1985 @@
+//! AOT (Ahead-of-Time) compiled density function emitter.
+//!
+//! Generates flat Rust code that computes density values without tree traversal.
+
+use super::super::analyzer::{DependencyGraph, DensityNode, NodeId};
+use super::super::parser::density_function::{DensityFunctionDef, SplineDef, SplinePoint, SplineValue};
+use std::collections::HashMap;
+use std::fmt::Write;
+
+/// Pre-computed spline segment with polynomial coefficients.
+/// The cubic polynomial is: a + b*t + c*t² + d*t³ where t = (x - x_min) / (x_max - x_min)
+#[derive(Debug, Clone, Copy)]
+struct SplineSegment {
+    x_min: f64,
+    x_max: f64,
+    /// Coefficients for cubic polynomial: a + b*t + c*t² + d*t³
+    a: f64,
+    b: f64,
+    c: f64,
+    d: f64,
+}
+
+impl SplineSegment {
+    /// Convert Hermite interpolation parameters to polynomial coefficients.
+    /// compute the cubic polynomial coefficients.
+    fn from_hermite(x0: f64, x1: f64, v0: f64, v1: f64, deriv0: f64, deriv1: f64) -> Self {
+        let dt = x1 - x0;
+        // Hermite basis functions at t:
+        // h00(t) = 2t³ - 3t² + 1
+        // h10(t) = t³ - 2t² + t
+        // h01(t) = -2t³ + 3t²
+        // h11(t) = t³ - t²
+        //
+        // Hermite interpolation: v0*h00 + (d0*dt)*h10 + v1*h01 + (d1*dt)*h11
+        //
+        // Expanding and collecting by powers of t:
+        // a = v0 (constant term)
+        // b = d0 * dt (t term)
+        // c = 3*(v1-v0) - 2*d0*dt - d1*dt (t² term)
+        // d = 2*(v0-v1) + d0*dt + d1*dt (t³ term)
+        let m0 = deriv0 * dt;
+        let m1 = deriv1 * dt;
+        let a = v0;
+        let b = m0;
+        let c = 3.0 * (v1 - v0) - 2.0 * m0 - m1;
+        let d = 2.0 * (v0 - v1) + m0 + m1;
+
+        Self { x_min: x0, x_max: x1, a, b, c, d }
+    }
+}
+
+/// Check if all values in a spline are constants (no nested splines).
+fn spline_has_only_constants(spline: &SplineDef) -> bool {
+    spline.points.iter().all(|p| matches!(p.value, SplineValue::Constant(_)))
+}
+
+/// Extract constant values from a spline's points (panics if not all constants).
+fn extract_constant_values(points: &[SplinePoint]) -> Vec<f64> {
+    points.iter().map(|p| {
+        match &p.value {
+            SplineValue::Constant(v) => *v,
+            SplineValue::Nested(_) => panic!("Expected constant value"),
+        }
+    }).collect()
+}
+
+/// AOT code emitter that generates compiled density functions.
+pub struct AotEmitter<'a> {
+    graph: &'a DependencyGraph,
+    /// Map NodeId -> generated variable name
+    var_names: HashMap<NodeId, String>,
+    var_counter: usize,
+    /// Accumulated code for current function
+    code: String,
+    /// Spline counter for unique spline variable names
+    spline_counter: usize,
+    /// When true, FlatCache nodes are expanded inline instead of using grid lookups.
+    /// Used for functions that may be called at arbitrary positions (like find_top_surface inner density).
+    expand_flat_cache_inline: bool,
+}
+
+impl<'a> AotEmitter<'a> {
+    pub fn new(graph: &'a DependencyGraph) -> Self {
+        Self {
+            graph,
+            var_names: HashMap::new(),
+            var_counter: 0,
+            code: String::with_capacity(1024 * 1024),
+            spline_counter: 0,
+            expand_flat_cache_inline: false,
+        }
+    }
+
+    /// Generate the complete compiled module.
+    pub fn emit_module(&mut self) -> String {
+        let mut output = String::new();
+
+        // Header - use regular comments (not doc comments) for include!() compatibility
+        output.push_str("// AUTO-GENERATED AOT-COMPILED DENSITY FUNCTIONS.\n");
+        output.push_str("// DO NOT EDIT - regenerated at build time from worldgen JSON.\n\n");
+        output.push_str("#![allow(unused_variables, clippy::excessive_precision, clippy::too_many_arguments)]\n\n");
+        // Use crate:: paths since this is included into the crate
+        output.push_str("use crate::{FunctionContext, FunctionContext4, RarityType, NoiseSource};\n");
+        output.push_str("use super::noise_params::NoiseRef;\n");
+        output.push_str("use std::simd::prelude::*;\n\n");
+
+        // Helper functions
+        output.push_str(&self.emit_helpers());
+
+        // FlatCacheGrid struct
+        output.push_str(&self.emit_flat_cache_grid());
+
+        // Emit inner density functions for FindTopSurface nodes
+        output.push_str(&self.emit_find_top_surface_inner_functions());
+
+        // Main compute functions for each router field
+        for root_name in self.graph.roots.keys() {
+            output.push_str(&self.emit_compute_function(root_name));
+        }
+
+        // SIMD compute function for final_density
+        output.push_str(&self.emit_compute_function_simd("final_density"));
+
+        output
+    }
+
+    /// Emit inner density functions for FindTopSurface nodes.
+    /// These functions compute the density at a given (x, y, z) coordinate
+    /// and are called by the find_top_surface helper.
+    fn emit_find_top_surface_inner_functions(&mut self) -> String {
+        let mut s = String::new();
+
+        // Find all FindTopSurface root nodes and emit their inner density as a named function
+        for (root_name, root_id) in &self.graph.roots.clone() {
+            if let Some(node) = self.graph.nodes.get(root_id) {
+                if matches!(node.def, DensityFunctionDef::FindTopSurface { .. }) {
+                    // The first dependency is the inner density function
+                    if let Some(inner_id) = node.dependencies.first() {
+                        s.push_str(&self.emit_inner_density_function(root_name, inner_id));
+                    }
+                }
+            }
+        }
+
+        s
+    }
+
+    /// Emit a named inner density function for use by find_top_surface.
+    /// This function is called at arbitrary (x, z) positions, so it cannot use FlatCacheGrid lookups.
+    /// Instead, FlatCache nodes are expanded inline to compute values directly.
+    fn emit_inner_density_function(&mut self, root_name: &str, inner_id: &NodeId) -> String {
+        self.var_names.clear();
+        self.var_counter = 0;
+        self.code.clear();
+
+        // Enable inline expansion of FlatCache nodes since this function
+        // can be called at positions outside the current chunk's FlatCacheGrid.
+        self.expand_flat_cache_inline = true;
+
+        // Emit all computations in topo order for the inner density
+        let result_var = self.emit_node(inner_id);
+
+        // Restore normal mode
+        self.expand_flat_cache_inline = false;
+
+        let mut s = String::new();
+        let func_name = format!("compute_{}_inner_density", root_name);
+        s.push_str(&format!("/// Inner density function for {} (used by find_top_surface).\n", root_name));
+        s.push_str("/// This function computes values directly without FlatCacheGrid lookups,\n");
+        s.push_str("/// allowing it to be called at arbitrary (x, z) positions.\n");
+        s.push_str("#[inline]\n");
+        s.push_str(&format!("#[allow(dead_code)]\n"));
+        s.push_str(&format!("fn {}(\n", func_name));
+        s.push_str("    ctx: &FunctionContext,\n");
+        s.push_str("    noises: &impl NoiseSource,\n");
+        s.push_str("    _flat: &FlatCacheGrid,\n");  // Kept for API compatibility but not used
+        s.push_str(") -> f64 {\n");
+
+        // Insert all computed statements
+        s.push_str(&self.code);
+
+        s.push_str(&format!("    {}\n", result_var));
+        s.push_str("}\n\n");
+
+        s
+    }
+
+    fn emit_helpers(&self) -> String {
+        let mut s = String::new();
+
+        // Y clamped gradient helper
+        s.push_str("/// Y clamped gradient helper.\n");
+        s.push_str("#[inline(always)]\n");
+        s.push_str("fn y_clamped_gradient(y: i32, from_y: i32, to_y: i32, from_value: f64, to_value: f64) -> f64 {\n");
+        s.push_str("    if y <= from_y {\n");
+        s.push_str("        from_value\n");
+        s.push_str("    } else if y >= to_y {\n");
+        s.push_str("        to_value\n");
+        s.push_str("    } else {\n");
+        s.push_str("        let t = (y - from_y) as f64 / (to_y - from_y) as f64;\n");
+        s.push_str("        from_value + t * (to_value - from_value)\n");
+        s.push_str("    }\n");
+        s.push_str("}\n\n");
+
+        // SIMD Y clamped gradient helper
+        s.push_str("/// Y clamped gradient helper (SIMD).\n");
+        s.push_str("#[inline(always)]\n");
+        s.push_str("fn y_clamped_gradient_4(y: [i32; 4], from_y: i32, to_y: i32, from_value: f64, to_value: f64) -> f64x4 {\n");
+        s.push_str("    let y_f64 = f64x4::from_array([y[0] as f64, y[1] as f64, y[2] as f64, y[3] as f64]);\n");
+        s.push_str("    let from_y_v = f64x4::splat(from_y as f64);\n");
+        s.push_str("    let to_y_v = f64x4::splat(to_y as f64);\n");
+        s.push_str("    let from_v = f64x4::splat(from_value);\n");
+        s.push_str("    let to_v = f64x4::splat(to_value);\n\n");
+        s.push_str("    let t = (y_f64 - from_y_v) / (to_y_v - from_y_v);\n");
+        s.push_str("    let interpolated = from_v + t * (to_v - from_v);\n\n");
+        s.push_str("    let below = y_f64.simd_le(from_y_v);\n");
+        s.push_str("    let above = y_f64.simd_ge(to_y_v);\n");
+        s.push_str("    below.select(from_v, above.select(to_v, interpolated))\n");
+        s.push_str("}\n\n");
+
+        // Half negative helper
+        s.push_str("#[inline(always)]\n");
+        s.push_str("fn half_negative(v: f64) -> f64 {\n");
+        s.push_str("    if v > 0.0 { v } else { v * 0.5 }\n");
+        s.push_str("}\n\n");
+
+        // Quarter negative helper
+        s.push_str("#[inline(always)]\n");
+        s.push_str("fn quarter_negative(v: f64) -> f64 {\n");
+        s.push_str("    if v > 0.0 { v } else { v * 0.25 }\n");
+        s.push_str("}\n\n");
+
+        // Squeeze helper
+        s.push_str("#[inline(always)]\n");
+        s.push_str("fn squeeze(v: f64) -> f64 {\n");
+        s.push_str("    let c = v.clamp(-1.0, 1.0);\n");
+        s.push_str("    c / 2.0 - c * c * c / 24.0\n");
+        s.push_str("}\n\n");
+
+        // SIMD Half negative helper
+        s.push_str("#[inline(always)]\n");
+        s.push_str("fn half_negative_4(v: f64x4) -> f64x4 {\n");
+        s.push_str("    let mask = v.simd_gt(f64x4::splat(0.0));\n");
+        s.push_str("    mask.select(v, v * f64x4::splat(0.5))\n");
+        s.push_str("}\n\n");
+
+        // SIMD Quarter negative helper
+        s.push_str("#[inline(always)]\n");
+        s.push_str("fn quarter_negative_4(v: f64x4) -> f64x4 {\n");
+        s.push_str("    let mask = v.simd_gt(f64x4::splat(0.0));\n");
+        s.push_str("    mask.select(v, v * f64x4::splat(0.25))\n");
+        s.push_str("}\n\n");
+
+        // SIMD Squeeze helper
+        s.push_str("#[inline(always)]\n");
+        s.push_str("fn squeeze_4(v: f64x4) -> f64x4 {\n");
+        s.push_str("    let c = v.simd_clamp(f64x4::splat(-1.0), f64x4::splat(1.0));\n");
+        s.push_str("    c / f64x4::splat(2.0) - c * c * c / f64x4::splat(24.0)\n");
+        s.push_str("}\n\n");
+
+        // Rarity value mapper
+        s.push_str("#[inline(always)]\n");
+        s.push_str("fn rarity_value_type1(input: f64) -> f64 {\n");
+        s.push_str("    if input < -0.75 { 0.5 }\n");
+        s.push_str("    else if input < -0.5 { 0.75 }\n");
+        s.push_str("    else if input < 0.5 { 1.0 }\n");
+        s.push_str("    else if input < 0.75 { 2.0 }\n");
+        s.push_str("    else { 3.0 }\n");
+        s.push_str("}\n\n");
+
+        s.push_str("#[inline(always)]\n");
+        s.push_str("fn rarity_value_type2(input: f64) -> f64 {\n");
+        s.push_str("    if input < -0.5 { 0.75 }\n");
+        s.push_str("    else if input < 0.0 { 1.0 }\n");
+        s.push_str("    else if input < 0.5 { 1.5 }\n");
+        s.push_str("    else { 2.0 }\n");
+        s.push_str("}\n\n");
+
+        // SplineSegment struct for pre-computed spline coefficients
+        s.push_str("/// Pre-computed spline segment with polynomial coefficients.\n");
+        s.push_str("/// Evaluates: a + b*t + c*t² + d*t³ where t = (x - x_min) / (x_max - x_min)\n");
+        s.push_str("#[derive(Clone, Copy)]\n");
+        s.push_str("struct SplineSegment {\n");
+        s.push_str("    x_min: f64,\n");
+        s.push_str("    x_max: f64,\n");
+        s.push_str("    a: f64,\n");
+        s.push_str("    b: f64,\n");
+        s.push_str("    c: f64,\n");
+        s.push_str("    d: f64,\n");
+        s.push_str("}\n\n");
+
+        s.push_str("impl SplineSegment {\n");
+        s.push_str("    #[inline(always)]\n");
+        s.push_str("    const fn new(x_min: f64, x_max: f64, a: f64, b: f64, c: f64, d: f64) -> Self {\n");
+        s.push_str("        Self { x_min, x_max, a, b, c, d }\n");
+        s.push_str("    }\n\n");
+        s.push_str("    /// Evaluate the spline at x (assumes x is within [x_min, x_max]).\n");
+        s.push_str("    #[inline(always)]\n");
+        s.push_str("    fn eval(&self, x: f64) -> f64 {\n");
+        s.push_str("        let t = (x - self.x_min) / (self.x_max - self.x_min);\n");
+        s.push_str("        // Horner's method for polynomial evaluation: a + t*(b + t*(c + t*d))\n");
+        s.push_str("        self.a + t * (self.b + t * (self.c + t * self.d))\n");
+        s.push_str("    }\n");
+        s.push_str("}\n\n");
+
+        // Helper for evaluating a static spline with binary search
+        s.push_str("/// Evaluate a spline defined by segments using binary search.\n");
+        s.push_str("#[inline(always)]\n");
+        s.push_str("fn eval_spline(segments: &[SplineSegment], x: f64, first_value: f64, last_value: f64) -> f64 {\n");
+        s.push_str("    if segments.is_empty() { return first_value; }\n");
+        s.push_str("    if x <= segments[0].x_min { return first_value; }\n");
+        s.push_str("    if x >= segments[segments.len() - 1].x_max { return last_value; }\n");
+        s.push_str("    // Binary search for the segment containing x\n");
+        s.push_str("    let idx = segments.partition_point(|s| s.x_max <= x);\n");
+        s.push_str("    if idx >= segments.len() { return last_value; }\n");
+        s.push_str("    segments[idx].eval(x)\n");
+        s.push_str("}\n\n");
+
+        // Find top surface helper - finds Y level where density crosses from positive to negative
+        s.push_str("/// Find the Y level where density crosses from positive to negative.\n");
+        s.push_str("/// Returns the Y level as an f64 (same format as Java's preliminary_surface_level).\n");
+        s.push_str("#[inline]\n");
+        s.push_str("fn find_top_surface<F>(\n");
+        s.push_str("    block_x: i32,\n");
+        s.push_str("    block_z: i32,\n");
+        s.push_str("    lower_bound: i32,\n");
+        s.push_str("    upper_bound: i32,\n");
+        s.push_str("    cell_height: i32,\n");
+        s.push_str("    mut density_fn: F,\n");
+        s.push_str(") -> f64\n");
+        s.push_str("where\n");
+        s.push_str("    F: FnMut(i32) -> f64,\n");
+        s.push_str("{\n");
+        s.push_str("    // Search from upper to lower, looking for where density crosses from negative to positive\n");
+        s.push_str("    // (as we descend, the surface is where density becomes positive)\n");
+        s.push_str("    let mut y = upper_bound;\n");
+        s.push_str("    let mut prev_density = density_fn(y);\n");
+        s.push_str("    \n");
+        s.push_str("    while y > lower_bound {\n");
+        s.push_str("        y -= cell_height;\n");
+        s.push_str("        let density = density_fn(y);\n");
+        s.push_str("        \n");
+        s.push_str("        // If we crossed from negative (above surface) to positive (below surface),\n");
+        s.push_str("        // the surface is at the previous Y level\n");
+        s.push_str("        if prev_density < 0.0 && density >= 0.0 {\n");
+        s.push_str("            return (y + cell_height) as f64;\n");
+        s.push_str("        }\n");
+        s.push_str("        prev_density = density;\n");
+        s.push_str("    }\n");
+        s.push_str("    \n");
+        s.push_str("    // If we didn't find a crossing, return the lower bound\n");
+        s.push_str("    lower_bound as f64\n");
+        s.push_str("}\n\n");
+
+        s
+    }
+
+    fn emit_flat_cache_grid(&mut self) -> String {
+        let mut s = String::new();
+
+        // Collect all FlatCache nodes
+        let flat_cache_nodes: Vec<_> = self.graph.nodes.values()
+            .filter(|n| n.is_flat_cache)
+            .collect();
+
+        if flat_cache_nodes.is_empty() {
+            // No flat cache nodes, emit a simple empty struct
+            s.push_str("/// Pre-computed Y-independent values for the chunk.\n");
+            s.push_str("#[derive(Default)]\n");
+            s.push_str("pub struct FlatCacheGrid;\n\n");
+            s.push_str("impl FlatCacheGrid {\n");
+            s.push_str("    pub fn new(_chunk_x: i32, _chunk_z: i32, _noises: &impl NoiseSource) -> Self {\n");
+            s.push_str("        Self\n");
+            s.push_str("    }\n");
+            s.push_str("}\n\n");
+            return s;
+        }
+
+        s.push_str("/// Pre-computed Y-independent values for the chunk.\n");
+        s.push_str("#[derive(Clone)]\n");
+        s.push_str("pub struct FlatCacheGrid {\n");
+        s.push_str("    pub first_quart_x: i32,\n");
+        s.push_str("    pub first_quart_z: i32,\n");
+
+        for node in &flat_cache_nodes {
+            let field_name = self.flat_cache_field_name(&node.id);
+            s.push_str(&format!("    pub {}: [[f64; 5]; 5],\n", field_name));
+        }
+
+        s.push_str("}\n\n");
+
+        // Default impl
+        s.push_str("impl Default for FlatCacheGrid {\n");
+        s.push_str("    fn default() -> Self {\n");
+        s.push_str("        Self {\n");
+        s.push_str("            first_quart_x: 0,\n");
+        s.push_str("            first_quart_z: 0,\n");
+        for node in &flat_cache_nodes {
+            let field_name = self.flat_cache_field_name(&node.id);
+            s.push_str(&format!("            {}: [[0.0; 5]; 5],\n", field_name));
+        }
+        s.push_str("        }\n");
+        s.push_str("    }\n");
+        s.push_str("}\n\n");
+
+        // impl block with initialization - scalar loop (SIMD caused overhead from conversions)
+        s.push_str("impl FlatCacheGrid {\n");
+        s.push_str("    /// Initialize FlatCache grid for the given chunk.\n");
+        s.push_str("    pub fn new(chunk_x: i32, chunk_z: i32, noises: &impl NoiseSource) -> Self {\n");
+        s.push_str("        let first_qx = chunk_x * 4;\n");
+        s.push_str("        let first_qz = chunk_z * 4;\n");
+        s.push_str("        let mut grid = Self {\n");
+        s.push_str("            first_quart_x: first_qx,\n");
+        s.push_str("            first_quart_z: first_qz,\n");
+        s.push_str("            ..Default::default()\n");
+        s.push_str("        };\n\n");
+
+        s.push_str("        for qz in 0..5i32 {\n");
+        s.push_str("            for qx in 0..5i32 {\n");
+        s.push_str("                let bx = (first_qx + qx) * 4;\n");
+        s.push_str("                let bz = (first_qz + qz) * 4;\n");
+        s.push_str("                #[allow(unused_variables)]\n");
+        s.push_str("                let ctx = FunctionContext::new(bx, 0, bz);\n\n");
+
+        // Emit scalar computation for each FlatCache in dependency order
+        let sorted = self.graph.topo_sort();
+        for node_id in sorted.iter() {
+            if let Some(node) = self.graph.nodes.get(node_id) {
+                if node.is_flat_cache {
+                    let field = self.flat_cache_field_name(node_id);
+                    let computation = self.emit_flat_cache_init(node);
+                    s.push_str(&format!("                grid.{}[qz as usize][qx as usize] = {};\n",
+                        field, computation));
+                }
+            }
+        }
+
+        s.push_str("            }\n");
+        s.push_str("        }\n\n");
+        s.push_str("        grid\n");
+        s.push_str("    }\n\n");
+
+        // Lookup helper
+        s.push_str("    /// Lookup FlatCache value at block position.\n");
+        s.push_str("    #[inline(always)]\n");
+        s.push_str("    pub fn lookup(&self, grid: &[[f64; 5]; 5], block_x: i32, block_z: i32) -> f64 {\n");
+        s.push_str("        let qx = ((block_x >> 2) - self.first_quart_x) as usize;\n");
+        s.push_str("        let qz = ((block_z >> 2) - self.first_quart_z) as usize;\n");
+        s.push_str("        grid[qz][qx]\n");
+        s.push_str("    }\n");
+        s.push_str("}\n\n");
+
+        s
+    }
+
+    fn emit_compute_function(&mut self, root_name: &str) -> String {
+        self.var_names.clear();
+        self.var_counter = 0;
+        self.code.clear();
+
+        let root_id = match self.graph.roots.get(root_name) {
+            Some(id) => id.clone(),
+            None => {
+                // No root for this field, emit a placeholder
+                let mut s = String::new();
+                s.push_str(&format!("/// Compute {} at a single point.\n", root_name));
+                s.push_str("#[inline]\n");
+                s.push_str(&format!("#[allow(dead_code)]\n"));
+                s.push_str(&format!("pub fn compute_{}(\n", root_name));
+                s.push_str("    _ctx: &FunctionContext,\n");
+                s.push_str("    _noises: &impl NoiseSource,\n");
+                s.push_str("    _flat: &FlatCacheGrid,\n");
+                s.push_str(") -> f64 {\n");
+                s.push_str("    0.0\n");
+                s.push_str("}\n\n");
+                return s;
+            }
+        };
+
+        // Emit all computations in topo order
+        let result_var = self.emit_node(&root_id);
+
+        let mut s = String::new();
+        s.push_str(&format!("/// Compute {} at a single point.\n", root_name));
+        s.push_str("#[inline]\n");
+        s.push_str(&format!("#[allow(dead_code)]\n"));
+        s.push_str(&format!("pub fn compute_{}(\n", root_name));
+        s.push_str("    ctx: &FunctionContext,\n");
+        s.push_str("    noises: &impl NoiseSource,\n");
+        s.push_str("    flat: &FlatCacheGrid,\n");
+        s.push_str(") -> f64 {\n");
+
+        // Insert all computed statements
+        s.push_str(&self.code);
+
+        s.push_str(&format!("    {}\n", result_var));
+        s.push_str("}\n\n");
+
+        s
+    }
+
+    fn emit_compute_function_simd(&mut self, root_name: &str) -> String {
+        self.var_names.clear();
+        self.var_counter = 0;
+        self.code.clear();
+
+        let root_id = match self.graph.roots.get(root_name) {
+            Some(id) => id.clone(),
+            None => {
+                let mut s = String::new();
+                s.push_str(&format!("/// Compute {} at 4 Y positions (SIMD).\n", root_name));
+                s.push_str("#[inline]\n");
+                s.push_str(&format!("#[allow(dead_code)]\n"));
+                s.push_str(&format!("pub fn compute_{}_4(\n", root_name));
+                s.push_str("    _ctx: &FunctionContext4,\n");
+                s.push_str("    _noises: &impl NoiseSource,\n");
+                s.push_str("    _flat: &FlatCacheGrid,\n");
+                s.push_str(") -> f64x4 {\n");
+                s.push_str("    f64x4::splat(0.0)\n");
+                s.push_str("}\n\n");
+                return s;
+            }
+        };
+
+        // Emit pure SIMD code - all operations use f64x4
+        let result_var = self.emit_node_simd(&root_id);
+
+        let mut s = String::new();
+        s.push_str(&format!("/// Compute {} at 4 Y positions (pure SIMD).\n", root_name));
+        s.push_str("#[inline]\n");
+        s.push_str(&format!("#[allow(dead_code)]\n"));
+        s.push_str(&format!("pub fn compute_{}_4(\n", root_name));
+        s.push_str("    ctx: &FunctionContext4,\n");
+        s.push_str("    noises: &impl NoiseSource,\n");
+        s.push_str("    flat: &FlatCacheGrid,\n");
+        s.push_str(") -> f64x4 {\n");
+        s.push_str("    // Pre-compute SIMD vectors for coordinates\n");
+        s.push_str("    let x_v = f64x4::splat(ctx.block_x as f64);\n");
+        s.push_str("    let y_v = f64x4::from_array([ctx.block_y[0] as f64, ctx.block_y[1] as f64, ctx.block_y[2] as f64, ctx.block_y[3] as f64]);\n");
+        s.push_str("    let z_v = f64x4::splat(ctx.block_z as f64);\n\n");
+
+        // Insert all computed statements
+        s.push_str(&self.code);
+
+        s.push_str(&format!("    {}\n", result_var));
+        s.push_str("}\n\n");
+
+        s
+    }
+
+    /// Emit a node as SIMD (f64x4) code.
+    fn emit_node_simd(&mut self, id: &NodeId) -> String {
+        // Check if already emitted
+        if let Some(var) = self.var_names.get(id) {
+            return var.clone();
+        }
+
+        let node = match self.graph.nodes.get(id) {
+            Some(n) => n.clone(),
+            None => return "f64x4::splat(0.0)".to_string(),
+        };
+
+        let expr = self.emit_node_expr_simd(&node);
+
+        // Allocate variable if expression is non-trivial or multi-use
+        if expr.len() > 60 || node.usage_count > 1 || expr.contains('\n') {
+            let var = format!("v{}", self.var_counter);
+            self.var_counter += 1;
+            writeln!(self.code, "    let {} = {};", var, expr).unwrap();
+            self.var_names.insert(id.clone(), var.clone());
+            var
+        } else {
+            // Inline simple expressions but still cache the result
+            self.var_names.insert(id.clone(), expr.clone());
+            expr
+        }
+    }
+
+    /// Emit SIMD expression for a node.
+    fn emit_node_expr_simd(&mut self, node: &DensityNode) -> String {
+        match &node.def {
+            DensityFunctionDef::Constant { argument } => {
+                format!("f64x4::splat({:.16}_f64)", argument)
+            }
+
+            DensityFunctionDef::Add { .. } => {
+                let v1 = self.emit_node_simd(&node.dependencies[0]);
+                let v2 = self.emit_node_simd(&node.dependencies[1]);
+                format!("({} + {})", v1, v2)
+            }
+
+            DensityFunctionDef::Mul { .. } => {
+                let v1 = self.emit_node_simd(&node.dependencies[0]);
+                let v2 = self.emit_node_simd(&node.dependencies[1]);
+                format!("({} * {})", v1, v2)
+            }
+
+            DensityFunctionDef::Min { .. } => {
+                let v1 = self.emit_node_simd(&node.dependencies[0]);
+                let v2 = self.emit_node_simd(&node.dependencies[1]);
+                format!("{}.simd_min({})", v1, v2)
+            }
+
+            DensityFunctionDef::Max { .. } => {
+                let v1 = self.emit_node_simd(&node.dependencies[0]);
+                let v2 = self.emit_node_simd(&node.dependencies[1]);
+                format!("{}.simd_max({})", v1, v2)
+            }
+
+            DensityFunctionDef::Abs { .. } => {
+                let v = self.emit_node_simd(&node.dependencies[0]);
+                format!("{}.abs()", v)
+            }
+
+            DensityFunctionDef::Square { .. } => {
+                let v = self.emit_node_simd(&node.dependencies[0]);
+                format!("({v} * {v})")
+            }
+
+            DensityFunctionDef::Cube { .. } => {
+                let v = self.emit_node_simd(&node.dependencies[0]);
+                format!("({v} * {v} * {v})")
+            }
+
+            DensityFunctionDef::Squeeze { .. } => {
+                let v = self.emit_node_simd(&node.dependencies[0]);
+                format!("squeeze_4({})", v)
+            }
+
+            DensityFunctionDef::HalfNegative { .. } => {
+                let v = self.emit_node_simd(&node.dependencies[0]);
+                format!("half_negative_4({})", v)
+            }
+
+            DensityFunctionDef::QuarterNegative { .. } => {
+                let v = self.emit_node_simd(&node.dependencies[0]);
+                format!("quarter_negative_4({})", v)
+            }
+
+            DensityFunctionDef::Clamp { min, max, .. } => {
+                let v = self.emit_node_simd(&node.dependencies[0]);
+                format!("{}.simd_clamp(f64x4::splat({:.16}_f64), f64x4::splat({:.16}_f64))", v, min, max)
+            }
+
+            DensityFunctionDef::YClampedGradient { from_y, to_y, from_value, to_value } => {
+                format!(
+                    "y_clamped_gradient_4(ctx.block_y, {}, {}, {:.16}_f64, {:.16}_f64)",
+                    from_y, to_y, from_value, to_value
+                )
+            }
+
+            DensityFunctionDef::Noise { noise, xz_scale, y_scale } => {
+                // Pure SIMD noise sampling
+                let noise_ref = noise_name_to_ref(noise);
+                format!(
+                    "noises.sample_4(NoiseRef::{},x_v * f64x4::splat({:.16}_f64), y_v * f64x4::splat({:.16}_f64), z_v * f64x4::splat({:.16}_f64))",
+                    noise_ref, xz_scale, y_scale, xz_scale
+                )
+            }
+
+            DensityFunctionDef::ShiftedNoise { noise, xz_scale, y_scale, .. } => {
+                let noise_ref = noise_name_to_ref(noise);
+                let sx = self.emit_node_simd(&node.dependencies[0]);
+                let sy = self.emit_node_simd(&node.dependencies[1]);
+                let sz = self.emit_node_simd(&node.dependencies[2]);
+                format!(
+                    "noises.sample_4(NoiseRef::{},(x_v + {}) * f64x4::splat({:.16}_f64), (y_v + {}) * f64x4::splat({:.16}_f64), (z_v + {}) * f64x4::splat({:.16}_f64))",
+                    noise_ref, sx, xz_scale, sy, y_scale, sz, xz_scale
+                )
+            }
+
+            DensityFunctionDef::ShiftA { argument } => {
+                // ShiftA is Y-independent, so it's the same across all 4 Y values
+                let noise_ref = noise_name_to_ref(argument);
+                format!(
+                    "f64x4::splat(noises.sample(NoiseRef::{},ctx.block_x as f64, 0.0, ctx.block_z as f64) * 4.0)",
+                    noise_ref
+                )
+            }
+
+            DensityFunctionDef::ShiftB { argument } => {
+                // ShiftB is Y-independent
+                let noise_ref = noise_name_to_ref(argument);
+                format!(
+                    "f64x4::splat(noises.sample(NoiseRef::{},ctx.block_z as f64, ctx.block_x as f64, 0.0) * 4.0)",
+                    noise_ref
+                )
+            }
+
+            DensityFunctionDef::Shift { argument } => {
+                let noise_ref = noise_name_to_ref(argument);
+                format!(
+                    "f64x4::splat(noises.sample(NoiseRef::{},ctx.block_x as f64, 0.0, ctx.block_z as f64) * 4.0)",
+                    noise_ref
+                )
+            }
+
+            DensityFunctionDef::FlatCache { .. } => {
+                // FlatCache lookup returns scalar, splat to SIMD
+                let field = self.flat_cache_field_name(&node.id);
+                format!("f64x4::splat(flat.lookup(&flat.{}, ctx.block_x, ctx.block_z))", field)
+            }
+
+            DensityFunctionDef::Cache2D { .. } |
+            DensityFunctionDef::CacheOnce { .. } |
+            DensityFunctionDef::Interpolated { .. } => {
+                // Pass through to inner
+                self.emit_node_simd(&node.dependencies[0])
+            }
+
+            DensityFunctionDef::BlendAlpha {} => "f64x4::splat(1.0_f64)".to_string(),
+            DensityFunctionDef::BlendOffset {} => "f64x4::splat(0.0_f64)".to_string(),
+
+            DensityFunctionDef::BlendDensity { .. } => {
+                self.emit_node_simd(&node.dependencies[0])
+            }
+
+            DensityFunctionDef::RangeChoice { min_inclusive, max_exclusive, .. } => {
+                // RangeChoice with SIMD - use mask-based selection
+                let inp = self.emit_node_simd(&node.dependencies[0]);
+                let wir = self.emit_node_simd(&node.dependencies[1]);
+                let wor = self.emit_node_simd(&node.dependencies[2]);
+                format!(
+                    "{{ let inp = {}; let in_range = inp.simd_ge(f64x4::splat({:.16}_f64)) & inp.simd_lt(f64x4::splat({:.16}_f64)); in_range.select({}, {}) }}",
+                    inp, min_inclusive, max_exclusive, wir, wor
+                )
+            }
+
+            DensityFunctionDef::WeirdScaledSampler { noise, rarity_value_mapper, .. } => {
+                // WeirdScaledSampler has divergent control flow - fall back to scalar loop
+                let noise_ref = noise_name_to_ref(noise);
+                let inp = self.emit_node_simd(&node.dependencies[0]);
+                let rarity_fn = if rarity_value_mapper == "type_1" {
+                    "rarity_value_type1"
+                } else {
+                    "rarity_value_type2"
+                };
+                // Fall back to scalar computation due to divergent rarity mapping
+                format!(
+                    "{{ let inp = {}; let inp_arr = inp.to_array(); f64x4::from_array([{{ let r = {}(inp_arr[0]); noises.sample(NoiseRef::{},ctx.block_x as f64 / r, ctx.block_y[0] as f64 / r, ctx.block_z as f64 / r) }}, {{ let r = {}(inp_arr[1]); noises.sample(NoiseRef::{},ctx.block_x as f64 / r, ctx.block_y[1] as f64 / r, ctx.block_z as f64 / r) }}, {{ let r = {}(inp_arr[2]); noises.sample(NoiseRef::{},ctx.block_x as f64 / r, ctx.block_y[2] as f64 / r, ctx.block_z as f64 / r) }}, {{ let r = {}(inp_arr[3]); noises.sample(NoiseRef::{},ctx.block_x as f64 / r, ctx.block_y[3] as f64 / r, ctx.block_z as f64 / r) }}]) }}",
+                    inp, rarity_fn, noise_ref, rarity_fn, noise_ref, rarity_fn, noise_ref, rarity_fn, noise_ref
+                )
+            }
+
+            DensityFunctionDef::Spline { spline } => {
+                self.emit_spline_simd(spline)
+            }
+
+            DensityFunctionDef::OldBlendedNoise { .. } => {
+                "f64x4::splat(0.0_f64)".to_string()
+            }
+
+            DensityFunctionDef::EndIslands {} => {
+                "f64x4::splat(0.0_f64)".to_string()
+            }
+
+            DensityFunctionDef::Invert { .. } => {
+                let v = self.emit_node_simd(&node.dependencies[0]);
+                format!("(-{})", v)
+            }
+
+            DensityFunctionDef::FindTopSurface { lower_bound, cell_height, .. } => {
+                // FindTopSurface computes the Y level where density crosses from positive to negative.
+                // This is 2D (Y-independent), so we return a scalar splatted to SIMD.
+                // We compute upper_bound (Y-independent) and then call find_top_surface.
+                let upper_bound = self.emit_node_simd(&node.dependencies[1]);
+                format!(
+                    "f64x4::splat(find_top_surface(ctx.block_x, ctx.block_z, {}, ({}[0]).floor() as i32, {}, |y| {{ \
+                        let inner_ctx = FunctionContext::new(ctx.block_x, y, ctx.block_z); \
+                        compute_preliminary_surface_level_inner_density(&inner_ctx, noises, flat) \
+                    }}))",
+                    lower_bound, upper_bound, cell_height
+                )
+            }
+        }
+    }
+
+    /// Emit a spline as SIMD code.
+    fn emit_spline_simd(&mut self, spline: &SplineDef) -> String {
+        // For now, fall back to scalar spline evaluation packed into SIMD
+        // Full SIMD spline would require significant refactoring
+        let coord_expr = self.emit_arg_expr_simd(&spline.coordinate);
+
+        if spline.points.is_empty() {
+            return "f64x4::splat(0.0_f64)".to_string();
+        }
+
+        if spline.points.len() == 1 {
+            return self.emit_spline_value_simd(&spline.points[0].value);
+        }
+
+        // Check if spline is Y-independent (coordinate doesn't depend on Y)
+        // For now, we'll do scalar evaluation per lane since splines are complex
+
+        // Generate unique spline function name (for future use if needed)
+        let _spline_id = self.spline_counter;
+        self.spline_counter += 1;
+
+        // For splines, we evaluate the coordinate in SIMD, then for each lane
+        // we evaluate the spline at that coordinate value
+        // This is because spline evaluation has many branches that don't vectorize well
+
+        let mut code = String::new();
+        code.push_str("{\n");
+        code.push_str(&format!("        let coord_v = {};\n", coord_expr));
+        code.push_str("        let coord_arr = coord_v.to_array();\n");
+
+        // Emit inline spline evaluation for each lane
+        code.push_str("        f64x4::from_array([\n");
+        for lane in 0..4 {
+            code.push_str(&format!("            {{ let coord = coord_arr[{}]; ", lane));
+            code.push_str(&self.emit_spline_eval_inline(spline, lane));
+            code.push_str(" },\n");
+        }
+        code.push_str("        ])\n");
+        code.push_str("    }");
+
+        code
+    }
+
+    /// Emit inline spline evaluation for a single lane.
+    fn emit_spline_eval_inline(&mut self, spline: &SplineDef, lane: usize) -> String {
+        let first_loc = spline.points[0].location;
+        let last_loc = spline.points.last().unwrap().location;
+        let first_val = self.emit_spline_value_lane(&spline.points[0].value, lane);
+        let last_val = self.emit_spline_value_lane(&spline.points.last().unwrap().value, lane);
+
+        if spline_has_only_constants(spline) {
+            // Use optimized constant spline evaluation
+            let values = extract_constant_values(&spline.points);
+            let mut segments = Vec::new();
+            for i in 0..spline.points.len() - 1 {
+                let p0 = &spline.points[i];
+                let p1 = &spline.points[i + 1];
+                let seg = SplineSegment::from_hermite(
+                    p0.location, p1.location, values[i], values[i + 1], p0.derivative, p1.derivative
+                );
+                segments.push(seg);
+            }
+
+            let mut code = String::new();
+            code.push_str(&format!("if coord <= {:.16}_f64 {{ {:.16}_f64 }} ", first_loc, values[0]));
+            code.push_str(&format!("else if coord >= {:.16}_f64 {{ {:.16}_f64 }} ", last_loc, values[values.len() - 1]));
+            code.push_str("else { ");
+
+            if segments.len() == 1 {
+                let seg = &segments[0];
+                code.push_str(&format!("let t = (coord - {:.16}_f64) / {:.16}_f64; ", seg.x_min, seg.x_max - seg.x_min));
+                code.push_str(&format!("{:.16}_f64 + t * ({:.16}_f64 + t * ({:.16}_f64 + t * {:.16}_f64))", seg.a, seg.b, seg.c, seg.d));
+            } else {
+                for (i, seg) in segments.iter().enumerate() {
+                    if i == 0 {
+                        code.push_str(&format!("if coord < {:.16}_f64 {{ ", seg.x_max));
+                    } else if i == segments.len() - 1 {
+                        code.push_str("} else { ");
+                    } else {
+                        code.push_str(&format!("}} else if coord < {:.16}_f64 {{ ", seg.x_max));
+                    }
+                    code.push_str(&format!("let t = (coord - {:.16}_f64) / {:.16}_f64; ", seg.x_min, seg.x_max - seg.x_min));
+                    code.push_str(&format!("{:.16}_f64 + t * ({:.16}_f64 + t * ({:.16}_f64 + t * {:.16}_f64))", seg.a, seg.b, seg.c, seg.d));
+                }
+                code.push_str(" }");
+            }
+            code.push_str(" }");
+            return code;
+        }
+
+        // Non-constant spline - use Hermite interpolation
+        let num_segments = spline.points.len() - 1;
+        let mut code = String::new();
+        code.push_str(&format!("if coord <= {:.16}_f64 {{ {} }} ", first_loc, first_val));
+        code.push_str(&format!("else if coord >= {:.16}_f64 {{ {} }} ", last_loc, last_val));
+        code.push_str("else { ");
+
+        for i in 0..num_segments {
+            let p0 = &spline.points[i];
+            let p1 = &spline.points[i + 1];
+
+            if num_segments > 1 {
+                if i == 0 {
+                    code.push_str(&format!("if coord < {:.16}_f64 {{ ", p1.location));
+                } else if i == num_segments - 1 {
+                    code.push_str("} else { ");
+                } else {
+                    code.push_str(&format!("}} else if coord < {:.16}_f64 {{ ", p1.location));
+                }
+            }
+
+            let v0 = self.emit_spline_value_lane(&p0.value, lane);
+            let v1 = self.emit_spline_value_lane(&p1.value, lane);
+
+            code.push_str(&format!("let v0 = {}; let v1 = {}; ", v0, v1));
+            code.push_str(&format!("let t = (coord - {:.16}_f64) / {:.16}_f64; ", p0.location, p1.location - p0.location));
+            code.push_str("let t2 = t * t; let t3 = t2 * t; ");
+            code.push_str("let h00 = 2.0 * t3 - 3.0 * t2 + 1.0; let h10 = t3 - 2.0 * t2 + t; ");
+            code.push_str("let h01 = -2.0 * t3 + 3.0 * t2; let h11 = t3 - t2; ");
+            code.push_str(&format!("h00 * v0 + h10 * {:.16}_f64 * {:.16}_f64 + h01 * v1 + h11 * {:.16}_f64 * {:.16}_f64",
+                p1.location - p0.location, p0.derivative, p1.location - p0.location, p1.derivative));
+        }
+        if num_segments > 1 {
+            code.push_str(" }");
+        }
+        code.push_str(" }");
+        code
+    }
+
+    /// Emit spline value as SIMD.
+    fn emit_spline_value_simd(&mut self, value: &SplineValue) -> String {
+        match value {
+            SplineValue::Constant(v) => format!("f64x4::splat({:.16}_f64)", v),
+            SplineValue::Nested(nested) => self.emit_spline_simd(nested),
+        }
+    }
+
+    /// Emit spline value for a specific lane.
+    fn emit_spline_value_lane(&mut self, value: &SplineValue, lane: usize) -> String {
+        match value {
+            SplineValue::Constant(v) => format!("{:.16}_f64", v),
+            SplineValue::Nested(nested) => {
+                // For nested splines, we need to evaluate at the lane's coordinate
+                // This is complex - for now emit the full nested spline code
+                let coord_expr = self.emit_arg_expr_lane(&nested.coordinate, lane);
+
+                if nested.points.is_empty() {
+                    return "0.0_f64".to_string();
+                }
+                if nested.points.len() == 1 {
+                    return self.emit_spline_value_lane(&nested.points[0].value, lane);
+                }
+
+                let first_loc = nested.points[0].location;
+                let last_loc = nested.points.last().unwrap().location;
+                let first_val = self.emit_spline_value_lane(&nested.points[0].value, lane);
+                let last_val = self.emit_spline_value_lane(&nested.points.last().unwrap().value, lane);
+
+                let mut code = String::new();
+                code.push_str("{ let coord = ");
+                code.push_str(&coord_expr);
+                code.push_str("; ");
+                code.push_str(&format!("if coord <= {:.16}_f64 {{ {} }} ", first_loc, first_val));
+                code.push_str(&format!("else if coord >= {:.16}_f64 {{ {} }} ", last_loc, last_val));
+                code.push_str("else { ");
+
+                // Simplified Hermite for nested - just linear for now to keep code size down
+                code.push_str(&format!("{}", first_val));
+                code.push_str(" } }");
+                code
+            }
+        }
+    }
+
+    /// Emit argument expression as SIMD.
+    fn emit_arg_expr_simd(&mut self, arg: &super::super::parser::density_function::DensityFunctionArg) -> String {
+        match arg {
+            super::super::parser::density_function::DensityFunctionArg::Constant(v) => {
+                format!("f64x4::splat({:.16}_f64)", v)
+            }
+            super::super::parser::density_function::DensityFunctionArg::Reference(name) => {
+                // Look up the node for this reference
+                if let Some(node_id) = self.find_node_by_ref_name(name) {
+                    return self.emit_node_simd(&node_id);
+                }
+                // Handle built-in references
+                if name == "minecraft:overworld/continents" || name.ends_with("/continents") {
+                    return "f64x4::splat(flat.lookup(&flat.fc_n0, ctx.block_x, ctx.block_z))".to_string();
+                }
+                if name == "minecraft:overworld/erosion" || name.ends_with("/erosion") {
+                    return "f64x4::splat(flat.lookup(&flat.fc_n1, ctx.block_x, ctx.block_z))".to_string();
+                }
+                format!("/* ref: {} */ f64x4::splat(0.0_f64)", name)
+            }
+            super::super::parser::density_function::DensityFunctionArg::Inline(def) => {
+                self.emit_inline_def_simd(def)
+            }
+        }
+    }
+
+    /// Emit argument expression for a specific lane (scalar).
+    fn emit_arg_expr_lane(&mut self, arg: &super::super::parser::density_function::DensityFunctionArg, lane: usize) -> String {
+        match arg {
+            super::super::parser::density_function::DensityFunctionArg::Constant(v) => {
+                format!("{:.16}_f64", v)
+            }
+            super::super::parser::density_function::DensityFunctionArg::Reference(name) => {
+                // For lane-specific, we need to look up and extract the lane
+                if let Some(node_id) = self.find_node_by_ref_name(name) {
+                    if let Some(node) = self.graph.nodes.get(&node_id) {
+                        if node.is_flat_cache {
+                            let field = self.flat_cache_field_name(&node_id);
+                            return format!("flat.lookup(&flat.{}, ctx.block_x, ctx.block_z)", field);
+                        }
+                        // If Y-independent, return scalar
+                        if node.is_y_independent {
+                            // Would need to emit scalar version - for now use lookup
+                            return format!("/* y-indep ref */ 0.0_f64");
+                        }
+                    }
+                }
+                format!("/* lane ref: {} */ 0.0_f64", name)
+            }
+            super::super::parser::density_function::DensityFunctionArg::Inline(def) => {
+                self.emit_inline_def_lane(def, lane)
+            }
+        }
+    }
+
+    /// Emit inline definition as SIMD.
+    fn emit_inline_def_simd(&mut self, def: &DensityFunctionDef) -> String {
+        match def {
+            DensityFunctionDef::Constant { argument } => {
+                format!("f64x4::splat({:.16}_f64)", argument)
+            }
+            DensityFunctionDef::YClampedGradient { from_y, to_y, from_value, to_value } => {
+                format!(
+                    "y_clamped_gradient_4(ctx.block_y, {}, {}, {:.16}_f64, {:.16}_f64)",
+                    from_y, to_y, from_value, to_value
+                )
+            }
+            DensityFunctionDef::FlatCache { argument } => {
+                self.emit_arg_expr_simd(argument)
+            }
+            DensityFunctionDef::Cache2D { argument } |
+            DensityFunctionDef::CacheOnce { argument } => {
+                self.emit_arg_expr_simd(argument)
+            }
+            _ => {
+                format!("/* complex inline simd: {:?} */ f64x4::splat(0.0_f64)", def)
+            }
+        }
+    }
+
+    /// Emit inline definition for a specific lane.
+    fn emit_inline_def_lane(&mut self, def: &DensityFunctionDef, lane: usize) -> String {
+        match def {
+            DensityFunctionDef::Constant { argument } => {
+                format!("{:.16}_f64", argument)
+            }
+            DensityFunctionDef::YClampedGradient { from_y, to_y, from_value, to_value } => {
+                format!(
+                    "y_clamped_gradient(ctx.block_y[{}], {}, {}, {:.16}_f64, {:.16}_f64)",
+                    lane, from_y, to_y, from_value, to_value
+                )
+            }
+            DensityFunctionDef::FlatCache { argument } => {
+                self.emit_arg_expr_lane(argument, lane)
+            }
+            DensityFunctionDef::Cache2D { argument } |
+            DensityFunctionDef::CacheOnce { argument } => {
+                self.emit_arg_expr_lane(argument, lane)
+            }
+            _ => {
+                format!("/* complex inline lane: {:?} */ 0.0_f64", def)
+            }
+        }
+    }
+
+    fn emit_node(&mut self, id: &NodeId) -> String {
+        // Check if already emitted
+        if let Some(var) = self.var_names.get(id) {
+            return var.clone();
+        }
+
+        let node = match self.graph.nodes.get(id) {
+            Some(n) => n.clone(),
+            None => return "0.0".to_string(),
+        };
+
+        let expr = self.emit_node_expr(&node);
+
+        // Allocate variable if expression is non-trivial or multi-use
+        if expr.len() > 50 || node.usage_count > 1 || expr.contains('\n') {
+            let var = format!("v{}", self.var_counter);
+            self.var_counter += 1;
+            writeln!(self.code, "    let {} = {};", var, expr).unwrap();
+            self.var_names.insert(id.clone(), var.clone());
+            var
+        } else {
+            // Inline simple expressions but still cache the result
+            self.var_names.insert(id.clone(), expr.clone());
+            expr
+        }
+    }
+
+    fn emit_node_expr(&mut self, node: &DensityNode) -> String {
+        match &node.def {
+            DensityFunctionDef::Constant { argument } => {
+                format!("{:.16}_f64", argument)
+            }
+
+            DensityFunctionDef::Add { .. } => {
+                let v1 = self.emit_node(&node.dependencies[0]);
+                let v2 = self.emit_node(&node.dependencies[1]);
+                format!("({} + {})", v1, v2)
+            }
+
+            DensityFunctionDef::Mul { .. } => {
+                let v1 = self.emit_node(&node.dependencies[0]);
+                let v2 = self.emit_node(&node.dependencies[1]);
+                format!("({} * {})", v1, v2)
+            }
+
+            DensityFunctionDef::Min { .. } => {
+                let v1 = self.emit_node(&node.dependencies[0]);
+                let v2 = self.emit_node(&node.dependencies[1]);
+                format!("{}.min({})", v1, v2)
+            }
+
+            DensityFunctionDef::Max { .. } => {
+                let v1 = self.emit_node(&node.dependencies[0]);
+                let v2 = self.emit_node(&node.dependencies[1]);
+                format!("{}.max({})", v1, v2)
+            }
+
+            DensityFunctionDef::Abs { .. } => {
+                let v = self.emit_node(&node.dependencies[0]);
+                format!("{}.abs()", v)
+            }
+
+            DensityFunctionDef::Square { .. } => {
+                let v = self.emit_node(&node.dependencies[0]);
+                format!("({v} * {v})")
+            }
+
+            DensityFunctionDef::Cube { .. } => {
+                let v = self.emit_node(&node.dependencies[0]);
+                format!("({v} * {v} * {v})")
+            }
+
+            DensityFunctionDef::Squeeze { .. } => {
+                let v = self.emit_node(&node.dependencies[0]);
+                format!("squeeze({})", v)
+            }
+
+            DensityFunctionDef::HalfNegative { .. } => {
+                let v = self.emit_node(&node.dependencies[0]);
+                format!("half_negative({})", v)
+            }
+
+            DensityFunctionDef::QuarterNegative { .. } => {
+                let v = self.emit_node(&node.dependencies[0]);
+                format!("quarter_negative({})", v)
+            }
+
+            DensityFunctionDef::Clamp { min, max, .. } => {
+                let v = self.emit_node(&node.dependencies[0]);
+                format!("{}.clamp({:.16}_f64, {:.16}_f64)", v, min, max)
+            }
+
+            DensityFunctionDef::YClampedGradient { from_y, to_y, from_value, to_value } => {
+                format!(
+                    "y_clamped_gradient(ctx.block_y, {}, {}, {:.16}_f64, {:.16}_f64)",
+                    from_y, to_y, from_value, to_value
+                )
+            }
+
+            DensityFunctionDef::Noise { noise, xz_scale, y_scale } => {
+                let noise_ref = noise_name_to_ref(noise);
+                format!(
+                    "noises.sample(NoiseRef::{},ctx.block_x as f64 * {:.16}_f64, ctx.block_y as f64 * {:.16}_f64, ctx.block_z as f64 * {:.16}_f64)",
+                    noise_ref, xz_scale, y_scale, xz_scale
+                )
+            }
+
+            DensityFunctionDef::ShiftedNoise { noise, xz_scale, y_scale, .. } => {
+                let noise_ref = noise_name_to_ref(noise);
+                let sx = self.emit_node(&node.dependencies[0]);
+                let sy = self.emit_node(&node.dependencies[1]);
+                let sz = self.emit_node(&node.dependencies[2]);
+                format!(
+                    "noises.sample(NoiseRef::{},(ctx.block_x as f64 + {}) * {:.16}_f64, (ctx.block_y as f64 + {}) * {:.16}_f64, (ctx.block_z as f64 + {}) * {:.16}_f64)",
+                    noise_ref, sx, xz_scale, sy, y_scale, sz, xz_scale
+                )
+            }
+
+            DensityFunctionDef::ShiftA { argument } => {
+                let noise_ref = noise_name_to_ref(argument);
+                format!(
+                    "noises.sample(NoiseRef::{},ctx.block_x as f64, 0.0, ctx.block_z as f64) * 4.0",
+                    noise_ref
+                )
+            }
+
+            DensityFunctionDef::ShiftB { argument } => {
+                let noise_ref = noise_name_to_ref(argument);
+                format!(
+                    "noises.sample(NoiseRef::{},ctx.block_z as f64, ctx.block_x as f64, 0.0) * 4.0",
+                    noise_ref
+                )
+            }
+
+            DensityFunctionDef::Shift { argument } => {
+                // Shift is like ShiftA
+                let noise_ref = noise_name_to_ref(argument);
+                format!(
+                    "noises.sample(NoiseRef::{},ctx.block_x as f64, 0.0, ctx.block_z as f64) * 4.0",
+                    noise_ref
+                )
+            }
+
+            DensityFunctionDef::FlatCache { .. } => {
+                if self.expand_flat_cache_inline {
+                    // Inline expansion mode: compute the inner value directly
+                    // instead of looking up from FlatCacheGrid.
+                    // This is used for functions that may be called at arbitrary positions.
+                    self.emit_node(&node.dependencies[0])
+                } else {
+                    // Normal mode: Lookup from grid
+                    let field = self.flat_cache_field_name(&node.id);
+                    format!("flat.lookup(&flat.{}, ctx.block_x, ctx.block_z)", field)
+                }
+            }
+
+            DensityFunctionDef::Cache2D { .. } |
+            DensityFunctionDef::CacheOnce { .. } |
+            DensityFunctionDef::Interpolated { .. } => {
+                // Pass through to inner
+                self.emit_node(&node.dependencies[0])
+            }
+
+            DensityFunctionDef::BlendAlpha {} => "1.0_f64".to_string(),
+            DensityFunctionDef::BlendOffset {} => "0.0_f64".to_string(),
+
+            DensityFunctionDef::BlendDensity { .. } => {
+                self.emit_node(&node.dependencies[0])
+            }
+
+            DensityFunctionDef::RangeChoice { min_inclusive, max_exclusive, .. } => {
+                let inp = self.emit_node(&node.dependencies[0]);
+                let wir = self.emit_node(&node.dependencies[1]);
+                let wor = self.emit_node(&node.dependencies[2]);
+                format!(
+                    "if {} >= {:.16}_f64 && {} < {:.16}_f64 {{ {} }} else {{ {} }}",
+                    inp, min_inclusive, inp, max_exclusive, wir, wor
+                )
+            }
+
+            DensityFunctionDef::WeirdScaledSampler { noise, rarity_value_mapper, .. } => {
+                let noise_ref = noise_name_to_ref(noise);
+                let inp = self.emit_node(&node.dependencies[0]);
+                let rarity_fn = if rarity_value_mapper == "type_1" {
+                    "rarity_value_type1"
+                } else {
+                    "rarity_value_type2"
+                };
+                format!(
+                    "{{ let rarity = {}({}); noises.sample(NoiseRef::{},ctx.block_x as f64 / rarity, ctx.block_y as f64 / rarity, ctx.block_z as f64 / rarity) }}",
+                    rarity_fn, inp, noise_ref
+                )
+            }
+
+            DensityFunctionDef::Spline { spline } => {
+                self.emit_spline(spline)
+            }
+
+            DensityFunctionDef::OldBlendedNoise { .. } => {
+                // TODO: Implement OldBlendedNoise
+                "0.0_f64".to_string()
+            }
+
+            DensityFunctionDef::EndIslands {} => {
+                // TODO: Implement EndIslands
+                "0.0_f64".to_string()
+            }
+
+            DensityFunctionDef::Invert { .. } => {
+                let v = self.emit_node(&node.dependencies[0]);
+                format!("(-{})", v)
+            }
+
+            DensityFunctionDef::FindTopSurface { lower_bound, cell_height, .. } => {
+                // FindTopSurface computes the Y level where density crosses from positive to negative.
+                // This needs to evaluate the inner density at multiple Y values.
+                // We use a closure that calls the inner density function at different Y values.
+                // Note: We don't emit the inner density here - it's emitted as a separate function.
+                let upper_bound = self.emit_node(&node.dependencies[1]);
+                // The inner function is named compute_preliminary_surface_level_inner_density
+                // (assumes this is the only FindTopSurface in the router)
+                format!(
+                    "find_top_surface(ctx.block_x, ctx.block_z, {}, ({}).floor() as i32, {}, |y| {{ \
+                        let inner_ctx = FunctionContext::new(ctx.block_x, y, ctx.block_z); \
+                        compute_preliminary_surface_level_inner_density(&inner_ctx, noises, flat) \
+                    }})",
+                    lower_bound, upper_bound, cell_height
+                )
+            }
+        }
+    }
+
+    fn emit_spline(&mut self, spline: &SplineDef) -> String {
+        // Check if we can use pre-computed polynomial coefficients
+        // (only for splines where all values are constants)
+
+        self.spline_counter += 1;
+
+        // Generate inline spline evaluation
+        let coord_expr = self.emit_arg_expr(&spline.coordinate);
+
+        if spline.points.is_empty() {
+            return "0.0_f64".to_string();
+        }
+
+        if spline.points.len() == 1 {
+            return self.emit_spline_value(&spline.points[0].value);
+        }
+
+        // Check if all values are constants - if so, use optimized pre-computed coefficients
+        if spline_has_only_constants(spline) {
+            return self.emit_spline_optimized(spline, &coord_expr);
+        }
+
+        // Fall back to nested spline evaluation with Hermite interpolation
+        self.emit_spline_hermite(spline, &coord_expr)
+    }
+
+    /// Emit an optimized spline with pre-computed polynomial coefficients.
+    /// Used when all spline point values are constants.
+    fn emit_spline_optimized(&self, spline: &SplineDef, coord_expr: &str) -> String {
+        let values = extract_constant_values(&spline.points);
+        let first_loc = spline.points[0].location;
+        let last_loc = spline.points.last().unwrap().location;
+        let first_val = values[0];
+        let last_val = *values.last().unwrap();
+
+        // Pre-compute the polynomial coefficients for each segment
+        let mut segments = Vec::new();
+        for i in 0..spline.points.len() - 1 {
+            let p0 = &spline.points[i];
+            let p1 = &spline.points[i + 1];
+            let v0 = values[i];
+            let v1 = values[i + 1];
+            let seg = SplineSegment::from_hermite(
+                p0.location, p1.location, v0, v1, p0.derivative, p1.derivative
+            );
+            segments.push(seg);
+        }
+
+        let mut code = String::new();
+        code.push_str("{\n");
+        code.push_str(&format!("        let coord = {};\n", coord_expr));
+        code.push_str(&format!("        if coord <= {:.16}_f64 {{ {:.16}_f64 }}\n", first_loc, first_val));
+        code.push_str(&format!("        else if coord >= {:.16}_f64 {{ {:.16}_f64 }}\n", last_loc, last_val));
+        code.push_str("        else {\n");
+
+        // For small numbers of segments, use if/else chain (faster than binary search)
+        // For larger numbers, generate a const array and use eval_spline
+        if segments.len() == 1 {
+            // Single segment - no branching needed, just evaluate directly
+            let seg = &segments[0];
+            let indent = "            ";
+            code.push_str(&format!("{}let t = (coord - {:.16}_f64) / {:.16}_f64;\n",
+                indent, seg.x_min, seg.x_max - seg.x_min));
+            code.push_str(&format!("{}{:.16}_f64 + t * ({:.16}_f64 + t * ({:.16}_f64 + t * {:.16}_f64))\n",
+                indent, seg.a, seg.b, seg.c, seg.d));
+        } else if segments.len() <= 4 {
+            // Inline if/else chain with pre-computed coefficients
+            for (i, seg) in segments.iter().enumerate() {
+                if i == 0 {
+                    code.push_str(&format!("            if coord < {:.16}_f64 {{\n", seg.x_max));
+                } else if i == segments.len() - 1 {
+                    code.push_str("            } else {\n");
+                } else {
+                    code.push_str(&format!("            }} else if coord < {:.16}_f64 {{\n", seg.x_max));
+                }
+                let indent = "                ";
+                // Direct polynomial evaluation with pre-computed coefficients
+                code.push_str(&format!("{}let t = (coord - {:.16}_f64) / {:.16}_f64;\n",
+                    indent, seg.x_min, seg.x_max - seg.x_min));
+                // Horner's method: a + t*(b + t*(c + t*d))
+                code.push_str(&format!("{}{:.16}_f64 + t * ({:.16}_f64 + t * ({:.16}_f64 + t * {:.16}_f64))\n",
+                    indent, seg.a, seg.b, seg.c, seg.d));
+            }
+            code.push_str("            }\n");
+        } else {
+            // Generate a const array of segments and use binary search
+            code.push_str("            const SEGMENTS: &[SplineSegment] = &[\n");
+            for seg in &segments {
+                code.push_str(&format!(
+                    "                SplineSegment::new({:.16}_f64, {:.16}_f64, {:.16}_f64, {:.16}_f64, {:.16}_f64, {:.16}_f64),\n",
+                    seg.x_min, seg.x_max, seg.a, seg.b, seg.c, seg.d
+                ));
+            }
+            code.push_str("            ];\n");
+            code.push_str(&format!("            eval_spline(SEGMENTS, coord, {:.16}_f64, {:.16}_f64)\n", first_val, last_val));
+        }
+
+        code.push_str("        }\n");
+        code.push_str("    }");
+
+        code
+    }
+
+    /// Emit a spline with nested values using Hermite interpolation at runtime.
+    fn emit_spline_hermite(&mut self, spline: &SplineDef, coord_expr: &str) -> String {
+        let first_loc = spline.points[0].location;
+        let last_loc = spline.points.last().unwrap().location;
+        let first_val = self.emit_spline_value(&spline.points[0].value);
+        let last_val = self.emit_spline_value(&spline.points.last().unwrap().value);
+
+        let mut code = String::new();
+        code.push_str("{\n");
+        code.push_str(&format!("        let coord = {};\n", coord_expr));
+
+        code.push_str(&format!("        if coord <= {:.16}_f64 {{\n", first_loc));
+        code.push_str(&format!("            {}\n", first_val));
+        code.push_str(&format!("        }} else if coord >= {:.16}_f64 {{\n", last_loc));
+        code.push_str(&format!("            {}\n", last_val));
+        code.push_str("        } else {\n");
+
+        // Generate segment lookup
+        let num_segments = spline.points.len() - 1;
+        for i in 0..num_segments {
+            let p0 = &spline.points[i];
+            let p1 = &spline.points[i + 1];
+
+            // Only emit if/else-if for multi-segment splines
+            if num_segments > 1 {
+                if i == 0 {
+                    code.push_str(&format!("            if coord < {:.16}_f64 {{\n", p1.location));
+                } else if i == num_segments - 1 {
+                    code.push_str("            } else {\n");
+                } else {
+                    code.push_str(&format!("            }} else if coord < {:.16}_f64 {{\n", p1.location));
+                }
+            }
+
+            let v0 = self.emit_spline_value(&p0.value);
+            let v1 = self.emit_spline_value(&p1.value);
+
+            let indent = if num_segments > 1 { "                " } else { "            " };
+            code.push_str(&format!("{}let v0 = {};\n", indent, v0));
+            code.push_str(&format!("{}let v1 = {};\n", indent, v1));
+            code.push_str(&format!("{}let t = (coord - {:.16}_f64) / ({:.16}_f64 - {:.16}_f64);\n",
+                indent, p0.location, p1.location, p0.location));
+            code.push_str(&format!("{}let dt = {:.16}_f64;\n", indent, p1.location - p0.location));
+            code.push_str(&format!("{}let t2 = t * t;\n", indent));
+            code.push_str(&format!("{}let t3 = t2 * t;\n", indent));
+            code.push_str(&format!("{}let h00 = 2.0 * t3 - 3.0 * t2 + 1.0;\n", indent));
+            code.push_str(&format!("{}let h10 = t3 - 2.0 * t2 + t;\n", indent));
+            code.push_str(&format!("{}let h01 = -2.0 * t3 + 3.0 * t2;\n", indent));
+            code.push_str(&format!("{}let h11 = t3 - t2;\n", indent));
+            code.push_str(&format!("{}h00 * v0 + h10 * dt * {:.16}_f64 + h01 * v1 + h11 * dt * {:.16}_f64\n",
+                indent, p0.derivative, p1.derivative));
+        }
+        if num_segments > 1 {
+            code.push_str("            }\n");
+        }
+        code.push_str("        }\n");
+        code.push_str("    }");
+
+        code
+    }
+
+    fn emit_spline_value(&mut self, value: &SplineValue) -> String {
+        match value {
+            SplineValue::Constant(v) => format!("{:.16}_f64", v),
+            SplineValue::Nested(nested) => self.emit_spline(nested),
+        }
+    }
+
+    fn emit_arg_expr(&mut self, arg: &super::super::parser::density_function::DensityFunctionArg) -> String {
+        // This is a simplified version that assumes we're in the context of FlatCache init
+        // For full compilation, we'd need to resolve the argument to a node ID
+        match arg {
+            super::super::parser::density_function::DensityFunctionArg::Constant(v) => {
+                format!("{:.16}_f64", v)
+            }
+            super::super::parser::density_function::DensityFunctionArg::Reference(name) => {
+                if self.expand_flat_cache_inline {
+                    // In inline expansion mode, we need to compute values directly.
+                    // For now, we'll emit the node reference if we can find it.
+                    // This is a simplified approach - ideally we'd look up and emit the full computation.
+                    let node_id = NodeId(name.clone());
+                    if self.graph.nodes.contains_key(&node_id) {
+                        self.emit_node(&node_id)
+                    } else {
+                        // Fallback for unknown references
+                        format!("/* ref: {} */ 0.0_f64", name)
+                    }
+                } else {
+                    // Normal mode: emit lookups for known flat cache fields
+                    if name == "minecraft:overworld/continents" {
+                        "flat.lookup(&flat.fc_n0, ctx.block_x, ctx.block_z)".to_string()
+                    } else if name == "minecraft:overworld/erosion" {
+                        "flat.lookup(&flat.fc_n1, ctx.block_x, ctx.block_z)".to_string()
+                    } else {
+                        // Fallback - this won't work correctly but prevents crashes
+                        format!("/* ref: {} */ 0.0_f64", name)
+                    }
+                }
+            }
+            super::super::parser::density_function::DensityFunctionArg::Inline(def) => {
+                // For inline defs in splines, we need to handle them specially
+                self.emit_inline_def(def)
+            }
+        }
+    }
+
+    fn emit_inline_def(&mut self, def: &DensityFunctionDef) -> String {
+        match def {
+            DensityFunctionDef::Constant { argument } => {
+                format!("{:.16}_f64", argument)
+            }
+            DensityFunctionDef::YClampedGradient { from_y, to_y, from_value, to_value } => {
+                format!(
+                    "y_clamped_gradient(ctx.block_y, {}, {}, {:.16}_f64, {:.16}_f64)",
+                    from_y, to_y, from_value, to_value
+                )
+            }
+            DensityFunctionDef::FlatCache { argument } => {
+                // FlatCache around something - emit the inner
+                self.emit_arg_expr(argument)
+            }
+            DensityFunctionDef::Cache2D { argument } |
+            DensityFunctionDef::CacheOnce { argument } => {
+                self.emit_arg_expr(argument)
+            }
+            _ => {
+                // For complex inline defs, we need a more sophisticated approach
+                format!("/* complex inline: {:?} */ 0.0_f64", def)
+            }
+        }
+    }
+
+    fn flat_cache_field_name(&self, id: &NodeId) -> String {
+        format!("fc_{}", id.0)
+    }
+
+    fn emit_flat_cache_init(&mut self, node: &DensityNode) -> String {
+        // Emit the initialization expression for a FlatCache grid cell
+        // This is called within the FlatCacheGrid::new loop
+
+        // Get the inner function and emit it
+        if node.dependencies.is_empty() {
+            return "0.0".to_string();
+        }
+
+        let inner_id = &node.dependencies[0];
+        let inner_node = match self.graph.nodes.get(inner_id) {
+            Some(n) => n.clone(),
+            None => return "0.0".to_string(),
+        };
+
+        // For flat cache init, we emit a simplified version
+        // that works in the initialization context
+        self.emit_flat_cache_inner(&inner_node)
+    }
+
+    fn emit_flat_cache_inner(&self, node: &DensityNode) -> String {
+        match &node.def {
+            DensityFunctionDef::Constant { argument } => {
+                format!("{:.16}_f64", argument)
+            }
+
+            DensityFunctionDef::Add { .. } => {
+                let v1 = self.emit_fc_dep(0, node);
+                let v2 = self.emit_fc_dep(1, node);
+                format!("({} + {})", v1, v2)
+            }
+
+            DensityFunctionDef::Mul { .. } => {
+                let v1 = self.emit_fc_dep(0, node);
+                let v2 = self.emit_fc_dep(1, node);
+                format!("({} * {})", v1, v2)
+            }
+
+            DensityFunctionDef::Min { .. } => {
+                let v1 = self.emit_fc_dep(0, node);
+                let v2 = self.emit_fc_dep(1, node);
+                format!("{}.min({})", v1, v2)
+            }
+
+            DensityFunctionDef::Max { .. } => {
+                let v1 = self.emit_fc_dep(0, node);
+                let v2 = self.emit_fc_dep(1, node);
+                format!("{}.max({})", v1, v2)
+            }
+
+            DensityFunctionDef::Abs { .. } => {
+                let v = self.emit_fc_dep(0, node);
+                format!("{}.abs()", v)
+            }
+
+            DensityFunctionDef::Square { .. } => {
+                let v = self.emit_fc_dep(0, node);
+                format!("{{ let sq = {}; sq * sq }}", v)
+            }
+
+            DensityFunctionDef::Cube { .. } => {
+                let v = self.emit_fc_dep(0, node);
+                format!("{{ let cb = {}; cb * cb * cb }}", v)
+            }
+
+            DensityFunctionDef::Squeeze { .. } => {
+                let v = self.emit_fc_dep(0, node);
+                format!("squeeze({})", v)
+            }
+
+            DensityFunctionDef::HalfNegative { .. } => {
+                let v = self.emit_fc_dep(0, node);
+                format!("half_negative({})", v)
+            }
+
+            DensityFunctionDef::QuarterNegative { .. } => {
+                let v = self.emit_fc_dep(0, node);
+                format!("quarter_negative({})", v)
+            }
+
+            DensityFunctionDef::Clamp { min, max, .. } => {
+                let v = self.emit_fc_dep(0, node);
+                format!("{}.clamp({:.16}_f64, {:.16}_f64)", v, min, max)
+            }
+
+            DensityFunctionDef::ShiftA { argument } => {
+                let noise_ref = noise_name_to_ref(argument);
+                format!(
+                    "noises.sample(NoiseRef::{},bx as f64, 0.0, bz as f64) * 4.0",
+                    noise_ref
+                )
+            }
+
+            DensityFunctionDef::ShiftB { argument } => {
+                let noise_ref = noise_name_to_ref(argument);
+                format!(
+                    "noises.sample(NoiseRef::{},bz as f64, bx as f64, 0.0) * 4.0",
+                    noise_ref
+                )
+            }
+
+            DensityFunctionDef::Shift { argument } => {
+                let noise_ref = noise_name_to_ref(argument);
+                format!(
+                    "noises.sample(NoiseRef::{},bx as f64, 0.0, bz as f64) * 4.0",
+                    noise_ref
+                )
+            }
+
+            DensityFunctionDef::Cache2D { .. } |
+            DensityFunctionDef::CacheOnce { .. } => {
+                // Pass through to inner
+                self.emit_fc_dep(0, node)
+            }
+
+            DensityFunctionDef::FlatCache { .. } => {
+                // Reference to another FlatCache - look up from grid
+                let field = self.flat_cache_field_name(&node.id);
+                format!("grid.{}[qz as usize][qx as usize]", field)
+            }
+
+            DensityFunctionDef::Noise { noise, xz_scale, y_scale: _ } => {
+                let noise_ref = noise_name_to_ref(noise);
+                // FlatCache is Y-independent, so y=0 (y_scale not used)
+                format!(
+                    "noises.sample(NoiseRef::{},bx as f64 * {:.16}_f64, 0.0, bz as f64 * {:.16}_f64)",
+                    noise_ref, xz_scale, xz_scale
+                )
+            }
+
+            DensityFunctionDef::ShiftedNoise { noise, xz_scale, y_scale, .. } => {
+                let noise_ref = noise_name_to_ref(noise);
+                // Get shift values from dependencies
+                let sx = self.emit_fc_dep(0, node);
+                let sy = self.emit_fc_dep(1, node);
+                let sz = self.emit_fc_dep(2, node);
+                // Note: For FlatCache, y is always 0.0, so y_scale is effectively unused here
+                format!(
+                    "noises.sample(NoiseRef::{},(bx as f64 + {}) * {:.16}_f64, (0.0 + {}) * {:.16}_f64, (bz as f64 + {}) * {:.16}_f64)",
+                    noise_ref, sx, xz_scale, sy, y_scale, sz, xz_scale
+                )
+            }
+
+            DensityFunctionDef::Spline { spline } => {
+                self.emit_fc_spline(spline)
+            }
+
+            DensityFunctionDef::BlendAlpha {} => "1.0_f64".to_string(),
+            DensityFunctionDef::BlendOffset {} => "0.0_f64".to_string(),
+
+            DensityFunctionDef::BlendDensity { .. } => {
+                self.emit_fc_dep(0, node)
+            }
+
+            DensityFunctionDef::YClampedGradient { from_y: _, to_y: _, from_value, to_value: _ } => {
+                // FlatCache is Y-independent, use y=0 or we could return from_value
+                // since it doesn't depend on Y (to_y and to_value not needed for flat cache)
+                format!("{:.16}_f64", from_value)
+            }
+
+            DensityFunctionDef::RangeChoice { min_inclusive, max_exclusive, .. } => {
+                let inp = self.emit_fc_dep(0, node);
+                let wir = self.emit_fc_dep(1, node);
+                let wor = self.emit_fc_dep(2, node);
+                format!(
+                    "if {} >= {:.16}_f64 && {} < {:.16}_f64 {{ {} }} else {{ {} }}",
+                    inp, min_inclusive, inp, max_exclusive, wir, wor
+                )
+            }
+
+            DensityFunctionDef::WeirdScaledSampler { noise, rarity_value_mapper, .. } => {
+                let noise_ref = noise_name_to_ref(noise);
+                let inp = self.emit_fc_dep(0, node);
+                let rarity_fn = if rarity_value_mapper == "type_1" {
+                    "rarity_value_type1"
+                } else {
+                    "rarity_value_type2"
+                };
+                format!(
+                    "{{ let rarity = {}({}); noises.sample(NoiseRef::{},bx as f64 / rarity, 0.0, bz as f64 / rarity) }}",
+                    rarity_fn, inp, noise_ref
+                )
+            }
+
+            DensityFunctionDef::Interpolated { .. } => {
+                // Pass through to inner
+                self.emit_fc_dep(0, node)
+            }
+
+            DensityFunctionDef::OldBlendedNoise { .. } |
+            DensityFunctionDef::EndIslands {} => {
+                "0.0_f64".to_string()
+            }
+
+            DensityFunctionDef::Invert { .. } => {
+                let v = self.emit_fc_dep(0, node);
+                format!("(-{})", v)
+            }
+
+            DensityFunctionDef::FindTopSurface { .. } => {
+                // FindTopSurface in FlatCache context - this shouldn't happen often
+                // as find_top_surface is typically at the top level
+                "0.0_f64".to_string()
+            }
+        }
+    }
+
+    /// Emit a dependency of a FlatCache node in FlatCache init context.
+    fn emit_fc_dep(&self, idx: usize, node: &DensityNode) -> String {
+        if let Some(dep_id) = node.dependencies.get(idx) {
+            // Check if the dependency is itself a FlatCache node
+            if let Some(dep_node) = self.graph.nodes.get(dep_id) {
+                if dep_node.is_flat_cache {
+                    // Reference the already-computed FlatCache value
+                    let field = self.flat_cache_field_name(dep_id);
+                    return format!("grid.{}[qz as usize][qx as usize]", field);
+                }
+                return self.emit_flat_cache_inner(dep_node);
+            }
+        }
+        "0.0_f64".to_string()
+    }
+
+    /// Emit a spline in FlatCache init context.
+    fn emit_fc_spline(&self, spline: &SplineDef) -> String {
+        if spline.points.is_empty() {
+            return "0.0_f64".to_string();
+        }
+
+        if spline.points.len() == 1 {
+            return self.emit_fc_spline_value(&spline.points[0].value);
+        }
+
+        let coord_expr = self.emit_fc_arg(&spline.coordinate);
+
+        // Check if all values are constants - if so, use optimized pre-computed coefficients
+        if spline_has_only_constants(spline) {
+            return self.emit_fc_spline_optimized(spline, &coord_expr);
+        }
+
+        // Fall back to nested spline evaluation with Hermite interpolation
+        self.emit_fc_spline_hermite(spline, &coord_expr)
+    }
+
+    /// Emit an optimized spline with pre-computed polynomial coefficients in FlatCache context.
+    fn emit_fc_spline_optimized(&self, spline: &SplineDef, coord_expr: &str) -> String {
+        let values = extract_constant_values(&spline.points);
+        let first_loc = spline.points[0].location;
+        let last_loc = spline.points.last().unwrap().location;
+        let first_val = values[0];
+        let last_val = *values.last().unwrap();
+
+        // Pre-compute the polynomial coefficients for each segment
+        let mut segments = Vec::new();
+        for i in 0..spline.points.len() - 1 {
+            let p0 = &spline.points[i];
+            let p1 = &spline.points[i + 1];
+            let v0 = values[i];
+            let v1 = values[i + 1];
+            let seg = SplineSegment::from_hermite(
+                p0.location, p1.location, v0, v1, p0.derivative, p1.derivative
+            );
+            segments.push(seg);
+        }
+
+        let mut code = String::new();
+        code.push_str("{\n");
+        code.push_str(&format!("                    let coord = {};\n", coord_expr));
+        code.push_str(&format!("                    if coord <= {:.16}_f64 {{ {:.16}_f64 }}\n", first_loc, first_val));
+        code.push_str(&format!("                    else if coord >= {:.16}_f64 {{ {:.16}_f64 }}\n", last_loc, last_val));
+        code.push_str("                    else {\n");
+
+        // For small numbers of segments, use if/else chain (faster than binary search)
+        if segments.len() == 1 {
+            // Single segment - no branching needed, just evaluate directly
+            let seg = &segments[0];
+            let indent = "                        ";
+            code.push_str(&format!("{}let t = (coord - {:.16}_f64) / {:.16}_f64;\n",
+                indent, seg.x_min, seg.x_max - seg.x_min));
+            code.push_str(&format!("{}{:.16}_f64 + t * ({:.16}_f64 + t * ({:.16}_f64 + t * {:.16}_f64))\n",
+                indent, seg.a, seg.b, seg.c, seg.d));
+        } else if segments.len() <= 4 {
+            for (i, seg) in segments.iter().enumerate() {
+                if i == 0 {
+                    code.push_str(&format!("                        if coord < {:.16}_f64 {{\n", seg.x_max));
+                } else if i == segments.len() - 1 {
+                    code.push_str("                        } else {\n");
+                } else {
+                    code.push_str(&format!("                        }} else if coord < {:.16}_f64 {{\n", seg.x_max));
+                }
+                let indent = "                            ";
+                code.push_str(&format!("{}let t = (coord - {:.16}_f64) / {:.16}_f64;\n",
+                    indent, seg.x_min, seg.x_max - seg.x_min));
+                code.push_str(&format!("{}{:.16}_f64 + t * ({:.16}_f64 + t * ({:.16}_f64 + t * {:.16}_f64))\n",
+                    indent, seg.a, seg.b, seg.c, seg.d));
+            }
+            code.push_str("                        }\n");
+        } else {
+            code.push_str("                        const SEGMENTS: &[SplineSegment] = &[\n");
+            for seg in &segments {
+                code.push_str(&format!(
+                    "                            SplineSegment::new({:.16}_f64, {:.16}_f64, {:.16}_f64, {:.16}_f64, {:.16}_f64, {:.16}_f64),\n",
+                    seg.x_min, seg.x_max, seg.a, seg.b, seg.c, seg.d
+                ));
+            }
+            code.push_str("                        ];\n");
+            code.push_str(&format!("                        eval_spline(SEGMENTS, coord, {:.16}_f64, {:.16}_f64)\n", first_val, last_val));
+        }
+
+        code.push_str("                    }\n");
+        code.push_str("                }");
+
+        code
+    }
+
+    /// Emit a spline with nested values using Hermite interpolation in FlatCache context.
+    fn emit_fc_spline_hermite(&self, spline: &SplineDef, coord_expr: &str) -> String {
+        let first_loc = spline.points[0].location;
+        let last_loc = spline.points.last().unwrap().location;
+        let first_val = self.emit_fc_spline_value(&spline.points[0].value);
+        let last_val = self.emit_fc_spline_value(&spline.points.last().unwrap().value);
+
+        let mut code = String::new();
+        code.push_str("{\n");
+        code.push_str(&format!("                    let coord = {};\n", coord_expr));
+
+        code.push_str(&format!("                    if coord <= {:.16}_f64 {{\n", first_loc));
+        code.push_str(&format!("                        {}\n", first_val));
+        code.push_str(&format!("                    }} else if coord >= {:.16}_f64 {{\n", last_loc));
+        code.push_str(&format!("                        {}\n", last_val));
+        code.push_str("                    } else {\n");
+
+        // Generate segment lookup
+        let num_segments = spline.points.len() - 1;
+        for i in 0..num_segments {
+            let p0 = &spline.points[i];
+            let p1 = &spline.points[i + 1];
+
+            // Only emit if/else-if for multi-segment splines
+            if num_segments > 1 {
+                if i == 0 {
+                    code.push_str(&format!("                        if coord < {:.16}_f64 {{\n", p1.location));
+                } else if i == num_segments - 1 {
+                    code.push_str("                        } else {\n");
+                } else {
+                    code.push_str(&format!("                        }} else if coord < {:.16}_f64 {{\n", p1.location));
+                }
+            }
+
+            let v0 = self.emit_fc_spline_value(&p0.value);
+            let v1 = self.emit_fc_spline_value(&p1.value);
+
+            let indent = if num_segments > 1 { "                            " } else { "                        " };
+            code.push_str(&format!("{}let v0 = {};\n", indent, v0));
+            code.push_str(&format!("{}let v1 = {};\n", indent, v1));
+            code.push_str(&format!("{}let t = (coord - {:.16}_f64) / ({:.16}_f64 - {:.16}_f64);\n",
+                indent, p0.location, p1.location, p0.location));
+            code.push_str(&format!("{}let dt = {:.16}_f64;\n", indent, p1.location - p0.location));
+            code.push_str(&format!("{}let t2 = t * t;\n", indent));
+            code.push_str(&format!("{}let t3 = t2 * t;\n", indent));
+            code.push_str(&format!("{}let h00 = 2.0 * t3 - 3.0 * t2 + 1.0;\n", indent));
+            code.push_str(&format!("{}let h10 = t3 - 2.0 * t2 + t;\n", indent));
+            code.push_str(&format!("{}let h01 = -2.0 * t3 + 3.0 * t2;\n", indent));
+            code.push_str(&format!("{}let h11 = t3 - t2;\n", indent));
+            code.push_str(&format!("{}h00 * v0 + h10 * dt * {:.16}_f64 + h01 * v1 + h11 * dt * {:.16}_f64\n",
+                indent, p0.derivative, p1.derivative));
+        }
+        if num_segments > 1 {
+            code.push_str("                        }\n");
+        }
+        code.push_str("                    }\n");
+        code.push_str("                }");
+
+        code
+    }
+
+    fn emit_fc_spline_value(&self, value: &SplineValue) -> String {
+        match value {
+            SplineValue::Constant(v) => format!("{:.16}_f64", v),
+            SplineValue::Nested(nested) => self.emit_fc_spline(nested),
+        }
+    }
+
+    /// Emit a DensityFunctionArg in FlatCache init context.
+    fn emit_fc_arg(&self, arg: &super::super::parser::density_function::DensityFunctionArg) -> String {
+        match arg {
+            super::super::parser::density_function::DensityFunctionArg::Constant(v) => {
+                format!("{:.16}_f64", v)
+            }
+            super::super::parser::density_function::DensityFunctionArg::Reference(name) => {
+                // Look up the node for this reference
+                if let Some(node_id) = self.find_node_by_ref_name(name) {
+                    if let Some(node) = self.graph.nodes.get(&node_id) {
+                        if node.is_flat_cache {
+                            let field = self.flat_cache_field_name(&node_id);
+                            return format!("grid.{}[qz as usize][qx as usize]", field);
+                        }
+                        return self.emit_flat_cache_inner(node);
+                    }
+                }
+                format!("/* unknown ref: {} */ 0.0_f64", name)
+            }
+            super::super::parser::density_function::DensityFunctionArg::Inline(def) => {
+                self.emit_fc_inline_def(def)
+            }
+        }
+    }
+
+    fn emit_fc_inline_def(&self, def: &DensityFunctionDef) -> String {
+        match def {
+            DensityFunctionDef::Constant { argument } => {
+                format!("{:.16}_f64", argument)
+            }
+            DensityFunctionDef::YClampedGradient { from_value, .. } => {
+                // Y-independent, return from_value
+                format!("{:.16}_f64", from_value)
+            }
+            DensityFunctionDef::FlatCache { argument } => {
+                self.emit_fc_arg(argument)
+            }
+            DensityFunctionDef::Cache2D { argument } |
+            DensityFunctionDef::CacheOnce { argument } => {
+                self.emit_fc_arg(argument)
+            }
+            _ => {
+                // For other inline defs, try to handle common patterns
+                format!("/* inline fc: {:?} */ 0.0_f64", def)
+            }
+        }
+    }
+
+    /// Find a node by its reference name.
+    fn find_node_by_ref_name(&self, name: &str) -> Option<NodeId> {
+        for (id, node) in &self.graph.nodes {
+            if let Some(ref_name) = &node.ref_name {
+                if ref_name == name {
+                    return Some(id.clone());
+                }
+            }
+        }
+        None
+    }
+}
+
+fn noise_name_to_ref(name: &str) -> String {
+    let clean = name.strip_prefix("minecraft:").unwrap_or(name);
+    // Convert snake_case to PascalCase
+    clean
+        .split('_')
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                None => String::new(),
+                Some(first) => first.to_uppercase().chain(chars).collect(),
+            }
+        })
+        .collect()
+}
