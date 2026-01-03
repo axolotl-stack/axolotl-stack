@@ -473,8 +473,9 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
         let chunk_z = z >> 4;
 
         // FAST PATH: Position is in the current chunk - use pre-computed grid
+        // Extract scalar from SIMD context (XZ are same in all lanes)
         if chunk_x == self.main_chunk_x && chunk_z == self.main_chunk_z {
-            return *self.col_grid.get_block(x, z);
+            return self.col_grid.get_block(x, z).as_scalar();
         }
 
         // SLOW PATH: Position is in a neighbor chunk - use cache
@@ -586,9 +587,10 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
                     let chunk_z = quart_z >> 4;
 
                     // FAST PATH: Position is in the current chunk - use pre-computed col_grid
+                    // Extract scalar from SIMD context (XZ are same in all lanes)
                     if chunk_x == main_chunk_x && chunk_z == main_chunk_z {
-                        let col = col_grid.get_block(quart_x, quart_z);
-                        compute_preliminary_surface_level(&ctx, noises, grid, col).floor() as i32
+                        let col = col_grid.get_block(quart_x, quart_z).as_scalar();
+                        compute_preliminary_surface_level(&ctx, noises, grid, &col).floor() as i32
                     } else {
                         // SLOW PATH: Position is in a neighbor chunk - create on demand
                         let sample_grid = neighbor_grid_cache

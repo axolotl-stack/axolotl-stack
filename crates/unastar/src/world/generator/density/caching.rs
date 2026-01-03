@@ -20,7 +20,7 @@
 use super::types::NoiseRegistry;
 use super::lerp3;
 use std::simd::prelude::*;
-use unastar_noise::{FunctionContext, FunctionContext4, FlatCacheGrid, ColumnContext, ColumnContextGrid, compute_final_density, compute_final_density_4};
+use unastar_noise::{FunctionContext, FunctionContext4, FlatCacheGrid, ColumnContextGrid, compute_final_density, compute_final_density_4};
 
 /// Pre-computed XZ grid for FlatCache (Y-independent functions).
 ///
@@ -167,7 +167,8 @@ impl CellInterpolator {
 
             let slice = if use_slice0 { &mut self.slice0 } else { &mut self.slice1 };
 
-            // Use pre-computed ColumnContext from grid - O(1) lookup instead of expensive creation
+            // Use pre-computed ColumnContext from grid.
+            // The grid is 17x17 to properly handle boundary positions (block 16) for cell interpolation.
             let col_ctx = col_grid.get_block(cell_start_x, cell_start_z);
 
             // Process 4 Y values at a time using AOT compiled SIMD function
@@ -195,9 +196,9 @@ impl CellInterpolator {
                 let cell_y = cell_noise_min_y + y_idx as i32;
                 let cell_start_y = cell_y * cell_height;
 
-                // Use AOT compiled scalar function
+                // Use AOT compiled scalar function (extract scalar from SIMD context)
                 let ctx = FunctionContext::new(cell_start_x, cell_start_y, cell_start_z);
-                slice[z_idx][y_idx] = compute_final_density(&ctx, noises, grid, col_ctx);
+                slice[z_idx][y_idx] = compute_final_density(&ctx, noises, grid, &col_ctx.as_scalar());
                 y_idx += 1;
             }
         }
@@ -243,17 +244,17 @@ impl CellInterpolator {
     /// This computes the final Z interpolation for z_in_cell = 0, 1, 2, 3
     /// using SIMD, avoiding 4 separate scalar lerps.
     ///
-    /// `cell_width` is typically 4, so t values are 0.0, 0.25, 0.5, 0.75.
+    /// Uses pre-computed t values [0.0, 0.25, 0.5, 0.75] for cell_width=4.
     #[inline]
-    pub fn get_densities_4z(&self, cell_width: i32) -> f64x4 {
-        // t values for z_in_cell = 0, 1, 2, 3
-        let inv_width = 1.0 / cell_width as f64;
-        let t = f64x4::from_array([0.0, inv_width, 2.0 * inv_width, 3.0 * inv_width]);
+    pub fn get_densities_4z(&self) -> f64x4 {
+        // Pre-computed t values for z_in_cell = 0, 1, 2, 3 with cell_width = 4
+        // t = z_in_cell / cell_width = [0/4, 1/4, 2/4, 3/4]
+        const T_LERP: f64x4 = f64x4::from_array([0.0, 0.25, 0.5, 0.75]);
 
         // lerp(t, value_z0, value_z1) = value_z0 + t * (value_z1 - value_z0)
         let z0 = f64x4::splat(self.value_z0);
         let diff = f64x4::splat(self.value_z1 - self.value_z0);
-        z0 + t * diff
+        z0 + T_LERP * diff
     }
 
     /// Swap slices (called when advancing X).
@@ -444,7 +445,7 @@ impl CachingNoiseChunk {
     /// Returns densities for z_in_cell = 0, 1, 2, 3.
     #[inline]
     pub fn get_densities_4z(&self) -> f64x4 {
-        self.final_density_interpolator.get_densities_4z(self.cell_width)
+        self.final_density_interpolator.get_densities_4z()
     }
 
     /// Swap slices after processing a cell X column.
