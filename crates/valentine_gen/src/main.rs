@@ -423,6 +423,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let block_states_path = resolve_data_path("blockStates", "blockStates.json");
             let entities_path = resolve_data_path("entities", "entities.json");
             let biomes_path = resolve_data_path("biomes", "biomes.json");
+            let legacy_path = resolve_data_path("legacy", "legacy.json").or_else(|| {
+                let p = minecraft_data_root.join("data/bedrock/common/legacy.json");
+                if p.exists() {
+                    Some(p)
+                } else {
+                    None
+                }
+            });
 
             // Generate protocol code if requested
             if args.gen_proto {
@@ -469,6 +477,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     block_states: block_states_path,
                     entities: entities_path,
                     biomes: biomes_path,
+                    legacy: legacy_path,
                 };
 
                 if let Err(e) =

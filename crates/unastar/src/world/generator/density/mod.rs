@@ -26,7 +26,7 @@ pub use unastar_noise::{NoiseParamsData, NoiseRef, NOISE_PARAMS};
 
 // Re-export AOT compiled functions and types from unastar_noise
 pub use unastar_noise::{
-    FlatCacheGrid, ColumnContext,
+    FlatCacheGrid, ColumnContext, ColumnContextGrid,
     compute_barrier, compute_continents, compute_depth, compute_erosion,
     compute_final_density, compute_final_density_4,
     compute_fluid_level_floodedness, compute_fluid_level_spread,

@@ -28,7 +28,9 @@
 
 use crate::world::chunk::blocks;
 use crate::world::generator::density::{
-    FunctionContext, FlatCacheGrid, ColumnContext, NoiseRegistry,
+    FunctionContext, NoiseRegistry,
+    // These vein functions now have simplified signatures (ctx, noises) only
+    // since they don't use FlatCache or Cache2D nodes
     compute_vein_toggle, compute_vein_ridged, compute_vein_gap,
 };
 use crate::world::generator::xoroshiro::PositionalRandomFactory;
@@ -123,14 +125,18 @@ impl VeinType {
 /// material rule list. It returns `Some(block)` to override the block at
 /// a position, or `None` to let other fillers handle it.
 /// Uses AOT-compiled density functions for maximum performance.
+///
+/// Note: The vein density functions (toggle, ridged, gap) are simple noise
+/// lookups that don't require FlatCacheGrid or ColumnContext, making this
+/// struct very lightweight.
 pub struct OreVeinifier<'a> {
     /// Noise registry for computing density functions.
     noises: &'a NoiseRegistry,
-    /// FlatCacheGrid for Y-independent values.
-    grid: &'a FlatCacheGrid,
     /// Positional random factory for ore generation.
     /// This matches Java's `RandomState.oreRandom()`.
     ore_random: PositionalRandomFactory,
+    /// Phantom lifetime for NoiseRegistry
+    _marker: std::marker::PhantomData<&'a ()>,
 }
 
 impl<'a> OreVeinifier<'a> {
@@ -138,17 +144,15 @@ impl<'a> OreVeinifier<'a> {
     ///
     /// # Arguments
     /// * `noises` - Noise registry for computing density functions
-    /// * `grid` - FlatCacheGrid for Y-independent values
     /// * `ore_random` - Positional random factory for ore RNG (from `PositionalRandomFactory::fork_ore_random()`)
     pub fn new(
         noises: &'a NoiseRegistry,
-        grid: &'a FlatCacheGrid,
         ore_random: PositionalRandomFactory,
     ) -> Self {
         Self {
             noises,
-            grid,
             ore_random,
+            _marker: std::marker::PhantomData,
         }
     }
 
@@ -156,14 +160,22 @@ impl<'a> OreVeinifier<'a> {
     ///
     /// Returns `Some(block_id)` if this position is part of an ore vein,
     /// or `None` if no vein block should be placed (let other fillers handle).
+    ///
+    /// # Arguments
+    /// * `ctx` - Function context with block position
     pub fn compute(&self, ctx: &FunctionContext) -> Option<u32> {
         let y = ctx.block_y;
 
-        // Create ColumnContext for this column
-        let col = ColumnContext::new(ctx.block_x, ctx.block_z, self.noises, self.grid);
+        // Fast early exit: no ore veins possible outside the combined Y range
+        // Iron: -60 to -8, Copper: 0 to 50
+        // Combined range: -60 to 50
+        if y < -60 || y > 50 {
+            return None;
+        }
 
         // Step 1: Compute vein toggle to determine vein type
-        let toggle_value = compute_vein_toggle(ctx, self.noises, self.grid, &col);
+        // Simple noise lookup - no FlatCache or Cache2D needed
+        let toggle_value = compute_vein_toggle(ctx, self.noises);
 
         // Determine vein type from toggle sign
         let vein_type = if toggle_value > 0.0 {
@@ -206,7 +218,8 @@ impl<'a> OreVeinifier<'a> {
         }
 
         // Step 6: Check ridged noise for vein shape
-        let ridged = compute_vein_ridged(ctx, self.noises, self.grid, &col);
+        // Simple noise lookup - no FlatCache or Cache2D needed
+        let ridged = compute_vein_ridged(ctx, self.noises);
         if ridged >= 0.0 {
             return None;
         }
@@ -221,8 +234,8 @@ impl<'a> OreVeinifier<'a> {
         );
 
         if rng.next_float() < richness as f32 {
-            // Check gap noise
-            let gap = compute_vein_gap(ctx, self.noises, self.grid, &col);
+            // Check gap noise - simple noise lookup
+            let gap = compute_vein_gap(ctx, self.noises);
             if gap > SKIP_ORE_IF_GAP_NOISE_IS_BELOW {
                 // Place ore (small chance of raw ore block)
                 if rng.next_float() < CHANCE_OF_RAW_ORE_BLOCK {

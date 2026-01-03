@@ -17,7 +17,8 @@ use glam::IVec3;
 use tracing::{debug, info, trace};
 
 use super::GameServer;
-use crate::entity::components::{BreakingState, PlayerSession};
+use crate::ecs::events::EventBuffer;
+use crate::entity::components::{BreakingState, PlayerName, PlayerSession, PlayerUuid};
 use crate::world::chunk::blocks;
 use crate::world::ecs::{BlockBroadcastEvent, BlockChanged, ChunkManager, ChunkViewers};
 use crate::world::ecs::{world_to_chunk_coords, world_to_local_coords};
@@ -96,6 +97,22 @@ impl GameServer {
                         };
 
                         info!(pos = ?(x, y, z), is_creative, break_time_ticks, "StartBreak - setting break time");
+
+                        // Emit PlayerStartBreak event
+                        {
+                            let world = self.ecs.world_mut();
+                            if let Some(mut event_buffer) = world.get_resource_mut::<EventBuffer>()
+                            {
+                                // Face is not avail in PlayerAuthInputBlockActionItem, defaulting to 0
+                                event_buffer.push(
+                                    crate::ecs::events::ServerEvent::PlayerStartBreak {
+                                        entity: player_entity,
+                                        position: (x, y, z),
+                                        face: 0,
+                                    },
+                                );
+                            }
+                        }
 
                         // Update player breaking state
                         {
@@ -297,7 +314,6 @@ impl GameServer {
 
     /// Break a block at world coordinates: set to air and broadcast to viewers.
     ///
-    /// The breaking_player receives the effect immediately, even if not yet in ChunkViewers.
     pub(super) fn break_block(&mut self, breaking_player: Entity, x: i32, y: i32, z: i32) {
         debug!(pos = ?(x, y, z), "break_block called");
 
@@ -328,6 +344,24 @@ impl GameServer {
                 0
             }
         };
+
+        // Emit PluginEvent::BlockBreak
+        let player_id = {
+            let world = self.ecs.world();
+            world
+                .get::<PlayerUuid>(breaking_player)
+                .map(|u| u.0.to_string())
+                .unwrap_or_default()
+        };
+
+        if let Some(mut event_buffer) = self.ecs.world_mut().get_resource_mut::<EventBuffer>() {
+            event_buffer.push(crate::ecs::events::ServerEvent::BlockBreak {
+                entity: breaking_player,
+                player_id,
+                position: (x, y, z),
+                block_id: original_block_id,
+            });
+        }
 
         // Update block to air in chunk data (ECS component is source of truth)
         {
@@ -641,9 +675,25 @@ impl GameServer {
     /// Handle block click from ItemUse transaction
     pub(super) fn handle_block_click(
         &mut self,
-        _entity: Entity,
+        entity: Entity,
         data: &jolyne::valentine::types::TransactionUseItem,
     ) {
+        // Emit PlayerInteractBlock event
+        {
+            let world = self.ecs.world_mut();
+            if let Some(mut event_buffer) = world.get_resource_mut::<EventBuffer>() {
+                event_buffer.push(crate::ecs::events::ServerEvent::PlayerInteractBlock {
+                    entity,
+                    position: (
+                        data.block_position.x,
+                        data.block_position.y,
+                        data.block_position.z,
+                    ),
+                    face: data.face as u8,
+                });
+            }
+        }
+
         // 1. Get held item and map to block
         let network_id = data.held_item.network_id;
         if network_id == 0 {
@@ -694,6 +744,25 @@ impl GameServer {
         }
 
         // 3. Place block
+
+        // Emit PluginEvent::BlockPlace
+        let player_id = {
+            let world = self.ecs.world();
+            world
+                .get::<PlayerUuid>(entity)
+                .map(|u| u.0.to_string())
+                .unwrap_or_default()
+        };
+
+        if let Some(mut event_buffer) = self.ecs.world_mut().get_resource_mut::<EventBuffer>() {
+            event_buffer.push(crate::ecs::events::ServerEvent::BlockPlace {
+                entity,
+                player_id,
+                position: (x, y, z),
+                block_id: block_runtime_id,
+            });
+        }
+
         self.place_block(x, y, z, block_runtime_id);
     }
 

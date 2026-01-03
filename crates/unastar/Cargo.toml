@@ -24,6 +24,7 @@ bevy_ecs.workspace = true
 async-trait.workspace = true
 bleveldb.workspace = true
 serde_json.workspace = true
+anyhow = "1.0"
 
 # BlazeDB dependencies
 lru = "0.12"
@@ -31,9 +32,18 @@ parking_lot = "0.12"
 lz4_flex = "0.11"
 crc32fast = "1.4"
 
+# Plugin dependencies
+wasmtime = "23.0"
+wasmtime-wasi = "23.0"
+borsh = { version = "1.5", features = ["derive"] }
+unastar_api = { path = "../unastar-api", features = ["native"] }
+example_plugin = { path = "../example-plugin" }
+
 #dhat = "0.3"
 # tracy-client = "0.18"
 bitflags = "2.6"
+libloading = "0.9.0"
+abi_stable = "0.11"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

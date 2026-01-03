@@ -13,7 +13,7 @@
 //! - Publisher updates only sent on position/radius change, not per-chunk
 
 use bevy_ecs::prelude::*;
-use tracing::{debug, trace};
+use tracing::{debug, trace, warn};
 
 use crate::entity::components::{ChunkRadius, Player, PlayerSession, Position};
 use crate::world::ecs::{
@@ -185,6 +185,9 @@ pub fn process_chunk_load_queues(
     mut chunks: Query<(&mut ChunkViewers, &ChunkData)>,
 ) {
     for (player_entity, position, session, mut loader, mut publisher_state) in players.iter_mut() {
+        let sent_this_tick = loader.sent_this_tick;
+        loader.sent_this_tick = 0; // Reset for this tick
+
         // Send publisher update if needed
         let chunk_x = (position.0.x.floor() as i32) >> 4;
         let chunk_z = (position.0.z.floor() as i32) >> 4;
@@ -197,6 +200,7 @@ pub fn process_chunk_load_queues(
             || publisher_state.radius != publisher_radius;
 
         if need_publisher_update {
+            debug!(player=?player_entity, old_pos = ?(publisher_state.chunk_x, publisher_state.chunk_z), new_pos = ?(chunk_x, chunk_z), "Player moved, sending NetworkChunkPublisherUpdate");
             let block_x = position.0.x.floor() as i32;
             let block_y = position.0.y.floor() as i32;
             let block_z = position.0.z.floor() as i32;
@@ -223,7 +227,11 @@ pub fn process_chunk_load_queues(
         // request_chunk_generation handles everything for vanilla worlds.
         // We still update publisher state above, but skip chunk processing.
         if chunk_manager.has_async_generation() {
-            publisher_state.queue_was_empty = !loader.has_pending();
+            let has_pending = loader.has_pending();
+            if publisher_state.queue_was_empty != !has_pending {
+                 debug!(player=?player_entity, has_pending, "Publisher state queue_was_empty updated");
+            }
+            publisher_state.queue_was_empty = !has_pending;
             continue;
         }
 
@@ -233,6 +241,9 @@ pub fn process_chunk_load_queues(
 
         while sent_count < config.chunks_per_tick {
             let Some((cx, cz)) = loader.next_to_load() else {
+                if sent_this_tick > 0 { // Log if we sent chunks last tick but not this one
+                    debug!(player=?player_entity, "Chunk queue is now empty.");
+                }
                 break;
             };
 
@@ -311,6 +322,7 @@ pub fn process_chunk_load_queues(
             // ✅ ONLY mark as loaded after successful send
             loader.mark_loaded(cx, cz);
             sent_count += 1;
+            loader.sent_this_tick += 1;
             retry_count = 0; // Reset retry counter on success
 
             trace!(
@@ -319,23 +331,17 @@ pub fn process_chunk_load_queues(
                 is_new = is_new_chunk,
                 "Sent LevelChunk packet"
             );
-
-            trace!(
-                player = ?player_entity,
-                chunk = ?(cx, cz),
-                "Sent chunk to player"
-            );
         }
 
         // Track queue empty state for next tick
         publisher_state.queue_was_empty = !loader.has_pending();
 
         if sent_count > 0 {
-            trace!(
+            debug!(
                 player = ?player_entity,
                 sent = sent_count,
                 remaining = loader.queue_len(),
-                "Processed chunk queue"
+                "Processed chunk queue this tick"
             );
         }
 
@@ -345,7 +351,7 @@ pub fn process_chunk_load_queues(
                 player = ?player_entity,
                 pending_count = loader.queue_len(),
                 retry_count,
-                "Player has pending chunks but none were sent this tick (may need command flush)"
+                "Player has pending chunks but none were sent this tick (may need command flush or channel is full)"
             );
         }
     }
@@ -383,14 +389,17 @@ pub fn request_chunk_generation(
         let mut processed = 0;
 
         while processed < config.chunks_per_tick {
-            // Check if we can queue more generations
             if pending_gens.len() >= MAX_PENDING {
+                debug!("Max pending chunk generations reached, skipping for now.");
                 break;
             }
 
             let Some((cx, cz)) = loader.next_to_load() else {
-                break;
+                break; // No more chunks in this player's queue
             };
+
+            // This is a critical log to see if we are processing the queue.
+            trace!(player=?player_entity, chunk=?(cx, cz), "Popped chunk from load queue.");
 
             // Check if chunk already exists
             if let Some(chunk_entity) = chunk_manager.get_by_coords(cx, cz) {
@@ -411,29 +420,23 @@ pub fn request_chunk_generation(
 
                     if session.send(McpePacket::from(packet)) {
                         loader.mark_loaded(cx, cz);
-                        chunk_manager
-                            .pending_viewers
-                            .entry((cx, cz))
-                            .or_default()
-                            .push(player_entity);
-                        trace!(
-                            chunk = ?(cx, cz),
-                            player = ?player_entity,
-                            "Sent existing chunk"
-                        );
+                        chunk_manager.pending_viewers.entry((cx, cz)).or_default().push(player_entity);
+                        debug!(chunk = ?(cx, cz), player = ?player_entity, "Sent existing chunk to player.");
+                    } else {
+                        debug!(chunk = ?(cx, cz), player=?player_entity, "Failed to send existing chunk (channel full), will retry.");
+                        loader.requeue_front(cx, cz); // Re-queue at the front to retry next tick
+                        break; // Stop processing for this player if channel is full
                     }
                 }
                 processed += 1;
                 continue;
             }
 
-            // Skip if already pending generation (another player requested it)
+            // Skip if already pending generation
             if chunk_manager.is_generation_pending(cx, cz) {
-                // Just register as a viewer, will get chunk when generation completes
-                chunk_manager
-                    .pending_generation
-                    .get_mut(&(cx, cz))
-                    .map(|viewers| viewers.push(player_entity));
+                trace!(chunk = ?(cx, cz), "Chunk generation already pending, adding as viewer.");
+                chunk_manager.pending_generation.get_mut(&(cx, cz)).map(|viewers| viewers.push(player_entity));
+                loader.mark_loaded(cx, cz); // Mark as "loaded" to prevent re-requesting
                 processed += 1;
                 continue;
             }
@@ -441,27 +444,15 @@ pub fn request_chunk_generation(
             // Request async generation
             if let Some(receiver) = chunk_manager.request_generation(cx, cz, player_entity) {
                 pending_gens.add(cx, cz, receiver);
+                loader.mark_loaded(cx, cz); // Mark as loaded to prevent re-requesting
                 processed += 1;
-
-                trace!(
-                    player = ?player_entity,
-                    chunk = ?(cx, cz),
-                    pending_total = pending_gens.len(),
-                    "Requested async chunk generation"
-                );
+                debug!(player = ?player_entity, chunk = ?(cx, cz), "Requested async chunk generation.");
             }
         }
     }
 }
 
 /// System: Process completed async chunk generations.
-///
-/// This system handles the completion phase:
-/// - Polls pending generation receivers (non-blocking)
-/// - Spawns chunk entities for completed generations
-/// - Sends chunk data to waiting players
-/// - Marks chunks as loaded in player's ChunkLoader
-/// - Cleans up tracking state
 pub fn process_completed_generations(
     mut commands: Commands,
     mut chunk_manager: ResMut<ChunkManager>,
@@ -475,6 +466,7 @@ pub fn process_completed_generations(
     }
 
     let mut completed = Vec::new();
+    let initial_pending = pending_gens.len();
 
     // Check for completed generations (non-blocking)
     pending_gens.pending.retain_mut(|pending| {
@@ -483,20 +475,18 @@ pub fn process_completed_generations(
                 completed.push((pending.x, pending.z, chunk));
                 false // Remove from pending
             }
-            Err(tokio::sync::oneshot::error::TryRecvError::Empty) => {
-                true // Keep waiting
-            }
+            Err(tokio::sync::oneshot::error::TryRecvError::Empty) => true, // Keep
             Err(tokio::sync::oneshot::error::TryRecvError::Closed) => {
-                tracing::warn!(
-                    chunk = ?(pending.x, pending.z),
-                    "Generation channel closed unexpectedly"
-                );
-                // Clean up the manager's tracking too
+                warn!(chunk = ?(pending.x, pending.z), "Generation channel closed unexpectedly");
                 let _ = chunk_manager.complete_generation(pending.x, pending.z);
                 false // Remove from pending
             }
         }
     });
+    
+    if !completed.is_empty() {
+        debug!(count = completed.len(), initial_pending, "Processing completed chunk generations.");
+    }
 
     // Process completed chunks
     for (x, z, chunk) in completed {
@@ -509,25 +499,18 @@ pub fn process_completed_generations(
 
         // Spawn chunk entity
         let pos = ChunkPosition::new(x, z);
-        let entity = commands
-            .spawn((
-                pos,
-                ChunkData::new(chunk), // Move, not clone
-                ChunkState::Loaded,
-                ChunkViewers::default(),
-                ChunkEntities::default(),
-                ChunkStateFlags::new_generated(),
-            ))
-            .id();
+        let entity = commands.spawn((
+            pos,
+            ChunkData::new(chunk), // Move, not clone
+            ChunkState::Loaded,
+            ChunkViewers::default(),
+            ChunkEntities::default(),
+            ChunkStateFlags::new_generated(),
+        )).id();
 
         chunk_manager.insert(pos, entity);
 
-        trace!(
-            chunk = ?(x, z),
-            viewers = viewers.len(),
-            highest_subchunk,
-            "Async chunk generation complete, spawned entity"
-        );
+        debug!(chunk = ?(x, z), viewers = viewers.len(), "Async chunk generation complete, spawned entity.");
 
         // Send chunk to all waiting viewers
         for viewer_entity in viewers {
@@ -543,25 +526,17 @@ pub fn process_completed_generations(
                 };
 
                 if session.send(McpePacket::from(packet)) {
-                    // Mark chunk as loaded in player's ChunkLoader
-                    if let Ok(mut loader) = loaders.get_mut(viewer_entity) {
-                        loader.mark_loaded(x, z);
-                    }
-
-                    trace!(
-                        chunk = ?(x, z),
-                        viewer = ?viewer_entity,
-                        "Sent async-generated chunk to viewer"
-                    );
+                    // This was already marked as loaded on request, so we don't need to do it again.
+                    debug!(chunk = ?(x, z), viewer = ?viewer_entity, "Sent async-generated chunk to viewer.");
+                } else {
+                     warn!(chunk = ?(x, z), viewer = ?viewer_entity, "Failed to send async-generated chunk (channel full).");
+                     // We don't re-queue here because the loader thinks it's loaded.
+                     // The client will hopefully re-request if it's missing.
                 }
             }
-
-            // Add viewer to pending_viewers for flush_pending_viewers to handle
-            chunk_manager
-                .pending_viewers
-                .entry((x, z))
-                .or_default()
-                .push(viewer_entity);
+            
+            // Add viewer to the just-spawned chunk's ChunkViewers component
+            chunk_manager.pending_viewers.entry((x, z)).or_default().push(viewer_entity);
         }
     }
 }
@@ -973,3 +948,4 @@ mod tests {
         assert!(!state.queue_was_empty);
     }
 }
+

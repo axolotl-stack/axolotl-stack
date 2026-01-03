@@ -70,7 +70,7 @@ pub fn generate_entities(
     writeln!(out)?;
     writeln!(
         out,
-        "use valentine_bedrock_core::entity::{{EntityData, EntityType}};"
+        "pub use valentine_bedrock_core::entity::{{EntityData, EntityType}};"
     )?;
     writeln!(out)?;
 

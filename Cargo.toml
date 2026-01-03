@@ -4,9 +4,12 @@ members = [
     "crates/valentine",
     "crates/valentine/bedrock_core",
     "crates/valentine/bedrock_versions/v1_21_130",
+    "crates/example-plugin",
     "crates/jolyne",
     "crates/unastar",
     "crates/unastar_noise",
+    "crates/unastar-api",
+    "crates/unastar-api-macros",
     "crates/valentine_gen",
     "crates/tokio-raknet",
     "crates/tokio-nethernet",
@@ -24,7 +27,7 @@ repository = "https://github.com/axolotl-stack/axolotl-stack"
 opt-level = 3           # Max optimization
 lto = "thin"            # Link Time Optimization (faster build, still good optimization)
 codegen-units = 16      # Enable parallelism to speed up compilation
-panic = "abort"         # Remove stack unwinding (smaller/faster binary)
+# panic = "abort"         # Remove stack unwinding (smaller/faster binary)
 strip = true            # Remove symbols (smaller binary)
 # debug = 1             # uncomment this to enable debug symbols
 

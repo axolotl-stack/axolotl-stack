@@ -83,6 +83,64 @@ impl DependencyGraph {
         self.nodes.values().filter(|n| n.is_flat_cache).count()
     }
 
+    /// Check if a root's subtree contains any FlatCache nodes.
+    /// This determines whether the generated function needs a FlatCacheGrid parameter.
+    pub fn root_uses_flat_cache(&self, root_name: &str) -> bool {
+        let root_id = match self.roots.get(root_name) {
+            Some(id) => id,
+            None => return false,
+        };
+        self.subtree_contains_flat_cache(root_id, &mut HashSet::new())
+    }
+
+    /// Check if a root's subtree contains any Cache2D nodes.
+    /// This determines whether the generated function needs a ColumnContext parameter.
+    pub fn root_uses_cache_2d(&self, root_name: &str) -> bool {
+        let root_id = match self.roots.get(root_name) {
+            Some(id) => id,
+            None => return false,
+        };
+        self.subtree_contains_cache_2d(root_id, &mut HashSet::new())
+    }
+
+    fn subtree_contains_flat_cache(&self, id: &NodeId, visited: &mut HashSet<NodeId>) -> bool {
+        if visited.contains(id) {
+            return false;
+        }
+        visited.insert(id.clone());
+
+        if let Some(node) = self.nodes.get(id) {
+            if node.is_flat_cache {
+                return true;
+            }
+            for dep in &node.dependencies {
+                if self.subtree_contains_flat_cache(dep, visited) {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    fn subtree_contains_cache_2d(&self, id: &NodeId, visited: &mut HashSet<NodeId>) -> bool {
+        if visited.contains(id) {
+            return false;
+        }
+        visited.insert(id.clone());
+
+        if let Some(node) = self.nodes.get(id) {
+            if node.is_cache_2d {
+                return true;
+            }
+            for dep in &node.dependencies {
+                if self.subtree_contains_cache_2d(dep, visited) {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
     /// Topological sort for emission order.
     /// Returns nodes in dependency order (dependencies before dependents).
     pub fn topo_sort(&self) -> Vec<&NodeId> {

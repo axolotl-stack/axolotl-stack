@@ -11,6 +11,7 @@ pub mod ecs;
 pub mod entity;
 pub mod item;
 pub mod network;
+pub mod plugin;
 pub mod registry;
 pub mod server;
 pub mod storage;

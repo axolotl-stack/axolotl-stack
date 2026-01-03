@@ -257,6 +257,139 @@ impl PerlinNoise {
         lerp(t3, l1, l5)
     }
 
+    /// Sample 4 noise values with Y-smearing using portable SIMD.
+    ///
+    /// This is the SIMD version of `sample_smeared`, used by BlendedNoise.
+    /// The smearing quantizes the Y fractional part to reduce noise sensitivity
+    /// to Y changes, creating vertical stretching in terrain.
+    ///
+    /// # Arguments
+    /// * `x` - X coordinate (splatted for same X across all lanes)
+    /// * `y` - 4 Y coordinates
+    /// * `z` - Z coordinate (splatted for same Z across all lanes)
+    /// * `y_scale` - Smear scale (same for all lanes)
+    /// * `y_orig` - Original Y values for clamping comparison (NOT offset by yo)
+    #[inline]
+    pub fn sample_smeared_4(&self, x: f64x4, y: f64x4, z: f64x4, y_scale: f64, y_orig: f64x4) -> f64x4 {
+        let one = f64x4::splat(1.0);
+        let zero = f64x4::splat(0.0);
+        let mask_255 = i32x4::splat(255);
+        let mask_15 = i32x4::splat(15);
+
+        // Offset coordinates
+        let d1_vec = x + f64x4::splat(self.a);
+        let d2_raw = y + f64x4::splat(self.b);
+        let d3_vec = z + f64x4::splat(self.c);
+
+        // Floor
+        let i1_vec = d1_vec.floor();
+        let i2_vec = d2_raw.floor();
+        let i3_vec = d3_vec.floor();
+
+        // Fractional parts
+        let d1 = d1_vec - i1_vec;
+        let d2 = d2_raw - i2_vec;  // Original fractional Y (for smoothstep)
+        let d3 = d3_vec - i3_vec;
+
+        // Compute smeared d2 for gradient computation
+        // Java: if (h >= 0.0 && h < p) r = h; else r = p;
+        // Java: s = floor(r / g + epsilon) * g
+        let d2_smeared = if y_scale != 0.0 {
+            let y_scale_v = f64x4::splat(y_scale);
+            let epsilon = f64x4::splat(1.0e-7);
+
+            // Mask: h >= 0.0 && h < d2
+            let mask_ge_zero = y_orig.simd_ge(zero);
+            let mask_lt_d2 = y_orig.simd_lt(d2);
+            let use_y_orig = mask_ge_zero & mask_lt_d2;
+
+            // r = use_y_orig ? y_orig : d2
+            let r = use_y_orig.select(y_orig, d2);
+
+            // s = floor(r / y_scale + epsilon) * y_scale
+            let s = ((r / y_scale_v) + epsilon).floor() * y_scale_v;
+
+            d2 - s
+        } else {
+            d2
+        };
+
+        // Hash indices (cast to i32, mask to 0-255)
+        let h1 = i1_vec.cast::<i32>() & mask_255;
+        let h2 = i2_vec.cast::<i32>() & mask_255;
+        let h3 = i3_vec.cast::<i32>() & mask_255;
+
+        // Compute smoothstep using ORIGINAL d2 (not smeared)
+        let t1 = smoothstep_simd(d1);
+        let t2 = smoothstep_simd(d2);  // Original d2 for smoothstep
+        let t3 = smoothstep_simd(d3);
+
+        // --- HASHING using gather ---
+        let d_slice = &self.d;
+
+        let gather_d = |idx: i32x4| -> i32x4 {
+            let safe_idx = idx & mask_255;
+            let indices = safe_idx.cast::<usize>();
+            Simd::gather_or_default(d_slice, indices)
+        };
+
+        // Layer 1: h1 lookups
+        let a1_base = gather_d(h1);
+        let b1_base = gather_d(h1 + i32x4::splat(1));
+
+        // Add h2
+        let a1 = a1_base + h2;
+        let b1 = b1_base + h2;
+
+        // Layer 2: resolve a1, b1
+        let a2_base = gather_d(a1);
+        let a3_base = gather_d(a1 + i32x4::splat(1));
+        let b2_base = gather_d(b1);
+        let b3_base = gather_d(b1 + i32x4::splat(1));
+
+        // Add h3 to get final indices
+        let a2 = a2_base + h3;
+        let a3 = a3_base + h3;
+        let b2 = b2_base + h3;
+        let b3 = b3_base + h3;
+
+        // Final gradient lookups
+        let grad_a2 = gather_d(a2) & mask_15;
+        let grad_b2 = gather_d(b2) & mask_15;
+        let grad_a3 = gather_d(a3) & mask_15;
+        let grad_b3 = gather_d(b3) & mask_15;
+
+        let grad_a2p1 = gather_d(a2 + i32x4::splat(1)) & mask_15;
+        let grad_b2p1 = gather_d(b2 + i32x4::splat(1)) & mask_15;
+        let grad_a3p1 = gather_d(a3 + i32x4::splat(1)) & mask_15;
+        let grad_b3p1 = gather_d(b3 + i32x4::splat(1)) & mask_15;
+
+        // --- INTERPOLATION using SMEARED d2 for gradients ---
+        let d1_m1 = d1 - one;
+        let d2_smeared_m1 = d2_smeared - one;
+        let d3_m1 = d3 - one;
+
+        let l1 = indexed_lerp_simd(grad_a2, d1, d2_smeared, d3);
+        let l2 = indexed_lerp_simd(grad_b2, d1_m1, d2_smeared, d3);
+        let l3 = indexed_lerp_simd(grad_a3, d1, d2_smeared_m1, d3);
+        let l4 = indexed_lerp_simd(grad_b3, d1_m1, d2_smeared_m1, d3);
+        let l5 = indexed_lerp_simd(grad_a2p1, d1, d2_smeared, d3_m1);
+        let l6 = indexed_lerp_simd(grad_b2p1, d1_m1, d2_smeared, d3_m1);
+        let l7 = indexed_lerp_simd(grad_a3p1, d1, d2_smeared_m1, d3_m1);
+        let l8 = indexed_lerp_simd(grad_b3p1, d1_m1, d2_smeared_m1, d3_m1);
+
+        // Trilinear interpolation using ORIGINAL d2's smoothstep
+        let l1 = lerp_simd(t1, l1, l2);
+        let l3 = lerp_simd(t1, l3, l4);
+        let l5 = lerp_simd(t1, l5, l6);
+        let l7 = lerp_simd(t1, l7, l8);
+
+        let l1 = lerp_simd(t2, l1, l3);
+        let l5 = lerp_simd(t2, l5, l7);
+
+        lerp_simd(t3, l1, l5)
+    }
+
     /// Sample 4 noise values simultaneously using portable SIMD.
     ///
     /// Takes `f64x4` for all three axes, allowing any combination of inputs:
@@ -903,16 +1036,97 @@ impl BlendedNoise {
     }
 
     /// Sample blended noise at 4 Y positions (SIMD).
+    ///
+    /// This is the performance-critical version that properly vectorizes
+    /// all noise sampling across 4 Y positions.
     #[inline]
     pub fn sample_4(&self, x: f64, y: f64x4, z: f64) -> f64x4 {
-        // For now, use scalar fallback
-        let y_arr = y.to_array();
-        f64x4::from_array([
-            self.sample(x, y_arr[0], z),
-            self.sample(x, y_arr[1], z),
-            self.sample(x, y_arr[2], z),
-            self.sample(x, y_arr[3], z),
-        ])
+        let one = f64x4::splat(1.0);
+        let half = f64x4::splat(0.5);
+        let ten = f64x4::splat(10.0);
+        let zero = f64x4::splat(0.0);
+
+        // Scale coordinates by base multiplier (684.412 * scale)
+        let dx = f64x4::splat(x * self.xz_multiplier);
+        let dy = y * f64x4::splat(self.y_multiplier);
+        let dz = f64x4::splat(z * self.xz_multiplier);
+
+        // Coarser scale for main noise (divide by factor)
+        let gx = f64x4::splat(x * self.xz_multiplier / self.xz_factor);
+        let gy = y * f64x4::splat(self.y_multiplier / self.y_factor);
+        let gz = f64x4::splat(z * self.xz_multiplier / self.xz_factor);
+
+        // Sample main noise (8 octaves) - determines the blend factor
+        let mut n = f64x4::splat(0.0);
+        let mut o = 1.0;
+        for p in 0..8 {
+            if p < self.main.octaves.len() {
+                let o_v = f64x4::splat(o);
+                // Main noise uses smeared sampling with k*o as smear scale, gy*o as y_orig
+                let sampled = self.main.octaves[p].sample_smeared_4(
+                    wrap_coord_simd(gx * o_v),
+                    wrap_coord_simd(gy * o_v),
+                    wrap_coord_simd(gz * o_v),
+                    self.main_smear_scale * o,  // k * o
+                    gy * o_v,                    // h * o (not wrapped, used for clamping)
+                );
+                n = n + sampled / o_v;
+            }
+            o /= 2.0;
+        }
+
+        // Convert main noise to blend factor [0, 1]
+        // Java: double q = (n / 10.0 + 1.0) / 2.0;
+        let q = (n / ten + one) * half;
+
+        // Create masks for early exit conditions
+        let use_max_only = q.simd_ge(one);
+        let use_min_only = q.simd_le(zero);
+        let need_min = !use_max_only;
+        let need_max = !use_min_only;
+
+        // Sample limit noises (16 octaves each)
+        let mut l = f64x4::splat(0.0); // minLimitNoise sum
+        let mut m = f64x4::splat(0.0); // maxLimitNoise sum
+        o = 1.0;
+
+        for r in 0..16 {
+            let o_v = f64x4::splat(o);
+            let inv_o = f64x4::splat(1.0 / o);
+
+            // Sample min_limit noise if any lane needs it
+            if r < self.min_limit.octaves.len() && need_min.any() {
+                let sample = self.min_limit.octaves[r].sample_smeared_4(
+                    wrap_coord_simd(dx * o_v),
+                    wrap_coord_simd(dy * o_v),
+                    wrap_coord_simd(dz * o_v),
+                    self.limit_smear_scale * o,  // j * o
+                    dy * o_v,                     // e * o (not wrapped)
+                );
+                // Only accumulate for lanes that need min
+                l = need_min.select(l + sample * inv_o, l);
+            }
+
+            // Sample max_limit noise if any lane needs it
+            if r < self.max_limit.octaves.len() && need_max.any() {
+                let sample = self.max_limit.octaves[r].sample_smeared_4(
+                    wrap_coord_simd(dx * o_v),
+                    wrap_coord_simd(dy * o_v),
+                    wrap_coord_simd(dz * o_v),
+                    self.limit_smear_scale * o,  // j * o
+                    dy * o_v,                     // e * o (not wrapped)
+                );
+                // Only accumulate for lanes that need max
+                m = need_max.select(m + sample * inv_o, m);
+            }
+
+            o /= 2.0;
+        }
+
+        // Java: return Mth.clampedLerp(q, l / 512.0, m / 512.0) / 128.0;
+        let l_scaled = l / f64x4::splat(512.0);
+        let m_scaled = m / f64x4::splat(512.0);
+        clamped_lerp_simd(q, l_scaled, m_scaled) / f64x4::splat(128.0)
     }
 }
 
@@ -924,11 +1138,27 @@ fn wrap_coord(value: f64) -> f64 {
     value - ((value / RANGE).floor() * RANGE)
 }
 
+/// SIMD version of wrap_coord for 4 values.
+#[inline]
+fn wrap_coord_simd(value: f64x4) -> f64x4 {
+    let range = f64x4::splat(33554432.0); // 2^25
+    value - ((value / range).floor() * range)
+}
+
 /// Clamped linear interpolation.
 #[inline]
 fn clamped_lerp(t: f64, a: f64, b: f64) -> f64 {
     let t = t.clamp(0.0, 1.0);
     a + t * (b - a)
+}
+
+/// SIMD clamped linear interpolation.
+#[inline]
+fn clamped_lerp_simd(t: f64x4, a: f64x4, b: f64x4) -> f64x4 {
+    let zero = f64x4::splat(0.0);
+    let one = f64x4::splat(1.0);
+    let t_clamped = t.simd_max(zero).simd_min(one);
+    t_clamped.mul_add(b - a, a)
 }
 
 // =============================================================================

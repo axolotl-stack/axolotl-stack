@@ -1,0 +1,18 @@
+id = "axolotl.example"
+name = "Example Plugin"
+version = "0.1.0"
+api_version = "0.1.0"
+subscriptions = [
+    "player_chat",
+    "tick",
+    "block_break",
+    "player_move",
+    "player_jump",
+    "player_toggle_sneak",
+    "player_toggle_sprint",
+    "player_quit",
+    "player_held_slot_change",
+    "player_start_break",
+    "player_interact_block",
+    "player_item_use",
+]

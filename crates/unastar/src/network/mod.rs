@@ -58,13 +58,13 @@ async fn run_network_loop(
                         // Drain any remaining packets and queue them
                         while let Ok(packet) = outbound_rx.try_recv() {
                             if let Err(e) = stream.send_packet(packet).await {
-                                warn!(session_id, "Send failed: {:?}", e);
+                                tracing::error!(session_id, "Send failed (tick flush): {:?}", e);
                                 return;
                             }
                         }
                         // Flush all queued packets as a single batch
                         if let Err(e) = stream.flush().await {
-                            warn!(session_id, "Flush failed: {:?}", e);
+                            tracing::error!(session_id, "Flush failed: {:?}", e);
                             return;
                         }
                     }
@@ -73,6 +73,7 @@ async fn run_network_loop(
                     }
                     Err(broadcast::error::RecvError::Closed) => {
                         // Server shutting down
+                        tracing::error!(session_id, "Tick receiver closed - server shutdown or sender dropped");
                         break;
                     }
                 }
@@ -84,11 +85,21 @@ async fn run_network_loop(
                     Ok(packet) => {
                         if event_tx.send(NetworkEvent::Packet { session_id, packet }).is_err() {
                             // Main thread dropped, exit
+                            tracing::error!(session_id, "Main thread dropped event channel");
                             break;
                         }
                     }
                     Err(e) => {
-                        debug!(session_id, "Connection closed: {:?}", e);
+                        // Log decode errors with more context
+                        if let jolyne::JolyneError::Decode(decode_err) = &e {
+                            tracing::error!(
+                                session_id,
+                                error = ?decode_err,
+                                "Packet decode failed - connection closed. This may indicate a malformed packet from the client or a protocol mismatch."
+                            );
+                        } else {
+                            tracing::error!(session_id, "Connection closed by client/error: {:?}", e);
+                        }
                         break;
                     }
                 }
@@ -97,7 +108,7 @@ async fn run_network_loop(
             // Priority 3: Queue outbound packets (batched flush on tick signal)
             Some(packet) = outbound_rx.recv() => {
                 if let Err(e) = stream.send_packet(packet).await {
-                    warn!(session_id, "Send failed: {:?}", e);
+                    tracing::error!(session_id, "Send failed (immediate): {:?}", e);
                     break;
                 }
                 // Drain any other pending packets into buffer

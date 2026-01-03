@@ -167,40 +167,22 @@ impl GameServer {
                     };
                     (is_empty, subchunk_data, hm_type, hm)
                 } else {
-                    // Entity exists but component not ready (flushing commands)
-                    // Fallback to generating a temporary chunk to avoid returning "all air"
-                    trace!(chunk = ?(target_chunk_x, target_chunk_z), sub_y, "SubChunkRequest for unflushed chunk - using temporary generation");
-                    let temp_chunk = chunk_manager.generate_chunk(target_chunk_x, target_chunk_z);
-
-                    let is_empty = temp_chunk.is_subchunk_empty(sub_y);
-                    let subchunk_data = if !is_empty {
-                        // Check if we can use superflat cache (even for temporary chunks)
-                        let use_cache = matches!(
-                            chunk_manager.world_config().generator,
-                            crate::world::WorldGenerator::SuperFlat
-                        );
-
-                        if use_cache {
-                            if let Some(cached) =
-                                crate::world::generator::flat::get_cached_superflat_subchunk(sub_y)
-                            {
-                                cached.to_vec()
-                            } else {
-                                temp_chunk.encode_subchunk(sub_y).unwrap_or_default()
-                            }
-                        } else {
-                            temp_chunk.encode_subchunk(sub_y).unwrap_or_default()
-                        }
-                    } else {
-                        vec![]
-                    };
-                    let (ht, hm) = temp_chunk.get_subchunk_heightmap(sub_y);
-                    let hm_type = match ht {
-                        HeightMapType::TooHigh => HeightMapDataType::TooHigh,
-                        HeightMapType::TooLow => HeightMapDataType::TooLow,
-                        HeightMapType::HasData => HeightMapDataType::HasData,
-                    };
-                    (is_empty, subchunk_data, hm_type, hm)
+                    // Entity exists but ChunkData component missing.
+                    // This implies the chunk is in a transitional state (loading/generating).
+                    // We return ChunkNotFound so the client retries later.
+                    trace!(chunk = ?(target_chunk_x, target_chunk_z), "SubChunkRequest for loading chunk - returning ChunkNotFound");
+                    entries.push(SubChunkEntryWithoutCachingItem {
+                        dx: offset.dx,
+                        dy: offset.dy,
+                        dz: offset.dz,
+                        result: SubChunkEntryWithoutCachingItemResult::ChunkNotFound,
+                        payload: vec![],
+                        heightmap_type: HeightMapDataType::TooLow,
+                        heightmap: None,
+                        render_heightmap_type: HeightMapDataType::TooLow,
+                        render_heightmap: None,
+                    });
+                    continue;
                 }
             };
 

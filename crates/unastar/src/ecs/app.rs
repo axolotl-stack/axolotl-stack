@@ -2,6 +2,7 @@
 
 use bevy_ecs::prelude::*;
 
+use super::events::{EventBuffer, ActionQueue};
 use super::resources::*;
 use super::schedules::*;
 
@@ -20,11 +21,11 @@ impl UnastarEcs {
 
         // Insert global resources
         world.insert_resource(TickCounter::default());
+        world.insert_resource(EventBuffer::default());
+        world.insert_resource(ActionQueue::default());
 
         // Build tick schedule with ordered system sets
         let mut tick_schedule = Schedule::default();
-
-        // Configure system set ordering
         tick_schedule.configure_sets(
             (
                 PhysicsSet,

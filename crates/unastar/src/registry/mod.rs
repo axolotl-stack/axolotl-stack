@@ -4,11 +4,13 @@
 
 pub mod biome;
 pub mod block;
+pub mod creative;
 pub mod entity;
 pub mod item;
 
 pub use biome::BiomeRegistry;
 pub use block::BlockRegistry;
+pub use creative::CreativeInventoryData;
 pub use entity::EntityRegistry;
 pub use item::ItemRegistry;
 

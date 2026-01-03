@@ -9,7 +9,7 @@
 use super::constants::Biome;
 use super::density::{
     CachingNoiseChunk, FunctionContext, NoiseRegistry,
-    FlatCacheGrid, ColumnContext, compute_final_density,
+    FlatCacheGrid, ColumnContext, ColumnContextGrid, compute_final_density,
 };
 use super::aquifer::NoiseBasedAquifer;
 use super::ore_veinifier::OreVeinifier;
@@ -171,9 +171,18 @@ impl VanillaGenerator {
         // at the 5x5 quart grid positions for this chunk
         let grid = FlatCacheGrid::new(chunk_x, chunk_z, &self.noises);
 
+        // Pre-compute all 256 ColumnContext values for the chunk.
+        // This implements Java's Cache2D memoization pattern at chunk scale:
+        // instead of computing ColumnContext per-cell (which caused ~281 calls with
+        // expensive spline evaluations), we compute all 256 positions ONCE upfront.
+        // This reduces spline evaluations from ~140,000 to 256 per chunk.
+        let col_grid = ColumnContextGrid::new(chunk_x, chunk_z, &self.noises, &grid);
+
         // Create aquifer system for proper underground fluid handling
         // The aquifer determines when to place water/lava vs air in caves
-        let fluid_picker = Box::new(OverworldFluidPicker::new(Self::SEA_LEVEL));
+        // OPTIMIZATION: Pass col_grid so aquifer can reuse pre-computed ColumnContexts
+        // OPTIMIZATION: Use generic FluidPicker instead of Box to avoid heap allocation
+        let fluid_picker = OverworldFluidPicker::new(Self::SEA_LEVEL);
         let mut aquifer = NoiseBasedAquifer::new(
             chunk_x,
             chunk_z,
@@ -181,13 +190,14 @@ impl VanillaGenerator {
             height,
             &self.noises,
             &grid,
+            &col_grid,
             self.seed,
             fluid_picker,
         );
 
         // Create OreVeinifier for large ore vein generation (copper/iron with granite/tuff filler)
-        // Uses AOT-compiled vein_toggle, vein_ridged, vein_gap density functions
-        let ore_veinifier = OreVeinifier::new(&self.noises, &grid, self.ore_random.clone());
+        // Uses simplified vein_toggle, vein_ridged, vein_gap density functions (no FlatCache/ColumnContext needed)
+        let ore_veinifier = OreVeinifier::new(&self.noises, self.ore_random.clone());
 
         // Create CachingNoiseChunk for interpolation-based generation
         let mut noise_chunk = CachingNoiseChunk::new(
@@ -204,15 +214,19 @@ impl VanillaGenerator {
         let cell_count_y = noise_chunk.cell_count_y();
 
         // Initialize interpolator with first X slice using AOT compiled functions
-        noise_chunk.initialize_for_first_cell_x_aot(&grid, &self.noises);
+        // Uses pre-computed col_grid for O(1) column context lookups
+        noise_chunk.initialize_for_first_cell_x_aot(&grid, &col_grid, &self.noises);
 
         // X-outer loop over cells
         for cell_x in 0..cell_count_xz {
             // Advance to next X cell using AOT compiled functions
-            noise_chunk.advance_cell_x_aot(cell_x as i32, &grid, &self.noises);
+            // Uses pre-computed col_grid for O(1) column context lookups
+            noise_chunk.advance_cell_x_aot(cell_x as i32, &grid, &col_grid, &self.noises);
 
             // Z-middle loop
             for cell_z in 0..cell_count_xz {
+                let base_block_z = chunk_z * 16 + (cell_z as i32) * cell_width;
+
                 // Y descending for efficient surface detection
                 for cell_y in (0..cell_count_y).rev() {
                     // Select this cell's corner values from the slices
@@ -228,10 +242,8 @@ impl VanillaGenerator {
                         for x_in_cell in 0..cell_width {
                             let block_x = chunk_x * 16 + (cell_x as i32) * cell_width + x_in_cell;
 
-                            // Update X interpolation
+                            // Update X interpolation and get densities
                             noise_chunk.update_for_x(block_x);
-
-                            // Get all 4 Z densities at once (SIMD)
                             let densities = noise_chunk.get_densities_4z();
                             let densities_arr = densities.to_array();
 
@@ -239,18 +251,27 @@ impl VanillaGenerator {
                             let all_positive = densities.simd_gt(f64x4::splat(0.0)).all();
 
                             let local_x = ((cell_x as i32) * cell_width + x_in_cell) as u8;
-                            let base_block_z = chunk_z * 16 + (cell_z as i32) * cell_width;
+
+                            // Check if we're in ore vein Y range (-60 to 50) to avoid function call overhead
+                            let in_vein_range = block_y >= -60 && block_y <= 50;
 
                             if all_positive {
-                                // Fast path: all 4 blocks are solid - check veinifier for each
-                                for z_in_cell in 0..4i32 {
-                                    let local_z = ((cell_z as i32) * cell_width + z_in_cell) as u8;
-                                    let block_z = base_block_z + z_in_cell;
-                                    let ctx = FunctionContext::new(block_x, block_y, block_z);
-
-                                    // Check if this should be an ore vein block
-                                    let block = ore_veinifier.compute(&ctx).unwrap_or(*blocks::STONE);
-                                    chunk.set_block(local_x, block_y as i16, local_z, block);
+                                // Fast path: all 4 blocks are solid
+                                if in_vein_range {
+                                    // Check veinifier for ore veins
+                                    for z_in_cell in 0..4i32 {
+                                        let local_z = ((cell_z as i32) * cell_width + z_in_cell) as u8;
+                                        let block_z = base_block_z + z_in_cell;
+                                        let ctx = FunctionContext::new(block_x, block_y, block_z);
+                                        let block = ore_veinifier.compute(&ctx).unwrap_or(*blocks::STONE);
+                                        chunk.set_block(local_x, block_y as i16, local_z, block);
+                                    }
+                                } else {
+                                    // Outside vein range - just place stone
+                                    for z_in_cell in 0..4i32 {
+                                        let local_z = ((cell_z as i32) * cell_width + z_in_cell) as u8;
+                                        chunk.set_block(local_x, block_y as i16, local_z, *blocks::STONE);
+                                    }
                                 }
                             } else {
                                 // Process each block - use aquifer for non-solid, veinifier for solid
@@ -260,15 +281,20 @@ impl VanillaGenerator {
                                     let block_z = base_block_z + z_in_cell;
 
                                     if density > 0.0 {
-                                        // Solid block - check veinifier for ore veins
-                                        let ctx = FunctionContext::new(block_x, block_y, block_z);
-                                        let block = ore_veinifier.compute(&ctx).unwrap_or(*blocks::STONE);
-                                        chunk.set_block(local_x, block_y as i16, local_z, block);
+                                        // Solid block - check veinifier for ore veins (if in range)
+                                        if in_vein_range {
+                                            let ctx = FunctionContext::new(block_x, block_y, block_z);
+                                            let block = ore_veinifier.compute(&ctx).unwrap_or(*blocks::STONE);
+                                            chunk.set_block(local_x, block_y as i16, local_z, block);
+                                        } else {
+                                            chunk.set_block(local_x, block_y as i16, local_z, *blocks::STONE);
+                                        }
                                     } else {
                                         // Use aquifer to determine what to place (water/lava/air)
+                                        // This matches Java's behavior - aquifer handles all non-solid blocks
+                                        // including ocean water via globalFluidPicker
                                         let ctx = FunctionContext::new(block_x, block_y, block_z);
                                         if let Some(block_id) = aquifer.compute_substance(&ctx, density) {
-                                            // Aquifer says to place fluid
                                             chunk.set_block(local_x, block_y as i16, local_z, block_id);
                                         }
                                         // None from aquifer means air - default, no need to set
@@ -296,7 +322,7 @@ impl VanillaGenerator {
 
 
     /// Carve caves into the chunk using vanilla worm algorithm.
-    fn carve_caves(&self, chunk: &mut Chunk, chunk_x: i32, chunk_z: i32, aquifer: &mut NoiseBasedAquifer) {
+    fn carve_caves<F: super::aquifer::FluidPicker>(&self, chunk: &mut Chunk, chunk_x: i32, chunk_z: i32, aquifer: &mut NoiseBasedAquifer<F>) {
         use std::f64::consts::PI;
 
         // Check nearby chunks for cave starts that might reach into this chunk
@@ -368,7 +394,7 @@ impl VanillaGenerator {
     }
 
     /// Carve a large cave room.
-    fn carve_cave_room(
+    fn carve_cave_room<F: super::aquifer::FluidPicker>(
         &self,
         chunk: &mut Chunk,
         chunk_x: i32,
@@ -377,7 +403,7 @@ impl VanillaGenerator {
         x: f64,
         y: f64,
         z: f64,
-        aquifer: &mut NoiseBasedAquifer,
+        aquifer: &mut NoiseBasedAquifer<F>,
     ) {
         let width = 1.0 + rng.next_float() * 6.0;
         self.carve_cave_tunnel(
@@ -399,7 +425,7 @@ impl VanillaGenerator {
     }
 
     /// Carve a cave tunnel (worm algorithm from vanilla).
-    fn carve_cave_tunnel(
+    fn carve_cave_tunnel<F: super::aquifer::FluidPicker>(
         &self,
         chunk: &mut Chunk,
         chunk_x: i32,
@@ -414,7 +440,7 @@ impl VanillaGenerator {
         start_idx: i32,
         end_idx: i32,
         height_ratio: f64,
-        aquifer: &mut NoiseBasedAquifer,
+        aquifer: &mut NoiseBasedAquifer<F>,
     ) {
         use std::f64::consts::PI;
 
@@ -594,7 +620,7 @@ impl VanillaGenerator {
 
     /// Carve ravines (vanilla-accurate from MapGenRavine.java)
     /// Ravines are rarer but larger than caves, with a distinctive tall/narrow shape
-    fn carve_ravines(&self, chunk: &mut Chunk, chunk_x: i32, chunk_z: i32, aquifer: &mut NoiseBasedAquifer) {
+    fn carve_ravines<F: super::aquifer::FluidPicker>(&self, chunk: &mut Chunk, chunk_x: i32, chunk_z: i32, aquifer: &mut NoiseBasedAquifer<F>) {
         use std::f64::consts::PI;
 
         // Check nearby chunks for ravine starts
@@ -647,7 +673,7 @@ impl VanillaGenerator {
     }
 
     /// Carve a ravine tunnel (similar to cave but taller and shallower)
-    fn carve_ravine_tunnel(
+    fn carve_ravine_tunnel<F: super::aquifer::FluidPicker>(
         &self,
         chunk: &mut Chunk,
         chunk_x: i32,
@@ -662,7 +688,7 @@ impl VanillaGenerator {
         start_idx: i32,
         end_idx: i32,
         height_ratio: f64,
-        aquifer: &mut NoiseBasedAquifer,
+        aquifer: &mut NoiseBasedAquifer<F>,
     ) {
         use std::f64::consts::PI;
 

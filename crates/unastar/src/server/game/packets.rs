@@ -5,7 +5,7 @@
 use bevy_ecs::entity::Entity;
 use glam::DVec3;
 use jolyne::valentine::ContainerSlotType;
-use tracing::{debug, info, trace};
+use tracing::{debug, info, trace, warn};
 
 use super::GameServer;
 use super::types::SessionEntityMap;
@@ -36,6 +36,42 @@ impl GameServer {
             }
         };
 
+        // Special case: Disconnect packet (immediate handling)
+        if matches!(&packet.data, McpePacketData::PacketDisconnect(_)) {
+            info!(session_id, "Client sent disconnect packet");
+            // Emit PlayerQuit event
+            if let Some(mut event_buffer) = self
+                .ecs
+                .world_mut()
+                .get_resource_mut::<crate::ecs::events::EventBuffer>()
+            {
+                event_buffer.push(crate::ecs::events::ServerEvent::PlayerQuit { entity });
+            }
+            self.despawn_player(session_id);
+            return;
+        }
+
+        // Special case: Interact packet (needs special handling)
+        if let McpePacketData::PacketInteract(pk) = &packet.data {
+            self.handle_interact(entity, pk);
+            return;
+        }
+
+        // Route packet to queues for future parallel processing
+        if let Some(mut queues) = self
+            .ecs
+            .world_mut()
+            .get_resource_mut::<super::packet_routing::PacketQueues>()
+        {
+            super::packet_router::PacketRouter::route_packet(
+                session_id,
+                entity,
+                packet.clone(),
+                &mut queues,
+            );
+        }
+
+        // TEMPORARY: Also call old handlers directly until domain systems are built
         match &packet.data {
             McpePacketData::PacketRequestChunkRadius(req) => {
                 self.handle_chunk_radius_request(entity, req);
@@ -46,35 +82,19 @@ impl GameServer {
             McpePacketData::PacketPlayerAuthInput(pk) => {
                 self.handle_player_auth_input(entity, pk);
             }
-            // NOTE: MovePlayer from client is IGNORED.
-            // In server-authoritative movement (1.21.80+), clients send PlayerAuthInput,
-            // and MovePlayer is only server->client for corrections/teleports.
             McpePacketData::PacketMovePlayer(_) => {
                 // Intentionally ignored - use PlayerAuthInput instead
             }
             McpePacketData::PacketSubchunkRequest(req) => {
                 self.handle_subchunk_request(entity, req);
             }
-            McpePacketData::PacketDisconnect(_) => {
-                // Client requested disconnect - trigger clean despawn
-                info!(session_id, "Client sent disconnect packet");
-                self.despawn_player(session_id);
-            }
             McpePacketData::PacketMobEquipment(pk) => {
                 self.handle_mob_equipment(entity, pk);
-            }
-            McpePacketData::PacketInteract(pk) => {
-                self.handle_interact(entity, pk);
             }
             McpePacketData::PacketContainerClose(pk) => {
                 self.handle_container_close(entity, pk);
             }
             McpePacketData::PacketItemStackRequest(pk) => {
-                info!(
-                    session_id,
-                    requests = pk.requests.len(),
-                    "Received ItemStackRequest packet"
-                );
                 self.handle_item_stack_request(entity, pk);
             }
             McpePacketData::PacketInventoryTransaction(pk) => {
@@ -82,6 +102,12 @@ impl GameServer {
             }
             McpePacketData::PacketText(pk) => {
                 self.handle_text(session_id, entity, pk);
+            }
+            McpePacketData::PacketPlayerAction(pk) => {
+                self.handle_player_action(entity, pk);
+            }
+            McpePacketData::PacketDisconnect(_) | McpePacketData::PacketInteract(_) => {
+                // Already handled above
             }
             _ => {
                 debug!(
@@ -109,9 +135,13 @@ impl GameServer {
         let world = self.ecs.world_mut();
 
         // Update Position
-        if let Some(mut position) = world.get_mut::<Position>(entity) {
+        let old_pos = if let Some(mut position) = world.get_mut::<Position>(entity) {
+            let old = position.0;
             position.0 = new_pos;
-        }
+            old
+        } else {
+            new_pos
+        };
 
         // Update Rotation
         if let Some(mut rotation) = world.get_mut::<Rotation>(entity) {
@@ -121,11 +151,19 @@ impl GameServer {
         }
 
         // Update PlayerInput from InputFlag
+        let mut jumped = false;
         if let Some(mut input) = world.get_mut::<PlayerInput>(entity) {
             input.move_x = pk.move_vector.x;
             input.move_z = pk.move_vector.z;
+
+            let was_jumping = input.jumping;
             input.jumping = pk.input_data.contains(InputFlag::JUMPING)
                 || pk.input_data.contains(InputFlag::START_JUMPING);
+
+            if input.jumping && !was_jumping {
+                jumped = true;
+            }
+
             input.sneaking = pk.input_data.contains(InputFlag::SNEAKING);
             input.sprinting = pk.input_data.contains(InputFlag::SPRINTING);
             input.tick = pk.tick;
@@ -133,20 +171,48 @@ impl GameServer {
             input.on_ground = !pk.input_data.contains(InputFlag::VERTICAL_COLLISION);
         }
 
+        // Emit events to PluginManager via EventBuffer
+        if let Some(mut event_buffer) = world.get_resource_mut::<crate::ecs::events::EventBuffer>()
+        {
+            use crate::ecs::events::ServerEvent;
+
+            // Emit Move event
+            if old_pos.distance_squared(new_pos) > 1e-3 {
+                event_buffer.push(ServerEvent::PlayerMove {
+                    entity,
+                    from: (old_pos.x, old_pos.y, old_pos.z),
+                    to: (new_pos.x, new_pos.y, new_pos.z),
+                });
+            }
+
+            // Emit Jump event
+            if jumped {
+                event_buffer.push(ServerEvent::PlayerJump { entity });
+            }
+        }
+
         // Update PlayerState persistent flags
+        // Update PlayerState persistent flags
+        let mut toggle_sneak = None;
+        let mut toggle_sprint = None;
+
         if let Some(mut state) = world.get_mut::<PlayerState>(entity) {
             // Handle toggle events
             if pk.input_data.contains(InputFlag::START_SNEAKING) {
                 state.sneaking = true;
+                toggle_sneak = Some(true);
             }
             if pk.input_data.contains(InputFlag::STOP_SNEAKING) {
                 state.sneaking = false;
+                toggle_sneak = Some(false);
             }
             if pk.input_data.contains(InputFlag::START_SPRINTING) {
                 state.sprinting = true;
+                toggle_sprint = Some(true);
             }
             if pk.input_data.contains(InputFlag::STOP_SPRINTING) {
                 state.sprinting = false;
+                toggle_sprint = Some(false);
             }
             if pk.input_data.contains(InputFlag::START_SWIMMING) {
                 state.swimming = true;
@@ -168,6 +234,28 @@ impl GameServer {
             }
         }
 
+        // Emit toggle events after releasing PlayerState borrow
+        if let Some(is_sneaking) = toggle_sneak {
+            if let Some(mut event_buffer) =
+                world.get_resource_mut::<crate::ecs::events::EventBuffer>()
+            {
+                event_buffer.push(crate::ecs::events::ServerEvent::PlayerToggleSneak {
+                    entity,
+                    is_sneaking,
+                });
+            }
+        }
+        if let Some(is_sprinting) = toggle_sprint {
+            if let Some(mut event_buffer) =
+                world.get_resource_mut::<crate::ecs::events::EventBuffer>()
+            {
+                event_buffer.push(crate::ecs::events::ServerEvent::PlayerToggleSprint {
+                    entity,
+                    is_sprinting,
+                });
+            }
+        }
+
         // Handle block actions (breaking blocks)
         self.handle_block_actions(entity, pk);
     }
@@ -180,13 +268,32 @@ impl GameServer {
         let world = self.ecs.world_mut();
 
         // Update HeldSlot to the newly selected slot
+        // Update HeldSlot to the newly selected slot
+        let mut slot_changed = None;
+
         if let Some(mut held_slot) = world.get_mut::<HeldSlot>(entity) {
-            held_slot.set(pk.selected_slot);
-            trace!(
-                entity = ?entity,
-                slot = pk.selected_slot,
-                "Player changed held slot"
-            );
+            let old_slot = held_slot.0;
+            if old_slot != pk.selected_slot {
+                held_slot.set(pk.selected_slot);
+                slot_changed = Some(old_slot);
+                trace!(
+                    entity = ?entity,
+                    slot = pk.selected_slot,
+                    "Player changed held slot"
+                );
+            }
+        }
+
+        if let Some(old_slot) = slot_changed {
+            if let Some(mut event_buffer) =
+                world.get_resource_mut::<crate::ecs::events::EventBuffer>()
+            {
+                event_buffer.push(crate::ecs::events::ServerEvent::PlayerHeldSlotChange {
+                    entity,
+                    old_slot,
+                    new_slot: pk.selected_slot,
+                });
+            }
         }
 
         // TODO: Broadcast held item change to other players for rendering
@@ -319,7 +426,7 @@ impl GameServer {
 
         for request in &pk.requests {
             let request_id = request.request_id;
-            debug!(
+            info!(
                 request_id,
                 actions = request.actions.len(),
                 "Processing ItemStackRequest"
@@ -335,16 +442,45 @@ impl GameServer {
                         // Look up creative item by 1-indexed network ID
                         let index = (craft.item_id - 1) as usize;
 
+                        info!(
+                            "CraftCreative: client requested item_id={}, index={}, total_items={}",
+                            craft.item_id,
+                            index,
+                            self.world_template.creative_content.items.len()
+                        );
+
                         // Get creative content from GameServer
                         if let Some(entry) = self.world_template.creative_content.items.get(index) {
+                            // Resolve proper item string ID from ItemRegistry
+                            let item_id = if let Some(registry) =
+                                self.ecs
+                                    .world()
+                                    .get_resource::<super::types::ItemRegistryResource>()
+                            {
+                                registry
+                                    .0
+                                    .get(entry.item.network_id as u32)
+                                    .map(|e| e.string_id.clone())
+                                    .unwrap_or_else(|| {
+                                        warn!(
+                                            "Creative item network_id {} not found in registry",
+                                            entry.item.network_id
+                                        );
+                                        format!("minecraft:network_{}", entry.item.network_id)
+                                    })
+                            } else {
+                                format!("minecraft:network_{}", entry.item.network_id)
+                            };
+
                             // Convert to ItemStack
                             let item = ItemStack::new(
-                                &format!("minecraft:{}", entry.item.network_id), // TODO: lookup proper string ID
+                                item_id.clone(),
                                 64, // Max stack in creative
                             );
                             info!(
                                 item_id = craft.item_id,
                                 network_id = entry.item.network_id,
+                                string_id = %item_id,
                                 "Creative craft request"
                             );
                             pending_item = Some(item);
@@ -412,6 +548,12 @@ impl GameServer {
                             count = take.count,
                             "Take action (not fully implemented)"
                         );
+                        info!(
+                            source_slot = take.source.slot,
+                            dest_slot = take.destination.slot,
+                            count = take.count,
+                            "Take action details"
+                        );
                     }
                     Some(ItemStackRequestActionsItemContent::Destroy(_destroy)) => {
                         // In creative mode, just acknowledge - item is deleted
@@ -476,6 +618,18 @@ impl GameServer {
                             TransactionUseItemActionType::ClickBlock => {
                                 self.handle_block_click(entity, use_item);
                             }
+                            TransactionUseItemActionType::ClickAir => {
+                                // Emit PlayerItemUse event
+                                if let Some(mut event_buffer) =
+                                    self.ecs
+                                        .world_mut()
+                                        .get_resource_mut::<crate::ecs::events::EventBuffer>()
+                                {
+                                    event_buffer.push(
+                                        crate::ecs::events::ServerEvent::PlayerItemUse { entity },
+                                    );
+                                }
+                            }
                             _ => {
                                 debug!(action = ?use_item.action_type, "Unhandled ItemUse action");
                             }
@@ -518,6 +672,16 @@ impl GameServer {
                         );
                     }
                 }
+                TransactionActionsItemSourceType::WorldInteraction => {
+                    use jolyne::valentine::types::TransactionActionsItemContent;
+                    // World interaction (Item Use / Interact Block)
+                    // The flags in transaction_data.action_type might tell us more, but
+                    // TransactionActionsItemSourceType::WorldInteraction usually accompanies item use.
+
+                    // We need to look at the transaction type from the packet, but here we only have actions list.
+                    // Actually, pk is passed to handle_inventory_transaction, but we are inside the loop over actions.
+                    // The packet structure has transaction_data.
+                }
                 TransactionActionsItemSourceType::Container => {
                     // Container action - placing into inventory slot
                     if let Some(content) = &action.content {
@@ -535,11 +699,29 @@ impl GameServer {
                                     .map(|c| c.count as u8)
                                     .unwrap_or(1);
 
+                                // Resolve Item ID
+                                let item_id = if let Some(registry) =
+                                    self.ecs
+                                        .world()
+                                        .get_resource::<super::types::ItemRegistryResource>()
+                                {
+                                    registry
+                                        .0
+                                        .get(action.new_item.network_id as u32)
+                                        .map(|e| e.string_id.clone())
+                                        .unwrap_or_else(|| {
+                                            format!(
+                                                "minecraft:network_{}",
+                                                action.new_item.network_id
+                                            )
+                                        })
+                                } else {
+                                    format!("minecraft:network_{}", action.new_item.network_id)
+                                };
+
                                 // Create ItemStack from the protocol item
-                                let item = crate::item::ItemStack::new(
-                                    &format!("minecraft:network_{}", action.new_item.network_id),
-                                    count,
-                                );
+                                let item = crate::item::ItemStack::new(item_id.clone(), count);
+                                info!(?item_id, count, "Created item from creative action");
 
                                 // Update player inventory
                                 let world = self.ecs.world_mut();
@@ -591,6 +773,17 @@ impl GameServer {
             "Received Animate packet"
         );
 
+        use jolyne::valentine::types::AnimatePacketActionId;
+        if pk.action_id == AnimatePacketActionId::SwingArm {
+            if let Some(mut event_buffer) = self
+                .ecs
+                .world_mut()
+                .get_resource_mut::<crate::ecs::events::EventBuffer>()
+            {
+                event_buffer.push(crate::ecs::events::ServerEvent::PlayerSwing { entity });
+            }
+        }
+
         // Get the sender's runtime ID for broadcasting
         let world = self.ecs.world();
         let sender_runtime_id = world
@@ -628,34 +821,35 @@ impl GameServer {
     /// When a player sends a chat message, we need to format it and
     /// broadcast it to the appropriate recipients.
     pub(super) fn handle_text(&mut self, session_id: SessionId, entity: Entity, pk: &TextPacket) {
+        use crate::ecs::events::EventBuffer;
         use crate::entity::components::PlayerName;
-        use jolyne::valentine::TextPacketExtra;
+        use crate::entity::components::PlayerUuid;
 
         debug!(
             session_id,
             text_type = ?pk.type_,
-            category = ?pk.category,
+            source = %pk.source_name,
+            message = %pk.message,
             "Received Text packet"
         );
 
-        // Extract the message content based on type
-        let message = match &pk.extra {
-            Some(TextPacketExtra::Chat(data)) => Some(data.message.clone()),
-            Some(TextPacketExtra::Whisper(data)) => Some(data.message.clone()),
-            _ => None,
-        };
-
-        let Some(message) = message else {
-            trace!("Text packet without extractable message");
+        // The message is now directly available on the packet
+        let message = pk.message.clone();
+        if message.is_empty() {
+            trace!("Text packet with empty message");
             return;
-        };
+        }
 
-        // Get sender's name
+        // Get sender's name and UUID
         let world = self.ecs.world();
         let sender_name = world
             .get::<PlayerName>(entity)
             .map(|n| n.0.clone())
             .unwrap_or_else(|| "Unknown".to_string());
+        let sender_uuid = world
+            .get::<PlayerUuid>(entity)
+            .map(|u| u.0.to_string())
+            .unwrap_or_default();
 
         match pk.type_ {
             TextPacketType::Chat => {
@@ -665,16 +859,84 @@ impl GameServer {
                     "Chat message"
                 );
 
-                // Clone the incoming packet to preserve all protocol-specific fields (XUID, platforms, etc.)
-                let mut broadcast_packet = pk.clone();
+                // Call plugin chat handlers
+                // Call plugin chat handlers
+                {
+                    // Remove registry to avoid borrow conflict with World
+                    if let Some(mut registry) = self
+                        .ecs
+                        .world_mut()
+                        .remove_resource::<crate::plugin::PluginRegistry>()
+                    {
+                        // Extract component data once
+                        let (name, position, uuid) = {
+                            let world = self.ecs.world();
+                            let n = world
+                                .get::<crate::entity::components::PlayerName>(entity)
+                                .map(|c| c.0.clone());
+                            let p = world
+                                .get::<crate::entity::components::Position>(entity)
+                                .map(|c| unastar_api::native::Vec3 {
+                                    x: c.0.x,
+                                    y: c.0.y,
+                                    z: c.0.z,
+                                });
+                            let u = world
+                                .get::<crate::entity::components::PlayerUuid>(entity)
+                                .map(|c| c.0.to_string());
+                            (n, p, u)
+                        };
 
-                // Update the message and source name in the extra data
-                if let Some(TextPacketExtra::Chat(ref mut extra)) = broadcast_packet.extra {
-                    extra.source_name = sender_name.clone();
-                    extra.message = message.clone();
+                        let allow = {
+                            let host = crate::server::game::host::ServerHost {
+                                world: self.ecs.world_mut(),
+                            };
+
+                            let mut player = unastar_api::native::Player::new(
+                                unastar_api::native::PluginEntity::from(entity),
+                                unastar_api::native::RawPluginHost_TO::from_value(
+                                    host,
+                                    abi_stable::sabi_trait::TD_Opaque,
+                                ),
+                                name.clone(),
+                                position.clone(),
+                                uuid.clone(),
+                            );
+                            registry.on_chat(&mut player, &message)
+                        };
+
+                        self.ecs.world_mut().insert_resource(registry);
+
+                        if !allow {
+                            debug!("Chat message canceled by plugin");
+                            return;
+                        }
+                    }
                 }
 
-                // Broadcast to all players
+                // Emit PlayerChat event to plugins
+                if let Some(mut event_buffer) =
+                    self.ecs.world_mut().get_resource_mut::<EventBuffer>()
+                {
+                    event_buffer.push(crate::ecs::events::ServerEvent::PlayerChat {
+                        entity,
+                        player_id: sender_uuid.clone(),
+                        message: message.clone(),
+                    });
+                }
+
+                // Broadcast chat to all players
+                let broadcast_packet = TextPacket {
+                    type_: TextPacketType::Chat,
+                    needs_translation: false,
+                    source_name: sender_name.clone(),
+                    message: message.clone(),
+                    parameters: Vec::new(),
+                    xuid: String::new(),
+                    platform_chat_id: String::new(),
+                    filtered_message: None,
+                };
+
                 let world = self.ecs.world();
                 let session_map = match world.get_resource::<SessionEntityMap>() {
                     Some(map) => map,
@@ -722,6 +984,17 @@ impl GameServer {
             Action::Jump => {
                 // Jump action - mostly informational, physics handled elsewhere
                 trace!("Player jumped");
+            }
+            Action::StartBreak => {
+                if let Some(mut event_buffer) =
+                    world.get_resource_mut::<crate::ecs::events::EventBuffer>()
+                {
+                    event_buffer.push(crate::ecs::events::ServerEvent::PlayerStartBreak {
+                        entity,
+                        position: (pk.position.x, pk.position.y, pk.position.z),
+                        face: pk.face as u8,
+                    });
+                }
             }
             Action::StartSprint => {
                 if let Some(mut state) = world.get_mut::<PlayerState>(entity) {

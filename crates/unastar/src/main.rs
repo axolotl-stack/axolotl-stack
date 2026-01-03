@@ -17,7 +17,7 @@ static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
 
 /*
 #[global_allocator]
-static ALLOC: dhat::Alloc = dhat::Alloc; 
+static ALLOC: dhat::Alloc = dhat::Alloc;
 */
 
 #[tokio::main]

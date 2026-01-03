@@ -48,6 +48,17 @@ impl RawPacket {
     /// This is useful when you decide you need the full packet contents
     /// after initially receiving it as raw bytes.
     pub fn decode(self, session: &BedrockSession) -> Result<McpePacket, JolyneError> {
+        // Debug: Log raw bytes for TextPacket
+        if self.id == McpePacketName::PacketText {
+            let body_preview: Vec<u8> = self.body.iter().take(64).copied().collect();
+            tracing::warn!(
+                packet_id = ?self.id,
+                body_len = self.body.len(),
+                body_hex = ?body_preview,
+                "TextPacket raw bytes before decode"
+            );
+        }
+
         let mut buf = self.inner_frame;
         let (header, data) = McpePacketData::decode_inner(&mut buf, session.into())?;
         Ok(McpePacket::new(header, data))

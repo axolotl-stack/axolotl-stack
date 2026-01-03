@@ -42,6 +42,11 @@ struct BlockStateJson {
     states: HashMap<String, serde_json::Value>,
 }
 
+#[derive(Debug, Deserialize)]
+struct LegacyData {
+    blocks: HashMap<String, String>,
+}
+
 /// Derive state type for blocks.rs by using shared derive_state_name and formatting path.
 fn derive_state_type(prop_names: &[String]) -> String {
     if prop_names.is_empty() {
@@ -60,6 +65,7 @@ fn derive_state_type(prop_names: &[String]) -> String {
 pub fn generate_blocks(
     json_path: &Path,
     block_states_path: &Path,
+    legacy_path: Option<&Path>,
     output_dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let file = File::open(json_path)?;
@@ -75,6 +81,27 @@ pub fn generate_blocks(
         let props = block_props.entry(state.name.clone()).or_default();
         for prop_name in state.states.keys() {
             props.insert(to_snake_case(prop_name));
+        }
+    }
+
+    // Load legacy IDs if available
+    let mut legacy_ids: HashMap<String, u32> = HashMap::new();
+    if let Some(path) = legacy_path {
+        if path.exists() {
+            debug!(path = %path.display(), "Loading legacy block IDs");
+            let file = File::open(path)?;
+            let legacy: LegacyData = serde_json::from_reader(BufReader::new(file))?;
+            for (key, val) in legacy.blocks {
+                if let Some(id_str) = key.split(':').next() {
+                    if let Ok(id) = id_str.parse::<u32>() {
+                        // val is "minecraft:name" or "minecraft:name[props]"
+                        let name_part = val.split('[').next().unwrap_or(&val);
+                        let name = name_part.strip_prefix("minecraft:").unwrap_or(name_part);
+                        // Store assuming the first one we see is fine, or overwrite is fine since ID should be same
+                        legacy_ids.insert(name.to_string(), id);
+                    }
+                }
+            }
         }
     }
 
@@ -112,7 +139,14 @@ pub fn generate_blocks(
         writeln!(out, "pub struct {};", struct_name)?;
         writeln!(out)?;
         writeln!(out, "impl BlockDef for {} {{", struct_name)?;
-        writeln!(out, "    const ID: u32 = {};", block.id)?;
+        
+        let id = if let Some(&legacy_id) = legacy_ids.get(&block.name) {
+            legacy_id
+        } else {
+            block.id
+        };
+
+        writeln!(out, "    const ID: u32 = {};", id)?;
         writeln!(
             out,
             "    const STRING_ID: &'static str = \"minecraft:{}\";",

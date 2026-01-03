@@ -9,6 +9,7 @@
 //! Java uses several cache types:
 //! - `NoiseInterpolator`: Pre-computes at cell corners, trilinearly interpolates
 //! - `FlatCache`: Pre-computes entire XZ grid for Y-independent functions
+//! - `Cache2D`: Memoizes last (X, Z) position and value per cache node
 //!
 //! ## Our Approach
 //!
@@ -19,7 +20,7 @@
 use super::types::NoiseRegistry;
 use super::lerp3;
 use std::simd::prelude::*;
-use unastar_noise::{FunctionContext, FunctionContext4, FlatCacheGrid, ColumnContext, compute_final_density, compute_final_density_4};
+use unastar_noise::{FunctionContext, FunctionContext4, FlatCacheGrid, ColumnContext, ColumnContextGrid, compute_final_density, compute_final_density_4};
 
 /// Pre-computed XZ grid for FlatCache (Y-independent functions).
 ///
@@ -68,16 +69,24 @@ impl ChunkCache {
     }
 }
 
+/// Maximum cell count in Y direction (384 / 8 = 48, plus 1 for corners).
+const MAX_SLICE_HEIGHT: usize = 49;
+/// Maximum cell count in XZ direction (16 / 4 = 4, plus 1 for corners).
+const MAX_SLICE_WIDTH: usize = 5;
+
 /// A cell interpolator that pre-computes density at cell corners.
 ///
 /// This is the core of the Java-style caching. For an `Interpolated` density function,
 /// we compute values at the 8 corners of a cell and trilinearly interpolate for all
 /// 128 interior blocks (4x8x4).
+///
+/// Uses fixed-size arrays to avoid heap allocations during chunk generation.
 pub struct CellInterpolator {
     /// Double-buffered slices for X advancement.
     /// slice0[z][y] contains values for current X, slice1[z][y] for next X.
-    slice0: Vec<Vec<f64>>,
-    slice1: Vec<Vec<f64>>,
+    /// Fixed-size to avoid Vec allocation overhead.
+    slice0: [[f64; MAX_SLICE_HEIGHT]; MAX_SLICE_WIDTH],
+    slice1: [[f64; MAX_SLICE_HEIGHT]; MAX_SLICE_WIDTH],
 
     /// Cached corner values for current cell
     noise000: f64,
@@ -103,13 +112,13 @@ pub struct CellInterpolator {
 
 impl CellInterpolator {
     /// Create a new cell interpolator for the given cell counts.
-    pub fn new(cell_count_y: usize, cell_count_xz: usize) -> Self {
-        let slice_height = cell_count_y + 1;
-        let slice_width = cell_count_xz + 1;
-
+    /// Uses fixed-size arrays - no heap allocation.
+    pub fn new(_cell_count_y: usize, _cell_count_xz: usize) -> Self {
+        // Note: cell_count_y and cell_count_xz are no longer used since we use fixed arrays.
+        // They were 48 and 4 respectively, so our MAX_SLICE_HEIGHT=49 and MAX_SLICE_WIDTH=5 fit.
         Self {
-            slice0: vec![vec![0.0; slice_height]; slice_width],
-            slice1: vec![vec![0.0; slice_height]; slice_width],
+            slice0: [[0.0; MAX_SLICE_HEIGHT]; MAX_SLICE_WIDTH],
+            slice1: [[0.0; MAX_SLICE_HEIGHT]; MAX_SLICE_WIDTH],
             noise000: 0.0,
             noise001: 0.0,
             noise100: 0.0,
@@ -132,6 +141,10 @@ impl CellInterpolator {
     ///
     /// This is significantly faster than interpreting a density function tree
     /// because it uses ahead-of-time compiled Rust code.
+    ///
+    /// OPTIMIZATION: Uses pre-computed ColumnContextGrid for O(1) column context lookups
+    /// instead of creating new ColumnContext objects for each column.
+    #[allow(clippy::too_many_arguments)]
     pub fn fill_slice_aot(
         &mut self,
         use_slice0: bool,
@@ -143,6 +156,7 @@ impl CellInterpolator {
         cell_width: i32,
         cell_height: i32,
         grid: &FlatCacheGrid,
+        col_grid: &ColumnContextGrid,
         noises: &NoiseRegistry,
     ) {
         let cell_start_x = cell_x * cell_width;
@@ -153,9 +167,8 @@ impl CellInterpolator {
 
             let slice = if use_slice0 { &mut self.slice0 } else { &mut self.slice1 };
 
-            // Compute ColumnContext ONCE per column - this caches cache_2d values
-            // that are reused for all Y positions in this column
-            let col_ctx = ColumnContext::new(cell_start_x, cell_start_z, noises, grid);
+            // Use pre-computed ColumnContext from grid - O(1) lookup instead of expensive creation
+            let col_ctx = col_grid.get_block(cell_start_x, cell_start_z);
 
             // Process 4 Y values at a time using AOT compiled SIMD function
             let mut y_idx = 0;
@@ -167,7 +180,7 @@ impl CellInterpolator {
 
                 // Use AOT compiled function directly - no arena traversal
                 let ctx4 = FunctionContext4::new(cell_start_x, [y0, y1, y2, y3], cell_start_z);
-                let results = compute_final_density_4(&ctx4, noises, grid, &col_ctx).to_array();
+                let results = compute_final_density_4(&ctx4, noises, grid, col_ctx).to_array();
 
                 slice[z_idx][y_idx] = results[0];
                 slice[z_idx][y_idx + 1] = results[1];
@@ -184,7 +197,7 @@ impl CellInterpolator {
 
                 // Use AOT compiled scalar function
                 let ctx = FunctionContext::new(cell_start_x, cell_start_y, cell_start_z);
-                slice[z_idx][y_idx] = compute_final_density(&ctx, noises, grid, &col_ctx);
+                slice[z_idx][y_idx] = compute_final_density(&ctx, noises, grid, col_ctx);
                 y_idx += 1;
             }
         }
@@ -335,9 +348,11 @@ impl CachingNoiseChunk {
     /// Initialize for the first cell X using AOT compiled functions.
     ///
     /// This is the fast path that uses ahead-of-time compiled density functions.
+    /// Uses pre-computed ColumnContextGrid for O(1) column context lookups.
     pub fn initialize_for_first_cell_x_aot(
         &mut self,
         grid: &FlatCacheGrid,
+        col_grid: &ColumnContextGrid,
         noises: &NoiseRegistry,
     ) {
         self.interpolating = true;
@@ -353,15 +368,18 @@ impl CachingNoiseChunk {
             self.cell_width,
             self.cell_height,
             grid,
+            col_grid,
             noises,
         );
     }
 
     /// Advance to next cell X using AOT compiled functions.
+    /// Uses pre-computed ColumnContextGrid for O(1) column context lookups.
     pub fn advance_cell_x_aot(
         &mut self,
         cell_x_offset: i32,
         grid: &FlatCacheGrid,
+        col_grid: &ColumnContextGrid,
         noises: &NoiseRegistry,
     ) {
         // Fill slice1 with next X position using AOT compiled function
@@ -375,6 +393,7 @@ impl CachingNoiseChunk {
             self.cell_width,
             self.cell_height,
             grid,
+            col_grid,
             noises,
         );
 

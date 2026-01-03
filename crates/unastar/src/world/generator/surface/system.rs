@@ -4,6 +4,8 @@
 //! replacing stone with appropriate surface blocks based on biome
 //! and position.
 
+use std::simd::f64x4;
+
 use unastar_noise::noise::DoublePerlinNoise;
 use unastar_noise::surface::{Rule, SurfaceContext};
 use unastar_noise::xoroshiro::Xoroshiro128;
@@ -72,6 +74,26 @@ impl SurfaceSystem {
             / 2.0
     }
 
+    /// SIMD: Get surface depth for 4 positions at once.
+    #[inline]
+    pub fn get_surface_depth_4(&self, x: f64x4, z: f64x4) -> [i32; 4] {
+        use std::simd::prelude::*;
+        let noise = self.surface_noise.sample_4(x, f64x4::splat(0.0), z);
+        // ((noise + 1.0) * 2.75 + 3.0) as i32
+        let result = (noise + f64x4::splat(1.0)) * f64x4::splat(2.75) + f64x4::splat(3.0);
+        let arr = result.to_array();
+        [arr[0] as i32, arr[1] as i32, arr[2] as i32, arr[3] as i32]
+    }
+
+    /// SIMD: Get secondary surface noise for 4 positions at once.
+    #[inline]
+    pub fn get_surface_secondary_4(&self, x: f64x4, z: f64x4) -> f64x4 {
+        use std::simd::prelude::*;
+        let noise = self.surface_secondary_noise.sample_4(x, f64x4::splat(0.0), z);
+        // (noise + 1.0) / 2.0
+        (noise + f64x4::splat(1.0)) * f64x4::splat(0.5)
+    }
+
     /// Calculate whether a position is on steep terrain.
     ///
     /// Compares heights at adjacent positions to detect slopes.
@@ -106,6 +128,8 @@ impl SurfaceSystem {
     ///
     /// This iterates over all columns in the chunk and applies surface rules
     /// to replace stone blocks with appropriate surface blocks.
+    ///
+    /// Uses SIMD to batch noise sampling for 4 X columns at a time.
     pub fn build_surface(&self, chunk: &mut Chunk, chunk_x: i32, chunk_z: i32) {
         let min_y = -64i32;
         let max_y = 320i32;
@@ -115,80 +139,100 @@ impl SurfaceSystem {
         // Block lookup closure - converts block names to IDs
         let get_block = |name: &str| blocks::get_block_id(name);
 
+        let base_x = chunk_x * 16;
+        let base_z = chunk_z * 16;
+
         for local_z in 0u8..16 {
-            for local_x in 0u8..16 {
-                let world_x = chunk_x * 16 + local_x as i32;
-                let world_z = chunk_z * 16 + local_z as i32;
+            let world_z = base_z + local_z as i32;
+            let z_simd = f64x4::splat(world_z as f64);
 
-                // Get the surface Y for this column
-                let surface_y = chunk.height_map().at(local_x, local_z) as i32;
+            // Process 4 X columns at a time using SIMD
+            for local_x_base in (0u8..16).step_by(4) {
+                // Build SIMD vectors for 4 consecutive X positions
+                let world_x_arr = [
+                    (base_x + local_x_base as i32) as f64,
+                    (base_x + local_x_base as i32 + 1) as f64,
+                    (base_x + local_x_base as i32 + 2) as f64,
+                    (base_x + local_x_base as i32 + 3) as f64,
+                ];
+                let x_simd = f64x4::from_array(world_x_arr);
 
-                // Calculate XZ-dependent values
-                let surface_depth = self.get_surface_depth(world_x, world_z);
-                let surface_secondary = self.get_surface_secondary(world_x, world_z);
-                let steep = self.is_steep(chunk, local_x, local_z);
-                let min_surface_level = surface_y - surface_depth;
+                // Batch sample noise for 4 columns
+                let surface_depths = self.get_surface_depth_4(x_simd, z_simd);
+                let surface_secondaries = self.get_surface_secondary_4(x_simd, z_simd);
+                let secondary_arr = surface_secondaries.to_array();
 
-                // Cache biome at surface for the whole column
-                // Optimization: Surface rules usually use the surface biome.
-                // 3D biomes are rare in the surface replacement layer.
-                let column_biome = self.biome_noise.get_biome(world_x, surface_y, world_z);
+                // Process each of the 4 columns
+                for i in 0..4 {
+                    let local_x = local_x_base + i as u8;
+                    let world_x = base_x + local_x as i32;
 
-                ctx.update_xz(
-                    world_x,
-                    world_z,
-                    surface_depth,
-                    surface_secondary,
-                    steep,
-                    min_surface_level,
-                );
+                    // Get the surface Y for this column
+                    let surface_y = chunk.height_map().at(local_x, local_z) as i32;
 
-                // Track stone depth as we go down from the surface
-                let mut stone_depth_above = 0;
-                let mut water_height = i32::MIN;
-                let mut in_stone = false;
+                    // Use batched noise values
+                    let surface_depth = surface_depths[i];
+                    let surface_secondary = secondary_arr[i];
+                    let steep = self.is_steep(chunk, local_x, local_z);
+                    let min_surface_level = surface_y - surface_depth;
 
-                // Iterate from surface down
-                for y in (min_y..=surface_y).rev() {
-                    let block = chunk.get_block(local_x, y as i16, local_z);
+                    // Cache biome at surface for the whole column
+                    let column_biome = self.biome_noise.get_biome(world_x, surface_y, world_z);
 
-                    // Skip air
-                    if block == *blocks::AIR {
-                        stone_depth_above = 0;
-                        in_stone = false;
-                        continue;
-                    }
+                    ctx.update_xz(
+                        world_x,
+                        world_z,
+                        surface_depth,
+                        surface_secondary,
+                        steep,
+                        min_surface_level,
+                    );
 
-                    // Track water level (Java: r = u + 1 when first hitting fluid)
-                    // water_height is the Y level of the water SURFACE (top of water)
-                    if block == *blocks::WATER {
-                        if water_height == i32::MIN {
-                            water_height = y + 1; // Top of the water column (Java: u + 1)
+                    // Track stone depth as we go down from the surface
+                    let mut stone_depth_above = 0;
+                    let mut water_height = i32::MIN;
+                    let mut in_stone = false;
+
+                    // Iterate from surface down
+                    for y in (min_y..=surface_y).rev() {
+                        let block = chunk.get_block(local_x, y as i16, local_z);
+
+                        // Skip air
+                        if block == *blocks::AIR {
+                            stone_depth_above = 0;
+                            in_stone = false;
+                            continue;
                         }
-                        stone_depth_above = 0;
-                        in_stone = false;
-                        continue;
-                    }
 
-                    // Now we're in a solid block
-                    if !in_stone {
-                        in_stone = true;
-                        stone_depth_above = 0;
-                    }
+                        // Track water level (Java: r = u + 1 when first hitting fluid)
+                        if block == *blocks::WATER {
+                            if water_height == i32::MIN {
+                                water_height = y + 1;
+                            }
+                            stone_depth_above = 0;
+                            in_stone = false;
+                            continue;
+                        }
 
-                    // Only apply rules to the default block (stone)
-                    if block == self.default_block {
-                        // Use cached biome and skip expensive scan down
-                        ctx.update_y(y, stone_depth_above, 0, water_height, column_biome);
+                        // Now we're in a solid block
+                        if !in_stone {
+                            in_stone = true;
+                            stone_depth_above = 0;
+                        }
 
-                        if let Some(new_block) = self.rule.try_apply(&ctx, &get_block) {
-                            if new_block != block {
-                                chunk.set_block(local_x, y as i16, local_z, new_block);
+                        // Only apply rules to the default block (stone)
+                        if block == self.default_block {
+                            ctx.update_y(y, stone_depth_above, 0, water_height, column_biome);
+
+                            if let Some(new_block) = self.rule.try_apply(&ctx, &get_block) {
+                                if new_block != block {
+                                    chunk.set_block(local_x, y as i16, local_z, new_block);
+                                }
                             }
                         }
-                    }
 
-                    stone_depth_above += 1;
+                        stone_depth_above += 1;
+                    }
                 }
             }
         }

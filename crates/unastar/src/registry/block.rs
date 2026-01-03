@@ -58,6 +58,15 @@ impl BlockRegistry {
         }
     }
 
+    /// Get block entry by runtime ID (state ID).
+    pub fn get_by_runtime_id(&self, runtime_id: u32) -> Option<&BlockEntry> {
+        // Iterate through all blocks to find the range containing this runtime_id.
+        // Optimization: We could store a secondary map or interval tree, but linear scan is okay for now (~1000 blocks).
+        self.iter().find(|entry| {
+            runtime_id >= entry.min_state_id && runtime_id <= entry.max_state_id
+        })
+    }
+
     /// Generate BlockPropertyData for PacketStartGame.
     pub fn to_block_properties(&self) -> Vec<jolyne::valentine::BlockPropertiesItem> {
         use jolyne::valentine::BlockPropertiesItem;
