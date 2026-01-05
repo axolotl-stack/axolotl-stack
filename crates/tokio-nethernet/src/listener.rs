@@ -520,12 +520,23 @@ impl ListenerActor {
 
         pc.set_local_description(answer.clone()).await?;
 
+        // Fix SDP for Minecraft compatibility:
+        // webrtc-rs doesn't include max-message-size, but Minecraft requires it.
+        // Add it after sctp-port line to match the offer format.
+        let fixed_sdp = if !answer.sdp.contains("a=max-message-size:") {
+            answer
+                .sdp
+                .replace("a=sctp-port:5000\r\n", "a=sctp-port:5000\r\na=max-message-size:262144\r\n")
+        } else {
+            answer.sdp.clone()
+        };
+
         debug!(conn_id, "Sending CONNECTRESPONSE");
         self.signaling
             .signal(Signal {
                 typ: signal_type::ANSWER.to_string(),
                 connection_id: conn_id,
-                data: answer.sdp,
+                data: fixed_sdp,
                 network_id: network_id.clone(),
             })
             .await?;

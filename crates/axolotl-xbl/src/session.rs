@@ -276,6 +276,11 @@ pub struct TamperField {
 
 impl SessionSnapshot {
     /// Compare this snapshot to another and detect differences.
+    ///
+    /// Note: Member changes are NOT flagged as tampering because:
+    /// - Xbox Live automatically adds members when friends join via WebRTC
+    /// - This is expected behavior for public sessions
+    /// - Only critical fields (nethernet_id, protocol, etc.) indicate actual tampering
     pub fn compare(&self, other: &SessionSnapshot) -> TamperResult {
         let mut modified = Vec::new();
 
@@ -319,16 +324,10 @@ impl SessionSnapshot {
             });
         }
 
-        // Check for unexpected members (potential attackers who joined)
-        for xuid in &other.members {
-            if !self.members.contains(xuid) {
-                modified.push(TamperField {
-                    field: "members".into(),
-                    expected: "not present".into(),
-                    actual: format!("unknown member joined: {}", xuid),
-                });
-            }
-        }
+        // Note: We intentionally do NOT flag new session members as tampering.
+        // When friends click "Join Game" and connect via WebRTC, Xbox Live
+        // automatically adds them to the session. This is normal behavior.
+        // Only actual session property modifications are considered tampering.
 
         TamperResult {
             tampered: !modified.is_empty(),

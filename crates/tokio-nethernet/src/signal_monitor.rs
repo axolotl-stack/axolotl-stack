@@ -54,6 +54,7 @@ impl Default for SignalMonitorConfig {
             expected_turn_urls: vec![
                 // Microsoft/Minecraft TURN servers
                 "turn.franchise.minecraft-services.net".to_string(),
+                "relay.communication.microsoft.com".to_string(),
             ],
         }
     }
@@ -508,7 +509,15 @@ impl SignalMonitor {
             candidate.contains(url) || relay_addr.contains(&url.replace("turn:", ""))
         });
 
-        if !is_expected && !relay_addr.is_empty() {
+        // Also allow Microsoft Azure TURN servers (20.x.x.x range)
+        // Microsoft uses these for their relay infrastructure
+        let is_azure_relay = relay_addr
+            .split('.')
+            .next()
+            .map(|first_octet| first_octet == "20")
+            .unwrap_or(false);
+
+        if !is_expected && !is_azure_relay && !relay_addr.is_empty() {
             // Update stats
             // Note: Can't await in sync function, so we'll just return the anomaly
             return Some(SignalAnomaly {
