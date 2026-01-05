@@ -21,6 +21,7 @@
 //! let listener = NetherNetListener::new(Arc::new(signaling), config);
 //! ```
 
+use crate::signal_monitor::{SignalMonitor, SignalMonitorConfig};
 use crate::signaling::{Credentials, IceServer, Signal, Signaling, SignalingChannel};
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};
@@ -96,6 +97,8 @@ pub struct XboxSignaling {
     rx: RwLock<Option<mpsc::Receiver<Signal>>>,
     /// Cached TURN credentials.
     credentials: RwLock<Option<Credentials>>,
+    /// Signal monitor for security anomaly detection.
+    monitor: Arc<SignalMonitor>,
 }
 
 impl XboxSignaling {
@@ -105,6 +108,21 @@ impl XboxSignaling {
     /// - `nethernet_id`: Your NetherNet network ID
     /// - `mc_token`: Minecraft authorization token from PlayFab session start
     pub async fn connect(nethernet_id: u64, mc_token: &str) -> anyhow::Result<Arc<Self>> {
+        Self::connect_with_monitor(nethernet_id, mc_token, SignalMonitorConfig::default()).await
+    }
+
+    /// Connect to Xbox Live signaling WebSocket with signal monitoring.
+    ///
+    /// # Arguments
+    /// - `nethernet_id`: Your NetherNet network ID
+    /// - `mc_token`: Minecraft authorization token from PlayFab session start
+    /// - `monitor_config`: Configuration for signal-level security monitoring
+    pub async fn connect_with_monitor(
+        nethernet_id: u64,
+        mc_token: &str,
+        monitor_config: SignalMonitorConfig,
+    ) -> anyhow::Result<Arc<Self>> {
+        let monitor = Arc::new(SignalMonitor::new(monitor_config));
         let url = format!("{}{}", RTC_WEBSOCKET_URL, nethernet_id);
 
         // Create request with auth headers
@@ -171,7 +189,8 @@ impl XboxSignaling {
             }
         });
 
-        // Spawn reader task
+        // Spawn reader task with signal monitoring
+        let monitor_clone = monitor.clone();
         tokio::spawn(async move {
             while let Some(msg) = read.next().await {
                 let msg = match msg {
@@ -206,6 +225,9 @@ impl XboxSignaling {
                         if let (Some(from), Some(message)) = (incoming.from, incoming.message) {
                             match Signal::parse(&message, from.clone()) {
                                 Ok(signal) => {
+                                    // Process signal through monitor for anomaly detection
+                                    monitor_clone.process_incoming(&signal).await;
+
                                     if in_tx.send(signal).await.is_err() {
                                         break;
                                     }
@@ -262,6 +284,7 @@ impl XboxSignaling {
             tx: out_tx,
             rx: RwLock::new(Some(in_rx)),
             credentials: RwLock::new(cached_credentials),
+            monitor,
         }))
     }
 
@@ -275,11 +298,27 @@ impl XboxSignaling {
             None
         }
     }
+
+    /// Get access to the signal monitor.
+    ///
+    /// Use this to check for security anomalies, get statistics,
+    /// or retrieve detected attacks.
+    pub fn monitor(&self) -> &Arc<SignalMonitor> {
+        &self.monitor
+    }
+
+    /// Get a summary of signal monitoring status.
+    pub async fn monitor_summary(&self) -> String {
+        self.monitor.summary().await
+    }
 }
 
 #[async_trait]
 impl Signaling for XboxSignaling {
     async fn signal(&self, signal: Signal) -> anyhow::Result<()> {
+        // Track outgoing signal for monitoring state
+        self.monitor.process_outgoing(&signal).await;
+
         let msg = WsOutgoing {
             msg_type: WsMessageType::Signal as u8,
             to: Some(signal.network_id.clone()),

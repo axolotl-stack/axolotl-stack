@@ -61,6 +61,7 @@
 pub mod dialer;
 pub mod error;
 pub mod listener;
+pub mod signal_monitor;
 pub mod signaling;
 pub mod stream;
 
@@ -73,6 +74,7 @@ pub mod xbox_signaling;
 pub use dialer::{NetherNetDialer, NetherNetDialerConfig};
 pub use error::NetherNetError;
 pub use listener::{NetherNetListener, NetherNetListenerConfig};
+pub use signal_monitor::{AnomalyType, MonitorStats, SignalAnomaly, SignalMonitor, SignalMonitorConfig};
 pub use signaling::{
     ConnectionType, Credentials, IceCandidateInfo, IceServer, Signal, SignalErrorCode, Signaling,
     SignalingChannel, format_ice_candidate, parse_ice_candidate, signal_type,

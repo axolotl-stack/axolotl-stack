@@ -291,6 +291,9 @@ impl RakNetBuilder {
 pub struct NetherNetBuilder {
     signaling: NetherNetSignaling,
     config: BedrockListenerConfig,
+    /// Signal monitoring configuration (Xbox signaling only).
+    #[cfg(feature = "xbox-signaling")]
+    signal_monitor_config: Option<tokio_nethernet::SignalMonitorConfig>,
 }
 
 #[cfg(feature = "nethernet")]
@@ -317,6 +320,8 @@ impl NetherNetBuilder {
                 encryption_enabled: false,
                 ..Default::default()
             },
+            #[cfg(feature = "xbox-signaling")]
+            signal_monitor_config: None,
         }
     }
 
@@ -359,6 +364,33 @@ impl NetherNetBuilder {
         self
     }
 
+    /// Enable signal-level security monitoring (Xbox signaling only).
+    ///
+    /// This monitors the WebRTC signaling channel for attacks like:
+    /// - CONNECTERROR injection
+    /// - Duplicate responses (race condition hijacking)
+    /// - Suspicious ICE candidates / TURN servers
+    /// - SDP manipulation
+    ///
+    /// When enabled, anomalies are logged and can be queried via the monitor.
+    #[cfg(feature = "xbox-signaling")]
+    pub fn with_signal_monitoring(mut self, config: tokio_nethernet::SignalMonitorConfig) -> Self {
+        self.signal_monitor_config = Some(config);
+        self
+    }
+
+    /// Enable signal monitoring with default configuration.
+    ///
+    /// Shorthand for `with_signal_monitoring(SignalMonitorConfig { enabled: true, ..Default::default() })`.
+    #[cfg(feature = "xbox-signaling")]
+    pub fn enable_signal_monitoring(mut self) -> Self {
+        self.signal_monitor_config = Some(tokio_nethernet::SignalMonitorConfig {
+            enabled: true,
+            ..Default::default()
+        });
+        self
+    }
+
     /// Bind the listener.
     ///
     /// This is when the signaling channel connects and starts accepting connections.
@@ -389,8 +421,9 @@ impl NetherNetBuilder {
                 nethernet_id,
                 mc_token,
             } => {
-                use tokio_nethernet::{NetherNetListener, NetherNetListenerConfig, XboxSignaling};
-                let xbox = XboxSignaling::connect(nethernet_id, &mc_token)
+                use tokio_nethernet::{NetherNetListener, NetherNetListenerConfig, SignalMonitorConfig, XboxSignaling};
+                let monitor_config = self.signal_monitor_config.unwrap_or_else(SignalMonitorConfig::default);
+                let xbox = XboxSignaling::connect_with_monitor(nethernet_id, &mc_token, monitor_config)
                     .await
                     .map_err(|e| JolyneError::Transport(e.to_string()))?;
                 NetherNetListener::bind_with_signaling(xbox, NetherNetListenerConfig::default())

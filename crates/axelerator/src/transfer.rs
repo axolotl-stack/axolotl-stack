@@ -24,10 +24,20 @@ pub async fn run_transfer_server(
     config: &AxeleratorConfig,
 ) -> anyhow::Result<()> {
     // Create listener with builder API - no manual signal pump needed!
-    let mut listener = BedrockListener::nethernet()
-        .xbox(nethernet_id, mc_token)
-        .bind()
-        .await?;
+    // Enable signal monitoring if tampering detection is enabled
+    let mut builder = BedrockListener::nethernet().xbox(nethernet_id, mc_token);
+
+    if config.monitor_tampering {
+        use tokio_nethernet::SignalMonitorConfig;
+        info!("Signal-level monitoring ENABLED for WebRTC signaling");
+        builder = builder.with_signal_monitoring(SignalMonitorConfig {
+            enabled: true,
+            verbose: false, // Set to true for detailed signal logging
+            ..Default::default()
+        });
+    }
+
+    let mut listener = builder.bind().await?;
 
     // Setup for handshake
     let template = Arc::new(WorldTemplate::default());
