@@ -633,6 +633,23 @@ impl SessionClient {
         let host_name = props.get("hostName")?.as_str()?.to_string();
         let world_name = props.get("worldName")?.as_str()?.to_string();
 
+        // Debug: Log the full SupportedConnections array to detect injection attacks
+        if let Some(connections) = props.get("SupportedConnections") {
+            if let Some(arr) = connections.as_array() {
+                if arr.len() > 1 {
+                    warn!(
+                        "🚨 MULTIPLE SupportedConnections detected ({} entries)! Possible injection attack:",
+                        arr.len()
+                    );
+                    for (i, conn) in arr.iter().enumerate() {
+                        warn!("  Connection[{}]: {}", i, conn);
+                    }
+                } else {
+                    debug!("SupportedConnections: {}", connections);
+                }
+            }
+        }
+
         // Extract nethernet_id from SupportedConnections
         let nethernet_id = props
             .get("SupportedConnections")?
@@ -727,7 +744,14 @@ impl SessionClient {
         // Get session via handle (what clients see)
         let json = self.get_session_via_handle(token, handle_id).await?;
 
+        // Debug: Log raw session custom properties for attack analysis
+        if let Some(custom) = json.get("properties").and_then(|p| p.get("custom")) {
+            debug!("Raw session custom properties: {}", custom);
+        }
+
         let actual = Self::parse_session_snapshot(&json).ok_or_else(|| {
+            // Log full JSON on parse failure - might indicate attack
+            warn!("Failed to parse session! Raw JSON: {}", json);
             XblError::XboxLive("Failed to parse session response".into())
         })?;
 
@@ -738,6 +762,8 @@ impl SessionClient {
                 "Session tampering detected (via handle)! Modified fields: {:?}",
                 result.modified_fields
             );
+            // Log full raw JSON when tampering detected
+            warn!("Full session JSON for analysis: {}", json);
         }
 
         Ok(result)
