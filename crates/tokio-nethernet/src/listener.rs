@@ -81,6 +81,9 @@ struct ConnectionHandle {
     pc: Arc<RTCPeerConnection>,
     #[allow(dead_code)]
     ufrag: String,
+    /// The network_id (XUID) that initiated this connection.
+    /// Only signals from this network_id should be accepted.
+    origin_network_id: String,
 }
 
 impl NetherNetListener {
@@ -213,13 +216,35 @@ impl ListenerActor {
             }
             signal_type::CANDIDATE => {
                 if let Some(handle) = self.connections.get(&conn_id) {
+                    // Security: Verify the candidate comes from the original requester
+                    if signal.network_id != handle.origin_network_id {
+                        warn!(
+                            conn_id,
+                            expected = %handle.origin_network_id,
+                            actual = %signal.network_id,
+                            "🚨 REJECTED ICE candidate from wrong network_id - possible injection attack!"
+                        );
+                        return Ok(());
+                    }
                     self.handle_candidate(&signal, handle).await?;
                 } else {
                     debug!(conn_id, "Received CANDIDATE for unknown connection");
                 }
             }
             signal_type::ERROR => {
-                warn!(conn_id, data = %signal.data, "Received CONNECTERROR");
+                if let Some(handle) = self.connections.get(&conn_id) {
+                    // Security: Verify the error comes from the original requester
+                    if signal.network_id != handle.origin_network_id {
+                        warn!(
+                            conn_id,
+                            expected = %handle.origin_network_id,
+                            actual = %signal.network_id,
+                            "🚨 REJECTED CONNECTERROR from wrong network_id - possible attack!"
+                        );
+                        return Ok(());
+                    }
+                }
+                warn!(conn_id, data = %signal.data, from = %signal.network_id, "Received CONNECTERROR");
                 if let Some(handle) = self.connections.remove(&conn_id) {
                     let _ = handle.pc.close().await;
                 }
@@ -505,10 +530,11 @@ impl ListenerActor {
             })
             .await?;
 
-        // Store connection handle
+        // Store connection handle with origin network_id for security validation
         let handle = Arc::new(ConnectionHandle {
             pc: pc.clone(),
             ufrag: ufrag.lock().await.clone(),
+            origin_network_id: network_id.clone(),
         });
         self.connections.insert(conn_id, handle);
 
