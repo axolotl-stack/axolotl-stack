@@ -181,9 +181,30 @@ impl BedrockListener<NoListener> {
     }
 }
 
+// Compile-time check: server feature requires at least one transport
+#[cfg(all(feature = "server", not(any(feature = "raknet", feature = "nethernet"))))]
+compile_error!(
+    "The `server` feature requires at least one transport feature: `raknet` or `nethernet`"
+);
+
 // Implement RawListener for NoListener to satisfy trait bounds (never actually used)
+// Priority: raknet > nethernet when both are enabled
+#[cfg(feature = "raknet")]
 impl RawListener for NoListener {
-    type Transport = crate::stream::transport::RakNetTransport; // Placeholder
+    type Transport = crate::stream::transport::RakNetTransport;
+
+    fn poll_accept(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Transport>> {
+        Poll::Ready(None)
+    }
+
+    fn local_addr(&self) -> Option<SocketAddr> {
+        None
+    }
+}
+
+#[cfg(all(feature = "nethernet", not(feature = "raknet")))]
+impl RawListener for NoListener {
+    type Transport = crate::stream::transport::NetherNetTransport;
 
     fn poll_accept(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Transport>> {
         Poll::Ready(None)

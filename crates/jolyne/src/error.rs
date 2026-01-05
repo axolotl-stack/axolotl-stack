@@ -1,5 +1,8 @@
 use thiserror::Error;
+#[cfg(feature = "raknet")]
 use tokio_raknet::RaknetError;
+#[cfg(feature = "nethernet")]
+use tokio_nethernet::error::NetherNetError;
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum AuthError {
@@ -66,8 +69,13 @@ pub enum ProtocolError {
 
 #[derive(Debug, Error)]
 pub enum JolyneError {
+    #[cfg(feature = "raknet")]
     #[error("RakNet error: {0}")]
     Raknet(#[from] RaknetError),
+
+    #[cfg(feature = "nethernet")]
+    #[error("NetherNet error: {0}")]
+    NetherNet(#[from] NetherNetError),
 
     #[error("Decode error: {0}")]
     Decode(#[from] valentine::bedrock::error::DecodeError),

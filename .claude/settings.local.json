@@ -6,7 +6,8 @@
       "Bash(cargo check:*)",
       "Bash(cargo test:*)",
       "Bash(cargo clean:*)",
-      "Bash(cargo build:*)"
+      "Bash(cargo build:*)",
+      "Bash(findstr:*)"
     ]
   }
 }

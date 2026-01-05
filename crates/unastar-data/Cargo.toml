@@ -1,0 +1,14 @@
+[package]
+name = "unastar-data"
+version = "0.1.0"
+edition = "2024"
+description = "Generated game data for Minecraft Bedrock"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+serde = { workspace = true }
+bevy_ecs = { workspace = true }
+rand = { workspace = true }
+serde_json = { workspace = true }

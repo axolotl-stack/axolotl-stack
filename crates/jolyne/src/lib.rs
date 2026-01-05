@@ -28,11 +28,13 @@ pub use listener::NetherNetBuilder;
 #[cfg(feature = "client")]
 pub use stream::{Client, ClientLogin, ClientPlay};
 
-#[cfg(feature = "server")]
+#[cfg(all(feature = "server", any(feature = "raknet", feature = "nethernet")))]
 pub use stream::{Server, ServerLogin, ServerPlay};
 
 pub use stream::{BedrockStream, Login, Play};
+#[cfg(feature = "raknet")]
 pub use tokio_raknet::protocol::reliability::Reliability;
+
 pub use world::WorldTemplate;
 
 pub use raw::{RawPacket, decode_packet_raw};

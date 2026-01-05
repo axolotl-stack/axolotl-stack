@@ -1,0 +1,61 @@
+// Default values for ALL entities
+// These fill gaps where vanilla JSON doesn't specify values
+// (because Bedrock assumes C++ hardcoded defaults)
+//
+// These defaults are used by:
+// 1. datagen - merged into entities that don't specify the component
+// 2. codegen - generates Default impl for typed component structs
+
+defaults type="entity" {
+    // === Core Components ===
+
+    health 20 {
+        // max defaults to value if not specified
+    }
+
+    collision_box width=0.6 height=1.8
+
+    movement 0.25
+
+    physics {
+        has_gravity #true
+        has_collision #true
+    }
+
+    pushable {
+        is_pushable #true
+        is_pushable_by_piston #true
+    }
+
+    // === Combat ===
+
+    attack damage=2
+
+    // === Movement Speeds ===
+
+    flying_speed 0.02
+
+    follow_range 16
+
+    scale 1.0
+
+    // === Breathing ===
+
+    breathable {
+        total_supply 15
+        suffocate_time -1
+        breathes_air #true
+        breathes_water #false
+        breathes_lava #false
+        breathes_solids #false
+        generates_bubbles #true
+    }
+
+    // === Inventory ===
+
+    inventory {
+        inventory_size 5
+        can_be_siphoned_from #false
+        private #false
+    }
+}

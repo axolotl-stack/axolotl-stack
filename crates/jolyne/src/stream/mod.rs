@@ -162,22 +162,22 @@ pub mod nethernet_types {
     use super::*;
 
     /// Entry point for Server connection over NetherNet (WebRTC).
-    pub type NetherNetServerLogin = BedrockStream<Handshake, Server, NetherNetTransport>;
-    pub type NetherNetServerSecurePending =
+    pub type ServerLogin = BedrockStream<Handshake, Server, NetherNetTransport>;
+    pub type ServerSecurePending =
         BedrockStream<SecurePending, Server, NetherNetTransport>;
-    pub type NetherNetServerResourcePacks =
+    pub type ServerResourcePacks =
         BedrockStream<ResourcePacks, Server, NetherNetTransport>;
-    pub type NetherNetServerStartGame = BedrockStream<StartGame, Server, NetherNetTransport>;
-    pub type NetherNetServerPlay = BedrockStream<Play, Server, NetherNetTransport>;
+    pub type ServerStartGame = BedrockStream<StartGame, Server, NetherNetTransport>;
+    pub type ServerPlay = BedrockStream<Play, Server, NetherNetTransport>;
 
     /// Entry point for Client connection over NetherNet (WebRTC).
-    pub type NetherNetClientLogin = BedrockStream<Handshake, Client, NetherNetTransport>;
-    pub type NetherNetClientSecurePending =
+    pub type ClientLogin = BedrockStream<Handshake, Client, NetherNetTransport>;
+    pub type ClientSecurePending =
         BedrockStream<SecurePending, Client, NetherNetTransport>;
-    pub type NetherNetClientResourcePacks =
+    pub type ClientResourcePacks =
         BedrockStream<ResourcePacks, Client, NetherNetTransport>;
-    pub type NetherNetClientStartGame = BedrockStream<StartGame, Client, NetherNetTransport>;
-    pub type NetherNetClientPlay = BedrockStream<Play, Client, NetherNetTransport>;
+    pub type ClientStartGame = BedrockStream<StartGame, Client, NetherNetTransport>;
+    pub type ClientPlay = BedrockStream<Play, Client, NetherNetTransport>;
 }
 
 #[cfg(feature = "nethernet")]
