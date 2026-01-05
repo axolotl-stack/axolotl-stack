@@ -103,4 +103,80 @@ impl FriendsClient {
             .await?;
         Ok(())
     }
+
+    /// Force remove a follower (someone following you).
+    ///
+    /// This is different from `remove_friend` which removes someone you're following.
+    /// Use this to block attackers who may have friended you to access your sessions.
+    pub async fn force_remove_follower(&self, token: &XblToken, xuid: &str) -> XblResult<()> {
+        // First unfriend them (if we follow them)
+        self.remove_friend(token, xuid).await.ok();
+
+        // Then force remove them as a follower
+        let url = format!(
+            "https://social.xboxlive.com/users/me/people/follower/xuid({})",
+            xuid
+        );
+        let response = self
+            .client
+            .delete(&url)
+            .header("Authorization", token.auth_header())
+            .header("x-xbl-contract-version", "2")
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(XblError::XboxLive(format!(
+                "Failed to remove follower: {}",
+                response.status()
+            )));
+        }
+        Ok(())
+    }
+
+    /// Get gamertag for an XUID.
+    pub async fn get_gamertag(&self, token: &XblToken, xuid: &str) -> XblResult<String> {
+        let url = format!(
+            "https://profile.xboxlive.com/users/xuid({})/profile/settings?settings=Gamertag",
+            xuid
+        );
+
+        let response = self
+            .client
+            .get(&url)
+            .header("Authorization", token.auth_header())
+            .header("x-xbl-contract-version", "2")
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(XblError::XboxLive(format!(
+                "Failed to get profile: {}",
+                response.status()
+            )));
+        }
+
+        let json: serde_json::Value = response.json().await?;
+
+        // Parse gamertag from response
+        let gamertag = json
+            .get("profileUsers")
+            .and_then(|u| u.as_array())
+            .and_then(|a| a.first())
+            .and_then(|u| u.get("settings"))
+            .and_then(|s| s.as_array())
+            .and_then(|a| a.first())
+            .and_then(|s| s.get("value"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("Unknown")
+            .to_string();
+
+        Ok(gamertag)
+    }
+}
+
+impl Default for FriendsClient {
+    fn default() -> Self {
+        Self::new()
+    }
 }

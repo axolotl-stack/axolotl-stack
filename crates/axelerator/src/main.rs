@@ -36,6 +36,18 @@ struct Args {
     /// Enable debug logging
     #[arg(long)]
     debug: bool,
+
+    /// Enable session tampering detection and auto-repair
+    #[arg(long)]
+    monitor: bool,
+
+    /// Interval for tampering checks in seconds (requires --monitor)
+    #[arg(long, default_value = "10")]
+    monitor_interval: u64,
+
+    /// Automatically block (unfriend) detected attackers (requires --monitor)
+    #[arg(long)]
+    auto_block: bool,
 }
 
 #[tokio::main]
@@ -59,8 +71,19 @@ async fn main() -> Result<()> {
         server_ip: args.server_ip,
         server_port: args.server_port,
         token_cache_path: args.token_path,
+        monitor_tampering: args.monitor,
+        monitor_interval: args.monitor_interval,
+        auto_block_attackers: args.auto_block,
         ..Default::default()
     };
+
+    if args.monitor {
+        println!(
+            "    Session monitoring ENABLED (interval: {}s, auto-block: {})",
+            args.monitor_interval,
+            if args.auto_block { "ON" } else { "OFF" }
+        );
+    }
 
     println!(
         r#"

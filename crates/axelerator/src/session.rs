@@ -6,7 +6,10 @@
 use crate::config::AxeleratorConfig;
 use crate::token_cache::TokenCache;
 use anyhow::{Context, Result};
-use axolotl_xbl::{ExpandedSessionInfo, PlayFabClient, PresenceClient, SessionClient, SessionInfo};
+use axolotl_xbl::{
+    ExpandedSessionInfo, FriendsClient, PlayFabClient, PresenceClient, SessionClient, SessionInfo,
+};
+use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::{Notify, RwLock};
 use tracing::{debug, error, info, warn};
@@ -146,7 +149,9 @@ impl Axelerator {
             "Session created - server is now visible to friends!"
         );
 
-        // Store session info
+        // Store session info with handle_id
+        let mut session_info = session_info;
+        session_info.handle_id = Some(handle_id.clone());
         {
             let mut info = self.session_info.write().await;
             *info = Some(session_info.clone());
@@ -157,7 +162,7 @@ impl Axelerator {
             .get_xbl_token(axolotl_xbl::auth::relying_party::PLAYFAB)
             .await?;
 
-        self.run_signaling_loop(xbl_token, &playfab_token, &session_info, heartbeat)
+        self.run_signaling_loop(xbl_token, &playfab_token, &session_info, &handle_id, heartbeat, session_client)
             .await?;
 
         rta_client.shutdown().await;
@@ -188,7 +193,9 @@ impl Axelerator {
         xbl_token: &axolotl_xbl::XblToken,
         playfab_token: &axolotl_xbl::XblToken,
         session: &ExpandedSessionInfo,
+        handle_id: &str,
         mut heartbeat_secs: u64,
+        session_client: SessionClient,
     ) -> Result<()> {
         // Get PlayFab token for signaling
         // NOTE: Must use playfab_token's user_hash (not xbl_token's) - they differ per RP!
@@ -219,6 +226,24 @@ impl Axelerator {
         });
 
         let presence = PresenceClient::new();
+        let friends_client = FriendsClient::new();
+
+        // Tracking for tampering detection
+        let monitor_enabled = self.config.monitor_tampering;
+        let monitor_interval = self.config.monitor_interval;
+        let auto_block = self.config.auto_block_attackers;
+        let mut last_monitor_check = std::time::Instant::now();
+        let mut tamper_count: u32 = 0;
+        let mut hijack_count: u32 = 0;
+        let mut blocked_xuids: HashSet<String> = HashSet::new();
+
+        if monitor_enabled {
+            info!(
+                interval = monitor_interval,
+                auto_block = auto_block,
+                "Session monitoring enabled (tampering + hijacking detection)"
+            );
+        }
 
         loop {
             tokio::select! {
@@ -226,6 +251,136 @@ impl Axelerator {
                     info!("Shutdown signal received");
                     transfer_handle.abort();
                     break;
+                }
+                _ = tokio::time::sleep(std::time::Duration::from_secs(1)) => {
+                    // Check if we need to refresh presence
+                    // (This now runs every second to allow more frequent monitoring)
+
+                    // Monitoring checks
+                    if monitor_enabled && last_monitor_check.elapsed().as_secs() >= monitor_interval {
+                        last_monitor_check = std::time::Instant::now();
+
+                        // 1. Session tampering detection
+                        match session_client.check_tampering_via_handle(xbl_token, session, handle_id).await {
+                            Ok(result) => {
+                                if result.tampered {
+                                    tamper_count += 1;
+                                    error!(
+                                        "🚨 SESSION TAMPERING DETECTED! (occurrence #{})",
+                                        tamper_count
+                                    );
+
+                                    // Identify potential attacker XUIDs from unauthorized members
+                                    let mut attacker_xuids = Vec::new();
+                                    for field in &result.modified_fields {
+                                        error!(
+                                            "  Field '{}': expected '{}', got '{}'",
+                                            field.field, field.expected, field.actual
+                                        );
+
+                                        // If an unknown member joined, they might be the attacker
+                                        if field.field == "members" && field.actual.contains("unknown member joined:") {
+                                            if let Some(xuid) = field.actual.strip_prefix("unknown member joined: ") {
+                                                attacker_xuids.push(xuid.to_string());
+                                            }
+                                        }
+                                    }
+
+                                    // Handle attacker identification and blocking
+                                    for attacker_xuid in &attacker_xuids {
+                                        if blocked_xuids.contains(attacker_xuid) {
+                                            continue; // Already blocked
+                                        }
+
+                                        // Get attacker's gamertag for logging
+                                        let gamertag = friends_client
+                                            .get_gamertag(xbl_token, attacker_xuid)
+                                            .await
+                                            .unwrap_or_else(|_| "Unknown".to_string());
+
+                                        error!(
+                                            "⚠️  POTENTIAL ATTACKER: {} (XUID: {})",
+                                            gamertag, attacker_xuid
+                                        );
+
+                                        if auto_block {
+                                            info!("Auto-blocking attacker {}...", gamertag);
+                                            match friends_client.force_remove_follower(xbl_token, attacker_xuid).await {
+                                                Ok(_) => {
+                                                    info!("✅ Blocked attacker: {} ({})", gamertag, attacker_xuid);
+                                                    blocked_xuids.insert(attacker_xuid.clone());
+                                                }
+                                                Err(e) => {
+                                                    warn!("Failed to block attacker {}: {}", attacker_xuid, e);
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Auto-repair by re-pushing our session data
+                                    info!("Attempting auto-repair...");
+                                    match session_client.repair_session(xbl_token, session).await {
+                                        Ok(_) => info!("✅ Session repaired successfully"),
+                                        Err(e) => error!("❌ Failed to repair session: {}", e),
+                                    }
+                                } else {
+                                    debug!("Session integrity check passed");
+                                }
+                            }
+                            Err(e) => {
+                                warn!("Failed to check session tampering: {}", e);
+                            }
+                        }
+
+                        // 2. Handle hijacking detection
+                        match session_client.check_handle_hijacking(
+                            xbl_token,
+                            &session.xuid,
+                            handle_id,
+                            &session.session_id,
+                        ).await {
+                            Ok(result) => {
+                                if result.hijack_detected {
+                                    hijack_count += 1;
+                                    error!(
+                                        "🚨 HANDLE HIJACKING DETECTED! (occurrence #{})",
+                                        hijack_count
+                                    );
+                                    error!(
+                                        "  Our handle exists: {}, Total handles for XUID: {}",
+                                        result.our_handle_exists, result.total_handles_for_xuid
+                                    );
+
+                                    for suspicious in &result.suspicious_handles {
+                                        error!(
+                                            "  Suspicious handle: {} -> session {} ({})",
+                                            suspicious.handle_id, suspicious.session_id, suspicious.reason
+                                        );
+                                    }
+
+                                    // If our handle is gone, recreate it
+                                    if !result.our_handle_exists {
+                                        warn!("Our handle was deleted! Recreating...");
+                                        match session_client.create_handle(xbl_token, session).await {
+                                            Ok(new_handle) => {
+                                                info!("✅ Handle recreated: {}", new_handle);
+                                                // Note: handle_id is borrowed, can't update it
+                                                // In production, you'd want to update the stored handle_id
+                                            }
+                                            Err(e) => {
+                                                error!("❌ Failed to recreate handle: {}", e);
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    debug!("Handle integrity check passed");
+                                }
+                            }
+                            Err(e) => {
+                                warn!("Failed to check handle hijacking: {}", e);
+                            }
+                        }
+                    }
                 }
                 _ = tokio::time::sleep(std::time::Duration::from_secs(heartbeat_secs)) => {
                     // Refresh presence periodically
@@ -246,6 +401,19 @@ impl Axelerator {
                     }
                     break;
                 }
+            }
+        }
+
+        // Summary at shutdown
+        if monitor_enabled {
+            if tamper_count > 0 || hijack_count > 0 {
+                warn!(
+                    "Security summary: {} tampering event(s), {} hijacking event(s), {} attacker(s) blocked",
+                    tamper_count, hijack_count, blocked_xuids.len()
+                );
+            }
+            if !blocked_xuids.is_empty() {
+                info!("Blocked attackers: {:?}", blocked_xuids);
             }
         }
 

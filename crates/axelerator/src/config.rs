@@ -46,6 +46,18 @@ pub struct AxeleratorConfig {
     /// Heartbeat interval for presence (seconds).
     #[serde(default = "default_heartbeat")]
     pub presence_heartbeat: u64,
+
+    /// Enable session tampering detection and auto-repair.
+    #[serde(default)]
+    pub monitor_tampering: bool,
+
+    /// Interval for tampering checks (seconds).
+    #[serde(default = "default_monitor_interval")]
+    pub monitor_interval: u64,
+
+    /// Automatically block (unfriend) detected attackers.
+    #[serde(default)]
+    pub auto_block_attackers: bool,
 }
 
 fn default_host_name() -> String {
@@ -72,6 +84,9 @@ fn default_token_path() -> String {
 fn default_heartbeat() -> u64 {
     300
 }
+fn default_monitor_interval() -> u64 {
+    10 // Check every 10 seconds
+}
 
 impl Default for AxeleratorConfig {
     fn default() -> Self {
@@ -86,6 +101,9 @@ impl Default for AxeleratorConfig {
             token_cache_path: default_token_path(),
             auto_accept_friends: false,
             presence_heartbeat: default_heartbeat(),
+            monitor_tampering: false,
+            monitor_interval: default_monitor_interval(),
+            auto_block_attackers: false,
         }
     }
 }

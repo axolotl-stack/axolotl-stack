@@ -53,4 +53,7 @@ pub use friends::{FriendsClient, Person, SocialSummary};
 pub use playfab::PlayFabClient;
 pub use presence::{PresenceClient, PresenceState};
 pub use rta::RtaClient;
-pub use session::{ExpandedSessionInfo, SessionClient, SessionInfo};
+pub use session::{
+    ExpandedSessionInfo, HandleHijackResult, HandleInfo, HandleVerification, SessionClient,
+    SessionInfo, SessionSnapshot, SuspiciousHandle, TamperField, TamperResult,
+};

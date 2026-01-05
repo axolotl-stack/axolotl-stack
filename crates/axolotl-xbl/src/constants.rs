@@ -27,6 +27,12 @@ pub mod endpoints {
     /// Join session via handle (format with handle ID).
     pub const JOIN_SESSION_FMT: &str = "https://sessiondirectory.xboxlive.com/handles/{}/session";
 
+    /// Get handle info (format with handle ID).
+    pub const GET_HANDLE_FMT: &str = "https://sessiondirectory.xboxlive.com/handles/{}";
+
+    /// Query handles (POST with body).
+    pub const QUERY_HANDLES: &str = "https://sessiondirectory.xboxlive.com/handles/query";
+
     /// PlayFab login for Minecraft.
     pub const PLAYFAB_LOGIN: &str = "https://20ca2.playfabapi.com/Client/LoginWithXbox";
 
