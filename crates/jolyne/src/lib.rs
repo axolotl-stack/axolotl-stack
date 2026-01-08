@@ -25,9 +25,15 @@ pub use listener::RakNetBuilder;
 #[cfg(all(feature = "server", feature = "nethernet"))]
 pub use listener::NetherNetBuilder;
 
+// Client marker is always available when client feature is enabled
 #[cfg(feature = "client")]
-pub use stream::{Client, ClientLogin, ClientPlay};
+pub use stream::Client;
 
+// Client type aliases require a transport
+#[cfg(all(feature = "client", any(feature = "raknet", feature = "nethernet")))]
+pub use stream::{ClientLogin, ClientPlay};
+
+// Server marker and type aliases require server feature + transport
 #[cfg(all(feature = "server", any(feature = "raknet", feature = "nethernet")))]
 pub use stream::{Server, ServerLogin, ServerPlay};
 

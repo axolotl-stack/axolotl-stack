@@ -65,8 +65,8 @@ impl Packet for OpenConnectionReply1 {
         self.magic.encode_raknet(dst)?;
         self.server_guid.encode_raknet(dst)?;
         self.cookie.is_some().encode_raknet(dst)?; // security bool
-        if self.cookie.is_some() {
-            self.cookie.unwrap().encode_raknet(dst)?;
+        if let Some(cookie) = &self.cookie {
+            cookie.encode_raknet(dst)?;
         }
         self.mtu.encode_raknet(dst)?;
         Ok(())

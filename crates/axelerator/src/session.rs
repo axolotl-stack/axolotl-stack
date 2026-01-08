@@ -248,7 +248,7 @@ impl Axelerator {
             world_name: self.config.world_name.clone(),
             version: self.config.version.clone(),
             protocol: self.config.protocol,
-            players: 1,
+            players: self.config.display_players.max(1), // Cosmetic player count
             max_players: self.config.max_players,
             ip: self.config.server_ip.clone(),
             port: self.config.server_port,

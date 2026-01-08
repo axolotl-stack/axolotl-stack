@@ -54,6 +54,10 @@ world_name = "Survival World"
 server_ip = "play.example.com"
 server_port = 19132
 
+# Player count display (cosmetic - Xbox doesn't validate these)
+max_players = 20            # Shows as "X/20" in friends list
+display_players = 5         # Shows as "5/X" - make server look populated!
+
 # Security monitoring
 monitor_tampering = true
 monitor_interval = 30
@@ -379,18 +383,81 @@ This detects if someone tries to hijack your Xbox Live session.
 
 ## Updating
 
+### From Source (on build machine)
+
 ```bash
+# Pull latest code
+cd axolotl-stack
+git pull
+
 # Build new version
 cargo build --release -p axelerator
 
-# Deploy
+# Copy to server (replace with your server details)
+scp target/release/axelerator user@yourserver:/tmp/
+```
+
+### On the Server
+
+```bash
+# Stop the service
 sudo systemctl stop axelerator
-sudo cp target/release/axelerator /opt/axelerator/
+
+# Backup old binary (optional but recommended)
+sudo cp /opt/axelerator/axelerator /opt/axelerator/axelerator.bak
+
+# Install new binary
+sudo cp /tmp/axelerator /opt/axelerator/
+sudo chmod +x /opt/axelerator/axelerator
+
+# Start the service
 sudo systemctl start axelerator
 
-# Verify
+# Verify it's running
 sudo systemctl status axelerator
-sudo journalctl -u axelerator -n 20
+sudo journalctl -u axelerator -n 20 --no-pager
+```
+
+### Quick Update Script
+
+For frequent updates, create `/opt/axelerator/update.sh`:
+
+```bash
+#!/bin/bash
+set -e
+
+if [ -z "$1" ]; then
+    echo "Usage: $0 /path/to/new/axelerator"
+    exit 1
+fi
+
+echo "Stopping axelerator..."
+systemctl stop axelerator
+
+echo "Backing up old binary..."
+cp /opt/axelerator/axelerator /opt/axelerator/axelerator.bak
+
+echo "Installing new binary..."
+cp "$1" /opt/axelerator/axelerator
+chmod +x /opt/axelerator/axelerator
+
+echo "Starting axelerator..."
+systemctl start axelerator
+
+echo "Done! Checking status..."
+systemctl status axelerator --no-pager
+```
+
+Then update with: `sudo /opt/axelerator/update.sh /tmp/axelerator`
+
+### Rollback
+
+If something goes wrong:
+
+```bash
+sudo systemctl stop axelerator
+sudo cp /opt/axelerator/axelerator.bak /opt/axelerator/axelerator
+sudo systemctl start axelerator
 ```
 
 ## Uninstalling

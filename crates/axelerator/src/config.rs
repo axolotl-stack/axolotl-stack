@@ -31,6 +31,9 @@ pub struct AxeleratorConfig {
     /// Maximum players to display.
     pub max_players: i32,
 
+    /// Current player count to display (cosmetic only, Xbox doesn't validate this).
+    pub display_players: i32,
+
     /// Path to cached OAuth token.
     pub token_cache_path: String,
 
@@ -93,6 +96,7 @@ impl Default for AxeleratorConfig {
             server_ip: "127.0.0.1".into(),
             server_port: 19132,
             max_players: 10,
+            display_players: 1,
             token_cache_path: "token.json".into(),
             auto_accept_friends: false,
             presence_heartbeat: 300,
@@ -174,6 +178,8 @@ impl AxeleratorConfig {
             world_name: "Survival World".into(),
             server_ip: "play.example.com".into(),
             server_port: 19132,
+            max_players: 20,
+            display_players: 5, // Show "5/20" in friends list (cosmetic)
             monitor_tampering: true,
             monitor_interval: 30,
             logging: LoggingConfig {

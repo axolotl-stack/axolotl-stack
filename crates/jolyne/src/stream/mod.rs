@@ -153,7 +153,8 @@ pub mod raknet_types {
     pub type ClientPlay = BedrockStream<Play, Client, RakNetTransport>;
 }
 
-#[cfg(feature = "raknet")]
+// Re-export raknet types only when nethernet is NOT enabled (avoids ambiguity)
+#[cfg(all(feature = "raknet", not(feature = "nethernet")))]
 pub use raknet_types::*;
 
 // NetherNet type aliases
@@ -176,5 +177,6 @@ pub mod nethernet_types {
     pub type ClientPlay = BedrockStream<Play, Client, NetherNetTransport>;
 }
 
+// Re-export nethernet types (preferred when both features enabled)
 #[cfg(feature = "nethernet")]
 pub use nethernet_types::*;
