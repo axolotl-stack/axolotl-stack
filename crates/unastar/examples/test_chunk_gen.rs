@@ -23,9 +23,9 @@ fn main() {
             for z in 0..16 {
                 let block = chunk.get_block(x, y, z);
                 match block {
-                    1 => stone_count += 1, // Stone
+                    1 => stone_count += 1,     // Stone
                     8 | 9 => water_count += 1, // Water (still or flowing)
-                    0 => air_count += 1, // Air
+                    0 => air_count += 1,       // Air
                     _ => {}
                 }
             }

@@ -229,7 +229,7 @@ pub fn process_chunk_load_queues(
         if chunk_manager.has_async_generation() {
             let has_pending = loader.has_pending();
             if publisher_state.queue_was_empty != !has_pending {
-                 debug!(player=?player_entity, has_pending, "Publisher state queue_was_empty updated");
+                debug!(player=?player_entity, has_pending, "Publisher state queue_was_empty updated");
             }
             publisher_state.queue_was_empty = !has_pending;
             continue;
@@ -241,7 +241,8 @@ pub fn process_chunk_load_queues(
 
         while sent_count < config.chunks_per_tick {
             let Some((cx, cz)) = loader.next_to_load() else {
-                if sent_this_tick > 0 { // Log if we sent chunks last tick but not this one
+                if sent_this_tick > 0 {
+                    // Log if we sent chunks last tick but not this one
                     debug!(player=?player_entity, "Chunk queue is now empty.");
                 }
                 break;
@@ -420,7 +421,11 @@ pub fn request_chunk_generation(
 
                     if session.send(McpePacket::from(packet)) {
                         loader.mark_loaded(cx, cz);
-                        chunk_manager.pending_viewers.entry((cx, cz)).or_default().push(player_entity);
+                        chunk_manager
+                            .pending_viewers
+                            .entry((cx, cz))
+                            .or_default()
+                            .push(player_entity);
                         debug!(chunk = ?(cx, cz), player = ?player_entity, "Sent existing chunk to player.");
                     } else {
                         debug!(chunk = ?(cx, cz), player=?player_entity, "Failed to send existing chunk (channel full), will retry.");
@@ -435,7 +440,10 @@ pub fn request_chunk_generation(
             // Skip if already pending generation
             if chunk_manager.is_generation_pending(cx, cz) {
                 trace!(chunk = ?(cx, cz), "Chunk generation already pending, adding as viewer.");
-                chunk_manager.pending_generation.get_mut(&(cx, cz)).map(|viewers| viewers.push(player_entity));
+                chunk_manager
+                    .pending_generation
+                    .get_mut(&(cx, cz))
+                    .map(|viewers| viewers.push(player_entity));
                 loader.mark_loaded(cx, cz); // Mark as "loaded" to prevent re-requesting
                 processed += 1;
                 continue;
@@ -483,9 +491,12 @@ pub fn process_completed_generations(
             }
         }
     });
-    
+
     if !completed.is_empty() {
-        debug!(count = completed.len(), initial_pending, "Processing completed chunk generations.");
+        debug!(
+            count = completed.len(),
+            initial_pending, "Processing completed chunk generations."
+        );
     }
 
     // Process completed chunks
@@ -499,14 +510,16 @@ pub fn process_completed_generations(
 
         // Spawn chunk entity
         let pos = ChunkPosition::new(x, z);
-        let entity = commands.spawn((
-            pos,
-            ChunkData::new(chunk), // Move, not clone
-            ChunkState::Loaded,
-            ChunkViewers::default(),
-            ChunkEntities::default(),
-            ChunkStateFlags::new_generated(),
-        )).id();
+        let entity = commands
+            .spawn((
+                pos,
+                ChunkData::new(chunk), // Move, not clone
+                ChunkState::Loaded,
+                ChunkViewers::default(),
+                ChunkEntities::default(),
+                ChunkStateFlags::new_generated(),
+            ))
+            .id();
 
         chunk_manager.insert(pos, entity);
 
@@ -529,14 +542,18 @@ pub fn process_completed_generations(
                     // This was already marked as loaded on request, so we don't need to do it again.
                     debug!(chunk = ?(x, z), viewer = ?viewer_entity, "Sent async-generated chunk to viewer.");
                 } else {
-                     warn!(chunk = ?(x, z), viewer = ?viewer_entity, "Failed to send async-generated chunk (channel full).");
-                     // We don't re-queue here because the loader thinks it's loaded.
-                     // The client will hopefully re-request if it's missing.
+                    warn!(chunk = ?(x, z), viewer = ?viewer_entity, "Failed to send async-generated chunk (channel full).");
+                    // We don't re-queue here because the loader thinks it's loaded.
+                    // The client will hopefully re-request if it's missing.
                 }
             }
-            
+
             // Add viewer to the just-spawned chunk's ChunkViewers component
-            chunk_manager.pending_viewers.entry((x, z)).or_default().push(viewer_entity);
+            chunk_manager
+                .pending_viewers
+                .entry((x, z))
+                .or_default()
+                .push(viewer_entity);
         }
     }
 }
@@ -948,4 +965,3 @@ mod tests {
         assert!(!state.queue_was_empty);
     }
 }
-

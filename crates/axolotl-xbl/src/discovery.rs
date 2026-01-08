@@ -36,7 +36,8 @@ use thiserror::Error;
 use tracing::{debug, info};
 
 /// Discovery API base URL.
-pub const DISCOVERY_URL: &str = "https://client.discovery.minecraft-services.net/api/v1.0/discovery";
+pub const DISCOVERY_URL: &str =
+    "https://client.discovery.minecraft-services.net/api/v1.0/discovery";
 
 /// Default game identifier for Bedrock Edition.
 pub const GAME_ID: &str = "MinecraftPE";
@@ -129,10 +130,9 @@ impl DiscoveryClient {
 
         let endpoints = ServiceEndpoints {
             signaling: SignalingEndpoint {
-                service_uri: signaling
-                    .service_uri
-                    .clone()
-                    .ok_or_else(|| DiscoveryError::MissingService("signaling.serviceUri".to_string()))?,
+                service_uri: signaling.service_uri.clone().ok_or_else(|| {
+                    DiscoveryError::MissingService("signaling.serviceUri".to_string())
+                })?,
                 stun_uri: signaling.stun_uri.clone(),
                 turn_uri: signaling.turn_uri.clone(),
             },

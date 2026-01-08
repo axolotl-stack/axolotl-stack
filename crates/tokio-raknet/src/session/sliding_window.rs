@@ -184,10 +184,7 @@ mod tests {
         assert_eq!(window.get_retransmission_bandwidth(), dgram_size);
 
         // Available bandwidth should decrease
-        assert_eq!(
-            window.get_transmission_bandwidth(),
-            mtu - dgram_size
-        );
+        assert_eq!(window.get_transmission_bandwidth(), mtu - dgram_size);
     }
 
     #[test]
@@ -275,7 +272,12 @@ mod tests {
             let dgram = make_test_datagram(i, 100);
             let now = Instant::now();
             window.on_reliable_send(&dgram);
-            window.on_ack(now, &dgram, Sequence24::new(i), now - Duration::from_millis(50));
+            window.on_ack(
+                now,
+                &dgram,
+                Sequence24::new(i),
+                now - Duration::from_millis(50),
+            );
         }
 
         let bandwidth_before_nak = window.get_transmission_bandwidth();
@@ -306,7 +308,12 @@ mod tests {
             let dgram = make_test_datagram(i, 100);
             let now = Instant::now();
             window.on_reliable_send(&dgram);
-            window.on_ack(now, &dgram, Sequence24::new(i), now - Duration::from_millis(50));
+            window.on_ack(
+                now,
+                &dgram,
+                Sequence24::new(i),
+                now - Duration::from_millis(50),
+            );
         }
 
         // Trigger resend
@@ -342,7 +349,12 @@ mod tests {
         let now = Instant::now();
 
         // ACK without send (shouldn't happen, but test the guard)
-        window.on_ack(now, &dgram, Sequence24::new(0), now - Duration::from_millis(50));
+        window.on_ack(
+            now,
+            &dgram,
+            Sequence24::new(0),
+            now - Duration::from_millis(50),
+        );
 
         // Should be clamped to 0, not negative
         assert_eq!(window.get_retransmission_bandwidth(), 0);
@@ -370,19 +382,32 @@ mod tests {
         let dgram1 = make_test_datagram(0, 100);
         let now = Instant::now();
         window.on_reliable_send(&dgram1);
-        window.on_ack(now, &dgram1, Sequence24::new(0), now - Duration::from_millis(100));
+        window.on_ack(
+            now,
+            &dgram1,
+            Sequence24::new(0),
+            now - Duration::from_millis(100),
+        );
 
         let rto1 = window.get_rto_for_retransmission();
 
         // Second ACK with different RTT should smooth
         let dgram2 = make_test_datagram(1, 100);
         window.on_reliable_send(&dgram2);
-        window.on_ack(now, &dgram2, Sequence24::new(1), now - Duration::from_millis(50));
+        window.on_ack(
+            now,
+            &dgram2,
+            Sequence24::new(1),
+            now - Duration::from_millis(50),
+        );
 
         let rto2 = window.get_rto_for_retransmission();
 
         // RTO should have changed due to smoothing
-        assert_ne!(rto1, rto2, "RTO should change with different RTT measurements");
+        assert_ne!(
+            rto1, rto2,
+            "RTO should change with different RTT measurements"
+        );
     }
 
     #[test]

@@ -53,7 +53,11 @@ pub struct ComponentSchema {
 }
 
 impl ComponentSchema {
-    pub const fn marker(name: &'static str, rust_name: &'static str, frequency: ComponentFrequency) -> Self {
+    pub const fn marker(
+        name: &'static str,
+        rust_name: &'static str,
+        frequency: ComponentFrequency,
+    ) -> Self {
         Self {
             name,
             rust_name,
@@ -97,10 +101,9 @@ impl ComponentDefaults {
                         for entry in child.entries() {
                             if entry.name().is_none() {
                                 // Positional argument = primary value
-                                defaults.primary_values.insert(
-                                    comp_name.clone(),
-                                    kdl_value_to_string(entry.value()),
-                                );
+                                defaults
+                                    .primary_values
+                                    .insert(comp_name.clone(), kdl_value_to_string(entry.value()));
                             } else if let Some(prop_name) = entry.name() {
                                 // Named property
                                 field_defaults.insert(
@@ -169,322 +172,373 @@ pub fn get_component_schemas() -> HashMap<&'static str, ComponentSchema> {
 
     // === Core Components (Common) ===
 
-    schemas.insert("health", ComponentSchema {
-        name: "health",
-        rust_name: "Health",
-        frequency: ComponentFrequency::Common,
-        fields: vec![
-            FieldSchema {
-                name: "value",
-                rust_name: "value",
-                field_type: FieldType::Integer,
-                is_primary: true,
-            },
-            FieldSchema {
-                name: "max",
-                rust_name: "max",
-                field_type: FieldType::Option(Box::new(FieldType::Integer)),
-                is_primary: false,
-            },
-        ],
-        is_marker: false,
-    });
+    schemas.insert(
+        "health",
+        ComponentSchema {
+            name: "health",
+            rust_name: "Health",
+            frequency: ComponentFrequency::Common,
+            fields: vec![
+                FieldSchema {
+                    name: "value",
+                    rust_name: "value",
+                    field_type: FieldType::Integer,
+                    is_primary: true,
+                },
+                FieldSchema {
+                    name: "max",
+                    rust_name: "max",
+                    field_type: FieldType::Option(Box::new(FieldType::Integer)),
+                    is_primary: false,
+                },
+            ],
+            is_marker: false,
+        },
+    );
 
-    schemas.insert("collision_box", ComponentSchema {
-        name: "collision_box",
-        rust_name: "CollisionBox",
-        frequency: ComponentFrequency::Common,
-        fields: vec![
-            FieldSchema {
-                name: "width",
-                rust_name: "width",
-                field_type: FieldType::Float,
-                is_primary: false,
-            },
-            FieldSchema {
-                name: "height",
-                rust_name: "height",
-                field_type: FieldType::Float,
-                is_primary: false,
-            },
-        ],
-        is_marker: false,
-    });
+    schemas.insert(
+        "collision_box",
+        ComponentSchema {
+            name: "collision_box",
+            rust_name: "CollisionBox",
+            frequency: ComponentFrequency::Common,
+            fields: vec![
+                FieldSchema {
+                    name: "width",
+                    rust_name: "width",
+                    field_type: FieldType::Float,
+                    is_primary: false,
+                },
+                FieldSchema {
+                    name: "height",
+                    rust_name: "height",
+                    field_type: FieldType::Float,
+                    is_primary: false,
+                },
+            ],
+            is_marker: false,
+        },
+    );
 
-    schemas.insert("movement", ComponentSchema {
-        name: "movement",
-        rust_name: "Movement",
-        frequency: ComponentFrequency::Common,
-        fields: vec![
-            FieldSchema {
-                name: "value",
-                rust_name: "speed",
-                field_type: FieldType::Float,
-                is_primary: true,
-            },
-        ],
-        is_marker: false,
-    });
-
-    schemas.insert("physics", ComponentSchema {
-        name: "physics",
-        rust_name: "Physics",
-        frequency: ComponentFrequency::Common,
-        fields: vec![
-            FieldSchema {
-                name: "has_gravity",
-                rust_name: "has_gravity",
-                field_type: FieldType::Bool,
-                is_primary: false,
-            },
-            FieldSchema {
-                name: "has_collision",
-                rust_name: "has_collision",
-                field_type: FieldType::Bool,
-                is_primary: false,
-            },
-        ],
-        is_marker: false,
-    });
-
-    schemas.insert("pushable", ComponentSchema {
-        name: "pushable",
-        rust_name: "Pushable",
-        frequency: ComponentFrequency::Common,
-        fields: vec![
-            FieldSchema {
-                name: "is_pushable",
-                rust_name: "is_pushable",
-                field_type: FieldType::Bool,
-                is_primary: false,
-            },
-            FieldSchema {
-                name: "is_pushable_by_piston",
-                rust_name: "is_pushable_by_piston",
-                field_type: FieldType::Bool,
-                is_primary: false,
-            },
-        ],
-        is_marker: false,
-    });
-
-    schemas.insert("attack", ComponentSchema {
-        name: "attack",
-        rust_name: "Attack",
-        frequency: ComponentFrequency::Moderate,
-        fields: vec![
-            FieldSchema {
-                name: "damage",
-                rust_name: "damage",
-                field_type: FieldType::Integer,
-                is_primary: false,
-            },
-            FieldSchema {
-                name: "effect_name",
-                rust_name: "effect_name",
-                field_type: FieldType::Option(Box::new(FieldType::String)),
-                is_primary: false,
-            },
-            FieldSchema {
-                name: "effect_duration",
-                rust_name: "effect_duration",
-                field_type: FieldType::Option(Box::new(FieldType::Float)),
-                is_primary: false,
-            },
-        ],
-        is_marker: false,
-    });
-
-    schemas.insert("flying_speed", ComponentSchema {
-        name: "flying_speed",
-        rust_name: "FlyingSpeed",
-        frequency: ComponentFrequency::Sparse,
-        fields: vec![
-            FieldSchema {
+    schemas.insert(
+        "movement",
+        ComponentSchema {
+            name: "movement",
+            rust_name: "Movement",
+            frequency: ComponentFrequency::Common,
+            fields: vec![FieldSchema {
                 name: "value",
                 rust_name: "speed",
                 field_type: FieldType::Float,
                 is_primary: true,
-            },
-        ],
-        is_marker: false,
-    });
+            }],
+            is_marker: false,
+        },
+    );
 
-    schemas.insert("follow_range", ComponentSchema {
-        name: "follow_range",
-        rust_name: "FollowRange",
-        frequency: ComponentFrequency::Moderate,
-        fields: vec![
-            FieldSchema {
+    schemas.insert(
+        "physics",
+        ComponentSchema {
+            name: "physics",
+            rust_name: "Physics",
+            frequency: ComponentFrequency::Common,
+            fields: vec![
+                FieldSchema {
+                    name: "has_gravity",
+                    rust_name: "has_gravity",
+                    field_type: FieldType::Bool,
+                    is_primary: false,
+                },
+                FieldSchema {
+                    name: "has_collision",
+                    rust_name: "has_collision",
+                    field_type: FieldType::Bool,
+                    is_primary: false,
+                },
+            ],
+            is_marker: false,
+        },
+    );
+
+    schemas.insert(
+        "pushable",
+        ComponentSchema {
+            name: "pushable",
+            rust_name: "Pushable",
+            frequency: ComponentFrequency::Common,
+            fields: vec![
+                FieldSchema {
+                    name: "is_pushable",
+                    rust_name: "is_pushable",
+                    field_type: FieldType::Bool,
+                    is_primary: false,
+                },
+                FieldSchema {
+                    name: "is_pushable_by_piston",
+                    rust_name: "is_pushable_by_piston",
+                    field_type: FieldType::Bool,
+                    is_primary: false,
+                },
+            ],
+            is_marker: false,
+        },
+    );
+
+    schemas.insert(
+        "attack",
+        ComponentSchema {
+            name: "attack",
+            rust_name: "Attack",
+            frequency: ComponentFrequency::Moderate,
+            fields: vec![
+                FieldSchema {
+                    name: "damage",
+                    rust_name: "damage",
+                    field_type: FieldType::Integer,
+                    is_primary: false,
+                },
+                FieldSchema {
+                    name: "effect_name",
+                    rust_name: "effect_name",
+                    field_type: FieldType::Option(Box::new(FieldType::String)),
+                    is_primary: false,
+                },
+                FieldSchema {
+                    name: "effect_duration",
+                    rust_name: "effect_duration",
+                    field_type: FieldType::Option(Box::new(FieldType::Float)),
+                    is_primary: false,
+                },
+            ],
+            is_marker: false,
+        },
+    );
+
+    schemas.insert(
+        "flying_speed",
+        ComponentSchema {
+            name: "flying_speed",
+            rust_name: "FlyingSpeed",
+            frequency: ComponentFrequency::Sparse,
+            fields: vec![FieldSchema {
+                name: "value",
+                rust_name: "speed",
+                field_type: FieldType::Float,
+                is_primary: true,
+            }],
+            is_marker: false,
+        },
+    );
+
+    schemas.insert(
+        "follow_range",
+        ComponentSchema {
+            name: "follow_range",
+            rust_name: "FollowRange",
+            frequency: ComponentFrequency::Moderate,
+            fields: vec![FieldSchema {
                 name: "value",
                 rust_name: "range",
                 field_type: FieldType::Integer,
                 is_primary: true,
-            },
-        ],
-        is_marker: false,
-    });
+            }],
+            is_marker: false,
+        },
+    );
 
-    schemas.insert("scale", ComponentSchema {
-        name: "scale",
-        rust_name: "Scale",
-        frequency: ComponentFrequency::Sparse,
-        fields: vec![
-            FieldSchema {
+    schemas.insert(
+        "scale",
+        ComponentSchema {
+            name: "scale",
+            rust_name: "Scale",
+            frequency: ComponentFrequency::Sparse,
+            fields: vec![FieldSchema {
                 name: "value",
                 rust_name: "value",
                 field_type: FieldType::Float,
                 is_primary: true,
-            },
-        ],
-        is_marker: false,
-    });
+            }],
+            is_marker: false,
+        },
+    );
 
     // === Marker Components (no data) ===
 
-    schemas.insert("can_climb", ComponentSchema::marker(
-        "can_climb", "CanClimb", ComponentFrequency::Moderate
-    ));
+    schemas.insert(
+        "can_climb",
+        ComponentSchema::marker("can_climb", "CanClimb", ComponentFrequency::Moderate),
+    );
 
-    schemas.insert("can_fly", ComponentSchema::marker(
-        "can_fly", "CanFly", ComponentFrequency::Sparse
-    ));
+    schemas.insert(
+        "can_fly",
+        ComponentSchema::marker("can_fly", "CanFly", ComponentFrequency::Sparse),
+    );
 
-    schemas.insert("can_power_jump", ComponentSchema::marker(
-        "can_power_jump", "CanPowerJump", ComponentFrequency::Sparse
-    ));
+    schemas.insert(
+        "can_power_jump",
+        ComponentSchema::marker("can_power_jump", "CanPowerJump", ComponentFrequency::Sparse),
+    );
 
-    schemas.insert("fire_immune", ComponentSchema::marker(
-        "fire_immune", "FireImmune", ComponentFrequency::Sparse
-    ));
+    schemas.insert(
+        "fire_immune",
+        ComponentSchema::marker("fire_immune", "FireImmune", ComponentFrequency::Sparse),
+    );
 
-    schemas.insert("floats_in_liquid", ComponentSchema::marker(
-        "floats_in_liquid", "FloatsInLiquid", ComponentFrequency::Sparse
-    ));
+    schemas.insert(
+        "floats_in_liquid",
+        ComponentSchema::marker(
+            "floats_in_liquid",
+            "FloatsInLiquid",
+            ComponentFrequency::Sparse,
+        ),
+    );
 
-    schemas.insert("is_baby", ComponentSchema::marker(
-        "is_baby", "IsBaby", ComponentFrequency::Sparse
-    ));
+    schemas.insert(
+        "is_baby",
+        ComponentSchema::marker("is_baby", "IsBaby", ComponentFrequency::Sparse),
+    );
 
-    schemas.insert("is_hidden_when_invisible", ComponentSchema::marker(
-        "is_hidden_when_invisible", "IsHiddenWhenInvisible", ComponentFrequency::Common
-    ));
+    schemas.insert(
+        "is_hidden_when_invisible",
+        ComponentSchema::marker(
+            "is_hidden_when_invisible",
+            "IsHiddenWhenInvisible",
+            ComponentFrequency::Common,
+        ),
+    );
 
-    schemas.insert("is_ignited", ComponentSchema::marker(
-        "is_ignited", "IsIgnited", ComponentFrequency::Sparse
-    ));
+    schemas.insert(
+        "is_ignited",
+        ComponentSchema::marker("is_ignited", "IsIgnited", ComponentFrequency::Sparse),
+    );
 
-    schemas.insert("is_saddled", ComponentSchema::marker(
-        "is_saddled", "IsSaddled", ComponentFrequency::Sparse
-    ));
+    schemas.insert(
+        "is_saddled",
+        ComponentSchema::marker("is_saddled", "IsSaddled", ComponentFrequency::Sparse),
+    );
 
-    schemas.insert("is_sheared", ComponentSchema::marker(
-        "is_sheared", "IsSheared", ComponentFrequency::Sparse
-    ));
+    schemas.insert(
+        "is_sheared",
+        ComponentSchema::marker("is_sheared", "IsSheared", ComponentFrequency::Sparse),
+    );
 
-    schemas.insert("is_tamed", ComponentSchema::marker(
-        "is_tamed", "IsTamed", ComponentFrequency::Sparse
-    ));
+    schemas.insert(
+        "is_tamed",
+        ComponentSchema::marker("is_tamed", "IsTamed", ComponentFrequency::Sparse),
+    );
 
-    schemas.insert("leashable", ComponentSchema::marker(
-        "leashable", "Leashable", ComponentFrequency::Moderate
-    ));
+    schemas.insert(
+        "leashable",
+        ComponentSchema::marker("leashable", "Leashable", ComponentFrequency::Moderate),
+    );
 
-    schemas.insert("nameable", ComponentSchema::marker(
-        "nameable", "Nameable", ComponentFrequency::Common
-    ));
+    schemas.insert(
+        "nameable",
+        ComponentSchema::marker("nameable", "Nameable", ComponentFrequency::Common),
+    );
 
-    schemas.insert("burns_in_daylight", ComponentSchema::marker(
-        "burns_in_daylight", "BurnsInDaylight", ComponentFrequency::Sparse
-    ));
+    schemas.insert(
+        "burns_in_daylight",
+        ComponentSchema::marker(
+            "burns_in_daylight",
+            "BurnsInDaylight",
+            ComponentFrequency::Sparse,
+        ),
+    );
 
     // === Inventory Component ===
 
-    schemas.insert("inventory", ComponentSchema {
-        name: "inventory",
-        rust_name: "Inventory",
-        frequency: ComponentFrequency::Moderate,
-        fields: vec![
-            FieldSchema {
-                name: "inventory_size",
-                rust_name: "size",
-                field_type: FieldType::Integer,
-                is_primary: false,
-            },
-            FieldSchema {
-                name: "container_type",
-                rust_name: "container_type",
-                field_type: FieldType::Option(Box::new(FieldType::String)),
-                is_primary: false,
-            },
-            FieldSchema {
-                name: "can_be_siphoned_from",
-                rust_name: "can_be_siphoned_from",
-                field_type: FieldType::Bool,
-                is_primary: false,
-            },
-            FieldSchema {
-                name: "private",
-                rust_name: "private",
-                field_type: FieldType::Bool,
-                is_primary: false,
-            },
-        ],
-        is_marker: false,
-    });
+    schemas.insert(
+        "inventory",
+        ComponentSchema {
+            name: "inventory",
+            rust_name: "Inventory",
+            frequency: ComponentFrequency::Moderate,
+            fields: vec![
+                FieldSchema {
+                    name: "inventory_size",
+                    rust_name: "size",
+                    field_type: FieldType::Integer,
+                    is_primary: false,
+                },
+                FieldSchema {
+                    name: "container_type",
+                    rust_name: "container_type",
+                    field_type: FieldType::Option(Box::new(FieldType::String)),
+                    is_primary: false,
+                },
+                FieldSchema {
+                    name: "can_be_siphoned_from",
+                    rust_name: "can_be_siphoned_from",
+                    field_type: FieldType::Bool,
+                    is_primary: false,
+                },
+                FieldSchema {
+                    name: "private",
+                    rust_name: "private",
+                    field_type: FieldType::Bool,
+                    is_primary: false,
+                },
+            ],
+            is_marker: false,
+        },
+    );
 
     // === Breathable Component ===
 
-    schemas.insert("breathable", ComponentSchema {
-        name: "breathable",
-        rust_name: "Breathable",
-        frequency: ComponentFrequency::Common,
-        fields: vec![
-            FieldSchema {
-                name: "total_supply",
-                rust_name: "total_supply",
-                field_type: FieldType::Integer,
-                is_primary: false,
-            },
-            FieldSchema {
-                name: "suffocate_time",
-                rust_name: "suffocate_time",
-                field_type: FieldType::Integer,
-                is_primary: false,
-            },
-            FieldSchema {
-                name: "breathes_air",
-                rust_name: "breathes_air",
-                field_type: FieldType::Bool,
-                is_primary: false,
-            },
-            FieldSchema {
-                name: "breathes_water",
-                rust_name: "breathes_water",
-                field_type: FieldType::Bool,
-                is_primary: false,
-            },
-            FieldSchema {
-                name: "breathes_lava",
-                rust_name: "breathes_lava",
-                field_type: FieldType::Bool,
-                is_primary: false,
-            },
-            FieldSchema {
-                name: "breathes_solids",
-                rust_name: "breathes_solids",
-                field_type: FieldType::Bool,
-                is_primary: false,
-            },
-            FieldSchema {
-                name: "generates_bubbles",
-                rust_name: "generates_bubbles",
-                field_type: FieldType::Bool,
-                is_primary: false,
-            },
-        ],
-        is_marker: false,
-    });
+    schemas.insert(
+        "breathable",
+        ComponentSchema {
+            name: "breathable",
+            rust_name: "Breathable",
+            frequency: ComponentFrequency::Common,
+            fields: vec![
+                FieldSchema {
+                    name: "total_supply",
+                    rust_name: "total_supply",
+                    field_type: FieldType::Integer,
+                    is_primary: false,
+                },
+                FieldSchema {
+                    name: "suffocate_time",
+                    rust_name: "suffocate_time",
+                    field_type: FieldType::Integer,
+                    is_primary: false,
+                },
+                FieldSchema {
+                    name: "breathes_air",
+                    rust_name: "breathes_air",
+                    field_type: FieldType::Bool,
+                    is_primary: false,
+                },
+                FieldSchema {
+                    name: "breathes_water",
+                    rust_name: "breathes_water",
+                    field_type: FieldType::Bool,
+                    is_primary: false,
+                },
+                FieldSchema {
+                    name: "breathes_lava",
+                    rust_name: "breathes_lava",
+                    field_type: FieldType::Bool,
+                    is_primary: false,
+                },
+                FieldSchema {
+                    name: "breathes_solids",
+                    rust_name: "breathes_solids",
+                    field_type: FieldType::Bool,
+                    is_primary: false,
+                },
+                FieldSchema {
+                    name: "generates_bubbles",
+                    rust_name: "generates_bubbles",
+                    field_type: FieldType::Bool,
+                    is_primary: false,
+                },
+            ],
+            is_marker: false,
+        },
+    );
 
     schemas
 }
@@ -502,7 +556,6 @@ pub fn get_sparse_components() -> Vec<&'static str> {
         "is_charged",
         "is_stunned",
         "is_illager_captain",
-
         // Rare entity features
         "can_fly",
         "can_power_jump",
@@ -511,10 +564,8 @@ pub fn get_sparse_components() -> Vec<&'static str> {
         "floats_in_liquid",
         "flying_speed",
         "glide",
-
         // Boss-specific
         "boss",
-
         // Temporary effects
         "angry",
         "on_fire",

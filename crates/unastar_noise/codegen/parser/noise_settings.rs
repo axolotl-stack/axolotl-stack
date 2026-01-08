@@ -40,9 +40,7 @@ pub struct NoiseRouter {
     pub vein_toggle: DensityFunctionArg,
 }
 
-pub fn parse_all(
-    dir: &Path,
-) -> Result<HashMap<String, NoiseSettings>, Box<dyn std::error::Error>> {
+pub fn parse_all(dir: &Path) -> Result<HashMap<String, NoiseSettings>, Box<dyn std::error::Error>> {
     let mut settings = HashMap::new();
 
     for entry in walkdir::WalkDir::new(dir) {
@@ -55,11 +53,7 @@ pub fn parse_all(
                     settings.insert(format!("minecraft:{}", name), ns);
                 }
                 Err(e) => {
-                    eprintln!(
-                        "Warning: Failed to parse {}: {}",
-                        entry.path().display(),
-                        e
-                    );
+                    eprintln!("Warning: Failed to parse {}: {}", entry.path().display(), e);
                 }
             }
         }

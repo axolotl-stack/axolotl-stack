@@ -654,7 +654,8 @@ mod tests {
         });
 
         // NetherNet style: no 0xFE prefix
-        let batch = encode_batch_multi(slice::from_ref(&packet), true, 7, 0, false).expect("encode");
+        let batch =
+            encode_batch_multi(slice::from_ref(&packet), true, 7, 0, false).expect("encode");
         let mut buf = batch.clone();
 
         // Should NOT start with 0xFE

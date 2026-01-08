@@ -1,6 +1,6 @@
 //! Generated definition for entity.
-use bevy_ecs::prelude::*;
 use super::super::components::*;
+use bevy_ecs::prelude::*;
 /// Entity definition for `minecraft:zombie_villager`
 pub struct ZombieVillager;
 impl ZombieVillager {

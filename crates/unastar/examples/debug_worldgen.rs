@@ -3,8 +3,8 @@
 //! Run with: cargo run -p unastar --example debug_worldgen
 
 use unastar::world::generator::density::{
-    compute_depth, compute_final_density, compute_preliminary_surface_level, ColumnContext, FlatCacheGrid,
-    FunctionContext, NoiseRegistry,
+    ColumnContext, FlatCacheGrid, FunctionContext, NoiseRegistry, compute_depth,
+    compute_final_density, compute_preliminary_surface_level,
 };
 
 fn main() {
@@ -87,7 +87,8 @@ fn main() {
         let grid = FlatCacheGrid::new(cx, cz, &noises);
         let col = ColumnContext::new(*x, *z, &noises, &grid);
         let ctx = FunctionContext::new(*x, 0, *z);
-        let continents = grid.fc_n9[(z.rem_euclid(16) >> 2) as usize][(x.rem_euclid(16) >> 2) as usize];
+        let continents =
+            grid.fc_n9[(z.rem_euclid(16) >> 2) as usize][(x.rem_euclid(16) >> 2) as usize];
         let prelim = compute_preliminary_surface_level(&ctx, &noises, &grid, &col);
 
         // Find surface
@@ -111,8 +112,10 @@ fn main() {
             "LAND"
         };
 
-        println!("  ({:5}, {:5}): continents={:+.4}, prelim_surf={:6.2}, actual_surf={:4}, type={}",
-            x, z, continents, prelim, surf, terrain_type);
+        println!(
+            "  ({:5}, {:5}): continents={:+.4}, prelim_surf={:6.2}, actual_surf={:4}, type={}",
+            x, z, continents, prelim, surf, terrain_type
+        );
     }
 
     // Deep dive into problematic position (-100, -100)
@@ -132,7 +135,8 @@ fn main() {
     // Test BlendedNoise directly at this position
     println!("\nBlendedNoise at ({}, y, {}):", x, z);
     for y in [-64, -40, -20, 0, 20, 40, 48, 60, 80, 100].iter() {
-        let bn = noises.sample_blended_noise(x as f64, *y as f64, z as f64, 0.25, 0.125, 80.0, 160.0, 8.0);
+        let bn = noises
+            .sample_blended_noise(x as f64, *y as f64, z as f64, 0.25, 0.125, 80.0, 160.0, 8.0);
         println!("  y={:4}: blended_noise={:+.6}", y, bn);
     }
 
@@ -143,9 +147,11 @@ fn main() {
         let depth = compute_depth(&ctx, &noises, &grid, &col);
         // y_clamped_gradient formula: y in [-64, 320] -> [1.5, -1.5]
         let y_gradient = 1.5 + ((*y as f64) - (-64.0)) / (320.0 - (-64.0)) * (-1.5 - 1.5);
-        let expected_depth = y_gradient + col.c2d_n36;  // c2d_n36 is offset
-        println!("  y={:4}: depth={:.6} (y_grad={:.4}, offset={:.4}, expected={:.4})",
-            y, depth, y_gradient, col.c2d_n36, expected_depth);
+        let expected_depth = y_gradient + col.c2d_n36; // c2d_n36 is offset
+        println!(
+            "  y={:4}: depth={:.6} (y_grad={:.4}, offset={:.4}, expected={:.4})",
+            y, depth, y_gradient, col.c2d_n36, expected_depth
+        );
     }
 
     println!("\nDensity around preliminary surface (48):");

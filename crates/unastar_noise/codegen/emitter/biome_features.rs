@@ -86,7 +86,9 @@ pub fn emit_biome_features(
     code.push_str("impl BiomeFeatures {\n");
     code.push_str("    /// Get the placed feature list for a biome and generation step.\n");
     code.push_str("    /// Returns an empty slice if no features are defined for that step.\n");
-    code.push_str("    pub fn get_features(&self, step: GenerationStep) -> &'static [&'static str] {\n");
+    code.push_str(
+        "    pub fn get_features(&self, step: GenerationStep) -> &'static [&'static str] {\n",
+    );
     code.push_str("        match (self, step) {\n");
 
     for biome_name in &biome_names {
@@ -120,7 +122,9 @@ pub fn emit_biome_features(
     code.push_str("    }\n\n");
 
     // Generate from_name function for string lookup
-    code.push_str("    /// Get biome from snake_case name (e.g., \"plains\", \"old_growth_pine_taiga\").\n");
+    code.push_str(
+        "    /// Get biome from snake_case name (e.g., \"plains\", \"old_growth_pine_taiga\").\n",
+    );
     code.push_str("    pub fn from_name(name: &str) -> Option<Self> {\n");
     code.push_str("        match name {\n");
     for biome_name in &biome_names {

@@ -187,7 +187,19 @@ mod tests {
 
     #[test]
     fn varu32_roundtrip_samples() {
-        for value in [0, 1, 127, 128, 255, 256, 16383, 16384, 2097151, 2097152, u32::MAX] {
+        for value in [
+            0,
+            1,
+            127,
+            128,
+            255,
+            256,
+            16383,
+            16384,
+            2097151,
+            2097152,
+            u32::MAX,
+        ] {
             let mut buf = BytesMut::new();
             write_var_u32(&mut buf, value);
             let mut reader = buf.freeze();

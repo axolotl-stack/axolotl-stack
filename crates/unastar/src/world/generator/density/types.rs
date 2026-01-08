@@ -3,11 +3,11 @@
 //! The NoiseRegistry is the only type kept here - all other types
 //! are now provided by the unastar_noise crate.
 
-use crate::world::generator::noise::{DoublePerlinNoise, BlendedNoise};
+use crate::world::generator::noise::{BlendedNoise, DoublePerlinNoise};
 use crate::world::generator::xoroshiro::Xoroshiro128;
 use std::simd::prelude::*;
 
-use unastar_noise::{NoiseRef, NoiseSource, NOISE_PARAMS};
+use unastar_noise::{NOISE_PARAMS, NoiseRef, NoiseSource};
 
 /// Registry of instantiated noise functions (created from seed).
 ///
@@ -29,7 +29,11 @@ impl NoiseRegistry {
 
         // Initialize in order so index matches enum discriminant
         for (noise_ref, params) in NOISE_PARAMS.iter() {
-            debug_assert_eq!(noises.len(), *noise_ref as usize, "NOISE_PARAMS out of order");
+            debug_assert_eq!(
+                noises.len(),
+                *noise_ref as usize,
+                "NOISE_PARAMS out of order"
+            );
             let salted_seed = Self::hash_seed(seed, *noise_ref);
             let mut rng = Xoroshiro128::from_seed(salted_seed);
             let noise = DoublePerlinNoise::new(&mut rng, &params.amplitudes, params.first_octave);
@@ -44,14 +48,18 @@ impl NoiseRegistry {
         // xz_scale=0.25, y_scale=0.125, xz_factor=80.0, y_factor=160.0, smear_scale_multiplier=8.0
         let blended_noise = BlendedNoise::new(
             &mut blended_rng,
-            0.25,   // xz_scale
-            0.125,  // y_scale
-            80.0,   // xz_factor
-            160.0,  // y_factor
-            8.0,    // smear_scale_multiplier
+            0.25,  // xz_scale
+            0.125, // y_scale
+            80.0,  // xz_factor
+            160.0, // y_factor
+            8.0,   // smear_scale_multiplier
         );
 
-        Self { noises, blended_noise, seed }
+        Self {
+            noises,
+            blended_noise,
+            seed,
+        }
     }
 
     /// Get a noise by reference - O(1) array index.
@@ -87,14 +95,34 @@ impl NoiseSource for NoiseRegistry {
     }
 
     #[inline]
-    fn sample_blended_noise(&self, x: f64, y: f64, z: f64, _xz_scale: f64, _y_scale: f64, _xz_factor: f64, _y_factor: f64, _smear_scale_multiplier: f64) -> f64 {
+    fn sample_blended_noise(
+        &self,
+        x: f64,
+        y: f64,
+        z: f64,
+        _xz_scale: f64,
+        _y_scale: f64,
+        _xz_factor: f64,
+        _y_factor: f64,
+        _smear_scale_multiplier: f64,
+    ) -> f64 {
         // Note: The parameters are already baked into the BlendedNoise instance
         // This is a simplification - we could support dynamic parameters if needed
         self.blended_noise.sample(x, y, z)
     }
 
     #[inline]
-    fn sample_blended_noise_4(&self, x: f64, y: f64x4, z: f64, _xz_scale: f64, _y_scale: f64, _xz_factor: f64, _y_factor: f64, _smear_scale_multiplier: f64) -> f64x4 {
+    fn sample_blended_noise_4(
+        &self,
+        x: f64,
+        y: f64x4,
+        z: f64,
+        _xz_scale: f64,
+        _y_scale: f64,
+        _xz_factor: f64,
+        _y_factor: f64,
+        _smear_scale_multiplier: f64,
+    ) -> f64x4 {
         self.blended_noise.sample_4(x, y, z)
     }
 }

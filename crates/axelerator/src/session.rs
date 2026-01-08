@@ -8,12 +8,12 @@ use crate::token_cache::TokenCache;
 use crate::transfer::TransferStats;
 use anyhow::{Context, Result};
 use axolotl_xbl::{
-    discovery::DiscoveryClient, ExpandedSessionInfo, FriendsClient, PlayFabClient, PresenceClient,
-    SessionClient, SessionInfo,
+    ExpandedSessionInfo, FriendsClient, PlayFabClient, PresenceClient, SessionClient, SessionInfo,
+    discovery::DiscoveryClient,
 };
 use std::collections::HashSet;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 use tokio::sync::{Notify, RwLock};
 use tracing::{debug, error, info, warn};
@@ -568,7 +568,9 @@ impl Axelerator {
             if tamper_count > 0 || hijack_count > 0 {
                 warn!(
                     "Security summary: {} tampering event(s), {} hijacking event(s), {} attacker(s) blocked",
-                    tamper_count, hijack_count, blocked_xuids.len()
+                    tamper_count,
+                    hijack_count,
+                    blocked_xuids.len()
                 );
             }
             if !blocked_xuids.is_empty() {

@@ -1,6 +1,6 @@
 //! Generated definition for entity.
-use bevy_ecs::prelude::*;
 use super::super::components::*;
+use bevy_ecs::prelude::*;
 /// Entity definition for `minecraft:allay`
 pub struct Allay;
 impl Allay {
@@ -48,7 +48,10 @@ pub fn spawn_allay(commands: &mut Commands) -> Entity {
             },
             flying_speed: FlyingSpeed { speed: 0.1f32 },
             follow_range: FollowRange { range: 1024i32 },
-            health: Health { value: 20i32, max: None },
+            health: Health {
+                value: 20i32,
+                max: None,
+            },
             inventory: Inventory {
                 size: 1i32,
                 container_type: None,

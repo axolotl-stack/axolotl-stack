@@ -15,7 +15,11 @@ pub struct FunctionContext {
 impl FunctionContext {
     #[inline]
     pub fn new(x: i32, y: i32, z: i32) -> Self {
-        Self { block_x: x, block_y: y, block_z: z }
+        Self {
+            block_x: x,
+            block_y: y,
+            block_z: z,
+        }
     }
 }
 
@@ -30,7 +34,11 @@ pub struct FunctionContext4 {
 impl FunctionContext4 {
     #[inline]
     pub fn new(x: i32, y: [i32; 4], z: i32) -> Self {
-        Self { block_x: x, block_y: y, block_z: z }
+        Self {
+            block_x: x,
+            block_y: y,
+            block_z: z,
+        }
     }
 }
 
@@ -55,10 +63,30 @@ pub trait NoiseSource {
     /// Sample old blended noise (base_3d_noise).
     ///
     /// This implements the legacy blended noise algorithm used for base terrain variation.
-    fn sample_blended_noise(&self, x: f64, y: f64, z: f64, xz_scale: f64, y_scale: f64, xz_factor: f64, y_factor: f64, smear_scale_multiplier: f64) -> f64;
+    fn sample_blended_noise(
+        &self,
+        x: f64,
+        y: f64,
+        z: f64,
+        xz_scale: f64,
+        y_scale: f64,
+        xz_factor: f64,
+        y_factor: f64,
+        smear_scale_multiplier: f64,
+    ) -> f64;
 
     /// Sample old blended noise (SIMD version for 4 Y positions).
-    fn sample_blended_noise_4(&self, x: f64, y: f64x4, z: f64, xz_scale: f64, y_scale: f64, xz_factor: f64, y_factor: f64, smear_scale_multiplier: f64) -> f64x4;
+    fn sample_blended_noise_4(
+        &self,
+        x: f64,
+        y: f64x4,
+        z: f64,
+        xz_scale: f64,
+        y_scale: f64,
+        xz_factor: f64,
+        y_factor: f64,
+        smear_scale_multiplier: f64,
+    ) -> f64x4;
 }
 
 /// Find the Y level where density becomes positive (first solid block from top).

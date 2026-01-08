@@ -9,6 +9,9 @@ pub struct Health {
 }
 impl Default for Health {
     fn default() -> Self {
-        Self { value: 20i32, max: None }
+        Self {
+            value: 20i32,
+            max: None,
+        }
     }
 }

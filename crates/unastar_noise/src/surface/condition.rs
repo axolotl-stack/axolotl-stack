@@ -160,7 +160,8 @@ impl Condition for WaterCheck {
             block_y += ctx.stone_depth_above;
         }
 
-        block_y >= ctx.water_height + self.offset + ctx.surface_depth * self.surface_depth_multiplier
+        block_y
+            >= ctx.water_height + self.offset + ctx.surface_depth * self.surface_depth_multiplier
     }
 }
 
@@ -219,7 +220,9 @@ pub struct NoiseThreshold {
 
 impl Condition for NoiseThreshold {
     fn test(&self, ctx: &SurfaceContext) -> bool {
-        let value = self.noise.sample(ctx.block_x as f64, 0.0, ctx.block_z as f64);
+        let value = self
+            .noise
+            .sample(ctx.block_x as f64, 0.0, ctx.block_z as f64);
         value >= self.min_threshold && value <= self.max_threshold
     }
 }
@@ -342,7 +345,9 @@ pub struct Temperature {
 
 impl Condition for Temperature {
     fn test(&self, ctx: &SurfaceContext) -> bool {
-        let value = self.noise.sample(ctx.block_x as f64, 0.0, ctx.block_z as f64);
+        let value = self
+            .noise
+            .sample(ctx.block_x as f64, 0.0, ctx.block_z as f64);
         value >= self.min_value && value <= self.max_value
     }
 }
@@ -388,10 +393,16 @@ mod tests {
 
         let mut ctx = SurfaceContext::default();
         ctx.stone_depth_above = 1;
-        assert!(condition.test(&ctx), "stone_depth_above=1 should pass offset=0");
+        assert!(
+            condition.test(&ctx),
+            "stone_depth_above=1 should pass offset=0"
+        );
 
         ctx.stone_depth_above = 2;
-        assert!(!condition.test(&ctx), "stone_depth_above=2 should fail offset=0");
+        assert!(
+            !condition.test(&ctx),
+            "stone_depth_above=2 should fail offset=0"
+        );
     }
 
     #[test]
@@ -406,10 +417,16 @@ mod tests {
         let mut ctx = SurfaceContext::default();
         ctx.surface_depth = 3;
         ctx.stone_depth_above = 4;
-        assert!(condition.test(&ctx), "stone_depth=4, surface_depth=3 should pass");
+        assert!(
+            condition.test(&ctx),
+            "stone_depth=4, surface_depth=3 should pass"
+        );
 
         ctx.stone_depth_above = 5;
-        assert!(!condition.test(&ctx), "stone_depth=5, surface_depth=3 should fail");
+        assert!(
+            !condition.test(&ctx),
+            "stone_depth=5, surface_depth=3 should fail"
+        );
     }
 
     #[test]
@@ -508,7 +525,10 @@ mod tests {
         ctx.min_surface_level = 60;
 
         ctx.block_y = 60;
-        assert!(condition.test(&ctx), "Y=60 should be at or above surface 60");
+        assert!(
+            condition.test(&ctx),
+            "Y=60 should be at or above surface 60"
+        );
 
         ctx.block_y = 65;
         assert!(condition.test(&ctx), "Y=65 should be above surface 60");

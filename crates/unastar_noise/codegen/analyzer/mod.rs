@@ -3,7 +3,9 @@
 //! This module builds a dependency graph from parsed density functions,
 //! enabling deduplication and topological ordering for code generation.
 
-use super::parser::density_function::{DensityFunctionArg, DensityFunctionDef, SplineDef, SplineValue};
+use super::parser::density_function::{
+    DensityFunctionArg, DensityFunctionDef, SplineDef, SplineValue,
+};
 use std::collections::{HashMap, HashSet};
 
 /// Unique identifier for a density function node.
@@ -58,17 +60,13 @@ impl DependencyGraph {
     /// Get all FlatCache nodes (Y-independent, should be pre-computed).
     #[allow(dead_code)]
     pub fn flat_cache_nodes(&self) -> Vec<&DensityNode> {
-        self.nodes.values()
-            .filter(|n| n.is_flat_cache)
-            .collect()
+        self.nodes.values().filter(|n| n.is_flat_cache).collect()
     }
 
     /// Get all Cache2D nodes (per-column caching).
     #[allow(dead_code)]
     pub fn cache_2d_nodes(&self) -> Vec<&DensityNode> {
-        self.nodes.values()
-            .filter(|n| n.is_cache_2d)
-            .collect()
+        self.nodes.values().filter(|n| n.is_cache_2d).collect()
     }
 
     /// Get the number of unique nodes in the graph.
@@ -250,9 +248,7 @@ impl<'a> GraphBuilder<'a> {
                     self.visit_builtin(name)
                 }
             }
-            DensityFunctionArg::Inline(def) => {
-                self.visit_def(def)
-            }
+            DensityFunctionArg::Inline(def) => self.visit_def(def),
         }
     }
 
@@ -293,10 +289,22 @@ impl<'a> GraphBuilder<'a> {
         match def {
             DensityFunctionDef::Constant { .. } => (vec![], true),
 
-            DensityFunctionDef::Add { argument1, argument2 }
-            | DensityFunctionDef::Mul { argument1, argument2 }
-            | DensityFunctionDef::Min { argument1, argument2 }
-            | DensityFunctionDef::Max { argument1, argument2 } => {
+            DensityFunctionDef::Add {
+                argument1,
+                argument2,
+            }
+            | DensityFunctionDef::Mul {
+                argument1,
+                argument2,
+            }
+            | DensityFunctionDef::Min {
+                argument1,
+                argument2,
+            }
+            | DensityFunctionDef::Max {
+                argument1,
+                argument2,
+            } => {
                 let d1 = self.visit(argument1);
                 let d2 = self.visit(argument2);
                 let y_indep = self.is_y_independent(&d1) && self.is_y_independent(&d2);
@@ -330,7 +338,12 @@ impl<'a> GraphBuilder<'a> {
                 (vec![], false)
             }
 
-            DensityFunctionDef::ShiftedNoise { shift_x, shift_y, shift_z, .. } => {
+            DensityFunctionDef::ShiftedNoise {
+                shift_x,
+                shift_y,
+                shift_z,
+                ..
+            } => {
                 let sx = self.visit(shift_x);
                 let sy = self.visit(shift_y);
                 let sz = self.visit(shift_z);
@@ -338,7 +351,9 @@ impl<'a> GraphBuilder<'a> {
                 (vec![sx, sy, sz], false)
             }
 
-            DensityFunctionDef::ShiftA { .. } | DensityFunctionDef::ShiftB { .. } | DensityFunctionDef::Shift { .. } => {
+            DensityFunctionDef::ShiftA { .. }
+            | DensityFunctionDef::ShiftB { .. }
+            | DensityFunctionDef::Shift { .. } => {
                 // Shift functions don't use Y
                 (vec![], true)
             }
@@ -377,7 +392,12 @@ impl<'a> GraphBuilder<'a> {
                 (vec![inner], y_indep)
             }
 
-            DensityFunctionDef::RangeChoice { input, when_in_range, when_out_of_range, .. } => {
+            DensityFunctionDef::RangeChoice {
+                input,
+                when_in_range,
+                when_out_of_range,
+                ..
+            } => {
                 let inp = self.visit(input);
                 let wir = self.visit(when_in_range);
                 let wor = self.visit(when_out_of_range);
@@ -416,7 +436,11 @@ impl<'a> GraphBuilder<'a> {
                 (vec![d], y_indep)
             }
 
-            DensityFunctionDef::FindTopSurface { density, upper_bound, .. } => {
+            DensityFunctionDef::FindTopSurface {
+                density,
+                upper_bound,
+                ..
+            } => {
                 // FindTopSurface is Y-independent (returns a surface Y level)
                 // But we need to track its inner density function as a dependency
                 let d = self.visit(density);
@@ -453,16 +477,19 @@ impl<'a> GraphBuilder<'a> {
         let id = NodeId(format!("n{}", self.counter));
         self.counter += 1;
 
-        self.nodes.insert(id.clone(), DensityNode {
-            id: id.clone(),
-            def,
-            dependencies: deps,
-            is_y_independent: y_indep,
-            is_flat_cache: false,
-            is_cache_2d: false,
-            usage_count: 1,
-            ref_name,
-        });
+        self.nodes.insert(
+            id.clone(),
+            DensityNode {
+                id: id.clone(),
+                def,
+                dependencies: deps,
+                is_y_independent: y_indep,
+                is_flat_cache: false,
+                is_cache_2d: false,
+                usage_count: 1,
+                ref_name,
+            },
+        );
 
         id
     }
@@ -474,7 +501,10 @@ impl<'a> GraphBuilder<'a> {
     }
 
     fn is_y_independent(&self, id: &NodeId) -> bool {
-        self.nodes.get(id).map(|n| n.is_y_independent).unwrap_or(false)
+        self.nodes
+            .get(id)
+            .map(|n| n.is_y_independent)
+            .unwrap_or(false)
     }
 
     fn visit_builtin(&mut self, name: &str) -> NodeId {
@@ -487,8 +517,10 @@ impl<'a> GraphBuilder<'a> {
         let id = match name {
             "minecraft:y" => self.make_node(
                 DensityFunctionDef::YClampedGradient {
-                    from_y: -64, to_y: 320,
-                    from_value: -64.0, to_value: 320.0
+                    from_y: -64,
+                    to_y: 320,
+                    from_value: -64.0,
+                    to_value: 320.0,
                 },
                 vec![],
                 false, // Y-dependent!
@@ -503,19 +535,25 @@ impl<'a> GraphBuilder<'a> {
             "minecraft:shift_x" => {
                 // FlatCache(Cache2D(ShiftA(Offset)))
                 let shift_a_id = self.make_node(
-                    DensityFunctionDef::ShiftA { argument: "minecraft:offset".to_string() },
+                    DensityFunctionDef::ShiftA {
+                        argument: "minecraft:offset".to_string(),
+                    },
                     vec![],
                     true,
                     None,
                 );
                 let cache_2d_id = self.make_node(
-                    DensityFunctionDef::Cache2D { argument: DensityFunctionArg::Constant(0.0) }, // placeholder
+                    DensityFunctionDef::Cache2D {
+                        argument: DensityFunctionArg::Constant(0.0),
+                    }, // placeholder
                     vec![shift_a_id],
                     true,
                     None,
                 );
                 let flat_cache_id = self.make_node(
-                    DensityFunctionDef::FlatCache { argument: DensityFunctionArg::Constant(0.0) }, // placeholder
+                    DensityFunctionDef::FlatCache {
+                        argument: DensityFunctionArg::Constant(0.0),
+                    }, // placeholder
                     vec![cache_2d_id],
                     true,
                     Some(name.to_string()),
@@ -528,19 +566,25 @@ impl<'a> GraphBuilder<'a> {
             "minecraft:shift_z" => {
                 // FlatCache(Cache2D(ShiftB(Offset)))
                 let shift_b_id = self.make_node(
-                    DensityFunctionDef::ShiftB { argument: "minecraft:offset".to_string() },
+                    DensityFunctionDef::ShiftB {
+                        argument: "minecraft:offset".to_string(),
+                    },
                     vec![],
                     true,
                     None,
                 );
                 let cache_2d_id = self.make_node(
-                    DensityFunctionDef::Cache2D { argument: DensityFunctionArg::Constant(0.0) }, // placeholder
+                    DensityFunctionDef::Cache2D {
+                        argument: DensityFunctionArg::Constant(0.0),
+                    }, // placeholder
                     vec![shift_b_id],
                     true,
                     None,
                 );
                 let flat_cache_id = self.make_node(
-                    DensityFunctionDef::FlatCache { argument: DensityFunctionArg::Constant(0.0) }, // placeholder
+                    DensityFunctionDef::FlatCache {
+                        argument: DensityFunctionArg::Constant(0.0),
+                    }, // placeholder
                     vec![cache_2d_id],
                     true,
                     Some(name.to_string()),
@@ -589,10 +633,7 @@ mod tests {
         let arg1 = DensityFunctionArg::Constant(1.0);
         let arg2 = DensityFunctionArg::Constant(1.0);
 
-        let graph = DependencyGraph::build(
-            &[("a", &arg1), ("b", &arg2)],
-            &refs,
-        );
+        let graph = DependencyGraph::build(&[("a", &arg1), ("b", &arg2)], &refs);
 
         // Both should point to the same node (deduplication)
         assert_eq!(graph.roots.get("a"), graph.roots.get("b"));
@@ -618,12 +659,25 @@ mod tests {
         assert_eq!(sorted.len(), 3);
 
         // The Add node should come after both constants
-        let add_idx = sorted.iter().position(|id| {
-            matches!(graph.nodes.get(*id).unwrap().def, DensityFunctionDef::Add { .. })
-        }).unwrap();
+        let add_idx = sorted
+            .iter()
+            .position(|id| {
+                matches!(
+                    graph.nodes.get(*id).unwrap().def,
+                    DensityFunctionDef::Add { .. }
+                )
+            })
+            .unwrap();
 
-        let const_indices: Vec<_> = sorted.iter().enumerate()
-            .filter(|(_, id)| matches!(graph.nodes.get(*id).unwrap().def, DensityFunctionDef::Constant { .. }))
+        let const_indices: Vec<_> = sorted
+            .iter()
+            .enumerate()
+            .filter(|(_, id)| {
+                matches!(
+                    graph.nodes.get(*id).unwrap().def,
+                    DensityFunctionDef::Constant { .. }
+                )
+            })
             .map(|(i, _)| i)
             .collect();
 

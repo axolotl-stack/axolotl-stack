@@ -26,9 +26,7 @@ struct Args {
 fn main() -> miette::Result<()> {
     let args = Args::parse();
 
-    tracing_subscriber::fmt()
-        .with_env_filter(&args.log)
-        .init();
+    tracing_subscriber::fmt().with_env_filter(&args.log).init();
 
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
 

@@ -6,6 +6,13 @@ description = "Xbox Live friend broadcast server - makes Minecraft servers joina
 license.workspace = true
 publish = false
 
+# Disable auto-discovery of binaries - xbox_client requires unimplemented features
+autobins = false
+
+[[bin]]
+name = "axelerator"
+path = "src/main.rs"
+
 [dependencies]
 # Xbox Live APIs
 axolotl-xbl.workspace = true

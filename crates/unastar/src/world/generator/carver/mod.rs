@@ -21,11 +21,11 @@
 //! This implementation aims to match vanilla Java Edition's carver behavior
 //! for deterministic world generation.
 
-mod cave;
 mod canyon;
+mod cave;
 
-pub use cave::CaveCarver;
 pub use canyon::CanyonCarver;
+pub use cave::CaveCarver;
 
 use crate::world::chunk::Chunk;
 use crate::world::generator::aquifer::FluidPicker;

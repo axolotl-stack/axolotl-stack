@@ -1,6 +1,6 @@
 //! Generated definition for entity.
-use bevy_ecs::prelude::*;
 use super::super::components::*;
+use bevy_ecs::prelude::*;
 /// Entity definition for `minecraft:camel_husk`
 pub struct CamelHusk;
 impl CamelHusk {
@@ -44,7 +44,10 @@ pub fn spawn_camel_husk(commands: &mut Commands) -> Entity {
                 width: 1.7f32,
                 height: 2.375f32,
             },
-            health: Health { value: 32i32, max: None },
+            health: Health {
+                value: 32i32,
+                max: None,
+            },
             inventory: Inventory {
                 size: 0,
                 container_type: Some("horse".to_string()),

@@ -248,7 +248,9 @@ impl SignalMonitor {
 
         // Get or create connection state
         let mut connections = self.connections.write().await;
-        let state = connections.entry(conn_id).or_insert_with(ConnectionState::new);
+        let state = connections
+            .entry(conn_id)
+            .or_insert_with(ConnectionState::new);
 
         // Track network IDs for this connection
         let is_new_network = state.seen_network_ids.insert(network_id.clone());
@@ -311,7 +313,8 @@ impl SignalMonitor {
                 }
 
                 // Check for suspicious TURN servers in candidate
-                if let Some(anomaly) = self.check_candidate_turn(conn_id, network_id, &signal.data) {
+                if let Some(anomaly) = self.check_candidate_turn(conn_id, network_id, &signal.data)
+                {
                     anomalies.push(anomaly);
                 }
             }
@@ -403,19 +406,31 @@ impl SignalMonitor {
                 match anomaly.severity {
                     5 => error!(
                         "🚨 CRITICAL: {} - {} (conn_id: {}, network: {})",
-                        anomaly.anomaly_type, anomaly.description, anomaly.connection_id, anomaly.network_id
+                        anomaly.anomaly_type,
+                        anomaly.description,
+                        anomaly.connection_id,
+                        anomaly.network_id
                     ),
                     4 => warn!(
                         "⚠️ HIGH: {} - {} (conn_id: {}, network: {})",
-                        anomaly.anomaly_type, anomaly.description, anomaly.connection_id, anomaly.network_id
+                        anomaly.anomaly_type,
+                        anomaly.description,
+                        anomaly.connection_id,
+                        anomaly.network_id
                     ),
                     3 => warn!(
                         "⚠️ MEDIUM: {} - {} (conn_id: {}, network: {})",
-                        anomaly.anomaly_type, anomaly.description, anomaly.connection_id, anomaly.network_id
+                        anomaly.anomaly_type,
+                        anomaly.description,
+                        anomaly.connection_id,
+                        anomaly.network_id
                     ),
                     _ => info!(
                         "ℹ️ LOW: {} - {} (conn_id: {}, network: {})",
-                        anomaly.anomaly_type, anomaly.description, anomaly.connection_id, anomaly.network_id
+                        anomaly.anomaly_type,
+                        anomaly.description,
+                        anomaly.connection_id,
+                        anomaly.network_id
                     ),
                 }
             }
@@ -433,7 +448,9 @@ impl SignalMonitor {
         let conn_id = signal.connection_id;
 
         let mut connections = self.connections.write().await;
-        let state = connections.entry(conn_id).or_insert_with(ConnectionState::new);
+        let state = connections
+            .entry(conn_id)
+            .or_insert_with(ConnectionState::new);
 
         if signal.typ == signal_type::ANSWER {
             state.response_sent = true;
@@ -448,9 +465,7 @@ impl SignalMonitor {
         let mut counts = self.signal_counts.write().await;
         let now = Instant::now();
 
-        let (count, first_seen) = counts
-            .entry(network_id.to_string())
-            .or_insert((0, now));
+        let (count, first_seen) = counts.entry(network_id.to_string()).or_insert((0, now));
 
         *count += 1;
 
@@ -480,7 +495,12 @@ impl SignalMonitor {
     }
 
     /// Check SDP validity.
-    fn check_sdp_validity(&self, conn_id: u64, network_id: &str, sdp: &str) -> Option<SignalAnomaly> {
+    fn check_sdp_validity(
+        &self,
+        conn_id: u64,
+        network_id: &str,
+        sdp: &str,
+    ) -> Option<SignalAnomaly> {
         // Check for required fields
         if !sdp.contains("a=ice-ufrag:") {
             return Some(SignalAnomaly {
@@ -520,7 +540,12 @@ impl SignalMonitor {
     }
 
     /// Check ICE candidate for suspicious TURN servers.
-    fn check_candidate_turn(&self, conn_id: u64, network_id: &str, candidate: &str) -> Option<SignalAnomaly> {
+    fn check_candidate_turn(
+        &self,
+        conn_id: u64,
+        network_id: &str,
+        candidate: &str,
+    ) -> Option<SignalAnomaly> {
         // Look for relay candidates (TURN servers)
         if !candidate.contains("typ relay") {
             return None;
@@ -536,9 +561,10 @@ impl SignalMonitor {
         let relay_addr = parts[4];
 
         // Check if this is an expected TURN server
-        let is_expected = self.config.expected_turn_urls.iter().any(|url| {
-            candidate.contains(url) || relay_addr.contains(&url.replace("turn:", ""))
-        });
+        let is_expected =
+            self.config.expected_turn_urls.iter().any(|url| {
+                candidate.contains(url) || relay_addr.contains(&url.replace("turn:", ""))
+            });
 
         // Also allow Microsoft Azure TURN servers (20.x.x.x range)
         // Microsoft uses these for their relay infrastructure
@@ -650,7 +676,10 @@ mod tests {
 
         let anomalies = monitor.process_incoming(&signal).await;
         assert!(!anomalies.is_empty());
-        assert!(matches!(anomalies[0].anomaly_type, AnomalyType::ErrorReceived(13)));
+        assert!(matches!(
+            anomalies[0].anomaly_type,
+            AnomalyType::ErrorReceived(13)
+        ));
         assert_eq!(anomalies[0].severity, 5);
     }
 
@@ -670,7 +699,10 @@ mod tests {
 
         let anomalies = monitor.process_incoming(&signal).await;
         assert!(!anomalies.is_empty());
-        assert!(matches!(anomalies[0].anomaly_type, AnomalyType::MalformedSdp));
+        assert!(matches!(
+            anomalies[0].anomaly_type,
+            AnomalyType::MalformedSdp
+        ));
     }
 
     #[tokio::test]
@@ -705,7 +737,10 @@ mod tests {
 
         let anomalies = monitor.process_incoming(&signal).await;
         assert!(!anomalies.is_empty());
-        assert!(matches!(anomalies[0].anomaly_type, AnomalyType::DuplicateResponse));
+        assert!(matches!(
+            anomalies[0].anomaly_type,
+            AnomalyType::DuplicateResponse
+        ));
         assert_eq!(anomalies[0].severity, 5);
     }
 }

@@ -35,14 +35,21 @@ pub fn emit_noise_params(
 
     content.push_str("impl NoiseRef {\n");
     content.push_str(&format!("    /// Total number of noise variants.\n"));
-    content.push_str(&format!("    pub const COUNT: usize = {};\n\n", noise_names.len()));
+    content.push_str(&format!(
+        "    pub const COUNT: usize = {};\n\n",
+        noise_names.len()
+    ));
     content.push_str("    pub fn params(&self) -> NoiseParamsData {\n");
     content.push_str("        match self {\n");
 
     for name in &noise_names {
         let variant = noise_name_to_variant(name);
         let params = noises.get(*name).unwrap();
-        let amps: Vec<String> = params.amplitudes.iter().map(|a| format!("{:.16}", a)).collect();
+        let amps: Vec<String> = params
+            .amplitudes
+            .iter()
+            .map(|a| format!("{:.16}", a))
+            .collect();
         content.push_str(&format!(
             "            NoiseRef::{} => NoiseParamsData {{ first_octave: {}, amplitudes: &[{}] }},\n",
             variant,
@@ -57,12 +64,19 @@ pub fn emit_noise_params(
 
     // Generate NOISE_PARAMS static array for NoiseRegistry iteration
     content.push_str("/// All noise parameters for registry initialization.\n");
-    content.push_str(&format!("pub static NOISE_PARAMS: [(NoiseRef, NoiseParamsData); {}] = [\n", noise_names.len()));
+    content.push_str(&format!(
+        "pub static NOISE_PARAMS: [(NoiseRef, NoiseParamsData); {}] = [\n",
+        noise_names.len()
+    ));
 
     for name in &noise_names {
         let variant = noise_name_to_variant(name);
         let params = noises.get(*name).unwrap();
-        let amps: Vec<String> = params.amplitudes.iter().map(|a| format!("{:.16}", a)).collect();
+        let amps: Vec<String> = params
+            .amplitudes
+            .iter()
+            .map(|a| format!("{:.16}", a))
+            .collect();
         content.push_str(&format!(
             "    (NoiseRef::{}, NoiseParamsData {{ first_octave: {}, amplitudes: &[{}] }}),\n",
             variant,

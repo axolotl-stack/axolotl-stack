@@ -32,21 +32,35 @@ fn main() {
     // Parse all JSON
     let noises = codegen::parser::noise::parse_all(&json_root.join("noise"))
         .expect("Failed to parse noise definitions");
-    let density_functions = codegen::parser::density_function::parse_all(&json_root.join("density_function"))
-        .expect("Failed to parse density functions");
-    let noise_settings = codegen::parser::noise_settings::parse_all(&json_root.join("noise_settings"))
-        .expect("Failed to parse noise settings");
+    let density_functions =
+        codegen::parser::density_function::parse_all(&json_root.join("density_function"))
+            .expect("Failed to parse density functions");
+    let noise_settings =
+        codegen::parser::noise_settings::parse_all(&json_root.join("noise_settings"))
+            .expect("Failed to parse noise settings");
     let biomes = codegen::parser::biome::parse_all(&json_root.join("biome"))
         .expect("Failed to parse biome definitions");
 
     println!("cargo:warning=Parsed {} noise definitions", noises.len());
-    println!("cargo:warning=Parsed {} density functions", density_functions.len());
-    println!("cargo:warning=Parsed {} noise settings", noise_settings.len());
+    println!(
+        "cargo:warning=Parsed {} density functions",
+        density_functions.len()
+    );
+    println!(
+        "cargo:warning=Parsed {} noise settings",
+        noise_settings.len()
+    );
     println!("cargo:warning=Parsed {} biome definitions", biomes.len());
 
     // Generate Rust code
-    codegen::emitter::emit_all(&output_dir, &noises, &density_functions, &noise_settings, &biomes)
-        .expect("Failed to emit generated code");
+    codegen::emitter::emit_all(
+        &output_dir,
+        &noises,
+        &density_functions,
+        &noise_settings,
+        &biomes,
+    )
+    .expect("Failed to emit generated code");
 
     println!("cargo:warning=Generated worldgen code in {:?}", output_dir);
 }

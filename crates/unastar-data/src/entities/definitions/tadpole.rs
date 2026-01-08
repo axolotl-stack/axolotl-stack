@@ -1,6 +1,6 @@
 //! Generated definition for entity.
-use bevy_ecs::prelude::*;
 use super::super::components::*;
+use bevy_ecs::prelude::*;
 /// Entity definition for `minecraft:tadpole`
 pub struct Tadpole;
 impl Tadpole {
@@ -41,7 +41,10 @@ pub fn spawn_tadpole(commands: &mut Commands) -> Entity {
                 width: 0.8f32,
                 height: 0.6f32,
             },
-            health: Health { value: 6i32, max: None },
+            health: Health {
+                value: 6i32,
+                max: None,
+            },
             is_baby: IsBaby,
             is_hidden_when_invisible: IsHiddenWhenInvisible,
             movement: Movement { speed: 0.1f32 },

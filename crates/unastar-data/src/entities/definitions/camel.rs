@@ -1,6 +1,6 @@
 //! Generated definition for entity.
-use bevy_ecs::prelude::*;
 use super::super::components::*;
+use bevy_ecs::prelude::*;
 /// Entity definition for `minecraft:camel`
 pub struct Camel;
 impl Camel {
@@ -44,7 +44,10 @@ pub fn spawn_camel(commands: &mut Commands) -> Entity {
                 width: 1.7f32,
                 height: 2.375f32,
             },
-            health: Health { value: 32i32, max: None },
+            health: Health {
+                value: 32i32,
+                max: None,
+            },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
             is_tamed: IsTamed,
             leashable: Leashable,

@@ -127,8 +127,8 @@ impl RaknetEncodable for Sequence24 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
     use crate::protocol::packet::RaknetEncodable;
+    use bytes::BytesMut;
 
     #[test]
     fn wraps_on_next() {
@@ -195,7 +195,7 @@ mod tests {
     #[test]
     fn distance_to_with_wrap() {
         let a = Sequence24::new(MASK - 5); // Near max
-        let b = Sequence24::new(5);         // Wrapped around
+        let b = Sequence24::new(5); // Wrapped around
         // Distance should be 11 (5 to reach 0, then 5 more, plus 1 for the wrap)
         assert_eq!(a.distance_to(b), 11);
     }

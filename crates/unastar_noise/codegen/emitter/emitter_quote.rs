@@ -3,7 +3,7 @@
 //! Generates flat Rust code that computes density values without tree traversal.
 //! This version uses `syn`/`quote` for cleaner, type-checked code generation.
 
-use super::super::analyzer::{DependencyGraph, DensityNode, NodeId};
+use super::super::analyzer::{DensityNode, DependencyGraph, NodeId};
 use super::super::parser::density_function::{
     DensityFunctionArg, DensityFunctionDef, SplineDef, SplinePoint, SplineValue,
 };
@@ -1075,8 +1075,7 @@ impl<'a> AotEmitter<'a> {
                 quote! { col.#field }
             }
 
-            DensityFunctionDef::CacheOnce { .. }
-            | DensityFunctionDef::Interpolated { .. } => {
+            DensityFunctionDef::CacheOnce { .. } | DensityFunctionDef::Interpolated { .. } => {
                 // Pass through to inner
                 self.emit_node(&node.dependencies[0])
             }
@@ -1125,7 +1124,13 @@ impl<'a> AotEmitter<'a> {
 
             DensityFunctionDef::Spline { spline } => self.emit_spline(spline),
 
-            DensityFunctionDef::OldBlendedNoise { xz_scale, y_scale, xz_factor, y_factor, smear_scale_multiplier } => {
+            DensityFunctionDef::OldBlendedNoise {
+                xz_scale,
+                y_scale,
+                xz_factor,
+                y_factor,
+                smear_scale_multiplier,
+            } => {
                 let xz_scale = *xz_scale;
                 let y_scale = *y_scale;
                 let xz_factor = *xz_factor;
@@ -1355,15 +1360,14 @@ impl<'a> AotEmitter<'a> {
                 quote! { f64x4::splat(col.#field) }
             }
 
-            DensityFunctionDef::CacheOnce { .. }
-            | DensityFunctionDef::Interpolated { .. } => self.emit_node_simd(&node.dependencies[0]),
+            DensityFunctionDef::CacheOnce { .. } | DensityFunctionDef::Interpolated { .. } => {
+                self.emit_node_simd(&node.dependencies[0])
+            }
 
             DensityFunctionDef::BlendAlpha {} => quote! { f64x4::splat(1.0_f64) },
             DensityFunctionDef::BlendOffset {} => quote! { f64x4::splat(0.0_f64) },
 
-            DensityFunctionDef::BlendDensity { .. } => {
-                self.emit_node_simd(&node.dependencies[0])
-            }
+            DensityFunctionDef::BlendDensity { .. } => self.emit_node_simd(&node.dependencies[0]),
 
             DensityFunctionDef::RangeChoice {
                 min_inclusive,
@@ -1414,7 +1418,13 @@ impl<'a> AotEmitter<'a> {
 
             DensityFunctionDef::Spline { spline } => self.emit_spline_simd(spline),
 
-            DensityFunctionDef::OldBlendedNoise { xz_scale, y_scale, xz_factor, y_factor, smear_scale_multiplier } => {
+            DensityFunctionDef::OldBlendedNoise {
+                xz_scale,
+                y_scale,
+                xz_factor,
+                y_factor,
+                smear_scale_multiplier,
+            } => {
                 let xz_scale = *xz_scale;
                 let y_scale = *y_scale;
                 let xz_factor = *xz_factor;
@@ -1891,9 +1901,8 @@ impl<'a> AotEmitter<'a> {
                 quote! { y_clamped_gradient(ctx.block_y, #fy, #ty, #fv, #tv) }
             }
             DensityFunctionDef::FlatCache { argument } => self.emit_arg_expr(argument),
-            DensityFunctionDef::Cache2D { argument } | DensityFunctionDef::CacheOnce { argument } => {
-                self.emit_arg_expr(argument)
-            }
+            DensityFunctionDef::Cache2D { argument }
+            | DensityFunctionDef::CacheOnce { argument } => self.emit_arg_expr(argument),
             _ => quote! { 0.0_f64 },
         }
     }
@@ -1917,9 +1926,8 @@ impl<'a> AotEmitter<'a> {
                 quote! { y_clamped_gradient_4(ctx.block_y, #fy, #ty, #fv, #tv) }
             }
             DensityFunctionDef::FlatCache { argument } => self.emit_arg_expr_simd(argument),
-            DensityFunctionDef::Cache2D { argument } | DensityFunctionDef::CacheOnce { argument } => {
-                self.emit_arg_expr_simd(argument)
-            }
+            DensityFunctionDef::Cache2D { argument }
+            | DensityFunctionDef::CacheOnce { argument } => self.emit_arg_expr_simd(argument),
             _ => quote! { f64x4::splat(0.0_f64) },
         }
     }
@@ -1944,9 +1952,8 @@ impl<'a> AotEmitter<'a> {
                 quote! { y_clamped_gradient(ctx.block_y[#lane_idx], #fy, #ty, #fv, #tv) }
             }
             DensityFunctionDef::FlatCache { argument } => self.emit_arg_expr_lane(argument, lane),
-            DensityFunctionDef::Cache2D { argument } | DensityFunctionDef::CacheOnce { argument } => {
-                self.emit_arg_expr_lane(argument, lane)
-            }
+            DensityFunctionDef::Cache2D { argument }
+            | DensityFunctionDef::CacheOnce { argument } => self.emit_arg_expr_lane(argument, lane),
             _ => quote! { 0.0_f64 },
         }
     }
@@ -2275,7 +2282,11 @@ impl<'a> AotEmitter<'a> {
     /// Emit a constant-only spline with deduplication.
     /// If this exact spline structure was already emitted, reuse the helper function.
     /// Otherwise, generate a new helper function and register it.
-    fn emit_fc_spline_deduplicated(&self, spline: &SplineDef, coord_expr: TokenStream) -> TokenStream {
+    fn emit_fc_spline_deduplicated(
+        &self,
+        spline: &SplineDef,
+        coord_expr: TokenStream,
+    ) -> TokenStream {
         let key = SplineKey::from_spline(spline);
 
         // Check if we already have this spline registered
@@ -2310,7 +2321,12 @@ impl<'a> AotEmitter<'a> {
         {
             let mut registry = self.fc_spline_registry.borrow_mut();
             registry.helpers.push(helper_fn);
-            registry.registry.insert(key, SplineHelper { fn_name: fn_name.clone() });
+            registry.registry.insert(
+                key,
+                SplineHelper {
+                    fn_name: fn_name.clone(),
+                },
+            );
         }
 
         // Return the function call
@@ -2485,9 +2501,8 @@ impl<'a> AotEmitter<'a> {
                 quote! { #fv }
             }
             DensityFunctionDef::FlatCache { argument } => self.emit_fc_arg(argument),
-            DensityFunctionDef::Cache2D { argument } | DensityFunctionDef::CacheOnce { argument } => {
-                self.emit_fc_arg(argument)
-            }
+            DensityFunctionDef::Cache2D { argument }
+            | DensityFunctionDef::CacheOnce { argument } => self.emit_fc_arg(argument),
             _ => quote! { 0.0_f64 },
         }
     }
@@ -2584,7 +2599,9 @@ impl<'a> AotEmitter<'a> {
         let cache_2d_ordered: Vec<&NodeId> = sorted
             .iter()
             .filter(|node_id| {
-                self.graph.nodes.get(*node_id)
+                self.graph
+                    .nodes
+                    .get(*node_id)
                     .map(|n| n.is_cache_2d)
                     .unwrap_or(false)
             })
@@ -2595,7 +2612,12 @@ impl<'a> AotEmitter<'a> {
         eprintln!("\n=== Cache2D nodes in topological order ===");
         for (i, node_id) in cache_2d_ordered.iter().enumerate() {
             if let Some(node) = self.graph.nodes.get(node_id) {
-                eprintln!("  [{}] {} - {:?}", i, node_id.0, std::mem::discriminant(&node.def));
+                eprintln!(
+                    "  [{}] {} - {:?}",
+                    i,
+                    node_id.0,
+                    std::mem::discriminant(&node.def)
+                );
             }
         }
         eprintln!("==========================================\n");
@@ -2645,7 +2667,10 @@ impl<'a> AotEmitter<'a> {
             .collect();
 
         eprintln!("=== FlatCache pre-computations for ColumnContext ===");
-        eprintln!("  {} unique FlatCache lookups will be pre-computed", used_flat_caches.len());
+        eprintln!(
+            "  {} unique FlatCache lookups will be pre-computed",
+            used_flat_caches.len()
+        );
         for node_id in &used_flat_caches {
             eprintln!("    - {}", node_id.0);
         }
@@ -2745,7 +2770,10 @@ impl<'a> AotEmitter<'a> {
         let as_scalar_impl = if field_names.is_empty() {
             quote! { ColumnContext }
         } else {
-            let extract_fields: Vec<_> = field_names.iter().map(|f| quote! { #f: self.#f.to_array()[0] }).collect();
+            let extract_fields: Vec<_> = field_names
+                .iter()
+                .map(|f| quote! { #f: self.#f.to_array()[0] })
+                .collect();
             quote! { ColumnContext { #(#extract_fields,)* } }
         };
 
@@ -2755,10 +2783,22 @@ impl<'a> AotEmitter<'a> {
             }
         } else {
             // Extract each lane and build ColumnContext
-            let extract_lane_0: Vec<_> = field_names.iter().map(|f| quote! { #f: self.#f.to_array()[0] }).collect();
-            let extract_lane_1: Vec<_> = field_names.iter().map(|f| quote! { #f: self.#f.to_array()[1] }).collect();
-            let extract_lane_2: Vec<_> = field_names.iter().map(|f| quote! { #f: self.#f.to_array()[2] }).collect();
-            let extract_lane_3: Vec<_> = field_names.iter().map(|f| quote! { #f: self.#f.to_array()[3] }).collect();
+            let extract_lane_0: Vec<_> = field_names
+                .iter()
+                .map(|f| quote! { #f: self.#f.to_array()[0] })
+                .collect();
+            let extract_lane_1: Vec<_> = field_names
+                .iter()
+                .map(|f| quote! { #f: self.#f.to_array()[1] })
+                .collect();
+            let extract_lane_2: Vec<_> = field_names
+                .iter()
+                .map(|f| quote! { #f: self.#f.to_array()[2] })
+                .collect();
+            let extract_lane_3: Vec<_> = field_names
+                .iter()
+                .map(|f| quote! { #f: self.#f.to_array()[3] })
+                .collect();
             quote! {
                 [
                     ColumnContext { #(#extract_lane_0,)* },
@@ -3043,7 +3083,12 @@ impl<'a> AotEmitter<'a> {
     /// Emit initialization expression for a cache_2d node.
     /// This computes the inner value of the cache_2d wrapper.
     fn emit_column_context_init(&self, node: &DensityNode) -> TokenStream {
-        eprintln!("emit_column_context_init: node={:?}, deps={:?}, standalone={}", node.id, node.dependencies.len(), self.column_context_standalone_mode);
+        eprintln!(
+            "emit_column_context_init: node={:?}, deps={:?}, standalone={}",
+            node.id,
+            node.dependencies.len(),
+            self.column_context_standalone_mode
+        );
 
         if node.dependencies.is_empty() {
             eprintln!("  -> No dependencies, returning 0.0");
@@ -3053,13 +3098,17 @@ impl<'a> AotEmitter<'a> {
         let inner_id = &node.dependencies[0];
         let inner_node = match self.graph.nodes.get(inner_id) {
             Some(n) => {
-                eprintln!("  -> Inner: {:?}, def type={:?}", n.id, std::mem::discriminant(&n.def));
+                eprintln!(
+                    "  -> Inner: {:?}, def type={:?}",
+                    n.id,
+                    std::mem::discriminant(&n.def)
+                );
                 n
-            },
+            }
             None => {
                 eprintln!("  -> Inner node not found!");
                 return quote! { 0.0 };
-            },
+            }
         };
 
         self.emit_column_context_inner(inner_node)
@@ -3156,12 +3205,13 @@ impl<'a> AotEmitter<'a> {
                 quote! { #field }
             }
 
-            DensityFunctionDef::CacheOnce { .. } => {
-                self.emit_cc_dep(0, node)
-            }
+            DensityFunctionDef::CacheOnce { .. } => self.emit_cc_dep(0, node),
 
             DensityFunctionDef::FlatCache { .. } => {
-                eprintln!("emit_column_context_inner: FlatCache node={:?}, standalone={}", node.id, self.column_context_standalone_mode);
+                eprintln!(
+                    "emit_column_context_inner: FlatCache node={:?}, standalone={}",
+                    node.id, self.column_context_standalone_mode
+                );
                 if self.column_context_standalone_mode {
                     // Standalone mode: inline the flat_cache computation
                     eprintln!("  -> Calling emit_flat_cache_init_for_standalone");
@@ -3262,7 +3312,10 @@ impl<'a> AotEmitter<'a> {
             // FindTopSurface is no longer handled as cache_2d
             // It will be computed as a regular root function
             _ => {
-                eprintln!("WARN: Unhandled node type in emit_column_context_inner: {:?}", std::mem::discriminant(&node.def));
+                eprintln!(
+                    "WARN: Unhandled node type in emit_column_context_inner: {:?}",
+                    std::mem::discriminant(&node.def)
+                );
                 quote! { 0.0 }
             }
         }
@@ -3413,7 +3466,7 @@ impl<'a> AotEmitter<'a> {
                 quote! { (-#v) }
             }
 
-            _ => quote! { f64x4::splat(0.0) }
+            _ => quote! { f64x4::splat(0.0) },
         }
     }
 
@@ -3469,7 +3522,11 @@ impl<'a> AotEmitter<'a> {
     /// Emit inline computation for a flat_cache node in standalone mode.
     /// This computes the flat_cache value directly without using the grid.
     fn emit_flat_cache_init_for_standalone(&self, node: &DensityNode) -> TokenStream {
-        eprintln!("emit_flat_cache_init_for_standalone: node={:?}, deps={:?}", node.id, node.dependencies.len());
+        eprintln!(
+            "emit_flat_cache_init_for_standalone: node={:?}, deps={:?}",
+            node.id,
+            node.dependencies.len()
+        );
         if node.dependencies.is_empty() {
             eprintln!("  -> No dependencies, returning 0.0");
             return quote! { 0.0 };
@@ -3478,13 +3535,17 @@ impl<'a> AotEmitter<'a> {
         let inner_id = &node.dependencies[0];
         let inner_node = match self.graph.nodes.get(inner_id) {
             Some(n) => {
-                eprintln!("  -> Inner node: {:?}, def={:?}", n.id, std::mem::discriminant(&n.def));
+                eprintln!(
+                    "  -> Inner node: {:?}, def={:?}",
+                    n.id,
+                    std::mem::discriminant(&n.def)
+                );
                 n
-            },
+            }
             None => {
                 eprintln!("  -> Inner node not found!");
                 return quote! { 0.0 };
-            },
+            }
         };
 
         self.emit_fc_inner_for_standalone(inner_node)
@@ -3498,7 +3559,11 @@ impl<'a> AotEmitter<'a> {
                 let v = *argument;
                 quote! { #v }
             }
-            DensityFunctionDef::Noise { noise, xz_scale, y_scale } => {
+            DensityFunctionDef::Noise {
+                noise,
+                xz_scale,
+                y_scale,
+            } => {
                 let noise_ref = noise_name_to_ident(noise);
                 let xs = *xz_scale;
                 let _ys = *y_scale;
@@ -3506,7 +3571,14 @@ impl<'a> AotEmitter<'a> {
                     noises.sample(NoiseRef::#noise_ref, (block_x as f64) * #xs, 0.0, (block_z as f64) * #xs)
                 }
             }
-            DensityFunctionDef::ShiftedNoise { noise, shift_x, shift_y, shift_z, xz_scale, y_scale } => {
+            DensityFunctionDef::ShiftedNoise {
+                noise,
+                shift_x,
+                shift_y,
+                shift_z,
+                xz_scale,
+                y_scale,
+            } => {
                 let noise_ref = noise_name_to_ident(noise);
                 let sx = self.emit_fc_standalone_dep(0, node);
                 let sy = self.emit_fc_standalone_dep(1, node);
@@ -3573,7 +3645,12 @@ impl<'a> AotEmitter<'a> {
                 // We need to evaluate them in standalone mode
                 self.emit_fc_standalone_spline(spline)
             }
-            DensityFunctionDef::YClampedGradient { from_y, to_y, from_value, to_value } => {
+            DensityFunctionDef::YClampedGradient {
+                from_y,
+                to_y,
+                from_value,
+                to_value,
+            } => {
                 let fy = *from_y as f64;
                 let ty = *to_y as f64;
                 let fv = *from_value;
@@ -3590,10 +3667,11 @@ impl<'a> AotEmitter<'a> {
                     }
                 }
             }
-            DensityFunctionDef::FindTopSurface {
-                ..
-            } => {
-                eprintln!("EMIT: FindTopSurface in emit_fc_inner_for_standalone, node={:?}", node.id);
+            DensityFunctionDef::FindTopSurface { .. } => {
+                eprintln!(
+                    "EMIT: FindTopSurface in emit_fc_inner_for_standalone, node={:?}",
+                    node.id
+                );
                 // TODO: Same circular dependency as in normal mode.
                 // Return 64.0 (sea level) as default for now.
                 quote! { 64.0_f64 }
@@ -3601,7 +3679,11 @@ impl<'a> AotEmitter<'a> {
             _ => {
                 // For other operations, return 0.0 as fallback
                 // Log warning for debugging
-                eprintln!("WARNING: Unhandled density function in standalone mode for node {:?}: {:?}", node.id, std::any::type_name::<DensityFunctionDef>());
+                eprintln!(
+                    "WARNING: Unhandled density function in standalone mode for node {:?}: {:?}",
+                    node.id,
+                    std::any::type_name::<DensityFunctionDef>()
+                );
                 quote! { 0.0_f64 }
             }
         }
@@ -3690,7 +3772,11 @@ impl<'a> AotEmitter<'a> {
         }
     }
 
-    fn emit_fc_standalone_spline_optimized(&self, spline: &SplineDef, coord_expr: TokenStream) -> TokenStream {
+    fn emit_fc_standalone_spline_optimized(
+        &self,
+        spline: &SplineDef,
+        coord_expr: TokenStream,
+    ) -> TokenStream {
         let values = extract_constant_values(&spline.points);
         let first_loc = spline.points[0].location;
         let last_loc = spline.points.last().unwrap().location;
@@ -3775,11 +3861,16 @@ impl<'a> AotEmitter<'a> {
         }
     }
 
-    fn emit_fc_standalone_spline_hermite(&self, spline: &SplineDef, coord_expr: TokenStream) -> TokenStream {
+    fn emit_fc_standalone_spline_hermite(
+        &self,
+        spline: &SplineDef,
+        coord_expr: TokenStream,
+    ) -> TokenStream {
         let first_loc = spline.points[0].location;
         let last_loc = spline.points.last().unwrap().location;
         let first_val_expr = self.emit_fc_standalone_spline_value(&spline.points[0].value);
-        let last_val_expr = self.emit_fc_standalone_spline_value(&spline.points.last().unwrap().value);
+        let last_val_expr =
+            self.emit_fc_standalone_spline_value(&spline.points.last().unwrap().value);
 
         let mut branches = Vec::new();
         for i in 0..spline.points.len() - 1 {
@@ -4022,7 +4113,11 @@ impl<'a> AotEmitter<'a> {
 
     /// Emit branchless 4-wide SIMD spline evaluation for constant-only splines.
     /// Uses polynomial form: a + t * (b + t * (c + t * d))
-    fn emit_cc_spline_optimized_4(&self, spline: &SplineDef, coord_expr: TokenStream) -> TokenStream {
+    fn emit_cc_spline_optimized_4(
+        &self,
+        spline: &SplineDef,
+        coord_expr: TokenStream,
+    ) -> TokenStream {
         let values = extract_constant_values(&spline.points);
         let first_loc = spline.points[0].location;
         let last_loc = spline.points.last().unwrap().location;
@@ -4282,9 +4377,8 @@ impl<'a> AotEmitter<'a> {
                 quote! { f64x4::splat(#fv) }
             }
             DensityFunctionDef::FlatCache { argument } => self.emit_cc_arg_4(argument),
-            DensityFunctionDef::Cache2D { argument } | DensityFunctionDef::CacheOnce { argument } => {
-                self.emit_cc_arg_4(argument)
-            }
+            DensityFunctionDef::Cache2D { argument }
+            | DensityFunctionDef::CacheOnce { argument } => self.emit_cc_arg_4(argument),
             _ => quote! { f64x4::splat(0.0_f64) },
         }
     }
@@ -4354,9 +4448,8 @@ impl<'a> AotEmitter<'a> {
                 quote! { #fv }
             }
             DensityFunctionDef::FlatCache { argument } => self.emit_cc_arg(argument),
-            DensityFunctionDef::Cache2D { argument } | DensityFunctionDef::CacheOnce { argument } => {
-                self.emit_cc_arg(argument)
-            }
+            DensityFunctionDef::Cache2D { argument }
+            | DensityFunctionDef::CacheOnce { argument } => self.emit_cc_arg(argument),
             _ => quote! { 0.0_f64 },
         }
     }

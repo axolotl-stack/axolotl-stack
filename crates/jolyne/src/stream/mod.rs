@@ -163,19 +163,15 @@ pub mod nethernet_types {
 
     /// Entry point for Server connection over NetherNet (WebRTC).
     pub type ServerLogin = BedrockStream<Handshake, Server, NetherNetTransport>;
-    pub type ServerSecurePending =
-        BedrockStream<SecurePending, Server, NetherNetTransport>;
-    pub type ServerResourcePacks =
-        BedrockStream<ResourcePacks, Server, NetherNetTransport>;
+    pub type ServerSecurePending = BedrockStream<SecurePending, Server, NetherNetTransport>;
+    pub type ServerResourcePacks = BedrockStream<ResourcePacks, Server, NetherNetTransport>;
     pub type ServerStartGame = BedrockStream<StartGame, Server, NetherNetTransport>;
     pub type ServerPlay = BedrockStream<Play, Server, NetherNetTransport>;
 
     /// Entry point for Client connection over NetherNet (WebRTC).
     pub type ClientLogin = BedrockStream<Handshake, Client, NetherNetTransport>;
-    pub type ClientSecurePending =
-        BedrockStream<SecurePending, Client, NetherNetTransport>;
-    pub type ClientResourcePacks =
-        BedrockStream<ResourcePacks, Client, NetherNetTransport>;
+    pub type ClientSecurePending = BedrockStream<SecurePending, Client, NetherNetTransport>;
+    pub type ClientResourcePacks = BedrockStream<ResourcePacks, Client, NetherNetTransport>;
     pub type ClientStartGame = BedrockStream<StartGame, Client, NetherNetTransport>;
     pub type ClientPlay = BedrockStream<Play, Client, NetherNetTransport>;
 }

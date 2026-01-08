@@ -292,10 +292,12 @@ mod tests {
 
     #[test]
     fn non_fire_is_not_fire() {
-        assert!(!DamageSource::Attack {
-            attacker: dummy_entity()
-        }
-        .is_fire());
+        assert!(
+            !DamageSource::Attack {
+                attacker: dummy_entity()
+            }
+            .is_fire()
+        );
         assert!(!DamageSource::Lightning.is_fire());
         assert!(!DamageSource::Explosion { source: None }.is_fire());
     }
@@ -322,11 +324,7 @@ mod tests {
         ];
 
         for source in sources {
-            assert!(
-                !source.ignores_totem(),
-                "{:?} should respect totem",
-                source
-            );
+            assert!(!source.ignores_totem(), "{:?} should respect totem", source);
         }
     }
 
@@ -350,10 +348,12 @@ mod tests {
     #[test]
     fn magic_bypasses_armor() {
         assert!(DamageSource::Magic { source: None }.bypasses_armor());
-        assert!(DamageSource::Magic {
-            source: Some(dummy_entity())
-        }
-        .bypasses_armor());
+        assert!(
+            DamageSource::Magic {
+                source: Some(dummy_entity())
+            }
+            .bypasses_armor()
+        );
     }
 
     #[test]

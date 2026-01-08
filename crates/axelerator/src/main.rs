@@ -6,7 +6,7 @@
 use anyhow::Result;
 use axelerator::{Axelerator, AxeleratorConfig};
 use clap::{Parser, Subcommand};
-use tracing_subscriber::{fmt, EnvFilter};
+use tracing_subscriber::{EnvFilter, fmt};
 
 #[derive(Parser, Debug)]
 #[command(name = "axelerator")]
@@ -172,7 +172,7 @@ async fn main() -> Result<()> {
 
             #[cfg(unix)]
             {
-                use tokio::signal::unix::{signal, SignalKind};
+                use tokio::signal::unix::{SignalKind, signal};
                 let mut sigterm = signal(SignalKind::terminate()).ok();
 
                 tokio::select! {

@@ -2,9 +2,9 @@
 //!
 //! Usage: cargo run -p unastar --example find_biomes
 
+use std::collections::HashMap;
 use unastar::world::generator::BiomeNoise;
 use unastar_noise::Biome;
-use std::collections::HashMap;
 
 fn main() {
     let seed: i64 = 0; // Change this to match your world seed
@@ -54,7 +54,12 @@ fn main() {
     ];
 
     println!("Searching for biomes (seed={})...", seed);
-    println!("Search area: {}x{} blocks, step={}", search_radius * 2, search_radius * 2, step);
+    println!(
+        "Search area: {}x{} blocks, step={}",
+        search_radius * 2,
+        search_radius * 2,
+        step
+    );
     println!();
 
     let y = 64; // Surface level

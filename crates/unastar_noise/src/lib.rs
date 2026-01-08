@@ -34,7 +34,7 @@ pub mod noise;
 pub mod xoroshiro;
 
 pub use noise::{BlendedNoise, DoublePerlinNoise, OctaveNoise, PerlinNoise, SimplexNoise};
-pub use xoroshiro::{get_seed, JavaRandom, PositionalRandomFactory, Xoroshiro128};
+pub use xoroshiro::{JavaRandom, PositionalRandomFactory, Xoroshiro128, get_seed};
 
 // Biome enum
 pub mod biome;
@@ -47,12 +47,30 @@ pub mod biome_tables;
 pub mod surface;
 pub use surface::{
     // Conditions
-    AbovePreliminarySurface, BiomeCheck, Condition, Hole, LazyCondition, NoiseThreshold, Not,
-    Steep, StoneDepthCheck, Temperature, VerticalGradient, WaterCheck, YCheck,
-    // Context
-    CaveSurface, SurfaceContext, VerticalAnchor,
+    AbovePreliminarySurface,
     // Rules
-    BandlandsRule, BlockIdRule, BlockRule, Rule, SequenceRule, TestRule,
+    BandlandsRule,
+    BiomeCheck,
+    BlockIdRule,
+    BlockRule,
+    // Context
+    CaveSurface,
+    Condition,
+    Hole,
+    LazyCondition,
+    NoiseThreshold,
+    Not,
+    Rule,
+    SequenceRule,
+    Steep,
+    StoneDepthCheck,
+    SurfaceContext,
+    Temperature,
+    TestRule,
+    VerticalAnchor,
+    VerticalGradient,
+    WaterCheck,
+    YCheck,
 };
 
 // Include generated code from OUT_DIR

@@ -85,17 +85,23 @@ fn entity_to_kdl_node(entity: &EntityDef) -> KdlNode {
 
     // Properties
     if !entity.properties.is_empty() {
-        children.nodes_mut().push(properties_to_kdl(&entity.properties));
+        children
+            .nodes_mut()
+            .push(properties_to_kdl(&entity.properties));
     }
 
     // Components
     if !entity.components.is_empty() {
-        children.nodes_mut().push(components_to_kdl(&entity.components));
+        children
+            .nodes_mut()
+            .push(components_to_kdl(&entity.components));
     }
 
     // Component groups
     if !entity.component_groups.is_empty() {
-        children.nodes_mut().push(component_groups_to_kdl(&entity.component_groups));
+        children
+            .nodes_mut()
+            .push(component_groups_to_kdl(&entity.component_groups));
     }
 
     // Events
@@ -121,7 +127,10 @@ fn properties_to_kdl(properties: &HashMap<String, PropertyDef>) -> KdlNode {
         match &prop.prop_type {
             PropertyType::Enum { values } => {
                 prop_node.push(KdlEntry::new_prop("type", KdlValue::String("enum".into())));
-                prop_node.push(KdlEntry::new_prop("client_sync", KdlValue::Bool(prop.client_sync)));
+                prop_node.push(KdlEntry::new_prop(
+                    "client_sync",
+                    KdlValue::Bool(prop.client_sync),
+                ));
 
                 let mut prop_children = KdlDocument::new();
 
@@ -140,22 +149,46 @@ fn properties_to_kdl(properties: &HashMap<String, PropertyDef>) -> KdlNode {
             }
             PropertyType::Int { range } => {
                 prop_node.push(KdlEntry::new_prop("type", KdlValue::String("int".into())));
-                prop_node.push(KdlEntry::new_prop("min", KdlValue::Integer(range.0 as i128)));
-                prop_node.push(KdlEntry::new_prop("max", KdlValue::Integer(range.1 as i128)));
-                prop_node.push(KdlEntry::new_prop("default", KdlValue::String(prop.default.clone())));
-                prop_node.push(KdlEntry::new_prop("client_sync", KdlValue::Bool(prop.client_sync)));
+                prop_node.push(KdlEntry::new_prop(
+                    "min",
+                    KdlValue::Integer(range.0 as i128),
+                ));
+                prop_node.push(KdlEntry::new_prop(
+                    "max",
+                    KdlValue::Integer(range.1 as i128),
+                ));
+                prop_node.push(KdlEntry::new_prop(
+                    "default",
+                    KdlValue::String(prop.default.clone()),
+                ));
+                prop_node.push(KdlEntry::new_prop(
+                    "client_sync",
+                    KdlValue::Bool(prop.client_sync),
+                ));
             }
             PropertyType::Float { range } => {
                 prop_node.push(KdlEntry::new_prop("type", KdlValue::String("float".into())));
                 prop_node.push(KdlEntry::new_prop("min", KdlValue::Float(range.0 as f64)));
                 prop_node.push(KdlEntry::new_prop("max", KdlValue::Float(range.1 as f64)));
-                prop_node.push(KdlEntry::new_prop("default", KdlValue::String(prop.default.clone())));
-                prop_node.push(KdlEntry::new_prop("client_sync", KdlValue::Bool(prop.client_sync)));
+                prop_node.push(KdlEntry::new_prop(
+                    "default",
+                    KdlValue::String(prop.default.clone()),
+                ));
+                prop_node.push(KdlEntry::new_prop(
+                    "client_sync",
+                    KdlValue::Bool(prop.client_sync),
+                ));
             }
             PropertyType::Bool => {
                 prop_node.push(KdlEntry::new_prop("type", KdlValue::String("bool".into())));
-                prop_node.push(KdlEntry::new_prop("default", KdlValue::Bool(prop.default == "true")));
-                prop_node.push(KdlEntry::new_prop("client_sync", KdlValue::Bool(prop.client_sync)));
+                prop_node.push(KdlEntry::new_prop(
+                    "default",
+                    KdlValue::Bool(prop.default == "true"),
+                ));
+                prop_node.push(KdlEntry::new_prop(
+                    "client_sync",
+                    KdlValue::Bool(prop.client_sync),
+                ));
             }
         }
 
@@ -174,7 +207,9 @@ fn components_to_kdl(components: &HashMap<String, ComponentValue>) -> KdlNode {
     sorted.sort_by_key(|(k, _)| *k);
 
     for (name, value) in sorted {
-        children.nodes_mut().push(component_value_to_kdl(name, value));
+        children
+            .nodes_mut()
+            .push(component_value_to_kdl(name, value));
     }
 
     node.set_children(children);
@@ -268,7 +303,9 @@ fn component_groups_to_kdl(groups: &HashMap<String, HashMap<String, ComponentVal
         sorted_comps.sort_by_key(|(k, _)| *k);
 
         for (comp_name, comp_value) in sorted_comps {
-            group_children.nodes_mut().push(component_value_to_kdl(comp_name, comp_value));
+            group_children
+                .nodes_mut()
+                .push(component_value_to_kdl(comp_name, comp_value));
         }
 
         group_node.set_children(group_children);
@@ -319,9 +356,15 @@ fn events_to_kdl(events: &HashMap<String, EventDef>) -> KdlNode {
 
             for entry in &event.randomize {
                 let mut option_node = KdlNode::new("option");
-                option_node.push(KdlEntry::new_prop("weight", KdlValue::Integer(entry.weight as i128)));
+                option_node.push(KdlEntry::new_prop(
+                    "weight",
+                    KdlValue::Integer(entry.weight as i128),
+                ));
                 if let Some(trigger) = &entry.trigger {
-                    option_node.push(KdlEntry::new_prop("trigger", KdlValue::String(trigger.clone())));
+                    option_node.push(KdlEntry::new_prop(
+                        "trigger",
+                        KdlValue::String(trigger.clone()),
+                    ));
                 }
                 rand_children.nodes_mut().push(option_node);
             }
@@ -467,9 +510,9 @@ fn get_semantic_node_name(key: &str, context: &str) -> String {
         _ => {
             // For other arrays, try to singularize or use context
             if key.ends_with("s") && key.len() > 1 {
-                key[..key.len()-1].to_string()
+                key[..key.len() - 1].to_string()
             } else if context.ends_with("s") && context.len() > 1 {
-                context[..context.len()-1].to_string()
+                context[..context.len() - 1].to_string()
             } else {
                 "entry".to_string()
             }

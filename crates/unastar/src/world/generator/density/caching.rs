@@ -17,10 +17,13 @@
 //! all values without tree traversal. The `CellInterpolator` pre-computes at cell
 //! corners and trilinearly interpolates for interior blocks.
 
-use super::types::NoiseRegistry;
 use super::lerp3;
+use super::types::NoiseRegistry;
 use std::simd::prelude::*;
-use unastar_noise::{FunctionContext, FunctionContext4, FlatCacheGrid, ColumnContextGrid, compute_final_density, compute_final_density_4};
+use unastar_noise::{
+    ColumnContextGrid, FlatCacheGrid, FunctionContext, FunctionContext4, compute_final_density,
+    compute_final_density_4,
+};
 
 /// Pre-computed XZ grid for FlatCache (Y-independent functions).
 ///
@@ -165,7 +168,11 @@ impl CellInterpolator {
             let cell_z = first_cell_z + z_idx as i32;
             let cell_start_z = cell_z * cell_width;
 
-            let slice = if use_slice0 { &mut self.slice0 } else { &mut self.slice1 };
+            let slice = if use_slice0 {
+                &mut self.slice0
+            } else {
+                &mut self.slice1
+            };
 
             // Use pre-computed ColumnContext from grid.
             // The grid is 17x17 to properly handle boundary positions (block 16) for cell interpolation.
@@ -198,7 +205,8 @@ impl CellInterpolator {
 
                 // Use AOT compiled scalar function (extract scalar from SIMD context)
                 let ctx = FunctionContext::new(cell_start_x, cell_start_y, cell_start_z);
-                slice[z_idx][y_idx] = compute_final_density(&ctx, noises, grid, &col_ctx.as_scalar());
+                slice[z_idx][y_idx] =
+                    compute_final_density(&ctx, noises, grid, &col_ctx.as_scalar());
                 y_idx += 1;
             }
         }
@@ -266,11 +274,17 @@ impl CellInterpolator {
     #[inline]
     pub fn interpolate_direct(&self, tx: f64, ty: f64, tz: f64) -> f64 {
         lerp3(
-            tx, ty, tz,
-            self.noise000, self.noise100,
-            self.noise010, self.noise110,
-            self.noise001, self.noise101,
-            self.noise011, self.noise111,
+            tx,
+            ty,
+            tz,
+            self.noise000,
+            self.noise100,
+            self.noise010,
+            self.noise110,
+            self.noise001,
+            self.noise101,
+            self.noise011,
+            self.noise111,
         )
     }
 }
@@ -403,7 +417,8 @@ impl CachingNoiseChunk {
 
     /// Select a cell by Y and Z indices.
     pub fn select_cell_yz(&mut self, cell_y: usize, cell_z: usize) {
-        self.final_density_interpolator.select_cell_yz(cell_y, cell_z);
+        self.final_density_interpolator
+            .select_cell_yz(cell_y, cell_z);
 
         self.cell_start_y = (cell_y as i32 + self.cell_noise_min_y) * self.cell_height;
         self.cell_start_z = (self.first_cell_z + cell_z as i32) * self.cell_width;

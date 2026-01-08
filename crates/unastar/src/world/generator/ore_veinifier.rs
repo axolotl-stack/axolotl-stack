@@ -28,10 +28,13 @@
 
 use crate::world::chunk::blocks;
 use crate::world::generator::density::{
-    FunctionContext, NoiseRegistry,
+    FunctionContext,
+    NoiseRegistry,
+    compute_vein_gap,
+    compute_vein_ridged,
     // These vein functions now have simplified signatures (ctx, noises) only
     // since they don't use FlatCache or Cache2D nodes
-    compute_vein_toggle, compute_vein_ridged, compute_vein_gap,
+    compute_vein_toggle,
 };
 use crate::world::generator::xoroshiro::PositionalRandomFactory;
 
@@ -145,10 +148,7 @@ impl<'a> OreVeinifier<'a> {
     /// # Arguments
     /// * `noises` - Noise registry for computing density functions
     /// * `ore_random` - Positional random factory for ore RNG (from `PositionalRandomFactory::fork_ore_random()`)
-    pub fn new(
-        noises: &'a NoiseRegistry,
-        ore_random: PositionalRandomFactory,
-    ) -> Self {
+    pub fn new(noises: &'a NoiseRegistry, ore_random: PositionalRandomFactory) -> Self {
         Self {
             noises,
             ore_random,

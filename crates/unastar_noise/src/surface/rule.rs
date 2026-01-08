@@ -133,7 +133,10 @@ impl Rule for TestRule {
 impl TestRule {
     /// Create a new test rule.
     pub fn new(condition: Box<dyn Condition>, then_run: Box<dyn Rule>) -> Self {
-        Self { condition, then_run }
+        Self {
+            condition,
+            then_run,
+        }
     }
 }
 

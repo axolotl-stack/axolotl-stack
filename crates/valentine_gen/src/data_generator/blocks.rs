@@ -139,7 +139,7 @@ pub fn generate_blocks(
         writeln!(out, "pub struct {};", struct_name)?;
         writeln!(out)?;
         writeln!(out, "impl BlockDef for {} {{", struct_name)?;
-        
+
         let id = if let Some(&legacy_id) = legacy_ids.get(&block.name) {
             legacy_id
         } else {

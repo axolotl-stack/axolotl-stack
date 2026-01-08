@@ -2,10 +2,10 @@ use bytes::Bytes;
 use futures::StreamExt;
 use std::time::Duration;
 use tokio::time::timeout;
-use tokio_raknet::{RaknetListener, RaknetStream};
-use tokio_raknet::transport::{Message, RaknetListenerConfig, RaknetStreamConfig};
 use tokio_raknet::protocol::reliability::Reliability;
 use tokio_raknet::protocol::state::RakPriority;
+use tokio_raknet::transport::{Message, RaknetListenerConfig, RaknetStreamConfig};
+use tokio_raknet::{RaknetListener, RaknetStream};
 
 #[tokio::test]
 async fn test_basic_handshake_and_exchange() {

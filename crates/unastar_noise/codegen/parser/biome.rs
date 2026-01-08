@@ -117,7 +117,12 @@ pub fn parse_all(dir: &Path) -> Result<HashMap<String, BiomeJson>, Box<dyn std::
     for entry in walkdir::WalkDir::new(dir) {
         let entry = entry?;
         if entry.path().extension().is_some_and(|e| e == "json") {
-            let name = entry.path().file_stem().unwrap().to_string_lossy().to_string();
+            let name = entry
+                .path()
+                .file_stem()
+                .unwrap()
+                .to_string_lossy()
+                .to_string();
             let content = std::fs::read_to_string(entry.path())?;
             let biome: BiomeJson = serde_json::from_str(&content)
                 .map_err(|e| format!("Failed to parse biome {}: {}", name, e))?;

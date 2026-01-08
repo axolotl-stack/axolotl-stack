@@ -1,6 +1,6 @@
 //! Generated definition for entity.
-use bevy_ecs::prelude::*;
 use super::super::components::*;
+use bevy_ecs::prelude::*;
 /// Entity definition for `minecraft:axolotl`
 pub struct Axolotl;
 impl Axolotl {
@@ -47,7 +47,10 @@ pub fn spawn_axolotl(commands: &mut Commands) -> Entity {
                 width: 0.75f32,
                 height: 0.42f32,
             },
-            health: Health { value: 14i32, max: None },
+            health: Health {
+                value: 14i32,
+                max: None,
+            },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
             leashable: Leashable,
             movement: Movement { speed: 0.1f32 },

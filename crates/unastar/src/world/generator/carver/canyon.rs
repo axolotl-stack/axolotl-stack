@@ -3,7 +3,7 @@
 //! Creates deep ravines/canyons from the surface matching vanilla Minecraft.
 
 use super::{CanyonCarverConfig, WorldCarver};
-use crate::world::chunk::{blocks, Chunk};
+use crate::world::chunk::{Chunk, blocks};
 use crate::world::generator::aquifer::FluidPicker;
 use crate::world::generator::xoroshiro::Xoroshiro128;
 use std::f64::consts::PI;
@@ -209,14 +209,21 @@ impl WorldCarver for CanyonCarver {
                     // Canyon starting position
                     let start_x = (cx * 16) as f64 + rng.next_float() as f64 * 16.0;
                     let start_y = self.config.min_y as f64
-                        + rng.next_float() as f64
-                            * (self.config.max_y - self.config.min_y) as f64;
+                        + rng.next_float() as f64 * (self.config.max_y - self.config.min_y) as f64;
                     let start_z = (cz * 16) as f64 + rng.next_float() as f64 * 16.0;
 
                     // Canyon length
                     let length = rng.next_int(40) as i32 + 50;
 
-                    self.carve_canyon(chunk, &mut rng, start_x, start_y, start_z, length, fluid_picker);
+                    self.carve_canyon(
+                        chunk,
+                        &mut rng,
+                        start_x,
+                        start_y,
+                        start_z,
+                        length,
+                        fluid_picker,
+                    );
                 }
             }
         }

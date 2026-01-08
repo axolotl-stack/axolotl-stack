@@ -2,7 +2,7 @@
 
 use bevy_ecs::prelude::*;
 
-use super::events::{EventBuffer, ActionQueue};
+use super::events::{ActionQueue, EventBuffer};
 use super::resources::*;
 use super::schedules::*;
 

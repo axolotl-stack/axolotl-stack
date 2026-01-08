@@ -187,7 +187,10 @@ impl BedrockListener<NoListener> {
 }
 
 // Compile-time check: server feature requires at least one transport
-#[cfg(all(feature = "server", not(any(feature = "raknet", feature = "nethernet"))))]
+#[cfg(all(
+    feature = "server",
+    not(any(feature = "raknet", feature = "nethernet"))
+))]
 compile_error!(
     "The `server` feature requires at least one transport feature: `raknet` or `nethernet`"
 );
@@ -442,11 +445,20 @@ impl NetherNetBuilder {
                 nethernet_id,
                 mc_token,
             } => {
-                use tokio_nethernet::{NetherNetListener, NetherNetListenerConfig, SignalMonitorConfig, XboxSignaling};
-                let monitor_config = self.signal_monitor_config.unwrap_or_else(SignalMonitorConfig::default);
-                let xbox = XboxSignaling::connect_with_url(signaling_url, nethernet_id, &mc_token, monitor_config)
-                    .await
-                    .map_err(|e| JolyneError::Transport(e.to_string()))?;
+                use tokio_nethernet::{
+                    NetherNetListener, NetherNetListenerConfig, SignalMonitorConfig, XboxSignaling,
+                };
+                let monitor_config = self
+                    .signal_monitor_config
+                    .unwrap_or_else(SignalMonitorConfig::default);
+                let xbox = XboxSignaling::connect_with_url(
+                    signaling_url,
+                    nethernet_id,
+                    &mc_token,
+                    monitor_config,
+                )
+                .await
+                .map_err(|e| JolyneError::Transport(e.to_string()))?;
                 NetherNetListener::bind_with_signaling(xbox, NetherNetListenerConfig::default())
             }
         };

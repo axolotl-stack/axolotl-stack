@@ -217,11 +217,7 @@ pub fn parse_all(
                     functions.insert(format!("minecraft:{}", name), def);
                 }
                 Err(e) => {
-                    eprintln!(
-                        "Warning: Failed to parse {}: {}",
-                        entry.path().display(),
-                        e
-                    );
+                    eprintln!("Warning: Failed to parse {}: {}", entry.path().display(), e);
                 }
             }
         }

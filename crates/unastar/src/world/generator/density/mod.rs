@@ -19,19 +19,17 @@ mod types;
 pub use types::NoiseRegistry;
 
 // Re-export types from unastar_noise
-pub use unastar_noise::{FunctionContext, FunctionContext4, RarityType, NoiseSource};
+pub use unastar_noise::{FunctionContext, FunctionContext4, NoiseSource, RarityType};
 
 // Re-export generated types (from unastar_noise)
-pub use unastar_noise::{NoiseParamsData, NoiseRef, NOISE_PARAMS};
+pub use unastar_noise::{NOISE_PARAMS, NoiseParamsData, NoiseRef};
 
 // Re-export AOT compiled functions and types from unastar_noise
 pub use unastar_noise::{
-    FlatCacheGrid, ColumnContext, ColumnContextGrid,
-    compute_barrier, compute_continents, compute_depth, compute_erosion,
-    compute_final_density, compute_final_density_4,
-    compute_fluid_level_floodedness, compute_fluid_level_spread,
-    compute_preliminary_surface_level, compute_lava,
-    compute_ridges, compute_temperature, compute_vegetation,
+    ColumnContext, ColumnContextGrid, FlatCacheGrid, compute_barrier, compute_continents,
+    compute_depth, compute_erosion, compute_final_density, compute_final_density_4,
+    compute_fluid_level_floodedness, compute_fluid_level_spread, compute_lava,
+    compute_preliminary_surface_level, compute_ridges, compute_temperature, compute_vegetation,
     compute_vein_gap, compute_vein_ridged, compute_vein_toggle,
 };
 
@@ -52,10 +50,23 @@ pub fn lerp(t: f64, a: f64, b: f64) -> f64 {
 
 // Helper for trilinear interpolation
 #[inline]
-pub fn lerp3(tx: f64, ty: f64, tz: f64, v000: f64, v100: f64, v010: f64, v110: f64, v001: f64, v101: f64, v011: f64, v111: f64) -> f64 {
-    lerp(tz,
+pub fn lerp3(
+    tx: f64,
+    ty: f64,
+    tz: f64,
+    v000: f64,
+    v100: f64,
+    v010: f64,
+    v110: f64,
+    v001: f64,
+    v101: f64,
+    v011: f64,
+    v111: f64,
+) -> f64 {
+    lerp(
+        tz,
         lerp(ty, lerp(tx, v000, v100), lerp(tx, v010, v110)),
-        lerp(ty, lerp(tx, v001, v101), lerp(tx, v011, v111))
+        lerp(ty, lerp(tx, v001, v101), lerp(tx, v011, v111)),
     )
 }
 

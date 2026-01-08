@@ -117,7 +117,11 @@ impl NetherNetListener {
         let message_tx_clone = message_tx.clone();
         tokio::spawn(async move {
             while let Some(signal) = signal_rx.recv().await {
-                if message_tx_clone.send(ActorMessage::Signal(signal)).await.is_err() {
+                if message_tx_clone
+                    .send(ActorMessage::Signal(signal))
+                    .await
+                    .is_err()
+                {
                     break;
                 }
             }
@@ -554,9 +558,10 @@ impl ListenerActor {
         // webrtc-rs doesn't include max-message-size, but Minecraft requires it.
         // Add it after sctp-port line to match the offer format.
         let fixed_sdp = if !answer.sdp.contains("a=max-message-size:") {
-            answer
-                .sdp
-                .replace("a=sctp-port:5000\r\n", "a=sctp-port:5000\r\na=max-message-size:262144\r\n")
+            answer.sdp.replace(
+                "a=sctp-port:5000\r\n",
+                "a=sctp-port:5000\r\na=max-message-size:262144\r\n",
+            )
         } else {
             answer.sdp.clone()
         };
@@ -625,7 +630,9 @@ impl ListenerActor {
             }
 
             // Clean up connection from HashMap after stream is created or failed
-            let _ = cleanup_tx.send(ActorMessage::CleanupConnection(conn_id)).await;
+            let _ = cleanup_tx
+                .send(ActorMessage::CleanupConnection(conn_id))
+                .await;
         });
 
         Ok(())

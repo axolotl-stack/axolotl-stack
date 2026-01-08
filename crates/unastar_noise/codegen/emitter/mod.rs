@@ -31,7 +31,10 @@ pub fn emit_all(
             ("fluid_level_spread", &router.fluid_level_spread),
             ("lava", &router.lava),
             // preliminary_surface_level is a find_top_surface that computes surface Y level
-            ("preliminary_surface_level", &router.preliminary_surface_level),
+            (
+                "preliminary_surface_level",
+                &router.preliminary_surface_level,
+            ),
             ("ridges", &router.ridges),
             ("temperature", &router.temperature),
             ("vegetation", &router.vegetation),

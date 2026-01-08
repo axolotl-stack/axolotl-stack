@@ -15,17 +15,11 @@ use std::collections::HashMap;
 #[serde(untagged)]
 pub enum VerticalAnchor {
     /// Y coordinate above the world bottom (min_y + offset).
-    AboveBottom {
-        above_bottom: i32,
-    },
+    AboveBottom { above_bottom: i32 },
     /// Y coordinate below the world top (max_y - offset).
-    BelowTop {
-        below_top: i32,
-    },
+    BelowTop { below_top: i32 },
     /// Absolute Y coordinate.
-    Absolute {
-        absolute: i32,
-    },
+    Absolute { absolute: i32 },
 }
 
 /// Block state from JSON.
@@ -50,9 +44,7 @@ pub struct BlockState {
 pub enum ConditionSource {
     /// Biome check - true if current biome matches any in the list.
     #[serde(rename = "minecraft:biome")]
-    Biome {
-        biome_is: Vec<String>,
-    },
+    Biome { biome_is: Vec<String> },
 
     /// Stone depth check - true if stone depth is within threshold.
     #[serde(rename = "minecraft:stone_depth")]
@@ -114,9 +106,7 @@ pub enum ConditionSource {
 
     /// Negation - inverts the inner condition.
     #[serde(rename = "minecraft:not")]
-    Not {
-        invert: Box<ConditionSource>,
-    },
+    Not { invert: Box<ConditionSource> },
 }
 
 /// Surface rule source.
@@ -128,9 +118,7 @@ pub enum ConditionSource {
 pub enum RuleSource {
     /// Sequence of rules - tries each in order until one produces a block.
     #[serde(rename = "minecraft:sequence")]
-    Sequence {
-        sequence: Vec<RuleSource>,
-    },
+    Sequence { sequence: Vec<RuleSource> },
 
     /// Conditional rule - runs `then_run` if `if_true` condition passes.
     #[serde(rename = "minecraft:condition")]
@@ -141,9 +129,7 @@ pub enum RuleSource {
 
     /// Block rule - returns a constant block state.
     #[serde(rename = "minecraft:block")]
-    Block {
-        result_state: BlockState,
-    },
+    Block { result_state: BlockState },
 
     /// Badlands terracotta banding rule.
     #[serde(rename = "minecraft:bandlands")]
@@ -194,15 +180,16 @@ mod tests {
 
         let rule: RuleSource = serde_json::from_str(json).unwrap();
         match rule {
-            RuleSource::Condition { if_true, then_run: _ } => {
-                match if_true {
-                    ConditionSource::Biome { biome_is } => {
-                        assert_eq!(biome_is.len(), 2);
-                        assert!(biome_is.contains(&"minecraft:desert".to_string()));
-                    }
-                    _ => panic!("Expected Biome condition"),
+            RuleSource::Condition {
+                if_true,
+                then_run: _,
+            } => match if_true {
+                ConditionSource::Biome { biome_is } => {
+                    assert_eq!(biome_is.len(), 2);
+                    assert!(biome_is.contains(&"minecraft:desert".to_string()));
                 }
-            }
+                _ => panic!("Expected Biome condition"),
+            },
             _ => panic!("Expected Condition rule"),
         }
     }
@@ -260,30 +247,28 @@ mod tests {
 
         let rule: RuleSource = serde_json::from_str(json).unwrap();
         match rule {
-            RuleSource::Condition { if_true, .. } => {
-                match if_true {
-                    ConditionSource::VerticalGradient {
-                        random_name,
-                        true_at_and_below,
-                        false_at_and_above,
-                    } => {
-                        assert_eq!(random_name, "minecraft:bedrock_floor");
-                        match true_at_and_below {
-                            VerticalAnchor::AboveBottom { above_bottom } => {
-                                assert_eq!(above_bottom, 0);
-                            }
-                            _ => panic!("Expected AboveBottom anchor"),
+            RuleSource::Condition { if_true, .. } => match if_true {
+                ConditionSource::VerticalGradient {
+                    random_name,
+                    true_at_and_below,
+                    false_at_and_above,
+                } => {
+                    assert_eq!(random_name, "minecraft:bedrock_floor");
+                    match true_at_and_below {
+                        VerticalAnchor::AboveBottom { above_bottom } => {
+                            assert_eq!(above_bottom, 0);
                         }
-                        match false_at_and_above {
-                            VerticalAnchor::AboveBottom { above_bottom } => {
-                                assert_eq!(above_bottom, 5);
-                            }
-                            _ => panic!("Expected AboveBottom anchor"),
-                        }
+                        _ => panic!("Expected AboveBottom anchor"),
                     }
-                    _ => panic!("Expected VerticalGradient condition"),
+                    match false_at_and_above {
+                        VerticalAnchor::AboveBottom { above_bottom } => {
+                            assert_eq!(above_bottom, 5);
+                        }
+                        _ => panic!("Expected AboveBottom anchor"),
+                    }
                 }
-            }
+                _ => panic!("Expected VerticalGradient condition"),
+            },
             _ => panic!("Expected Condition rule"),
         }
     }

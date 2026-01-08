@@ -1,6 +1,6 @@
 //! Generated definition for entity.
-use bevy_ecs::prelude::*;
 use super::super::components::*;
+use bevy_ecs::prelude::*;
 /// Entity definition for `minecraft:horse`
 pub struct Horse;
 impl Horse {
@@ -31,7 +31,10 @@ pub fn spawn_horse(commands: &mut Commands) -> Entity {
                 width: 1.4f32,
                 height: 1.6f32,
             },
-            health: Health { value: 0, max: None },
+            health: Health {
+                value: 0,
+                max: None,
+            },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
             leashable: Leashable,
             movement: Movement { speed: 0.0 },

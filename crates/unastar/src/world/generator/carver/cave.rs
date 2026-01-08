@@ -3,7 +3,7 @@
 //! Creates winding underground tunnels matching vanilla Minecraft's cave carver.
 
 use super::{CaveCarverConfig, WorldCarver};
-use crate::world::chunk::{blocks, Chunk};
+use crate::world::chunk::{Chunk, blocks};
 use crate::world::generator::aquifer::FluidPicker;
 use crate::world::generator::xoroshiro::Xoroshiro128;
 use std::f64::consts::PI;
@@ -73,8 +73,7 @@ impl CaveCarver {
             let radius_modifier = 1.0 + (progress * PI).sin() * horizontal_radius * 2.0;
             let h_rad =
                 current_h_radius * radius_modifier * self.config.horizontal_radius_multiplier;
-            let v_rad =
-                current_v_radius * radius_modifier * self.config.vertical_radius_multiplier;
+            let v_rad = current_v_radius * radius_modifier * self.config.vertical_radius_multiplier;
 
             // Move along the direction
             let cos_pitch = current_pitch.cos();

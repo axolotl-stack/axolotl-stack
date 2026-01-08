@@ -1,6 +1,6 @@
 //! Generated definition for entity.
-use bevy_ecs::prelude::*;
 use super::super::components::*;
+use bevy_ecs::prelude::*;
 /// Entity definition for `minecraft:sniffer`
 pub struct Sniffer;
 impl Sniffer {
@@ -45,7 +45,10 @@ pub fn spawn_sniffer(commands: &mut Commands) -> Entity {
                 height: 1.75f32,
             },
             follow_range: FollowRange { range: 64i32 },
-            health: Health { value: 14i32, max: None },
+            health: Health {
+                value: 14i32,
+                max: None,
+            },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
             leashable: Leashable,
             movement: Movement { speed: 0.09f32 },

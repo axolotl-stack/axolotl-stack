@@ -97,9 +97,7 @@ impl BoolOrString {
         match self {
             Self::Bool(b) => *b,
             Self::String(s) => {
-                s.eq_ignore_ascii_case("yes")
-                    || s.eq_ignore_ascii_case("true")
-                    || s == "1"
+                s.eq_ignore_ascii_case("yes") || s.eq_ignore_ascii_case("true") || s == "1"
             }
         }
     }

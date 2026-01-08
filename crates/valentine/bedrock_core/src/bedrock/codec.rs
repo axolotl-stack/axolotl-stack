@@ -979,21 +979,39 @@ mod tests {
     fn u8_decode_empty_buffer() {
         let mut reader = &[][..];
         let err = u8::decode(&mut reader, ()).unwrap_err();
-        assert!(matches!(err, DecodeError::UnexpectedEof { needed: 1, available: 0 }));
+        assert!(matches!(
+            err,
+            DecodeError::UnexpectedEof {
+                needed: 1,
+                available: 0
+            }
+        ));
     }
 
     #[test]
     fn u32_decode_insufficient_buffer() {
         let mut reader = &[0x01, 0x02][..]; // Only 2 bytes, need 4
         let err = u32::decode(&mut reader, ()).unwrap_err();
-        assert!(matches!(err, DecodeError::UnexpectedEof { needed: 4, available: 2 }));
+        assert!(matches!(
+            err,
+            DecodeError::UnexpectedEof {
+                needed: 4,
+                available: 2
+            }
+        ));
     }
 
     #[test]
     fn string_decode_insufficient_buffer() {
         let mut reader = &[0x05, b'h', b'i'][..]; // Claims length 5, only 2 bytes
         let err = String::decode(&mut reader, ()).unwrap_err();
-        assert!(matches!(err, DecodeError::StringLengthExceeded { declared: 5, available: 2 }));
+        assert!(matches!(
+            err,
+            DecodeError::StringLengthExceeded {
+                declared: 5,
+                available: 2
+            }
+        ));
     }
 
     #[test]

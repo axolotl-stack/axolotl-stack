@@ -12,8 +12,10 @@
 //! Density is evaluated at cell corners and trilinearly interpolated
 //! for interior block positions.
 
-use unastar_noise::{FunctionContext, FlatCacheGrid, ColumnContext, NoiseSource, compute_final_density};
 use super::lerp3;
+use unastar_noise::{
+    ColumnContext, FlatCacheGrid, FunctionContext, NoiseSource, compute_final_density,
+};
 
 /// Cell-based noise chunk for caching and interpolation.
 ///
@@ -143,7 +145,6 @@ impl NoiseChunk {
         self.in_cell_y = y;
         self.in_cell_z = z;
     }
-
 }
 
 /// Interpolator that caches cell corner values for trilinear interpolation.
@@ -195,14 +196,54 @@ impl CellInterpolator {
         let col01 = ColumnContext::new(base_x, base_z + w, noises, grid);
         let col11 = ColumnContext::new(base_x + w, base_z + w, noises, grid);
 
-        self.corners[0] = compute_final_density(&FunctionContext::new(base_x, base_y, base_z), noises, grid, &col00);
-        self.corners[1] = compute_final_density(&FunctionContext::new(base_x + w, base_y, base_z), noises, grid, &col10);
-        self.corners[2] = compute_final_density(&FunctionContext::new(base_x, base_y + h, base_z), noises, grid, &col00);
-        self.corners[3] = compute_final_density(&FunctionContext::new(base_x + w, base_y + h, base_z), noises, grid, &col10);
-        self.corners[4] = compute_final_density(&FunctionContext::new(base_x, base_y, base_z + w), noises, grid, &col01);
-        self.corners[5] = compute_final_density(&FunctionContext::new(base_x + w, base_y, base_z + w), noises, grid, &col11);
-        self.corners[6] = compute_final_density(&FunctionContext::new(base_x, base_y + h, base_z + w), noises, grid, &col01);
-        self.corners[7] = compute_final_density(&FunctionContext::new(base_x + w, base_y + h, base_z + w), noises, grid, &col11);
+        self.corners[0] = compute_final_density(
+            &FunctionContext::new(base_x, base_y, base_z),
+            noises,
+            grid,
+            &col00,
+        );
+        self.corners[1] = compute_final_density(
+            &FunctionContext::new(base_x + w, base_y, base_z),
+            noises,
+            grid,
+            &col10,
+        );
+        self.corners[2] = compute_final_density(
+            &FunctionContext::new(base_x, base_y + h, base_z),
+            noises,
+            grid,
+            &col00,
+        );
+        self.corners[3] = compute_final_density(
+            &FunctionContext::new(base_x + w, base_y + h, base_z),
+            noises,
+            grid,
+            &col10,
+        );
+        self.corners[4] = compute_final_density(
+            &FunctionContext::new(base_x, base_y, base_z + w),
+            noises,
+            grid,
+            &col01,
+        );
+        self.corners[5] = compute_final_density(
+            &FunctionContext::new(base_x + w, base_y, base_z + w),
+            noises,
+            grid,
+            &col11,
+        );
+        self.corners[6] = compute_final_density(
+            &FunctionContext::new(base_x, base_y + h, base_z + w),
+            noises,
+            grid,
+            &col01,
+        );
+        self.corners[7] = compute_final_density(
+            &FunctionContext::new(base_x + w, base_y + h, base_z + w),
+            noises,
+            grid,
+            &col11,
+        );
     }
 
     /// Interpolate value at the given position within the cell.
@@ -217,11 +258,17 @@ impl CellInterpolator {
         let tz = z as f64 / self.cell_width as f64;
 
         lerp3(
-            tx, ty, tz,
-            self.corners[0], self.corners[1],
-            self.corners[2], self.corners[3],
-            self.corners[4], self.corners[5],
-            self.corners[6], self.corners[7],
+            tx,
+            ty,
+            tz,
+            self.corners[0],
+            self.corners[1],
+            self.corners[2],
+            self.corners[3],
+            self.corners[4],
+            self.corners[5],
+            self.corners[6],
+            self.corners[7],
         )
     }
 }

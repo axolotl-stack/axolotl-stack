@@ -27,15 +27,23 @@ use std::collections::HashMap;
 
 use crate::world::chunk::blocks;
 use crate::world::generator::density::{
-    FunctionContext, FlatCacheGrid, ColumnContext, ColumnContextGrid, NoiseRegistry,
-    compute_erosion, compute_depth,
-    compute_preliminary_surface_level,
+    ColumnContext,
+    ColumnContextGrid,
+    FlatCacheGrid,
+    FunctionContext,
+    NoiseRegistry,
     // These aquifer noise functions now have simplified signatures (ctx, noises) only
     // since they don't use FlatCache or Cache2D nodes
-    compute_barrier, compute_fluid_level_floodedness, compute_fluid_level_spread, compute_lava,
+    compute_barrier,
+    compute_depth,
+    compute_erosion,
+    compute_fluid_level_floodedness,
+    compute_fluid_level_spread,
+    compute_lava,
+    compute_preliminary_surface_level,
 };
-use unastar_noise::NoiseSource;
 use crate::world::generator::xoroshiro::PositionalRandomFactory;
+use unastar_noise::NoiseSource;
 
 // ========== Constants ==========
 
@@ -416,9 +424,9 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
         // Java: int q = gridY(p + 12) - -1 = gridY(p + 12) + 1
         // Java: this.skipSamplingAboveY = fromGridY(q, 11) - 1
         // Note: Java uses 11 (Y_SPACING - 1 = 12 - 1) as offset to get max Y in cell
-        let adjusted_surface = max_surface + 8;  // Java: adjustSurfaceLevel()
-        let skip_grid_y = grid_y(adjusted_surface + 12) + 1;  // Java: gridY(p + 12) - -1
-        let skip_sampling_above_y = from_grid_y(skip_grid_y, Y_SPACING - 1) - 1;  // Java: fromGridY(q, 11) - 1
+        let adjusted_surface = max_surface + 8; // Java: adjustSurfaceLevel()
+        let skip_grid_y = grid_y(adjusted_surface + 12) + 1; // Java: gridY(p + 12) - -1
+        let skip_sampling_above_y = from_grid_y(skip_grid_y, Y_SPACING - 1) - 1; // Java: fromGridY(q, 11) - 1
 
         // Create positional random factory from seed
         // Java: this.positionalRandomFactory = positionalRandomFactory (passed from RandomState)
@@ -597,7 +605,8 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
                             .entry((chunk_x, chunk_z))
                             .or_insert_with(|| FlatCacheGrid::new(chunk_x, chunk_z, noises));
                         let col = ColumnContext::new(quart_x, quart_z, noises, sample_grid);
-                        compute_preliminary_surface_level(&ctx, noises, sample_grid, &col).floor() as i32
+                        compute_preliminary_surface_level(&ctx, noises, sample_grid, &col).floor()
+                            as i32
                     }
                 });
 
@@ -618,7 +627,9 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
         let z = grid_z - self.min_grid_z;
 
         // Bounds check before computing index
-        if x < 0 || y < 0 || z < 0
+        if x < 0
+            || y < 0
+            || z < 0
             || x >= self.grid_size_x
             || y >= self.grid_size_y
             || z >= self.grid_size_z
@@ -751,7 +762,8 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
         // Calculate pressure for blending
         let fluid2 = self.get_aquifer_status(closest_indices[1]);
         let mut barrier_value = f64::NAN;
-        let pressure1 = similarity * self.calculate_pressure(ctx, &col, &mut barrier_value, &fluid1, &fluid2);
+        let pressure1 =
+            similarity * self.calculate_pressure(ctx, &col, &mut barrier_value, &fluid1, &fluid2);
 
         if density + pressure1 > 0.0 {
             self.should_schedule_fluid_update = false;
@@ -762,7 +774,9 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
         let fluid3 = self.get_aquifer_status(closest_indices[2]);
         let similarity2 = self.similarity(closest_distances[0], closest_distances[2]);
         if similarity2 > 0.0 {
-            let pressure2 = similarity * similarity2 * self.calculate_pressure(ctx, &col, &mut barrier_value, &fluid1, &fluid3);
+            let pressure2 = similarity
+                * similarity2
+                * self.calculate_pressure(ctx, &col, &mut barrier_value, &fluid1, &fluid3);
             if density + pressure2 > 0.0 {
                 self.should_schedule_fluid_update = false;
                 return None;
@@ -772,7 +786,9 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
         // Check blending between second and third
         let similarity3 = self.similarity(closest_distances[1], closest_distances[2]);
         if similarity3 > 0.0 {
-            let pressure3 = similarity * similarity3 * self.calculate_pressure(ctx, &col, &mut barrier_value, &fluid2, &fluid3);
+            let pressure3 = similarity
+                * similarity3
+                * self.calculate_pressure(ctx, &col, &mut barrier_value, &fluid2, &fluid3);
             if density + pressure3 > 0.0 {
                 self.should_schedule_fluid_update = false;
                 return None;
@@ -797,7 +813,8 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
         if !different_12 && !different_23_sim && !different_13_sim {
             // Check 4th aquifer
             let similarity4 = self.similarity(closest_distances[0], closest_distances[3]);
-            if similarity2 >= flowing_update_similarity && similarity4 >= flowing_update_similarity {
+            if similarity2 >= flowing_update_similarity && similarity4 >= flowing_update_similarity
+            {
                 let fluid4 = self.get_aquifer_status(closest_indices[3]);
                 self.should_schedule_fluid_update = fluid1 != fluid4;
             } else {
@@ -866,7 +883,9 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
 
         // Sample surface level at 13 nearby positions (matches Java's SURFACE_SAMPLING_OFFSETS_IN_CHUNKS)
         // These positions can be up to 3 chunks away, so we use the neighbor grid cache.
-        for (i, [chunk_offset_x, chunk_offset_z]) in SURFACE_SAMPLING_OFFSETS_IN_CHUNKS.iter().enumerate() {
+        for (i, [chunk_offset_x, chunk_offset_z]) in
+            SURFACE_SAMPLING_OFFSETS_IN_CHUNKS.iter().enumerate()
+        {
             let sample_x = x + chunk_offset_x * 16; // Java: o = i + SectionPos.sectionToBlockCoord(is[0])
             let sample_z = z + chunk_offset_z * 16; // Java: p = k + SectionPos.sectionToBlockCoord(is[1])
 
@@ -878,19 +897,23 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
             let quart_z = (sample_z >> 2) << 2;
 
             // PERFORMANCE CRITICAL: Check cache first to avoid expensive ColumnContext creation
-            let raw_surface = if let Some(&cached) = self.preliminary_surface_cache.get(&(quart_x, quart_z)) {
-                cached
-            } else {
-                // Cache miss - compute and store using cached ColumnContext
-                let ctx = FunctionContext::new(quart_x, 0, quart_z);
-                let col = self.get_or_create_column_context(quart_x, quart_z);
-                let sample_chunk_x = quart_x >> 4;
-                let sample_chunk_z = quart_z >> 4;
-                let sample_grid = self.get_cached_grid(sample_chunk_x, sample_chunk_z);
-                let computed = compute_preliminary_surface_level(&ctx, self.noises, sample_grid, &col).floor() as i32;
-                self.preliminary_surface_cache.insert((quart_x, quart_z), computed);
-                computed
-            };
+            let raw_surface =
+                if let Some(&cached) = self.preliminary_surface_cache.get(&(quart_x, quart_z)) {
+                    cached
+                } else {
+                    // Cache miss - compute and store using cached ColumnContext
+                    let ctx = FunctionContext::new(quart_x, 0, quart_z);
+                    let col = self.get_or_create_column_context(quart_x, quart_z);
+                    let sample_chunk_x = quart_x >> 4;
+                    let sample_chunk_z = quart_z >> 4;
+                    let sample_grid = self.get_cached_grid(sample_chunk_x, sample_chunk_z);
+                    let computed =
+                        compute_preliminary_surface_level(&ctx, self.noises, sample_grid, &col)
+                            .floor() as i32;
+                    self.preliminary_surface_cache
+                        .insert((quart_x, quart_z), computed);
+                    computed
+                };
             let adjusted_surface = raw_surface + 8; // Java: r = this.adjustSurfaceLevel(q)
 
             let is_at_our_position = i == 0; // Java: bl2 = is[0] == 0 && is[1] == 0
@@ -909,7 +932,9 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
             if is_above_adjusted_surface || is_at_our_position {
                 // Get fluid at surface level
                 // Java: FluidStatus fluidStatus2 = this.globalFluidPicker.computeFluid(o, r, p)
-                let surface_fluid = self.global_fluid_picker.compute_fluid(sample_x, adjusted_surface, sample_z);
+                let surface_fluid =
+                    self.global_fluid_picker
+                        .compute_fluid(sample_x, adjusted_surface, sample_z);
 
                 // Java: if (!fluidStatus2.at(r).isAir()) { ... }
                 if surface_fluid.at(adjusted_surface) != *blocks::AIR {
@@ -930,10 +955,20 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
         }
 
         // Java: int s = this.computeSurfaceLevel(i, j, k, fluidStatus, l, bl)
-        let fluid_level = self.compute_surface_level(x, y, z, &global_fluid, min_surface_raw, is_below_surface_with_fluid);
+        let fluid_level = self.compute_surface_level(
+            x,
+            y,
+            z,
+            &global_fluid,
+            min_surface_raw,
+            is_below_surface_with_fluid,
+        );
 
         // Java: return new Aquifer.FluidStatus(s, this.computeFluidType(i, j, k, fluidStatus, s))
-        FluidStatus::new(fluid_level, self.compute_fluid_type(x, y, z, &global_fluid, fluid_level))
+        FluidStatus::new(
+            fluid_level,
+            self.compute_fluid_type(x, y, z, &global_fluid, fluid_level),
+        )
     }
 
     /// Compute the fluid surface level for an aquifer.
@@ -1045,7 +1080,14 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
     /// Determine fluid type (water or lava) at a position.
     ///
     /// Note: Uses grid-divided coordinates for coarse sampling, but chunk/column from original coords.
-    fn compute_fluid_type(&mut self, x: i32, y: i32, z: i32, global_fluid: &FluidStatus, fluid_level: i32) -> FluidType {
+    fn compute_fluid_type(
+        &mut self,
+        x: i32,
+        y: i32,
+        z: i32,
+        global_fluid: &FluidStatus,
+        fluid_level: i32,
+    ) -> FluidType {
         // If global fluid is already lava, use it
         if global_fluid.fluid_type == FluidType::Lava {
             return FluidType::Lava;
@@ -1128,9 +1170,9 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
         // double o = f - Math.abs(e)           // halfDiff - |signedOffset|
         // Use f64 arithmetic to prevent i32 overflow when one level is WAY_BELOW_MIN_Y
         let avg_level = (fluid1.fluid_level as f64 + fluid2.fluid_level as f64) * 0.5;
-        let signed_offset = y as f64 + 0.5 - avg_level;  // Java's 'e'
-        let half_diff = level_diff as f64 * 0.5;          // Java's 'f'
-        let o = half_diff - signed_offset.abs();          // Java's 'o'
+        let signed_offset = y as f64 + 0.5 - avg_level; // Java's 'e'
+        let half_diff = level_diff as f64 * 0.5; // Java's 'f'
+        let o = half_diff - signed_offset.abs(); // Java's 'o'
 
         // Java formula (lines 325-338):
         // if (e > 0.0) {          // above midpoint

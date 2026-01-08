@@ -713,9 +713,8 @@ impl SessionClient {
         // Get current session state
         let json = self.get_session(token, &session.session_id).await?;
 
-        let actual = Self::parse_session_snapshot(&json).ok_or_else(|| {
-            XblError::XboxLive("Failed to parse session response".into())
-        })?;
+        let actual = Self::parse_session_snapshot(&json)
+            .ok_or_else(|| XblError::XboxLive("Failed to parse session response".into()))?;
 
         let result = expected.compare(&actual);
 
@@ -909,7 +908,10 @@ impl SessionClient {
                 session_id: verification.actual_session_id.clone().unwrap_or_default(),
                 reason: format!(
                     "Handle redirected to different session: {}",
-                    verification.actual_session_id.as_deref().unwrap_or("unknown")
+                    verification
+                        .actual_session_id
+                        .as_deref()
+                        .unwrap_or("unknown")
                 ),
             });
         }

@@ -3,8 +3,8 @@
 //! Run with: cargo run --example test_density
 
 use unastar::world::generator::density::{
-    NoiseRegistry, FlatCacheGrid, ColumnContext, FunctionContext,
-    compute_final_density, compute_preliminary_surface_level,
+    ColumnContext, FlatCacheGrid, FunctionContext, NoiseRegistry, compute_final_density,
+    compute_preliminary_surface_level,
 };
 use unastar_noise::NoiseSource;
 
@@ -40,13 +40,20 @@ fn main() {
     println!("\n\nTesting preliminary_surface_level with grid-based ColumnContext:");
     let ctx = FunctionContext::new(block_x, 64, block_z);
     let surface_y = compute_preliminary_surface_level(&ctx, &noises, &grid, &col);
-    println!("preliminary_surface_level({}, 64, {}) = {} (using ColumnContext::new with grid)", block_x, block_z, surface_y);
+    println!(
+        "preliminary_surface_level({}, 64, {}) = {} (using ColumnContext::new with grid)",
+        block_x, block_z, surface_y
+    );
 
     // Test with standalone ColumnContext (like aquifer uses)
     println!("\nTesting preliminary_surface_level with standalone ColumnContext:");
     let col_standalone = ColumnContext::new_standalone(block_x, block_z, &noises);
-    let surface_y_standalone = compute_preliminary_surface_level(&ctx, &noises, &grid, &col_standalone);
-    println!("preliminary_surface_level({}, 64, {}) = {} (using ColumnContext::new_standalone)", block_x, block_z, surface_y_standalone);
+    let surface_y_standalone =
+        compute_preliminary_surface_level(&ctx, &noises, &grid, &col_standalone);
+    println!(
+        "preliminary_surface_level({}, 64, {}) = {} (using ColumnContext::new_standalone)",
+        block_x, block_z, surface_y_standalone
+    );
 
     println!("\n\nExpected: Surface should be around y=60-80 for ocean/plains terrain");
     println!("Actual: {}", surface_y);

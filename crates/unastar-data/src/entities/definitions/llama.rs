@@ -1,6 +1,6 @@
 //! Generated definition for entity.
-use bevy_ecs::prelude::*;
 use super::super::components::*;
+use bevy_ecs::prelude::*;
 /// Entity definition for `minecraft:llama`
 pub struct Llama;
 impl Llama {
@@ -43,7 +43,10 @@ pub fn spawn_llama(commands: &mut Commands) -> Entity {
                 height: 1.87f32,
             },
             follow_range: FollowRange { range: 40i32 },
-            health: Health { value: 0, max: None },
+            health: Health {
+                value: 0,
+                max: None,
+            },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
             leashable: Leashable,
             movement: Movement { speed: 0.25f32 },

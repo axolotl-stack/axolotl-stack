@@ -295,4 +295,3 @@ impl GameServer {
         debug!("Sent UI inventory (51 slots, window=124): {:?}", result);
     }
 }
-

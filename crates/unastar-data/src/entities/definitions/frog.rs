@@ -1,6 +1,6 @@
 //! Generated definition for entity.
-use bevy_ecs::prelude::*;
 use super::super::components::*;
+use bevy_ecs::prelude::*;
 /// Entity definition for `minecraft:frog`
 pub struct Frog;
 impl Frog {
@@ -41,7 +41,10 @@ pub fn spawn_frog(commands: &mut Commands) -> Entity {
                 width: 0.5f32,
                 height: 0.55f32,
             },
-            health: Health { value: 10i32, max: None },
+            health: Health {
+                value: 10i32,
+                max: None,
+            },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
             leashable: Leashable,
             movement: Movement { speed: 0.1f32 },

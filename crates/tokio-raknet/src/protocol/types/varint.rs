@@ -91,15 +91,15 @@ mod tests {
     fn varuint_boundary_encoding_sizes() {
         // Test encoding produces correct byte counts at boundaries
         let test_cases: &[(u64, usize)] = &[
-            (0, 1),           // 1 byte: 0-127
-            (127, 1),         // max 1 byte
-            (128, 2),         // min 2 bytes
-            (16383, 2),       // max 2 bytes (2^14 - 1)
-            (16384, 3),       // min 3 bytes
-            (2097151, 3),     // max 3 bytes (2^21 - 1)
-            (2097152, 4),     // min 4 bytes
-            (268435455, 4),   // max 4 bytes (2^28 - 1)
-            (268435456, 5),   // min 5 bytes
+            (0, 1),         // 1 byte: 0-127
+            (127, 1),       // max 1 byte
+            (128, 2),       // min 2 bytes
+            (16383, 2),     // max 2 bytes (2^14 - 1)
+            (16384, 3),     // min 3 bytes
+            (2097151, 3),   // max 3 bytes (2^21 - 1)
+            (2097152, 4),   // min 4 bytes
+            (268435455, 4), // max 4 bytes (2^28 - 1)
+            (268435456, 5), // min 5 bytes
         ];
 
         for &(value, expected_bytes) in test_cases {
@@ -177,13 +177,7 @@ mod tests {
 
     #[test]
     fn varuint_large_values() {
-        let large_values: &[u64] = &[
-            u64::MAX,
-            u64::MAX - 1,
-            u64::MAX / 2,
-            1 << 62,
-            1 << 56,
-        ];
+        let large_values: &[u64] = &[u64::MAX, u64::MAX - 1, u64::MAX / 2, 1 << 62, 1 << 56];
 
         for &value in large_values {
             let mut buf = BytesMut::new();
@@ -224,15 +218,7 @@ mod tests {
     #[test]
     fn zigzag_encoding_pattern() {
         // Verify zig-zag encoding: 0 -> 0, -1 -> 1, 1 -> 2, -2 -> 3, etc.
-        let cases: &[(i64, u64)] = &[
-            (0, 0),
-            (-1, 1),
-            (1, 2),
-            (-2, 3),
-            (2, 4),
-            (-3, 5),
-            (3, 6),
-        ];
+        let cases: &[(i64, u64)] = &[(0, 0), (-1, 1), (1, 2), (-2, 3), (2, 4), (-3, 5), (3, 6)];
 
         for &(signed, expected_unsigned) in cases {
             // Encode the signed value

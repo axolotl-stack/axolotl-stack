@@ -1,6 +1,6 @@
 //! Generated definition for entity.
-use bevy_ecs::prelude::*;
 use super::super::components::*;
+use bevy_ecs::prelude::*;
 /// Entity definition for `minecraft:polar_bear`
 pub struct PolarBear;
 impl PolarBear {
@@ -45,7 +45,10 @@ pub fn spawn_polar_bear(commands: &mut Commands) -> Entity {
                 height: 1.4f32,
             },
             follow_range: FollowRange { range: 48i32 },
-            health: Health { value: 30i32, max: None },
+            health: Health {
+                value: 30i32,
+                max: None,
+            },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
             leashable: Leashable,
             movement: Movement { speed: 0.25f32 },

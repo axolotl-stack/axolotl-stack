@@ -10,7 +10,7 @@ use unastar_noise::noise::DoublePerlinNoise;
 use unastar_noise::surface::{Rule, SurfaceContext};
 use unastar_noise::xoroshiro::Xoroshiro128;
 
-use crate::world::chunk::{blocks, Chunk};
+use crate::world::chunk::{Chunk, blocks};
 use crate::world::generator::climate::BiomeNoise;
 
 /// System for applying surface rules to terrain.
@@ -67,11 +67,7 @@ impl SurfaceSystem {
     /// Get secondary surface noise value.
     pub fn get_surface_secondary(&self, x: i32, z: i32) -> f64 {
         // Return 0-1 range
-        (self
-            .surface_secondary_noise
-            .sample(x as f64, 0.0, z as f64)
-            + 1.0)
-            / 2.0
+        (self.surface_secondary_noise.sample(x as f64, 0.0, z as f64) + 1.0) / 2.0
     }
 
     /// SIMD: Get surface depth for 4 positions at once.
@@ -89,7 +85,9 @@ impl SurfaceSystem {
     #[inline]
     pub fn get_surface_secondary_4(&self, x: f64x4, z: f64x4) -> f64x4 {
         use std::simd::prelude::*;
-        let noise = self.surface_secondary_noise.sample_4(x, f64x4::splat(0.0), z);
+        let noise = self
+            .surface_secondary_noise
+            .sample_4(x, f64x4::splat(0.0), z);
         // (noise + 1.0) / 2.0
         (noise + f64x4::splat(1.0)) * f64x4::splat(0.5)
     }
@@ -251,8 +249,8 @@ impl std::fmt::Debug for SurfaceSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use unastar_noise::surface::{BiomeCheck, BlockRule, SequenceRule, TestRule};
     use unastar_noise::Biome;
+    use unastar_noise::surface::{BiomeCheck, BlockRule, SequenceRule, TestRule};
 
     fn create_test_system() -> SurfaceSystem {
         let seed = 12345i64;

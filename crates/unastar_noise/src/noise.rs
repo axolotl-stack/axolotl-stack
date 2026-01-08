@@ -4,8 +4,8 @@
 //! Uses portable SIMD for cross-platform vectorization.
 
 use super::xoroshiro::Xoroshiro128;
-use std::simd::prelude::*;
 use std::simd::StdFloat;
+use std::simd::prelude::*;
 
 /// 3D Perlin noise generator - cubiomes-accurate implementation.
 #[derive(Debug, Clone)]
@@ -137,7 +137,12 @@ impl PerlinNoise {
         let l5 = indexed_lerp(idx[((a2 + 1) & 255) as usize] & 15, d1, d2, d3 - 1.0);
         let l6 = indexed_lerp(idx[((b2 + 1) & 255) as usize] & 15, d1 - 1.0, d2, d3 - 1.0);
         let l7 = indexed_lerp(idx[((a3 + 1) & 255) as usize] & 15, d1, d2 - 1.0, d3 - 1.0);
-        let l8 = indexed_lerp(idx[((b3 + 1) & 255) as usize] & 15, d1 - 1.0, d2 - 1.0, d3 - 1.0);
+        let l8 = indexed_lerp(
+            idx[((b3 + 1) & 255) as usize] & 15,
+            d1 - 1.0,
+            d2 - 1.0,
+            d3 - 1.0,
+        );
 
         // Trilinear interpolation
         let l1 = lerp(t1, l1, l2);
@@ -184,17 +189,17 @@ impl PerlinNoise {
     pub fn sample_smeared(&self, x: f64, y: f64, z: f64, y_scale: f64, y_orig: f64) -> f64 {
         // Add offsets (only to the sampling coordinates, NOT to y_orig)
         let d1 = x + self.a;
-        let d2_raw = y + self.b;  // Java: j = e + this.yo
+        let d2_raw = y + self.b; // Java: j = e + this.yo
         let d3 = z + self.c;
 
         // Floor
         let i1 = d1.floor();
-        let i2 = d2_raw.floor();  // Java: m = Mth.floor(j)
+        let i2 = d2_raw.floor(); // Java: m = Mth.floor(j)
         let i3 = d3.floor();
 
         // Fractional parts
         let d1 = d1 - i1;
-        let d2 = d2_raw - i2;  // Java: p = j - m (fractional y after offset)
+        let d2 = d2_raw - i2; // Java: p = j - m (fractional y after offset)
         let d3 = d3 - i3;
 
         // h in Java is NOT offset by yo - it's used directly for comparison
@@ -221,7 +226,7 @@ impl PerlinNoise {
 
         // Smoothstep uses ORIGINAL d2 (not smeared)
         let t1 = d1 * d1 * d1 * (d1 * (d1 * 6.0 - 15.0) + 10.0);
-        let t2 = d2 * d2 * d2 * (d2 * (d2 * 6.0 - 15.0) + 10.0);  // original d2
+        let t2 = d2 * d2 * d2 * (d2 * (d2 * 6.0 - 15.0) + 10.0); // original d2
         let t3 = d3 * d3 * d3 * (d3 * (d3 * 6.0 - 15.0) + 10.0);
 
         let idx = &self.d;
@@ -240,10 +245,30 @@ impl PerlinNoise {
         let l2 = indexed_lerp(idx[b2 as usize] & 15, d1 - 1.0, d2_smeared, d3);
         let l3 = indexed_lerp(idx[a3 as usize] & 15, d1, d2_smeared - 1.0, d3);
         let l4 = indexed_lerp(idx[b3 as usize] & 15, d1 - 1.0, d2_smeared - 1.0, d3);
-        let l5 = indexed_lerp(idx[((a2 + 1) & 255) as usize] & 15, d1, d2_smeared, d3 - 1.0);
-        let l6 = indexed_lerp(idx[((b2 + 1) & 255) as usize] & 15, d1 - 1.0, d2_smeared, d3 - 1.0);
-        let l7 = indexed_lerp(idx[((a3 + 1) & 255) as usize] & 15, d1, d2_smeared - 1.0, d3 - 1.0);
-        let l8 = indexed_lerp(idx[((b3 + 1) & 255) as usize] & 15, d1 - 1.0, d2_smeared - 1.0, d3 - 1.0);
+        let l5 = indexed_lerp(
+            idx[((a2 + 1) & 255) as usize] & 15,
+            d1,
+            d2_smeared,
+            d3 - 1.0,
+        );
+        let l6 = indexed_lerp(
+            idx[((b2 + 1) & 255) as usize] & 15,
+            d1 - 1.0,
+            d2_smeared,
+            d3 - 1.0,
+        );
+        let l7 = indexed_lerp(
+            idx[((a3 + 1) & 255) as usize] & 15,
+            d1,
+            d2_smeared - 1.0,
+            d3 - 1.0,
+        );
+        let l8 = indexed_lerp(
+            idx[((b3 + 1) & 255) as usize] & 15,
+            d1 - 1.0,
+            d2_smeared - 1.0,
+            d3 - 1.0,
+        );
 
         // Trilinear interpolation
         let l1 = lerp(t1, l1, l2);
@@ -270,7 +295,14 @@ impl PerlinNoise {
     /// * `y_scale` - Smear scale (same for all lanes)
     /// * `y_orig` - Original Y values for clamping comparison (NOT offset by yo)
     #[inline]
-    pub fn sample_smeared_4(&self, x: f64x4, y: f64x4, z: f64x4, y_scale: f64, y_orig: f64x4) -> f64x4 {
+    pub fn sample_smeared_4(
+        &self,
+        x: f64x4,
+        y: f64x4,
+        z: f64x4,
+        y_scale: f64,
+        y_orig: f64x4,
+    ) -> f64x4 {
         let one = f64x4::splat(1.0);
         let zero = f64x4::splat(0.0);
         let mask_255 = i32x4::splat(255);
@@ -288,7 +320,7 @@ impl PerlinNoise {
 
         // Fractional parts
         let d1 = d1_vec - i1_vec;
-        let d2 = d2_raw - i2_vec;  // Original fractional Y (for smoothstep)
+        let d2 = d2_raw - i2_vec; // Original fractional Y (for smoothstep)
         let d3 = d3_vec - i3_vec;
 
         // Compute smeared d2 for gradient computation
@@ -321,7 +353,7 @@ impl PerlinNoise {
 
         // Compute smoothstep using ORIGINAL d2 (not smeared)
         let t1 = smoothstep_simd(d1);
-        let t2 = smoothstep_simd(d2);  // Original d2 for smoothstep
+        let t2 = smoothstep_simd(d2); // Original d2 for smoothstep
         let t3 = smoothstep_simd(d3);
 
         // --- HASHING using gather ---
@@ -497,11 +529,7 @@ impl PerlinNoise {
     /// Convenience: sample 4 points with arrays (converts to SIMD internally).
     #[inline]
     pub fn sample_4_arrays(&self, x: [f64; 4], y: f64, z: [f64; 4]) -> [f64; 4] {
-        let result = self.sample_4(
-            f64x4::from_array(x),
-            f64x4::splat(y),
-            f64x4::from_array(z),
-        );
+        let result = self.sample_4(f64x4::from_array(x), f64x4::splat(y), f64x4::from_array(z));
         result.to_array()
     }
 }
@@ -716,11 +744,7 @@ impl OctaveNoise {
     /// Convenience: sample 4 points with arrays.
     #[inline]
     pub fn sample_4_arrays(&self, x: [f64; 4], y: f64, z: [f64; 4]) -> [f64; 4] {
-        let result = self.sample_4(
-            f64x4::from_array(x),
-            f64x4::splat(y),
-            f64x4::from_array(z),
-        );
+        let result = self.sample_4(f64x4::from_array(x), f64x4::splat(y), f64x4::from_array(z));
         result.to_array()
     }
 }
@@ -834,11 +858,7 @@ impl DoublePerlinNoise {
     /// Convenience: sample 4 points with arrays.
     #[inline]
     pub fn sample_4_arrays(&self, x: [f64; 4], y: f64, z: [f64; 4]) -> [f64; 4] {
-        let result = self.sample_4(
-            f64x4::from_array(x),
-            f64x4::splat(y),
-            f64x4::from_array(z),
-        );
+        let result = self.sample_4(f64x4::from_array(x), f64x4::splat(y), f64x4::from_array(z));
         result.to_array()
     }
 }
@@ -908,8 +928,8 @@ impl BlendedNoise {
 
         // Java: j = yMultiplier * smearScaleMultiplier = 684.412 * y_scale * smear
         // Java: k = j / yFactor (smear scale for main noise)
-        let limit_smear_scale = Self::BASE_SCALE * y_scale * smear_scale_multiplier;  // j
-        let main_smear_scale = limit_smear_scale / y_factor;  // k
+        let limit_smear_scale = Self::BASE_SCALE * y_scale * smear_scale_multiplier; // j
+        let main_smear_scale = limit_smear_scale / y_factor; // k
 
         Self {
             min_limit,
@@ -919,8 +939,8 @@ impl BlendedNoise {
             y_multiplier: Self::BASE_SCALE * y_scale,
             xz_factor,
             y_factor,
-            limit_smear_scale,  // j - for limit noises
-            main_smear_scale,   // k - for main noise
+            limit_smear_scale, // j - for limit noises
+            main_smear_scale,  // k - for main noise
         }
     }
 
@@ -982,8 +1002,8 @@ impl BlendedNoise {
                     wrap_coord(gx * o),
                     wrap_coord(gy * o),
                     wrap_coord(gz * o),
-                    self.main_smear_scale * o,  // k * o
-                    gy * o,                      // h * o (not wrapped, used for clamping)
+                    self.main_smear_scale * o, // k * o
+                    gy * o,                    // h * o (not wrapped, used for clamping)
                 );
                 n += sampled / o;
             }
@@ -1013,8 +1033,8 @@ impl BlendedNoise {
                     wrap_coord(dx * o),
                     wrap_coord(dy * o),
                     wrap_coord(dz * o),
-                    self.limit_smear_scale * o,  // j * o
-                    dy * o,                       // e * o (not wrapped)
+                    self.limit_smear_scale * o, // j * o
+                    dy * o,                     // e * o (not wrapped)
                 ) / o;
             }
 
@@ -1023,8 +1043,8 @@ impl BlendedNoise {
                     wrap_coord(dx * o),
                     wrap_coord(dy * o),
                     wrap_coord(dz * o),
-                    self.limit_smear_scale * o,  // j * o
-                    dy * o,                       // e * o (not wrapped)
+                    self.limit_smear_scale * o, // j * o
+                    dy * o,                     // e * o (not wrapped)
                 ) / o;
             }
 
@@ -1067,8 +1087,8 @@ impl BlendedNoise {
                     wrap_coord_simd(gx * o_v),
                     wrap_coord_simd(gy * o_v),
                     wrap_coord_simd(gz * o_v),
-                    self.main_smear_scale * o,  // k * o
-                    gy * o_v,                    // h * o (not wrapped, used for clamping)
+                    self.main_smear_scale * o, // k * o
+                    gy * o_v,                  // h * o (not wrapped, used for clamping)
                 );
                 n = n + sampled / o_v;
             }
@@ -1100,8 +1120,8 @@ impl BlendedNoise {
                     wrap_coord_simd(dx * o_v),
                     wrap_coord_simd(dy * o_v),
                     wrap_coord_simd(dz * o_v),
-                    self.limit_smear_scale * o,  // j * o
-                    dy * o_v,                     // e * o (not wrapped)
+                    self.limit_smear_scale * o, // j * o
+                    dy * o_v,                   // e * o (not wrapped)
                 );
                 // Only accumulate for lanes that need min
                 l = need_min.select(l + sample * inv_o, l);
@@ -1113,8 +1133,8 @@ impl BlendedNoise {
                     wrap_coord_simd(dx * o_v),
                     wrap_coord_simd(dy * o_v),
                     wrap_coord_simd(dz * o_v),
-                    self.limit_smear_scale * o,  // j * o
-                    dy * o_v,                     // e * o (not wrapped)
+                    self.limit_smear_scale * o, // j * o
+                    dy * o_v,                   // e * o (not wrapped)
                 );
                 // Only accumulate for lanes that need max
                 m = need_max.select(m + sample * inv_o, m);

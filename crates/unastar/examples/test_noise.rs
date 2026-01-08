@@ -13,10 +13,10 @@ fn main() {
 
     // Test coordinates: center of chunk (0, 0) at various Y levels
     let test_coords = [
-        (8, 64, 8),   // Near sea level
-        (8, 128, 8),  // High up
-        (8, 0, 8),    // Underground
-        (8, -32, 8),  // Deep underground
+        (8, 64, 8),  // Near sea level
+        (8, 128, 8), // High up
+        (8, 0, 8),   // Underground
+        (8, -32, 8), // Deep underground
     ];
 
     // Key noises used in terrain generation

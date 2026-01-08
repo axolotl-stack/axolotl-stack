@@ -1,6 +1,6 @@
 //! Generated definition for entity.
-use bevy_ecs::prelude::*;
 use super::super::components::*;
+use bevy_ecs::prelude::*;
 /// Entity definition for `minecraft:armadillo`
 pub struct Armadillo;
 impl Armadillo {
@@ -42,7 +42,10 @@ pub fn spawn_armadillo(commands: &mut Commands) -> Entity {
                 width: 0.7f32,
                 height: 0.65f32,
             },
-            health: Health { value: 12i32, max: None },
+            health: Health {
+                value: 12i32,
+                max: None,
+            },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
             leashable: Leashable,
             nameable: Nameable,

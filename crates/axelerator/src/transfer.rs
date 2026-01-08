@@ -3,8 +3,8 @@
 //! Handles incoming WebRTC connections from Xbox Live friends and
 //! redirects them to the actual Minecraft server.
 
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Duration;
 
 use jolyne::stream::{BedrockStream, Play, Server};
@@ -401,7 +401,14 @@ pub async fn run_transfer_server_legacy(
     config: &AxeleratorConfig,
 ) -> anyhow::Result<()> {
     let shutdown = Arc::new(Notify::new());
-    run_transfer_server(signaling_url, nethernet_id, mc_token, config, shutdown, None)
-        .await
-        .map(|_| ())
+    run_transfer_server(
+        signaling_url,
+        nethernet_id,
+        mc_token,
+        config,
+        shutdown,
+        None,
+    )
+    .await
+    .map(|_| ())
 }

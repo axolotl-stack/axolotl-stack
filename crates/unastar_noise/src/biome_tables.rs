@@ -120,10 +120,28 @@ pub const MIDDLE_BIOMES: [[Biome; 5]; 5] = [
 
 /// Middle biome variants [temp][humid] - used when weirdness > 0
 pub const MIDDLE_BIOMES_VARIANT: [[Option<Biome>; 5]; 5] = [
-    [Some(Biome::IceSpikes), None, Some(Biome::SnowyTaiga), None, None],
+    [
+        Some(Biome::IceSpikes),
+        None,
+        Some(Biome::SnowyTaiga),
+        None,
+        None,
+    ],
     [None, None, None, None, Some(Biome::OldGrowthPineTaiga)],
-    [Some(Biome::SunflowerPlains), None, None, Some(Biome::TallBirchForest), None],
-    [None, None, Some(Biome::Plains), Some(Biome::SparseJungle), Some(Biome::BambooJungle)],
+    [
+        Some(Biome::SunflowerPlains),
+        None,
+        None,
+        Some(Biome::TallBirchForest),
+        None,
+    ],
+    [
+        None,
+        None,
+        Some(Biome::Plains),
+        Some(Biome::SparseJungle),
+        Some(Biome::BambooJungle),
+    ],
     [None, None, None, None, None],
 ];
 
@@ -184,7 +202,13 @@ pub const PLATEAU_BIOMES_VARIANT: [[Option<Biome>; 5]; 5] = [
         None,
     ],
     [None, None, None, None, None],
-    [Some(Biome::ErodedBadlands), Some(Biome::ErodedBadlands), None, None, None],
+    [
+        Some(Biome::ErodedBadlands),
+        Some(Biome::ErodedBadlands),
+        None,
+        None,
+        None,
+    ],
 ];
 
 /// Shattered/windswept biomes [temp][humid]

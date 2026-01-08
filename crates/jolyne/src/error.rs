@@ -1,8 +1,8 @@
 use thiserror::Error;
-#[cfg(feature = "raknet")]
-use tokio_raknet::RaknetError;
 #[cfg(feature = "nethernet")]
 use tokio_nethernet::error::NetherNetError;
+#[cfg(feature = "raknet")]
+use tokio_raknet::RaknetError;
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum AuthError {

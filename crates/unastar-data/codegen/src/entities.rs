@@ -1,8 +1,8 @@
 //! Entity code generation from KDL.
 
 use crate::component_schemas::{
-    get_component_schemas, get_sparse_components, ComponentDefaults, ComponentFrequency,
-    ComponentSchema, FieldType,
+    ComponentDefaults, ComponentFrequency, ComponentSchema, FieldType, get_component_schemas,
+    get_sparse_components,
 };
 use heck::{ToPascalCase, ToSnakeCase};
 use kdl::{KdlDocument, KdlNode, KdlValue};
@@ -177,10 +177,8 @@ fn parse_entity_node(node: &KdlNode) -> miette::Result<ParsedEntity> {
                     if let Some(group_children) = child.children() {
                         for group in group_children.nodes() {
                             if group.name().value() == "group" {
-                                if let Some(name) = group
-                                    .entries()
-                                    .first()
-                                    .and_then(|e| e.value().as_string())
+                                if let Some(name) =
+                                    group.entries().first().and_then(|e| e.value().as_string())
                                 {
                                     entity.component_groups.push(name.to_string());
                                 }
@@ -192,10 +190,8 @@ fn parse_entity_node(node: &KdlNode) -> miette::Result<ParsedEntity> {
                     if let Some(event_children) = child.children() {
                         for event in event_children.nodes() {
                             if event.name().value() == "event" {
-                                if let Some(name) = event
-                                    .entries()
-                                    .first()
-                                    .and_then(|e| e.value().as_string())
+                                if let Some(name) =
+                                    event.entries().first().and_then(|e| e.value().as_string())
                                 {
                                     entity.events.push(name.to_string());
                                 }
@@ -228,7 +224,10 @@ fn parse_component_node(node: &KdlNode) -> ParsedComponent {
     for entry in node.entries() {
         if let Some(prop_name) = entry.name() {
             // Named property
-            properties.insert(prop_name.value().to_string(), kdl_value_to_string(entry.value()));
+            properties.insert(
+                prop_name.value().to_string(),
+                kdl_value_to_string(entry.value()),
+            );
         } else {
             // Positional argument (primary value)
             primary_value = Some(kdl_value_to_string(entry.value()));
@@ -888,7 +887,9 @@ fn generate_entities_mod(entities: &[ParsedEntity], output_dir: &Path) -> miette
         .filter(|e| {
             // Only export if entity has typed components
             let schemas = get_component_schemas();
-            e.components.iter().any(|c| schemas.contains_key(c.name.as_str()))
+            e.components
+                .iter()
+                .any(|c| schemas.contains_key(c.name.as_str()))
         })
         .map(|e| {
             let mod_ident = format_ident!("{}", e.name.to_snake_case());

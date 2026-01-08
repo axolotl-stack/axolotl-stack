@@ -117,10 +117,7 @@ fn parse_entity_override_kdl(path: &Path) -> miette::Result<(String, EntityOverr
             // Get entity identifier from first argument
             if let Some(arg) = node.entries().first() {
                 if let Some(s) = arg.value().as_string() {
-                    entity_name = s
-                        .strip_prefix("minecraft:")
-                        .unwrap_or(s)
-                        .to_string();
+                    entity_name = s.strip_prefix("minecraft:").unwrap_or(s).to_string();
                 }
             }
 
@@ -209,9 +206,7 @@ fn kdl_node_to_json(node: &kdl::KdlNode) -> serde_json::Value {
 fn kdl_value_to_json(value: &kdl::KdlValue) -> serde_json::Value {
     match value {
         kdl::KdlValue::String(s) => serde_json::Value::String(s.clone()),
-        kdl::KdlValue::Integer(n) => {
-            serde_json::Value::Number(serde_json::Number::from(*n as i64))
-        }
+        kdl::KdlValue::Integer(n) => serde_json::Value::Number(serde_json::Number::from(*n as i64)),
         kdl::KdlValue::Float(f) => serde_json::Number::from_f64(*f)
             .map(serde_json::Value::Number)
             .unwrap_or(serde_json::Value::Null),

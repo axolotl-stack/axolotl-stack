@@ -513,7 +513,10 @@ mod tests {
         effects.tick();
 
         assert_eq!(effects.get(EffectType::SPEED).unwrap().duration_ticks, 9);
-        assert_eq!(effects.get(EffectType::STRENGTH).unwrap().duration_ticks, 19);
+        assert_eq!(
+            effects.get(EffectType::STRENGTH).unwrap().duration_ticks,
+            19
+        );
     }
 
     #[test]

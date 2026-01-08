@@ -120,7 +120,7 @@ impl UnastarServer {
         // Initialize Plugin Manager
         let mut plugin_manager = PluginManager::new()
             .map_err(|e| format!("Failed to initialize plugin manager: {}", e))?;
-        
+
         // Load plugins from "plugins" directory relative to CWD
         let plugins_dir = std::env::current_dir()?.join("plugins");
         info!(path = %plugins_dir.display(), "Loading plugins from directory");
@@ -271,7 +271,7 @@ impl UnastarServer {
                     // Run game tick (this queues packets to broadcast systems)
                     let tick_logic_start = std::time::Instant::now();
                     self.server.tick();
-                    
+
                     // Run plugin tick
                     self.plugin_manager.tick(self.server.ecs.world_mut()).await;
                     let tick_logic_elapsed = tick_logic_start.elapsed();

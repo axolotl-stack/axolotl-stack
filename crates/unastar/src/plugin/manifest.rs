@@ -55,8 +55,12 @@ impl Default for PluginLimits {
     }
 }
 
-fn default_fuel() -> u64 { 10_000_000 }
-fn default_memory() -> usize { 64 * 1024 * 1024 }
+fn default_fuel() -> u64 {
+    10_000_000
+}
+fn default_memory() -> usize {
+    64 * 1024 * 1024
+}
 
 /// Capabilities a plugin can request.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

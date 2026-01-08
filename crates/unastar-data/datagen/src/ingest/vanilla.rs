@@ -45,18 +45,17 @@ pub fn parse_vanilla_entities(dir: &Path) -> miette::Result<HashMap<String, Enti
     let mut entities = HashMap::new();
 
     if !dir.exists() {
-        warn!("Vanilla entities directory does not exist: {}", dir.display());
+        warn!(
+            "Vanilla entities directory does not exist: {}",
+            dir.display()
+        );
         return Ok(entities);
     }
 
     for entry in WalkDir::new(dir)
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.path()
-                .extension()
-                .map_or(false, |ext| ext == "json")
-        })
+        .filter(|e| e.path().extension().map_or(false, |ext| ext == "json"))
     {
         let path = entry.path();
         debug!("Parsing vanilla: {}", path.display());
@@ -182,10 +181,7 @@ fn parse_property(value: &serde_json::Value) -> Option<PropertyDef> {
                 .get("range")
                 .and_then(|r| {
                     let arr = r.as_array()?;
-                    Some((
-                        arr.first()?.as_i64()? as i32,
-                        arr.get(1)?.as_i64()? as i32,
-                    ))
+                    Some((arr.first()?.as_i64()? as i32, arr.get(1)?.as_i64()? as i32))
                 })
                 .unwrap_or((0, 100));
             PropertyType::Int { range }
@@ -195,10 +191,7 @@ fn parse_property(value: &serde_json::Value) -> Option<PropertyDef> {
                 .get("range")
                 .and_then(|r| {
                     let arr = r.as_array()?;
-                    Some((
-                        arr.first()?.as_f64()? as f32,
-                        arr.get(1)?.as_f64()? as f32,
-                    ))
+                    Some((arr.first()?.as_f64()? as f32, arr.get(1)?.as_f64()? as f32))
                 })
                 .unwrap_or((0.0, 1.0));
             PropertyType::Float { range }
@@ -254,9 +247,10 @@ fn parse_event(value: &serde_json::Value) -> Option<EventDef> {
             .map(|o| o.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
             .unwrap_or_default(),
         trigger: obj.get("trigger").and_then(|v| {
-            v.as_str()
-                .map(String::from)
-                .or_else(|| v.as_object().and_then(|o| o.get("event")?.as_str().map(String::from)))
+            v.as_str().map(String::from).or_else(|| {
+                v.as_object()
+                    .and_then(|o| o.get("event")?.as_str().map(String::from))
+            })
         }),
         sequence: obj
             .get("sequence")

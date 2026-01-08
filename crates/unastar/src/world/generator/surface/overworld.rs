@@ -9,11 +9,11 @@
 //! at apply time via a closure. This allows the rules to be used with custom
 //! block registries.
 
+use unastar_noise::Biome;
 use unastar_noise::surface::{
     AbovePreliminarySurface, BiomeCheck, BlockRule, CaveSurface, Hole, Rule, SequenceRule, Steep,
     StoneDepthCheck, TestRule, VerticalGradient, WaterCheck,
 };
-use unastar_noise::Biome;
 
 /// Build the overworld surface rule matching vanilla.
 ///
@@ -161,11 +161,7 @@ fn build_sandy_surface_rules() -> Box<dyn Rule> {
 
 /// Build mountain surface rules.
 fn build_mountain_surface_rules() -> Box<dyn Rule> {
-    let mountain_biomes = vec![
-        Biome::WindsweptHills,
-        Biome::StonyPeaks,
-        Biome::JaggedPeaks,
-    ];
+    let mountain_biomes = vec![Biome::WindsweptHills, Biome::StonyPeaks, Biome::JaggedPeaks];
 
     Box::new(TestRule::new(
         Box::new(BiomeCheck::multiple(mountain_biomes)),
@@ -187,7 +183,10 @@ fn build_mountain_surface_rules() -> Box<dyn Rule> {
 /// Build swamp surface rules.
 fn build_swamp_surface_rules() -> Box<dyn Rule> {
     Box::new(TestRule::new(
-        Box::new(BiomeCheck::multiple(vec![Biome::Swamp, Biome::MangroveSwamp])),
+        Box::new(BiomeCheck::multiple(vec![
+            Biome::Swamp,
+            Biome::MangroveSwamp,
+        ])),
         Box::new(SequenceRule::new(vec![
             // Top: grass
             Box::new(TestRule::new(

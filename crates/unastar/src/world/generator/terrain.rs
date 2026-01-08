@@ -6,19 +6,19 @@
 //! - Aquifer system for underground water/lava pockets
 //! - Surface rules for biome-based block placement
 
+use super::aquifer::NoiseBasedAquifer;
 use super::constants::Biome;
 use super::density::{
-    CachingNoiseChunk, FunctionContext, NoiseRegistry,
-    FlatCacheGrid, ColumnContext, ColumnContextGrid, compute_final_density,
+    CachingNoiseChunk, ColumnContext, ColumnContextGrid, FlatCacheGrid, FunctionContext,
+    NoiseRegistry, compute_final_density,
 };
-use super::aquifer::NoiseBasedAquifer;
 use super::ore_veinifier::OreVeinifier;
 use super::surface::SurfaceSystem;
-use unastar_noise::build_vanilla_surface_rule;
 use super::xoroshiro::{JavaRandom, PositionalRandomFactory};
-use crate::world::chunk::{blocks, Chunk};
+use crate::world::chunk::{Chunk, blocks};
 use crate::world::generator::BiomeNoise;
 use std::simd::prelude::*;
+use unastar_noise::build_vanilla_surface_rule;
 
 /// Vanilla terrain generator using 3D density functions.
 ///
@@ -80,7 +80,8 @@ impl VanillaGenerator {
     /// Searches outward from origin for a location above sea level.
     pub fn find_safe_spawn(&self) -> (i32, i32, i32) {
         // Cache grids per chunk to avoid recreating them
-        let mut grid_cache: std::collections::HashMap<(i32, i32), FlatCacheGrid> = std::collections::HashMap::new();
+        let mut grid_cache: std::collections::HashMap<(i32, i32), FlatCacheGrid> =
+            std::collections::HashMap::new();
 
         for radius in 0i32..64 {
             for dx in -radius..=radius {
@@ -94,9 +95,9 @@ impl VanillaGenerator {
                     let chunk_z = dz.div_euclid(16);
 
                     // Get or create FlatCacheGrid for this chunk
-                    let grid = grid_cache.entry((chunk_x, chunk_z)).or_insert_with(|| {
-                        FlatCacheGrid::new(chunk_x, chunk_z, &self.noises)
-                    });
+                    let grid = grid_cache
+                        .entry((chunk_x, chunk_z))
+                        .or_insert_with(|| FlatCacheGrid::new(chunk_x, chunk_z, &self.noises));
 
                     // Find surface by scanning down from max height
                     let col = ColumnContext::new(dx, dz, &self.noises, grid);
@@ -156,12 +157,12 @@ impl VanillaGenerator {
     /// 7. Use aquifer system to determine fluid placement when density <= 0
     /// 8. Apply surface rules for biome-specific blocks
     pub fn generate_chunk(&self, chunk_x: i32, chunk_z: i32) -> Chunk {
-        use super::aquifer::{OverworldFluidPicker, NoiseBasedAquifer};
+        use super::aquifer::{NoiseBasedAquifer, OverworldFluidPicker};
 
         let mut chunk = Chunk::new(chunk_x, chunk_z);
 
         // Cell configuration matching Java Edition
-        let cell_width = 4;  // blocks per cell in XZ
+        let cell_width = 4; // blocks per cell in XZ
         let cell_height = 8; // blocks per cell in Y
         let min_y = -64;
         let height = 384;
@@ -200,14 +201,8 @@ impl VanillaGenerator {
         let ore_veinifier = OreVeinifier::new(&self.noises, self.ore_random.clone());
 
         // Create CachingNoiseChunk for interpolation-based generation
-        let mut noise_chunk = CachingNoiseChunk::new(
-            chunk_x,
-            chunk_z,
-            cell_width,
-            cell_height,
-            min_y,
-            height,
-        );
+        let mut noise_chunk =
+            CachingNoiseChunk::new(chunk_x, chunk_z, cell_width, cell_height, min_y, height);
 
         // Cell counts
         let cell_count_xz = noise_chunk.cell_count_xz();
@@ -260,17 +255,25 @@ impl VanillaGenerator {
                                 if in_vein_range {
                                     // Check veinifier for ore veins
                                     for z_in_cell in 0..4i32 {
-                                        let local_z = ((cell_z as i32) * cell_width + z_in_cell) as u8;
+                                        let local_z =
+                                            ((cell_z as i32) * cell_width + z_in_cell) as u8;
                                         let block_z = base_block_z + z_in_cell;
                                         let ctx = FunctionContext::new(block_x, block_y, block_z);
-                                        let block = ore_veinifier.compute(&ctx).unwrap_or(*blocks::STONE);
+                                        let block =
+                                            ore_veinifier.compute(&ctx).unwrap_or(*blocks::STONE);
                                         chunk.set_block(local_x, block_y as i16, local_z, block);
                                     }
                                 } else {
                                     // Outside vein range - just place stone
                                     for z_in_cell in 0..4i32 {
-                                        let local_z = ((cell_z as i32) * cell_width + z_in_cell) as u8;
-                                        chunk.set_block(local_x, block_y as i16, local_z, *blocks::STONE);
+                                        let local_z =
+                                            ((cell_z as i32) * cell_width + z_in_cell) as u8;
+                                        chunk.set_block(
+                                            local_x,
+                                            block_y as i16,
+                                            local_z,
+                                            *blocks::STONE,
+                                        );
                                     }
                                 }
                             } else {
@@ -283,19 +286,39 @@ impl VanillaGenerator {
                                     if density > 0.0 {
                                         // Solid block - check veinifier for ore veins (if in range)
                                         if in_vein_range {
-                                            let ctx = FunctionContext::new(block_x, block_y, block_z);
-                                            let block = ore_veinifier.compute(&ctx).unwrap_or(*blocks::STONE);
-                                            chunk.set_block(local_x, block_y as i16, local_z, block);
+                                            let ctx =
+                                                FunctionContext::new(block_x, block_y, block_z);
+                                            let block = ore_veinifier
+                                                .compute(&ctx)
+                                                .unwrap_or(*blocks::STONE);
+                                            chunk.set_block(
+                                                local_x,
+                                                block_y as i16,
+                                                local_z,
+                                                block,
+                                            );
                                         } else {
-                                            chunk.set_block(local_x, block_y as i16, local_z, *blocks::STONE);
+                                            chunk.set_block(
+                                                local_x,
+                                                block_y as i16,
+                                                local_z,
+                                                *blocks::STONE,
+                                            );
                                         }
                                     } else {
                                         // Use aquifer to determine what to place (water/lava/air)
                                         // This matches Java's behavior - aquifer handles all non-solid blocks
                                         // including ocean water via globalFluidPicker
                                         let ctx = FunctionContext::new(block_x, block_y, block_z);
-                                        if let Some(block_id) = aquifer.compute_substance(&ctx, density) {
-                                            chunk.set_block(local_x, block_y as i16, local_z, block_id);
+                                        if let Some(block_id) =
+                                            aquifer.compute_substance(&ctx, density)
+                                        {
+                                            chunk.set_block(
+                                                local_x,
+                                                block_y as i16,
+                                                local_z,
+                                                block_id,
+                                            );
                                         }
                                         // None from aquifer means air - default, no need to set
                                     }
@@ -311,7 +334,8 @@ impl VanillaGenerator {
         }
 
         // Apply surface rules
-        self.surface_system.build_surface(&mut chunk, chunk_x, chunk_z);
+        self.surface_system
+            .build_surface(&mut chunk, chunk_x, chunk_z);
 
         // Sample center biome
         let center_biome = self.get_biome(chunk_x * 16 + 8, chunk_z * 16 + 8);
@@ -320,9 +344,14 @@ impl VanillaGenerator {
         chunk
     }
 
-
     /// Carve caves into the chunk using vanilla worm algorithm.
-    fn carve_caves<F: super::aquifer::FluidPicker>(&self, chunk: &mut Chunk, chunk_x: i32, chunk_z: i32, aquifer: &mut NoiseBasedAquifer<F>) {
+    fn carve_caves<F: super::aquifer::FluidPicker>(
+        &self,
+        chunk: &mut Chunk,
+        chunk_x: i32,
+        chunk_z: i32,
+        aquifer: &mut NoiseBasedAquifer<F>,
+    ) {
         use std::f64::consts::PI;
 
         // Check nearby chunks for cave starts that might reach into this chunk
@@ -620,7 +649,13 @@ impl VanillaGenerator {
 
     /// Carve ravines (vanilla-accurate from MapGenRavine.java)
     /// Ravines are rarer but larger than caves, with a distinctive tall/narrow shape
-    fn carve_ravines<F: super::aquifer::FluidPicker>(&self, chunk: &mut Chunk, chunk_x: i32, chunk_z: i32, aquifer: &mut NoiseBasedAquifer<F>) {
+    fn carve_ravines<F: super::aquifer::FluidPicker>(
+        &self,
+        chunk: &mut Chunk,
+        chunk_x: i32,
+        chunk_z: i32,
+        aquifer: &mut NoiseBasedAquifer<F>,
+    ) {
         use std::f64::consts::PI;
 
         // Check nearby chunks for ravine starts

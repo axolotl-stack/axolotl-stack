@@ -3,5 +3,5 @@
 mod overrides;
 mod vanilla;
 
-pub use overrides::{parse_overrides, EntityOverride, Overrides};
+pub use overrides::{EntityOverride, Overrides, parse_overrides};
 pub use vanilla::parse_vanilla_entities;

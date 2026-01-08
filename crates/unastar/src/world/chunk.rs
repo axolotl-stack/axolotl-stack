@@ -180,8 +180,7 @@ pub mod blocks {
     // Raw ore blocks (for large ore veins)
     pub static RAW_COPPER_BLOCK: LazyLock<u32> =
         LazyLock::new(|| lookup("minecraft:raw_copper_block"));
-    pub static RAW_IRON_BLOCK: LazyLock<u32> =
-        LazyLock::new(|| lookup("minecraft:raw_iron_block"));
+    pub static RAW_IRON_BLOCK: LazyLock<u32> = LazyLock::new(|| lookup("minecraft:raw_iron_block"));
 }
 
 /// Height map for a chunk - tracks highest light-blocking block per column.
@@ -1031,7 +1030,14 @@ impl PalettedStorage {
             palette.push(value as u32);
         }
 
-        Ok((Self { palette, size, indices }, offset))
+        Ok((
+            Self {
+                palette,
+                size,
+                indices,
+            },
+            offset,
+        ))
     }
 }
 
