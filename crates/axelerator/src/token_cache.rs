@@ -20,8 +20,13 @@ use axolotl_xbl::auth::{DeviceCodeAuth, OAuthToken, XblToken, XblTokenClient, re
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
-use tokio::sync::OnceCell;
+use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
+
+/// We don't preemptively refresh XBL tokens based on time.
+/// Instead, we refresh on-demand when authentication fails (401 errors).
+/// The `force_refresh_xbl()` method should be called by higher layers when they
+/// detect auth failures.
 
 /// Cached token data persisted to disk.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -78,6 +83,18 @@ impl CachedToken {
     }
 }
 
+/// Cached XBL token (in-memory only).
+/// We don't track expiration here - instead we handle 401 errors reactively.
+struct CachedXblToken {
+    token: XblToken,
+}
+
+impl CachedXblToken {
+    fn new(token: XblToken) -> Self {
+        Self { token }
+    }
+}
+
 /// Lazy-loading token cache with file persistence.
 ///
 /// Handles:
@@ -89,10 +106,10 @@ impl CachedToken {
 pub struct TokenCache {
     /// Path to the cache file.
     path: PathBuf,
-    /// Cached OAuth token (lazily loaded).
-    oauth: OnceCell<OAuthToken>,
-    /// Cached XBL token (lazily loaded).
-    xbl: OnceCell<XblToken>,
+    /// Cached OAuth token (with RwLock for refresh support).
+    oauth: RwLock<Option<OAuthToken>>,
+    /// Cached XBL token for default RP (Xbox Live).
+    xbl: RwLock<Option<CachedXblToken>>,
     /// XBL token client - reused to share device token across all RP requests.
     xbl_client: XblTokenClient,
 }
@@ -104,8 +121,8 @@ impl TokenCache {
     pub fn new(path: impl AsRef<Path>) -> Self {
         Self {
             path: path.as_ref().to_path_buf(),
-            oauth: OnceCell::new(),
-            xbl: OnceCell::new(),
+            oauth: RwLock::new(None),
+            xbl: RwLock::new(None),
             xbl_client: XblTokenClient::new(),
         }
     }
@@ -113,56 +130,109 @@ impl TokenCache {
     /// Get or create an authenticated XBL token for the default relying party (Xbox Live).
     ///
     /// This is the main entry point. It will:
-    /// 1. Try to load a cached token from disk
-    /// 2. Refresh if expired but refresh token is valid
-    /// 3. Do fresh device code auth if no valid token exists
-    pub async fn get_or_authenticate(&self) -> Result<&XblToken> {
-        self.xbl
-            .get_or_try_init(|| async {
-                let oauth = self.get_or_refresh_oauth().await?;
+    /// 1. Return cached token if available
+    /// 2. Exchange OAuth for XBL token if not cached
+    /// 3. Refresh OAuth if expired but refresh token is valid
+    /// 4. Do fresh device code auth if no valid token exists
+    ///
+    /// Note: We don't preemptively refresh based on time. Call `force_refresh_xbl()`
+    /// when you encounter 401 errors.
+    pub async fn get_or_authenticate(&self) -> Result<XblToken> {
+        // Check if we have a cached XBL token
+        {
+            let cached = self.xbl.read().await;
+            if let Some(ref xbl) = *cached {
+                return Ok(xbl.token.clone());
+            }
+        }
 
-                info!("Exchanging OAuth token for XBL token...");
-                let xbl_token = self
-                    .xbl_client
-                    .get_xbl_token(oauth, Some(relying_party::XBOX_LIVE))
-                    .await
-                    .context("Failed to get XBL token")?;
+        // Need to get a new XBL token
+        let oauth = self.get_or_refresh_oauth().await?;
 
-                info!(gamertag = %xbl_token.gamertag(), "Authenticated successfully");
-                Ok(xbl_token)
-            })
+        info!("Exchanging OAuth token for XBL token...");
+        let xbl_token = self
+            .xbl_client
+            .get_xbl_token(&oauth, Some(relying_party::XBOX_LIVE))
             .await
+            .context("Failed to get XBL token")?;
+
+        info!(gamertag = %xbl_token.gamertag(), "Authenticated successfully");
+
+        // Cache the new token
+        {
+            let mut cached = self.xbl.write().await;
+            *cached = Some(CachedXblToken::new(xbl_token.clone()));
+        }
+
+        Ok(xbl_token)
     }
 
     /// Get an XBL token for a specific relying party.
     ///
-    /// This bypasses the memory cache (for now) to ensure we can get tokens for different RPs.
+    /// These are NOT cached (each RP may have different tokens).
+    /// Call sparingly as each call does a token exchange.
     pub async fn get_xbl_token(&self, rp: &str) -> Result<XblToken> {
         let oauth = self.get_or_refresh_oauth().await?;
 
-        info!("Exchanging OAuth token for XBL token (RP: {})", rp);
+        debug!("Exchanging OAuth token for XBL token (RP: {})", rp);
         let xbl_token = self
             .xbl_client
-            .get_xbl_token(oauth, Some(rp))
+            .get_xbl_token(&oauth, Some(rp))
             .await
             .context("Failed to get XBL token")?;
 
         Ok(xbl_token)
     }
 
-    /// Get or refresh the OAuth token.
-    async fn get_or_refresh_oauth(&self) -> Result<&OAuthToken> {
-        self.oauth
-            .get_or_try_init(|| async {
-                // Try loading from file
-                if let Some(token) = self.try_load_from_file().await {
-                    return Ok(token);
-                }
+    /// Force refresh of the cached XBL token.
+    ///
+    /// Use this if you encounter 401 errors that suggest token expiration.
+    pub async fn force_refresh_xbl(&self) -> Result<XblToken> {
+        info!("Force refreshing XBL token...");
 
-                // No valid cached token, do fresh auth
-                self.do_device_code_auth().await
-            })
-            .await
+        // Clear the cached XBL token
+        {
+            let mut cached = self.xbl.write().await;
+            *cached = None;
+        }
+
+        // Get fresh token
+        self.get_or_authenticate().await
+    }
+
+    /// Get or refresh the OAuth token.
+    async fn get_or_refresh_oauth(&self) -> Result<OAuthToken> {
+        // Check if we have a valid cached OAuth token
+        {
+            let cached = self.oauth.read().await;
+            if let Some(ref token) = *cached {
+                // OAuth tokens are short-lived (1 hour), but we refresh them
+                // when getting XBL tokens, so just return it
+                return Ok(token.clone());
+            }
+        }
+
+        // Need to load or create OAuth token
+        let token = self.load_or_authenticate_oauth().await?;
+
+        // Cache it
+        {
+            let mut cached = self.oauth.write().await;
+            *cached = Some(token.clone());
+        }
+
+        Ok(token)
+    }
+
+    /// Load OAuth from file or do fresh authentication.
+    async fn load_or_authenticate_oauth(&self) -> Result<OAuthToken> {
+        // Try loading from file
+        if let Some(token) = self.try_load_from_file().await {
+            return Ok(token);
+        }
+
+        // No valid cached token, do fresh auth
+        self.do_device_code_auth().await
     }
 
     /// Try to load and validate a token from the cache file.
@@ -264,11 +334,13 @@ impl TokenCache {
         &self.path
     }
 
-    /// Clear the cached tokens (but not the file).
+    /// Clear all cached tokens (memory only, not the file).
     /// Next call to `get_or_authenticate` will reload from file.
-    pub fn clear(&mut self) {
-        self.oauth = OnceCell::new();
-        self.xbl = OnceCell::new();
+    pub async fn clear(&self) {
+        let mut oauth = self.oauth.write().await;
+        let mut xbl = self.xbl.write().await;
+        *oauth = None;
+        *xbl = None;
     }
 
     /// Delete the cache file.

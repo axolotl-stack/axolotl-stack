@@ -381,6 +381,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tokio-nethernet",
+ "toml",
  "tracing",
  "tracing-subscriber",
  "uuid",

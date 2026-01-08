@@ -23,8 +23,13 @@
 //!
 //! ## NetherNet with Xbox Live
 //! ```ignore
+//! // Get signaling URL from discovery API
+//! let discovery = DiscoveryClient::new();
+//! let endpoints = discovery.discover("1.21.131").await?;
+//! let signaling_url = endpoints.signaling.websocket_url(nethernet_id);
+//!
 //! let mut listener = BedrockListener::nethernet()
-//!     .xbox(nethernet_id, mc_token)
+//!     .xbox(signaling_url, nethernet_id, mc_token)
 //!     .bind()
 //!     .await?;
 //! ```
@@ -305,6 +310,7 @@ enum NetherNetSignaling {
     },
     #[cfg(feature = "xbox-signaling")]
     Xbox {
+        signaling_url: String,
         nethernet_id: u64,
         mc_token: String,
     },
@@ -343,12 +349,26 @@ impl NetherNetBuilder {
     /// Connects to Xbox's signaling WebSocket for friend-to-friend connections.
     /// Players join via the Xbox friends list / "Join Game" button.
     ///
+    /// The `signaling_url` should be obtained from the discovery API:
+    /// ```ignore
+    /// let discovery = DiscoveryClient::new();
+    /// let endpoints = discovery.discover("1.21.131").await?;
+    /// let signaling_url = endpoints.signaling.websocket_url(nethernet_id);
+    /// ```
+    ///
     /// # Arguments
+    /// * `signaling_url` - Full WebSocket URL from discovery API
     /// * `nethernet_id` - Your NetherNet network ID
     /// * `mc_token` - Minecraft authorization token from PlayFab session
     #[cfg(feature = "xbox-signaling")]
-    pub fn xbox(mut self, nethernet_id: u64, mc_token: impl Into<String>) -> Self {
+    pub fn xbox(
+        mut self,
+        signaling_url: impl Into<String>,
+        nethernet_id: u64,
+        mc_token: impl Into<String>,
+    ) -> Self {
         self.signaling = NetherNetSignaling::Xbox {
+            signaling_url: signaling_url.into(),
             nethernet_id,
             mc_token: mc_token.into(),
         };
@@ -418,12 +438,13 @@ impl NetherNetBuilder {
             }
             #[cfg(feature = "xbox-signaling")]
             NetherNetSignaling::Xbox {
+                signaling_url,
                 nethernet_id,
                 mc_token,
             } => {
                 use tokio_nethernet::{NetherNetListener, NetherNetListenerConfig, SignalMonitorConfig, XboxSignaling};
                 let monitor_config = self.signal_monitor_config.unwrap_or_else(SignalMonitorConfig::default);
-                let xbox = XboxSignaling::connect_with_monitor(nethernet_id, &mc_token, monitor_config)
+                let xbox = XboxSignaling::connect_with_url(signaling_url, nethernet_id, &mc_token, monitor_config)
                     .await
                     .map_err(|e| JolyneError::Transport(e.to_string()))?;
                 NetherNetListener::bind_with_signaling(xbox, NetherNetListenerConfig::default())

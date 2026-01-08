@@ -51,7 +51,7 @@ impl Default for NetherNetListenerConfig {
             stream_config: NetherNetStreamConfig::default(),
             connection_timeout: Duration::from_secs(15),
             ice_servers: vec![RTCIceServer {
-                urls: vec!["stun:stun.l.google.com:19302".to_owned()],
+                urls: vec!["stun:turn.azure.com:3478".to_owned()],
                 ..Default::default()
             }],
             max_sdp_size: DEFAULT_MAX_SDP_SIZE,
@@ -69,12 +69,20 @@ pub struct NetherNetListener {
     accept_rx: mpsc::Receiver<NetherNetStream>,
 }
 
+/// Internal message for cleanup coordination.
+enum ActorMessage {
+    Signal(Signal),
+    CleanupConnection(u64),
+}
+
 struct ListenerActor {
     signaling: Arc<dyn Signaling>,
     config: NetherNetListenerConfig,
-    signal_rx: mpsc::Receiver<Signal>,
+    message_rx: mpsc::Receiver<ActorMessage>,
     accept_tx: mpsc::Sender<NetherNetStream>,
     connections: HashMap<u64, Arc<ConnectionHandle>>,
+    /// Channel for spawned tasks to request cleanup.
+    cleanup_tx: mpsc::Sender<ActorMessage>,
 }
 
 struct ConnectionHandle {
@@ -102,14 +110,26 @@ impl NetherNetListener {
         config: NetherNetListenerConfig,
     ) -> (Self, mpsc::Sender<Signal>) {
         let (accept_tx, accept_rx) = mpsc::channel(16);
-        let (signal_tx, signal_rx) = mpsc::channel(128);
+        let (signal_tx, mut signal_rx) = mpsc::channel::<Signal>(128);
+        let (message_tx, message_rx) = mpsc::channel::<ActorMessage>(256);
+
+        // Forward signals to actor message channel
+        let message_tx_clone = message_tx.clone();
+        tokio::spawn(async move {
+            while let Some(signal) = signal_rx.recv().await {
+                if message_tx_clone.send(ActorMessage::Signal(signal)).await.is_err() {
+                    break;
+                }
+            }
+        });
 
         let actor = ListenerActor {
             signaling,
             config,
-            signal_rx,
+            message_rx,
             accept_tx,
             connections: HashMap::new(),
+            cleanup_tx: message_tx,
         };
 
         tokio::spawn(actor.run());
@@ -139,7 +159,7 @@ impl NetherNetListener {
         S: crate::signaling::SignalingChannel + 'static,
     {
         let (accept_tx, accept_rx) = mpsc::channel(16);
-        let (signal_tx, signal_rx) = mpsc::channel(128);
+        let (message_tx, message_rx) = mpsc::channel::<ActorMessage>(256);
 
         // Create actor with Arc<S> as the Signaling impl
         let signaling = std::sync::Arc::new(signaling);
@@ -148,9 +168,10 @@ impl NetherNetListener {
         let actor = ListenerActor {
             signaling: signaling.clone(),
             config,
-            signal_rx,
+            message_rx,
             accept_tx,
             connections: HashMap::new(),
+            cleanup_tx: message_tx.clone(),
         };
 
         // Spawn the actor
@@ -160,7 +181,7 @@ impl NetherNetListener {
         tokio::spawn(async move {
             if let Some(mut rx) = signaling_clone.take_signal_receiver().await {
                 while let Some(signal) = rx.recv().await {
-                    if signal_tx.send(signal).await.is_err() {
+                    if message_tx.send(ActorMessage::Signal(signal)).await.is_err() {
                         break;
                     }
                 }
@@ -192,11 +213,20 @@ impl NetherNetListener {
 
 impl ListenerActor {
     async fn run(mut self) {
-        while let Some(signal) = self.signal_rx.recv().await {
-            trace!(typ = %signal.typ, conn_id = signal.connection_id, "Processing signal");
+        while let Some(message) = self.message_rx.recv().await {
+            match message {
+                ActorMessage::Signal(signal) => {
+                    trace!(typ = %signal.typ, conn_id = signal.connection_id, "Processing signal");
 
-            if let Err(e) = self.handle_signal(signal).await {
-                warn!(error = %e, "Error processing signal");
+                    if let Err(e) = self.handle_signal(signal).await {
+                        warn!(error = %e, "Error processing signal");
+                    }
+                }
+                ActorMessage::CleanupConnection(conn_id) => {
+                    if self.connections.remove(&conn_id).is_some() {
+                        debug!(conn_id, "Connection cleaned up after stream creation");
+                    }
+                }
             }
         }
 
@@ -555,6 +585,7 @@ impl ListenerActor {
         let connection_timeout = self.config.connection_timeout;
         let pc_clone = pc.clone();
         let signaling = self.signaling.clone();
+        let cleanup_tx = self.cleanup_tx.clone();
 
         tokio::spawn(async move {
             match timeout(connection_timeout, ready_rx).await {
@@ -592,6 +623,9 @@ impl ListenerActor {
                         .await;
                 }
             }
+
+            // Clean up connection from HashMap after stream is created or failed
+            let _ = cleanup_tx.send(ActorMessage::CleanupConnection(conn_id)).await;
         });
 
         Ok(())

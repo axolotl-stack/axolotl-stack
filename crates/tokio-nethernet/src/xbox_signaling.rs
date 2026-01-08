@@ -31,8 +31,10 @@ use tokio::sync::{RwLock, mpsc};
 use tokio_tungstenite::{connect_async, tungstenite::Message as WsMessage};
 use tracing::{debug, error, info, warn};
 
-/// Xbox Live signaling WebSocket URL format.
-/// Format with nethernet_id to get full URL.
+/// Default signaling WebSocket URL (fallback only - prefer using discovery).
+///
+/// **Note:** This URL may not be optimal for your region. Use
+/// `axolotl_xbl::discovery::DiscoveryClient` to get the regional URL.
 pub const RTC_WEBSOCKET_URL: &str =
     "wss://signal.franchise.minecraft-services.net/ws/v1.0/signaling/";
 
@@ -102,28 +104,83 @@ pub struct XboxSignaling {
 }
 
 impl XboxSignaling {
-    /// Connect to Xbox Live signaling WebSocket.
+    /// Connect to Xbox Live signaling WebSocket using the default URL.
+    ///
+    /// **Note:** Prefer using [`connect_with_url`] with a URL from the discovery API
+    /// for optimal regional routing.
     ///
     /// # Arguments
     /// - `nethernet_id`: Your NetherNet network ID
     /// - `mc_token`: Minecraft authorization token from PlayFab session start
+    #[deprecated(
+        since = "0.2.0",
+        note = "Use connect_with_url() with a URL from axolotl_xbl::discovery for regional routing"
+    )]
     pub async fn connect(nethernet_id: u64, mc_token: &str) -> anyhow::Result<Arc<Self>> {
-        Self::connect_with_monitor(nethernet_id, mc_token, SignalMonitorConfig::default()).await
+        let url = format!("{}{}", RTC_WEBSOCKET_URL, nethernet_id);
+        Self::connect_with_url(url, nethernet_id, mc_token, SignalMonitorConfig::default()).await
     }
 
-    /// Connect to Xbox Live signaling WebSocket with signal monitoring.
+    /// Connect to Xbox Live signaling WebSocket with signal monitoring using the default URL.
+    ///
+    /// **Note:** Prefer using [`connect_with_url`] with a URL from the discovery API
+    /// for optimal regional routing.
     ///
     /// # Arguments
     /// - `nethernet_id`: Your NetherNet network ID
     /// - `mc_token`: Minecraft authorization token from PlayFab session start
     /// - `monitor_config`: Configuration for signal-level security monitoring
+    #[deprecated(
+        since = "0.2.0",
+        note = "Use connect_with_url() with a URL from axolotl_xbl::discovery for regional routing"
+    )]
     pub async fn connect_with_monitor(
         nethernet_id: u64,
         mc_token: &str,
         monitor_config: SignalMonitorConfig,
     ) -> anyhow::Result<Arc<Self>> {
-        let monitor = Arc::new(SignalMonitor::new(monitor_config));
         let url = format!("{}{}", RTC_WEBSOCKET_URL, nethernet_id);
+        Self::connect_with_url(url, nethernet_id, mc_token, monitor_config).await
+    }
+
+    /// Connect to Xbox Live signaling WebSocket with a custom URL.
+    ///
+    /// Use this with a URL from the discovery API for optimal regional routing:
+    ///
+    /// ```ignore
+    /// use axolotl_xbl::discovery::DiscoveryClient;
+    /// use tokio_nethernet::XboxSignaling;
+    ///
+    /// let discovery = DiscoveryClient::new();
+    /// let endpoints = discovery.discover("1.21.131").await?;
+    /// let ws_url = endpoints.signaling.websocket_url(nethernet_id);
+    ///
+    /// let signaling = XboxSignaling::connect_with_url(
+    ///     ws_url,
+    ///     nethernet_id,
+    ///     &mc_token,
+    ///     SignalMonitorConfig::default(),
+    /// ).await?;
+    /// ```
+    ///
+    /// # Arguments
+    /// - `url`: Full WebSocket URL (e.g., from `SignalingEndpoint::websocket_url()`)
+    /// - `nethernet_id`: Your NetherNet network ID
+    /// - `mc_token`: Minecraft authorization token from PlayFab session start
+    /// - `monitor_config`: Configuration for signal-level security monitoring
+    pub async fn connect_with_url(
+        url: String,
+        nethernet_id: u64,
+        mc_token: &str,
+        monitor_config: SignalMonitorConfig,
+    ) -> anyhow::Result<Arc<Self>> {
+        let monitor = SignalMonitor::new_with_cleanup(monitor_config);
+
+        // Extract host from URL for the Host header
+        let parsed_url: http::Uri = url.parse()?;
+        let host = parsed_url
+            .host()
+            .ok_or_else(|| anyhow::anyhow!("Invalid URL: missing host"))?;
 
         // Create request with auth headers
         let request = http::Request::builder()
@@ -138,7 +195,7 @@ impl XboxSignaling {
             .header("Sec-WebSocket-Version", "13")
             .header("Connection", "Upgrade")
             .header("Upgrade", "websocket")
-            .header("Host", "signal.franchise.minecraft-services.net")
+            .header("Host", host)
             .body(())?;
 
         info!(nethernet_id, "Connecting to Xbox signaling WebSocket");

@@ -180,6 +180,37 @@ impl SignalMonitor {
         }
     }
 
+    /// Create a new signal monitor wrapped in Arc with automatic periodic cleanup.
+    /// The cleanup task runs every `tracking_window` duration and removes stale data.
+    pub fn new_with_cleanup(config: SignalMonitorConfig) -> std::sync::Arc<Self> {
+        let monitor = std::sync::Arc::new(Self::new(config.clone()));
+
+        if config.enabled {
+            let monitor_weak = std::sync::Arc::downgrade(&monitor);
+            let cleanup_interval = config.tracking_window;
+
+            tokio::spawn(async move {
+                let mut interval = tokio::time::interval(cleanup_interval);
+                interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+
+                loop {
+                    interval.tick().await;
+
+                    // Use weak reference to allow monitor to be dropped
+                    if let Some(monitor) = monitor_weak.upgrade() {
+                        monitor.cleanup().await;
+                        tracing::trace!("Signal monitor cleanup completed");
+                    } else {
+                        // Monitor was dropped, exit cleanup task
+                        break;
+                    }
+                }
+            });
+        }
+
+        monitor
+    }
+
     /// Create a monitor that's disabled (no-op).
     pub fn disabled() -> Self {
         Self::new(SignalMonitorConfig {

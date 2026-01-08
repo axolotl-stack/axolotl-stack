@@ -4,11 +4,16 @@ use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::{Mutex, RwLock};
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, trace};
 
 const RTA_URL: &str = "wss://rta.xboxlive.com/connect";
+
+/// Interval between keepalive pings (30 seconds).
+/// Xbox RTA typically expects activity within 60 seconds.
+const KEEPALIVE_INTERVAL_SECS: u64 = 30;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RtaMessage {
@@ -66,25 +71,63 @@ impl RtaClient {
             .await
             .map_err(|e| XblError::XboxLive(format!("Failed to send handshake: {}", e)))?;
 
-        // 2. Main loop
-        while let Some(msg) = read.next().await {
+        // 2. Main loop with keepalive
+        let keepalive_interval = Duration::from_secs(KEEPALIVE_INTERVAL_SECS);
+        let mut keepalive_timer = tokio::time::interval(keepalive_interval);
+        keepalive_timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+
+        // Skip the first immediate tick
+        keepalive_timer.tick().await;
+
+        loop {
             if *self.shutdown.read().await {
+                debug!("RTA shutdown flag set, exiting loop");
                 break;
             }
 
-            match msg {
-                Ok(Message::Text(text)) => {
-                    self.handle_message(&text, &mut write).await?;
+            tokio::select! {
+                biased;
+
+                // Keepalive ping
+                _ = keepalive_timer.tick() => {
+                    trace!("Sending RTA keepalive ping");
+                    if let Err(e) = write.send(Message::Ping(vec![])).await {
+                        error!("Failed to send keepalive ping: {}", e);
+                        break;
+                    }
                 }
-                Ok(Message::Close(_)) => {
-                    info!("RTA WebSocket closed");
-                    break;
+
+                // Incoming message
+                msg = read.next() => {
+                    match msg {
+                        Some(Ok(Message::Text(text))) => {
+                            self.handle_message(&text, &mut write).await?;
+                        }
+                        Some(Ok(Message::Pong(_))) => {
+                            trace!("Received pong from RTA server");
+                        }
+                        Some(Ok(Message::Ping(data))) => {
+                            trace!("Received ping, sending pong");
+                            if let Err(e) = write.send(Message::Pong(data)).await {
+                                error!("Failed to send pong: {}", e);
+                                break;
+                            }
+                        }
+                        Some(Ok(Message::Close(_))) => {
+                            info!("RTA WebSocket closed by server");
+                            break;
+                        }
+                        Some(Err(e)) => {
+                            error!("RTA WebSocket error: {}", e);
+                            break;
+                        }
+                        None => {
+                            info!("RTA WebSocket stream ended");
+                            break;
+                        }
+                        _ => {}
+                    }
                 }
-                Err(e) => {
-                    error!("RTA WebSocket error: {}", e);
-                    break;
-                }
-                _ => {}
             }
         }
 

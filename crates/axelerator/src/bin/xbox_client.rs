@@ -15,6 +15,7 @@
 
 use anyhow::{Context, Result};
 use axelerator::TokenCache;
+use axolotl_xbl::discovery::DiscoveryClient;
 use axolotl_xbl::{PlayFabClient, SessionClient};
 use clap::Parser;
 use jolyne::stream::client::ClientHandshakeConfig;
@@ -25,7 +26,7 @@ use rand::thread_rng;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use tokio_nethernet::signaling::SignalingChannel;
-use tokio_nethernet::{NetherNetDialer, NetherNetDialerConfig, XboxSignaling};
+use tokio_nethernet::{NetherNetDialer, NetherNetDialerConfig, SignalMonitorConfig, XboxSignaling};
 use tracing::{debug, error, info, warn};
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
@@ -53,6 +54,10 @@ struct Args {
     /// Verbose logging
     #[arg(short, long)]
     verbose: bool,
+
+    /// Game version for service discovery (e.g., "1.21.131")
+    #[arg(long, default_value = "1.21.131")]
+    game_version: String,
 }
 
 #[tokio::main]
@@ -169,22 +174,40 @@ async fn main() -> Result<()> {
         "Got Bedrock Multiplayer token"
     );
 
-    // Step 4: Connect via Xbox signaling
-    info!("Step 4: Connecting to Xbox signaling WebSocket...");
+    // Step 4: Discover signaling endpoint and connect
+    info!("Step 4: Discovering signaling endpoint...");
+
+    let discovery = DiscoveryClient::new();
+    let endpoints = discovery
+        .discover(&args.game_version)
+        .await
+        .context("Failed to discover service endpoints")?;
+
+    info!(
+        signaling_uri = %endpoints.signaling.service_uri,
+        "Discovered signaling endpoint"
+    );
 
     // We need our own nethernet_id to connect to signaling
     // Generate one based on XUID like the real client does
     let our_nethernet_id: u64 = xbl_token.xuid.parse().unwrap_or_else(|_| rand::random());
+    let ws_url = endpoints.signaling.websocket_url(our_nethernet_id);
 
     info!(
         our_nethernet_id = our_nethernet_id,
         target_nethernet_id = nethernet_id,
+        ws_url = %ws_url,
         "Connecting to signaling"
     );
 
-    let signaling = XboxSignaling::connect(our_nethernet_id, &mc_token)
-        .await
-        .context("Failed to connect to Xbox signaling")?;
+    let signaling = XboxSignaling::connect_with_url(
+        ws_url,
+        our_nethernet_id,
+        &mc_token,
+        SignalMonitorConfig::default(),
+    )
+    .await
+    .context("Failed to connect to Xbox signaling")?;
 
     info!("Connected to Xbox signaling WebSocket");
 

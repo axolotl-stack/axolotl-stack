@@ -1,0 +1,51 @@
+[Unit]
+Description=Axelerator - Xbox Live Friend Broadcast Server
+Documentation=https://github.com/your-repo/axolotl-stack
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=axelerator
+Group=axelerator
+
+# Working directory
+WorkingDirectory=/opt/axelerator
+
+# Use config file (create with: axelerator init -o /opt/axelerator/axelerator.toml)
+ExecStart=/opt/axelerator/axelerator -c /opt/axelerator/axelerator.toml
+
+# Restart policy
+Restart=on-failure
+RestartSec=5
+RestartPreventExitStatus=0
+
+# Limit restart attempts (5 per 5 minutes)
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+
+# Allow writing to working directory (for token.json)
+ReadWritePaths=/opt/axelerator
+
+# Resource limits
+MemoryMax=512M
+TasksMax=100
+
+# Graceful shutdown (30 second timeout)
+TimeoutStopSec=30
+KillSignal=SIGTERM
+
+# Logging via journald
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=axelerator
+
+[Install]
+WantedBy=multi-user.target
