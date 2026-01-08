@@ -437,25 +437,7 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
         // 3. Send World Data
         // IMPORTANT: CreativeContent must come BEFORE PlayerSpawn status
 
-        // Debug: print hex dump of creative content
-        {
-            use crate::valentine::bedrock::codec::BedrockCodec;
-            let mut buf = bytes::BytesMut::new();
-            let cc = params.creative_content.as_ref();
-            if cc.encode(&mut buf).is_ok() {
-                // Only print first 50 bytes to avoid spam
-                let preview: Vec<u8> = buf.iter().take(50).copied().collect();
-                tracing::info!(
-                    groups = cc.groups.len(),
-                    items = cc.items.len(),
-                    total_bytes = buf.len(),
-                    first_50_bytes = ?preview,
-                    "CreativeContent packet debug"
-                );
-            }
-        }
-
-        tracing::info!("Sending CreativeContent and PlayerSpawn status...");
+        tracing::debug!("Sending CreativeContent and PlayerSpawn status...");
         self.transport
             .send_batch(&[
                 McpePacket::from(ChunkRadiusUpdatePacket {
@@ -470,7 +452,7 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
             ])
             .await?;
 
-        tracing::info!("Batch sent successfully, waiting for ServerboundLoadingScreen type 1...");
+        tracing::debug!("Batch sent, waiting for ServerboundLoadingScreen...");
 
         // 4. Loading Screen Handshake (Types 1 & 2)
         loop {

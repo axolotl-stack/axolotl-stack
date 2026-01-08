@@ -20,8 +20,9 @@ jobs:
           submodules: recursive
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: nightly-2025-12-25
           components: clippy, rustfmt
 
       - name: Cache cargo
@@ -56,7 +57,9 @@ jobs:
           submodules: recursive
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2025-12-25
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
@@ -83,7 +86,9 @@ jobs:
           submodules: recursive
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2025-12-25
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2

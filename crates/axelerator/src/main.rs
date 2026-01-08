@@ -163,11 +163,13 @@ async fn main() -> Result<()> {
     // Run server
     let axelerator = Axelerator::new(config);
 
-    // Handle shutdown signals
-    let shutdown = tokio::spawn({
-        let axelerator = axelerator.clone();
-        async move {
-            // Wait for SIGTERM or SIGINT (Ctrl+C)
+    // Use select! to race the server against shutdown signals
+    // This ensures we can exit even if stuck in device code auth
+    let result = tokio::select! {
+        biased;
+
+        // Shutdown signals (prioritized)
+        _ = async {
             let ctrl_c = tokio::signal::ctrl_c();
 
             #[cfg(unix)]
@@ -196,13 +198,19 @@ async fn main() -> Result<()> {
                 ctrl_c.await.ok();
                 tracing::info!("Received shutdown signal");
             }
-
+        } => {
+            tracing::info!("Initiating graceful shutdown...");
             axelerator.shutdown().await;
+            // Give a brief moment for graceful shutdown to propagate
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            Ok(())
         }
-    });
 
-    let result = axelerator.run().await;
-    shutdown.abort();
+        // Main server run
+        result = axelerator.run() => {
+            result
+        }
+    };
 
     if let Err(ref e) = result {
         tracing::error!("Axelerator exited with error: {}", e);
