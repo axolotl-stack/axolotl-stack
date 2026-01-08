@@ -638,3 +638,398 @@ fn skip(cursor: &mut Cursor<&[u8]>, n: usize) -> Result<(), DecodeError> {
     cursor.advance(n);
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bytes::BytesMut;
+
+    /// Helper to assert roundtrip encoding/decoding for BedrockCodec types
+    fn assert_codec_roundtrip<T>(value: T, args: T::Args)
+    where
+        T: BedrockCodec + PartialEq + std::fmt::Debug,
+        T::Args: Clone,
+    {
+        let mut buf = BytesMut::new();
+        value.encode(&mut buf).expect("encode should succeed");
+        let mut reader = buf.freeze();
+        let decoded = T::decode(&mut reader, args).expect("decode should succeed");
+        assert_eq!(value, decoded);
+        assert!(!reader.has_remaining(), "should consume all bytes");
+    }
+
+    // ========== Primitive Tests ==========
+
+    #[test]
+    fn bool_roundtrip() {
+        assert_codec_roundtrip(true, ());
+        assert_codec_roundtrip(false, ());
+    }
+
+    #[test]
+    fn bool_encoding() {
+        let mut buf = BytesMut::new();
+        true.encode(&mut buf).unwrap();
+        assert_eq!(buf.as_ref(), &[0x01]);
+
+        buf.clear();
+        false.encode(&mut buf).unwrap();
+        assert_eq!(buf.as_ref(), &[0x00]);
+    }
+
+    #[test]
+    fn u8_roundtrip() {
+        for value in [0u8, 1, 127, 128, 255] {
+            assert_codec_roundtrip(value, ());
+        }
+    }
+
+    #[test]
+    fn i8_roundtrip() {
+        for value in [0i8, 1, -1, 127, -128] {
+            assert_codec_roundtrip(value, ());
+        }
+    }
+
+    #[test]
+    fn u16_roundtrip() {
+        for value in [0u16, 1, 255, 256, u16::MAX] {
+            assert_codec_roundtrip(value, ());
+        }
+    }
+
+    #[test]
+    fn i16_roundtrip() {
+        for value in [0i16, 1, -1, i16::MAX, i16::MIN] {
+            assert_codec_roundtrip(value, ());
+        }
+    }
+
+    #[test]
+    fn u32_roundtrip() {
+        for value in [0u32, 1, 255, 65535, u32::MAX] {
+            assert_codec_roundtrip(value, ());
+        }
+    }
+
+    #[test]
+    fn i32_roundtrip() {
+        for value in [0i32, 1, -1, i32::MAX, i32::MIN] {
+            assert_codec_roundtrip(value, ());
+        }
+    }
+
+    #[test]
+    fn u64_roundtrip() {
+        for value in [0u64, 1, u32::MAX as u64, u64::MAX] {
+            assert_codec_roundtrip(value, ());
+        }
+    }
+
+    #[test]
+    fn i64_roundtrip() {
+        for value in [0i64, 1, -1, i64::MAX, i64::MIN] {
+            assert_codec_roundtrip(value, ());
+        }
+    }
+
+    #[test]
+    fn f32_roundtrip() {
+        for value in [0.0f32, 1.0, -1.0, f32::MIN, f32::MAX, std::f32::consts::PI] {
+            assert_codec_roundtrip(value, ());
+        }
+    }
+
+    #[test]
+    fn f64_roundtrip() {
+        for value in [0.0f64, 1.0, -1.0, f64::MIN, f64::MAX, std::f64::consts::PI] {
+            assert_codec_roundtrip(value, ());
+        }
+    }
+
+    // ========== Little-Endian Newtype Tests ==========
+
+    #[test]
+    fn u16le_roundtrip() {
+        for value in [0u16, 1, 255, 256, u16::MAX] {
+            assert_codec_roundtrip(U16LE(value), ());
+        }
+    }
+
+    #[test]
+    fn u16le_encoding_is_little_endian() {
+        let mut buf = BytesMut::new();
+        U16LE(0x0102).encode(&mut buf).unwrap();
+        assert_eq!(buf.as_ref(), &[0x02, 0x01]); // Little-endian
+    }
+
+    #[test]
+    fn i16le_roundtrip() {
+        for value in [0i16, 1, -1, i16::MAX, i16::MIN] {
+            assert_codec_roundtrip(I16LE(value), ());
+        }
+    }
+
+    #[test]
+    fn u32le_roundtrip() {
+        for value in [0u32, 1, 255, 65535, u32::MAX] {
+            assert_codec_roundtrip(U32LE(value), ());
+        }
+    }
+
+    #[test]
+    fn u32le_encoding_is_little_endian() {
+        let mut buf = BytesMut::new();
+        U32LE(0x01020304).encode(&mut buf).unwrap();
+        assert_eq!(buf.as_ref(), &[0x04, 0x03, 0x02, 0x01]);
+    }
+
+    #[test]
+    fn i32le_roundtrip() {
+        for value in [0i32, 1, -1, i32::MAX, i32::MIN] {
+            assert_codec_roundtrip(I32LE(value), ());
+        }
+    }
+
+    #[test]
+    fn u64le_roundtrip() {
+        for value in [0u64, 1, u32::MAX as u64, u64::MAX] {
+            assert_codec_roundtrip(U64LE(value), ());
+        }
+    }
+
+    #[test]
+    fn i64le_roundtrip() {
+        for value in [0i64, 1, -1, i64::MAX, i64::MIN] {
+            assert_codec_roundtrip(I64LE(value), ());
+        }
+    }
+
+    #[test]
+    fn f32le_roundtrip() {
+        for value in [0.0f32, 1.0, -1.0, std::f32::consts::PI] {
+            assert_codec_roundtrip(F32LE(value), ());
+        }
+    }
+
+    #[test]
+    fn f64le_roundtrip() {
+        for value in [0.0f64, 1.0, -1.0, std::f64::consts::PI] {
+            assert_codec_roundtrip(F64LE(value), ());
+        }
+    }
+
+    // ========== ZigZag Wrapper Tests ==========
+
+    #[test]
+    fn zigzag32_roundtrip() {
+        for value in [0, 1, -1, 127, -128, i32::MAX, i32::MIN] {
+            assert_codec_roundtrip(ZigZag32(value), ());
+        }
+    }
+
+    #[test]
+    fn zigzag32_encoding() {
+        let mut buf = BytesMut::new();
+        ZigZag32(1).encode(&mut buf).unwrap();
+        // ZigZag(1) = 2, VarInt(2) = [0x02]
+        assert_eq!(buf.as_ref(), &[0x02]);
+
+        buf.clear();
+        ZigZag32(-1).encode(&mut buf).unwrap();
+        // ZigZag(-1) = 1, VarInt(1) = [0x01]
+        assert_eq!(buf.as_ref(), &[0x01]);
+    }
+
+    #[test]
+    fn zigzag64_roundtrip() {
+        for value in [0, 1, -1, i64::MAX, i64::MIN] {
+            assert_codec_roundtrip(ZigZag64(value), ());
+        }
+    }
+
+    // ========== VarInt/VarLong Tests ==========
+
+    #[test]
+    fn varint_roundtrip() {
+        for value in [0, 1, 127, 128, i32::MAX] {
+            assert_codec_roundtrip(VarInt(value), ());
+        }
+    }
+
+    #[test]
+    fn varint_encoding() {
+        let mut buf = BytesMut::new();
+        VarInt(0).encode(&mut buf).unwrap();
+        assert_eq!(buf.as_ref(), &[0x00]);
+
+        buf.clear();
+        VarInt(127).encode(&mut buf).unwrap();
+        assert_eq!(buf.as_ref(), &[0x7F]);
+
+        buf.clear();
+        VarInt(128).encode(&mut buf).unwrap();
+        assert_eq!(buf.as_ref(), &[0x80, 0x01]);
+    }
+
+    #[test]
+    fn varlong_roundtrip() {
+        for value in [0, 1, 127, 128, i64::MAX] {
+            assert_codec_roundtrip(VarLong(value), ());
+        }
+    }
+
+    // ========== String Tests ==========
+
+    #[test]
+    fn string_roundtrip() {
+        for value in ["", "hello", "hello world", "こんにちは"] {
+            assert_codec_roundtrip(value.to_string(), ());
+        }
+    }
+
+    #[test]
+    fn string_encoding() {
+        let mut buf = BytesMut::new();
+        "hi".to_string().encode(&mut buf).unwrap();
+        // Length (VarInt 2) + "hi"
+        assert_eq!(buf.as_ref(), &[0x02, b'h', b'i']);
+    }
+
+    #[test]
+    fn string_empty() {
+        let mut buf = BytesMut::new();
+        String::new().encode(&mut buf).unwrap();
+        assert_eq!(buf.as_ref(), &[0x00]); // Just length 0
+    }
+
+    // ========== UUID Tests ==========
+
+    #[test]
+    fn uuid_roundtrip() {
+        let uuid = uuid::Uuid::new_v4();
+        assert_codec_roundtrip(uuid, ());
+    }
+
+    #[test]
+    fn uuid_nil() {
+        let uuid = uuid::Uuid::nil();
+        assert_codec_roundtrip(uuid, ());
+    }
+
+    // ========== Option Tests ==========
+
+    #[test]
+    fn option_some_roundtrip() {
+        assert_codec_roundtrip(Some(42i32), ());
+        assert_codec_roundtrip(Some("hello".to_string()), ());
+    }
+
+    #[test]
+    fn option_none_roundtrip() {
+        assert_codec_roundtrip(Option::<i32>::None, ());
+        assert_codec_roundtrip(Option::<String>::None, ());
+    }
+
+    #[test]
+    fn option_encoding() {
+        let mut buf = BytesMut::new();
+        Some(1u8).encode(&mut buf).unwrap();
+        assert_eq!(buf.as_ref(), &[0x01, 0x01]); // Present flag + value
+
+        buf.clear();
+        Option::<u8>::None.encode(&mut buf).unwrap();
+        assert_eq!(buf.as_ref(), &[0x00]); // Just absent flag
+    }
+
+    // ========== Vec Tests ==========
+
+    #[test]
+    fn vec_roundtrip() {
+        assert_codec_roundtrip(vec![1u8, 2, 3], ());
+        assert_codec_roundtrip(vec![1i32, 2, 3], ());
+        assert_codec_roundtrip(vec!["a".to_string(), "b".to_string()], ());
+    }
+
+    #[test]
+    fn vec_empty_roundtrip() {
+        assert_codec_roundtrip(Vec::<u8>::new(), ());
+        assert_codec_roundtrip(Vec::<String>::new(), ());
+    }
+
+    #[test]
+    fn vec_encoding() {
+        let mut buf = BytesMut::new();
+        vec![1u8, 2, 3].encode(&mut buf).unwrap();
+        // Length (VarInt 3) + elements
+        assert_eq!(buf.as_ref(), &[0x03, 0x01, 0x02, 0x03]);
+    }
+
+    // ========== Box Tests ==========
+
+    #[test]
+    fn box_roundtrip() {
+        assert_codec_roundtrip(Box::new(42i32), ());
+        assert_codec_roundtrip(Box::new("hello".to_string()), ());
+    }
+
+    // ========== Error Tests ==========
+
+    #[test]
+    fn u8_decode_empty_buffer() {
+        let mut reader = &[][..];
+        let err = u8::decode(&mut reader, ()).unwrap_err();
+        assert!(matches!(err, DecodeError::UnexpectedEof { needed: 1, available: 0 }));
+    }
+
+    #[test]
+    fn u32_decode_insufficient_buffer() {
+        let mut reader = &[0x01, 0x02][..]; // Only 2 bytes, need 4
+        let err = u32::decode(&mut reader, ()).unwrap_err();
+        assert!(matches!(err, DecodeError::UnexpectedEof { needed: 4, available: 2 }));
+    }
+
+    #[test]
+    fn string_decode_insufficient_buffer() {
+        let mut reader = &[0x05, b'h', b'i'][..]; // Claims length 5, only 2 bytes
+        let err = String::decode(&mut reader, ()).unwrap_err();
+        assert!(matches!(err, DecodeError::StringLengthExceeded { declared: 5, available: 2 }));
+    }
+
+    #[test]
+    fn varint_too_long() {
+        // VarInt with 6 continuation bytes
+        let mut reader = &[0x80, 0x80, 0x80, 0x80, 0x80, 0x01][..];
+        let err = VarInt::decode(&mut reader, ()).unwrap_err();
+        assert!(matches!(err, DecodeError::VarIntTooLarge));
+    }
+
+    #[test]
+    fn varlong_too_long() {
+        // VarLong with 11 continuation bytes
+        let data = [0x80; 11];
+        let mut reader = &data[..];
+        let err = VarLong::decode(&mut reader, ()).unwrap_err();
+        assert!(matches!(err, DecodeError::VarLongTooLarge));
+    }
+
+    // ========== NBT Tests ==========
+
+    #[test]
+    fn nbt_default_is_empty_compound() {
+        let nbt = Nbt::default();
+        // NetworkLittleEndian empty compound: 0x0a (Compound), 0x00 (name len), 0x00 (End)
+        assert_eq!(nbt.0.as_ref(), &[0x0a, 0x00, 0x00]);
+    }
+
+    #[test]
+    fn nbt_default_roundtrip() {
+        let nbt = Nbt::default();
+        let mut buf = BytesMut::new();
+        nbt.encode(&mut buf).unwrap();
+
+        let mut reader = buf.freeze();
+        let decoded = Nbt::decode(&mut reader, ()).unwrap();
+        assert_eq!(nbt.0, decoded.0);
+    }
+}

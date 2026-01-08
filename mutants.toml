@@ -1,0 +1,36 @@
+# Mutation testing configuration for axolotl-stack
+# https://mutants.rs/
+
+# Timeout per mutant (seconds)
+timeout = 120
+
+# Exclude paths from mutation testing
+exclude_globs = [
+    # Test files themselves
+    "tests/**",
+    "benches/**",
+    "examples/**",
+
+    # Generated code (no point mutating generated code)
+    "**/generated/**",
+    "crates/valentine_bedrock_1_21_130/**",  # Generated protocol code
+    "crates/unastar-data/**",                 # Generated game data
+    "crates/valentine_gen/**",                # Code generator (not runtime)
+
+    # External tools
+    "crates/bds-extractor/**",
+]
+
+# Exclude specific functions that are known to be hard to test or low-value
+exclude_re = [
+    # Debug formatting
+    "fmt.*Debug",
+    # Display implementations
+    "fmt.*Display",
+    # Default implementations (usually trivial)
+    "default.*Default",
+]
+
+# Only mutate these packages by default (high-priority crates)
+# Override with: cargo mutants -p <package>
+# packages = ["tokio-raknet", "valentine", "jolyne", "axolotl-xbl", "tokio-nethernet"]

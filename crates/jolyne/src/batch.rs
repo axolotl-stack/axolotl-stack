@@ -460,10 +460,14 @@ mod tests {
     use super::*;
     use crate::valentine::{PlayStatusPacket, PlayStatusPacketStatus};
 
+    fn test_session() -> BedrockSession {
+        BedrockSession { shield_item_id: 0 }
+    }
+
     #[test]
     fn decode_batch_rejects_wrong_id() {
         let mut buf = Bytes::from_static(&[0x00, 0x01, 0x02]);
-        let session = BedrockSession { shield_item_id: 0 };
+        let session = test_session();
         let err = decode_batch(&mut buf, &session, false, None).expect_err("should fail");
         assert!(matches!(
             err,
@@ -474,7 +478,7 @@ mod tests {
     #[test]
     fn decode_batch_rejects_empty_compressed_payload() {
         let mut buf = Bytes::from_static(&[BATCH_PACKET_ID]);
-        let session = BedrockSession { shield_item_id: 0 };
+        let session = test_session();
         // Valid compression enabled -> expects alg byte. Empty -> fail.
         let err = decode_batch(&mut buf, &session, true, None).expect_err("should fail");
         assert!(matches!(
@@ -486,7 +490,7 @@ mod tests {
     #[test]
     fn decode_batch_rejects_unknown_alg() {
         let mut buf = Bytes::from_static(&[BATCH_PACKET_ID, 0xBA, 0x00]); // 0xBA = 186
-        let session = BedrockSession { shield_item_id: 0 };
+        let session = test_session();
         let err = decode_batch(&mut buf, &session, true, None).expect_err("should fail");
         // Should catch our new explicit check
         if let JolyneError::Protocol(ProtocolError::UnexpectedHandshake(msg)) = err {
@@ -498,7 +502,7 @@ mod tests {
 
     #[test]
     fn encode_decode_roundtrip_compressed() {
-        let session = BedrockSession { shield_item_id: 0 };
+        let session = test_session();
         let packet = McpePacket::from(PlayStatusPacket {
             status: PlayStatusPacketStatus::LoginSuccess,
         });
@@ -512,5 +516,255 @@ mod tests {
             decoded[0].data,
             McpePacketData::PacketPlayStatus(ref s) if s.status == PlayStatusPacketStatus::LoginSuccess
         ));
+    }
+
+    // ========== Compression Tests ==========
+
+    #[test]
+    fn batch_compression_enum_values() {
+        assert_eq!(BatchCompression::Deflate as u8, 0x00);
+        assert_eq!(BatchCompression::Snappy as u8, 0x01);
+        assert_eq!(BatchCompression::None as u8, 0xFF);
+    }
+
+    #[test]
+    fn batch_compression_try_from_u8() {
+        assert_eq!(
+            BatchCompression::try_from_u8(0x00),
+            Some(BatchCompression::Deflate)
+        );
+        assert_eq!(
+            BatchCompression::try_from_u8(0x01),
+            Some(BatchCompression::Snappy)
+        );
+        assert_eq!(
+            BatchCompression::try_from_u8(0xFF),
+            Some(BatchCompression::None)
+        );
+        assert_eq!(BatchCompression::try_from_u8(0x02), None);
+        assert_eq!(BatchCompression::try_from_u8(0xFE), None);
+    }
+
+    #[test]
+    fn encode_decode_roundtrip_uncompressed() {
+        let session = test_session();
+        let packet = McpePacket::from(PlayStatusPacket {
+            status: PlayStatusPacketStatus::PlayerSpawn,
+        });
+
+        // Compression disabled
+        let batch = encode_batch(&packet, false, 0, 0).expect("encode");
+        let mut buf = batch.clone();
+
+        // Should start with 0xFE
+        assert_eq!(buf[0], BATCH_PACKET_ID);
+
+        let decoded = decode_batch(&mut buf, &session, false, None).expect("decode");
+        assert_eq!(decoded.len(), 1);
+        assert!(matches!(
+            decoded[0].data,
+            McpePacketData::PacketPlayStatus(ref s) if s.status == PlayStatusPacketStatus::PlayerSpawn
+        ));
+    }
+
+    #[test]
+    fn encode_with_compression_none_marker() {
+        let packet = McpePacket::from(PlayStatusPacket {
+            status: PlayStatusPacketStatus::LoginSuccess,
+        });
+
+        // Compression enabled but level 0 or below threshold -> should use None marker
+        let batch = encode_batch(&packet, true, 0, 9999).expect("encode");
+
+        // Should be: [0xFE][0xFF][payload]
+        assert_eq!(batch[0], BATCH_PACKET_ID);
+        assert_eq!(batch[1], BatchCompression::None as u8);
+    }
+
+    #[test]
+    fn compression_threshold_below_threshold_uses_none() {
+        let packet = McpePacket::from(PlayStatusPacket {
+            status: PlayStatusPacketStatus::LoginSuccess,
+        });
+
+        // Threshold = 512, packet is small -> should use None compression
+        let batch = encode_batch(&packet, true, 7, 512).expect("encode");
+
+        assert_eq!(batch[0], BATCH_PACKET_ID);
+        assert_eq!(batch[1], BatchCompression::None as u8);
+    }
+
+    #[test]
+    fn compression_threshold_above_threshold_uses_deflate() {
+        let packet = McpePacket::from(PlayStatusPacket {
+            status: PlayStatusPacketStatus::LoginSuccess,
+        });
+
+        // Threshold = 0, any packet should compress
+        let batch = encode_batch(&packet, true, 7, 0).expect("encode");
+
+        assert_eq!(batch[0], BATCH_PACKET_ID);
+        assert_eq!(batch[1], BatchCompression::Deflate as u8);
+    }
+
+    #[test]
+    fn decode_batch_empty_returns_empty() {
+        let session = test_session();
+        let mut buf = Bytes::new();
+
+        let decoded = decode_batch(&mut buf, &session, false, None).expect("decode empty");
+        assert!(decoded.is_empty());
+    }
+
+    #[test]
+    fn multiple_packets_in_batch() {
+        let session = test_session();
+        let packets = vec![
+            McpePacket::from(PlayStatusPacket {
+                status: PlayStatusPacketStatus::LoginSuccess,
+            }),
+            McpePacket::from(PlayStatusPacket {
+                status: PlayStatusPacketStatus::PlayerSpawn,
+            }),
+        ];
+
+        let batch = encode_batch_multi(&packets, true, 7, 0, true).expect("encode multi");
+        let mut buf = batch.clone();
+
+        let decoded = decode_batch(&mut buf, &session, true, None).expect("decode");
+        assert_eq!(decoded.len(), 2);
+
+        assert!(matches!(
+            decoded[0].data,
+            McpePacketData::PacketPlayStatus(ref s) if s.status == PlayStatusPacketStatus::LoginSuccess
+        ));
+        assert!(matches!(
+            decoded[1].data,
+            McpePacketData::PacketPlayStatus(ref s) if s.status == PlayStatusPacketStatus::PlayerSpawn
+        ));
+    }
+
+    // ========== NetherNet (No Prefix) Tests ==========
+
+    #[test]
+    fn encode_decode_nethernet_format() {
+        let session = test_session();
+        let packet = McpePacket::from(PlayStatusPacket {
+            status: PlayStatusPacketStatus::LoginSuccess,
+        });
+
+        // NetherNet style: no 0xFE prefix
+        let batch = encode_batch_multi(slice::from_ref(&packet), true, 7, 0, false).expect("encode");
+        let mut buf = batch.clone();
+
+        // Should NOT start with 0xFE
+        assert_eq!(buf[0], BatchCompression::Deflate as u8);
+
+        let decoded = decode_batch_no_prefix(&mut buf, &session, None).expect("decode");
+        assert_eq!(decoded.len(), 1);
+    }
+
+    #[test]
+    fn decode_nethernet_empty_returns_empty() {
+        let session = test_session();
+        let mut buf = Bytes::new();
+
+        let decoded = decode_batch_no_prefix(&mut buf, &session, None).expect("decode empty");
+        assert!(decoded.is_empty());
+    }
+
+    // ========== Decompression Guard Tests ==========
+
+    #[test]
+    fn decompression_guard_rejects_oversized() {
+        let session = test_session();
+
+        // Create packets that will decompress to more than 100 bytes
+        let packets: Vec<_> = (0..10)
+            .map(|_| {
+                McpePacket::from(PlayStatusPacket {
+                    status: PlayStatusPacketStatus::LoginSuccess,
+                })
+            })
+            .collect();
+
+        let batch = encode_batch_multi(&packets, true, 7, 0, true).expect("encode");
+        let mut buf = batch.clone();
+
+        // Very small max size
+        let result = decode_batch(&mut buf, &session, true, Some(1));
+        assert!(result.is_err());
+    }
+
+    // ========== Snappy Rejection Test ==========
+
+    #[test]
+    fn decode_batch_rejects_snappy() {
+        let session = test_session();
+        // Snappy compression byte followed by some data
+        let mut buf = Bytes::from_static(&[BATCH_PACKET_ID, 0x01, 0x00, 0x00]);
+
+        let err = decode_batch(&mut buf, &session, true, None).expect_err("snappy should fail");
+        assert!(matches!(
+            err,
+            JolyneError::Protocol(ProtocolError::UnexpectedHandshake(_))
+        ));
+    }
+
+    // ========== Raw Packet Tests ==========
+    // Note: RawPacket creation requires going through decode_packets_raw,
+    // which means we can test the roundtrip through encode -> decode.
+
+    #[test]
+    fn raw_batch_encode_decode_via_full_packet() {
+        // Create a normal packet, encode it, then decode as raw
+        let session = test_session();
+        let packet = McpePacket::from(PlayStatusPacket {
+            status: PlayStatusPacketStatus::LoginSuccess,
+        });
+
+        // Encode as normal batch
+        let batch = encode_batch(&packet, true, 7, 0).expect("encode");
+        let mut buf = batch.clone();
+
+        // Decode as raw
+        let decoded_raw = decode_batch_raw(&mut buf, true, None).expect("decode raw");
+        assert_eq!(decoded_raw.len(), 1);
+
+        // Re-encode the raw packets
+        let batch2 = encode_batch_raw(&decoded_raw, true, 7, 0, true).expect("encode raw");
+        let mut buf2 = batch2.clone();
+
+        // Decode as full packet to verify roundtrip
+        let decoded = decode_batch(&mut buf2, &session, true, None).expect("decode full");
+        assert_eq!(decoded.len(), 1);
+        assert!(matches!(
+            decoded[0].data,
+            McpePacketData::PacketPlayStatus(ref s) if s.status == PlayStatusPacketStatus::LoginSuccess
+        ));
+    }
+
+    #[test]
+    fn raw_batch_uncompressed_roundtrip() {
+        let session = test_session();
+        let packet = McpePacket::from(PlayStatusPacket {
+            status: PlayStatusPacketStatus::PlayerSpawn,
+        });
+
+        // Encode without compression
+        let batch = encode_batch(&packet, false, 0, 0).expect("encode");
+        let mut buf = batch.clone();
+
+        // Decode as raw (no compression)
+        let decoded_raw = decode_batch_raw(&mut buf, false, None).expect("decode raw");
+        assert_eq!(decoded_raw.len(), 1);
+
+        // Re-encode
+        let batch2 = encode_batch_raw(&decoded_raw, false, 0, 0, true).expect("encode raw");
+        let mut buf2 = batch2.clone();
+
+        // Verify
+        let decoded = decode_batch(&mut buf2, &session, false, None).expect("decode full");
+        assert_eq!(decoded.len(), 1);
     }
 }

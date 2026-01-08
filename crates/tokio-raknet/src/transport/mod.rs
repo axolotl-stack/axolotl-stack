@@ -118,3 +118,125 @@ pub struct OutboundMsg {
     /// Priority for the RakNet scheduler; lower index sends sooner.
     pub priority: RakPriority,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn message_new_defaults() {
+        let msg = Message::new(vec![1, 2, 3]);
+
+        assert_eq!(msg.buffer.as_ref(), &[1, 2, 3]);
+        assert_eq!(msg.reliability, Reliability::ReliableOrdered);
+        assert_eq!(msg.channel, 0);
+        assert_eq!(msg.priority, RakPriority::Normal);
+    }
+
+    #[test]
+    fn message_builder_pattern() {
+        let msg = Message::new(vec![1, 2, 3])
+            .reliability(Reliability::Unreliable)
+            .channel(5)
+            .priority(RakPriority::Immediate);
+
+        assert_eq!(msg.reliability, Reliability::Unreliable);
+        assert_eq!(msg.channel, 5);
+        assert_eq!(msg.priority, RakPriority::Immediate);
+    }
+
+    #[test]
+    fn message_from_bytes() {
+        let msg: Message = Bytes::from_static(b"test").into();
+
+        assert_eq!(msg.buffer.as_ref(), b"test");
+        // From<Bytes> uses UnreliableSequenced
+        assert_eq!(msg.reliability, Reliability::UnreliableSequenced);
+    }
+
+    #[test]
+    fn message_from_vec() {
+        let msg: Message = vec![0xFE, 0x01].into();
+
+        assert_eq!(msg.buffer.as_ref(), &[0xFE, 0x01]);
+        // From<Vec<u8>> uses new() which defaults to ReliableOrdered
+        assert_eq!(msg.reliability, Reliability::ReliableOrdered);
+    }
+
+    #[test]
+    fn message_from_static_slice() {
+        let msg: Message = (&b"hello"[..]).into();
+
+        assert_eq!(msg.buffer.as_ref(), b"hello");
+    }
+
+    #[test]
+    fn message_from_str() {
+        let msg: Message = "test string".into();
+
+        assert_eq!(msg.buffer.as_ref(), b"test string");
+    }
+
+    #[test]
+    fn message_from_string() {
+        let msg: Message = String::from("owned string").into();
+
+        assert_eq!(msg.buffer.as_ref(), b"owned string");
+    }
+
+    #[test]
+    fn message_clone() {
+        let original = Message::new(vec![1, 2, 3])
+            .reliability(Reliability::ReliableSequenced)
+            .channel(2);
+
+        let cloned = original.clone();
+
+        assert_eq!(cloned.buffer, original.buffer);
+        assert_eq!(cloned.reliability, original.reliability);
+        assert_eq!(cloned.channel, original.channel);
+        assert_eq!(cloned.priority, original.priority);
+    }
+
+    #[test]
+    fn message_all_reliability_types() {
+        // Ensure all reliability types can be set
+        for reliability in [
+            Reliability::Unreliable,
+            Reliability::UnreliableSequenced,
+            Reliability::Reliable,
+            Reliability::ReliableOrdered,
+            Reliability::ReliableSequenced,
+        ] {
+            let msg = Message::new(vec![1]).reliability(reliability);
+            assert_eq!(msg.reliability, reliability);
+        }
+    }
+
+    #[test]
+    fn message_all_priority_types() {
+        // Ensure all priority types can be set
+        for priority in [
+            RakPriority::Immediate,
+            RakPriority::High,
+            RakPriority::Normal,
+            RakPriority::Low,
+        ] {
+            let msg = Message::new(vec![1]).priority(priority);
+            assert_eq!(msg.priority, priority);
+        }
+    }
+
+    #[test]
+    fn received_message_fields() {
+        let msg = ReceivedMessage {
+            buffer: Bytes::from_static(b"payload"),
+            reliability: Reliability::ReliableOrdered,
+            channel: 3,
+        };
+
+        assert_eq!(msg.buffer.as_ref(), b"payload");
+        assert_eq!(msg.reliability, Reliability::ReliableOrdered);
+        assert_eq!(msg.channel, 3);
+    }
+}

@@ -127,6 +127,8 @@ impl RaknetEncodable for Sequence24 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bytes::BytesMut;
+    use crate::protocol::packet::RaknetEncodable;
 
     #[test]
     fn wraps_on_next() {
@@ -153,5 +155,133 @@ mod tests {
         let a = Sequence24::new(0);
         let b = a + (-5i32);
         assert_eq!(b.value(), MASK - 4); // Should wrap to near max
+    }
+
+    // --- Additional comprehensive tests ---
+
+    #[test]
+    fn sequence_masking() {
+        // Values above 24-bit should be masked
+        let seq = Sequence24::new(0xFFFFFFFF);
+        assert_eq!(seq.value(), MASK);
+
+        let seq2 = Sequence24::new(MODULO); // 2^24 should become 0
+        assert_eq!(seq2.value(), 0);
+
+        let seq3 = Sequence24::new(MODULO + 42); // Should become 42
+        assert_eq!(seq3.value(), 42);
+    }
+
+    #[test]
+    fn prev_wraps_at_zero() {
+        let zero = Sequence24::new(0);
+        let prev = zero.prev();
+        assert_eq!(prev.value(), MASK);
+    }
+
+    #[test]
+    fn prev_decrements_normally() {
+        let seq = Sequence24::new(100);
+        assert_eq!(seq.prev().value(), 99);
+    }
+
+    #[test]
+    fn distance_to_no_wrap() {
+        let a = Sequence24::new(10);
+        let b = Sequence24::new(20);
+        assert_eq!(a.distance_to(b), 10);
+    }
+
+    #[test]
+    fn distance_to_with_wrap() {
+        let a = Sequence24::new(MASK - 5); // Near max
+        let b = Sequence24::new(5);         // Wrapped around
+        // Distance should be 11 (5 to reach 0, then 5 more, plus 1 for the wrap)
+        assert_eq!(a.distance_to(b), 11);
+    }
+
+    #[test]
+    fn distance_to_same() {
+        let a = Sequence24::new(100);
+        let b = Sequence24::new(100);
+        assert_eq!(a.distance_to(b), 0);
+    }
+
+    #[test]
+    fn add_sequences() {
+        let a = Sequence24::new(10);
+        let b = Sequence24::new(20);
+        let sum = a + b;
+        assert_eq!(sum.value(), 30);
+    }
+
+    #[test]
+    fn add_sequences_with_wrap() {
+        let a = Sequence24::new(MASK);
+        let b = Sequence24::new(10);
+        let sum = a + b;
+        assert_eq!(sum.value(), 9); // MASK + 10 = MODULO + 9 = 9 (after mod)
+    }
+
+    #[test]
+    fn add_i32_positive() {
+        let a = Sequence24::new(100);
+        let b = a + 50i32;
+        assert_eq!(b.value(), 150);
+    }
+
+    #[test]
+    fn add_i32_large_wrap() {
+        let a = Sequence24::new(MASK - 10);
+        let b = a + 20i32;
+        assert_eq!(b.value(), 9); // Wraps around
+    }
+
+    #[test]
+    fn ordering_equal() {
+        let a = Sequence24::new(100);
+        let b = Sequence24::new(100);
+        assert_eq!(a.cmp(&b), std::cmp::Ordering::Equal);
+    }
+
+    #[test]
+    fn ordering_near_half() {
+        // Test around the half point where comparison logic changes
+        let a = Sequence24::new(0);
+        let half_minus_1 = Sequence24::new(HALF - 1);
+        let _half = Sequence24::new(HALF); // boundary value
+        let half_plus_1 = Sequence24::new(HALF + 1);
+
+        // half_minus_1 is newer than 0
+        assert!(half_minus_1 > a);
+        // half_plus_1 should be considered older (wrapped around)
+        assert!(half_plus_1 < a);
+    }
+
+    #[test]
+    fn roundtrip_encoding() {
+        let test_values = [0u32, 1, 127, 128, 255, 256, 65535, MASK - 1, MASK];
+
+        for &v in &test_values {
+            let seq = Sequence24::new(v);
+            let mut buf = BytesMut::new();
+            seq.encode_raknet(&mut buf).unwrap();
+
+            assert_eq!(buf.len(), 3, "Sequence24 should encode to 3 bytes");
+
+            let mut slice = buf.freeze();
+            let decoded = Sequence24::decode_raknet(&mut slice).unwrap();
+            assert_eq!(decoded.value(), v, "Roundtrip failed for value {}", v);
+        }
+    }
+
+    #[test]
+    fn u24le_conversion() {
+        let seq = Sequence24::new(0x123456);
+        let u24: U24LE = seq.into();
+        assert_eq!(u24.0, 0x123456);
+
+        let seq_back: Sequence24 = u24.into();
+        assert_eq!(seq_back.value(), 0x123456);
     }
 }

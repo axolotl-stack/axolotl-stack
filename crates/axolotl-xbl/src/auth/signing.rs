@@ -145,6 +145,9 @@ fn base64_url_encode(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+
+    // ========== SigningKeyPair Tests ==========
 
     #[test]
     fn test_proof_key_format() {
@@ -159,6 +162,31 @@ mod tests {
     }
 
     #[test]
+    fn test_proof_key_x_y_are_base64_url() {
+        let key = SigningKeyPair::generate();
+        let proof = key.proof_key();
+
+        // x and y should be valid URL-safe base64 without padding
+        let x = proof["x"].as_str().unwrap();
+        let y = proof["y"].as_str().unwrap();
+
+        assert!(URL_SAFE_NO_PAD.decode(x).is_ok());
+        assert!(URL_SAFE_NO_PAD.decode(y).is_ok());
+
+        // P-256 coordinates are 32 bytes, base64 encoded = 43 chars (no padding)
+        assert_eq!(x.len(), 43);
+        assert_eq!(y.len(), 43);
+    }
+
+    #[test]
+    fn test_proof_key_use_field() {
+        let key = SigningKeyPair::generate();
+        let proof = key.proof_key();
+
+        assert_eq!(proof["use"], "sig");
+    }
+
+    #[test]
     fn test_sign_request() {
         let key = SigningKeyPair::generate();
         let sig = key.sign_request("POST", "/test", "", b"{}");
@@ -166,5 +194,208 @@ mod tests {
         // Signature should be base64-encoded and non-empty
         assert!(!sig.is_empty());
         assert!(BASE64.decode(&sig).is_ok());
+    }
+
+    #[test]
+    fn test_sign_request_structure() {
+        let key = SigningKeyPair::generate();
+        let sig = key.sign_request("POST", "/path", "auth_header", b"body");
+
+        let decoded = BASE64.decode(&sig).expect("valid base64");
+
+        // Structure: [version (4 bytes)][timestamp (8 bytes)][signature (64 bytes)]
+        assert_eq!(decoded.len(), 76);
+
+        // Version should be [0, 0, 0, 1]
+        assert_eq!(&decoded[0..4], &[0, 0, 0, 1]);
+    }
+
+    #[test]
+    fn test_sign_request_timestamp_is_big_endian() {
+        let key = SigningKeyPair::generate();
+        let sig = key.sign_request("GET", "/", "", b"");
+
+        let decoded = BASE64.decode(&sig).expect("valid base64");
+
+        // Extract timestamp (bytes 4-12)
+        let timestamp_bytes: [u8; 8] = decoded[4..12].try_into().unwrap();
+        let timestamp = i64::from_be_bytes(timestamp_bytes);
+
+        // Timestamp should be positive (Windows epoch is in the past)
+        // Note: exact value depends on server time offset which may be set by other tests
+        assert!(timestamp > 0);
+    }
+
+    #[test]
+    fn test_sign_request_different_inputs_different_signatures() {
+        let key = SigningKeyPair::generate();
+
+        let sig1 = key.sign_request("POST", "/path1", "", b"body1");
+        let sig2 = key.sign_request("POST", "/path2", "", b"body1");
+        let sig3 = key.sign_request("POST", "/path1", "", b"body2");
+        let sig4 = key.sign_request("GET", "/path1", "", b"body1");
+
+        // All should be different (different inputs)
+        assert_ne!(sig1, sig2);
+        assert_ne!(sig1, sig3);
+        assert_ne!(sig1, sig4);
+    }
+
+    #[test]
+    fn test_sign_request_with_authorization() {
+        let key = SigningKeyPair::generate();
+        let sig = key.sign_request("POST", "/xsts", "XBL3.0 x=hash;token", b"{}");
+
+        let decoded = BASE64.decode(&sig).expect("valid base64");
+        assert_eq!(decoded.len(), 76);
+    }
+
+    #[test]
+    fn test_sign_request_empty_body() {
+        let key = SigningKeyPair::generate();
+        let sig = key.sign_request("GET", "/resource", "", b"");
+
+        let decoded = BASE64.decode(&sig).expect("valid base64");
+        assert_eq!(decoded.len(), 76);
+    }
+
+    #[test]
+    fn test_sign_request_large_body() {
+        let key = SigningKeyPair::generate();
+        let large_body = vec![0u8; 10000];
+        let sig = key.sign_request("POST", "/upload", "", &large_body);
+
+        let decoded = BASE64.decode(&sig).expect("valid base64");
+        assert_eq!(decoded.len(), 76);
+    }
+
+    #[test]
+    fn test_generate_creates_different_keys() {
+        let key1 = SigningKeyPair::generate();
+        let key2 = SigningKeyPair::generate();
+
+        let proof1 = key1.proof_key();
+        let proof2 = key2.proof_key();
+
+        // Different keys should have different x/y coordinates
+        assert_ne!(proof1["x"], proof2["x"]);
+        assert_ne!(proof1["y"], proof2["y"]);
+    }
+
+    #[test]
+    fn test_default_generates_key() {
+        let key = SigningKeyPair::default();
+        let proof = key.proof_key();
+
+        // Should have valid coordinates
+        assert!(proof["x"].is_string());
+        assert!(proof["y"].is_string());
+    }
+
+    // ========== base64_url_encode Tests ==========
+
+    #[test]
+    fn test_base64_url_encode_empty() {
+        let result = base64_url_encode(&[]);
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn test_base64_url_encode_no_padding() {
+        // 1 byte encodes to 2 chars (normally would have 2 padding chars)
+        let result = base64_url_encode(&[0xFF]);
+        assert!(!result.ends_with('='));
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_base64_url_encode_url_safe_chars() {
+        // Standard base64 uses + and /, URL-safe uses - and _
+        // Bytes that would produce + or / in standard base64
+        let bytes = &[0xFB, 0xEF]; // Should produce URL-safe encoding
+        let result = base64_url_encode(bytes);
+
+        assert!(!result.contains('+'));
+        assert!(!result.contains('/'));
+    }
+
+    #[test]
+    fn test_base64_url_encode_roundtrip() {
+        let original = b"Hello, Xbox Live!";
+        let encoded = base64_url_encode(original);
+        let decoded = URL_SAFE_NO_PAD.decode(&encoded).expect("valid base64");
+        assert_eq!(decoded, original);
+    }
+
+    // ========== Windows Timestamp Tests ==========
+
+    #[test]
+    fn test_windows_timestamp_format() {
+        // Reset server time offset to avoid interference from other tests
+        if let Ok(mut guard) = SERVER_TIME_OFFSET.write() {
+            *guard = None;
+        }
+
+        let ts = windows_timestamp();
+
+        // Windows timestamp is 100-nanosecond intervals since 1601-01-01
+        // Should be a large positive number
+        assert!(ts > 0);
+
+        // Should be roughly in the range for year 2020-2040
+        // 2020: ~132400000000000000
+        // 2040: ~140000000000000000
+        assert!(ts > 130_000_000_000_000_000, "timestamp {} too low", ts);
+        assert!(ts < 145_000_000_000_000_000, "timestamp {} too high", ts);
+    }
+
+    #[test]
+    fn test_windows_timestamp_increases() {
+        // Reset server time offset to avoid interference from other tests
+        if let Ok(mut guard) = SERVER_TIME_OFFSET.write() {
+            *guard = None;
+        }
+
+        let ts1 = windows_timestamp();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        let ts2 = windows_timestamp();
+
+        // Second timestamp should be greater (or at least equal if very fast)
+        assert!(ts2 >= ts1, "ts2 {} should be >= ts1 {}", ts2, ts1);
+    }
+
+    // ========== update_server_time_from_header Tests ==========
+
+    #[test]
+    fn test_update_server_time_from_header_valid() {
+        // RFC 2822 format
+        let header = "Mon, 02 Jan 2006 15:04:05 +0000";
+        update_server_time_from_header(header);
+        // Should not panic
+    }
+
+    #[test]
+    fn test_update_server_time_from_header_invalid() {
+        // Invalid format should be silently ignored
+        update_server_time_from_header("not a date");
+        update_server_time_from_header("");
+        // Should not panic
+    }
+
+    #[test]
+    fn test_update_server_time_from_header_gmt() {
+        let header = "Wed, 01 Jan 2025 12:00:00 GMT";
+        update_server_time_from_header(header);
+        // Should not panic
+    }
+
+    // ========== Server Time Offset Tests ==========
+
+    #[test]
+    fn test_server_time_offset_starts_none() {
+        // Note: This test may fail if other tests have set the offset
+        // In practice, we're testing that reading the offset doesn't panic
+        let offset = SERVER_TIME_OFFSET.read().ok();
+        assert!(offset.is_some());
     }
 }

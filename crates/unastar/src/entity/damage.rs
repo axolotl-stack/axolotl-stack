@@ -142,3 +142,362 @@ pub struct DeathEvent {
     pub entity: Entity,
     pub source: DamageSource,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy_ecs::world::World;
+
+    fn dummy_entity() -> Entity {
+        let mut world = World::new();
+        world.spawn_empty().id()
+    }
+
+    // ========== DamageSource::reduced_by_armor Tests ==========
+
+    #[test]
+    fn attack_reduced_by_armor() {
+        let source = DamageSource::Attack {
+            attacker: dummy_entity(),
+        };
+        assert!(source.reduced_by_armor());
+    }
+
+    #[test]
+    fn projectile_reduced_by_armor() {
+        let source = DamageSource::Projectile {
+            projectile: dummy_entity(),
+            owner: Some(dummy_entity()),
+        };
+        assert!(source.reduced_by_armor());
+    }
+
+    #[test]
+    fn explosion_reduced_by_armor() {
+        let source = DamageSource::Explosion {
+            source: Some(dummy_entity()),
+        };
+        assert!(source.reduced_by_armor());
+    }
+
+    #[test]
+    fn lightning_reduced_by_armor() {
+        assert!(DamageSource::Lightning.reduced_by_armor());
+    }
+
+    #[test]
+    fn cactus_reduced_by_armor() {
+        assert!(DamageSource::Cactus.reduced_by_armor());
+    }
+
+    #[test]
+    fn sweet_berry_bush_reduced_by_armor() {
+        assert!(DamageSource::SweetBerryBush.reduced_by_armor());
+    }
+
+    #[test]
+    fn fall_not_reduced_by_armor() {
+        assert!(!DamageSource::Fall { distance: 10.0 }.reduced_by_armor());
+    }
+
+    #[test]
+    fn drowning_not_reduced_by_armor() {
+        assert!(!DamageSource::Drowning.reduced_by_armor());
+    }
+
+    #[test]
+    fn suffocation_not_reduced_by_armor() {
+        assert!(!DamageSource::Suffocation.reduced_by_armor());
+    }
+
+    #[test]
+    fn void_not_reduced_by_armor() {
+        assert!(!DamageSource::Void.reduced_by_armor());
+    }
+
+    #[test]
+    fn fire_not_reduced_by_armor() {
+        assert!(!DamageSource::Fire { is_lava: false }.reduced_by_armor());
+        assert!(!DamageSource::Fire { is_lava: true }.reduced_by_armor());
+    }
+
+    #[test]
+    fn starvation_not_reduced_by_armor() {
+        assert!(!DamageSource::Starvation.reduced_by_armor());
+    }
+
+    #[test]
+    fn magic_not_reduced_by_armor() {
+        assert!(!DamageSource::Magic { source: None }.reduced_by_armor());
+    }
+
+    #[test]
+    fn generic_not_reduced_by_armor() {
+        assert!(!DamageSource::Generic.reduced_by_armor());
+    }
+
+    // ========== DamageSource::reduced_by_resistance Tests ==========
+
+    #[test]
+    fn most_damage_reduced_by_resistance() {
+        let sources = [
+            DamageSource::Attack {
+                attacker: dummy_entity(),
+            },
+            DamageSource::Projectile {
+                projectile: dummy_entity(),
+                owner: None,
+            },
+            DamageSource::Fall { distance: 5.0 },
+            DamageSource::Drowning,
+            DamageSource::Suffocation,
+            DamageSource::Fire { is_lava: false },
+            DamageSource::Explosion { source: None },
+            DamageSource::Lightning,
+            DamageSource::Magic { source: None },
+            DamageSource::Thorns {
+                attacker: dummy_entity(),
+            },
+            DamageSource::Cactus,
+            DamageSource::SweetBerryBush,
+            DamageSource::Generic,
+        ];
+
+        for source in sources {
+            assert!(
+                source.reduced_by_resistance(),
+                "{:?} should be reduced by resistance",
+                source
+            );
+        }
+    }
+
+    #[test]
+    fn void_not_reduced_by_resistance() {
+        assert!(!DamageSource::Void.reduced_by_resistance());
+    }
+
+    #[test]
+    fn starvation_not_reduced_by_resistance() {
+        assert!(!DamageSource::Starvation.reduced_by_resistance());
+    }
+
+    // ========== DamageSource::is_fire Tests ==========
+
+    #[test]
+    fn fire_is_fire() {
+        assert!(DamageSource::Fire { is_lava: false }.is_fire());
+        assert!(DamageSource::Fire { is_lava: true }.is_fire());
+    }
+
+    #[test]
+    fn non_fire_is_not_fire() {
+        assert!(!DamageSource::Attack {
+            attacker: dummy_entity()
+        }
+        .is_fire());
+        assert!(!DamageSource::Lightning.is_fire());
+        assert!(!DamageSource::Explosion { source: None }.is_fire());
+    }
+
+    // ========== DamageSource::ignores_totem Tests ==========
+
+    #[test]
+    fn void_ignores_totem() {
+        assert!(DamageSource::Void.ignores_totem());
+    }
+
+    #[test]
+    fn other_damage_respects_totem() {
+        let sources = [
+            DamageSource::Attack {
+                attacker: dummy_entity(),
+            },
+            DamageSource::Fall { distance: 100.0 },
+            DamageSource::Drowning,
+            DamageSource::Fire { is_lava: true },
+            DamageSource::Explosion { source: None },
+            DamageSource::Starvation,
+            DamageSource::Generic,
+        ];
+
+        for source in sources {
+            assert!(
+                !source.ignores_totem(),
+                "{:?} should respect totem",
+                source
+            );
+        }
+    }
+
+    // ========== DamageSource::bypasses_armor Tests ==========
+
+    #[test]
+    fn void_bypasses_armor() {
+        assert!(DamageSource::Void.bypasses_armor());
+    }
+
+    #[test]
+    fn starvation_bypasses_armor() {
+        assert!(DamageSource::Starvation.bypasses_armor());
+    }
+
+    #[test]
+    fn drowning_bypasses_armor() {
+        assert!(DamageSource::Drowning.bypasses_armor());
+    }
+
+    #[test]
+    fn magic_bypasses_armor() {
+        assert!(DamageSource::Magic { source: None }.bypasses_armor());
+        assert!(DamageSource::Magic {
+            source: Some(dummy_entity())
+        }
+        .bypasses_armor());
+    }
+
+    #[test]
+    fn physical_damage_does_not_bypass_armor() {
+        let sources = [
+            DamageSource::Attack {
+                attacker: dummy_entity(),
+            },
+            DamageSource::Projectile {
+                projectile: dummy_entity(),
+                owner: None,
+            },
+            DamageSource::Fall { distance: 5.0 },
+            DamageSource::Fire { is_lava: false },
+            DamageSource::Explosion { source: None },
+            DamageSource::Lightning,
+            DamageSource::Cactus,
+            DamageSource::SweetBerryBush,
+            DamageSource::Generic,
+        ];
+
+        for source in sources {
+            assert!(
+                !source.bypasses_armor(),
+                "{:?} should not bypass armor",
+                source
+            );
+        }
+    }
+
+    // ========== DamageSource::attacker Tests ==========
+
+    #[test]
+    fn attack_has_attacker() {
+        let entity = dummy_entity();
+        let source = DamageSource::Attack { attacker: entity };
+        assert_eq!(source.attacker(), Some(entity));
+    }
+
+    #[test]
+    fn projectile_attacker_from_owner() {
+        let projectile = dummy_entity();
+        let owner = dummy_entity();
+
+        let source = DamageSource::Projectile {
+            projectile,
+            owner: Some(owner),
+        };
+        assert_eq!(source.attacker(), Some(owner));
+    }
+
+    #[test]
+    fn projectile_no_owner_no_attacker() {
+        let source = DamageSource::Projectile {
+            projectile: dummy_entity(),
+            owner: None,
+        };
+        assert_eq!(source.attacker(), None);
+    }
+
+    #[test]
+    fn thorns_has_attacker() {
+        let entity = dummy_entity();
+        let source = DamageSource::Thorns { attacker: entity };
+        assert_eq!(source.attacker(), Some(entity));
+    }
+
+    #[test]
+    fn explosion_attacker_from_source() {
+        let entity = dummy_entity();
+        let source = DamageSource::Explosion {
+            source: Some(entity),
+        };
+        assert_eq!(source.attacker(), Some(entity));
+    }
+
+    #[test]
+    fn explosion_no_source_no_attacker() {
+        let source = DamageSource::Explosion { source: None };
+        assert_eq!(source.attacker(), None);
+    }
+
+    #[test]
+    fn magic_attacker_from_source() {
+        let entity = dummy_entity();
+        let source = DamageSource::Magic {
+            source: Some(entity),
+        };
+        assert_eq!(source.attacker(), Some(entity));
+    }
+
+    #[test]
+    fn magic_no_source_no_attacker() {
+        let source = DamageSource::Magic { source: None };
+        assert_eq!(source.attacker(), None);
+    }
+
+    #[test]
+    fn environmental_damage_no_attacker() {
+        let sources = [
+            DamageSource::Fall { distance: 10.0 },
+            DamageSource::Drowning,
+            DamageSource::Suffocation,
+            DamageSource::Void,
+            DamageSource::Fire { is_lava: false },
+            DamageSource::Lightning,
+            DamageSource::Starvation,
+            DamageSource::Cactus,
+            DamageSource::SweetBerryBush,
+            DamageSource::Generic,
+        ];
+
+        for source in sources {
+            assert_eq!(
+                source.attacker(),
+                None,
+                "{:?} should have no attacker",
+                source
+            );
+        }
+    }
+
+    // ========== is_player_damage Test ==========
+
+    #[test]
+    fn is_player_damage_returns_false() {
+        // Current implementation always returns false
+        let source = DamageSource::Attack {
+            attacker: dummy_entity(),
+        };
+        assert!(!source.is_player_damage());
+    }
+
+    // ========== HealingSource Variant Tests ==========
+
+    #[test]
+    fn healing_source_variants_exist() {
+        // Just ensure variants compile and can be constructed
+        let _ = HealingSource::Food;
+        let _ = HealingSource::Regeneration;
+        let _ = HealingSource::InstantHealth;
+        let _ = HealingSource::Beacon;
+        let _ = HealingSource::Sleep;
+        let _ = HealingSource::Totem;
+        let _ = HealingSource::Generic;
+    }
+}
