@@ -72,10 +72,15 @@ impl Axelerator {
         let rta_client = Arc::new(axolotl_xbl::RtaClient::new(xbl_token.clone()));
         let friends_client = Arc::new(axolotl_xbl::FriendsClient::new());
         let session_client = Arc::new(SessionClient::new());
+
+        // Track processed XUIDs to avoid duplicate invites (shared across RTA handler and periodic sync)
+        let processed_xuids: Arc<RwLock<HashSet<String>>> = Arc::new(RwLock::new(HashSet::new()));
+
         let rta_token = xbl_token.clone();
         let friends_client_clone = friends_client.clone();
         let session_client_clone = session_client.clone();
         let session_info_clone = self.session_info.clone();
+        let processed_xuids_clone = processed_xuids.clone();
 
         // Handle RTA events
         rta_client
@@ -87,12 +92,14 @@ impl Axelerator {
                         let sessions = session_client_clone.clone();
                         let token = rta_token.clone();
                         let session_info = session_info_clone.clone();
+                        let processed = processed_xuids_clone.clone();
                         tokio::spawn(async move {
                             accept_friends_and_invite(
                                 &friends,
                                 &sessions,
                                 &token,
                                 session_info,
+                                &processed,
                             )
                             .await;
                         });
@@ -205,6 +212,17 @@ impl Axelerator {
             &session_client,
             &xbl_token,
             self.session_info.clone(),
+            &processed_xuids,
+        )
+        .await;
+
+        // Also sync followers on startup (catches people who followed us while we were offline)
+        sync_followers(
+            &friends_client,
+            &session_client,
+            &xbl_token,
+            &self.session_info,
+            &processed_xuids,
         )
         .await;
 
@@ -216,9 +234,10 @@ impl Axelerator {
             let token = xbl_token.clone();
             let session_info_for_sync = self.session_info.clone();
             let shutdown = self.shutdown_notify.clone();
+            let processed_for_sync = processed_xuids.clone();
 
             Some(tokio::spawn(async move {
-                run_periodic_friend_sync(interval, friends, sessions, token, session_info_for_sync, shutdown).await;
+                run_periodic_friend_sync(interval, friends, sessions, token, session_info_for_sync, shutdown, processed_for_sync).await;
             }))
         } else {
             None
@@ -670,6 +689,7 @@ async fn accept_friends_and_invite(
     session_client: &SessionClient,
     token: &XblToken,
     session_info: Arc<RwLock<Option<ExpandedSessionInfo>>>,
+    processed_xuids: &Arc<RwLock<HashSet<String>>>,
 ) {
     // Get pending friend requests
     let requests = match friends_client.get_incoming_requests(token).await {
@@ -696,6 +716,14 @@ async fn accept_friends_and_invite(
     }
 
     info!("Friend requests accepted!");
+
+    // Mark all as processed
+    {
+        let mut processed = processed_xuids.write().await;
+        for xuid in &requests {
+            processed.insert(xuid.clone());
+        }
+    }
 
     // Get session info for sending invites
     let session = match session_info.read().await.clone() {
@@ -726,6 +754,7 @@ async fn run_periodic_friend_sync(
     token: XblToken,
     session_info: Arc<RwLock<Option<ExpandedSessionInfo>>>,
     shutdown: Arc<Notify>,
+    processed_xuids: Arc<RwLock<HashSet<String>>>,
 ) {
     let mut ticker = tokio::time::interval(interval);
     ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -743,18 +772,21 @@ async fn run_periodic_friend_sync(
             }
 
             _ = ticker.tick() => {
-                sync_followers(&friends_client, &session_client, &token, &session_info).await;
+                sync_followers(&friends_client, &session_client, &token, &session_info, &processed_xuids).await;
             }
         }
     }
 }
 
 /// Check followers and auto-follow back anyone who follows us but we don't follow.
+///
+/// Only processes new followers that haven't been seen before (tracked in processed_xuids).
 async fn sync_followers(
     friends_client: &FriendsClient,
     session_client: &SessionClient,
     token: &XblToken,
     session_info: &Arc<RwLock<Option<ExpandedSessionInfo>>>,
+    processed_xuids: &Arc<RwLock<HashSet<String>>>,
 ) {
     // Get our followers
     let followers = match friends_client.get_followers(token).await {
@@ -765,19 +797,23 @@ async fn sync_followers(
         }
     };
 
-    // Find people who follow us but we don't follow back
+    // Find people who follow us but we don't follow back AND haven't been processed yet
+    let processed = processed_xuids.read().await;
     let to_follow: Vec<_> = followers
         .iter()
         .filter(|p| p.is_following_caller && !p.is_followed_by_caller)
         .filter(|p| !is_guest_account(&p.xuid)) // Skip split-screen/guest accounts
+        .filter(|p| !processed.contains(&p.xuid)) // Skip already processed
+        .cloned()
         .collect();
+    drop(processed);
 
     if to_follow.is_empty() {
         return;
     }
 
     info!(
-        "Found {} followers to follow back (periodic sync)",
+        "Found {} new followers to follow back",
         to_follow.len()
     );
 
@@ -787,9 +823,14 @@ async fn sync_followers(
             Ok(_) => info!("Followed back {} ({})", person.gamertag, person.xuid),
             Err(e) => {
                 warn!("Failed to follow {}: {}", person.gamertag, e);
+                // Still mark as processed to avoid retrying failed ones constantly
+                processed_xuids.write().await.insert(person.xuid.clone());
                 continue;
             }
         }
+
+        // Mark as processed
+        processed_xuids.write().await.insert(person.xuid.clone());
 
         // Send invite
         if let Some(session) = session_info.read().await.clone() {
