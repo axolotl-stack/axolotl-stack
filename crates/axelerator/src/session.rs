@@ -4,6 +4,7 @@
 //! then transfers players to the actual RakNet server.
 
 use crate::config::AxeleratorConfig;
+use crate::screenshots::ScreenshotManager;
 use crate::token_cache::TokenCache;
 use crate::transfer::TransferStats;
 use anyhow::{Context, Result};
@@ -341,6 +342,21 @@ impl Axelerator {
         // Current handle_id (mutable for recreation)
         let mut current_handle_id = handle_id.to_string();
 
+        // Screenshot/showcase image management
+        let mut screenshot_manager = ScreenshotManager::new(self.config.screenshots.clone());
+        if let Err(e) = screenshot_manager.init() {
+            warn!("Failed to initialize screenshot manager: {}", e);
+        }
+        let mut last_screenshot_check = Instant::now();
+
+        if screenshot_manager.is_enabled() {
+            info!(
+                count = screenshot_manager.image_count(),
+                cycle_interval = screenshot_manager.cycle_interval_secs(),
+                "Screenshot feature enabled"
+            );
+        }
+
         if monitor_enabled {
             info!(
                 interval = monitor_interval,
@@ -430,6 +446,36 @@ impl Axelerator {
                                 heartbeat_secs = presence_backoff_secs;
                                 presence_backoff_secs = (presence_backoff_secs * 2).min(PRESENCE_MAX_BACKOFF_SECS);
                                 last_presence_refresh = now;
+                            }
+                        }
+                    }
+
+                    // Screenshot upload check
+                    if screenshot_manager.is_enabled() {
+                        let should_upload = if screenshot_manager.image_count() > 1 {
+                            // Multiple images - check cycle interval
+                            screenshot_manager.should_upload()
+                                || now.duration_since(last_screenshot_check).as_secs()
+                                    >= screenshot_manager.cycle_interval_secs()
+                        } else {
+                            // Single image - only upload on startup if enabled
+                            screenshot_manager.should_upload()
+                        };
+
+                        if should_upload {
+                            last_screenshot_check = now;
+                            match screenshot_manager
+                                .upload_screenshot(&mc_token, &session.xuid)
+                                .await
+                            {
+                                Ok(uploaded) => {
+                                    if uploaded {
+                                        debug!("Screenshot uploaded/cycled");
+                                    }
+                                }
+                                Err(e) => {
+                                    warn!("Failed to upload screenshot: {}", e);
+                                }
                             }
                         }
                     }

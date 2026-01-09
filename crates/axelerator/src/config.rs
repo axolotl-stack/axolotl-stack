@@ -55,6 +55,10 @@ pub struct AxeleratorConfig {
     /// Logging configuration.
     #[serde(default)]
     pub logging: LoggingConfig,
+
+    /// Screenshot/showcase image configuration.
+    #[serde(default)]
+    pub screenshots: ScreenshotConfig,
 }
 
 /// Logging configuration.
@@ -86,6 +90,58 @@ impl Default for LoggingConfig {
     }
 }
 
+/// Screenshot/showcase image configuration.
+///
+/// Screenshots are displayed as the server's showcase image in the Xbox friend list.
+/// You can either set a single static image or cycle through multiple images from a directory.
+///
+/// Recommended image specifications:
+/// - Resolution: 1200x675 pixels
+/// - Format: JPEG (.jpg)
+/// - Quality: 90
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ScreenshotConfig {
+    /// Enable screenshot uploading feature.
+    pub enabled: bool,
+
+    /// Path to a single screenshot image file.
+    /// If set, this image will be used as the showcase.
+    /// If `directory` is also set, `directory` takes precedence for cycling.
+    pub path: Option<String>,
+
+    /// Directory containing screenshot images for cycling.
+    /// Supported formats: .jpg, .jpeg, .png
+    /// Images will be cycled in alphabetical order.
+    pub directory: Option<String>,
+
+    /// Interval (in seconds) between screenshot cycles.
+    /// Only used when `directory` is set with multiple images.
+    /// Default: 300 (5 minutes)
+    pub cycle_interval: u64,
+
+    /// Whether to randomize the image order when cycling.
+    /// If false, images are cycled in alphabetical order.
+    pub randomize_order: bool,
+
+    /// Upload on startup even if the image hasn't changed.
+    /// Useful to ensure the showcase is always set after restart.
+    pub upload_on_startup: bool,
+}
+
+impl Default for ScreenshotConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            path: None,
+            directory: None,
+            cycle_interval: 300, // 5 minutes
+            randomize_order: false,
+            upload_on_startup: true,
+        }
+    }
+}
+
 impl Default for AxeleratorConfig {
     fn default() -> Self {
         Self {
@@ -104,6 +160,7 @@ impl Default for AxeleratorConfig {
             monitor_interval: 30,
             auto_block_attackers: false,
             logging: LoggingConfig::default(),
+            screenshots: ScreenshotConfig::default(),
         }
     }
 }
@@ -185,6 +242,14 @@ impl AxeleratorConfig {
             logging: LoggingConfig {
                 level: "info,axelerator=debug".into(),
                 ..Default::default()
+            },
+            screenshots: ScreenshotConfig {
+                enabled: true,
+                path: Some("screenshot.jpg".into()),
+                directory: None,
+                cycle_interval: 300,
+                randomize_order: false,
+                upload_on_startup: true,
             },
             ..Default::default()
         };

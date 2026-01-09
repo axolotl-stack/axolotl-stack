@@ -5,11 +5,11 @@
 #![allow(dead_code)]
 #![allow(unused_parens)]
 #![allow(clippy::all)]
-use crate::bedrock::codec::BedrockCodec;
-use crate::proto::*;
-use crate::types::*;
 use ::bitflags::bitflags;
 use bytes::{Buf, BufMut};
+use crate::types::*;
+use crate::proto::*;
+use crate::bedrock::codec::BedrockCodec;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u32)]
 pub enum PacketId {

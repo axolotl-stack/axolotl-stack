@@ -394,6 +394,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "futures-util",
+ "hex",
  "p256",
  "rand 0.8.5",
  "reqwest",

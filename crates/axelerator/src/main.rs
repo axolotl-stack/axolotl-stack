@@ -45,6 +45,22 @@ struct Args {
     #[arg(long)]
     log_level: Option<String>,
 
+    /// Enable screenshot/showcase image feature
+    #[arg(long)]
+    screenshots: bool,
+
+    /// Path to a single screenshot image file
+    #[arg(long)]
+    screenshot_path: Option<String>,
+
+    /// Directory containing screenshot images for cycling
+    #[arg(long)]
+    screenshot_dir: Option<String>,
+
+    /// Screenshot cycle interval in seconds (default: 300)
+    #[arg(long)]
+    screenshot_interval: Option<u64>,
+
     #[command(subcommand)]
     command: Option<Commands>,
 }
@@ -139,6 +155,22 @@ async fn main() -> Result<()> {
         config.auto_block_attackers = true;
     }
 
+    // Screenshot overrides
+    if args.screenshots {
+        config.screenshots.enabled = true;
+    }
+    if let Some(path) = &args.screenshot_path {
+        config.screenshots.enabled = true;
+        config.screenshots.path = Some(path.clone());
+    }
+    if let Some(dir) = &args.screenshot_dir {
+        config.screenshots.enabled = true;
+        config.screenshots.directory = Some(dir.clone());
+    }
+    if let Some(interval) = args.screenshot_interval {
+        config.screenshots.cycle_interval = interval;
+    }
+
     // Initialize logging (must be before any tracing calls)
     init_logging(&config, args.log_level.as_deref());
 
@@ -157,6 +189,21 @@ async fn main() -> Result<()> {
             interval = config.monitor_interval,
             auto_block = config.auto_block_attackers,
             "Session monitoring enabled"
+        );
+    }
+
+    if config.screenshots.enabled {
+        let source = if config.screenshots.directory.is_some() {
+            config.screenshots.directory.as_deref().unwrap_or("(dir)")
+        } else if config.screenshots.path.is_some() {
+            config.screenshots.path.as_deref().unwrap_or("(path)")
+        } else {
+            "(none)"
+        };
+        tracing::info!(
+            source = source,
+            cycle_interval = config.screenshots.cycle_interval,
+            "Screenshots enabled"
         );
     }
 

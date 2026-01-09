@@ -17,11 +17,13 @@
 //! ```
 
 pub mod config;
+pub mod screenshots;
 pub mod session;
 pub mod token_cache;
 pub mod transfer;
 
-pub use config::{AxeleratorConfig, ConfigError, LoggingConfig};
+pub use config::{AxeleratorConfig, ConfigError, LoggingConfig, ScreenshotConfig};
+pub use screenshots::ScreenshotManager;
 pub use session::Axelerator;
 pub use token_cache::{CachedToken, TokenCache};
 pub use transfer::{ShutdownReason, TransferStats};

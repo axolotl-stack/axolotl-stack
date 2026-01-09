@@ -13,10 +13,10 @@
 /// - `protocol`: Unique protocol definitions (one per protocol schema).
 /// - `version`: Feature-gated per-MC-version modules that re-export a `protocol`.
 pub mod codec;
-pub mod context;
 pub mod error;
 pub mod protocol;
 pub mod version;
+pub mod context;
 /// Convenience re-exports so users can do `bedrock::vX_Y_Z`.
 #[cfg(feature = "bedrock_1_21_130")]
 pub use self::version::v1_21_130;
