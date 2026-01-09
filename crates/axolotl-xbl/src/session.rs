@@ -109,8 +109,9 @@ pub struct CreateHandleRequest {
     session_ref: SessionRef,
     #[serde(skip_serializing_if = "Option::is_none")]
     invited_xuid: Option<String>,
+    /// Used for invite handles - contains titleId
     #[serde(skip_serializing_if = "Option::is_none")]
-    context: Option<serde_json::Value>,
+    invite_attributes: Option<std::collections::HashMap<String, String>>,
 }
 
 /// Create handle response.
@@ -488,7 +489,7 @@ impl SessionClient {
                 name: session.session_id.clone(),
             },
             invited_xuid: None,
-            context: None,
+            invite_attributes: None,
         };
 
         debug!("Creating session handle");
@@ -524,6 +525,9 @@ impl SessionClient {
         session: &ExpandedSessionInfo,
         xuid: &str,
     ) -> XblResult<()> {
+        let mut invite_attributes = std::collections::HashMap::new();
+        invite_attributes.insert("titleId".to_string(), TITLE_ID.to_string());
+
         let body = CreateHandleRequest {
             version: 1,
             handle_type: "invite".into(),
@@ -533,7 +537,7 @@ impl SessionClient {
                 name: session.session_id.clone(),
             },
             invited_xuid: Some(xuid.into()),
-            context: Some(serde_json::json!({ "titleId": TITLE_ID })),
+            invite_attributes: Some(invite_attributes),
         };
 
         let response = self
