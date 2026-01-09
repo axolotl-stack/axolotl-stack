@@ -9,7 +9,6 @@
 token.json
 token.*.json
 
-/Broadcaster
 /go-nethernet
 /go-playfab
 nethernet.go
@@ -26,3 +25,4 @@ worlds/
 /gophertunnel
 /java-ed-world
 /dragonfly
+/broadcaster

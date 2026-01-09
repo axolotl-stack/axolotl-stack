@@ -10,7 +10,7 @@ use crate::transfer::TransferStats;
 use anyhow::{Context, Result};
 use axolotl_xbl::{
     ExpandedSessionInfo, FriendsClient, PlayFabClient, PresenceClient, SessionClient, SessionInfo,
-    discovery::DiscoveryClient,
+    XblToken, discovery::DiscoveryClient,
 };
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -71,8 +71,11 @@ impl Axelerator {
         // Step 1.5: Start RTA and Friend Manager
         let rta_client = Arc::new(axolotl_xbl::RtaClient::new(xbl_token.clone()));
         let friends_client = Arc::new(axolotl_xbl::FriendsClient::new());
+        let session_client = Arc::new(SessionClient::new());
         let rta_token = xbl_token.clone();
         let friends_client_clone = friends_client.clone();
+        let session_client_clone = session_client.clone();
+        let session_info_clone = self.session_info.clone();
 
         // Handle RTA events
         rta_client
@@ -80,19 +83,18 @@ impl Axelerator {
                 if let Some(msg_type) = data.get("NotificationType").and_then(|v| v.as_str()) {
                     if msg_type == "IncomingFriendRequestCountChanged" {
                         info!("Received friend request notification");
-                        let client = friends_client_clone.clone();
+                        let friends = friends_client_clone.clone();
+                        let sessions = session_client_clone.clone();
                         let token = rta_token.clone();
+                        let session_info = session_info_clone.clone();
                         tokio::spawn(async move {
-                            if let Ok(requests) = client.get_incoming_requests(&token).await {
-                                if !requests.is_empty() {
-                                    info!("Accepting {} friend requests...", requests.len());
-                                    if let Err(e) = client.accept_requests(&token, requests).await {
-                                        warn!("Failed to accept requests: {}", e);
-                                    } else {
-                                        info!("Friend requests accepted!");
-                                    }
-                                }
-                            }
+                            accept_friends_and_invite(
+                                &friends,
+                                &sessions,
+                                &token,
+                                session_info,
+                            )
+                            .await;
                         });
                     }
                 }
@@ -166,22 +168,11 @@ impl Axelerator {
             .context("Failed to set presence")?;
         info!(heartbeat, "Presence set to active");
 
-        // Initial friend sync
-        if let Ok(requests) = friends_client.get_incoming_requests(&xbl_token).await {
-            if !requests.is_empty() {
-                info!("Found {} pending friend requests", requests.len());
-                friends_client
-                    .accept_requests(&xbl_token, requests)
-                    .await
-                    .ok();
-            }
-        }
+        // Initial friend sync (invites sent after session is created below)
 
         // Step 3: Create session (always WebRTC mode)
         let mut session_info = self.create_session_info(&xbl_token.xuid);
         session_info.connection_id = connection_id;
-
-        let session_client = SessionClient::new();
 
         session_client
             .create_session(&xbl_token, &session_info)
@@ -208,6 +199,15 @@ impl Axelerator {
             *info = Some(session_info.clone());
         }
 
+        // Initial friend sync - now that session is created, accept pending requests and send invites
+        accept_friends_and_invite(
+            &friends_client,
+            &session_client,
+            &xbl_token,
+            self.session_info.clone(),
+        )
+        .await;
+
         // Step 4: Run WebRTC signaling and transfer players
         let playfab_token = token_cache
             .get_xbl_token(axolotl_xbl::auth::relying_party::PLAYFAB)
@@ -220,7 +220,7 @@ impl Axelerator {
                 &session_info,
                 &handle_id,
                 heartbeat,
-                &session_client,
+                &*session_client,
             )
             .await;
 
@@ -637,5 +637,59 @@ impl Axelerator {
     /// Get current session info (if available).
     pub async fn session_info(&self) -> Option<ExpandedSessionInfo> {
         self.session_info.read().await.clone()
+    }
+}
+
+/// Accept pending friend requests and send game invites to each new friend.
+///
+/// This matches the behavior of Broadcaster (mcxboxbroadcast) which sends an initial
+/// game invite when someone adds the account as a friend.
+async fn accept_friends_and_invite(
+    friends_client: &FriendsClient,
+    session_client: &SessionClient,
+    token: &XblToken,
+    session_info: Arc<RwLock<Option<ExpandedSessionInfo>>>,
+) {
+    // Get pending friend requests
+    let requests = match friends_client.get_incoming_requests(token).await {
+        Ok(r) => r,
+        Err(e) => {
+            warn!("Failed to get friend requests: {}", e);
+            return;
+        }
+    };
+
+    if requests.is_empty() {
+        return;
+    }
+
+    info!("Accepting {} friend requests...", requests.len());
+
+    // Accept all requests
+    if let Err(e) = friends_client
+        .accept_requests(token, requests.clone())
+        .await
+    {
+        warn!("Failed to accept friend requests: {}", e);
+        return;
+    }
+
+    info!("Friend requests accepted!");
+
+    // Get session info for sending invites
+    let session = match session_info.read().await.clone() {
+        Some(s) => s,
+        None => {
+            debug!("Session not yet created, skipping invites");
+            return;
+        }
+    };
+
+    // Send invite to each newly accepted friend
+    for xuid in requests {
+        match session_client.send_invite(token, &session, &xuid).await {
+            Ok(_) => info!("Sent game invite to {}", xuid),
+            Err(e) => warn!("Failed to send invite to {}: {}", xuid, e),
+        }
     }
 }
