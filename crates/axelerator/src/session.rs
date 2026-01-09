@@ -56,7 +56,7 @@ impl Axelerator {
         );
 
         // Step 1: Authenticate with Xbox Live using TokenCache
-        let token_cache = TokenCache::new(&self.config.token_cache_path);
+        let token_cache = Arc::new(TokenCache::new(&self.config.token_cache_path));
         let xbl_token = token_cache
             .get_or_authenticate()
             .await
@@ -76,7 +76,7 @@ impl Axelerator {
         // Track processed XUIDs to avoid duplicate invites (shared across RTA handler and periodic sync)
         let processed_xuids: Arc<RwLock<HashSet<String>>> = Arc::new(RwLock::new(HashSet::new()));
 
-        let rta_token = xbl_token.clone();
+        let token_cache_for_rta = token_cache.clone();
         let friends_client_clone = friends_client.clone();
         let session_client_clone = session_client.clone();
         let session_info_clone = self.session_info.clone();
@@ -90,14 +90,14 @@ impl Axelerator {
                         info!("Received friend request notification");
                         let friends = friends_client_clone.clone();
                         let sessions = session_client_clone.clone();
-                        let token = rta_token.clone();
+                        let token_cache = token_cache_for_rta.clone();
                         let session_info = session_info_clone.clone();
                         let processed = processed_xuids_clone.clone();
                         tokio::spawn(async move {
                             accept_friends_and_invite(
                                 &friends,
                                 &sessions,
-                                &token,
+                                &token_cache,
                                 session_info,
                                 &processed,
                             )
@@ -210,7 +210,7 @@ impl Axelerator {
         accept_friends_and_invite(
             &friends_client,
             &session_client,
-            &xbl_token,
+            &token_cache,
             self.session_info.clone(),
             &processed_xuids,
         )
@@ -220,7 +220,7 @@ impl Axelerator {
         sync_followers(
             &friends_client,
             &session_client,
-            &xbl_token,
+            &token_cache,
             &self.session_info,
             &processed_xuids,
         )
@@ -231,13 +231,13 @@ impl Axelerator {
             let interval = Duration::from_secs(self.config.friend_sync_interval);
             let friends = friends_client.clone();
             let sessions = session_client.clone();
-            let token = xbl_token.clone();
+            let token_cache_for_sync = token_cache.clone();
             let session_info_for_sync = self.session_info.clone();
             let shutdown = self.shutdown_notify.clone();
             let processed_for_sync = processed_xuids.clone();
 
             Some(tokio::spawn(async move {
-                run_periodic_friend_sync(interval, friends, sessions, token, session_info_for_sync, shutdown, processed_for_sync).await;
+                run_periodic_friend_sync(interval, friends, sessions, token_cache_for_sync, session_info_for_sync, shutdown, processed_for_sync).await;
             }))
         } else {
             None
@@ -684,16 +684,44 @@ impl Axelerator {
 ///
 /// This matches the behavior of Broadcaster (mcxboxbroadcast) which sends an initial
 /// game invite when someone adds the account as a friend.
+///
+/// On 401/403 errors, the XBL token is refreshed and the operation is retried once.
 async fn accept_friends_and_invite(
     friends_client: &FriendsClient,
     session_client: &SessionClient,
-    token: &XblToken,
+    token_cache: &TokenCache,
     session_info: Arc<RwLock<Option<ExpandedSessionInfo>>>,
     processed_xuids: &Arc<RwLock<HashSet<String>>>,
 ) {
-    // Get pending friend requests
-    let requests = match friends_client.get_incoming_requests(token).await {
+    // Get current token
+    let token = match token_cache.get_or_authenticate().await {
+        Ok(t) => t,
+        Err(e) => {
+            warn!("Failed to get XBL token: {}", e);
+            return;
+        }
+    };
+
+    // Get pending friend requests (with retry on auth error)
+    let requests = match friends_client.get_incoming_requests(&token).await {
         Ok(r) => r,
+        Err(e) if e.is_auth_error() => {
+            warn!("Auth error getting friend requests, refreshing token...");
+            let token = match token_cache.force_refresh_xbl().await {
+                Ok(t) => t,
+                Err(e) => {
+                    warn!("Failed to refresh XBL token: {}", e);
+                    return;
+                }
+            };
+            match friends_client.get_incoming_requests(&token).await {
+                Ok(r) => r,
+                Err(e) => {
+                    warn!("Failed to get friend requests after token refresh: {}", e);
+                    return;
+                }
+            }
+        }
         Err(e) => {
             warn!("Failed to get friend requests: {}", e);
             return;
@@ -706,13 +734,34 @@ async fn accept_friends_and_invite(
 
     info!("Accepting {} friend requests...", requests.len());
 
-    // Accept all requests
-    if let Err(e) = friends_client
-        .accept_requests(token, requests.clone())
-        .await
-    {
-        warn!("Failed to accept friend requests: {}", e);
-        return;
+    // Get fresh token for accepting requests
+    let token = match token_cache.get_or_authenticate().await {
+        Ok(t) => t,
+        Err(e) => {
+            warn!("Failed to get XBL token: {}", e);
+            return;
+        }
+    };
+
+    // Accept all requests (with retry on auth error)
+    if let Err(e) = friends_client.accept_requests(&token, requests.clone()).await {
+        if e.is_auth_error() {
+            warn!("Auth error accepting friend requests, refreshing token...");
+            let token = match token_cache.force_refresh_xbl().await {
+                Ok(t) => t,
+                Err(e) => {
+                    warn!("Failed to refresh XBL token: {}", e);
+                    return;
+                }
+            };
+            if let Err(e) = friends_client.accept_requests(&token, requests.clone()).await {
+                warn!("Failed to accept friend requests after token refresh: {}", e);
+                return;
+            }
+        } else {
+            warn!("Failed to accept friend requests: {}", e);
+            return;
+        }
     }
 
     info!("Friend requests accepted!");
@@ -734,10 +783,33 @@ async fn accept_friends_and_invite(
         }
     };
 
-    // Send invite to each newly accepted friend
+    // Get fresh token for invites
+    let token = match token_cache.get_or_authenticate().await {
+        Ok(t) => t,
+        Err(e) => {
+            warn!("Failed to get XBL token for invites: {}", e);
+            return;
+        }
+    };
+
+    // Send invite to each newly accepted friend (with retry on auth error)
     for xuid in requests {
-        match session_client.send_invite(token, &session, &xuid).await {
+        match session_client.send_invite(&token, &session, &xuid).await {
             Ok(_) => info!("Sent game invite to {}", xuid),
+            Err(e) if e.is_auth_error() => {
+                warn!("Auth error sending invite to {}, refreshing token...", xuid);
+                let token = match token_cache.force_refresh_xbl().await {
+                    Ok(t) => t,
+                    Err(e) => {
+                        warn!("Failed to refresh XBL token: {}", e);
+                        continue;
+                    }
+                };
+                match session_client.send_invite(&token, &session, &xuid).await {
+                    Ok(_) => info!("Sent game invite to {} (after token refresh)", xuid),
+                    Err(e) => warn!("Failed to send invite to {} after token refresh: {}", xuid, e),
+                }
+            }
             Err(e) => warn!("Failed to send invite to {}: {}", xuid, e),
         }
     }
@@ -751,7 +823,7 @@ async fn run_periodic_friend_sync(
     interval: Duration,
     friends_client: Arc<FriendsClient>,
     session_client: Arc<SessionClient>,
-    token: XblToken,
+    token_cache: Arc<TokenCache>,
     session_info: Arc<RwLock<Option<ExpandedSessionInfo>>>,
     shutdown: Arc<Notify>,
     processed_xuids: Arc<RwLock<HashSet<String>>>,
@@ -772,7 +844,7 @@ async fn run_periodic_friend_sync(
             }
 
             _ = ticker.tick() => {
-                sync_followers(&friends_client, &session_client, &token, &session_info, &processed_xuids).await;
+                sync_followers(&friends_client, &session_client, &token_cache, &session_info, &processed_xuids).await;
             }
         }
     }
@@ -781,16 +853,43 @@ async fn run_periodic_friend_sync(
 /// Check followers and auto-follow back anyone who follows us but we don't follow.
 ///
 /// Only processes new followers that haven't been seen before (tracked in processed_xuids).
+/// On 401/403 errors, the XBL token is refreshed and the operation is retried once.
 async fn sync_followers(
     friends_client: &FriendsClient,
     session_client: &SessionClient,
-    token: &XblToken,
+    token_cache: &TokenCache,
     session_info: &Arc<RwLock<Option<ExpandedSessionInfo>>>,
     processed_xuids: &Arc<RwLock<HashSet<String>>>,
 ) {
-    // Get our followers
-    let followers = match friends_client.get_followers(token).await {
+    // Get current token
+    let token = match token_cache.get_or_authenticate().await {
+        Ok(t) => t,
+        Err(e) => {
+            debug!("Failed to get XBL token: {}", e);
+            return;
+        }
+    };
+
+    // Get our followers (with retry on auth error)
+    let followers = match friends_client.get_followers(&token).await {
         Ok(f) => f,
+        Err(e) if e.is_auth_error() => {
+            warn!("Auth error getting followers, refreshing token...");
+            let token = match token_cache.force_refresh_xbl().await {
+                Ok(t) => t,
+                Err(e) => {
+                    warn!("Failed to refresh XBL token: {}", e);
+                    return;
+                }
+            };
+            match friends_client.get_followers(&token).await {
+                Ok(f) => f,
+                Err(e) => {
+                    debug!("Failed to get followers after token refresh: {}", e);
+                    return;
+                }
+            }
+        }
         Err(e) => {
             debug!("Failed to get followers: {}", e);
             return;
@@ -824,14 +923,46 @@ async fn sync_followers(
         .map(|p| (p.xuid.clone(), p.gamertag.clone()))
         .collect();
 
-    // Bulk add all friends at once
-    let added_xuids = match friends_client.add_friends_bulk(token, &xuids).await {
+    // Get fresh token for adding friends
+    let token = match token_cache.get_or_authenticate().await {
+        Ok(t) => t,
+        Err(e) => {
+            warn!("Failed to get XBL token: {}", e);
+            return;
+        }
+    };
+
+    // Bulk add all friends at once (with retry on auth error)
+    let added_xuids = match friends_client.add_friends_bulk(&token, &xuids).await {
         Ok(added) => {
             for xuid in &added {
                 let gamertag = gamertag_map.get(xuid).map(|s| s.as_str()).unwrap_or("Unknown");
                 info!("Followed back {} ({})", gamertag, xuid);
             }
             added
+        }
+        Err(e) if e.is_auth_error() => {
+            warn!("Auth error adding friends, refreshing token...");
+            let token = match token_cache.force_refresh_xbl().await {
+                Ok(t) => t,
+                Err(e) => {
+                    warn!("Failed to refresh XBL token: {}", e);
+                    return;
+                }
+            };
+            match friends_client.add_friends_bulk(&token, &xuids).await {
+                Ok(added) => {
+                    for xuid in &added {
+                        let gamertag = gamertag_map.get(xuid).map(|s| s.as_str()).unwrap_or("Unknown");
+                        info!("Followed back {} ({}) (after token refresh)", gamertag, xuid);
+                    }
+                    added
+                }
+                Err(e) => {
+                    warn!("Failed to bulk add friends after token refresh: {}", e);
+                    return;
+                }
+            }
         }
         Err(e) => {
             let err_str = e.to_string();
@@ -861,12 +992,34 @@ async fn sync_followers(
         }
     };
 
+    // Get fresh token for invites
+    let token = match token_cache.get_or_authenticate().await {
+        Ok(t) => t,
+        Err(e) => {
+            warn!("Failed to get XBL token for invites: {}", e);
+            return;
+        }
+    };
+
     for xuid in &added_xuids {
         let gamertag = gamertag_map.get(xuid).map(|s| s.as_str()).unwrap_or("Unknown");
-        if let Err(e) = session_client.send_invite(token, &session, xuid).await {
-            warn!("Failed to send invite to {}: {}", gamertag, e);
-        } else {
-            info!("Sent game invite to {}", gamertag);
+        match session_client.send_invite(&token, &session, xuid).await {
+            Ok(_) => info!("Sent game invite to {}", gamertag),
+            Err(e) if e.is_auth_error() => {
+                warn!("Auth error sending invite to {}, refreshing token...", gamertag);
+                let token = match token_cache.force_refresh_xbl().await {
+                    Ok(t) => t,
+                    Err(e) => {
+                        warn!("Failed to refresh XBL token: {}", e);
+                        continue;
+                    }
+                };
+                match session_client.send_invite(&token, &session, xuid).await {
+                    Ok(_) => info!("Sent game invite to {} (after token refresh)", gamertag),
+                    Err(e) => warn!("Failed to send invite to {} after token refresh: {}", gamertag, e),
+                }
+            }
+            Err(e) => warn!("Failed to send invite to {}: {}", gamertag, e),
         }
     }
 }

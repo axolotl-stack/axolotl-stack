@@ -42,6 +42,18 @@ pub enum XblError {
 }
 
 impl XblError {
+    /// Check if this error indicates an authentication/authorization failure.
+    ///
+    /// Returns true for 401 Unauthorized and 403 Forbidden errors,
+    /// which typically indicate expired or invalid tokens.
+    pub fn is_auth_error(&self) -> bool {
+        let error_str = self.to_string();
+        error_str.contains("401")
+            || error_str.contains("403")
+            || error_str.contains("Unauthorized")
+            || error_str.contains("Forbidden")
+    }
+
     /// Parse Xbox Live error codes into human-readable messages.
     pub fn from_xbox_error_code(code: &str) -> Self {
         let message = match code {
