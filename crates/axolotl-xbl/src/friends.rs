@@ -65,6 +65,7 @@ impl FriendsClient {
             .put(&url)
             .header("Authorization", token.auth_header())
             .header("x-xbl-contract-version", "2")
+            .header("Content-Length", "0")
             .send()
             .await?;
 
