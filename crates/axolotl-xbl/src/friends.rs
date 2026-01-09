@@ -115,11 +115,39 @@ impl FriendsClient {
     /// Bulk add friends (accept requests or follow back).
     ///
     /// Returns the list of XUIDs that were successfully added.
+    /// Automatically chunks requests to stay under Xbox's limit.
     pub async fn add_friends_bulk(&self, token: &XblToken, xuids: &[String]) -> XblResult<Vec<String>> {
         if xuids.is_empty() {
             return Ok(vec![]);
         }
 
+        // Xbox limits bulk operations to ~100 XUIDs per request
+        const CHUNK_SIZE: usize = 50;
+
+        let mut all_added = Vec::new();
+
+        for chunk in xuids.chunks(CHUNK_SIZE) {
+            match self.add_friends_bulk_single(token, chunk).await {
+                Ok(added) => all_added.extend(added),
+                Err(e) => {
+                    // If rate limited, return what we have so far
+                    if e.to_string().contains("Rate limited") {
+                        if all_added.is_empty() {
+                            return Err(e);
+                        }
+                        // Return partial results
+                        return Ok(all_added);
+                    }
+                    return Err(e);
+                }
+            }
+        }
+
+        Ok(all_added)
+    }
+
+    /// Internal: Add a single batch of friends (up to CHUNK_SIZE).
+    async fn add_friends_bulk_single(&self, token: &XblToken, xuids: &[String]) -> XblResult<Vec<String>> {
         let url = "https://social.xboxlive.com/bulk/users/me/people/friends/v2?method=add";
         let body = serde_json::json!({ "xuids": xuids });
 
