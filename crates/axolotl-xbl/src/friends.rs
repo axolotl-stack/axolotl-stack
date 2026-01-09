@@ -60,13 +60,29 @@ impl FriendsClient {
 
     pub async fn add_friend(&self, token: &XblToken, xuid: &str) -> XblResult<()> {
         let url = format!("https://social.xboxlive.com/users/me/people/xuid({})", xuid);
-        self.client
+        let response = self
+            .client
             .put(&url)
             .header("Authorization", token.auth_header())
             .header("x-xbl-contract-version", "2")
             .send()
             .await?;
-        Ok(())
+
+        // 204 = success, friend added
+        // 400 with code 1028 = friend list full
+        // 429 = rate limited
+        let status = response.status();
+        if status.as_u16() == 204 {
+            Ok(())
+        } else if status.as_u16() == 429 {
+            Err(XblError::XboxLive("Rate limited - too many friend requests".into()))
+        } else {
+            let body = response.text().await.unwrap_or_default();
+            Err(XblError::XboxLive(format!(
+                "Failed to add friend: {} - {}",
+                status, body
+            )))
+        }
     }
 
     pub async fn remove_friend(&self, token: &XblToken, xuid: &str) -> XblResult<()> {
