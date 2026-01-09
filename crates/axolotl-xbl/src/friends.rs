@@ -86,6 +86,15 @@ impl FriendsClient {
         Ok(summary.people.into_iter().map(|p| p.xuid).collect())
     }
 
+    /// Get list of followers (people following us) with full person info.
+    ///
+    /// This is used for periodic friend sync to auto-follow back.
+    pub async fn get_followers(&self, token: &XblToken) -> XblResult<Vec<Person>> {
+        let url = "https://peoplehub.xboxlive.com/users/me/people/followers";
+        let summary = self.get_summary(token, url).await?;
+        Ok(summary.people)
+    }
+
     pub async fn accept_requests(&self, token: &XblToken, xuids: Vec<String>) -> XblResult<()> {
         if xuids.is_empty() {
             return Ok(());

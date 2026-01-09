@@ -208,6 +208,22 @@ impl Axelerator {
         )
         .await;
 
+        // Start periodic friend sync task (catches followers that RTA might miss, e.g. PS5 users)
+        let friend_sync_handle = if self.config.friend_sync_interval > 0 {
+            let interval = Duration::from_secs(self.config.friend_sync_interval);
+            let friends = friends_client.clone();
+            let sessions = session_client.clone();
+            let token = xbl_token.clone();
+            let session_info_for_sync = self.session_info.clone();
+            let shutdown = self.shutdown_notify.clone();
+
+            Some(tokio::spawn(async move {
+                run_periodic_friend_sync(interval, friends, sessions, token, session_info_for_sync, shutdown).await;
+            }))
+        } else {
+            None
+        };
+
         // Step 4: Run WebRTC signaling and transfer players
         let playfab_token = token_cache
             .get_xbl_token(axolotl_xbl::auth::relying_party::PLAYFAB)
@@ -230,6 +246,11 @@ impl Axelerator {
         // Stop RTA
         rta_client.shutdown().await;
         rta_handle.abort();
+
+        // Stop friend sync
+        if let Some(handle) = friend_sync_handle {
+            handle.abort();
+        }
 
         // Set presence to inactive (best effort)
         if let Err(e) = presence.set_inactive(&xbl_token).await {
@@ -692,4 +713,102 @@ async fn accept_friends_and_invite(
             Err(e) => warn!("Failed to send invite to {}: {}", xuid, e),
         }
     }
+}
+
+/// Periodic friend sync loop.
+///
+/// This runs every `interval` and checks for followers who we haven't followed back.
+/// This catches cases where RTA notifications are missed (common with PS5 users).
+async fn run_periodic_friend_sync(
+    interval: Duration,
+    friends_client: Arc<FriendsClient>,
+    session_client: Arc<SessionClient>,
+    token: XblToken,
+    session_info: Arc<RwLock<Option<ExpandedSessionInfo>>>,
+    shutdown: Arc<Notify>,
+) {
+    let mut ticker = tokio::time::interval(interval);
+    ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+
+    // Skip first immediate tick (we already did initial sync)
+    ticker.tick().await;
+
+    loop {
+        tokio::select! {
+            biased;
+
+            _ = shutdown.notified() => {
+                debug!("Friend sync shutting down");
+                break;
+            }
+
+            _ = ticker.tick() => {
+                sync_followers(&friends_client, &session_client, &token, &session_info).await;
+            }
+        }
+    }
+}
+
+/// Check followers and auto-follow back anyone who follows us but we don't follow.
+async fn sync_followers(
+    friends_client: &FriendsClient,
+    session_client: &SessionClient,
+    token: &XblToken,
+    session_info: &Arc<RwLock<Option<ExpandedSessionInfo>>>,
+) {
+    // Get our followers
+    let followers = match friends_client.get_followers(token).await {
+        Ok(f) => f,
+        Err(e) => {
+            debug!("Failed to get followers: {}", e);
+            return;
+        }
+    };
+
+    // Find people who follow us but we don't follow back
+    let to_follow: Vec<_> = followers
+        .iter()
+        .filter(|p| p.is_following_caller && !p.is_followed_by_caller)
+        .filter(|p| !is_guest_account(&p.xuid)) // Skip split-screen/guest accounts
+        .collect();
+
+    if to_follow.is_empty() {
+        return;
+    }
+
+    info!(
+        "Found {} followers to follow back (periodic sync)",
+        to_follow.len()
+    );
+
+    // Follow them back
+    for person in &to_follow {
+        match friends_client.add_friend(token, &person.xuid).await {
+            Ok(_) => info!("Followed back {} ({})", person.gamertag, person.xuid),
+            Err(e) => {
+                warn!("Failed to follow {}: {}", person.gamertag, e);
+                continue;
+            }
+        }
+
+        // Send invite
+        if let Some(session) = session_info.read().await.clone() {
+            if let Err(e) = session_client
+                .send_invite(token, &session, &person.xuid)
+                .await
+            {
+                warn!("Failed to send invite to {}: {}", person.gamertag, e);
+            } else {
+                info!("Sent game invite to {}", person.gamertag);
+            }
+        }
+    }
+}
+
+/// Check if an XUID is a guest/split-screen account.
+/// Guest accounts have bit 52 set to 1.
+fn is_guest_account(xuid: &str) -> bool {
+    xuid.parse::<u64>()
+        .map(|x| (x >> 52) == 1)
+        .unwrap_or(false)
 }

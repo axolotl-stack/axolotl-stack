@@ -40,6 +40,12 @@ pub struct AxeleratorConfig {
     /// Auto-accept pending friend requests.
     pub auto_accept_friends: bool,
 
+    /// Interval for periodic friend sync (seconds).
+    /// This checks for new followers and auto-follows them back.
+    /// Set to 0 to disable periodic sync (only use RTA notifications).
+    /// Default: 10 seconds.
+    pub friend_sync_interval: u64,
+
     /// Heartbeat interval for presence (seconds).
     pub presence_heartbeat: u64,
 
@@ -155,6 +161,7 @@ impl Default for AxeleratorConfig {
             display_players: 1,
             token_cache_path: "token.json".into(),
             auto_accept_friends: false,
+            friend_sync_interval: 10,
             presence_heartbeat: 300,
             monitor_tampering: false,
             monitor_interval: 30,
