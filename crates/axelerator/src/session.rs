@@ -817,31 +817,56 @@ async fn sync_followers(
         to_follow.len()
     );
 
-    // Follow them back
-    for person in &to_follow {
-        match friends_client.add_friend(token, &person.xuid).await {
-            Ok(_) => info!("Followed back {} ({})", person.gamertag, person.xuid),
-            Err(e) => {
-                warn!("Failed to follow {}: {}", person.gamertag, e);
-                // Still mark as processed to avoid retrying failed ones constantly
-                processed_xuids.write().await.insert(person.xuid.clone());
-                continue;
+    // Build XUID list and gamertag lookup
+    let xuids: Vec<String> = to_follow.iter().map(|p| p.xuid.clone()).collect();
+    let gamertag_map: std::collections::HashMap<String, String> = to_follow
+        .iter()
+        .map(|p| (p.xuid.clone(), p.gamertag.clone()))
+        .collect();
+
+    // Bulk add all friends at once
+    let added_xuids = match friends_client.add_friends_bulk(token, &xuids).await {
+        Ok(added) => {
+            for xuid in &added {
+                let gamertag = gamertag_map.get(xuid).map(|s| s.as_str()).unwrap_or("Unknown");
+                info!("Followed back {} ({})", gamertag, xuid);
             }
+            added
         }
-
-        // Mark as processed
-        processed_xuids.write().await.insert(person.xuid.clone());
-
-        // Send invite
-        if let Some(session) = session_info.read().await.clone() {
-            if let Err(e) = session_client
-                .send_invite(token, &session, &person.xuid)
-                .await
-            {
-                warn!("Failed to send invite to {}: {}", person.gamertag, e);
+        Err(e) => {
+            let err_str = e.to_string();
+            if err_str.contains("Rate limited") {
+                warn!("Rate limited while following friends, will retry next cycle");
             } else {
-                info!("Sent game invite to {}", person.gamertag);
+                warn!("Failed to bulk add friends: {}", e);
             }
+            return;
+        }
+    };
+
+    // Mark successfully added as processed
+    {
+        let mut processed = processed_xuids.write().await;
+        for xuid in &added_xuids {
+            processed.insert(xuid.clone());
+        }
+    }
+
+    // Send invites to all successfully added friends
+    let session = match session_info.read().await.clone() {
+        Some(s) => s,
+        None => {
+            debug!("Session not yet created, skipping invites");
+            return;
+        }
+    };
+
+    for xuid in &added_xuids {
+        let gamertag = gamertag_map.get(xuid).map(|s| s.as_str()).unwrap_or("Unknown");
+        if let Err(e) = session_client.send_invite(token, &session, xuid).await {
+            warn!("Failed to send invite to {}: {}", gamertag, e);
+        } else {
+            info!("Sent game invite to {}", gamertag);
         }
     }
 }

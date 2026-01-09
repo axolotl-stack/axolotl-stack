@@ -112,21 +112,59 @@ impl FriendsClient {
         Ok(summary.people)
     }
 
-    pub async fn accept_requests(&self, token: &XblToken, xuids: Vec<String>) -> XblResult<()> {
+    /// Bulk add friends (accept requests or follow back).
+    ///
+    /// Returns the list of XUIDs that were successfully added.
+    pub async fn add_friends_bulk(&self, token: &XblToken, xuids: &[String]) -> XblResult<Vec<String>> {
         if xuids.is_empty() {
-            return Ok(());
+            return Ok(vec![]);
         }
 
         let url = "https://social.xboxlive.com/bulk/users/me/people/friends/v2?method=add";
         let body = serde_json::json!({ "xuids": xuids });
 
-        self.client
+        let response = self
+            .client
             .post(url)
             .header("Authorization", token.auth_header())
             .header("x-xbl-contract-version", "2")
             .json(&body)
             .send()
             .await?;
+
+        let status = response.status();
+        if status.as_u16() == 429 {
+            return Err(XblError::XboxLive("Rate limited - too many friend requests".into()));
+        }
+
+        // Parse response to get which XUIDs were actually added
+        // Response format: { "updatedPeople": ["xuid1", "xuid2", ...] }
+        let text = response.text().await.unwrap_or_default();
+
+        if !status.is_success() {
+            return Err(XblError::XboxLive(format!(
+                "Bulk add friends failed: {} - {}",
+                status, text
+            )));
+        }
+
+        // Try to parse the response
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
+            if let Some(updated) = json.get("updatedPeople").and_then(|v| v.as_array()) {
+                let added: Vec<String> = updated
+                    .iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect();
+                return Ok(added);
+            }
+        }
+
+        // If we can't parse, assume all were added (old behavior)
+        Ok(xuids.to_vec())
+    }
+
+    pub async fn accept_requests(&self, token: &XblToken, xuids: Vec<String>) -> XblResult<()> {
+        self.add_friends_bulk(token, &xuids).await?;
         Ok(())
     }
 
