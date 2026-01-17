@@ -85,19 +85,19 @@ impl SigningKeyPair {
 
         // HTTP method + 0 byte
         hasher.update(method.as_bytes());
-        hasher.update(&[0]);
+        hasher.update([0]);
 
         // Path (with query string) + 0 byte
         hasher.update(path.as_bytes());
-        hasher.update(&[0]);
+        hasher.update([0]);
 
         // Authorization header + 0 byte
         hasher.update(authorization.as_bytes());
-        hasher.update(&[0]);
+        hasher.update([0]);
 
         // Body + 0 byte
         hasher.update(body);
-        hasher.update(&[0]);
+        hasher.update([0]);
 
         // Sign the hash
         let signature: Signature = self.signing_key.sign_digest(hasher);

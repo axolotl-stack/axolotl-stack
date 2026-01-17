@@ -76,7 +76,9 @@ impl FriendsClient {
         if status.as_u16() == 204 {
             Ok(())
         } else if status.as_u16() == 429 {
-            Err(XblError::XboxLive("Rate limited - too many friend requests".into()))
+            Err(XblError::XboxLive(
+                "Rate limited - too many friend requests".into(),
+            ))
         } else {
             let body = response.text().await.unwrap_or_default();
             Err(XblError::XboxLive(format!(
@@ -116,7 +118,11 @@ impl FriendsClient {
     ///
     /// Returns the list of XUIDs that were successfully added.
     /// Automatically chunks requests to stay under Xbox's limit.
-    pub async fn add_friends_bulk(&self, token: &XblToken, xuids: &[String]) -> XblResult<Vec<String>> {
+    pub async fn add_friends_bulk(
+        &self,
+        token: &XblToken,
+        xuids: &[String],
+    ) -> XblResult<Vec<String>> {
         if xuids.is_empty() {
             return Ok(vec![]);
         }
@@ -147,7 +153,11 @@ impl FriendsClient {
     }
 
     /// Internal: Add a single batch of friends (up to CHUNK_SIZE).
-    async fn add_friends_bulk_single(&self, token: &XblToken, xuids: &[String]) -> XblResult<Vec<String>> {
+    async fn add_friends_bulk_single(
+        &self,
+        token: &XblToken,
+        xuids: &[String],
+    ) -> XblResult<Vec<String>> {
         let url = "https://social.xboxlive.com/bulk/users/me/people/friends/v2?method=add";
         let body = serde_json::json!({ "xuids": xuids });
 
@@ -162,7 +172,9 @@ impl FriendsClient {
 
         let status = response.status();
         if status.as_u16() == 429 {
-            return Err(XblError::XboxLive("Rate limited - too many friend requests".into()));
+            return Err(XblError::XboxLive(
+                "Rate limited - too many friend requests".into(),
+            ));
         }
 
         // Parse response to get which XUIDs were actually added
@@ -177,14 +189,14 @@ impl FriendsClient {
         }
 
         // Try to parse the response
-        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
-            if let Some(updated) = json.get("updatedPeople").and_then(|v| v.as_array()) {
-                let added: Vec<String> = updated
-                    .iter()
-                    .filter_map(|v| v.as_str().map(String::from))
-                    .collect();
-                return Ok(added);
-            }
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text)
+            && let Some(updated) = json.get("updatedPeople").and_then(|v| v.as_array())
+        {
+            let added: Vec<String> = updated
+                .iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect();
+            return Ok(added);
         }
 
         // If we can't parse, assume all were added (old behavior)

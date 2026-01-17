@@ -534,11 +534,12 @@ mod tests {
                     return None;
                 }
 
-                if buf.expected_segments != segments {
-                    if buf.expected_segments > 0 && buf.expected_segments - 1 != segments {
-                        self.reassembly_buffer = None;
-                        return None;
-                    }
+                if buf.expected_segments != segments
+                    && buf.expected_segments > 0
+                    && buf.expected_segments - 1 != segments
+                {
+                    self.reassembly_buffer = None;
+                    return None;
                 }
 
                 buf.expected_segments = segments;

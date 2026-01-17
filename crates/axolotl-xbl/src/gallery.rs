@@ -280,13 +280,12 @@ impl GalleryClient {
     ) -> XblResult<SetShowcaseResult> {
         // Read the new image file (using blocking read in spawn_blocking for safety)
         let path = image_path.to_path_buf();
-        let new_image_data =
-            tokio::task::spawn_blocking(move || std::fs::read(&path))
-                .await
-                .map_err(|e| XblError::Other(format!("Task join error: {}", e)))?
-                .map_err(|e| {
-                    XblError::Other(format!("Failed to read image file {:?}: {}", image_path, e))
-                })?;
+        let new_image_data = tokio::task::spawn_blocking(move || std::fs::read(&path))
+            .await
+            .map_err(|e| XblError::Other(format!("Task join error: {}", e)))?
+            .map_err(|e| {
+                XblError::Other(format!("Failed to read image file {:?}: {}", image_path, e))
+            })?;
 
         self.set_showcase_from_bytes(mc_token, xuid, &new_image_data)
             .await

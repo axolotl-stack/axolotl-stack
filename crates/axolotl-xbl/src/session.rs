@@ -638,19 +638,19 @@ impl SessionClient {
         let world_name = props.get("worldName")?.as_str()?.to_string();
 
         // Debug: Log the full SupportedConnections array to detect injection attacks
-        if let Some(connections) = props.get("SupportedConnections") {
-            if let Some(arr) = connections.as_array() {
-                if arr.len() > 1 {
-                    warn!(
-                        "🚨 MULTIPLE SupportedConnections detected ({} entries)! Possible injection attack:",
-                        arr.len()
-                    );
-                    for (i, conn) in arr.iter().enumerate() {
-                        warn!("  Connection[{}]: {}", i, conn);
-                    }
-                } else {
-                    debug!("SupportedConnections: {}", connections);
+        if let Some(connections) = props.get("SupportedConnections")
+            && let Some(arr) = connections.as_array()
+        {
+            if arr.len() > 1 {
+                warn!(
+                    "🚨 MULTIPLE SupportedConnections detected ({} entries)! Possible injection attack:",
+                    arr.len()
+                );
+                for (i, conn) in arr.iter().enumerate() {
+                    warn!("  Connection[{}]: {}", i, conn);
                 }
+            } else {
+                debug!("SupportedConnections: {}", connections);
             }
         }
 

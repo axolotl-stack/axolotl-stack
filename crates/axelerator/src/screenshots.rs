@@ -110,13 +110,13 @@ impl ScreenshotManager {
 
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.is_file() {
-                if let Some(ext) = path.extension() {
-                    let ext_lower = ext.to_string_lossy().to_lowercase();
-                    if SUPPORTED_EXTENSIONS.contains(&ext_lower.as_str()) {
-                        debug!(path = %path.display(), "Found image");
-                        image_paths.push(path);
-                    }
+            if path.is_file()
+                && let Some(ext) = path.extension()
+            {
+                let ext_lower = ext.to_string_lossy().to_lowercase();
+                if SUPPORTED_EXTENSIONS.contains(&ext_lower.as_str()) {
+                    debug!(path = %path.display(), "Found image");
+                    image_paths.push(path);
                 }
             }
         }
@@ -146,10 +146,10 @@ impl ScreenshotManager {
         }
 
         // Cycling (only if we have multiple images)
-        if self.images.len() > 1 {
-            if let Some(last) = self.last_upload {
-                return last.elapsed().as_secs() >= self.config.cycle_interval;
-            }
+        if self.images.len() > 1
+            && let Some(last) = self.last_upload
+        {
+            return last.elapsed().as_secs() >= self.config.cycle_interval;
         }
 
         false

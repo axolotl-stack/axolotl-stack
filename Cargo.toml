@@ -4,7 +4,6 @@ members = [
     "crates/valentine",
     "crates/valentine/bedrock_core",
     "crates/valentine/bedrock_versions/v1_21_130",
-    "crates/example-plugin",
     "crates/jolyne",
     "crates/unastar",
     "crates/unastar_noise",

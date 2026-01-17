@@ -302,14 +302,12 @@ impl<T: Transport> BedrockTransport<T> {
                 use crate::raw::decode_packet_raw;
                 Ok(vec![decode_packet_raw(&mut buf)?])
             }
+        } else if self.compression_enabled {
+            decode_batch_no_prefix_raw(&mut buf, self.max_decompressed_batch_size)
         } else {
-            if self.compression_enabled {
-                decode_batch_no_prefix_raw(&mut buf, self.max_decompressed_batch_size)
-            } else {
-                // Before NetworkSettings: parse as single raw packet
-                use crate::raw::decode_packet_raw;
-                Ok(vec![decode_packet_raw(&mut buf)?])
-            }
+            // Before NetworkSettings: parse as single raw packet
+            use crate::raw::decode_packet_raw;
+            Ok(vec![decode_packet_raw(&mut buf)?])
         }
     }
 
@@ -846,12 +844,11 @@ mod tests {
         let threshold = 100u16;
 
         // Exactly at threshold -> should compress
-        assert!(99usize >= threshold as usize || 99 < threshold as usize);
         assert!(100usize >= threshold as usize);
         assert!(101usize >= threshold as usize);
 
         // Below threshold -> should not compress
-        assert!(!(99usize >= threshold as usize));
+        assert!(99usize <= threshold as usize);
     }
 
     #[test]

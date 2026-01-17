@@ -214,10 +214,10 @@ pub fn decode_batch_no_prefix(
     let compressed = buf.clone();
 
     // Size check
-    if let Some(max) = max_decompressed_size {
-        if compressed.len() > max {
-            warn!("Compressed payload large: {}", compressed.len());
-        }
+    if let Some(max) = max_decompressed_size
+        && compressed.len() > max
+    {
+        warn!("Compressed payload large: {}", compressed.len());
     }
 
     match alg {

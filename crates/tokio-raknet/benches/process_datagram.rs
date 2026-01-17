@@ -1,4 +1,4 @@
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use criterion::{Criterion, criterion_group, criterion_main};
 
 use tokio_raknet::protocol::types::Sequence24;
 use tokio_raknet::session::Session;
@@ -9,7 +9,7 @@ fn benchmark_process_datagram(c: &mut Criterion) {
             || Session::new(1400),
             |mut session| {
                 let seq = Sequence24::new(123);
-                black_box(session.process_datagram_sequence(seq));
+                session.process_datagram_sequence(seq);
             },
             criterion::BatchSize::SmallInput,
         )
@@ -25,7 +25,7 @@ fn benchmark_process_datagram(c: &mut Criterion) {
             |mut session| {
                 // Simulate a gap (0 -> 5)
                 let seq = Sequence24::new(5);
-                black_box(session.process_datagram_sequence(seq));
+                session.process_datagram_sequence(seq);
             },
             criterion::BatchSize::SmallInput,
         )

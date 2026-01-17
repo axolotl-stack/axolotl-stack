@@ -678,9 +678,9 @@ impl WallConnectionTypeWest {
 
 // ===== SHARED STATE STRUCTS =====
 
-/// State shared by: ["purpur_double_slab", "waxed_cut_copper_slab", "deepslate_brick_double_slab", "brick_double_slab", "dark_prismarine_slab"]
+/// State shared by: ["oxidized_cut_copper_slab", "petrified_oak_double_slab", "pale_oak_double_slab", "polished_deepslate_double_slab", "prismarine_double_slab"]
 /// ... and 119 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct SlabState {
     vertical_half: VerticalHalf,
 }
@@ -694,12 +694,6 @@ impl SlabState {
     /// Get the vertical_half value.
     #[inline]
     pub fn vertical_half(&self) -> VerticalHalf { self.vertical_half }
-}
-
-impl Default for SlabState {
-    fn default() -> Self {
-        Self { vertical_half: VerticalHalf::default() }
-    }
 }
 
 impl BlockState for SlabState {
@@ -720,9 +714,9 @@ impl BlockState for SlabState {
     fn state_count() -> u32 { 2 }
 }
 
-/// State shared by: ["stripped_bamboo_block", "stripped_jungle_log", "stripped_birch_log", "quartz_block", "stripped_acacia_wood"]
+/// State shared by: ["stripped_oak_log", "pearlescent_froglight", "stripped_bamboo_block", "verdant_froglight", "mangrove_log"]
 /// ... and 66 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct PillarState {
     pillar_axis: PillarAxis,
 }
@@ -736,12 +730,6 @@ impl PillarState {
     /// Get the pillar_axis value.
     #[inline]
     pub fn pillar_axis(&self) -> PillarAxis { self.pillar_axis }
-}
-
-impl Default for PillarState {
-    fn default() -> Self {
-        Self { pillar_axis: PillarAxis::default() }
-    }
 }
 
 impl BlockState for PillarState {
@@ -762,9 +750,9 @@ impl BlockState for PillarState {
     fn state_count() -> u32 { 3 }
 }
 
-/// State shared by: ["stone_stairs", "birch_stairs", "red_nether_brick_stairs", "polished_diorite_stairs", "dark_oak_stairs"]
+/// State shared by: ["dark_oak_stairs", "mud_brick_stairs", "waxed_oxidized_cut_copper_stairs", "spruce_stairs", "waxed_exposed_cut_copper_stairs"]
 /// ... and 53 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct StairState {
     upside_down_bit: bool,
     weirdo_direction: u8,
@@ -785,12 +773,6 @@ impl StairState {
     /// Get the weirdo_direction value.
     #[inline]
     pub fn weirdo_direction(&self) -> u8 { self.weirdo_direction }
-}
-
-impl Default for StairState {
-    fn default() -> Self {
-        Self { upside_down_bit: false, weirdo_direction: 0 }
-    }
 }
 
 impl BlockState for StairState {
@@ -815,9 +797,9 @@ impl BlockState for StairState {
     fn state_count() -> u32 { 8 }
 }
 
-/// State shared by: ["wall_banner", "silver_glazed_terracotta", "wither_skeleton_skull", "dragon_head", "warped_wall_sign"]
+/// State shared by: ["yellow_glazed_terracotta", "black_glazed_terracotta", "creeper_head", "purple_glazed_terracotta", "orange_glazed_terracotta"]
 /// ... and 37 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct FacingState {
     facing_direction: u8,
 }
@@ -834,12 +816,6 @@ impl FacingState {
     /// Get the facing_direction value.
     #[inline]
     pub fn facing_direction(&self) -> u8 { self.facing_direction }
-}
-
-impl Default for FacingState {
-    fn default() -> Self {
-        Self { facing_direction: 0 }
-    }
 }
 
 impl BlockState for FacingState {
@@ -860,9 +836,9 @@ impl BlockState for FacingState {
     fn state_count() -> u32 { 6 }
 }
 
-/// State shared by: ["lit_furnace", "blast_furnace", "waxed_copper_chest", "carved_pumpkin", "waxed_oxidized_copper_golem_statue"]
+/// State shared by: ["copper_golem_statue", "stonecutter_block", "pumpkin", "waxed_oxidized_copper_chest", "waxed_weathered_copper_chest"]
 /// ... and 28 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct CardinalState {
     cardinal_direction: CardinalDirection,
 }
@@ -876,12 +852,6 @@ impl CardinalState {
     /// Get the cardinal_direction value.
     #[inline]
     pub fn cardinal_direction(&self) -> CardinalDirection { self.cardinal_direction }
-}
-
-impl Default for CardinalState {
-    fn default() -> Self {
-        Self { cardinal_direction: CardinalDirection::default() }
-    }
 }
 
 impl BlockState for CardinalState {
@@ -902,9 +872,9 @@ impl BlockState for CardinalState {
     fn state_count() -> u32 { 4 }
 }
 
-/// State shared by: ["cobblestone_wall", "sandstone_wall", "nether_brick_wall", "polished_blackstone_wall", "mud_brick_wall"]
+/// State shared by: ["tuff_brick_wall", "cobblestone_wall", "border_block", "mossy_cobblestone_wall", "granite_wall"]
 /// ... and 22 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct WallState {
     wall_connection_type_east: WallConnectionTypeEast,
     wall_connection_type_north: WallConnectionTypeNorth,
@@ -934,12 +904,6 @@ impl WallState {
     /// Get the wall_post_bit value.
     #[inline]
     pub fn wall_post_bit(&self) -> bool { self.wall_post_bit }
-}
-
-impl Default for WallState {
-    fn default() -> Self {
-        Self { wall_connection_type_east: WallConnectionTypeEast::default(), wall_connection_type_north: WallConnectionTypeNorth::default(), wall_connection_type_south: WallConnectionTypeSouth::default(), wall_connection_type_west: WallConnectionTypeWest::default(), wall_post_bit: false }
-    }
 }
 
 impl BlockState for WallState {
@@ -976,70 +940,9 @@ impl BlockState for WallState {
     fn state_count() -> u32 { 162 }
 }
 
-/// State shared by: ["warped_trapdoor", "bamboo_trapdoor", "waxed_oxidized_copper_trapdoor", "waxed_weathered_copper_trapdoor", "birch_trapdoor"]
+/// State shared by: ["oxidized_copper_door", "iron_door", "crimson_door", "wooden_door", "waxed_copper_door"]
 /// ... and 16 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TrapdoorState {
-    direction: u8,
-    open_bit: bool,
-    upside_down_bit: bool,
-}
-
-impl TrapdoorState {
-    /// Create a new state with validation.
-    pub fn new(direction: u8, open_bit: bool, upside_down_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if direction > 3 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "direction", value: direction as u32, min: 0, max: 3 });
-        }
-        Ok(Self { direction, open_bit, upside_down_bit })
-    }
-
-    /// Get the direction value.
-    #[inline]
-    pub fn direction(&self) -> u8 { self.direction }
-    /// Get the open_bit value.
-    #[inline]
-    pub fn open_bit(&self) -> bool { self.open_bit }
-    /// Get the upside_down_bit value.
-    #[inline]
-    pub fn upside_down_bit(&self) -> bool { self.upside_down_bit }
-}
-
-impl Default for TrapdoorState {
-    fn default() -> Self {
-        Self { direction: 0, open_bit: false, upside_down_bit: false }
-    }
-}
-
-impl BlockState for TrapdoorState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.direction as u32) * multiplier;
-        multiplier *= 4;
-        offset += (self.open_bit as u32) * multiplier;
-        multiplier *= 2;
-        offset += (self.upside_down_bit as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 16 { return None; }
-        let mut rem = offset;
-        let direction = (rem % 4) as u8;
-        rem /= 4;
-        let open_bit = (rem % 2) != 0;
-        rem /= 2;
-        let upside_down_bit = (rem % 2) != 0;
-        Some(Self { direction, open_bit, upside_down_bit })
-    }
-
-    fn state_count() -> u32 { 16 }
-}
-
-/// State shared by: ["spruce_door", "wooden_door", "pale_oak_door", "waxed_exposed_copper_door", "waxed_copper_door"]
-/// ... and 16 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct DoorState {
     door_hinge_bit: bool,
     cardinal_direction: CardinalDirection,
@@ -1065,12 +968,6 @@ impl DoorState {
     /// Get the upper_block_bit value.
     #[inline]
     pub fn upper_block_bit(&self) -> bool { self.upper_block_bit }
-}
-
-impl Default for DoorState {
-    fn default() -> Self {
-        Self { door_hinge_bit: false, cardinal_direction: CardinalDirection::default(), open_bit: false, upper_block_bit: false }
-    }
 }
 
 impl BlockState for DoorState {
@@ -1103,9 +1000,64 @@ impl BlockState for DoorState {
     fn state_count() -> u32 { 32 }
 }
 
-/// State shared by: ["cherry_pressure_plate", "warped_pressure_plate", "daylight_detector", "dark_oak_pressure_plate", "jungle_pressure_plate"]
+/// State shared by: ["birch_trapdoor", "dark_oak_trapdoor", "bamboo_trapdoor", "crimson_trapdoor", "waxed_exposed_copper_trapdoor"]
+/// ... and 16 more blocks
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct TrapdoorState {
+    direction: u8,
+    open_bit: bool,
+    upside_down_bit: bool,
+}
+
+impl TrapdoorState {
+    /// Create a new state with validation.
+    pub fn new(direction: u8, open_bit: bool, upside_down_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if direction > 3 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "direction", value: direction as u32, min: 0, max: 3 });
+        }
+        Ok(Self { direction, open_bit, upside_down_bit })
+    }
+
+    /// Get the direction value.
+    #[inline]
+    pub fn direction(&self) -> u8 { self.direction }
+    /// Get the open_bit value.
+    #[inline]
+    pub fn open_bit(&self) -> bool { self.open_bit }
+    /// Get the upside_down_bit value.
+    #[inline]
+    pub fn upside_down_bit(&self) -> bool { self.upside_down_bit }
+}
+
+impl BlockState for TrapdoorState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.direction as u32) * multiplier;
+        multiplier *= 4;
+        offset += (self.open_bit as u32) * multiplier;
+        multiplier *= 2;
+        offset += (self.upside_down_bit as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 16 { return None; }
+        let mut rem = offset;
+        let direction = (rem % 4) as u8;
+        rem /= 4;
+        let open_bit = (rem % 2) != 0;
+        rem /= 2;
+        let upside_down_bit = (rem % 2) != 0;
+        Some(Self { direction, open_bit, upside_down_bit })
+    }
+
+    fn state_count() -> u32 { 16 }
+}
+
+/// State shared by: ["pale_oak_pressure_plate", "wooden_pressure_plate", "bamboo_pressure_plate", "daylight_detector_inverted", "spruce_pressure_plate"]
 /// ... and 14 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct PressurePlateState {
     redstone_signal: u8,
 }
@@ -1122,12 +1074,6 @@ impl PressurePlateState {
     /// Get the redstone_signal value.
     #[inline]
     pub fn redstone_signal(&self) -> u8 { self.redstone_signal }
-}
-
-impl Default for PressurePlateState {
-    fn default() -> Self {
-        Self { redstone_signal: 0 }
-    }
 }
 
 impl BlockState for PressurePlateState {
@@ -1148,9 +1094,9 @@ impl BlockState for PressurePlateState {
     fn state_count() -> u32 { 16 }
 }
 
-/// State shared by: ["yellow_candle_cake", "lime_candle_cake", "light_gray_candle_cake", "orange_candle_cake", "red_candle_cake"]
+/// State shared by: ["black_candle_cake", "red_candle_cake", "gray_candle_cake", "orange_candle_cake", "purple_candle_cake"]
 /// ... and 12 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct CandleCakeState {
     lit: bool,
 }
@@ -1164,12 +1110,6 @@ impl CandleCakeState {
     /// Get the lit value.
     #[inline]
     pub fn lit(&self) -> bool { self.lit }
-}
-
-impl Default for CandleCakeState {
-    fn default() -> Self {
-        Self { lit: false }
-    }
 }
 
 impl BlockState for CandleCakeState {
@@ -1190,9 +1130,9 @@ impl BlockState for CandleCakeState {
     fn state_count() -> u32 { 2 }
 }
 
-/// State shared by: ["gray_candle", "light_blue_candle", "candle", "yellow_candle", "purple_candle"]
+/// State shared by: ["light_blue_candle", "magenta_candle", "pink_candle", "black_candle", "purple_candle"]
 /// ... and 12 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct CandleState {
     candles: u8,
     lit: bool,
@@ -1213,12 +1153,6 @@ impl CandleState {
     /// Get the lit value.
     #[inline]
     pub fn lit(&self) -> bool { self.lit }
-}
-
-impl Default for CandleState {
-    fn default() -> Self {
-        Self { candles: 0, lit: false }
-    }
 }
 
 impl BlockState for CandleState {
@@ -1243,9 +1177,9 @@ impl BlockState for CandleState {
     fn state_count() -> u32 { 8 }
 }
 
-/// State shared by: ["acacia_button", "bamboo_button", "warped_button", "cherry_button", "pale_oak_button"]
+/// State shared by: ["bamboo_button", "mangrove_button", "acacia_button", "dark_oak_button", "crimson_button"]
 /// ... and 9 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct ButtonState {
     button_pressed_bit: bool,
     facing_direction: u8,
@@ -1266,12 +1200,6 @@ impl ButtonState {
     /// Get the facing_direction value.
     #[inline]
     pub fn facing_direction(&self) -> u8 { self.facing_direction }
-}
-
-impl Default for ButtonState {
-    fn default() -> Self {
-        Self { button_pressed_bit: false, facing_direction: 0 }
-    }
 }
 
 impl BlockState for ButtonState {
@@ -1296,9 +1224,9 @@ impl BlockState for ButtonState {
     fn state_count() -> u32 { 12 }
 }
 
-/// State shared by: ["standing_sign", "spruce_standing_sign", "birch_standing_sign", "crimson_standing_sign", "bamboo_standing_sign"]
+/// State shared by: ["birch_standing_sign", "pale_oak_standing_sign", "jungle_standing_sign", "mangrove_standing_sign", "bamboo_standing_sign"]
 /// ... and 8 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct StandingSignState {
     ground_sign_direction: u8,
 }
@@ -1315,12 +1243,6 @@ impl StandingSignState {
     /// Get the ground_sign_direction value.
     #[inline]
     pub fn ground_sign_direction(&self) -> u8 { self.ground_sign_direction }
-}
-
-impl Default for StandingSignState {
-    fn default() -> Self {
-        Self { ground_sign_direction: 0 }
-    }
 }
 
 impl BlockState for StandingSignState {
@@ -1341,9 +1263,116 @@ impl BlockState for StandingSignState {
     fn state_count() -> u32 { 16 }
 }
 
-/// State shared by: ["oak_hanging_sign", "bamboo_hanging_sign", "warped_hanging_sign", "dark_oak_hanging_sign", "spruce_hanging_sign"]
+/// State shared by: ["pale_oak_fence_gate", "bamboo_fence_gate", "warped_fence_gate", "acacia_fence_gate", "dark_oak_fence_gate"]
 /// ... and 7 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct FenceGateState {
+    in_wall_bit: bool,
+    cardinal_direction: CardinalDirection,
+    open_bit: bool,
+}
+
+impl FenceGateState {
+    /// Create a new state with validation.
+    pub fn new(in_wall_bit: bool, cardinal_direction: CardinalDirection, open_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        Ok(Self { in_wall_bit, cardinal_direction, open_bit })
+    }
+
+    /// Get the in_wall_bit value.
+    #[inline]
+    pub fn in_wall_bit(&self) -> bool { self.in_wall_bit }
+    /// Get the cardinal_direction value.
+    #[inline]
+    pub fn cardinal_direction(&self) -> CardinalDirection { self.cardinal_direction }
+    /// Get the open_bit value.
+    #[inline]
+    pub fn open_bit(&self) -> bool { self.open_bit }
+}
+
+impl BlockState for FenceGateState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.in_wall_bit as u32) * multiplier;
+        multiplier *= 2;
+        offset += (self.cardinal_direction as u32) * multiplier;
+        multiplier *= 4;
+        offset += (self.open_bit as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 16 { return None; }
+        let mut rem = offset;
+        let in_wall_bit = (rem % 2) != 0;
+        rem /= 2;
+        let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
+        rem /= 4;
+        let open_bit = (rem % 2) != 0;
+        Some(Self { in_wall_bit, cardinal_direction, open_bit })
+    }
+
+    fn state_count() -> u32 { 16 }
+}
+
+/// State shared by: ["spruce_shelf", "oak_shelf", "cherry_shelf", "acacia_shelf", "bamboo_shelf"]
+/// ... and 7 more blocks
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ShelfState {
+    cardinal_direction: CardinalDirection,
+    powered_bit: bool,
+    powered_shelf_type: u8,
+}
+
+impl ShelfState {
+    /// Create a new state with validation.
+    pub fn new(cardinal_direction: CardinalDirection, powered_bit: bool, powered_shelf_type: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if powered_shelf_type > 3 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "powered_shelf_type", value: powered_shelf_type as u32, min: 0, max: 3 });
+        }
+        Ok(Self { cardinal_direction, powered_bit, powered_shelf_type })
+    }
+
+    /// Get the cardinal_direction value.
+    #[inline]
+    pub fn cardinal_direction(&self) -> CardinalDirection { self.cardinal_direction }
+    /// Get the powered_bit value.
+    #[inline]
+    pub fn powered_bit(&self) -> bool { self.powered_bit }
+    /// Get the powered_shelf_type value.
+    #[inline]
+    pub fn powered_shelf_type(&self) -> u8 { self.powered_shelf_type }
+}
+
+impl BlockState for ShelfState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.cardinal_direction as u32) * multiplier;
+        multiplier *= 4;
+        offset += (self.powered_bit as u32) * multiplier;
+        multiplier *= 2;
+        offset += (self.powered_shelf_type as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 32 { return None; }
+        let mut rem = offset;
+        let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
+        rem /= 4;
+        let powered_bit = (rem % 2) != 0;
+        rem /= 2;
+        let powered_shelf_type = (rem % 4) as u8;
+        Some(Self { cardinal_direction, powered_bit, powered_shelf_type })
+    }
+
+    fn state_count() -> u32 { 32 }
+}
+
+/// State shared by: ["dark_oak_hanging_sign", "mangrove_hanging_sign", "cherry_hanging_sign", "jungle_hanging_sign", "acacia_hanging_sign"]
+/// ... and 7 more blocks
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct HangingSignState {
     attached_bit: bool,
     facing_direction: u8,
@@ -1377,12 +1406,6 @@ impl HangingSignState {
     pub fn hanging(&self) -> bool { self.hanging }
 }
 
-impl Default for HangingSignState {
-    fn default() -> Self {
-        Self { attached_bit: false, facing_direction: 0, ground_sign_direction: 0, hanging: false }
-    }
-}
-
 impl BlockState for HangingSignState {
     fn state_offset(&self) -> u32 {
         let mut offset = 0u32;
@@ -1413,128 +1436,9 @@ impl BlockState for HangingSignState {
     fn state_count() -> u32 { 384 }
 }
 
-/// State shared by: ["bamboo_fence_gate", "crimson_fence_gate", "spruce_fence_gate", "dark_oak_fence_gate", "jungle_fence_gate"]
-/// ... and 7 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct FenceGateState {
-    in_wall_bit: bool,
-    cardinal_direction: CardinalDirection,
-    open_bit: bool,
-}
-
-impl FenceGateState {
-    /// Create a new state with validation.
-    pub fn new(in_wall_bit: bool, cardinal_direction: CardinalDirection, open_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        Ok(Self { in_wall_bit, cardinal_direction, open_bit })
-    }
-
-    /// Get the in_wall_bit value.
-    #[inline]
-    pub fn in_wall_bit(&self) -> bool { self.in_wall_bit }
-    /// Get the cardinal_direction value.
-    #[inline]
-    pub fn cardinal_direction(&self) -> CardinalDirection { self.cardinal_direction }
-    /// Get the open_bit value.
-    #[inline]
-    pub fn open_bit(&self) -> bool { self.open_bit }
-}
-
-impl Default for FenceGateState {
-    fn default() -> Self {
-        Self { in_wall_bit: false, cardinal_direction: CardinalDirection::default(), open_bit: false }
-    }
-}
-
-impl BlockState for FenceGateState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.in_wall_bit as u32) * multiplier;
-        multiplier *= 2;
-        offset += (self.cardinal_direction as u32) * multiplier;
-        multiplier *= 4;
-        offset += (self.open_bit as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 16 { return None; }
-        let mut rem = offset;
-        let in_wall_bit = (rem % 2) != 0;
-        rem /= 2;
-        let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
-        rem /= 4;
-        let open_bit = (rem % 2) != 0;
-        Some(Self { in_wall_bit, cardinal_direction, open_bit })
-    }
-
-    fn state_count() -> u32 { 16 }
-}
-
-/// State shared by: ["mangrove_shelf", "birch_shelf", "warped_shelf", "acacia_shelf", "pale_oak_shelf"]
-/// ... and 7 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ShelfState {
-    cardinal_direction: CardinalDirection,
-    powered_bit: bool,
-    powered_shelf_type: u8,
-}
-
-impl ShelfState {
-    /// Create a new state with validation.
-    pub fn new(cardinal_direction: CardinalDirection, powered_bit: bool, powered_shelf_type: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if powered_shelf_type > 3 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "powered_shelf_type", value: powered_shelf_type as u32, min: 0, max: 3 });
-        }
-        Ok(Self { cardinal_direction, powered_bit, powered_shelf_type })
-    }
-
-    /// Get the cardinal_direction value.
-    #[inline]
-    pub fn cardinal_direction(&self) -> CardinalDirection { self.cardinal_direction }
-    /// Get the powered_bit value.
-    #[inline]
-    pub fn powered_bit(&self) -> bool { self.powered_bit }
-    /// Get the powered_shelf_type value.
-    #[inline]
-    pub fn powered_shelf_type(&self) -> u8 { self.powered_shelf_type }
-}
-
-impl Default for ShelfState {
-    fn default() -> Self {
-        Self { cardinal_direction: CardinalDirection::default(), powered_bit: false, powered_shelf_type: 0 }
-    }
-}
-
-impl BlockState for ShelfState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.cardinal_direction as u32) * multiplier;
-        multiplier *= 4;
-        offset += (self.powered_bit as u32) * multiplier;
-        multiplier *= 2;
-        offset += (self.powered_shelf_type as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 32 { return None; }
-        let mut rem = offset;
-        let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
-        rem /= 4;
-        let powered_bit = (rem % 2) != 0;
-        rem /= 2;
-        let powered_shelf_type = (rem % 4) as u8;
-        Some(Self { cardinal_direction, powered_bit, powered_shelf_type })
-    }
-
-    fn state_count() -> u32 { 32 }
-}
-
-/// State shared by: ["cherry_leaves", "birch_leaves", "dark_oak_leaves", "acacia_leaves", "oak_leaves"]
+/// State shared by: ["cherry_leaves", "jungle_leaves", "mangrove_leaves", "birch_leaves", "azalea_leaves"]
 /// ... and 6 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct LeavesState {
     persistent_bit: bool,
     update_bit: bool,
@@ -1552,12 +1456,6 @@ impl LeavesState {
     /// Get the update_bit value.
     #[inline]
     pub fn update_bit(&self) -> bool { self.update_bit }
-}
-
-impl Default for LeavesState {
-    fn default() -> Self {
-        Self { persistent_bit: false, update_bit: false }
-    }
 }
 
 impl BlockState for LeavesState {
@@ -1582,96 +1480,9 @@ impl BlockState for LeavesState {
     fn state_count() -> u32 { 4 }
 }
 
-/// State shared by: ["horn_coral_wall_fan", "tube_coral_wall_fan", "dead_horn_coral_wall_fan", "brain_coral_wall_fan", "dead_fire_coral_wall_fan"]
+/// State shared by: ["waxed_copper_lantern", "copper_lantern", "waxed_oxidized_copper_lantern", "oxidized_copper_lantern", "weathered_copper_lantern"]
 /// ... and 5 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct CoralWallFanState {
-    coral_direction: u8,
-}
-
-impl CoralWallFanState {
-    /// Create a new state with validation.
-    pub fn new(coral_direction: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if coral_direction > 3 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "coral_direction", value: coral_direction as u32, min: 0, max: 3 });
-        }
-        Ok(Self { coral_direction })
-    }
-
-    /// Get the coral_direction value.
-    #[inline]
-    pub fn coral_direction(&self) -> u8 { self.coral_direction }
-}
-
-impl Default for CoralWallFanState {
-    fn default() -> Self {
-        Self { coral_direction: 0 }
-    }
-}
-
-impl BlockState for CoralWallFanState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let multiplier = 1u32;
-        offset += (self.coral_direction as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 4 { return None; }
-        let rem = offset;
-        let coral_direction = (rem % 4) as u8;
-        Some(Self { coral_direction })
-    }
-
-    fn state_count() -> u32 { 4 }
-}
-
-/// State shared by: ["dead_bubble_coral_fan", "horn_coral_fan", "dead_fire_coral_fan", "tube_coral_fan", "bubble_coral_fan"]
-/// ... and 5 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct CoralFanState {
-    coral_fan_direction: u8,
-}
-
-impl CoralFanState {
-    /// Create a new state with validation.
-    pub fn new(coral_fan_direction: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        Ok(Self { coral_fan_direction })
-    }
-
-    /// Get the coral_fan_direction value.
-    #[inline]
-    pub fn coral_fan_direction(&self) -> u8 { self.coral_fan_direction }
-}
-
-impl Default for CoralFanState {
-    fn default() -> Self {
-        Self { coral_fan_direction: 0 }
-    }
-}
-
-impl BlockState for CoralFanState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let multiplier = 1u32;
-        offset += (self.coral_fan_direction as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 2 { return None; }
-        let rem = offset;
-        let coral_fan_direction = (rem % 2) as u8;
-        Some(Self { coral_fan_direction })
-    }
-
-    fn state_count() -> u32 { 2 }
-}
-
-/// State shared by: ["waxed_oxidized_copper_lantern", "soul_lantern", "copper_lantern", "waxed_copper_lantern", "waxed_exposed_copper_lantern"]
-/// ... and 5 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct LanternState {
     hanging: bool,
 }
@@ -1685,12 +1496,6 @@ impl LanternState {
     /// Get the hanging value.
     #[inline]
     pub fn hanging(&self) -> bool { self.hanging }
-}
-
-impl Default for LanternState {
-    fn default() -> Self {
-        Self { hanging: false }
-    }
 }
 
 impl BlockState for LanternState {
@@ -1711,9 +1516,9 @@ impl BlockState for LanternState {
     fn state_count() -> u32 { 2 }
 }
 
-/// State shared by: ["colored_torch_green", "underwater_torch", "soul_torch", "copper_torch", "colored_torch_blue"]
+/// State shared by: ["colored_torch_purple", "underwater_torch", "copper_torch", "soul_torch", "colored_torch_red"]
 /// ... and 5 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct TorchState {
     torch_facing_direction: TorchFacingDirection,
 }
@@ -1727,12 +1532,6 @@ impl TorchState {
     /// Get the torch_facing_direction value.
     #[inline]
     pub fn torch_facing_direction(&self) -> TorchFacingDirection { self.torch_facing_direction }
-}
-
-impl Default for TorchState {
-    fn default() -> Self {
-        Self { torch_facing_direction: TorchFacingDirection::default() }
-    }
 }
 
 impl BlockState for TorchState {
@@ -1753,9 +1552,84 @@ impl BlockState for TorchState {
     fn state_count() -> u32 { 6 }
 }
 
-/// State shared by: ["acacia_sapling", "pale_oak_sapling", "bamboo_sapling", "dark_oak_sapling", "birch_sapling"]
+/// State shared by: ["tube_coral_fan", "bubble_coral_fan", "dead_bubble_coral_fan", "dead_fire_coral_fan", "dead_tube_coral_fan"]
+/// ... and 5 more blocks
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct CoralFanState {
+    coral_fan_direction: u8,
+}
+
+impl CoralFanState {
+    /// Create a new state with validation.
+    pub fn new(coral_fan_direction: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        Ok(Self { coral_fan_direction })
+    }
+
+    /// Get the coral_fan_direction value.
+    #[inline]
+    pub fn coral_fan_direction(&self) -> u8 { self.coral_fan_direction }
+}
+
+impl BlockState for CoralFanState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let multiplier = 1u32;
+        offset += (self.coral_fan_direction as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 2 { return None; }
+        let rem = offset;
+        let coral_fan_direction = (rem % 2) as u8;
+        Some(Self { coral_fan_direction })
+    }
+
+    fn state_count() -> u32 { 2 }
+}
+
+/// State shared by: ["dead_bubble_coral_wall_fan", "brain_coral_wall_fan", "dead_fire_coral_wall_fan", "horn_coral_wall_fan", "dead_horn_coral_wall_fan"]
+/// ... and 5 more blocks
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct CoralWallFanState {
+    coral_direction: u8,
+}
+
+impl CoralWallFanState {
+    /// Create a new state with validation.
+    pub fn new(coral_direction: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if coral_direction > 3 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "coral_direction", value: coral_direction as u32, min: 0, max: 3 });
+        }
+        Ok(Self { coral_direction })
+    }
+
+    /// Get the coral_direction value.
+    #[inline]
+    pub fn coral_direction(&self) -> u8 { self.coral_direction }
+}
+
+impl BlockState for CoralWallFanState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let multiplier = 1u32;
+        offset += (self.coral_direction as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 4 { return None; }
+        let rem = offset;
+        let coral_direction = (rem % 4) as u8;
+        Some(Self { coral_direction })
+    }
+
+    fn state_count() -> u32 { 4 }
+}
+
+/// State shared by: ["dark_oak_sapling", "pale_oak_sapling", "jungle_sapling", "bamboo_sapling", "cherry_sapling"]
 /// ... and 4 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct SaplingState {
     age_bit: bool,
 }
@@ -1769,12 +1643,6 @@ impl SaplingState {
     /// Get the age_bit value.
     #[inline]
     pub fn age_bit(&self) -> bool { self.age_bit }
-}
-
-impl Default for SaplingState {
-    fn default() -> Self {
-        Self { age_bit: false }
-    }
 }
 
 impl BlockState for SaplingState {
@@ -1797,7 +1665,7 @@ impl BlockState for SaplingState {
 
 /// State shared by: ["waxed_oxidized_lightning_rod", "waxed_weathered_lightning_rod", "oxidized_lightning_rod", "exposed_lightning_rod", "waxed_exposed_lightning_rod"]
 /// ... and 3 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct LightningRodState {
     facing_direction: u8,
     powered_bit: bool,
@@ -1818,12 +1686,6 @@ impl LightningRodState {
     /// Get the powered_bit value.
     #[inline]
     pub fn powered_bit(&self) -> bool { self.powered_bit }
-}
-
-impl Default for LightningRodState {
-    fn default() -> Self {
-        Self { facing_direction: 0, powered_bit: false }
-    }
 }
 
 impl BlockState for LightningRodState {
@@ -1848,9 +1710,9 @@ impl BlockState for LightningRodState {
     fn state_count() -> u32 { 12 }
 }
 
-/// State shared by: ["waxed_oxidized_copper_bulb", "waxed_weathered_copper_bulb", "copper_bulb", "waxed_copper_bulb", "oxidized_copper_bulb"]
+/// State shared by: ["waxed_copper_bulb", "exposed_copper_bulb", "waxed_oxidized_copper_bulb", "waxed_weathered_copper_bulb", "oxidized_copper_bulb"]
 /// ... and 3 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct CopperBulbState {
     lit: bool,
     powered_bit: bool,
@@ -1868,12 +1730,6 @@ impl CopperBulbState {
     /// Get the powered_bit value.
     #[inline]
     pub fn powered_bit(&self) -> bool { self.powered_bit }
-}
-
-impl Default for CopperBulbState {
-    fn default() -> Self {
-        Self { lit: false, powered_bit: false }
-    }
 }
 
 impl BlockState for CopperBulbState {
@@ -1898,9 +1754,9 @@ impl BlockState for CopperBulbState {
     fn state_count() -> u32 { 4 }
 }
 
-/// State shared by: ["peony", "sunflower", "large_fern", "rose_bush", "lilac"]
+/// State shared by: ["pitcher_plant", "peony", "rose_bush", "sunflower", "lilac"]
 /// ... and 2 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct DoublePlantState {
     upper_block_bit: bool,
 }
@@ -1914,12 +1770,6 @@ impl DoublePlantState {
     /// Get the upper_block_bit value.
     #[inline]
     pub fn upper_block_bit(&self) -> bool { self.upper_block_bit }
-}
-
-impl Default for DoublePlantState {
-    fn default() -> Self {
-        Self { upper_block_bit: false }
-    }
 }
 
 impl BlockState for DoublePlantState {
@@ -1940,54 +1790,9 @@ impl BlockState for DoublePlantState {
     fn state_count() -> u32 { 2 }
 }
 
-/// State shared by: ["loom", "lab_table", "compound_creator", "material_reducer", "decorated_pot"]
+/// State shared by: ["torchflower_crop", "carrots", "potatoes", "sweet_berry_bush", "beetroot"]
 /// ... and 1 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct DirectionState {
-    direction: u8,
-}
-
-impl DirectionState {
-    /// Create a new state with validation.
-    pub fn new(direction: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if direction > 3 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "direction", value: direction as u32, min: 0, max: 3 });
-        }
-        Ok(Self { direction })
-    }
-
-    /// Get the direction value.
-    #[inline]
-    pub fn direction(&self) -> u8 { self.direction }
-}
-
-impl Default for DirectionState {
-    fn default() -> Self {
-        Self { direction: 0 }
-    }
-}
-
-impl BlockState for DirectionState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let multiplier = 1u32;
-        offset += (self.direction as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 4 { return None; }
-        let rem = offset;
-        let direction = (rem % 4) as u8;
-        Some(Self { direction })
-    }
-
-    fn state_count() -> u32 { 4 }
-}
-
-/// State shared by: ["beetroot", "carrots", "sweet_berry_bush", "potatoes", "torchflower_crop"]
-/// ... and 1 more blocks
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct CropState {
     growth: u8,
 }
@@ -2004,12 +1809,6 @@ impl CropState {
     /// Get the growth value.
     #[inline]
     pub fn growth(&self) -> u8 { self.growth }
-}
-
-impl Default for CropState {
-    fn default() -> Self {
-        Self { growth: 0 }
-    }
 }
 
 impl BlockState for CropState {
@@ -2030,52 +1829,47 @@ impl BlockState for CropState {
     fn state_count() -> u32 { 8 }
 }
 
-/// State shared by: ["cactus", "fire", "reeds", "soul_fire"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct AgeState {
-    age: u8,
+/// State shared by: ["element_constructor", "lab_table", "loom", "material_reducer", "compound_creator"]
+/// ... and 1 more blocks
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct DirectionState {
+    direction: u8,
 }
 
-impl AgeState {
+impl DirectionState {
     /// Create a new state with validation.
-    pub fn new(age: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if age > 15 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "age", value: age as u32, min: 0, max: 15 });
+    pub fn new(direction: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if direction > 3 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "direction", value: direction as u32, min: 0, max: 3 });
         }
-        Ok(Self { age })
+        Ok(Self { direction })
     }
 
-    /// Get the age value.
+    /// Get the direction value.
     #[inline]
-    pub fn age(&self) -> u8 { self.age }
+    pub fn direction(&self) -> u8 { self.direction }
 }
 
-impl Default for AgeState {
-    fn default() -> Self {
-        Self { age: 0 }
-    }
-}
-
-impl BlockState for AgeState {
+impl BlockState for DirectionState {
     fn state_offset(&self) -> u32 {
         let mut offset = 0u32;
         let multiplier = 1u32;
-        offset += (self.age as u32) * multiplier;
+        offset += (self.direction as u32) * multiplier;
         offset
     }
 
     fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 16 { return None; }
+        if offset >= 4 { return None; }
         let rem = offset;
-        let age = (rem % 16) as u8;
-        Some(Self { age })
+        let direction = (rem % 4) as u8;
+        Some(Self { direction })
     }
 
-    fn state_count() -> u32 { 16 }
+    fn state_count() -> u32 { 4 }
 }
 
-/// State shared by: ["large_amethyst_bud", "small_amethyst_bud", "medium_amethyst_bud", "amethyst_cluster"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// State shared by: ["small_amethyst_bud", "large_amethyst_bud", "medium_amethyst_bud", "amethyst_cluster"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct BlockFaceState {
     block_face: BlockFace,
 }
@@ -2089,12 +1883,6 @@ impl BlockFaceState {
     /// Get the block_face value.
     #[inline]
     pub fn block_face(&self) -> BlockFace { self.block_face }
-}
-
-impl Default for BlockFaceState {
-    fn default() -> Self {
-        Self { block_face: BlockFace::default() }
-    }
 }
 
 impl BlockState for BlockFaceState {
@@ -2115,8 +1903,46 @@ impl BlockState for BlockFaceState {
     fn state_count() -> u32 { 6 }
 }
 
-/// State shared by: ["flowing_lava", "flowing_water", "water", "lava"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// State shared by: ["cactus", "soul_fire", "reeds", "fire"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct AgeState {
+    age: u8,
+}
+
+impl AgeState {
+    /// Create a new state with validation.
+    pub fn new(age: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if age > 15 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "age", value: age as u32, min: 0, max: 15 });
+        }
+        Ok(Self { age })
+    }
+
+    /// Get the age value.
+    #[inline]
+    pub fn age(&self) -> u8 { self.age }
+}
+
+impl BlockState for AgeState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let multiplier = 1u32;
+        offset += (self.age as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 16 { return None; }
+        let rem = offset;
+        let age = (rem % 16) as u8;
+        Some(Self { age })
+    }
+
+    fn state_count() -> u32 { 16 }
+}
+
+/// State shared by: ["lava", "flowing_water", "water", "flowing_lava"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct LiquidState {
     liquid_depth: u8,
 }
@@ -2133,12 +1959,6 @@ impl LiquidState {
     /// Get the liquid_depth value.
     #[inline]
     pub fn liquid_depth(&self) -> u8 { self.liquid_depth }
-}
-
-impl Default for LiquidState {
-    fn default() -> Self {
-        Self { liquid_depth: 0 }
-    }
 }
 
 impl BlockState for LiquidState {
@@ -2159,8 +1979,8 @@ impl BlockState for LiquidState {
     fn state_count() -> u32 { 16 }
 }
 
-/// State shared by: ["leaf_litter", "wildflowers", "pink_petals"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// State shared by: ["wildflowers", "leaf_litter", "pink_petals"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct PetalsState {
     growth: u8,
     cardinal_direction: CardinalDirection,
@@ -2181,12 +2001,6 @@ impl PetalsState {
     /// Get the cardinal_direction value.
     #[inline]
     pub fn cardinal_direction(&self) -> CardinalDirection { self.cardinal_direction }
-}
-
-impl Default for PetalsState {
-    fn default() -> Self {
-        Self { growth: 0, cardinal_direction: CardinalDirection::default() }
-    }
 }
 
 impl BlockState for PetalsState {
@@ -2211,52 +2025,8 @@ impl BlockState for PetalsState {
     fn state_count() -> u32 { 32 }
 }
 
-/// State shared by: ["sculk_vein", "glow_lichen", "resin_clump"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct MultiFaceState {
-    multi_face_direction_bits: u8,
-}
-
-impl MultiFaceState {
-    /// Create a new state with validation.
-    pub fn new(multi_face_direction_bits: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if multi_face_direction_bits > 63 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "multi_face_direction_bits", value: multi_face_direction_bits as u32, min: 0, max: 63 });
-        }
-        Ok(Self { multi_face_direction_bits })
-    }
-
-    /// Get the multi_face_direction_bits value.
-    #[inline]
-    pub fn multi_face_direction_bits(&self) -> u8 { self.multi_face_direction_bits }
-}
-
-impl Default for MultiFaceState {
-    fn default() -> Self {
-        Self { multi_face_direction_bits: 0 }
-    }
-}
-
-impl BlockState for MultiFaceState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let multiplier = 1u32;
-        offset += (self.multi_face_direction_bits as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 64 { return None; }
-        let rem = offset;
-        let multi_face_direction_bits = (rem % 64) as u8;
-        Some(Self { multi_face_direction_bits })
-    }
-
-    fn state_count() -> u32 { 64 }
-}
-
 /// State shared by: ["chain_command_block", "command_block", "repeating_command_block"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct CommandState {
     conditional_bit: bool,
     facing_direction: u8,
@@ -2277,12 +2047,6 @@ impl CommandState {
     /// Get the facing_direction value.
     #[inline]
     pub fn facing_direction(&self) -> u8 { self.facing_direction }
-}
-
-impl Default for CommandState {
-    fn default() -> Self {
-        Self { conditional_bit: false, facing_direction: 0 }
-    }
 }
 
 impl BlockState for CommandState {
@@ -2307,8 +2071,122 @@ impl BlockState for CommandState {
     fn state_count() -> u32 { 12 }
 }
 
-/// State shared by: ["golden_rail", "detector_rail", "activator_rail"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// State shared by: ["resin_clump", "sculk_vein", "glow_lichen"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct MultiFaceState {
+    multi_face_direction_bits: u8,
+}
+
+impl MultiFaceState {
+    /// Create a new state with validation.
+    pub fn new(multi_face_direction_bits: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if multi_face_direction_bits > 63 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "multi_face_direction_bits", value: multi_face_direction_bits as u32, min: 0, max: 63 });
+        }
+        Ok(Self { multi_face_direction_bits })
+    }
+
+    /// Get the multi_face_direction_bits value.
+    #[inline]
+    pub fn multi_face_direction_bits(&self) -> u8 { self.multi_face_direction_bits }
+}
+
+impl BlockState for MultiFaceState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let multiplier = 1u32;
+        offset += (self.multi_face_direction_bits as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 64 { return None; }
+        let rem = offset;
+        let multi_face_direction_bits = (rem % 64) as u8;
+        Some(Self { multi_face_direction_bits })
+    }
+
+    fn state_count() -> u32 { 64 }
+}
+
+/// State shared by: ["brown_mushroom_block", "red_mushroom_block", "mushroom_stem"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct MushroomState {
+    huge_mushroom_bits: u8,
+}
+
+impl MushroomState {
+    /// Create a new state with validation.
+    pub fn new(huge_mushroom_bits: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if huge_mushroom_bits > 15 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "huge_mushroom_bits", value: huge_mushroom_bits as u32, min: 0, max: 15 });
+        }
+        Ok(Self { huge_mushroom_bits })
+    }
+
+    /// Get the huge_mushroom_bits value.
+    #[inline]
+    pub fn huge_mushroom_bits(&self) -> u8 { self.huge_mushroom_bits }
+}
+
+impl BlockState for MushroomState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let multiplier = 1u32;
+        offset += (self.huge_mushroom_bits as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 16 { return None; }
+        let rem = offset;
+        let huge_mushroom_bits = (rem % 16) as u8;
+        Some(Self { huge_mushroom_bits })
+    }
+
+    fn state_count() -> u32 { 16 }
+}
+
+/// State shared by: ["cave_vines_head_with_berries", "cave_vines_body_with_berries", "cave_vines"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct GrowingPlantState {
+    growing_plant_age: u8,
+}
+
+impl GrowingPlantState {
+    /// Create a new state with validation.
+    pub fn new(growing_plant_age: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if growing_plant_age > 25 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "growing_plant_age", value: growing_plant_age as u32, min: 0, max: 25 });
+        }
+        Ok(Self { growing_plant_age })
+    }
+
+    /// Get the growing_plant_age value.
+    #[inline]
+    pub fn growing_plant_age(&self) -> u8 { self.growing_plant_age }
+}
+
+impl BlockState for GrowingPlantState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let multiplier = 1u32;
+        offset += (self.growing_plant_age as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 26 { return None; }
+        let rem = offset;
+        let growing_plant_age = (rem % 26) as u8;
+        Some(Self { growing_plant_age })
+    }
+
+    fn state_count() -> u32 { 26 }
+}
+
+/// State shared by: ["golden_rail", "activator_rail", "detector_rail"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct RailState {
     rail_data_bit: bool,
     rail_direction: u8,
@@ -2329,12 +2207,6 @@ impl RailState {
     /// Get the rail_direction value.
     #[inline]
     pub fn rail_direction(&self) -> u8 { self.rail_direction }
-}
-
-impl Default for RailState {
-    fn default() -> Self {
-        Self { rail_data_bit: false, rail_direction: 0 }
-    }
 }
 
 impl BlockState for RailState {
@@ -2359,263 +2231,8 @@ impl BlockState for RailState {
     fn state_count() -> u32 { 12 }
 }
 
-/// State shared by: ["cave_vines_head_with_berries", "cave_vines", "cave_vines_body_with_berries"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct GrowingPlantState {
-    growing_plant_age: u8,
-}
-
-impl GrowingPlantState {
-    /// Create a new state with validation.
-    pub fn new(growing_plant_age: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if growing_plant_age > 25 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "growing_plant_age", value: growing_plant_age as u32, min: 0, max: 25 });
-        }
-        Ok(Self { growing_plant_age })
-    }
-
-    /// Get the growing_plant_age value.
-    #[inline]
-    pub fn growing_plant_age(&self) -> u8 { self.growing_plant_age }
-}
-
-impl Default for GrowingPlantState {
-    fn default() -> Self {
-        Self { growing_plant_age: 0 }
-    }
-}
-
-impl BlockState for GrowingPlantState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let multiplier = 1u32;
-        offset += (self.growing_plant_age as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 26 { return None; }
-        let rem = offset;
-        let growing_plant_age = (rem % 26) as u8;
-        Some(Self { growing_plant_age })
-    }
-
-    fn state_count() -> u32 { 26 }
-}
-
-/// State shared by: ["brown_mushroom_block", "mushroom_stem", "red_mushroom_block"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct MushroomState {
-    huge_mushroom_bits: u8,
-}
-
-impl MushroomState {
-    /// Create a new state with validation.
-    pub fn new(huge_mushroom_bits: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if huge_mushroom_bits > 15 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "huge_mushroom_bits", value: huge_mushroom_bits as u32, min: 0, max: 15 });
-        }
-        Ok(Self { huge_mushroom_bits })
-    }
-
-    /// Get the huge_mushroom_bits value.
-    #[inline]
-    pub fn huge_mushroom_bits(&self) -> u8 { self.huge_mushroom_bits }
-}
-
-impl Default for MushroomState {
-    fn default() -> Self {
-        Self { huge_mushroom_bits: 0 }
-    }
-}
-
-impl BlockState for MushroomState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let multiplier = 1u32;
-        offset += (self.huge_mushroom_bits as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 16 { return None; }
-        let rem = offset;
-        let huge_mushroom_bits = (rem % 16) as u8;
-        Some(Self { huge_mushroom_bits })
-    }
-
-    fn state_count() -> u32 { 16 }
-}
-
-/// State shared by: ["beehive", "bee_nest"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct BeehiveState {
-    direction: u8,
-    honey_level: u8,
-}
-
-impl BeehiveState {
-    /// Create a new state with validation.
-    pub fn new(direction: u8, honey_level: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if direction > 3 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "direction", value: direction as u32, min: 0, max: 3 });
-        }
-        if honey_level > 5 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "honey_level", value: honey_level as u32, min: 0, max: 5 });
-        }
-        Ok(Self { direction, honey_level })
-    }
-
-    /// Get the direction value.
-    #[inline]
-    pub fn direction(&self) -> u8 { self.direction }
-    /// Get the honey_level value.
-    #[inline]
-    pub fn honey_level(&self) -> u8 { self.honey_level }
-}
-
-impl Default for BeehiveState {
-    fn default() -> Self {
-        Self { direction: 0, honey_level: 0 }
-    }
-}
-
-impl BlockState for BeehiveState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.direction as u32) * multiplier;
-        multiplier *= 4;
-        offset += (self.honey_level as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 24 { return None; }
-        let mut rem = offset;
-        let direction = (rem % 4) as u8;
-        rem /= 4;
-        let honey_level = (rem % 6) as u8;
-        Some(Self { direction, honey_level })
-    }
-
-    fn state_count() -> u32 { 24 }
-}
-
-/// State shared by: ["dispenser", "dropper"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct DispenserState {
-    facing_direction: u8,
-    triggered_bit: bool,
-}
-
-impl DispenserState {
-    /// Create a new state with validation.
-    pub fn new(facing_direction: u8, triggered_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if facing_direction > 5 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "facing_direction", value: facing_direction as u32, min: 0, max: 5 });
-        }
-        Ok(Self { facing_direction, triggered_bit })
-    }
-
-    /// Get the facing_direction value.
-    #[inline]
-    pub fn facing_direction(&self) -> u8 { self.facing_direction }
-    /// Get the triggered_bit value.
-    #[inline]
-    pub fn triggered_bit(&self) -> bool { self.triggered_bit }
-}
-
-impl Default for DispenserState {
-    fn default() -> Self {
-        Self { facing_direction: 0, triggered_bit: false }
-    }
-}
-
-impl BlockState for DispenserState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.facing_direction as u32) * multiplier;
-        multiplier *= 6;
-        offset += (self.triggered_bit as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 12 { return None; }
-        let mut rem = offset;
-        let facing_direction = (rem % 6) as u8;
-        rem /= 6;
-        let triggered_bit = (rem % 2) != 0;
-        Some(Self { facing_direction, triggered_bit })
-    }
-
-    fn state_count() -> u32 { 12 }
-}
-
-/// State shared by: ["frame", "glow_frame"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct FrameState {
-    facing_direction: u8,
-    item_frame_map_bit: bool,
-    item_frame_photo_bit: bool,
-}
-
-impl FrameState {
-    /// Create a new state with validation.
-    pub fn new(facing_direction: u8, item_frame_map_bit: bool, item_frame_photo_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if facing_direction > 5 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "facing_direction", value: facing_direction as u32, min: 0, max: 5 });
-        }
-        Ok(Self { facing_direction, item_frame_map_bit, item_frame_photo_bit })
-    }
-
-    /// Get the facing_direction value.
-    #[inline]
-    pub fn facing_direction(&self) -> u8 { self.facing_direction }
-    /// Get the item_frame_map_bit value.
-    #[inline]
-    pub fn item_frame_map_bit(&self) -> bool { self.item_frame_map_bit }
-    /// Get the item_frame_photo_bit value.
-    #[inline]
-    pub fn item_frame_photo_bit(&self) -> bool { self.item_frame_photo_bit }
-}
-
-impl Default for FrameState {
-    fn default() -> Self {
-        Self { facing_direction: 0, item_frame_map_bit: false, item_frame_photo_bit: false }
-    }
-}
-
-impl BlockState for FrameState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.facing_direction as u32) * multiplier;
-        multiplier *= 6;
-        offset += (self.item_frame_map_bit as u32) * multiplier;
-        multiplier *= 2;
-        offset += (self.item_frame_photo_bit as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 24 { return None; }
-        let mut rem = offset;
-        let facing_direction = (rem % 6) as u8;
-        rem /= 6;
-        let item_frame_map_bit = (rem % 2) != 0;
-        rem /= 2;
-        let item_frame_photo_bit = (rem % 2) != 0;
-        Some(Self { facing_direction, item_frame_map_bit, item_frame_photo_bit })
-    }
-
-    fn state_count() -> u32 { 24 }
-}
-
-/// State shared by: ["suspicious_sand", "suspicious_gravel"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// State shared by: ["suspicious_gravel", "suspicious_sand"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct BrushableState {
     brushed_progress: u8,
     hanging: bool,
@@ -2636,12 +2253,6 @@ impl BrushableState {
     /// Get the hanging value.
     #[inline]
     pub fn hanging(&self) -> bool { self.hanging }
-}
-
-impl Default for BrushableState {
-    fn default() -> Self {
-        Self { brushed_progress: 0, hanging: false }
-    }
 }
 
 impl BlockState for BrushableState {
@@ -2666,60 +2277,54 @@ impl BlockState for BrushableState {
     fn state_count() -> u32 { 8 }
 }
 
-/// State shared by: ["unpowered_repeater", "powered_repeater"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RepeaterState {
-    cardinal_direction: CardinalDirection,
-    repeater_delay: u8,
+/// State shared by: ["hay_block", "bone_block"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct DeprecatedPillarState {
+    deprecated: u8,
+    pillar_axis: PillarAxis,
 }
 
-impl RepeaterState {
+impl DeprecatedPillarState {
     /// Create a new state with validation.
-    pub fn new(cardinal_direction: CardinalDirection, repeater_delay: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if repeater_delay > 3 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "repeater_delay", value: repeater_delay as u32, min: 0, max: 3 });
+    pub fn new(deprecated: u8, pillar_axis: PillarAxis) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if deprecated > 3 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "deprecated", value: deprecated as u32, min: 0, max: 3 });
         }
-        Ok(Self { cardinal_direction, repeater_delay })
+        Ok(Self { deprecated, pillar_axis })
     }
 
-    /// Get the cardinal_direction value.
+    /// Get the deprecated value.
     #[inline]
-    pub fn cardinal_direction(&self) -> CardinalDirection { self.cardinal_direction }
-    /// Get the repeater_delay value.
+    pub fn deprecated(&self) -> u8 { self.deprecated }
+    /// Get the pillar_axis value.
     #[inline]
-    pub fn repeater_delay(&self) -> u8 { self.repeater_delay }
+    pub fn pillar_axis(&self) -> PillarAxis { self.pillar_axis }
 }
 
-impl Default for RepeaterState {
-    fn default() -> Self {
-        Self { cardinal_direction: CardinalDirection::default(), repeater_delay: 0 }
-    }
-}
-
-impl BlockState for RepeaterState {
+impl BlockState for DeprecatedPillarState {
     fn state_offset(&self) -> u32 {
         let mut offset = 0u32;
         let mut multiplier = 1u32;
-        offset += (self.cardinal_direction as u32) * multiplier;
+        offset += (self.deprecated as u32) * multiplier;
         multiplier *= 4;
-        offset += (self.repeater_delay as u32) * multiplier;
+        offset += (self.pillar_axis as u32) * multiplier;
         offset
     }
 
     fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 16 { return None; }
+        if offset >= 12 { return None; }
         let mut rem = offset;
-        let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
+        let deprecated = (rem % 4) as u8;
         rem /= 4;
-        let repeater_delay = (rem % 4) as u8;
-        Some(Self { cardinal_direction, repeater_delay })
+        let pillar_axis = PillarAxis::from_raw((rem % 3) as u8)?;
+        Some(Self { deprecated, pillar_axis })
     }
 
-    fn state_count() -> u32 { 16 }
+    fn state_count() -> u32 { 12 }
 }
 
-/// State shared by: ["powered_comparator", "unpowered_comparator"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// State shared by: ["unpowered_comparator", "powered_comparator"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct ComparatorState {
     cardinal_direction: CardinalDirection,
     output_lit_bit: bool,
@@ -2741,12 +2346,6 @@ impl ComparatorState {
     /// Get the output_subtract_bit value.
     #[inline]
     pub fn output_subtract_bit(&self) -> bool { self.output_subtract_bit }
-}
-
-impl Default for ComparatorState {
-    fn default() -> Self {
-        Self { cardinal_direction: CardinalDirection::default(), output_lit_bit: false, output_subtract_bit: false }
-    }
 }
 
 impl BlockState for ComparatorState {
@@ -2775,8 +2374,57 @@ impl BlockState for ComparatorState {
     fn state_count() -> u32 { 16 }
 }
 
+/// State shared by: ["bee_nest", "beehive"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct BeehiveState {
+    direction: u8,
+    honey_level: u8,
+}
+
+impl BeehiveState {
+    /// Create a new state with validation.
+    pub fn new(direction: u8, honey_level: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if direction > 3 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "direction", value: direction as u32, min: 0, max: 3 });
+        }
+        if honey_level > 5 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "honey_level", value: honey_level as u32, min: 0, max: 5 });
+        }
+        Ok(Self { direction, honey_level })
+    }
+
+    /// Get the direction value.
+    #[inline]
+    pub fn direction(&self) -> u8 { self.direction }
+    /// Get the honey_level value.
+    #[inline]
+    pub fn honey_level(&self) -> u8 { self.honey_level }
+}
+
+impl BlockState for BeehiveState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.direction as u32) * multiplier;
+        multiplier *= 4;
+        offset += (self.honey_level as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 24 { return None; }
+        let mut rem = offset;
+        let direction = (rem % 4) as u8;
+        rem /= 4;
+        let honey_level = (rem % 6) as u8;
+        Some(Self { direction, honey_level })
+    }
+
+    fn state_count() -> u32 { 24 }
+}
+
 /// State shared by: ["pumpkin_stem", "melon_stem"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct StemState {
     facing_direction: u8,
     growth: u8,
@@ -2802,12 +2450,6 @@ impl StemState {
     pub fn growth(&self) -> u8 { self.growth }
 }
 
-impl Default for StemState {
-    fn default() -> Self {
-        Self { facing_direction: 0, growth: 0 }
-    }
-}
-
 impl BlockState for StemState {
     fn state_offset(&self) -> u32 {
         let mut offset = 0u32;
@@ -2830,8 +2472,8 @@ impl BlockState for StemState {
     fn state_count() -> u32 { 48 }
 }
 
-/// State shared by: ["nether_wart", "frosted_ice"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// State shared by: ["frosted_ice", "nether_wart"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct AgeBlockState {
     age: u8,
 }
@@ -2848,12 +2490,6 @@ impl AgeBlockState {
     /// Get the age value.
     #[inline]
     pub fn age(&self) -> u8 { self.age }
-}
-
-impl Default for AgeBlockState {
-    fn default() -> Self {
-        Self { age: 0 }
-    }
 }
 
 impl BlockState for AgeBlockState {
@@ -2874,101 +2510,108 @@ impl BlockState for AgeBlockState {
     fn state_count() -> u32 { 4 }
 }
 
-/// State shared by: ["underwater_tnt", "tnt"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TntState {
-    explode_bit: bool,
+/// State shared by: ["dropper", "dispenser"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct DispenserState {
+    facing_direction: u8,
+    triggered_bit: bool,
 }
 
-impl TntState {
+impl DispenserState {
     /// Create a new state with validation.
-    pub fn new(explode_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        Ok(Self { explode_bit })
-    }
-
-    /// Get the explode_bit value.
-    #[inline]
-    pub fn explode_bit(&self) -> bool { self.explode_bit }
-}
-
-impl Default for TntState {
-    fn default() -> Self {
-        Self { explode_bit: false }
-    }
-}
-
-impl BlockState for TntState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let multiplier = 1u32;
-        offset += (self.explode_bit as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 2 { return None; }
-        let rem = offset;
-        let explode_bit = (rem % 2) != 0;
-        Some(Self { explode_bit })
-    }
-
-    fn state_count() -> u32 { 2 }
-}
-
-/// State shared by: ["hay_block", "bone_block"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct DeprecatedPillarState {
-    deprecated: u8,
-    pillar_axis: PillarAxis,
-}
-
-impl DeprecatedPillarState {
-    /// Create a new state with validation.
-    pub fn new(deprecated: u8, pillar_axis: PillarAxis) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if deprecated > 3 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "deprecated", value: deprecated as u32, min: 0, max: 3 });
+    pub fn new(facing_direction: u8, triggered_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if facing_direction > 5 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "facing_direction", value: facing_direction as u32, min: 0, max: 5 });
         }
-        Ok(Self { deprecated, pillar_axis })
+        Ok(Self { facing_direction, triggered_bit })
     }
 
-    /// Get the deprecated value.
+    /// Get the facing_direction value.
     #[inline]
-    pub fn deprecated(&self) -> u8 { self.deprecated }
-    /// Get the pillar_axis value.
+    pub fn facing_direction(&self) -> u8 { self.facing_direction }
+    /// Get the triggered_bit value.
     #[inline]
-    pub fn pillar_axis(&self) -> PillarAxis { self.pillar_axis }
+    pub fn triggered_bit(&self) -> bool { self.triggered_bit }
 }
 
-impl Default for DeprecatedPillarState {
-    fn default() -> Self {
-        Self { deprecated: 0, pillar_axis: PillarAxis::default() }
-    }
-}
-
-impl BlockState for DeprecatedPillarState {
+impl BlockState for DispenserState {
     fn state_offset(&self) -> u32 {
         let mut offset = 0u32;
         let mut multiplier = 1u32;
-        offset += (self.deprecated as u32) * multiplier;
-        multiplier *= 4;
-        offset += (self.pillar_axis as u32) * multiplier;
+        offset += (self.facing_direction as u32) * multiplier;
+        multiplier *= 6;
+        offset += (self.triggered_bit as u32) * multiplier;
         offset
     }
 
     fn from_offset(offset: u32) -> Option<Self> {
         if offset >= 12 { return None; }
         let mut rem = offset;
-        let deprecated = (rem % 4) as u8;
-        rem /= 4;
-        let pillar_axis = PillarAxis::from_raw((rem % 3) as u8)?;
-        Some(Self { deprecated, pillar_axis })
+        let facing_direction = (rem % 6) as u8;
+        rem /= 6;
+        let triggered_bit = (rem % 2) != 0;
+        Some(Self { facing_direction, triggered_bit })
     }
 
     fn state_count() -> u32 { 12 }
 }
 
-/// State shared by: ["campfire", "soul_campfire"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// State shared by: ["glow_frame", "frame"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct FrameState {
+    facing_direction: u8,
+    item_frame_map_bit: bool,
+    item_frame_photo_bit: bool,
+}
+
+impl FrameState {
+    /// Create a new state with validation.
+    pub fn new(facing_direction: u8, item_frame_map_bit: bool, item_frame_photo_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if facing_direction > 5 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "facing_direction", value: facing_direction as u32, min: 0, max: 5 });
+        }
+        Ok(Self { facing_direction, item_frame_map_bit, item_frame_photo_bit })
+    }
+
+    /// Get the facing_direction value.
+    #[inline]
+    pub fn facing_direction(&self) -> u8 { self.facing_direction }
+    /// Get the item_frame_map_bit value.
+    #[inline]
+    pub fn item_frame_map_bit(&self) -> bool { self.item_frame_map_bit }
+    /// Get the item_frame_photo_bit value.
+    #[inline]
+    pub fn item_frame_photo_bit(&self) -> bool { self.item_frame_photo_bit }
+}
+
+impl BlockState for FrameState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.facing_direction as u32) * multiplier;
+        multiplier *= 6;
+        offset += (self.item_frame_map_bit as u32) * multiplier;
+        multiplier *= 2;
+        offset += (self.item_frame_photo_bit as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 24 { return None; }
+        let mut rem = offset;
+        let facing_direction = (rem % 6) as u8;
+        rem /= 6;
+        let item_frame_map_bit = (rem % 2) != 0;
+        rem /= 2;
+        let item_frame_photo_bit = (rem % 2) != 0;
+        Some(Self { facing_direction, item_frame_map_bit, item_frame_photo_bit })
+    }
+
+    fn state_count() -> u32 { 24 }
+}
+
+/// State shared by: ["soul_campfire", "campfire"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct CampfireState {
     extinguished: bool,
     cardinal_direction: CardinalDirection,
@@ -2986,12 +2629,6 @@ impl CampfireState {
     /// Get the cardinal_direction value.
     #[inline]
     pub fn cardinal_direction(&self) -> CardinalDirection { self.cardinal_direction }
-}
-
-impl Default for CampfireState {
-    fn default() -> Self {
-        Self { extinguished: false, cardinal_direction: CardinalDirection::default() }
-    }
 }
 
 impl BlockState for CampfireState {
@@ -3016,60 +2653,761 @@ impl BlockState for CampfireState {
     fn state_count() -> u32 { 8 }
 }
 
-/// State shared by: ["cauldron"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct CauldronState {
-    cauldron_liquid: CauldronLiquid,
-    fill_level: u8,
+/// State shared by: ["unpowered_repeater", "powered_repeater"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct RepeaterState {
+    cardinal_direction: CardinalDirection,
+    repeater_delay: u8,
 }
 
-impl CauldronState {
+impl RepeaterState {
     /// Create a new state with validation.
-    pub fn new(cauldron_liquid: CauldronLiquid, fill_level: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if fill_level > 6 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "fill_level", value: fill_level as u32, min: 0, max: 6 });
+    pub fn new(cardinal_direction: CardinalDirection, repeater_delay: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if repeater_delay > 3 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "repeater_delay", value: repeater_delay as u32, min: 0, max: 3 });
         }
-        Ok(Self { cauldron_liquid, fill_level })
+        Ok(Self { cardinal_direction, repeater_delay })
     }
 
-    /// Get the cauldron_liquid value.
+    /// Get the cardinal_direction value.
     #[inline]
-    pub fn cauldron_liquid(&self) -> CauldronLiquid { self.cauldron_liquid }
-    /// Get the fill_level value.
+    pub fn cardinal_direction(&self) -> CardinalDirection { self.cardinal_direction }
+    /// Get the repeater_delay value.
     #[inline]
-    pub fn fill_level(&self) -> u8 { self.fill_level }
+    pub fn repeater_delay(&self) -> u8 { self.repeater_delay }
 }
 
-impl Default for CauldronState {
-    fn default() -> Self {
-        Self { cauldron_liquid: CauldronLiquid::default(), fill_level: 0 }
-    }
-}
-
-impl BlockState for CauldronState {
+impl BlockState for RepeaterState {
     fn state_offset(&self) -> u32 {
         let mut offset = 0u32;
         let mut multiplier = 1u32;
-        offset += (self.cauldron_liquid as u32) * multiplier;
-        multiplier *= 3;
-        offset += (self.fill_level as u32) * multiplier;
+        offset += (self.cardinal_direction as u32) * multiplier;
+        multiplier *= 4;
+        offset += (self.repeater_delay as u32) * multiplier;
         offset
     }
 
     fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 21 { return None; }
+        if offset >= 16 { return None; }
         let mut rem = offset;
-        let cauldron_liquid = CauldronLiquid::from_raw((rem % 3) as u8)?;
-        rem /= 3;
-        let fill_level = (rem % 7) as u8;
-        Some(Self { cauldron_liquid, fill_level })
+        let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
+        rem /= 4;
+        let repeater_delay = (rem % 4) as u8;
+        Some(Self { cardinal_direction, repeater_delay })
     }
 
-    fn state_count() -> u32 { 21 }
+    fn state_count() -> u32 { 16 }
+}
+
+/// State shared by: ["underwater_tnt", "tnt"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct TntState {
+    explode_bit: bool,
+}
+
+impl TntState {
+    /// Create a new state with validation.
+    pub fn new(explode_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        Ok(Self { explode_bit })
+    }
+
+    /// Get the explode_bit value.
+    #[inline]
+    pub fn explode_bit(&self) -> bool { self.explode_bit }
+}
+
+impl BlockState for TntState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let multiplier = 1u32;
+        offset += (self.explode_bit as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 2 { return None; }
+        let rem = offset;
+        let explode_bit = (rem % 2) != 0;
+        Some(Self { explode_bit })
+    }
+
+    fn state_count() -> u32 { 2 }
+}
+
+/// State shared by: ["pale_hanging_moss"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct PaleHangingMossState {
+    tip: bool,
+}
+
+impl PaleHangingMossState {
+    /// Create a new state with validation.
+    pub fn new(tip: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        Ok(Self { tip })
+    }
+
+    /// Get the tip value.
+    #[inline]
+    pub fn tip(&self) -> bool { self.tip }
+}
+
+impl BlockState for PaleHangingMossState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let multiplier = 1u32;
+        offset += (self.tip as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 2 { return None; }
+        let rem = offset;
+        let tip = (rem % 2) != 0;
+        Some(Self { tip })
+    }
+
+    fn state_count() -> u32 { 2 }
+}
+
+/// State shared by: ["composter"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ComposterState {
+    composter_fill_level: u8,
+}
+
+impl ComposterState {
+    /// Create a new state with validation.
+    pub fn new(composter_fill_level: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if composter_fill_level > 8 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "composter_fill_level", value: composter_fill_level as u32, min: 0, max: 8 });
+        }
+        Ok(Self { composter_fill_level })
+    }
+
+    /// Get the composter_fill_level value.
+    #[inline]
+    pub fn composter_fill_level(&self) -> u8 { self.composter_fill_level }
+}
+
+impl BlockState for ComposterState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let multiplier = 1u32;
+        offset += (self.composter_fill_level as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 9 { return None; }
+        let rem = offset;
+        let composter_fill_level = (rem % 9) as u8;
+        Some(Self { composter_fill_level })
+    }
+
+    fn state_count() -> u32 { 9 }
+}
+
+/// State shared by: ["bell"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct BellState {
+    attachment: Attachment,
+    direction: u8,
+    toggle_bit: bool,
+}
+
+impl BellState {
+    /// Create a new state with validation.
+    pub fn new(attachment: Attachment, direction: u8, toggle_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if direction > 3 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "direction", value: direction as u32, min: 0, max: 3 });
+        }
+        Ok(Self { attachment, direction, toggle_bit })
+    }
+
+    /// Get the attachment value.
+    #[inline]
+    pub fn attachment(&self) -> Attachment { self.attachment }
+    /// Get the direction value.
+    #[inline]
+    pub fn direction(&self) -> u8 { self.direction }
+    /// Get the toggle_bit value.
+    #[inline]
+    pub fn toggle_bit(&self) -> bool { self.toggle_bit }
+}
+
+impl BlockState for BellState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.attachment as u32) * multiplier;
+        multiplier *= 4;
+        offset += (self.direction as u32) * multiplier;
+        multiplier *= 4;
+        offset += (self.toggle_bit as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 32 { return None; }
+        let mut rem = offset;
+        let attachment = Attachment::from_raw((rem % 4) as u8)?;
+        rem /= 4;
+        let direction = (rem % 4) as u8;
+        rem /= 4;
+        let toggle_bit = (rem % 2) != 0;
+        Some(Self { attachment, direction, toggle_bit })
+    }
+
+    fn state_count() -> u32 { 32 }
+}
+
+/// State shared by: ["vine"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct VineState {
+    vine_direction_bits: u8,
+}
+
+impl VineState {
+    /// Create a new state with validation.
+    pub fn new(vine_direction_bits: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if vine_direction_bits > 15 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "vine_direction_bits", value: vine_direction_bits as u32, min: 0, max: 15 });
+        }
+        Ok(Self { vine_direction_bits })
+    }
+
+    /// Get the vine_direction_bits value.
+    #[inline]
+    pub fn vine_direction_bits(&self) -> u8 { self.vine_direction_bits }
+}
+
+impl BlockState for VineState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let multiplier = 1u32;
+        offset += (self.vine_direction_bits as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 16 { return None; }
+        let rem = offset;
+        let vine_direction_bits = (rem % 16) as u8;
+        Some(Self { vine_direction_bits })
+    }
+
+    fn state_count() -> u32 { 16 }
+}
+
+/// State shared by: ["observer"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ObserverState {
+    facing_direction: FacingDirection,
+    powered_bit: bool,
+}
+
+impl ObserverState {
+    /// Create a new state with validation.
+    pub fn new(facing_direction: FacingDirection, powered_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        Ok(Self { facing_direction, powered_bit })
+    }
+
+    /// Get the facing_direction value.
+    #[inline]
+    pub fn facing_direction(&self) -> FacingDirection { self.facing_direction }
+    /// Get the powered_bit value.
+    #[inline]
+    pub fn powered_bit(&self) -> bool { self.powered_bit }
+}
+
+impl BlockState for ObserverState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.facing_direction as u32) * multiplier;
+        multiplier *= 6;
+        offset += (self.powered_bit as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 12 { return None; }
+        let mut rem = offset;
+        let facing_direction = FacingDirection::from_raw((rem % 6) as u8)?;
+        rem /= 6;
+        let powered_bit = (rem % 2) != 0;
+        Some(Self { facing_direction, powered_bit })
+    }
+
+    fn state_count() -> u32 { 12 }
+}
+
+/// State shared by: ["snow_layer"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct SnowLayerState {
+    covered_bit: bool,
+    height: u8,
+}
+
+impl SnowLayerState {
+    /// Create a new state with validation.
+    pub fn new(covered_bit: bool, height: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if height > 7 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "height", value: height as u32, min: 0, max: 7 });
+        }
+        Ok(Self { covered_bit, height })
+    }
+
+    /// Get the covered_bit value.
+    #[inline]
+    pub fn covered_bit(&self) -> bool { self.covered_bit }
+    /// Get the height value.
+    #[inline]
+    pub fn height(&self) -> u8 { self.height }
+}
+
+impl BlockState for SnowLayerState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.covered_bit as u32) * multiplier;
+        multiplier *= 2;
+        offset += (self.height as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 16 { return None; }
+        let mut rem = offset;
+        let covered_bit = (rem % 2) != 0;
+        rem /= 2;
+        let height = (rem % 8) as u8;
+        Some(Self { covered_bit, height })
+    }
+
+    fn state_count() -> u32 { 16 }
+}
+
+/// State shared by: ["sculk_sensor"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct SculkSensorState {
+    sculk_sensor_phase: u8,
+}
+
+impl SculkSensorState {
+    /// Create a new state with validation.
+    pub fn new(sculk_sensor_phase: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if sculk_sensor_phase > 2 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "sculk_sensor_phase", value: sculk_sensor_phase as u32, min: 0, max: 2 });
+        }
+        Ok(Self { sculk_sensor_phase })
+    }
+
+    /// Get the sculk_sensor_phase value.
+    #[inline]
+    pub fn sculk_sensor_phase(&self) -> u8 { self.sculk_sensor_phase }
+}
+
+impl BlockState for SculkSensorState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let multiplier = 1u32;
+        offset += (self.sculk_sensor_phase as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 3 { return None; }
+        let rem = offset;
+        let sculk_sensor_phase = (rem % 3) as u8;
+        Some(Self { sculk_sensor_phase })
+    }
+
+    fn state_count() -> u32 { 3 }
+}
+
+/// State shared by: ["end_portal_frame"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct EndPortalFrameState {
+    end_portal_eye_bit: bool,
+    cardinal_direction: CardinalDirection,
+}
+
+impl EndPortalFrameState {
+    /// Create a new state with validation.
+    pub fn new(end_portal_eye_bit: bool, cardinal_direction: CardinalDirection) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        Ok(Self { end_portal_eye_bit, cardinal_direction })
+    }
+
+    /// Get the end_portal_eye_bit value.
+    #[inline]
+    pub fn end_portal_eye_bit(&self) -> bool { self.end_portal_eye_bit }
+    /// Get the cardinal_direction value.
+    #[inline]
+    pub fn cardinal_direction(&self) -> CardinalDirection { self.cardinal_direction }
+}
+
+impl BlockState for EndPortalFrameState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.end_portal_eye_bit as u32) * multiplier;
+        multiplier *= 2;
+        offset += (self.cardinal_direction as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 8 { return None; }
+        let mut rem = offset;
+        let end_portal_eye_bit = (rem % 2) != 0;
+        rem /= 2;
+        let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
+        Some(Self { end_portal_eye_bit, cardinal_direction })
+    }
+
+    fn state_count() -> u32 { 8 }
+}
+
+/// State shared by: ["lectern"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct LecternState {
+    cardinal_direction: CardinalDirection,
+    powered_bit: bool,
+}
+
+impl LecternState {
+    /// Create a new state with validation.
+    pub fn new(cardinal_direction: CardinalDirection, powered_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        Ok(Self { cardinal_direction, powered_bit })
+    }
+
+    /// Get the cardinal_direction value.
+    #[inline]
+    pub fn cardinal_direction(&self) -> CardinalDirection { self.cardinal_direction }
+    /// Get the powered_bit value.
+    #[inline]
+    pub fn powered_bit(&self) -> bool { self.powered_bit }
+}
+
+impl BlockState for LecternState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.cardinal_direction as u32) * multiplier;
+        multiplier *= 4;
+        offset += (self.powered_bit as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 8 { return None; }
+        let mut rem = offset;
+        let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
+        rem /= 4;
+        let powered_bit = (rem % 2) != 0;
+        Some(Self { cardinal_direction, powered_bit })
+    }
+
+    fn state_count() -> u32 { 8 }
+}
+
+/// State shared by: ["seagrass"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct SeagrassState {
+    sea_grass_type: SeaGrassType,
+}
+
+impl SeagrassState {
+    /// Create a new state with validation.
+    pub fn new(sea_grass_type: SeaGrassType) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        Ok(Self { sea_grass_type })
+    }
+
+    /// Get the sea_grass_type value.
+    #[inline]
+    pub fn sea_grass_type(&self) -> SeaGrassType { self.sea_grass_type }
+}
+
+impl BlockState for SeagrassState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let multiplier = 1u32;
+        offset += (self.sea_grass_type as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 3 { return None; }
+        let rem = offset;
+        let sea_grass_type = SeaGrassType::from_raw((rem % 3) as u8)?;
+        Some(Self { sea_grass_type })
+    }
+
+    fn state_count() -> u32 { 3 }
+}
+
+/// State shared by: ["barrel"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct BarrelState {
+    facing_direction: u8,
+    open_bit: bool,
+}
+
+impl BarrelState {
+    /// Create a new state with validation.
+    pub fn new(facing_direction: u8, open_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if facing_direction > 5 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "facing_direction", value: facing_direction as u32, min: 0, max: 5 });
+        }
+        Ok(Self { facing_direction, open_bit })
+    }
+
+    /// Get the facing_direction value.
+    #[inline]
+    pub fn facing_direction(&self) -> u8 { self.facing_direction }
+    /// Get the open_bit value.
+    #[inline]
+    pub fn open_bit(&self) -> bool { self.open_bit }
+}
+
+impl BlockState for BarrelState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.facing_direction as u32) * multiplier;
+        multiplier *= 6;
+        offset += (self.open_bit as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 12 { return None; }
+        let mut rem = offset;
+        let facing_direction = (rem % 6) as u8;
+        rem /= 6;
+        let open_bit = (rem % 2) != 0;
+        Some(Self { facing_direction, open_bit })
+    }
+
+    fn state_count() -> u32 { 12 }
+}
+
+/// State shared by: ["creaking_heart"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct CreakingHeartBlockState {
+    creaking_heart_state: CreakingHeartState,
+    natural: bool,
+    pillar_axis: PillarAxis,
+}
+
+impl CreakingHeartBlockState {
+    /// Create a new state with validation.
+    pub fn new(creaking_heart_state: CreakingHeartState, natural: bool, pillar_axis: PillarAxis) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        Ok(Self { creaking_heart_state, natural, pillar_axis })
+    }
+
+    /// Get the creaking_heart_state value.
+    #[inline]
+    pub fn creaking_heart_state(&self) -> CreakingHeartState { self.creaking_heart_state }
+    /// Get the natural value.
+    #[inline]
+    pub fn natural(&self) -> bool { self.natural }
+    /// Get the pillar_axis value.
+    #[inline]
+    pub fn pillar_axis(&self) -> PillarAxis { self.pillar_axis }
+}
+
+impl BlockState for CreakingHeartBlockState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.creaking_heart_state as u32) * multiplier;
+        multiplier *= 3;
+        offset += (self.natural as u32) * multiplier;
+        multiplier *= 2;
+        offset += (self.pillar_axis as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 18 { return None; }
+        let mut rem = offset;
+        let creaking_heart_state = CreakingHeartState::from_raw((rem % 3) as u8)?;
+        rem /= 3;
+        let natural = (rem % 2) != 0;
+        rem /= 2;
+        let pillar_axis = PillarAxis::from_raw((rem % 3) as u8)?;
+        Some(Self { creaking_heart_state, natural, pillar_axis })
+    }
+
+    fn state_count() -> u32 { 18 }
+}
+
+/// State shared by: ["small_dripleaf_block"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct SmallDripleafBlockState {
+    cardinal_direction: CardinalDirection,
+    upper_block_bit: bool,
+}
+
+impl SmallDripleafBlockState {
+    /// Create a new state with validation.
+    pub fn new(cardinal_direction: CardinalDirection, upper_block_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        Ok(Self { cardinal_direction, upper_block_bit })
+    }
+
+    /// Get the cardinal_direction value.
+    #[inline]
+    pub fn cardinal_direction(&self) -> CardinalDirection { self.cardinal_direction }
+    /// Get the upper_block_bit value.
+    #[inline]
+    pub fn upper_block_bit(&self) -> bool { self.upper_block_bit }
+}
+
+impl BlockState for SmallDripleafBlockState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.cardinal_direction as u32) * multiplier;
+        multiplier *= 4;
+        offset += (self.upper_block_bit as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 8 { return None; }
+        let mut rem = offset;
+        let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
+        rem /= 4;
+        let upper_block_bit = (rem % 2) != 0;
+        Some(Self { cardinal_direction, upper_block_bit })
+    }
+
+    fn state_count() -> u32 { 8 }
+}
+
+/// State shared by: ["rail"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct RailBlockState {
+    rail_direction: u8,
+}
+
+impl RailBlockState {
+    /// Create a new state with validation.
+    pub fn new(rail_direction: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if rail_direction > 9 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "rail_direction", value: rail_direction as u32, min: 0, max: 9 });
+        }
+        Ok(Self { rail_direction })
+    }
+
+    /// Get the rail_direction value.
+    #[inline]
+    pub fn rail_direction(&self) -> u8 { self.rail_direction }
+}
+
+impl BlockState for RailBlockState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let multiplier = 1u32;
+        offset += (self.rail_direction as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 10 { return None; }
+        let rem = offset;
+        let rail_direction = (rem % 10) as u8;
+        Some(Self { rail_direction })
+    }
+
+    fn state_count() -> u32 { 10 }
+}
+
+/// State shared by: ["pointed_dripstone"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct PointedDripstoneState {
+    dripstone_thickness: DripstoneThickness,
+    hanging: bool,
+}
+
+impl PointedDripstoneState {
+    /// Create a new state with validation.
+    pub fn new(dripstone_thickness: DripstoneThickness, hanging: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        Ok(Self { dripstone_thickness, hanging })
+    }
+
+    /// Get the dripstone_thickness value.
+    #[inline]
+    pub fn dripstone_thickness(&self) -> DripstoneThickness { self.dripstone_thickness }
+    /// Get the hanging value.
+    #[inline]
+    pub fn hanging(&self) -> bool { self.hanging }
+}
+
+impl BlockState for PointedDripstoneState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.dripstone_thickness as u32) * multiplier;
+        multiplier *= 5;
+        offset += (self.hanging as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 10 { return None; }
+        let mut rem = offset;
+        let dripstone_thickness = DripstoneThickness::from_raw((rem % 5) as u8)?;
+        rem /= 5;
+        let hanging = (rem % 2) != 0;
+        Some(Self { dripstone_thickness, hanging })
+    }
+
+    fn state_count() -> u32 { 10 }
+}
+
+/// State shared by: ["farmland"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct FarmlandState {
+    moisturized_amount: u8,
+}
+
+impl FarmlandState {
+    /// Create a new state with validation.
+    pub fn new(moisturized_amount: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if moisturized_amount > 7 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "moisturized_amount", value: moisturized_amount as u32, min: 0, max: 7 });
+        }
+        Ok(Self { moisturized_amount })
+    }
+
+    /// Get the moisturized_amount value.
+    #[inline]
+    pub fn moisturized_amount(&self) -> u8 { self.moisturized_amount }
+}
+
+impl BlockState for FarmlandState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let multiplier = 1u32;
+        offset += (self.moisturized_amount as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 8 { return None; }
+        let rem = offset;
+        let moisturized_amount = (rem % 8) as u8;
+        Some(Self { moisturized_amount })
+    }
+
+    fn state_count() -> u32 { 8 }
 }
 
 /// State shared by: ["jigsaw"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct JigsawState {
     facing_direction: u8,
     rotation: u8,
@@ -3095,12 +3433,6 @@ impl JigsawState {
     pub fn rotation(&self) -> u8 { self.rotation }
 }
 
-impl Default for JigsawState {
-    fn default() -> Self {
-        Self { facing_direction: 0, rotation: 0 }
-    }
-}
-
 impl BlockState for JigsawState {
     fn state_offset(&self) -> u32 {
         let mut offset = 0u32;
@@ -3123,555 +3455,259 @@ impl BlockState for JigsawState {
     fn state_count() -> u32 { 24 }
 }
 
-/// State shared by: ["composter"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ComposterState {
-    composter_fill_level: u8,
+/// State shared by: ["grindstone"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct GrindstoneState {
+    attachment: Attachment,
+    direction: u8,
 }
 
-impl ComposterState {
+impl GrindstoneState {
     /// Create a new state with validation.
-    pub fn new(composter_fill_level: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if composter_fill_level > 8 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "composter_fill_level", value: composter_fill_level as u32, min: 0, max: 8 });
+    pub fn new(attachment: Attachment, direction: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if direction > 3 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "direction", value: direction as u32, min: 0, max: 3 });
         }
-        Ok(Self { composter_fill_level })
+        Ok(Self { attachment, direction })
     }
 
-    /// Get the composter_fill_level value.
+    /// Get the attachment value.
     #[inline]
-    pub fn composter_fill_level(&self) -> u8 { self.composter_fill_level }
+    pub fn attachment(&self) -> Attachment { self.attachment }
+    /// Get the direction value.
+    #[inline]
+    pub fn direction(&self) -> u8 { self.direction }
 }
 
-impl Default for ComposterState {
-    fn default() -> Self {
-        Self { composter_fill_level: 0 }
-    }
-}
-
-impl BlockState for ComposterState {
+impl BlockState for GrindstoneState {
     fn state_offset(&self) -> u32 {
         let mut offset = 0u32;
-        let multiplier = 1u32;
-        offset += (self.composter_fill_level as u32) * multiplier;
+        let mut multiplier = 1u32;
+        offset += (self.attachment as u32) * multiplier;
+        multiplier *= 4;
+        offset += (self.direction as u32) * multiplier;
         offset
     }
 
     fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 9 { return None; }
-        let rem = offset;
-        let composter_fill_level = (rem % 9) as u8;
-        Some(Self { composter_fill_level })
+        if offset >= 16 { return None; }
+        let mut rem = offset;
+        let attachment = Attachment::from_raw((rem % 4) as u8)?;
+        rem /= 4;
+        let direction = (rem % 4) as u8;
+        Some(Self { attachment, direction })
     }
 
-    fn state_count() -> u32 { 9 }
+    fn state_count() -> u32 { 16 }
 }
 
-/// State shared by: ["weeping_vines"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct WeepingVinesState {
-    weeping_vines_age: u8,
+/// State shared by: ["twisting_vines"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct TwistingVinesState {
+    twisting_vines_age: u8,
 }
 
-impl WeepingVinesState {
+impl TwistingVinesState {
     /// Create a new state with validation.
-    pub fn new(weeping_vines_age: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if weeping_vines_age > 25 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "weeping_vines_age", value: weeping_vines_age as u32, min: 0, max: 25 });
+    pub fn new(twisting_vines_age: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if twisting_vines_age > 25 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "twisting_vines_age", value: twisting_vines_age as u32, min: 0, max: 25 });
         }
-        Ok(Self { weeping_vines_age })
+        Ok(Self { twisting_vines_age })
     }
 
-    /// Get the weeping_vines_age value.
+    /// Get the twisting_vines_age value.
     #[inline]
-    pub fn weeping_vines_age(&self) -> u8 { self.weeping_vines_age }
+    pub fn twisting_vines_age(&self) -> u8 { self.twisting_vines_age }
 }
 
-impl Default for WeepingVinesState {
-    fn default() -> Self {
-        Self { weeping_vines_age: 0 }
-    }
-}
-
-impl BlockState for WeepingVinesState {
+impl BlockState for TwistingVinesState {
     fn state_offset(&self) -> u32 {
         let mut offset = 0u32;
         let multiplier = 1u32;
-        offset += (self.weeping_vines_age as u32) * multiplier;
+        offset += (self.twisting_vines_age as u32) * multiplier;
         offset
     }
 
     fn from_offset(offset: u32) -> Option<Self> {
         if offset >= 26 { return None; }
         let rem = offset;
-        let weeping_vines_age = (rem % 26) as u8;
-        Some(Self { weeping_vines_age })
+        let twisting_vines_age = (rem % 26) as u8;
+        Some(Self { twisting_vines_age })
     }
 
     fn state_count() -> u32 { 26 }
 }
 
-/// State shared by: ["flower_pot"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct FlowerPotState {
-    update_bit: bool,
+/// State shared by: ["trip_wire"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct TripWireState {
+    attached_bit: bool,
+    disarmed_bit: bool,
+    powered_bit: bool,
+    suspended_bit: bool,
 }
 
-impl FlowerPotState {
+impl TripWireState {
     /// Create a new state with validation.
-    pub fn new(update_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        Ok(Self { update_bit })
+    pub fn new(attached_bit: bool, disarmed_bit: bool, powered_bit: bool, suspended_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        Ok(Self { attached_bit, disarmed_bit, powered_bit, suspended_bit })
     }
 
-    /// Get the update_bit value.
+    /// Get the attached_bit value.
     #[inline]
-    pub fn update_bit(&self) -> bool { self.update_bit }
+    pub fn attached_bit(&self) -> bool { self.attached_bit }
+    /// Get the disarmed_bit value.
+    #[inline]
+    pub fn disarmed_bit(&self) -> bool { self.disarmed_bit }
+    /// Get the powered_bit value.
+    #[inline]
+    pub fn powered_bit(&self) -> bool { self.powered_bit }
+    /// Get the suspended_bit value.
+    #[inline]
+    pub fn suspended_bit(&self) -> bool { self.suspended_bit }
 }
 
-impl Default for FlowerPotState {
-    fn default() -> Self {
-        Self { update_bit: false }
+impl BlockState for TripWireState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.attached_bit as u32) * multiplier;
+        multiplier *= 2;
+        offset += (self.disarmed_bit as u32) * multiplier;
+        multiplier *= 2;
+        offset += (self.powered_bit as u32) * multiplier;
+        multiplier *= 2;
+        offset += (self.suspended_bit as u32) * multiplier;
+        offset
     }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 16 { return None; }
+        let mut rem = offset;
+        let attached_bit = (rem % 2) != 0;
+        rem /= 2;
+        let disarmed_bit = (rem % 2) != 0;
+        rem /= 2;
+        let powered_bit = (rem % 2) != 0;
+        rem /= 2;
+        let suspended_bit = (rem % 2) != 0;
+        Some(Self { attached_bit, disarmed_bit, powered_bit, suspended_bit })
+    }
+
+    fn state_count() -> u32 { 16 }
 }
 
-impl BlockState for FlowerPotState {
+/// State shared by: ["bedrock"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct BedrockState {
+    infiniburn_bit: bool,
+}
+
+impl BedrockState {
+    /// Create a new state with validation.
+    pub fn new(infiniburn_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        Ok(Self { infiniburn_bit })
+    }
+
+    /// Get the infiniburn_bit value.
+    #[inline]
+    pub fn infiniburn_bit(&self) -> bool { self.infiniburn_bit }
+}
+
+impl BlockState for BedrockState {
     fn state_offset(&self) -> u32 {
         let mut offset = 0u32;
         let multiplier = 1u32;
-        offset += (self.update_bit as u32) * multiplier;
+        offset += (self.infiniburn_bit as u32) * multiplier;
         offset
     }
 
     fn from_offset(offset: u32) -> Option<Self> {
         if offset >= 2 { return None; }
         let rem = offset;
-        let update_bit = (rem % 2) != 0;
-        Some(Self { update_bit })
+        let infiniburn_bit = (rem % 2) != 0;
+        Some(Self { infiniburn_bit })
     }
 
     fn state_count() -> u32 { 2 }
 }
 
-/// State shared by: ["pitcher_crop"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct PitcherCropState {
-    growth: u8,
-    upper_block_bit: bool,
+/// State shared by: ["bubble_column"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct BubbleColumnState {
+    drag_down: bool,
 }
 
-impl PitcherCropState {
+impl BubbleColumnState {
     /// Create a new state with validation.
-    pub fn new(growth: u8, upper_block_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if growth > 7 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "growth", value: growth as u32, min: 0, max: 7 });
-        }
-        Ok(Self { growth, upper_block_bit })
+    pub fn new(drag_down: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        Ok(Self { drag_down })
     }
 
-    /// Get the growth value.
+    /// Get the drag_down value.
     #[inline]
-    pub fn growth(&self) -> u8 { self.growth }
-    /// Get the upper_block_bit value.
-    #[inline]
-    pub fn upper_block_bit(&self) -> bool { self.upper_block_bit }
+    pub fn drag_down(&self) -> bool { self.drag_down }
 }
 
-impl Default for PitcherCropState {
-    fn default() -> Self {
-        Self { growth: 0, upper_block_bit: false }
-    }
-}
-
-impl BlockState for PitcherCropState {
+impl BlockState for BubbleColumnState {
     fn state_offset(&self) -> u32 {
         let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.growth as u32) * multiplier;
-        multiplier *= 8;
-        offset += (self.upper_block_bit as u32) * multiplier;
+        let multiplier = 1u32;
+        offset += (self.drag_down as u32) * multiplier;
         offset
     }
 
     fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 16 { return None; }
-        let mut rem = offset;
-        let growth = (rem % 8) as u8;
-        rem /= 8;
-        let upper_block_bit = (rem % 2) != 0;
-        Some(Self { growth, upper_block_bit })
+        if offset >= 2 { return None; }
+        let rem = offset;
+        let drag_down = (rem % 2) != 0;
+        Some(Self { drag_down })
     }
 
-    fn state_count() -> u32 { 16 }
+    fn state_count() -> u32 { 2 }
 }
 
-/// State shared by: ["crafter"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct CrafterState {
-    crafting: bool,
-    orientation: Orientation,
-    triggered_bit: bool,
-}
-
-impl CrafterState {
-    /// Create a new state with validation.
-    pub fn new(crafting: bool, orientation: Orientation, triggered_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        Ok(Self { crafting, orientation, triggered_bit })
-    }
-
-    /// Get the crafting value.
-    #[inline]
-    pub fn crafting(&self) -> bool { self.crafting }
-    /// Get the orientation value.
-    #[inline]
-    pub fn orientation(&self) -> Orientation { self.orientation }
-    /// Get the triggered_bit value.
-    #[inline]
-    pub fn triggered_bit(&self) -> bool { self.triggered_bit }
-}
-
-impl Default for CrafterState {
-    fn default() -> Self {
-        Self { crafting: false, orientation: Orientation::default(), triggered_bit: false }
-    }
-}
-
-impl BlockState for CrafterState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.crafting as u32) * multiplier;
-        multiplier *= 2;
-        offset += (self.orientation as u32) * multiplier;
-        multiplier *= 12;
-        offset += (self.triggered_bit as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 48 { return None; }
-        let mut rem = offset;
-        let crafting = (rem % 2) != 0;
-        rem /= 2;
-        let orientation = Orientation::from_raw((rem % 12) as u8)?;
-        rem /= 12;
-        let triggered_bit = (rem % 2) != 0;
-        Some(Self { crafting, orientation, triggered_bit })
-    }
-
-    fn state_count() -> u32 { 48 }
-}
-
-/// State shared by: ["cocoa"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct CocoaState {
-    age: u8,
+/// State shared by: ["chalkboard"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct DirectionBlockState {
     direction: u8,
 }
 
-impl CocoaState {
+impl DirectionBlockState {
     /// Create a new state with validation.
-    pub fn new(age: u8, direction: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if age > 2 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "age", value: age as u32, min: 0, max: 2 });
+    pub fn new(direction: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if direction > 15 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "direction", value: direction as u32, min: 0, max: 15 });
         }
-        if direction > 3 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "direction", value: direction as u32, min: 0, max: 3 });
-        }
-        Ok(Self { age, direction })
+        Ok(Self { direction })
     }
 
-    /// Get the age value.
-    #[inline]
-    pub fn age(&self) -> u8 { self.age }
     /// Get the direction value.
     #[inline]
     pub fn direction(&self) -> u8 { self.direction }
 }
 
-impl Default for CocoaState {
-    fn default() -> Self {
-        Self { age: 0, direction: 0 }
-    }
-}
-
-impl BlockState for CocoaState {
+impl BlockState for DirectionBlockState {
     fn state_offset(&self) -> u32 {
         let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.age as u32) * multiplier;
-        multiplier *= 3;
+        let multiplier = 1u32;
         offset += (self.direction as u32) * multiplier;
         offset
     }
 
     fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 12 { return None; }
-        let mut rem = offset;
-        let age = (rem % 3) as u8;
-        rem /= 3;
-        let direction = (rem % 4) as u8;
-        Some(Self { age, direction })
-    }
-
-    fn state_count() -> u32 { 12 }
-}
-
-/// State shared by: ["bamboo"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct BambooState {
-    age_bit: bool,
-    bamboo_leaf_size: BambooLeafSize,
-    bamboo_stalk_thickness: BambooStalkThickness,
-}
-
-impl BambooState {
-    /// Create a new state with validation.
-    pub fn new(age_bit: bool, bamboo_leaf_size: BambooLeafSize, bamboo_stalk_thickness: BambooStalkThickness) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        Ok(Self { age_bit, bamboo_leaf_size, bamboo_stalk_thickness })
-    }
-
-    /// Get the age_bit value.
-    #[inline]
-    pub fn age_bit(&self) -> bool { self.age_bit }
-    /// Get the bamboo_leaf_size value.
-    #[inline]
-    pub fn bamboo_leaf_size(&self) -> BambooLeafSize { self.bamboo_leaf_size }
-    /// Get the bamboo_stalk_thickness value.
-    #[inline]
-    pub fn bamboo_stalk_thickness(&self) -> BambooStalkThickness { self.bamboo_stalk_thickness }
-}
-
-impl Default for BambooState {
-    fn default() -> Self {
-        Self { age_bit: false, bamboo_leaf_size: BambooLeafSize::default(), bamboo_stalk_thickness: BambooStalkThickness::default() }
-    }
-}
-
-impl BlockState for BambooState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.age_bit as u32) * multiplier;
-        multiplier *= 2;
-        offset += (self.bamboo_leaf_size as u32) * multiplier;
-        multiplier *= 3;
-        offset += (self.bamboo_stalk_thickness as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 12 { return None; }
-        let mut rem = offset;
-        let age_bit = (rem % 2) != 0;
-        rem /= 2;
-        let bamboo_leaf_size = BambooLeafSize::from_raw((rem % 3) as u8)?;
-        rem /= 3;
-        let bamboo_stalk_thickness = BambooStalkThickness::from_raw((rem % 2) as u8)?;
-        Some(Self { age_bit, bamboo_leaf_size, bamboo_stalk_thickness })
-    }
-
-    fn state_count() -> u32 { 12 }
-}
-
-/// State shared by: ["lever"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct LeverState {
-    lever_direction: LeverDirection,
-    open_bit: bool,
-}
-
-impl LeverState {
-    /// Create a new state with validation.
-    pub fn new(lever_direction: LeverDirection, open_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        Ok(Self { lever_direction, open_bit })
-    }
-
-    /// Get the lever_direction value.
-    #[inline]
-    pub fn lever_direction(&self) -> LeverDirection { self.lever_direction }
-    /// Get the open_bit value.
-    #[inline]
-    pub fn open_bit(&self) -> bool { self.open_bit }
-}
-
-impl Default for LeverState {
-    fn default() -> Self {
-        Self { lever_direction: LeverDirection::default(), open_bit: false }
-    }
-}
-
-impl BlockState for LeverState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.lever_direction as u32) * multiplier;
-        multiplier *= 8;
-        offset += (self.open_bit as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
         if offset >= 16 { return None; }
-        let mut rem = offset;
-        let lever_direction = LeverDirection::from_raw((rem % 8) as u8)?;
-        rem /= 8;
-        let open_bit = (rem % 2) != 0;
-        Some(Self { lever_direction, open_bit })
+        let rem = offset;
+        let direction = (rem % 16) as u8;
+        Some(Self { direction })
     }
 
     fn state_count() -> u32 { 16 }
 }
 
-/// State shared by: ["trial_spawner"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TrialSpawnerState {
-    ominous: bool,
-    trial_spawner_state: u8,
-}
-
-impl TrialSpawnerState {
-    /// Create a new state with validation.
-    pub fn new(ominous: bool, trial_spawner_state: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if trial_spawner_state > 5 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "trial_spawner_state", value: trial_spawner_state as u32, min: 0, max: 5 });
-        }
-        Ok(Self { ominous, trial_spawner_state })
-    }
-
-    /// Get the ominous value.
-    #[inline]
-    pub fn ominous(&self) -> bool { self.ominous }
-    /// Get the trial_spawner_state value.
-    #[inline]
-    pub fn trial_spawner_state(&self) -> u8 { self.trial_spawner_state }
-}
-
-impl Default for TrialSpawnerState {
-    fn default() -> Self {
-        Self { ominous: false, trial_spawner_state: 0 }
-    }
-}
-
-impl BlockState for TrialSpawnerState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.ominous as u32) * multiplier;
-        multiplier *= 2;
-        offset += (self.trial_spawner_state as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 12 { return None; }
-        let mut rem = offset;
-        let ominous = (rem % 2) != 0;
-        rem /= 2;
-        let trial_spawner_state = (rem % 6) as u8;
-        Some(Self { ominous, trial_spawner_state })
-    }
-
-    fn state_count() -> u32 { 12 }
-}
-
-/// State shared by: ["respawn_anchor"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RespawnAnchorState {
-    respawn_anchor_charge: u8,
-}
-
-impl RespawnAnchorState {
-    /// Create a new state with validation.
-    pub fn new(respawn_anchor_charge: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if respawn_anchor_charge > 4 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "respawn_anchor_charge", value: respawn_anchor_charge as u32, min: 0, max: 4 });
-        }
-        Ok(Self { respawn_anchor_charge })
-    }
-
-    /// Get the respawn_anchor_charge value.
-    #[inline]
-    pub fn respawn_anchor_charge(&self) -> u8 { self.respawn_anchor_charge }
-}
-
-impl Default for RespawnAnchorState {
-    fn default() -> Self {
-        Self { respawn_anchor_charge: 0 }
-    }
-}
-
-impl BlockState for RespawnAnchorState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let multiplier = 1u32;
-        offset += (self.respawn_anchor_charge as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 5 { return None; }
-        let rem = offset;
-        let respawn_anchor_charge = (rem % 5) as u8;
-        Some(Self { respawn_anchor_charge })
-    }
-
-    fn state_count() -> u32 { 5 }
-}
-
-/// State shared by: ["hopper"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct HopperState {
-    facing_direction: u8,
-    toggle_bit: bool,
-}
-
-impl HopperState {
-    /// Create a new state with validation.
-    pub fn new(facing_direction: u8, toggle_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if facing_direction > 5 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "facing_direction", value: facing_direction as u32, min: 0, max: 5 });
-        }
-        Ok(Self { facing_direction, toggle_bit })
-    }
-
-    /// Get the facing_direction value.
-    #[inline]
-    pub fn facing_direction(&self) -> u8 { self.facing_direction }
-    /// Get the toggle_bit value.
-    #[inline]
-    pub fn toggle_bit(&self) -> bool { self.toggle_bit }
-}
-
-impl Default for HopperState {
-    fn default() -> Self {
-        Self { facing_direction: 0, toggle_bit: false }
-    }
-}
-
-impl BlockState for HopperState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.facing_direction as u32) * multiplier;
-        multiplier *= 6;
-        offset += (self.toggle_bit as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 12 { return None; }
-        let mut rem = offset;
-        let facing_direction = (rem % 6) as u8;
-        rem /= 6;
-        let toggle_bit = (rem % 2) != 0;
-        Some(Self { facing_direction, toggle_bit })
-    }
-
-    fn state_count() -> u32 { 12 }
-}
-
 /// State shared by: ["pale_moss_carpet"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct PaleMossCarpetState {
     pale_moss_carpet_side_east: PaleMossCarpetSideEast,
     pale_moss_carpet_side_north: PaleMossCarpetSideNorth,
@@ -3701,12 +3737,6 @@ impl PaleMossCarpetState {
     /// Get the upper_block_bit value.
     #[inline]
     pub fn upper_block_bit(&self) -> bool { self.upper_block_bit }
-}
-
-impl Default for PaleMossCarpetState {
-    fn default() -> Self {
-        Self { pale_moss_carpet_side_east: PaleMossCarpetSideEast::default(), pale_moss_carpet_side_north: PaleMossCarpetSideNorth::default(), pale_moss_carpet_side_south: PaleMossCarpetSideSouth::default(), pale_moss_carpet_side_west: PaleMossCarpetSideWest::default(), upper_block_bit: false }
-    }
 }
 
 impl BlockState for PaleMossCarpetState {
@@ -3743,563 +3773,51 @@ impl BlockState for PaleMossCarpetState {
     fn state_count() -> u32 { 162 }
 }
 
-/// State shared by: ["twisting_vines"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TwistingVinesState {
-    twisting_vines_age: u8,
+/// State shared by: ["sculk_shrieker"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct SculkShriekerState {
+    active: bool,
+    can_summon: bool,
 }
 
-impl TwistingVinesState {
+impl SculkShriekerState {
     /// Create a new state with validation.
-    pub fn new(twisting_vines_age: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if twisting_vines_age > 25 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "twisting_vines_age", value: twisting_vines_age as u32, min: 0, max: 25 });
-        }
-        Ok(Self { twisting_vines_age })
+    pub fn new(active: bool, can_summon: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        Ok(Self { active, can_summon })
     }
 
-    /// Get the twisting_vines_age value.
+    /// Get the active value.
     #[inline]
-    pub fn twisting_vines_age(&self) -> u8 { self.twisting_vines_age }
-}
-
-impl Default for TwistingVinesState {
-    fn default() -> Self {
-        Self { twisting_vines_age: 0 }
-    }
-}
-
-impl BlockState for TwistingVinesState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let multiplier = 1u32;
-        offset += (self.twisting_vines_age as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 26 { return None; }
-        let rem = offset;
-        let twisting_vines_age = (rem % 26) as u8;
-        Some(Self { twisting_vines_age })
-    }
-
-    fn state_count() -> u32 { 26 }
-}
-
-/// State shared by: ["sculk_sensor"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SculkSensorState {
-    sculk_sensor_phase: u8,
-}
-
-impl SculkSensorState {
-    /// Create a new state with validation.
-    pub fn new(sculk_sensor_phase: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if sculk_sensor_phase > 2 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "sculk_sensor_phase", value: sculk_sensor_phase as u32, min: 0, max: 2 });
-        }
-        Ok(Self { sculk_sensor_phase })
-    }
-
-    /// Get the sculk_sensor_phase value.
+    pub fn active(&self) -> bool { self.active }
+    /// Get the can_summon value.
     #[inline]
-    pub fn sculk_sensor_phase(&self) -> u8 { self.sculk_sensor_phase }
+    pub fn can_summon(&self) -> bool { self.can_summon }
 }
 
-impl Default for SculkSensorState {
-    fn default() -> Self {
-        Self { sculk_sensor_phase: 0 }
-    }
-}
-
-impl BlockState for SculkSensorState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let multiplier = 1u32;
-        offset += (self.sculk_sensor_phase as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 3 { return None; }
-        let rem = offset;
-        let sculk_sensor_phase = (rem % 3) as u8;
-        Some(Self { sculk_sensor_phase })
-    }
-
-    fn state_count() -> u32 { 3 }
-}
-
-/// State shared by: ["farmland"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct FarmlandState {
-    moisturized_amount: u8,
-}
-
-impl FarmlandState {
-    /// Create a new state with validation.
-    pub fn new(moisturized_amount: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if moisturized_amount > 7 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "moisturized_amount", value: moisturized_amount as u32, min: 0, max: 7 });
-        }
-        Ok(Self { moisturized_amount })
-    }
-
-    /// Get the moisturized_amount value.
-    #[inline]
-    pub fn moisturized_amount(&self) -> u8 { self.moisturized_amount }
-}
-
-impl Default for FarmlandState {
-    fn default() -> Self {
-        Self { moisturized_amount: 0 }
-    }
-}
-
-impl BlockState for FarmlandState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let multiplier = 1u32;
-        offset += (self.moisturized_amount as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 8 { return None; }
-        let rem = offset;
-        let moisturized_amount = (rem % 8) as u8;
-        Some(Self { moisturized_amount })
-    }
-
-    fn state_count() -> u32 { 8 }
-}
-
-/// State shared by: ["calibrated_sculk_sensor"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct CalibratedSculkSensorState {
-    cardinal_direction: CardinalDirection,
-    sculk_sensor_phase: u8,
-}
-
-impl CalibratedSculkSensorState {
-    /// Create a new state with validation.
-    pub fn new(cardinal_direction: CardinalDirection, sculk_sensor_phase: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if sculk_sensor_phase > 2 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "sculk_sensor_phase", value: sculk_sensor_phase as u32, min: 0, max: 2 });
-        }
-        Ok(Self { cardinal_direction, sculk_sensor_phase })
-    }
-
-    /// Get the cardinal_direction value.
-    #[inline]
-    pub fn cardinal_direction(&self) -> CardinalDirection { self.cardinal_direction }
-    /// Get the sculk_sensor_phase value.
-    #[inline]
-    pub fn sculk_sensor_phase(&self) -> u8 { self.sculk_sensor_phase }
-}
-
-impl Default for CalibratedSculkSensorState {
-    fn default() -> Self {
-        Self { cardinal_direction: CardinalDirection::default(), sculk_sensor_phase: 0 }
-    }
-}
-
-impl BlockState for CalibratedSculkSensorState {
+impl BlockState for SculkShriekerState {
     fn state_offset(&self) -> u32 {
         let mut offset = 0u32;
         let mut multiplier = 1u32;
-        offset += (self.cardinal_direction as u32) * multiplier;
-        multiplier *= 4;
-        offset += (self.sculk_sensor_phase as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 12 { return None; }
-        let mut rem = offset;
-        let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
-        rem /= 4;
-        let sculk_sensor_phase = (rem % 3) as u8;
-        Some(Self { cardinal_direction, sculk_sensor_phase })
-    }
-
-    fn state_count() -> u32 { 12 }
-}
-
-/// State shared by: ["pointed_dripstone"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct PointedDripstoneState {
-    dripstone_thickness: DripstoneThickness,
-    hanging: bool,
-}
-
-impl PointedDripstoneState {
-    /// Create a new state with validation.
-    pub fn new(dripstone_thickness: DripstoneThickness, hanging: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        Ok(Self { dripstone_thickness, hanging })
-    }
-
-    /// Get the dripstone_thickness value.
-    #[inline]
-    pub fn dripstone_thickness(&self) -> DripstoneThickness { self.dripstone_thickness }
-    /// Get the hanging value.
-    #[inline]
-    pub fn hanging(&self) -> bool { self.hanging }
-}
-
-impl Default for PointedDripstoneState {
-    fn default() -> Self {
-        Self { dripstone_thickness: DripstoneThickness::default(), hanging: false }
-    }
-}
-
-impl BlockState for PointedDripstoneState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.dripstone_thickness as u32) * multiplier;
-        multiplier *= 5;
-        offset += (self.hanging as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 10 { return None; }
-        let mut rem = offset;
-        let dripstone_thickness = DripstoneThickness::from_raw((rem % 5) as u8)?;
-        rem /= 5;
-        let hanging = (rem % 2) != 0;
-        Some(Self { dripstone_thickness, hanging })
-    }
-
-    fn state_count() -> u32 { 10 }
-}
-
-/// State shared by: ["chiseled_bookshelf"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ChiseledBookshelfState {
-    books_stored: u8,
-    direction: u8,
-}
-
-impl ChiseledBookshelfState {
-    /// Create a new state with validation.
-    pub fn new(books_stored: u8, direction: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if books_stored > 63 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "books_stored", value: books_stored as u32, min: 0, max: 63 });
-        }
-        if direction > 3 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "direction", value: direction as u32, min: 0, max: 3 });
-        }
-        Ok(Self { books_stored, direction })
-    }
-
-    /// Get the books_stored value.
-    #[inline]
-    pub fn books_stored(&self) -> u8 { self.books_stored }
-    /// Get the direction value.
-    #[inline]
-    pub fn direction(&self) -> u8 { self.direction }
-}
-
-impl Default for ChiseledBookshelfState {
-    fn default() -> Self {
-        Self { books_stored: 0, direction: 0 }
-    }
-}
-
-impl BlockState for ChiseledBookshelfState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.books_stored as u32) * multiplier;
-        multiplier *= 64;
-        offset += (self.direction as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 256 { return None; }
-        let mut rem = offset;
-        let books_stored = (rem % 64) as u8;
-        rem /= 64;
-        let direction = (rem % 4) as u8;
-        Some(Self { books_stored, direction })
-    }
-
-    fn state_count() -> u32 { 256 }
-}
-
-/// State shared by: ["grindstone"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct GrindstoneState {
-    attachment: Attachment,
-    direction: u8,
-}
-
-impl GrindstoneState {
-    /// Create a new state with validation.
-    pub fn new(attachment: Attachment, direction: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if direction > 3 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "direction", value: direction as u32, min: 0, max: 3 });
-        }
-        Ok(Self { attachment, direction })
-    }
-
-    /// Get the attachment value.
-    #[inline]
-    pub fn attachment(&self) -> Attachment { self.attachment }
-    /// Get the direction value.
-    #[inline]
-    pub fn direction(&self) -> u8 { self.direction }
-}
-
-impl Default for GrindstoneState {
-    fn default() -> Self {
-        Self { attachment: Attachment::default(), direction: 0 }
-    }
-}
-
-impl BlockState for GrindstoneState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.attachment as u32) * multiplier;
-        multiplier *= 4;
-        offset += (self.direction as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 16 { return None; }
-        let mut rem = offset;
-        let attachment = Attachment::from_raw((rem % 4) as u8)?;
-        rem /= 4;
-        let direction = (rem % 4) as u8;
-        Some(Self { attachment, direction })
-    }
-
-    fn state_count() -> u32 { 16 }
-}
-
-/// State shared by: ["big_dripleaf"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct BigDripleafState {
-    big_dripleaf_head: bool,
-    big_dripleaf_tilt: BigDripleafTilt,
-    cardinal_direction: CardinalDirection,
-}
-
-impl BigDripleafState {
-    /// Create a new state with validation.
-    pub fn new(big_dripleaf_head: bool, big_dripleaf_tilt: BigDripleafTilt, cardinal_direction: CardinalDirection) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        Ok(Self { big_dripleaf_head, big_dripleaf_tilt, cardinal_direction })
-    }
-
-    /// Get the big_dripleaf_head value.
-    #[inline]
-    pub fn big_dripleaf_head(&self) -> bool { self.big_dripleaf_head }
-    /// Get the big_dripleaf_tilt value.
-    #[inline]
-    pub fn big_dripleaf_tilt(&self) -> BigDripleafTilt { self.big_dripleaf_tilt }
-    /// Get the cardinal_direction value.
-    #[inline]
-    pub fn cardinal_direction(&self) -> CardinalDirection { self.cardinal_direction }
-}
-
-impl Default for BigDripleafState {
-    fn default() -> Self {
-        Self { big_dripleaf_head: false, big_dripleaf_tilt: BigDripleafTilt::default(), cardinal_direction: CardinalDirection::default() }
-    }
-}
-
-impl BlockState for BigDripleafState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.big_dripleaf_head as u32) * multiplier;
+        offset += (self.active as u32) * multiplier;
         multiplier *= 2;
-        offset += (self.big_dripleaf_tilt as u32) * multiplier;
-        multiplier *= 4;
-        offset += (self.cardinal_direction as u32) * multiplier;
+        offset += (self.can_summon as u32) * multiplier;
         offset
     }
 
     fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 32 { return None; }
+        if offset >= 4 { return None; }
         let mut rem = offset;
-        let big_dripleaf_head = (rem % 2) != 0;
+        let active = (rem % 2) != 0;
         rem /= 2;
-        let big_dripleaf_tilt = BigDripleafTilt::from_raw((rem % 4) as u8)?;
-        rem /= 4;
-        let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
-        Some(Self { big_dripleaf_head, big_dripleaf_tilt, cardinal_direction })
+        let can_summon = (rem % 2) != 0;
+        Some(Self { active, can_summon })
     }
 
-    fn state_count() -> u32 { 32 }
-}
-
-/// State shared by: ["observer"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ObserverState {
-    facing_direction: FacingDirection,
-    powered_bit: bool,
-}
-
-impl ObserverState {
-    /// Create a new state with validation.
-    pub fn new(facing_direction: FacingDirection, powered_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        Ok(Self { facing_direction, powered_bit })
-    }
-
-    /// Get the facing_direction value.
-    #[inline]
-    pub fn facing_direction(&self) -> FacingDirection { self.facing_direction }
-    /// Get the powered_bit value.
-    #[inline]
-    pub fn powered_bit(&self) -> bool { self.powered_bit }
-}
-
-impl Default for ObserverState {
-    fn default() -> Self {
-        Self { facing_direction: FacingDirection::default(), powered_bit: false }
-    }
-}
-
-impl BlockState for ObserverState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.facing_direction as u32) * multiplier;
-        multiplier *= 6;
-        offset += (self.powered_bit as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 12 { return None; }
-        let mut rem = offset;
-        let facing_direction = FacingDirection::from_raw((rem % 6) as u8)?;
-        rem /= 6;
-        let powered_bit = (rem % 2) != 0;
-        Some(Self { facing_direction, powered_bit })
-    }
-
-    fn state_count() -> u32 { 12 }
-}
-
-/// State shared by: ["small_dripleaf_block"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SmallDripleafBlockState {
-    cardinal_direction: CardinalDirection,
-    upper_block_bit: bool,
-}
-
-impl SmallDripleafBlockState {
-    /// Create a new state with validation.
-    pub fn new(cardinal_direction: CardinalDirection, upper_block_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        Ok(Self { cardinal_direction, upper_block_bit })
-    }
-
-    /// Get the cardinal_direction value.
-    #[inline]
-    pub fn cardinal_direction(&self) -> CardinalDirection { self.cardinal_direction }
-    /// Get the upper_block_bit value.
-    #[inline]
-    pub fn upper_block_bit(&self) -> bool { self.upper_block_bit }
-}
-
-impl Default for SmallDripleafBlockState {
-    fn default() -> Self {
-        Self { cardinal_direction: CardinalDirection::default(), upper_block_bit: false }
-    }
-}
-
-impl BlockState for SmallDripleafBlockState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.cardinal_direction as u32) * multiplier;
-        multiplier *= 4;
-        offset += (self.upper_block_bit as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 8 { return None; }
-        let mut rem = offset;
-        let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
-        rem /= 4;
-        let upper_block_bit = (rem % 2) != 0;
-        Some(Self { cardinal_direction, upper_block_bit })
-    }
-
-    fn state_count() -> u32 { 8 }
-}
-
-/// State shared by: ["bed"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct BedState {
-    direction: u8,
-    head_piece_bit: bool,
-    occupied_bit: bool,
-}
-
-impl BedState {
-    /// Create a new state with validation.
-    pub fn new(direction: u8, head_piece_bit: bool, occupied_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if direction > 3 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "direction", value: direction as u32, min: 0, max: 3 });
-        }
-        Ok(Self { direction, head_piece_bit, occupied_bit })
-    }
-
-    /// Get the direction value.
-    #[inline]
-    pub fn direction(&self) -> u8 { self.direction }
-    /// Get the head_piece_bit value.
-    #[inline]
-    pub fn head_piece_bit(&self) -> bool { self.head_piece_bit }
-    /// Get the occupied_bit value.
-    #[inline]
-    pub fn occupied_bit(&self) -> bool { self.occupied_bit }
-}
-
-impl Default for BedState {
-    fn default() -> Self {
-        Self { direction: 0, head_piece_bit: false, occupied_bit: false }
-    }
-}
-
-impl BlockState for BedState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.direction as u32) * multiplier;
-        multiplier *= 4;
-        offset += (self.head_piece_bit as u32) * multiplier;
-        multiplier *= 2;
-        offset += (self.occupied_bit as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 16 { return None; }
-        let mut rem = offset;
-        let direction = (rem % 4) as u8;
-        rem /= 4;
-        let head_piece_bit = (rem % 2) != 0;
-        rem /= 2;
-        let occupied_bit = (rem % 2) != 0;
-        Some(Self { direction, head_piece_bit, occupied_bit })
-    }
-
-    fn state_count() -> u32 { 16 }
+    fn state_count() -> u32 { 4 }
 }
 
 /// State shared by: ["brewing_stand"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct BrewingStandState {
     brewing_stand_slot_a_bit: bool,
     brewing_stand_slot_b_bit: bool,
@@ -4321,12 +3839,6 @@ impl BrewingStandState {
     /// Get the brewing_stand_slot_c_bit value.
     #[inline]
     pub fn brewing_stand_slot_c_bit(&self) -> bool { self.brewing_stand_slot_c_bit }
-}
-
-impl Default for BrewingStandState {
-    fn default() -> Self {
-        Self { brewing_stand_slot_a_bit: false, brewing_stand_slot_b_bit: false, brewing_stand_slot_c_bit: false }
-    }
 }
 
 impl BlockState for BrewingStandState {
@@ -4355,183 +3867,123 @@ impl BlockState for BrewingStandState {
     fn state_count() -> u32 { 8 }
 }
 
-/// State shared by: ["chalkboard"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct DirectionBlockState {
-    direction: u8,
+/// State shared by: ["flower_pot"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct FlowerPotState {
+    update_bit: bool,
 }
 
-impl DirectionBlockState {
+impl FlowerPotState {
     /// Create a new state with validation.
-    pub fn new(direction: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if direction > 15 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "direction", value: direction as u32, min: 0, max: 15 });
-        }
-        Ok(Self { direction })
+    pub fn new(update_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        Ok(Self { update_bit })
     }
 
-    /// Get the direction value.
+    /// Get the update_bit value.
     #[inline]
-    pub fn direction(&self) -> u8 { self.direction }
+    pub fn update_bit(&self) -> bool { self.update_bit }
 }
 
-impl Default for DirectionBlockState {
-    fn default() -> Self {
-        Self { direction: 0 }
-    }
-}
-
-impl BlockState for DirectionBlockState {
+impl BlockState for FlowerPotState {
     fn state_offset(&self) -> u32 {
         let mut offset = 0u32;
         let multiplier = 1u32;
-        offset += (self.direction as u32) * multiplier;
+        offset += (self.update_bit as u32) * multiplier;
         offset
     }
 
     fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 16 { return None; }
+        if offset >= 2 { return None; }
         let rem = offset;
-        let direction = (rem % 16) as u8;
-        Some(Self { direction })
+        let update_bit = (rem % 2) != 0;
+        Some(Self { update_bit })
     }
 
-    fn state_count() -> u32 { 16 }
+    fn state_count() -> u32 { 2 }
 }
 
-/// State shared by: ["dried_ghast"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct DriedGhastState {
-    cardinal_direction: CardinalDirection,
-    rehydration_level: u8,
+/// State shared by: ["crafter"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct CrafterState {
+    crafting: bool,
+    orientation: Orientation,
+    triggered_bit: bool,
 }
 
-impl DriedGhastState {
+impl CrafterState {
     /// Create a new state with validation.
-    pub fn new(cardinal_direction: CardinalDirection, rehydration_level: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if rehydration_level > 3 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "rehydration_level", value: rehydration_level as u32, min: 0, max: 3 });
-        }
-        Ok(Self { cardinal_direction, rehydration_level })
+    pub fn new(crafting: bool, orientation: Orientation, triggered_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        Ok(Self { crafting, orientation, triggered_bit })
     }
 
-    /// Get the cardinal_direction value.
+    /// Get the crafting value.
     #[inline]
-    pub fn cardinal_direction(&self) -> CardinalDirection { self.cardinal_direction }
-    /// Get the rehydration_level value.
+    pub fn crafting(&self) -> bool { self.crafting }
+    /// Get the orientation value.
     #[inline]
-    pub fn rehydration_level(&self) -> u8 { self.rehydration_level }
+    pub fn orientation(&self) -> Orientation { self.orientation }
+    /// Get the triggered_bit value.
+    #[inline]
+    pub fn triggered_bit(&self) -> bool { self.triggered_bit }
 }
 
-impl Default for DriedGhastState {
-    fn default() -> Self {
-        Self { cardinal_direction: CardinalDirection::default(), rehydration_level: 0 }
-    }
-}
-
-impl BlockState for DriedGhastState {
+impl BlockState for CrafterState {
     fn state_offset(&self) -> u32 {
         let mut offset = 0u32;
         let mut multiplier = 1u32;
-        offset += (self.cardinal_direction as u32) * multiplier;
-        multiplier *= 4;
-        offset += (self.rehydration_level as u32) * multiplier;
+        offset += (self.crafting as u32) * multiplier;
+        multiplier *= 2;
+        offset += (self.orientation as u32) * multiplier;
+        multiplier *= 12;
+        offset += (self.triggered_bit as u32) * multiplier;
         offset
     }
 
     fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 16 { return None; }
+        if offset >= 48 { return None; }
         let mut rem = offset;
-        let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
-        rem /= 4;
-        let rehydration_level = (rem % 4) as u8;
-        Some(Self { cardinal_direction, rehydration_level })
+        let crafting = (rem % 2) != 0;
+        rem /= 2;
+        let orientation = Orientation::from_raw((rem % 12) as u8)?;
+        rem /= 12;
+        let triggered_bit = (rem % 2) != 0;
+        Some(Self { crafting, orientation, triggered_bit })
     }
 
-    fn state_count() -> u32 { 16 }
+    fn state_count() -> u32 { 48 }
 }
 
-/// State shared by: ["cake"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct CakeState {
-    bite_counter: u8,
-}
-
-impl CakeState {
-    /// Create a new state with validation.
-    pub fn new(bite_counter: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if bite_counter > 6 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "bite_counter", value: bite_counter as u32, min: 0, max: 6 });
-        }
-        Ok(Self { bite_counter })
-    }
-
-    /// Get the bite_counter value.
-    #[inline]
-    pub fn bite_counter(&self) -> u8 { self.bite_counter }
-}
-
-impl Default for CakeState {
-    fn default() -> Self {
-        Self { bite_counter: 0 }
-    }
-}
-
-impl BlockState for CakeState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let multiplier = 1u32;
-        offset += (self.bite_counter as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 7 { return None; }
-        let rem = offset;
-        let bite_counter = (rem % 7) as u8;
-        Some(Self { bite_counter })
-    }
-
-    fn state_count() -> u32 { 7 }
-}
-
-/// State shared by: ["barrel"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct BarrelState {
+/// State shared by: ["hopper"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct HopperState {
     facing_direction: u8,
-    open_bit: bool,
+    toggle_bit: bool,
 }
 
-impl BarrelState {
+impl HopperState {
     /// Create a new state with validation.
-    pub fn new(facing_direction: u8, open_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
+    pub fn new(facing_direction: u8, toggle_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
         if facing_direction > 5 {
             return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "facing_direction", value: facing_direction as u32, min: 0, max: 5 });
         }
-        Ok(Self { facing_direction, open_bit })
+        Ok(Self { facing_direction, toggle_bit })
     }
 
     /// Get the facing_direction value.
     #[inline]
     pub fn facing_direction(&self) -> u8 { self.facing_direction }
-    /// Get the open_bit value.
+    /// Get the toggle_bit value.
     #[inline]
-    pub fn open_bit(&self) -> bool { self.open_bit }
+    pub fn toggle_bit(&self) -> bool { self.toggle_bit }
 }
 
-impl Default for BarrelState {
-    fn default() -> Self {
-        Self { facing_direction: 0, open_bit: false }
-    }
-}
-
-impl BlockState for BarrelState {
+impl BlockState for HopperState {
     fn state_offset(&self) -> u32 {
         let mut offset = 0u32;
         let mut multiplier = 1u32;
         offset += (self.facing_direction as u32) * multiplier;
         multiplier *= 6;
-        offset += (self.open_bit as u32) * multiplier;
+        offset += (self.toggle_bit as u32) * multiplier;
         offset
     }
 
@@ -4540,629 +3992,88 @@ impl BlockState for BarrelState {
         let mut rem = offset;
         let facing_direction = (rem % 6) as u8;
         rem /= 6;
-        let open_bit = (rem % 2) != 0;
-        Some(Self { facing_direction, open_bit })
+        let toggle_bit = (rem % 2) != 0;
+        Some(Self { facing_direction, toggle_bit })
     }
 
     fn state_count() -> u32 { 12 }
 }
 
-/// State shared by: ["kelp"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct KelpState {
-    kelp_age: u8,
+/// State shared by: ["respawn_anchor"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct RespawnAnchorState {
+    respawn_anchor_charge: u8,
 }
 
-impl KelpState {
+impl RespawnAnchorState {
     /// Create a new state with validation.
-    pub fn new(kelp_age: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if kelp_age > 25 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "kelp_age", value: kelp_age as u32, min: 0, max: 25 });
+    pub fn new(respawn_anchor_charge: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if respawn_anchor_charge > 4 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "respawn_anchor_charge", value: respawn_anchor_charge as u32, min: 0, max: 4 });
         }
-        Ok(Self { kelp_age })
+        Ok(Self { respawn_anchor_charge })
     }
 
-    /// Get the kelp_age value.
+    /// Get the respawn_anchor_charge value.
     #[inline]
-    pub fn kelp_age(&self) -> u8 { self.kelp_age }
+    pub fn respawn_anchor_charge(&self) -> u8 { self.respawn_anchor_charge }
 }
 
-impl Default for KelpState {
-    fn default() -> Self {
-        Self { kelp_age: 0 }
-    }
-}
-
-impl BlockState for KelpState {
+impl BlockState for RespawnAnchorState {
     fn state_offset(&self) -> u32 {
         let mut offset = 0u32;
         let multiplier = 1u32;
-        offset += (self.kelp_age as u32) * multiplier;
+        offset += (self.respawn_anchor_charge as u32) * multiplier;
         offset
     }
 
     fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 26 { return None; }
+        if offset >= 5 { return None; }
         let rem = offset;
-        let kelp_age = (rem % 26) as u8;
-        Some(Self { kelp_age })
+        let respawn_anchor_charge = (rem % 5) as u8;
+        Some(Self { respawn_anchor_charge })
     }
 
-    fn state_count() -> u32 { 26 }
+    fn state_count() -> u32 { 5 }
 }
 
-/// State shared by: ["mangrove_propagule"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct MangrovePropaguleState {
-    hanging: bool,
-    propagule_stage: u8,
+/// State shared by: ["portal"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct PortalState {
+    portal_axis: PortalAxis,
 }
 
-impl MangrovePropaguleState {
+impl PortalState {
     /// Create a new state with validation.
-    pub fn new(hanging: bool, propagule_stage: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if propagule_stage > 4 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "propagule_stage", value: propagule_stage as u32, min: 0, max: 4 });
-        }
-        Ok(Self { hanging, propagule_stage })
+    pub fn new(portal_axis: PortalAxis) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        Ok(Self { portal_axis })
     }
 
-    /// Get the hanging value.
+    /// Get the portal_axis value.
     #[inline]
-    pub fn hanging(&self) -> bool { self.hanging }
-    /// Get the propagule_stage value.
-    #[inline]
-    pub fn propagule_stage(&self) -> u8 { self.propagule_stage }
+    pub fn portal_axis(&self) -> PortalAxis { self.portal_axis }
 }
 
-impl Default for MangrovePropaguleState {
-    fn default() -> Self {
-        Self { hanging: false, propagule_stage: 0 }
-    }
-}
-
-impl BlockState for MangrovePropaguleState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.hanging as u32) * multiplier;
-        multiplier *= 2;
-        offset += (self.propagule_stage as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 10 { return None; }
-        let mut rem = offset;
-        let hanging = (rem % 2) != 0;
-        rem /= 2;
-        let propagule_stage = (rem % 5) as u8;
-        Some(Self { hanging, propagule_stage })
-    }
-
-    fn state_count() -> u32 { 10 }
-}
-
-/// State shared by: ["pale_hanging_moss"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct PaleHangingMossState {
-    tip: bool,
-}
-
-impl PaleHangingMossState {
-    /// Create a new state with validation.
-    pub fn new(tip: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        Ok(Self { tip })
-    }
-
-    /// Get the tip value.
-    #[inline]
-    pub fn tip(&self) -> bool { self.tip }
-}
-
-impl Default for PaleHangingMossState {
-    fn default() -> Self {
-        Self { tip: false }
-    }
-}
-
-impl BlockState for PaleHangingMossState {
+impl BlockState for PortalState {
     fn state_offset(&self) -> u32 {
         let mut offset = 0u32;
         let multiplier = 1u32;
-        offset += (self.tip as u32) * multiplier;
+        offset += (self.portal_axis as u32) * multiplier;
         offset
     }
 
     fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 2 { return None; }
+        if offset >= 3 { return None; }
         let rem = offset;
-        let tip = (rem % 2) != 0;
-        Some(Self { tip })
+        let portal_axis = PortalAxis::from_raw((rem % 3) as u8)?;
+        Some(Self { portal_axis })
     }
 
-    fn state_count() -> u32 { 2 }
-}
-
-/// State shared by: ["vine"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct VineState {
-    vine_direction_bits: u8,
-}
-
-impl VineState {
-    /// Create a new state with validation.
-    pub fn new(vine_direction_bits: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if vine_direction_bits > 15 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "vine_direction_bits", value: vine_direction_bits as u32, min: 0, max: 15 });
-        }
-        Ok(Self { vine_direction_bits })
-    }
-
-    /// Get the vine_direction_bits value.
-    #[inline]
-    pub fn vine_direction_bits(&self) -> u8 { self.vine_direction_bits }
-}
-
-impl Default for VineState {
-    fn default() -> Self {
-        Self { vine_direction_bits: 0 }
-    }
-}
-
-impl BlockState for VineState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let multiplier = 1u32;
-        offset += (self.vine_direction_bits as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 16 { return None; }
-        let rem = offset;
-        let vine_direction_bits = (rem % 16) as u8;
-        Some(Self { vine_direction_bits })
-    }
-
-    fn state_count() -> u32 { 16 }
-}
-
-/// State shared by: ["trip_wire"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TripWireState {
-    attached_bit: bool,
-    disarmed_bit: bool,
-    powered_bit: bool,
-    suspended_bit: bool,
-}
-
-impl TripWireState {
-    /// Create a new state with validation.
-    pub fn new(attached_bit: bool, disarmed_bit: bool, powered_bit: bool, suspended_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        Ok(Self { attached_bit, disarmed_bit, powered_bit, suspended_bit })
-    }
-
-    /// Get the attached_bit value.
-    #[inline]
-    pub fn attached_bit(&self) -> bool { self.attached_bit }
-    /// Get the disarmed_bit value.
-    #[inline]
-    pub fn disarmed_bit(&self) -> bool { self.disarmed_bit }
-    /// Get the powered_bit value.
-    #[inline]
-    pub fn powered_bit(&self) -> bool { self.powered_bit }
-    /// Get the suspended_bit value.
-    #[inline]
-    pub fn suspended_bit(&self) -> bool { self.suspended_bit }
-}
-
-impl Default for TripWireState {
-    fn default() -> Self {
-        Self { attached_bit: false, disarmed_bit: false, powered_bit: false, suspended_bit: false }
-    }
-}
-
-impl BlockState for TripWireState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.attached_bit as u32) * multiplier;
-        multiplier *= 2;
-        offset += (self.disarmed_bit as u32) * multiplier;
-        multiplier *= 2;
-        offset += (self.powered_bit as u32) * multiplier;
-        multiplier *= 2;
-        offset += (self.suspended_bit as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 16 { return None; }
-        let mut rem = offset;
-        let attached_bit = (rem % 2) != 0;
-        rem /= 2;
-        let disarmed_bit = (rem % 2) != 0;
-        rem /= 2;
-        let powered_bit = (rem % 2) != 0;
-        rem /= 2;
-        let suspended_bit = (rem % 2) != 0;
-        Some(Self { attached_bit, disarmed_bit, powered_bit, suspended_bit })
-    }
-
-    fn state_count() -> u32 { 16 }
-}
-
-/// State shared by: ["bell"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct BellState {
-    attachment: Attachment,
-    direction: u8,
-    toggle_bit: bool,
-}
-
-impl BellState {
-    /// Create a new state with validation.
-    pub fn new(attachment: Attachment, direction: u8, toggle_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if direction > 3 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "direction", value: direction as u32, min: 0, max: 3 });
-        }
-        Ok(Self { attachment, direction, toggle_bit })
-    }
-
-    /// Get the attachment value.
-    #[inline]
-    pub fn attachment(&self) -> Attachment { self.attachment }
-    /// Get the direction value.
-    #[inline]
-    pub fn direction(&self) -> u8 { self.direction }
-    /// Get the toggle_bit value.
-    #[inline]
-    pub fn toggle_bit(&self) -> bool { self.toggle_bit }
-}
-
-impl Default for BellState {
-    fn default() -> Self {
-        Self { attachment: Attachment::default(), direction: 0, toggle_bit: false }
-    }
-}
-
-impl BlockState for BellState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.attachment as u32) * multiplier;
-        multiplier *= 4;
-        offset += (self.direction as u32) * multiplier;
-        multiplier *= 4;
-        offset += (self.toggle_bit as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 32 { return None; }
-        let mut rem = offset;
-        let attachment = Attachment::from_raw((rem % 4) as u8)?;
-        rem /= 4;
-        let direction = (rem % 4) as u8;
-        rem /= 4;
-        let toggle_bit = (rem % 2) != 0;
-        Some(Self { attachment, direction, toggle_bit })
-    }
-
-    fn state_count() -> u32 { 32 }
-}
-
-/// State shared by: ["sculk_catalyst"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SculkCatalystState {
-    bloom: bool,
-}
-
-impl SculkCatalystState {
-    /// Create a new state with validation.
-    pub fn new(bloom: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        Ok(Self { bloom })
-    }
-
-    /// Get the bloom value.
-    #[inline]
-    pub fn bloom(&self) -> bool { self.bloom }
-}
-
-impl Default for SculkCatalystState {
-    fn default() -> Self {
-        Self { bloom: false }
-    }
-}
-
-impl BlockState for SculkCatalystState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let multiplier = 1u32;
-        offset += (self.bloom as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 2 { return None; }
-        let rem = offset;
-        let bloom = (rem % 2) != 0;
-        Some(Self { bloom })
-    }
-
-    fn state_count() -> u32 { 2 }
-}
-
-/// State shared by: ["sculk_shrieker"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SculkShriekerState {
-    active: bool,
-    can_summon: bool,
-}
-
-impl SculkShriekerState {
-    /// Create a new state with validation.
-    pub fn new(active: bool, can_summon: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        Ok(Self { active, can_summon })
-    }
-
-    /// Get the active value.
-    #[inline]
-    pub fn active(&self) -> bool { self.active }
-    /// Get the can_summon value.
-    #[inline]
-    pub fn can_summon(&self) -> bool { self.can_summon }
-}
-
-impl Default for SculkShriekerState {
-    fn default() -> Self {
-        Self { active: false, can_summon: false }
-    }
-}
-
-impl BlockState for SculkShriekerState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.active as u32) * multiplier;
-        multiplier *= 2;
-        offset += (self.can_summon as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 4 { return None; }
-        let mut rem = offset;
-        let active = (rem % 2) != 0;
-        rem /= 2;
-        let can_summon = (rem % 2) != 0;
-        Some(Self { active, can_summon })
-    }
-
-    fn state_count() -> u32 { 4 }
-}
-
-/// State shared by: ["snow_layer"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SnowLayerState {
-    covered_bit: bool,
-    height: u8,
-}
-
-impl SnowLayerState {
-    /// Create a new state with validation.
-    pub fn new(covered_bit: bool, height: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if height > 7 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "height", value: height as u32, min: 0, max: 7 });
-        }
-        Ok(Self { covered_bit, height })
-    }
-
-    /// Get the covered_bit value.
-    #[inline]
-    pub fn covered_bit(&self) -> bool { self.covered_bit }
-    /// Get the height value.
-    #[inline]
-    pub fn height(&self) -> u8 { self.height }
-}
-
-impl Default for SnowLayerState {
-    fn default() -> Self {
-        Self { covered_bit: false, height: 0 }
-    }
-}
-
-impl BlockState for SnowLayerState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.covered_bit as u32) * multiplier;
-        multiplier *= 2;
-        offset += (self.height as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 16 { return None; }
-        let mut rem = offset;
-        let covered_bit = (rem % 2) != 0;
-        rem /= 2;
-        let height = (rem % 8) as u8;
-        Some(Self { covered_bit, height })
-    }
-
-    fn state_count() -> u32 { 16 }
-}
-
-/// State shared by: ["end_portal_frame"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct EndPortalFrameState {
-    end_portal_eye_bit: bool,
-    cardinal_direction: CardinalDirection,
-}
-
-impl EndPortalFrameState {
-    /// Create a new state with validation.
-    pub fn new(end_portal_eye_bit: bool, cardinal_direction: CardinalDirection) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        Ok(Self { end_portal_eye_bit, cardinal_direction })
-    }
-
-    /// Get the end_portal_eye_bit value.
-    #[inline]
-    pub fn end_portal_eye_bit(&self) -> bool { self.end_portal_eye_bit }
-    /// Get the cardinal_direction value.
-    #[inline]
-    pub fn cardinal_direction(&self) -> CardinalDirection { self.cardinal_direction }
-}
-
-impl Default for EndPortalFrameState {
-    fn default() -> Self {
-        Self { end_portal_eye_bit: false, cardinal_direction: CardinalDirection::default() }
-    }
-}
-
-impl BlockState for EndPortalFrameState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.end_portal_eye_bit as u32) * multiplier;
-        multiplier *= 2;
-        offset += (self.cardinal_direction as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 8 { return None; }
-        let mut rem = offset;
-        let end_portal_eye_bit = (rem % 2) != 0;
-        rem /= 2;
-        let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
-        Some(Self { end_portal_eye_bit, cardinal_direction })
-    }
-
-    fn state_count() -> u32 { 8 }
-}
-
-/// State shared by: ["tripwire_hook"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TripwireHookState {
-    attached_bit: bool,
-    direction: u8,
-    powered_bit: bool,
-}
-
-impl TripwireHookState {
-    /// Create a new state with validation.
-    pub fn new(attached_bit: bool, direction: u8, powered_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if direction > 3 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "direction", value: direction as u32, min: 0, max: 3 });
-        }
-        Ok(Self { attached_bit, direction, powered_bit })
-    }
-
-    /// Get the attached_bit value.
-    #[inline]
-    pub fn attached_bit(&self) -> bool { self.attached_bit }
-    /// Get the direction value.
-    #[inline]
-    pub fn direction(&self) -> u8 { self.direction }
-    /// Get the powered_bit value.
-    #[inline]
-    pub fn powered_bit(&self) -> bool { self.powered_bit }
-}
-
-impl Default for TripwireHookState {
-    fn default() -> Self {
-        Self { attached_bit: false, direction: 0, powered_bit: false }
-    }
-}
-
-impl BlockState for TripwireHookState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.attached_bit as u32) * multiplier;
-        multiplier *= 2;
-        offset += (self.direction as u32) * multiplier;
-        multiplier *= 4;
-        offset += (self.powered_bit as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 16 { return None; }
-        let mut rem = offset;
-        let attached_bit = (rem % 2) != 0;
-        rem /= 2;
-        let direction = (rem % 4) as u8;
-        rem /= 4;
-        let powered_bit = (rem % 2) != 0;
-        Some(Self { attached_bit, direction, powered_bit })
-    }
-
-    fn state_count() -> u32 { 16 }
-}
-
-/// State shared by: ["creaking_heart"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct CreakingHeartBlockState {
-    creaking_heart_state: CreakingHeartState,
-    natural: bool,
-    pillar_axis: PillarAxis,
-}
-
-impl CreakingHeartBlockState {
-    /// Create a new state with validation.
-    pub fn new(creaking_heart_state: CreakingHeartState, natural: bool, pillar_axis: PillarAxis) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        Ok(Self { creaking_heart_state, natural, pillar_axis })
-    }
-
-    /// Get the creaking_heart_state value.
-    #[inline]
-    pub fn creaking_heart_state(&self) -> CreakingHeartState { self.creaking_heart_state }
-    /// Get the natural value.
-    #[inline]
-    pub fn natural(&self) -> bool { self.natural }
-    /// Get the pillar_axis value.
-    #[inline]
-    pub fn pillar_axis(&self) -> PillarAxis { self.pillar_axis }
-}
-
-impl Default for CreakingHeartBlockState {
-    fn default() -> Self {
-        Self { creaking_heart_state: CreakingHeartState::default(), natural: false, pillar_axis: PillarAxis::default() }
-    }
-}
-
-impl BlockState for CreakingHeartBlockState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.creaking_heart_state as u32) * multiplier;
-        multiplier *= 3;
-        offset += (self.natural as u32) * multiplier;
-        multiplier *= 2;
-        offset += (self.pillar_axis as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 18 { return None; }
-        let mut rem = offset;
-        let creaking_heart_state = CreakingHeartState::from_raw((rem % 3) as u8)?;
-        rem /= 3;
-        let natural = (rem % 2) != 0;
-        rem /= 2;
-        let pillar_axis = PillarAxis::from_raw((rem % 3) as u8)?;
-        Some(Self { creaking_heart_state, natural, pillar_axis })
-    }
-
-    fn state_count() -> u32 { 18 }
+    fn state_count() -> u32 { 3 }
 }
 
 /// State shared by: ["sea_pickle"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct SeaPickleState {
     cluster_count: u8,
     dead_bit: bool,
@@ -5183,12 +4094,6 @@ impl SeaPickleState {
     /// Get the dead_bit value.
     #[inline]
     pub fn dead_bit(&self) -> bool { self.dead_bit }
-}
-
-impl Default for SeaPickleState {
-    fn default() -> Self {
-        Self { cluster_count: 0, dead_bit: false }
-    }
 }
 
 impl BlockState for SeaPickleState {
@@ -5213,448 +4118,43 @@ impl BlockState for SeaPickleState {
     fn state_count() -> u32 { 8 }
 }
 
-/// State shared by: ["lectern"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct LecternState {
-    cardinal_direction: CardinalDirection,
-    powered_bit: bool,
+/// State shared by: ["sculk_catalyst"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct SculkCatalystState {
+    bloom: bool,
 }
 
-impl LecternState {
+impl SculkCatalystState {
     /// Create a new state with validation.
-    pub fn new(cardinal_direction: CardinalDirection, powered_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        Ok(Self { cardinal_direction, powered_bit })
+    pub fn new(bloom: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        Ok(Self { bloom })
     }
 
-    /// Get the cardinal_direction value.
+    /// Get the bloom value.
     #[inline]
-    pub fn cardinal_direction(&self) -> CardinalDirection { self.cardinal_direction }
-    /// Get the powered_bit value.
-    #[inline]
-    pub fn powered_bit(&self) -> bool { self.powered_bit }
+    pub fn bloom(&self) -> bool { self.bloom }
 }
 
-impl Default for LecternState {
-    fn default() -> Self {
-        Self { cardinal_direction: CardinalDirection::default(), powered_bit: false }
-    }
-}
-
-impl BlockState for LecternState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.cardinal_direction as u32) * multiplier;
-        multiplier *= 4;
-        offset += (self.powered_bit as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 8 { return None; }
-        let mut rem = offset;
-        let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
-        rem /= 4;
-        let powered_bit = (rem % 2) != 0;
-        Some(Self { cardinal_direction, powered_bit })
-    }
-
-    fn state_count() -> u32 { 8 }
-}
-
-/// State shared by: ["turtle_egg"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TurtleEggState {
-    cracked_state: CrackedState,
-    turtle_egg_count: TurtleEggCount,
-}
-
-impl TurtleEggState {
-    /// Create a new state with validation.
-    pub fn new(cracked_state: CrackedState, turtle_egg_count: TurtleEggCount) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        Ok(Self { cracked_state, turtle_egg_count })
-    }
-
-    /// Get the cracked_state value.
-    #[inline]
-    pub fn cracked_state(&self) -> CrackedState { self.cracked_state }
-    /// Get the turtle_egg_count value.
-    #[inline]
-    pub fn turtle_egg_count(&self) -> TurtleEggCount { self.turtle_egg_count }
-}
-
-impl Default for TurtleEggState {
-    fn default() -> Self {
-        Self { cracked_state: CrackedState::default(), turtle_egg_count: TurtleEggCount::default() }
-    }
-}
-
-impl BlockState for TurtleEggState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.cracked_state as u32) * multiplier;
-        multiplier *= 3;
-        offset += (self.turtle_egg_count as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 12 { return None; }
-        let mut rem = offset;
-        let cracked_state = CrackedState::from_raw((rem % 3) as u8)?;
-        rem /= 3;
-        let turtle_egg_count = TurtleEggCount::from_raw((rem % 4) as u8)?;
-        Some(Self { cracked_state, turtle_egg_count })
-    }
-
-    fn state_count() -> u32 { 12 }
-}
-
-/// State shared by: ["seagrass"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SeagrassState {
-    sea_grass_type: SeaGrassType,
-}
-
-impl SeagrassState {
-    /// Create a new state with validation.
-    pub fn new(sea_grass_type: SeaGrassType) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        Ok(Self { sea_grass_type })
-    }
-
-    /// Get the sea_grass_type value.
-    #[inline]
-    pub fn sea_grass_type(&self) -> SeaGrassType { self.sea_grass_type }
-}
-
-impl Default for SeagrassState {
-    fn default() -> Self {
-        Self { sea_grass_type: SeaGrassType::default() }
-    }
-}
-
-impl BlockState for SeagrassState {
+impl BlockState for SculkCatalystState {
     fn state_offset(&self) -> u32 {
         let mut offset = 0u32;
         let multiplier = 1u32;
-        offset += (self.sea_grass_type as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 3 { return None; }
-        let rem = offset;
-        let sea_grass_type = SeaGrassType::from_raw((rem % 3) as u8)?;
-        Some(Self { sea_grass_type })
-    }
-
-    fn state_count() -> u32 { 3 }
-}
-
-/// State shared by: ["bubble_column"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct BubbleColumnState {
-    drag_down: bool,
-}
-
-impl BubbleColumnState {
-    /// Create a new state with validation.
-    pub fn new(drag_down: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        Ok(Self { drag_down })
-    }
-
-    /// Get the drag_down value.
-    #[inline]
-    pub fn drag_down(&self) -> bool { self.drag_down }
-}
-
-impl Default for BubbleColumnState {
-    fn default() -> Self {
-        Self { drag_down: false }
-    }
-}
-
-impl BlockState for BubbleColumnState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let multiplier = 1u32;
-        offset += (self.drag_down as u32) * multiplier;
+        offset += (self.bloom as u32) * multiplier;
         offset
     }
 
     fn from_offset(offset: u32) -> Option<Self> {
         if offset >= 2 { return None; }
         let rem = offset;
-        let drag_down = (rem % 2) != 0;
-        Some(Self { drag_down })
+        let bloom = (rem % 2) != 0;
+        Some(Self { bloom })
     }
 
     fn state_count() -> u32 { 2 }
-}
-
-/// State shared by: ["bedrock"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct BedrockState {
-    infiniburn_bit: bool,
-}
-
-impl BedrockState {
-    /// Create a new state with validation.
-    pub fn new(infiniburn_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        Ok(Self { infiniburn_bit })
-    }
-
-    /// Get the infiniburn_bit value.
-    #[inline]
-    pub fn infiniburn_bit(&self) -> bool { self.infiniburn_bit }
-}
-
-impl Default for BedrockState {
-    fn default() -> Self {
-        Self { infiniburn_bit: false }
-    }
-}
-
-impl BlockState for BedrockState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let multiplier = 1u32;
-        offset += (self.infiniburn_bit as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 2 { return None; }
-        let rem = offset;
-        let infiniburn_bit = (rem % 2) != 0;
-        Some(Self { infiniburn_bit })
-    }
-
-    fn state_count() -> u32 { 2 }
-}
-
-/// State shared by: ["scaffolding"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ScaffoldingState {
-    stability: u8,
-    stability_check: bool,
-}
-
-impl ScaffoldingState {
-    /// Create a new state with validation.
-    pub fn new(stability: u8, stability_check: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if stability > 7 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "stability", value: stability as u32, min: 0, max: 7 });
-        }
-        Ok(Self { stability, stability_check })
-    }
-
-    /// Get the stability value.
-    #[inline]
-    pub fn stability(&self) -> u8 { self.stability }
-    /// Get the stability_check value.
-    #[inline]
-    pub fn stability_check(&self) -> bool { self.stability_check }
-}
-
-impl Default for ScaffoldingState {
-    fn default() -> Self {
-        Self { stability: 0, stability_check: false }
-    }
-}
-
-impl BlockState for ScaffoldingState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let mut multiplier = 1u32;
-        offset += (self.stability as u32) * multiplier;
-        multiplier *= 8;
-        offset += (self.stability_check as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 16 { return None; }
-        let mut rem = offset;
-        let stability = (rem % 8) as u8;
-        rem /= 8;
-        let stability_check = (rem % 2) != 0;
-        Some(Self { stability, stability_check })
-    }
-
-    fn state_count() -> u32 { 16 }
-}
-
-/// State shared by: ["rail"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RailBlockState {
-    rail_direction: u8,
-}
-
-impl RailBlockState {
-    /// Create a new state with validation.
-    pub fn new(rail_direction: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        if rail_direction > 9 {
-            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "rail_direction", value: rail_direction as u32, min: 0, max: 9 });
-        }
-        Ok(Self { rail_direction })
-    }
-
-    /// Get the rail_direction value.
-    #[inline]
-    pub fn rail_direction(&self) -> u8 { self.rail_direction }
-}
-
-impl Default for RailBlockState {
-    fn default() -> Self {
-        Self { rail_direction: 0 }
-    }
-}
-
-impl BlockState for RailBlockState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let multiplier = 1u32;
-        offset += (self.rail_direction as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 10 { return None; }
-        let rem = offset;
-        let rail_direction = (rem % 10) as u8;
-        Some(Self { rail_direction })
-    }
-
-    fn state_count() -> u32 { 10 }
-}
-
-/// State shared by: ["sniffer_egg"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SnifferEggState {
-    cracked_state: CrackedState,
-}
-
-impl SnifferEggState {
-    /// Create a new state with validation.
-    pub fn new(cracked_state: CrackedState) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        Ok(Self { cracked_state })
-    }
-
-    /// Get the cracked_state value.
-    #[inline]
-    pub fn cracked_state(&self) -> CrackedState { self.cracked_state }
-}
-
-impl Default for SnifferEggState {
-    fn default() -> Self {
-        Self { cracked_state: CrackedState::default() }
-    }
-}
-
-impl BlockState for SnifferEggState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let multiplier = 1u32;
-        offset += (self.cracked_state as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 3 { return None; }
-        let rem = offset;
-        let cracked_state = CrackedState::from_raw((rem % 3) as u8)?;
-        Some(Self { cracked_state })
-    }
-
-    fn state_count() -> u32 { 3 }
-}
-
-/// State shared by: ["structure_block"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct StructureBlockState {
-    structure_block_type: StructureBlockType,
-}
-
-impl StructureBlockState {
-    /// Create a new state with validation.
-    pub fn new(structure_block_type: StructureBlockType) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        Ok(Self { structure_block_type })
-    }
-
-    /// Get the structure_block_type value.
-    #[inline]
-    pub fn structure_block_type(&self) -> StructureBlockType { self.structure_block_type }
-}
-
-impl Default for StructureBlockState {
-    fn default() -> Self {
-        Self { structure_block_type: StructureBlockType::default() }
-    }
-}
-
-impl BlockState for StructureBlockState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let multiplier = 1u32;
-        offset += (self.structure_block_type as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 6 { return None; }
-        let rem = offset;
-        let structure_block_type = StructureBlockType::from_raw((rem % 6) as u8)?;
-        Some(Self { structure_block_type })
-    }
-
-    fn state_count() -> u32 { 6 }
-}
-
-/// State shared by: ["portal"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct PortalState {
-    portal_axis: PortalAxis,
-}
-
-impl PortalState {
-    /// Create a new state with validation.
-    pub fn new(portal_axis: PortalAxis) -> Result<Self, valentine_bedrock_core::block::StateError> {
-        Ok(Self { portal_axis })
-    }
-
-    /// Get the portal_axis value.
-    #[inline]
-    pub fn portal_axis(&self) -> PortalAxis { self.portal_axis }
-}
-
-impl Default for PortalState {
-    fn default() -> Self {
-        Self { portal_axis: PortalAxis::default() }
-    }
-}
-
-impl BlockState for PortalState {
-    fn state_offset(&self) -> u32 {
-        let mut offset = 0u32;
-        let multiplier = 1u32;
-        offset += (self.portal_axis as u32) * multiplier;
-        offset
-    }
-
-    fn from_offset(offset: u32) -> Option<Self> {
-        if offset >= 3 { return None; }
-        let rem = offset;
-        let portal_axis = PortalAxis::from_raw((rem % 3) as u8)?;
-        Some(Self { portal_axis })
-    }
-
-    fn state_count() -> u32 { 3 }
 }
 
 /// State shared by: ["vault"]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct VaultBlockState {
     cardinal_direction: CardinalDirection,
     ominous: bool,
@@ -5676,12 +4176,6 @@ impl VaultBlockState {
     /// Get the vault_state value.
     #[inline]
     pub fn vault_state(&self) -> VaultState { self.vault_state }
-}
-
-impl Default for VaultBlockState {
-    fn default() -> Self {
-        Self { cardinal_direction: CardinalDirection::default(), ominous: false, vault_state: VaultState::default() }
-    }
 }
 
 impl BlockState for VaultBlockState {
@@ -5710,3 +4204,902 @@ impl BlockState for VaultBlockState {
     fn state_count() -> u32 { 32 }
 }
 
+/// State shared by: ["scaffolding"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ScaffoldingState {
+    stability: u8,
+    stability_check: bool,
+}
+
+impl ScaffoldingState {
+    /// Create a new state with validation.
+    pub fn new(stability: u8, stability_check: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if stability > 7 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "stability", value: stability as u32, min: 0, max: 7 });
+        }
+        Ok(Self { stability, stability_check })
+    }
+
+    /// Get the stability value.
+    #[inline]
+    pub fn stability(&self) -> u8 { self.stability }
+    /// Get the stability_check value.
+    #[inline]
+    pub fn stability_check(&self) -> bool { self.stability_check }
+}
+
+impl BlockState for ScaffoldingState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.stability as u32) * multiplier;
+        multiplier *= 8;
+        offset += (self.stability_check as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 16 { return None; }
+        let mut rem = offset;
+        let stability = (rem % 8) as u8;
+        rem /= 8;
+        let stability_check = (rem % 2) != 0;
+        Some(Self { stability, stability_check })
+    }
+
+    fn state_count() -> u32 { 16 }
+}
+
+/// State shared by: ["big_dripleaf"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct BigDripleafState {
+    big_dripleaf_head: bool,
+    big_dripleaf_tilt: BigDripleafTilt,
+    cardinal_direction: CardinalDirection,
+}
+
+impl BigDripleafState {
+    /// Create a new state with validation.
+    pub fn new(big_dripleaf_head: bool, big_dripleaf_tilt: BigDripleafTilt, cardinal_direction: CardinalDirection) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        Ok(Self { big_dripleaf_head, big_dripleaf_tilt, cardinal_direction })
+    }
+
+    /// Get the big_dripleaf_head value.
+    #[inline]
+    pub fn big_dripleaf_head(&self) -> bool { self.big_dripleaf_head }
+    /// Get the big_dripleaf_tilt value.
+    #[inline]
+    pub fn big_dripleaf_tilt(&self) -> BigDripleafTilt { self.big_dripleaf_tilt }
+    /// Get the cardinal_direction value.
+    #[inline]
+    pub fn cardinal_direction(&self) -> CardinalDirection { self.cardinal_direction }
+}
+
+impl BlockState for BigDripleafState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.big_dripleaf_head as u32) * multiplier;
+        multiplier *= 2;
+        offset += (self.big_dripleaf_tilt as u32) * multiplier;
+        multiplier *= 4;
+        offset += (self.cardinal_direction as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 32 { return None; }
+        let mut rem = offset;
+        let big_dripleaf_head = (rem % 2) != 0;
+        rem /= 2;
+        let big_dripleaf_tilt = BigDripleafTilt::from_raw((rem % 4) as u8)?;
+        rem /= 4;
+        let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
+        Some(Self { big_dripleaf_head, big_dripleaf_tilt, cardinal_direction })
+    }
+
+    fn state_count() -> u32 { 32 }
+}
+
+/// State shared by: ["weeping_vines"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct WeepingVinesState {
+    weeping_vines_age: u8,
+}
+
+impl WeepingVinesState {
+    /// Create a new state with validation.
+    pub fn new(weeping_vines_age: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if weeping_vines_age > 25 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "weeping_vines_age", value: weeping_vines_age as u32, min: 0, max: 25 });
+        }
+        Ok(Self { weeping_vines_age })
+    }
+
+    /// Get the weeping_vines_age value.
+    #[inline]
+    pub fn weeping_vines_age(&self) -> u8 { self.weeping_vines_age }
+}
+
+impl BlockState for WeepingVinesState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let multiplier = 1u32;
+        offset += (self.weeping_vines_age as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 26 { return None; }
+        let rem = offset;
+        let weeping_vines_age = (rem % 26) as u8;
+        Some(Self { weeping_vines_age })
+    }
+
+    fn state_count() -> u32 { 26 }
+}
+
+/// State shared by: ["sniffer_egg"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct SnifferEggState {
+    cracked_state: CrackedState,
+}
+
+impl SnifferEggState {
+    /// Create a new state with validation.
+    pub fn new(cracked_state: CrackedState) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        Ok(Self { cracked_state })
+    }
+
+    /// Get the cracked_state value.
+    #[inline]
+    pub fn cracked_state(&self) -> CrackedState { self.cracked_state }
+}
+
+impl BlockState for SnifferEggState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let multiplier = 1u32;
+        offset += (self.cracked_state as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 3 { return None; }
+        let rem = offset;
+        let cracked_state = CrackedState::from_raw((rem % 3) as u8)?;
+        Some(Self { cracked_state })
+    }
+
+    fn state_count() -> u32 { 3 }
+}
+
+/// State shared by: ["structure_block"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct StructureBlockState {
+    structure_block_type: StructureBlockType,
+}
+
+impl StructureBlockState {
+    /// Create a new state with validation.
+    pub fn new(structure_block_type: StructureBlockType) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        Ok(Self { structure_block_type })
+    }
+
+    /// Get the structure_block_type value.
+    #[inline]
+    pub fn structure_block_type(&self) -> StructureBlockType { self.structure_block_type }
+}
+
+impl BlockState for StructureBlockState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let multiplier = 1u32;
+        offset += (self.structure_block_type as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 6 { return None; }
+        let rem = offset;
+        let structure_block_type = StructureBlockType::from_raw((rem % 6) as u8)?;
+        Some(Self { structure_block_type })
+    }
+
+    fn state_count() -> u32 { 6 }
+}
+
+/// State shared by: ["cake"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct CakeState {
+    bite_counter: u8,
+}
+
+impl CakeState {
+    /// Create a new state with validation.
+    pub fn new(bite_counter: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if bite_counter > 6 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "bite_counter", value: bite_counter as u32, min: 0, max: 6 });
+        }
+        Ok(Self { bite_counter })
+    }
+
+    /// Get the bite_counter value.
+    #[inline]
+    pub fn bite_counter(&self) -> u8 { self.bite_counter }
+}
+
+impl BlockState for CakeState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let multiplier = 1u32;
+        offset += (self.bite_counter as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 7 { return None; }
+        let rem = offset;
+        let bite_counter = (rem % 7) as u8;
+        Some(Self { bite_counter })
+    }
+
+    fn state_count() -> u32 { 7 }
+}
+
+/// State shared by: ["turtle_egg"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct TurtleEggState {
+    cracked_state: CrackedState,
+    turtle_egg_count: TurtleEggCount,
+}
+
+impl TurtleEggState {
+    /// Create a new state with validation.
+    pub fn new(cracked_state: CrackedState, turtle_egg_count: TurtleEggCount) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        Ok(Self { cracked_state, turtle_egg_count })
+    }
+
+    /// Get the cracked_state value.
+    #[inline]
+    pub fn cracked_state(&self) -> CrackedState { self.cracked_state }
+    /// Get the turtle_egg_count value.
+    #[inline]
+    pub fn turtle_egg_count(&self) -> TurtleEggCount { self.turtle_egg_count }
+}
+
+impl BlockState for TurtleEggState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.cracked_state as u32) * multiplier;
+        multiplier *= 3;
+        offset += (self.turtle_egg_count as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 12 { return None; }
+        let mut rem = offset;
+        let cracked_state = CrackedState::from_raw((rem % 3) as u8)?;
+        rem /= 3;
+        let turtle_egg_count = TurtleEggCount::from_raw((rem % 4) as u8)?;
+        Some(Self { cracked_state, turtle_egg_count })
+    }
+
+    fn state_count() -> u32 { 12 }
+}
+
+/// State shared by: ["lever"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct LeverState {
+    lever_direction: LeverDirection,
+    open_bit: bool,
+}
+
+impl LeverState {
+    /// Create a new state with validation.
+    pub fn new(lever_direction: LeverDirection, open_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        Ok(Self { lever_direction, open_bit })
+    }
+
+    /// Get the lever_direction value.
+    #[inline]
+    pub fn lever_direction(&self) -> LeverDirection { self.lever_direction }
+    /// Get the open_bit value.
+    #[inline]
+    pub fn open_bit(&self) -> bool { self.open_bit }
+}
+
+impl BlockState for LeverState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.lever_direction as u32) * multiplier;
+        multiplier *= 8;
+        offset += (self.open_bit as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 16 { return None; }
+        let mut rem = offset;
+        let lever_direction = LeverDirection::from_raw((rem % 8) as u8)?;
+        rem /= 8;
+        let open_bit = (rem % 2) != 0;
+        Some(Self { lever_direction, open_bit })
+    }
+
+    fn state_count() -> u32 { 16 }
+}
+
+/// State shared by: ["bed"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct BedState {
+    direction: u8,
+    head_piece_bit: bool,
+    occupied_bit: bool,
+}
+
+impl BedState {
+    /// Create a new state with validation.
+    pub fn new(direction: u8, head_piece_bit: bool, occupied_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if direction > 3 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "direction", value: direction as u32, min: 0, max: 3 });
+        }
+        Ok(Self { direction, head_piece_bit, occupied_bit })
+    }
+
+    /// Get the direction value.
+    #[inline]
+    pub fn direction(&self) -> u8 { self.direction }
+    /// Get the head_piece_bit value.
+    #[inline]
+    pub fn head_piece_bit(&self) -> bool { self.head_piece_bit }
+    /// Get the occupied_bit value.
+    #[inline]
+    pub fn occupied_bit(&self) -> bool { self.occupied_bit }
+}
+
+impl BlockState for BedState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.direction as u32) * multiplier;
+        multiplier *= 4;
+        offset += (self.head_piece_bit as u32) * multiplier;
+        multiplier *= 2;
+        offset += (self.occupied_bit as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 16 { return None; }
+        let mut rem = offset;
+        let direction = (rem % 4) as u8;
+        rem /= 4;
+        let head_piece_bit = (rem % 2) != 0;
+        rem /= 2;
+        let occupied_bit = (rem % 2) != 0;
+        Some(Self { direction, head_piece_bit, occupied_bit })
+    }
+
+    fn state_count() -> u32 { 16 }
+}
+
+/// State shared by: ["bamboo"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct BambooState {
+    age_bit: bool,
+    bamboo_leaf_size: BambooLeafSize,
+    bamboo_stalk_thickness: BambooStalkThickness,
+}
+
+impl BambooState {
+    /// Create a new state with validation.
+    pub fn new(age_bit: bool, bamboo_leaf_size: BambooLeafSize, bamboo_stalk_thickness: BambooStalkThickness) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        Ok(Self { age_bit, bamboo_leaf_size, bamboo_stalk_thickness })
+    }
+
+    /// Get the age_bit value.
+    #[inline]
+    pub fn age_bit(&self) -> bool { self.age_bit }
+    /// Get the bamboo_leaf_size value.
+    #[inline]
+    pub fn bamboo_leaf_size(&self) -> BambooLeafSize { self.bamboo_leaf_size }
+    /// Get the bamboo_stalk_thickness value.
+    #[inline]
+    pub fn bamboo_stalk_thickness(&self) -> BambooStalkThickness { self.bamboo_stalk_thickness }
+}
+
+impl BlockState for BambooState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.age_bit as u32) * multiplier;
+        multiplier *= 2;
+        offset += (self.bamboo_leaf_size as u32) * multiplier;
+        multiplier *= 3;
+        offset += (self.bamboo_stalk_thickness as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 12 { return None; }
+        let mut rem = offset;
+        let age_bit = (rem % 2) != 0;
+        rem /= 2;
+        let bamboo_leaf_size = BambooLeafSize::from_raw((rem % 3) as u8)?;
+        rem /= 3;
+        let bamboo_stalk_thickness = BambooStalkThickness::from_raw((rem % 2) as u8)?;
+        Some(Self { age_bit, bamboo_leaf_size, bamboo_stalk_thickness })
+    }
+
+    fn state_count() -> u32 { 12 }
+}
+
+/// State shared by: ["mangrove_propagule"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct MangrovePropaguleState {
+    hanging: bool,
+    propagule_stage: u8,
+}
+
+impl MangrovePropaguleState {
+    /// Create a new state with validation.
+    pub fn new(hanging: bool, propagule_stage: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if propagule_stage > 4 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "propagule_stage", value: propagule_stage as u32, min: 0, max: 4 });
+        }
+        Ok(Self { hanging, propagule_stage })
+    }
+
+    /// Get the hanging value.
+    #[inline]
+    pub fn hanging(&self) -> bool { self.hanging }
+    /// Get the propagule_stage value.
+    #[inline]
+    pub fn propagule_stage(&self) -> u8 { self.propagule_stage }
+}
+
+impl BlockState for MangrovePropaguleState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.hanging as u32) * multiplier;
+        multiplier *= 2;
+        offset += (self.propagule_stage as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 10 { return None; }
+        let mut rem = offset;
+        let hanging = (rem % 2) != 0;
+        rem /= 2;
+        let propagule_stage = (rem % 5) as u8;
+        Some(Self { hanging, propagule_stage })
+    }
+
+    fn state_count() -> u32 { 10 }
+}
+
+/// State shared by: ["kelp"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct KelpState {
+    kelp_age: u8,
+}
+
+impl KelpState {
+    /// Create a new state with validation.
+    pub fn new(kelp_age: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if kelp_age > 25 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "kelp_age", value: kelp_age as u32, min: 0, max: 25 });
+        }
+        Ok(Self { kelp_age })
+    }
+
+    /// Get the kelp_age value.
+    #[inline]
+    pub fn kelp_age(&self) -> u8 { self.kelp_age }
+}
+
+impl BlockState for KelpState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let multiplier = 1u32;
+        offset += (self.kelp_age as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 26 { return None; }
+        let rem = offset;
+        let kelp_age = (rem % 26) as u8;
+        Some(Self { kelp_age })
+    }
+
+    fn state_count() -> u32 { 26 }
+}
+
+/// State shared by: ["cocoa"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct CocoaState {
+    age: u8,
+    direction: u8,
+}
+
+impl CocoaState {
+    /// Create a new state with validation.
+    pub fn new(age: u8, direction: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if age > 2 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "age", value: age as u32, min: 0, max: 2 });
+        }
+        if direction > 3 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "direction", value: direction as u32, min: 0, max: 3 });
+        }
+        Ok(Self { age, direction })
+    }
+
+    /// Get the age value.
+    #[inline]
+    pub fn age(&self) -> u8 { self.age }
+    /// Get the direction value.
+    #[inline]
+    pub fn direction(&self) -> u8 { self.direction }
+}
+
+impl BlockState for CocoaState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.age as u32) * multiplier;
+        multiplier *= 3;
+        offset += (self.direction as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 12 { return None; }
+        let mut rem = offset;
+        let age = (rem % 3) as u8;
+        rem /= 3;
+        let direction = (rem % 4) as u8;
+        Some(Self { age, direction })
+    }
+
+    fn state_count() -> u32 { 12 }
+}
+
+/// State shared by: ["chiseled_bookshelf"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ChiseledBookshelfState {
+    books_stored: u8,
+    direction: u8,
+}
+
+impl ChiseledBookshelfState {
+    /// Create a new state with validation.
+    pub fn new(books_stored: u8, direction: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if books_stored > 63 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "books_stored", value: books_stored as u32, min: 0, max: 63 });
+        }
+        if direction > 3 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "direction", value: direction as u32, min: 0, max: 3 });
+        }
+        Ok(Self { books_stored, direction })
+    }
+
+    /// Get the books_stored value.
+    #[inline]
+    pub fn books_stored(&self) -> u8 { self.books_stored }
+    /// Get the direction value.
+    #[inline]
+    pub fn direction(&self) -> u8 { self.direction }
+}
+
+impl BlockState for ChiseledBookshelfState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.books_stored as u32) * multiplier;
+        multiplier *= 64;
+        offset += (self.direction as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 256 { return None; }
+        let mut rem = offset;
+        let books_stored = (rem % 64) as u8;
+        rem /= 64;
+        let direction = (rem % 4) as u8;
+        Some(Self { books_stored, direction })
+    }
+
+    fn state_count() -> u32 { 256 }
+}
+
+/// State shared by: ["cauldron"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct CauldronState {
+    cauldron_liquid: CauldronLiquid,
+    fill_level: u8,
+}
+
+impl CauldronState {
+    /// Create a new state with validation.
+    pub fn new(cauldron_liquid: CauldronLiquid, fill_level: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if fill_level > 6 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "fill_level", value: fill_level as u32, min: 0, max: 6 });
+        }
+        Ok(Self { cauldron_liquid, fill_level })
+    }
+
+    /// Get the cauldron_liquid value.
+    #[inline]
+    pub fn cauldron_liquid(&self) -> CauldronLiquid { self.cauldron_liquid }
+    /// Get the fill_level value.
+    #[inline]
+    pub fn fill_level(&self) -> u8 { self.fill_level }
+}
+
+impl BlockState for CauldronState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.cauldron_liquid as u32) * multiplier;
+        multiplier *= 3;
+        offset += (self.fill_level as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 21 { return None; }
+        let mut rem = offset;
+        let cauldron_liquid = CauldronLiquid::from_raw((rem % 3) as u8)?;
+        rem /= 3;
+        let fill_level = (rem % 7) as u8;
+        Some(Self { cauldron_liquid, fill_level })
+    }
+
+    fn state_count() -> u32 { 21 }
+}
+
+/// State shared by: ["pitcher_crop"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct PitcherCropState {
+    growth: u8,
+    upper_block_bit: bool,
+}
+
+impl PitcherCropState {
+    /// Create a new state with validation.
+    pub fn new(growth: u8, upper_block_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if growth > 7 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "growth", value: growth as u32, min: 0, max: 7 });
+        }
+        Ok(Self { growth, upper_block_bit })
+    }
+
+    /// Get the growth value.
+    #[inline]
+    pub fn growth(&self) -> u8 { self.growth }
+    /// Get the upper_block_bit value.
+    #[inline]
+    pub fn upper_block_bit(&self) -> bool { self.upper_block_bit }
+}
+
+impl BlockState for PitcherCropState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.growth as u32) * multiplier;
+        multiplier *= 8;
+        offset += (self.upper_block_bit as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 16 { return None; }
+        let mut rem = offset;
+        let growth = (rem % 8) as u8;
+        rem /= 8;
+        let upper_block_bit = (rem % 2) != 0;
+        Some(Self { growth, upper_block_bit })
+    }
+
+    fn state_count() -> u32 { 16 }
+}
+
+/// State shared by: ["tripwire_hook"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct TripwireHookState {
+    attached_bit: bool,
+    direction: u8,
+    powered_bit: bool,
+}
+
+impl TripwireHookState {
+    /// Create a new state with validation.
+    pub fn new(attached_bit: bool, direction: u8, powered_bit: bool) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if direction > 3 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "direction", value: direction as u32, min: 0, max: 3 });
+        }
+        Ok(Self { attached_bit, direction, powered_bit })
+    }
+
+    /// Get the attached_bit value.
+    #[inline]
+    pub fn attached_bit(&self) -> bool { self.attached_bit }
+    /// Get the direction value.
+    #[inline]
+    pub fn direction(&self) -> u8 { self.direction }
+    /// Get the powered_bit value.
+    #[inline]
+    pub fn powered_bit(&self) -> bool { self.powered_bit }
+}
+
+impl BlockState for TripwireHookState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.attached_bit as u32) * multiplier;
+        multiplier *= 2;
+        offset += (self.direction as u32) * multiplier;
+        multiplier *= 4;
+        offset += (self.powered_bit as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 16 { return None; }
+        let mut rem = offset;
+        let attached_bit = (rem % 2) != 0;
+        rem /= 2;
+        let direction = (rem % 4) as u8;
+        rem /= 4;
+        let powered_bit = (rem % 2) != 0;
+        Some(Self { attached_bit, direction, powered_bit })
+    }
+
+    fn state_count() -> u32 { 16 }
+}
+
+/// State shared by: ["dried_ghast"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct DriedGhastState {
+    cardinal_direction: CardinalDirection,
+    rehydration_level: u8,
+}
+
+impl DriedGhastState {
+    /// Create a new state with validation.
+    pub fn new(cardinal_direction: CardinalDirection, rehydration_level: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if rehydration_level > 3 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "rehydration_level", value: rehydration_level as u32, min: 0, max: 3 });
+        }
+        Ok(Self { cardinal_direction, rehydration_level })
+    }
+
+    /// Get the cardinal_direction value.
+    #[inline]
+    pub fn cardinal_direction(&self) -> CardinalDirection { self.cardinal_direction }
+    /// Get the rehydration_level value.
+    #[inline]
+    pub fn rehydration_level(&self) -> u8 { self.rehydration_level }
+}
+
+impl BlockState for DriedGhastState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.cardinal_direction as u32) * multiplier;
+        multiplier *= 4;
+        offset += (self.rehydration_level as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 16 { return None; }
+        let mut rem = offset;
+        let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
+        rem /= 4;
+        let rehydration_level = (rem % 4) as u8;
+        Some(Self { cardinal_direction, rehydration_level })
+    }
+
+    fn state_count() -> u32 { 16 }
+}
+
+/// State shared by: ["trial_spawner"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct TrialSpawnerState {
+    ominous: bool,
+    trial_spawner_state: u8,
+}
+
+impl TrialSpawnerState {
+    /// Create a new state with validation.
+    pub fn new(ominous: bool, trial_spawner_state: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if trial_spawner_state > 5 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "trial_spawner_state", value: trial_spawner_state as u32, min: 0, max: 5 });
+        }
+        Ok(Self { ominous, trial_spawner_state })
+    }
+
+    /// Get the ominous value.
+    #[inline]
+    pub fn ominous(&self) -> bool { self.ominous }
+    /// Get the trial_spawner_state value.
+    #[inline]
+    pub fn trial_spawner_state(&self) -> u8 { self.trial_spawner_state }
+}
+
+impl BlockState for TrialSpawnerState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.ominous as u32) * multiplier;
+        multiplier *= 2;
+        offset += (self.trial_spawner_state as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 12 { return None; }
+        let mut rem = offset;
+        let ominous = (rem % 2) != 0;
+        rem /= 2;
+        let trial_spawner_state = (rem % 6) as u8;
+        Some(Self { ominous, trial_spawner_state })
+    }
+
+    fn state_count() -> u32 { 12 }
+}
+
+/// State shared by: ["calibrated_sculk_sensor"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct CalibratedSculkSensorState {
+    cardinal_direction: CardinalDirection,
+    sculk_sensor_phase: u8,
+}
+
+impl CalibratedSculkSensorState {
+    /// Create a new state with validation.
+    pub fn new(cardinal_direction: CardinalDirection, sculk_sensor_phase: u8) -> Result<Self, valentine_bedrock_core::block::StateError> {
+        if sculk_sensor_phase > 2 {
+            return Err(valentine_bedrock_core::block::StateError::OutOfRange { field: "sculk_sensor_phase", value: sculk_sensor_phase as u32, min: 0, max: 2 });
+        }
+        Ok(Self { cardinal_direction, sculk_sensor_phase })
+    }
+
+    /// Get the cardinal_direction value.
+    #[inline]
+    pub fn cardinal_direction(&self) -> CardinalDirection { self.cardinal_direction }
+    /// Get the sculk_sensor_phase value.
+    #[inline]
+    pub fn sculk_sensor_phase(&self) -> u8 { self.sculk_sensor_phase }
+}
+
+impl BlockState for CalibratedSculkSensorState {
+    fn state_offset(&self) -> u32 {
+        let mut offset = 0u32;
+        let mut multiplier = 1u32;
+        offset += (self.cardinal_direction as u32) * multiplier;
+        multiplier *= 4;
+        offset += (self.sculk_sensor_phase as u32) * multiplier;
+        offset
+    }
+
+    fn from_offset(offset: u32) -> Option<Self> {
+        if offset >= 12 { return None; }
+        let mut rem = offset;
+        let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
+        rem /= 4;
+        let sculk_sensor_phase = (rem % 3) as u8;
+        Some(Self { cardinal_direction, sculk_sensor_phase })
+    }
+
+    fn state_count() -> u32 { 12 }
+}

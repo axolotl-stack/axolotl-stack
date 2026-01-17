@@ -212,11 +212,11 @@ fn benchmark_split_reassembly_throughput(c: &mut Criterion) {
     group.sample_size(50);
 
     // Simulate reassembling a 64KB chunk (typical Minecraft chunk data)
-    let chunk_sizes = [16 * 1024, 64 * 1024, 256 * 1024];
+    let chunk_sizes = [16usize * 1024, 64 * 1024, 256 * 1024];
 
     for chunk_size in chunk_sizes {
         let part_size = 1000; // Typical MTU-based split size
-        let num_parts = (chunk_size + part_size - 1) / part_size;
+        let num_parts = chunk_size.div_ceil(part_size);
 
         group.throughput(Throughput::Bytes(chunk_size as u64));
 

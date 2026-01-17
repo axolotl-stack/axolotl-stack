@@ -729,7 +729,11 @@ impl PluginManager {
                 message,
             } => {
                 use crate::entity::components::{PlayerName, PlayerSession};
-                use jolyne::valentine::{McpePacket, TextPacket, TextPacketType};
+                use jolyne::valentine::{
+                    McpePacket, TextPacket, TextPacketCategory, TextPacketContent,
+                    TextPacketContentAuthored, TextPacketExtra, TextPacketExtraAnnouncement,
+                    TextPacketType,
+                };
 
                 let sender_name = world
                     .get::<PlayerName>(entity)
@@ -739,9 +743,16 @@ impl PluginManager {
                 let packet = TextPacket {
                     type_: TextPacketType::Chat,
                     needs_translation: false,
-                    source_name: sender_name.clone(),
-                    message: message.clone(),
-                    parameters: Vec::new(),
+                    category: TextPacketCategory::Authored,
+                    content: Some(TextPacketContent::Authored(TextPacketContentAuthored {
+                        chat: message.clone(),
+                        whisper: String::new(),
+                        announcement: String::new(),
+                    })),
+                    extra: Some(TextPacketExtra::Chat(TextPacketExtraAnnouncement {
+                        source_name: sender_name.clone(),
+                        message: message.clone(),
+                    })),
                     xuid: "0".to_string(),
                     platform_chat_id: String::new(),
                     filtered_message: None,

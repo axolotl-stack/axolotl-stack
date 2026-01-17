@@ -66,13 +66,23 @@ fn packet_disconnect_roundtrip_hidden_reason() {
 
 #[test]
 fn packet_text_roundtrip_chat_message() {
-    // TextPacket now uses a flat structure (manual override in proto.rs)
+    use valentine_bedrock_1_21_130::{
+        TextPacketCategory, TextPacketContent, TextPacketContentAuthored, TextPacketExtra,
+        TextPacketExtraAnnouncement,
+    };
     let packet = TextPacket {
         type_: TextPacketType::Chat,
         needs_translation: false,
-        source_name: "PlayerName".to_string(),
-        message: "Hello, world!".to_string(),
-        parameters: vec![],
+        category: TextPacketCategory::Authored,
+        content: Some(TextPacketContent::Authored(TextPacketContentAuthored {
+            chat: "Hello, world!".to_string(),
+            whisper: String::new(),
+            announcement: String::new(),
+        })),
+        extra: Some(TextPacketExtra::Chat(TextPacketExtraAnnouncement {
+            source_name: "PlayerName".to_string(),
+            message: "Hello, world!".to_string(),
+        })),
         xuid: "1234567890123456".to_string(),
         platform_chat_id: "platform-chat-id".to_string(),
         filtered_message: Some("Hello, world!".to_string()),
@@ -83,12 +93,23 @@ fn packet_text_roundtrip_chat_message() {
 
 #[test]
 fn packet_text_roundtrip_translation() {
+    use valentine_bedrock_1_21_130::{
+        TextPacketCategory, TextPacketContent, TextPacketContentParameters, TextPacketExtra,
+        TextPacketExtraJukeboxPopup,
+    };
     let packet = TextPacket {
         type_: TextPacketType::Translation,
         needs_translation: true,
-        source_name: "".to_string(),
-        message: "chat.type.text".to_string(),
-        parameters: vec!["Player1".to_string(), "Hello".to_string()],
+        category: TextPacketCategory::Parameters,
+        content: Some(TextPacketContent::Parameters(TextPacketContentParameters {
+            translate: "chat.type.text".to_string(),
+            popup: String::new(),
+            jukebox_popup: String::new(),
+        })),
+        extra: Some(TextPacketExtra::Translation(TextPacketExtraJukeboxPopup {
+            message: "chat.type.text".to_string(),
+            parameters: vec!["Player1".to_string(), "Hello".to_string()],
+        })),
         xuid: "".to_string(),
         platform_chat_id: "".to_string(),
         filtered_message: None,

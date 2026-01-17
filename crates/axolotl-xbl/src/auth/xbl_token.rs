@@ -229,10 +229,10 @@ impl XblTokenClient {
         let status = response.status();
 
         // Check for Xbox-specific error codes
-        if let Some(error_code) = response.headers().get("x-err") {
-            if let Ok(code) = error_code.to_str() {
-                return Err(XblError::from_xbox_error_code(code));
-            }
+        if let Some(error_code) = response.headers().get("x-err")
+            && let Ok(code) = error_code.to_str()
+        {
+            return Err(XblError::from_xbox_error_code(code));
         }
 
         if !status.is_success() {

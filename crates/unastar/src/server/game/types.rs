@@ -83,12 +83,23 @@ pub struct PlayerPersistenceData {
 
 /// Create a system text message packet.
 pub fn system_text(message: &str) -> TextPacket {
+    use jolyne::valentine::{
+        TextPacketCategory, TextPacketContent, TextPacketContentAuthored, TextPacketExtra,
+        TextPacketExtraAnnouncement,
+    };
     TextPacket {
         type_: TextPacketType::Chat,
         needs_translation: false,
-        source_name: "§eServer§r".to_string(),
-        message: message.to_string(),
-        parameters: Vec::new(),
+        category: TextPacketCategory::Authored,
+        content: Some(TextPacketContent::Authored(TextPacketContentAuthored {
+            chat: message.to_string(),
+            whisper: String::new(),
+            announcement: String::new(),
+        })),
+        extra: Some(TextPacketExtra::Chat(TextPacketExtraAnnouncement {
+            source_name: "§eServer§r".to_string(),
+            message: message.to_string(),
+        })),
         xuid: "0".to_string(),
         platform_chat_id: String::new(),
         filtered_message: None,

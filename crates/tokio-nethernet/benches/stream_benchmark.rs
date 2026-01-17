@@ -51,11 +51,12 @@ impl ReassemblyBenchHarness {
                 return None;
             }
 
-            if buf.expected_segments != segments {
-                if buf.expected_segments > 0 && buf.expected_segments - 1 != segments {
-                    self.reassembly_buffer = None;
-                    return None;
-                }
+            if buf.expected_segments != segments
+                && buf.expected_segments > 0
+                && buf.expected_segments - 1 != segments
+            {
+                self.reassembly_buffer = None;
+                return None;
             }
 
             buf.expected_segments = segments;
@@ -122,13 +123,13 @@ fn benchmark_fragmented_reassembly(c: &mut Criterion) {
     group.sample_size(50);
 
     // Simulate different total message sizes
-    let message_sizes = [10_000, 100_000, 1_000_000];
-    let fragment_size = 1000;
+    let message_sizes = [10_000u64, 100_000, 1_000_000];
+    let fragment_size = 1000u64;
 
     for &total_size in &message_sizes {
-        let num_fragments = (total_size + fragment_size - 1) / fragment_size;
+        let num_fragments = total_size.div_ceil(fragment_size);
 
-        group.throughput(Throughput::Bytes(total_size as u64));
+        group.throughput(Throughput::Bytes(total_size));
 
         group.bench_with_input(
             BenchmarkId::new("reassemble", total_size),
@@ -140,7 +141,7 @@ fn benchmark_fragmented_reassembly(c: &mut Criterion) {
                 let fragments: Vec<Bytes> = (0..num_fragments)
                     .rev()
                     .map(|i| {
-                        let mut data = vec![0u8; fragment_size + 1];
+                        let mut data = vec![0u8; fragment_size as usize + 1];
                         data[0] = i as u8; // segments remaining
                         Bytes::from(data)
                     })
@@ -187,9 +188,7 @@ fn benchmark_message_creation(c: &mut Criterion) {
 fn benchmark_config_creation(c: &mut Criterion) {
     let mut group = c.benchmark_group("config_creation");
 
-    group.bench_function("default_config", |b| {
-        b.iter(|| NetherNetStreamConfig::default())
-    });
+    group.bench_function("default_config", |b| b.iter(NetherNetStreamConfig::default));
 
     group.finish();
 }

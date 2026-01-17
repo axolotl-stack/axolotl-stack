@@ -18,7 +18,8 @@ use jolyne::valentine::types::{Action, BlockCoordinates, InputFlag, WindowId, Wi
 use jolyne::valentine::{
     AnimatePacket, ContainerClosePacket, ContainerOpenPacket, InteractPacket,
     InteractPacketActionId, McpePacket, McpePacketData, MobEquipmentPacket, PlayerActionPacket,
-    TextPacket, TextPacketType,
+    TextPacket, TextPacketCategory, TextPacketContent, TextPacketContentAuthored, TextPacketExtra,
+    TextPacketExtraAnnouncement, TextPacketExtraJson, TextPacketType,
 };
 
 impl GameServer {
@@ -825,16 +826,26 @@ impl GameServer {
         use crate::entity::components::PlayerName;
         use crate::entity::components::PlayerUuid;
 
+        // Extract message and source from the new TextPacket structure
+        let (source_name, message) = match &pk.extra {
+            Some(TextPacketExtra::Chat(ann)) | Some(TextPacketExtra::Announcement(ann)) => {
+                (ann.source_name.clone(), ann.message.clone())
+            }
+            Some(TextPacketExtra::Whisper(ann)) => (ann.source_name.clone(), ann.message.clone()),
+            Some(TextPacketExtra::Raw(json)) | Some(TextPacketExtra::System(json)) => {
+                (String::new(), json.message.clone())
+            }
+            _ => (String::new(), String::new()),
+        };
+
         debug!(
             session_id,
             text_type = ?pk.type_,
-            source = %pk.source_name,
-            message = %pk.message,
+            source = %source_name,
+            message = %message,
             "Received Text packet"
         );
 
-        // The message is now directly available on the packet
-        let message = pk.message.clone();
         if message.is_empty() {
             trace!("Text packet with empty message");
             return;
@@ -859,61 +870,6 @@ impl GameServer {
                     "Chat message"
                 );
 
-                // Call plugin chat handlers
-                // Call plugin chat handlers
-                {
-                    // Remove registry to avoid borrow conflict with World
-                    if let Some(mut registry) = self
-                        .ecs
-                        .world_mut()
-                        .remove_resource::<crate::plugin::PluginRegistry>()
-                    {
-                        // Extract component data once
-                        let (name, position, uuid) = {
-                            let world = self.ecs.world();
-                            let n = world
-                                .get::<crate::entity::components::PlayerName>(entity)
-                                .map(|c| c.0.clone());
-                            let p = world
-                                .get::<crate::entity::components::Position>(entity)
-                                .map(|c| unastar_api::native::Vec3 {
-                                    x: c.0.x,
-                                    y: c.0.y,
-                                    z: c.0.z,
-                                });
-                            let u = world
-                                .get::<crate::entity::components::PlayerUuid>(entity)
-                                .map(|c| c.0.to_string());
-                            (n, p, u)
-                        };
-
-                        let allow = {
-                            let host = crate::server::game::host::ServerHost {
-                                world: self.ecs.world_mut(),
-                            };
-
-                            let mut player = unastar_api::native::Player::new(
-                                unastar_api::native::PluginEntity::from(entity),
-                                unastar_api::native::RawPluginHost_TO::from_value(
-                                    host,
-                                    abi_stable::sabi_trait::TD_Opaque,
-                                ),
-                                name.clone(),
-                                position.clone(),
-                                uuid.clone(),
-                            );
-                            registry.on_chat(&mut player, &message)
-                        };
-
-                        self.ecs.world_mut().insert_resource(registry);
-
-                        if !allow {
-                            debug!("Chat message canceled by plugin");
-                            return;
-                        }
-                    }
-                }
-
                 // Emit PlayerChat event to plugins
                 if let Some(mut event_buffer) =
                     self.ecs.world_mut().get_resource_mut::<EventBuffer>()
@@ -929,9 +885,16 @@ impl GameServer {
                 let broadcast_packet = TextPacket {
                     type_: TextPacketType::Chat,
                     needs_translation: false,
-                    source_name: sender_name.clone(),
-                    message: message.clone(),
-                    parameters: Vec::new(),
+                    category: TextPacketCategory::Authored,
+                    content: Some(TextPacketContent::Authored(TextPacketContentAuthored {
+                        chat: message.clone(),
+                        whisper: String::new(),
+                        announcement: String::new(),
+                    })),
+                    extra: Some(TextPacketExtra::Chat(TextPacketExtraAnnouncement {
+                        source_name: sender_name.clone(),
+                        message: message.clone(),
+                    })),
                     xuid: String::new(),
                     platform_chat_id: String::new(),
                     filtered_message: None,

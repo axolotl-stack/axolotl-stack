@@ -3,7 +3,7 @@
 //! Type definitions are in Rust (field names, types, optionality).
 //! Default values are loaded from `_defaults.kdl` at codegen time.
 
-use kdl::{KdlDocument, KdlNode, KdlValue};
+use kdl::{KdlDocument, KdlValue};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -91,49 +91,49 @@ impl ComponentDefaults {
 
         // Find the "defaults" node with type="entity"
         for node in doc.nodes() {
-            if node.name().value() == "defaults" {
-                if let Some(children) = node.children() {
-                    for child in children.nodes() {
-                        let comp_name = child.name().value().to_string();
-                        let mut field_defaults = HashMap::new();
+            if node.name().value() == "defaults"
+                && let Some(children) = node.children()
+            {
+                for child in children.nodes() {
+                    let comp_name = child.name().value().to_string();
+                    let mut field_defaults = HashMap::new();
 
-                        // Check for primary argument
-                        for entry in child.entries() {
-                            if entry.name().is_none() {
-                                // Positional argument = primary value
-                                defaults
-                                    .primary_values
-                                    .insert(comp_name.clone(), kdl_value_to_string(entry.value()));
-                            } else if let Some(prop_name) = entry.name() {
-                                // Named property
+                    // Check for primary argument
+                    for entry in child.entries() {
+                        if entry.name().is_none() {
+                            // Positional argument = primary value
+                            defaults
+                                .primary_values
+                                .insert(comp_name.clone(), kdl_value_to_string(entry.value()));
+                        } else if let Some(prop_name) = entry.name() {
+                            // Named property
+                            field_defaults.insert(
+                                prop_name.value().to_string(),
+                                kdl_value_to_string(entry.value()),
+                            );
+                        }
+                    }
+
+                    // Check children for nested properties
+                    if let Some(comp_children) = child.children() {
+                        for prop_node in comp_children.nodes() {
+                            let prop_name = prop_node.name().value();
+                            // Skip comments
+                            if prop_name.starts_with("//") {
+                                continue;
+                            }
+                            // Get the value (first argument or property)
+                            if let Some(entry) = prop_node.entries().first() {
                                 field_defaults.insert(
-                                    prop_name.value().to_string(),
+                                    prop_name.to_string(),
                                     kdl_value_to_string(entry.value()),
                                 );
                             }
                         }
+                    }
 
-                        // Check children for nested properties
-                        if let Some(comp_children) = child.children() {
-                            for prop_node in comp_children.nodes() {
-                                let prop_name = prop_node.name().value();
-                                // Skip comments
-                                if prop_name.starts_with("//") {
-                                    continue;
-                                }
-                                // Get the value (first argument or property)
-                                if let Some(entry) = prop_node.entries().first() {
-                                    field_defaults.insert(
-                                        prop_name.to_string(),
-                                        kdl_value_to_string(entry.value()),
-                                    );
-                                }
-                            }
-                        }
-
-                        if !field_defaults.is_empty() {
-                            defaults.values.insert(comp_name, field_defaults);
-                        }
+                    if !field_defaults.is_empty() {
+                        defaults.values.insert(comp_name, field_defaults);
                     }
                 }
             }

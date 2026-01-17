@@ -3,10 +3,7 @@
 //! Note: Most tests require network access and a real Microsoft account.
 //! Unit tests for signing and structure are included.
 
-use axolotl_xbl::auth::{
-    DEVICE_AUTH_URL, DeviceCodeAuth, LIVE_CONNECT_URL, LIVE_TOKEN_URL, MINECRAFT_CLIENT_ID,
-    SISU_AUTHORIZE_URL, SigningKeyPair, XBL_SCOPE, XblTokenClient,
-};
+use axolotl_xbl::auth::{DeviceCodeAuth, SigningKeyPair, XblTokenClient};
 
 /// Test that SigningKeyPair generates valid ProofKey format.
 #[test]

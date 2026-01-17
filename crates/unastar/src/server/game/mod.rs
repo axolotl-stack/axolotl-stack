@@ -6,7 +6,6 @@
 mod blocks;
 mod chunks;
 mod commands;
-pub mod host;
 mod join;
 mod packet_domains;
 mod packet_router;
@@ -127,30 +126,12 @@ impl GameServer {
         ecs.world_mut()
             .insert_resource(packet_routing::PacketQueues::default());
 
-        // Initialize native plugin registry
-        let mut plugin_registry = crate::plugin::PluginRegistry::new();
-
-        // Load static plugins (development)
-        plugin_registry.add_plugin(example_plugin::_create_plugin(), ecs.world_mut());
-
-        // Load dynamic plugins
-        let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
-        let plugins_dir = cwd.join("plugins");
-        let loaded_plugins = crate::plugin::loader::PluginLoader::load_from_dir(plugins_dir);
-        for plugin in loaded_plugins {
-            plugin_registry.add_plugin(plugin, ecs.world_mut());
-        }
-
-        ecs.world_mut().insert_resource(plugin_registry);
-        ecs.world_mut()
-            .insert_resource(unastar_api::native::NativeActionQueue::default());
-
         ecs.world_mut().add_observer(on_block_changed);
         register_chunk_systems(ecs.schedule_mut());
         ecs.schedule_mut().add_systems(
             (
                 tick_block_breaking,
-                (sync_native_actions, plugins::process_plugin_actions).chain(),
+                plugins::process_plugin_actions,
             )
                 .in_set(EntityLogicSet),
         );
@@ -409,21 +390,5 @@ impl GameServer {
 impl Default for GameServer {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-/// System to bridge NativeActionQueue (from native plugins) to ActionQueue (processed by server).
-fn sync_native_actions(
-    mut native_queue: ResMut<unastar_api::native::NativeActionQueue>,
-    mut action_queue: ResMut<crate::ecs::events::ActionQueue>,
-) {
-    if !native_queue.actions.is_empty() {
-        action_queue.push(unastar_api::PluginAction::Log {
-            level: unastar_api::LogLevel::Info,
-            message: format!("Syncing {} native actions", native_queue.actions.len()),
-        });
-        for action in native_queue.actions.drain(..) {
-            action_queue.push(action);
-        }
     }
 }

@@ -10,7 +10,7 @@ use crate::transfer::TransferStats;
 use anyhow::{Context, Result};
 use axolotl_xbl::{
     ExpandedSessionInfo, FriendsClient, PlayFabClient, PresenceClient, SessionClient, SessionInfo,
-    XblToken, discovery::DiscoveryClient,
+    discovery::DiscoveryClient,
 };
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -85,25 +85,25 @@ impl Axelerator {
         // Handle RTA events
         rta_client
             .on_event(move |data| {
-                if let Some(msg_type) = data.get("NotificationType").and_then(|v| v.as_str()) {
-                    if msg_type == "IncomingFriendRequestCountChanged" {
-                        info!("Received friend request notification");
-                        let friends = friends_client_clone.clone();
-                        let sessions = session_client_clone.clone();
-                        let token_cache = token_cache_for_rta.clone();
-                        let session_info = session_info_clone.clone();
-                        let processed = processed_xuids_clone.clone();
-                        tokio::spawn(async move {
-                            accept_friends_and_invite(
-                                &friends,
-                                &sessions,
-                                &token_cache,
-                                session_info,
-                                &processed,
-                            )
-                            .await;
-                        });
-                    }
+                if let Some(msg_type) = data.get("NotificationType").and_then(|v| v.as_str())
+                    && msg_type == "IncomingFriendRequestCountChanged"
+                {
+                    info!("Received friend request notification");
+                    let friends = friends_client_clone.clone();
+                    let sessions = session_client_clone.clone();
+                    let token_cache = token_cache_for_rta.clone();
+                    let session_info = session_info_clone.clone();
+                    let processed = processed_xuids_clone.clone();
+                    tokio::spawn(async move {
+                        accept_friends_and_invite(
+                            &friends,
+                            &sessions,
+                            &token_cache,
+                            session_info,
+                            &processed,
+                        )
+                        .await;
+                    });
                 }
             })
             .await;
@@ -141,7 +141,7 @@ impl Axelerator {
                         let delay = Duration::from_millis(backoff_ms);
                         if retry_count <= 5 {
                             info!(attempt = retry_count, delay_secs = delay.as_secs_f32(), "Reconnecting RTA client...");
-                        } else if retry_count % 10 == 0 {
+                        } else if retry_count.is_multiple_of(10) {
                             warn!(attempt = retry_count, delay_secs = delay.as_secs_f32(), "RTA client reconnecting (many failures)...");
                         } else {
                             debug!(attempt = retry_count, delay_secs = delay.as_secs_f32(), "Reconnecting RTA client...");
@@ -199,7 +199,6 @@ impl Axelerator {
         );
 
         // Store session info with handle_id
-        let mut session_info = session_info;
         session_info.handle_id = Some(handle_id.clone());
         {
             let mut info = self.session_info.write().await;
@@ -237,7 +236,16 @@ impl Axelerator {
             let processed_for_sync = processed_xuids.clone();
 
             Some(tokio::spawn(async move {
-                run_periodic_friend_sync(interval, friends, sessions, token_cache_for_sync, session_info_for_sync, shutdown, processed_for_sync).await;
+                run_periodic_friend_sync(
+                    interval,
+                    friends,
+                    sessions,
+                    token_cache_for_sync,
+                    session_info_for_sync,
+                    shutdown,
+                    processed_for_sync,
+                )
+                .await;
             }))
         } else {
             None
@@ -255,7 +263,7 @@ impl Axelerator {
                 &session_info,
                 &handle_id,
                 heartbeat,
-                &*session_client,
+                &session_client,
             )
             .await;
 
@@ -541,10 +549,8 @@ impl Axelerator {
                                             field.field, field.expected, field.actual
                                         );
 
-                                        if field.field == "members" && field.actual.contains("unknown member joined:") {
-                                            if let Some(xuid) = field.actual.strip_prefix("unknown member joined: ") {
+                                        if field.field == "members" && field.actual.contains("unknown member joined:") && let Some(xuid) = field.actual.strip_prefix("unknown member joined: ") {
                                                 attacker_xuids.push(xuid.to_string());
-                                            }
                                         }
                                     }
 
@@ -744,7 +750,10 @@ async fn accept_friends_and_invite(
     };
 
     // Accept all requests (with retry on auth error)
-    if let Err(e) = friends_client.accept_requests(&token, requests.clone()).await {
+    if let Err(e) = friends_client
+        .accept_requests(&token, requests.clone())
+        .await
+    {
         if e.is_auth_error() {
             warn!("Auth error accepting friend requests, refreshing token...");
             let token = match token_cache.force_refresh_xbl().await {
@@ -754,8 +763,14 @@ async fn accept_friends_and_invite(
                     return;
                 }
             };
-            if let Err(e) = friends_client.accept_requests(&token, requests.clone()).await {
-                warn!("Failed to accept friend requests after token refresh: {}", e);
+            if let Err(e) = friends_client
+                .accept_requests(&token, requests.clone())
+                .await
+            {
+                warn!(
+                    "Failed to accept friend requests after token refresh: {}",
+                    e
+                );
                 return;
             }
         } else {
@@ -807,7 +822,10 @@ async fn accept_friends_and_invite(
                 };
                 match session_client.send_invite(&token, &session, &xuid).await {
                     Ok(_) => info!("Sent game invite to {} (after token refresh)", xuid),
-                    Err(e) => warn!("Failed to send invite to {} after token refresh: {}", xuid, e),
+                    Err(e) => warn!(
+                        "Failed to send invite to {} after token refresh: {}",
+                        xuid, e
+                    ),
                 }
             }
             Err(e) => warn!("Failed to send invite to {}: {}", xuid, e),
@@ -911,10 +929,7 @@ async fn sync_followers(
         return;
     }
 
-    info!(
-        "Found {} new followers to follow back",
-        to_follow.len()
-    );
+    info!("Found {} new followers to follow back", to_follow.len());
 
     // Build XUID list and gamertag lookup
     let xuids: Vec<String> = to_follow.iter().map(|p| p.xuid.clone()).collect();
@@ -936,7 +951,10 @@ async fn sync_followers(
     let added_xuids = match friends_client.add_friends_bulk(&token, &xuids).await {
         Ok(added) => {
             for xuid in &added {
-                let gamertag = gamertag_map.get(xuid).map(|s| s.as_str()).unwrap_or("Unknown");
+                let gamertag = gamertag_map
+                    .get(xuid)
+                    .map(|s| s.as_str())
+                    .unwrap_or("Unknown");
                 info!("Followed back {} ({})", gamertag, xuid);
             }
             added
@@ -953,8 +971,14 @@ async fn sync_followers(
             match friends_client.add_friends_bulk(&token, &xuids).await {
                 Ok(added) => {
                     for xuid in &added {
-                        let gamertag = gamertag_map.get(xuid).map(|s| s.as_str()).unwrap_or("Unknown");
-                        info!("Followed back {} ({}) (after token refresh)", gamertag, xuid);
+                        let gamertag = gamertag_map
+                            .get(xuid)
+                            .map(|s| s.as_str())
+                            .unwrap_or("Unknown");
+                        info!(
+                            "Followed back {} ({}) (after token refresh)",
+                            gamertag, xuid
+                        );
                     }
                     added
                 }
@@ -1002,11 +1026,17 @@ async fn sync_followers(
     };
 
     for xuid in &added_xuids {
-        let gamertag = gamertag_map.get(xuid).map(|s| s.as_str()).unwrap_or("Unknown");
+        let gamertag = gamertag_map
+            .get(xuid)
+            .map(|s| s.as_str())
+            .unwrap_or("Unknown");
         match session_client.send_invite(&token, &session, xuid).await {
             Ok(_) => info!("Sent game invite to {}", gamertag),
             Err(e) if e.is_auth_error() => {
-                warn!("Auth error sending invite to {}, refreshing token...", gamertag);
+                warn!(
+                    "Auth error sending invite to {}, refreshing token...",
+                    gamertag
+                );
                 let token = match token_cache.force_refresh_xbl().await {
                     Ok(t) => t,
                     Err(e) => {
@@ -1016,7 +1046,10 @@ async fn sync_followers(
                 };
                 match session_client.send_invite(&token, &session, xuid).await {
                     Ok(_) => info!("Sent game invite to {} (after token refresh)", gamertag),
-                    Err(e) => warn!("Failed to send invite to {} after token refresh: {}", gamertag, e),
+                    Err(e) => warn!(
+                        "Failed to send invite to {} after token refresh: {}",
+                        gamertag, e
+                    ),
                 }
             }
             Err(e) => warn!("Failed to send invite to {}: {}", gamertag, e),
@@ -1027,7 +1060,5 @@ async fn sync_followers(
 /// Check if an XUID is a guest/split-screen account.
 /// Guest accounts have bit 52 set to 1.
 fn is_guest_account(xuid: &str) -> bool {
-    xuid.parse::<u64>()
-        .map(|x| (x >> 52) == 1)
-        .unwrap_or(false)
+    xuid.parse::<u64>().map(|x| (x >> 52) == 1).unwrap_or(false)
 }

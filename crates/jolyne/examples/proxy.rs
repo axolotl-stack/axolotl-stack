@@ -41,7 +41,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 }
 
 async fn handle_proxy_client(
-    stream: jolyne::ServerLogin,
+    stream: jolyne::stream::raknet_types::ServerLogin,
     server_key: SecretKey,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     let addr = stream.peer_addr();

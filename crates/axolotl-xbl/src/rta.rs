@@ -22,11 +22,13 @@ pub struct RtaMessage {
     pub payload: Value,
 }
 
+pub type EventHandler = Box<dyn Fn(&Value) + Send + Sync>;
+
 pub struct RtaClient {
     token: XblToken,
     connection_id: Arc<RwLock<Option<String>>>,
     shutdown: Arc<RwLock<bool>>,
-    event_handlers: Arc<Mutex<Vec<Box<dyn Fn(&Value) + Send + Sync>>>>,
+    event_handlers: Arc<Mutex<Vec<EventHandler>>>,
 }
 
 impl RtaClient {
@@ -169,38 +171,37 @@ impl RtaClient {
         let msg_type = parts[0].as_i64().unwrap_or(0);
 
         // Check for ConnectionId response
-        if text.contains("ConnectionId") {
-            if let Some(data) = parts.get(4) {
-                if let Some(conn_id) = data.get("ConnectionId").and_then(|v| v.as_str()) {
-                    let mut lock = self.connection_id.write().await;
-                    if lock.is_none() {
-                        *lock = Some(conn_id.to_string());
-                        info!("RTA Connection ID: {}", conn_id);
+        if text.contains("ConnectionId")
+            && let Some(data) = parts.get(4)
+            && let Some(conn_id) = data.get("ConnectionId").and_then(|v| v.as_str())
+        {
+            let mut lock = self.connection_id.write().await;
+            if lock.is_none() {
+                *lock = Some(conn_id.to_string());
+                info!("RTA Connection ID: {}", conn_id);
 
-                        // Subscribe to friends
-                        let sub_msg = serde_json::json!([
-                            1,
-                            2,
-                            format!(
-                                "https://social.xboxlive.com/users/xuid({})/friends",
-                                self.token.xuid
-                            )
-                        ]);
-                        write.send(Message::Text(sub_msg.to_string())).await.ok();
-                    }
-                }
+                // Subscribe to friends
+                let sub_msg = serde_json::json!([
+                    1,
+                    2,
+                    format!(
+                        "https://social.xboxlive.com/users/xuid({})/friends",
+                        self.token.xuid
+                    )
+                ]);
+                write.send(Message::Text(sub_msg.to_string())).await.ok();
             }
         }
 
         // Event handling
-        if msg_type == 3 {
-            if let Some(data) = parts.get(2) {
-                debug!("RTA Event: {:?}", data);
+        if msg_type == 3
+            && let Some(data) = parts.get(2)
+        {
+            debug!("RTA Event: {:?}", data);
 
-                let handlers = self.event_handlers.lock().await;
-                for handler in handlers.iter() {
-                    handler(data);
-                }
+            let handlers = self.event_handlers.lock().await;
+            for handler in handlers.iter() {
+                handler(data);
             }
         }
 

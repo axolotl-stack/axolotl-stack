@@ -1,13 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
-pub use unastar_api_macros::{event_handler, native_plugin, plugin};
-
-// Native Rust plugin system (enabled with "native" feature)
-#[cfg(feature = "native")]
-pub mod native;
-
-// ...
+pub use unastar_api_macros::{event_handler, plugin};
 
 mod player_wrapper;
 pub use player_wrapper::Player;
@@ -84,7 +78,6 @@ pub struct PlayerInfo {
 /// 3D vector (position, velocity, etc.)
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]
-#[cfg_attr(feature = "native", derive(abi_stable::StableAbi))]
 pub struct Vec3 {
     pub x: f64,
     pub y: f64,
@@ -365,6 +358,7 @@ impl SharedState {
     }
 }
 
+#[allow(dead_code)]
 #[repr(align(8))]
 struct SharedBuffer([u8; 64 * 1024]);
 

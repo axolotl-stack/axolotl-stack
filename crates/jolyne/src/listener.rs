@@ -445,12 +445,8 @@ impl NetherNetBuilder {
                 nethernet_id,
                 mc_token,
             } => {
-                use tokio_nethernet::{
-                    NetherNetListener, NetherNetListenerConfig, SignalMonitorConfig, XboxSignaling,
-                };
-                let monitor_config = self
-                    .signal_monitor_config
-                    .unwrap_or_else(SignalMonitorConfig::default);
+                use tokio_nethernet::{NetherNetListener, NetherNetListenerConfig, XboxSignaling};
+                let monitor_config = self.signal_monitor_config.unwrap_or_default();
                 let xbox = XboxSignaling::connect_with_url(
                     signaling_url,
                     nethernet_id,
@@ -488,7 +484,7 @@ mod raknet_impl {
             cx: &mut Context<'_>,
         ) -> Poll<Option<Self::Transport>> {
             // Use the inherent method on RaknetListener, not the trait method
-            match RaknetListener::poll_accept(&mut *self, cx) {
+            match RaknetListener::poll_accept(&mut self, cx) {
                 Poll::Ready(Some(stream)) => Poll::Ready(Some(RakNetTransport::new(stream))),
                 Poll::Ready(None) => Poll::Ready(None),
                 Poll::Pending => Poll::Pending,
@@ -515,7 +511,7 @@ mod nethernet_impl {
             cx: &mut Context<'_>,
         ) -> Poll<Option<Self::Transport>> {
             // Use the inherent method on NetherNetListener, not the trait method
-            match NetherNetListener::poll_accept(&mut *self, cx) {
+            match NetherNetListener::poll_accept(&mut self, cx) {
                 Poll::Ready(Some(stream)) => Poll::Ready(Some(NetherNetTransport::new(stream))),
                 Poll::Ready(None) => Poll::Ready(None),
                 Poll::Pending => Poll::Pending,

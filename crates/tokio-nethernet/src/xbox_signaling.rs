@@ -239,7 +239,7 @@ impl XboxSignaling {
                     }
                 };
                 debug!(msg = %json, "Sending WebSocket message");
-                if let Err(e) = write.send(WsMessage::Text(json.into())).await {
+                if let Err(e) = write.send(WsMessage::Text(json)).await {
                     error!("WebSocket send error: {}", e);
                     break;
                 }
@@ -297,27 +297,25 @@ impl XboxSignaling {
                     }
                     2 => {
                         // Init message with TURN credentials
-                        if let Some(message) = incoming.message {
-                            if let Ok(turn_msg) = serde_json::from_str::<TurnAuthMessage>(&message)
-                            {
-                                if let Some(servers) = turn_msg.turn_auth_servers {
-                                    let ice_servers: Vec<IceServer> = servers
-                                        .into_iter()
-                                        .map(|s| IceServer {
-                                            username: s.username,
-                                            password: s.password,
-                                            urls: s.urls,
-                                        })
-                                        .collect();
+                        if let Some(message) = incoming.message
+                            && let Ok(turn_msg) = serde_json::from_str::<TurnAuthMessage>(&message)
+                            && let Some(servers) = turn_msg.turn_auth_servers
+                        {
+                            let ice_servers: Vec<IceServer> = servers
+                                .into_iter()
+                                .map(|s| IceServer {
+                                    username: s.username,
+                                    password: s.password,
+                                    urls: s.urls,
+                                })
+                                .collect();
 
-                                    let mut creds = credentials_clone.write().await;
-                                    *creds = Some(Credentials {
-                                        expiration_seconds: 3600,
-                                        ice_servers,
-                                    });
-                                    info!("Received TURN credentials");
-                                }
-                            }
+                            let mut creds = credentials_clone.write().await;
+                            *creds = Some(Credentials {
+                                expiration_seconds: 3600,
+                                ice_servers,
+                            });
+                            info!("Received TURN credentials");
                         }
                     }
                     _ => {

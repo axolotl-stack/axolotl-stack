@@ -1,12 +1,12 @@
+#![allow(unused_variables)]
 //! Example native Rust plugin for Unastar.
 //!
 //! This demonstrates the new native plugin system with direct ECS access.
-use abi_stable::sabi_trait::TD_Opaque;
-use abi_stable::std_types::{RBox, RStr};
 use tracing::info;
-use unastar_api::{event_handler, native::*, native_plugin, Vec3};
+use unastar_api::{native::*, Vec3};
 
 /// Example plugin that demonstrates event handlers with full ECS access.
+#[derive(Default)]
 pub struct ExamplePlugin {
     tick_count: u64,
 }
@@ -34,7 +34,7 @@ impl Plugin for ExamplePlugin {
         self.tick_count += 1;
 
         // Example: Every 100 ticks, print stats
-        if self.tick_count % 100 == 0 {
+        if self.tick_count.is_multiple_of(100) {
             let entity_count = ctx.entity_count();
             info!(
                 "[Example Plugin] Tick {}: {} entities",
@@ -151,8 +151,8 @@ impl Plugin for ExamplePlugin {
 
 /// Export a function to create the plugin (called by server)
 #[no_mangle]
-pub extern "C" fn _create_plugin() -> RawPlugin_TO<RBox<()>> {
+pub extern "C" fn _create_plugin() -> stabby::boxed::Box<dyn RawPlugin> {
     let plugin = ExamplePlugin::new();
     let bridge = PluginBridge(plugin);
-    RawPlugin_TO::from_value(bridge, TD_Opaque)
+    stabby::boxed::Box::new(bridge)
 }

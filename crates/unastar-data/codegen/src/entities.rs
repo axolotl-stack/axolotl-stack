@@ -176,13 +176,11 @@ fn parse_entity_node(node: &KdlNode) -> miette::Result<ParsedEntity> {
                 "component_groups" => {
                     if let Some(group_children) = child.children() {
                         for group in group_children.nodes() {
-                            if group.name().value() == "group" {
-                                if let Some(name) =
+                            if group.name().value() == "group" && let Some(name) =
                                     group.entries().first().and_then(|e| e.value().as_string())
                                 {
                                     entity.component_groups.push(name.to_string());
                                 }
-                            }
                         }
                     }
                 }

@@ -27,7 +27,7 @@ use tracing::{debug, info, warn};
 /// Instead, we refresh on-demand when authentication fails (401 errors).
 /// The `force_refresh_xbl()` method should be called by higher layers when they
 /// detect auth failures.
-
+///
 /// Cached token data persisted to disk.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CachedToken {

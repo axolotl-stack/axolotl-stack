@@ -166,7 +166,7 @@ fn benchmark_batch_candidate_parsing(c: &mut Criterion) {
     let mut group = c.benchmark_group("batch_candidate_parsing");
 
     // Simulate parsing multiple candidates (typical ICE gathering)
-    let candidates = vec![
+    let candidates = [
         "candidate:1 1 udp 2130706431 192.168.1.100 54321 typ host generation 0 ufrag abc",
         "candidate:2 1 udp 2130706430 192.168.1.100 54322 typ host generation 0 ufrag abc",
         "candidate:3 1 udp 1694498815 203.0.113.50 19302 typ srflx raddr 192.168.1.100 rport 54321 generation 0 ufrag abc",

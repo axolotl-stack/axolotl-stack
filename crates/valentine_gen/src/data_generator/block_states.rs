@@ -289,7 +289,7 @@ pub fn generate_block_states(
         if blocks.len() > 5 {
             writeln!(out, "/// ... and {} more blocks", blocks.len() - 5)?;
         }
-        writeln!(out, "#[derive(Debug, Clone, Copy, PartialEq, Eq)]")?;
+        writeln!(out, "#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]")?;
         writeln!(out, "pub struct {} {{", state_name)?;
 
         // Private fields
@@ -375,30 +375,6 @@ pub fn generate_block_states(
             )?;
         }
 
-        writeln!(out, "}}")?;
-        writeln!(out)?;
-
-        // Default impl using first valid values
-        writeln!(out, "impl Default for {} {{", state_name)?;
-        writeln!(out, "    fn default() -> Self {{")?;
-        write!(out, "        Self {{ ")?;
-        for (i, prop) in shape.props.iter().enumerate() {
-            let field_name = to_snake_case(&prop.name);
-            let default_val = match prop.prop_type {
-                PropType::Byte if prop.min == 0 && prop.max == 1 => "false".to_string(),
-                PropType::Byte | PropType::Int => "0".to_string(),
-                PropType::String => {
-                    let enum_name = to_pascal_case(&to_snake_case(&prop.name));
-                    format!("{}::default()", enum_name)
-                }
-            };
-            if i > 0 {
-                write!(out, ", ")?;
-            }
-            write!(out, "{}: {}", field_name, default_val)?;
-        }
-        writeln!(out, " }}")?;
-        writeln!(out, "    }}")?;
         writeln!(out, "}}")?;
         writeln!(out)?;
 
