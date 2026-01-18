@@ -110,8 +110,10 @@ impl Axelerator {
 
         // Store RTA handle for reconnection
         // For long-running services, we retry indefinitely with capped backoff
+        // Pass token_cache to allow token refresh on reconnection
         let rta_run = rta_client.clone();
         let rta_shutdown = self.shutdown_notify.clone();
+        let rta_token_cache = token_cache.clone();
         let rta_handle = tokio::spawn(async move {
             let mut retry_count = 0u32;
             let mut backoff_ms = 1000u64;
@@ -136,6 +138,19 @@ impl Axelerator {
                         }
 
                         retry_count += 1;
+
+                        // Refresh token before reconnection attempt
+                        // This ensures we don't keep trying with an expired token
+                        match rta_token_cache.get_or_authenticate().await {
+                            Ok(fresh_token) => {
+                                rta_run.update_token(fresh_token).await;
+                                debug!("RTA token refreshed for reconnection");
+                            }
+                            Err(e) => {
+                                warn!("Failed to refresh RTA token: {}", e);
+                                // Continue anyway - token might still be valid
+                            }
+                        }
 
                         // Log more urgently after many failures
                         let delay = Duration::from_millis(backoff_ms);
@@ -252,14 +267,10 @@ impl Axelerator {
         };
 
         // Step 4: Run WebRTC signaling and transfer players
-        let playfab_token = token_cache
-            .get_xbl_token(axolotl_xbl::auth::relying_party::PLAYFAB)
-            .await?;
-
+        // Pass token_cache so we can refresh tokens when they expire
         let result = self
             .run_signaling_loop(
-                &xbl_token,
-                &playfab_token,
+                &token_cache,
                 &session_info,
                 &handle_id,
                 heartbeat,
@@ -308,30 +319,21 @@ impl Axelerator {
     }
 
     /// Run the WebRTC signaling loop and transfer players to the actual server.
+    ///
+    /// Handles token refresh: when the transfer server reports AuthenticationError,
+    /// we refresh the PlayFab/franchise tokens and restart the transfer server.
+    ///
+    /// All token operations use fresh tokens from `token_cache` to handle long-running
+    /// operation where tokens may expire (4-16 hours depending on relying party).
     async fn run_signaling_loop(
         &self,
-        xbl_token: &axolotl_xbl::XblToken,
-        playfab_token: &axolotl_xbl::XblToken,
+        token_cache: &Arc<TokenCache>,
         session: &ExpandedSessionInfo,
         handle_id: &str,
         initial_heartbeat_secs: u64,
         session_client: &SessionClient,
     ) -> Result<()> {
-        // Get PlayFab token for signaling
-        let playfab = PlayFabClient::new();
-        let playfab_ticket = playfab
-            .login(&playfab_token.user_hash, &playfab_token.token)
-            .await
-            .context("PlayFab login failed")?;
-
-        let mc_token = playfab
-            .start_session(&session.device_id, &playfab_ticket)
-            .await
-            .context("Minecraft session start failed")?;
-
-        info!("Got Minecraft token for signaling");
-
-        // Discover signaling endpoint for regional routing
+        // Discover signaling endpoint for regional routing (this doesn't change)
         let discovery = DiscoveryClient::new();
         let endpoints = discovery
             .discover(&self.config.version)
@@ -346,27 +348,65 @@ impl Axelerator {
             "Discovered signaling endpoint"
         );
 
+        // Helper function to get fresh mc_token
+        let get_fresh_mc_token = |token_cache: Arc<TokenCache>, device_id: String| async move {
+            let playfab_token = token_cache
+                .get_xbl_token(axolotl_xbl::auth::relying_party::PLAYFAB)
+                .await?;
+
+            let playfab = PlayFabClient::new();
+            let playfab_ticket = playfab
+                .login(&playfab_token.user_hash, &playfab_token.token)
+                .await
+                .context("PlayFab login failed")?;
+
+            let mc_token = playfab
+                .start_session(&device_id, &playfab_ticket)
+                .await
+                .context("Minecraft session start failed")?;
+
+            info!("Got fresh Minecraft token for signaling");
+            Ok::<String, anyhow::Error>(mc_token)
+        };
+
+        // Get initial mc_token
+        let mut mc_token = get_fresh_mc_token(token_cache.clone(), session.device_id.clone()).await?;
+
         // Create transfer stats tracker
         let transfer_stats = Arc::new(TransferStats::new());
 
-        // Spawn the transfer server with proper shutdown handling
-        let config = self.config.clone();
-        let mc_token_clone = mc_token.clone();
-        let signaling_url_clone = signaling_url.clone();
-        let transfer_shutdown = self.transfer_shutdown.clone();
-        let stats_clone = transfer_stats.clone();
+        // Track token refresh attempts to avoid infinite loops
+        let mut token_refresh_attempts = 0u32;
+        const MAX_TOKEN_REFRESH_ATTEMPTS: u32 = 5;
 
-        let mut transfer_handle = tokio::spawn(async move {
-            crate::transfer::run_transfer_server(
-                &signaling_url_clone,
-                nethernet_id,
-                &mc_token_clone,
-                &config,
-                transfer_shutdown,
-                Some(stats_clone),
-            )
-            .await
-        });
+        // Spawn the transfer server with proper shutdown handling
+        let spawn_transfer_server = |signaling_url: String,
+                                      nethernet_id: u64,
+                                      mc_token: String,
+                                      config: AxeleratorConfig,
+                                      shutdown: Arc<Notify>,
+                                      stats: Arc<TransferStats>| {
+            tokio::spawn(async move {
+                crate::transfer::run_transfer_server(
+                    &signaling_url,
+                    nethernet_id,
+                    &mc_token,
+                    &config,
+                    shutdown,
+                    Some(stats),
+                )
+                .await
+            })
+        };
+
+        let mut transfer_handle = spawn_transfer_server(
+            signaling_url.clone(),
+            nethernet_id,
+            mc_token.clone(),
+            self.config.clone(),
+            self.transfer_shutdown.clone(),
+            transfer_stats.clone(),
+        );
 
         let presence = PresenceClient::new();
         let friends_client = FriendsClient::new();
@@ -434,25 +474,74 @@ impl Axelerator {
                             match reason {
                                 ShutdownReason::Requested => {
                                     info!("Transfer server shutdown completed");
+                                    break;
                                 }
                                 ShutdownReason::AuthenticationError => {
-                                    // Token expired - in a production setup, we'd refresh here
-                                    // For now, just log and exit (restart will get fresh token)
-                                    error!("Transfer server authentication failed - token may be expired");
-                                    error!("Restart the service to refresh tokens");
+                                    // Token expired - refresh and restart
+                                    token_refresh_attempts += 1;
+                                    if token_refresh_attempts > MAX_TOKEN_REFRESH_ATTEMPTS {
+                                        error!(
+                                            "Token refresh failed {} times, giving up",
+                                            token_refresh_attempts
+                                        );
+                                        break;
+                                    }
+
+                                    warn!(
+                                        attempt = token_refresh_attempts,
+                                        "Transfer server auth failed, refreshing tokens..."
+                                    );
+
+                                    // Force refresh the XBL token for PlayFab
+                                    if let Err(e) = token_cache.force_refresh_xbl().await {
+                                        error!("Failed to refresh XBL token: {}", e);
+                                        // Wait before retrying
+                                        tokio::time::sleep(Duration::from_secs(5)).await;
+                                        continue;
+                                    }
+
+                                    // Get new mc_token
+                                    match get_fresh_mc_token(token_cache.clone(), session.device_id.clone()).await {
+                                        Ok(new_token) => {
+                                            mc_token = new_token;
+                                            info!("Token refresh successful, restarting transfer server...");
+
+                                            // Reset refresh counter on success
+                                            token_refresh_attempts = 0;
+
+                                            // Restart transfer server with new token
+                                            transfer_handle = spawn_transfer_server(
+                                                signaling_url.clone(),
+                                                nethernet_id,
+                                                mc_token.clone(),
+                                                self.config.clone(),
+                                                self.transfer_shutdown.clone(),
+                                                transfer_stats.clone(),
+                                            );
+                                        }
+                                        Err(e) => {
+                                            error!("Failed to get new mc_token: {}", e);
+                                            // Wait before retrying
+                                            tokio::time::sleep(Duration::from_secs(5)).await;
+                                        }
+                                    }
+                                    continue;
                                 }
                                 ShutdownReason::ListenerClosed | ShutdownReason::FatalError => {
                                     error!("Transfer server stopped unexpectedly: {:?}", reason);
+                                    break;
                                 }
                             }
                         }
-                        Ok(Err(e)) => error!("Transfer server error: {}", e),
-                        Err(e) => error!("Transfer server task panicked: {}", e),
+                        Ok(Err(e)) => {
+                            error!("Transfer server error: {}", e);
+                            break;
+                        }
+                        Err(e) => {
+                            error!("Transfer server task panicked: {}", e);
+                            break;
+                        }
                     }
-                    // Transfer server died - this is a critical failure
-                    // The outer retry logic should have handled transient errors
-                    error!("Transfer server stopped - shutting down");
-                    break;
                 }
 
                 // Main tick (1 second interval)
@@ -467,8 +556,18 @@ impl Axelerator {
                     }
 
                     // Presence refresh with backoff
+                    // Get fresh token from cache to handle long-running operation
                     if now.duration_since(last_presence_refresh).as_secs() >= heartbeat_secs {
-                        match presence.set_active(xbl_token).await {
+                        let presence_token = match token_cache.get_or_authenticate().await {
+                            Ok(t) => t,
+                            Err(e) => {
+                                warn!("Failed to get token for presence: {}", e);
+                                last_presence_refresh = now;
+                                continue;
+                            }
+                        };
+
+                        match presence.set_active(&presence_token).await {
                             Ok(new_heartbeat) => {
                                 heartbeat_secs = new_heartbeat;
                                 presence_failures = 0;
@@ -532,8 +631,17 @@ impl Axelerator {
                     if monitor_enabled && now.duration_since(last_monitor_check).as_secs() >= monitor_interval {
                         last_monitor_check = now;
 
+                        // Get fresh token for monitoring operations
+                        let monitor_token = match token_cache.get_or_authenticate().await {
+                            Ok(t) => t,
+                            Err(e) => {
+                                warn!("Failed to get token for monitoring: {}", e);
+                                continue;
+                            }
+                        };
+
                         // 1. Session tampering detection
-                        match session_client.check_tampering_via_handle(xbl_token, session, &current_handle_id).await {
+                        match session_client.check_tampering_via_handle(&monitor_token, session, &current_handle_id).await {
                             Ok(result) => {
                                 if result.tampered {
                                     tamper_count += 1;
@@ -560,7 +668,7 @@ impl Axelerator {
                                         }
 
                                         let gamertag = friends_client
-                                            .get_gamertag(xbl_token, attacker_xuid)
+                                            .get_gamertag(&monitor_token, attacker_xuid)
                                             .await
                                             .unwrap_or_else(|_| "Unknown".to_string());
 
@@ -571,7 +679,7 @@ impl Axelerator {
 
                                         if auto_block {
                                             info!("Auto-blocking attacker {}...", gamertag);
-                                            match friends_client.force_remove_follower(xbl_token, attacker_xuid).await {
+                                            match friends_client.force_remove_follower(&monitor_token, attacker_xuid).await {
                                                 Ok(_) => {
                                                     info!("Blocked attacker: {} ({})", gamertag, attacker_xuid);
                                                     // Limit blocked_xuids to prevent unbounded memory growth
@@ -589,7 +697,7 @@ impl Axelerator {
                                     }
 
                                     info!("Attempting auto-repair...");
-                                    match session_client.repair_session(xbl_token, session).await {
+                                    match session_client.repair_session(&monitor_token, session).await {
                                         Ok(_) => info!("Session repaired successfully"),
                                         Err(e) => error!("Failed to repair session: {}", e),
                                     }
@@ -604,7 +712,7 @@ impl Axelerator {
 
                         // 2. Handle hijacking detection
                         match session_client.check_handle_hijacking(
-                            xbl_token,
+                            &monitor_token,
                             &session.xuid,
                             &current_handle_id,
                             &session.session_id,
@@ -630,7 +738,7 @@ impl Axelerator {
 
                                     if !result.our_handle_exists {
                                         warn!("Our handle was deleted! Recreating...");
-                                        match session_client.create_handle(xbl_token, session).await {
+                                        match session_client.create_handle(&monitor_token, session).await {
                                             Ok(new_handle) => {
                                                 info!("Handle recreated: {}", new_handle);
                                                 current_handle_id = new_handle;

@@ -83,8 +83,7 @@ impl CachedToken {
     }
 }
 
-/// Cached XBL token (in-memory only).
-/// We don't track expiration here - instead we handle 401 errors reactively.
+/// Cached XBL token (in-memory only) with proactive expiration checking.
 struct CachedXblToken {
     token: XblToken,
 }
@@ -92,6 +91,11 @@ struct CachedXblToken {
 impl CachedXblToken {
     fn new(token: XblToken) -> Self {
         Self { token }
+    }
+
+    /// Check if this token is still valid (not expired).
+    fn is_valid(&self) -> bool {
+        self.token.is_valid()
     }
 }
 
@@ -130,20 +134,32 @@ impl TokenCache {
     /// Get or create an authenticated XBL token for the default relying party (Xbox Live).
     ///
     /// This is the main entry point. It will:
-    /// 1. Return cached token if available
-    /// 2. Exchange OAuth for XBL token if not cached
+    /// 1. Return cached token if available AND not expired
+    /// 2. Exchange OAuth for XBL token if not cached or expired
     /// 3. Refresh OAuth if expired but refresh token is valid
     /// 4. Do fresh device code auth if no valid token exists
     ///
-    /// Note: We don't preemptively refresh based on time. Call `force_refresh_xbl()`
-    /// when you encounter 401 errors.
+    /// Token expiration is now checked proactively (with 5-minute buffer).
     pub async fn get_or_authenticate(&self) -> Result<XblToken> {
-        // Check if we have a cached XBL token
+        // Check if we have a valid (non-expired) cached XBL token
         {
             let cached = self.xbl.read().await;
             if let Some(ref xbl) = *cached {
-                return Ok(xbl.token.clone());
+                if xbl.is_valid() {
+                    return Ok(xbl.token.clone());
+                }
+                // Token expired, will refresh below
+                debug!(
+                    expires_at = xbl.token.expires_at,
+                    "Cached XBL token expired, refreshing..."
+                );
             }
+        }
+
+        // Clear expired token
+        {
+            let mut cached = self.xbl.write().await;
+            *cached = None;
         }
 
         // Need to get a new XBL token
@@ -156,7 +172,11 @@ impl TokenCache {
             .await
             .context("Failed to get XBL token")?;
 
-        info!(gamertag = %xbl_token.gamertag(), "Authenticated successfully");
+        info!(
+            gamertag = %xbl_token.gamertag(),
+            expires_in_secs = xbl_token.seconds_until_expiry(),
+            "Authenticated successfully"
+        );
 
         // Cache the new token
         {

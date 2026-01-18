@@ -3,17 +3,28 @@
 //! After OAuth authentication, we need to:
 //! 1. Get a device token
 //! 2. Exchange for an XBL token with gamertag/XUID
+//!
+//! Token lifetimes (from SISU /authorize):
+//! - TitleToken: 14 days
+//! - UserToken: 4 days
+//! - AuthorizationToken: 4 hours (multiplayer.minecraft.net) / 16 hours (playfab.xboxlive.com)
 
 use crate::error::{XblError, XblResult};
+use chrono::DateTime;
 use serde::{Deserialize, Serialize};
-use tracing::{debug, info};
+use std::time::{SystemTime, UNIX_EPOCH};
+use tracing::{debug, info, warn};
 use uuid::Uuid;
 
 use super::device_code::OAuthToken;
 use super::signing::SigningKeyPair;
 use super::{DEVICE_AUTH_URL, SISU_AUTHORIZE_URL};
 
-/// Xbox Live token with user information.
+/// Buffer time (in seconds) before actual expiration to trigger refresh.
+/// Using 5 minutes to avoid race conditions near expiry.
+const EXPIRY_BUFFER_SECS: u64 = 300;
+
+/// Xbox Live token with user information and expiration tracking.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct XblToken {
     /// The authorization token string.
@@ -24,6 +35,9 @@ pub struct XblToken {
     pub xuid: String,
     /// User hash for authorization header.
     pub user_hash: String,
+    /// Unix timestamp when this token expires (0 if unknown).
+    #[serde(default)]
+    pub expires_at: u64,
 }
 
 impl XblToken {
@@ -41,6 +55,51 @@ impl XblToken {
     pub fn auth_header(&self) -> String {
         format!("XBL3.0 x={};{}", self.user_hash, self.token)
     }
+
+    /// Check if this token has expired (or is about to expire within buffer).
+    ///
+    /// Returns true if:
+    /// - Token has no expiration set (expires_at == 0) - treated as valid
+    /// - Current time + buffer >= expires_at
+    pub fn is_expired(&self) -> bool {
+        if self.expires_at == 0 {
+            // No expiration known - assume valid (legacy behavior)
+            return false;
+        }
+
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        now + EXPIRY_BUFFER_SECS >= self.expires_at
+    }
+
+    /// Check if this token is valid (not expired).
+    pub fn is_valid(&self) -> bool {
+        !self.is_expired()
+    }
+
+    /// Get seconds until expiration (0 if already expired or unknown).
+    pub fn seconds_until_expiry(&self) -> u64 {
+        if self.expires_at == 0 {
+            return 0;
+        }
+
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        self.expires_at.saturating_sub(now)
+    }
+
+    /// Parse an ISO 8601 timestamp (NotAfter) into a Unix timestamp.
+    pub fn parse_not_after(not_after: &str) -> Option<u64> {
+        DateTime::parse_from_rfc3339(not_after)
+            .ok()
+            .map(|dt| dt.timestamp() as u64)
+    }
 }
 
 /// Internal device token response.
@@ -48,9 +107,12 @@ impl XblToken {
 struct DeviceTokenResponse {
     #[serde(rename = "Token")]
     token: String,
+    /// When the token expires (ISO 8601).
+    #[serde(rename = "NotAfter")]
+    not_after: Option<String>,
 }
 
-/// Internal XBL authorization response.
+/// Internal XBL authorization response from SISU.
 #[derive(Debug, Deserialize)]
 struct XblAuthResponse {
     #[serde(rename = "AuthorizationToken")]
@@ -63,6 +125,9 @@ struct AuthorizationToken {
     display_claims: DisplayClaims,
     #[serde(rename = "Token")]
     token: String,
+    /// When this token expires (ISO 8601 format, e.g., "2025-01-15T10:55:20.0082007Z").
+    #[serde(rename = "NotAfter")]
+    not_after: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -80,12 +145,33 @@ struct UserInfo {
     uhs: Option<String>,
 }
 
+/// Cached device token with expiration tracking.
+#[derive(Debug, Clone)]
+struct CachedDeviceToken {
+    token: String,
+    expires_at: u64,
+}
+
+impl CachedDeviceToken {
+    fn is_expired(&self) -> bool {
+        if self.expires_at == 0 {
+            return false;
+        }
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        // Use 1 hour buffer for device token (it lasts 14 days, so plenty of margin)
+        now + 3600 >= self.expires_at
+    }
+}
+
 /// Acquires Xbox Live tokens from OAuth tokens.
 pub struct XblTokenClient {
     client: reqwest::Client,
     signing_key: SigningKeyPair,
-    /// Cached device token for reuse across multiple RP requests.
-    cached_device_token: tokio::sync::OnceCell<String>,
+    /// Cached device token with expiration tracking.
+    cached_device_token: tokio::sync::RwLock<Option<CachedDeviceToken>>,
 }
 
 impl XblTokenClient {
@@ -94,7 +180,7 @@ impl XblTokenClient {
         Self {
             client: reqwest::Client::new(),
             signing_key: SigningKeyPair::generate(),
-            cached_device_token: tokio::sync::OnceCell::new(),
+            cached_device_token: tokio::sync::RwLock::new(None),
         }
     }
 
@@ -119,19 +205,36 @@ impl XblTokenClient {
         Ok(xbl_token)
     }
 
-    /// Get or create device token (cached for reuse).
+    /// Get or create device token (cached for reuse, with expiration check).
     async fn get_or_create_device_token(&self) -> XblResult<String> {
-        self.cached_device_token
-            .get_or_try_init(|| async {
-                debug!("Requesting device token");
-                self.get_device_token().await
-            })
-            .await
-            .cloned()
+        // Check if we have a valid cached token
+        {
+            let cached = self.cached_device_token.read().await;
+            if let Some(ref dt) = *cached {
+                if !dt.is_expired() {
+                    debug!("Using cached device token");
+                    return Ok(dt.token.clone());
+                }
+                debug!("Cached device token expired, refreshing...");
+            }
+        }
+
+        // Need to get a new device token
+        let new_token = self.request_device_token().await?;
+
+        // Cache it
+        {
+            let mut cached = self.cached_device_token.write().await;
+            *cached = Some(new_token.clone());
+        }
+
+        Ok(new_token.token)
     }
 
-    /// Request a device token.
-    async fn get_device_token(&self) -> XblResult<String> {
+    /// Request a new device token from Xbox Live.
+    async fn request_device_token(&self) -> XblResult<CachedDeviceToken> {
+        debug!("Requesting new device token");
+
         // Matches gophertunnel/Broadcaster key order (sorted)
         let body = serde_json::json!({
             "Properties": {
@@ -180,7 +283,31 @@ impl XblTokenClient {
         }
 
         let device_response: DeviceTokenResponse = response.json().await?;
-        Ok(device_response.token)
+
+        // Parse expiration from NotAfter
+        let expires_at = device_response
+            .not_after
+            .as_ref()
+            .and_then(|na| XblToken::parse_not_after(na))
+            .unwrap_or(0);
+
+        if expires_at > 0 {
+            let secs_until = expires_at.saturating_sub(
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs(),
+            );
+            let days = secs_until / 86400;
+            info!(expires_in_days = days, "Device token acquired");
+        } else {
+            warn!("Device token has no expiration (NotAfter missing)");
+        }
+
+        Ok(CachedDeviceToken {
+            token: device_response.token,
+            expires_at,
+        })
     }
 
     /// Request an XBL token using SISU.
@@ -274,11 +401,38 @@ impl XblTokenClient {
             "User display claims"
         );
 
+        // Parse expiration from NotAfter field
+        let expires_at = xbl_response
+            .authorization_token
+            .not_after
+            .as_ref()
+            .and_then(|na| XblToken::parse_not_after(na))
+            .unwrap_or(0);
+
+        if expires_at > 0 {
+            let secs_until = expires_at.saturating_sub(
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs(),
+            );
+            let hours = secs_until / 3600;
+            let mins = (secs_until % 3600) / 60;
+            info!(
+                rp = ?relying_party,
+                expires_in = format!("{}h {}m", hours, mins),
+                "XBL token expires at"
+            );
+        } else {
+            warn!(rp = ?relying_party, "XBL token has no expiration (NotAfter missing)");
+        }
+
         Ok(XblToken {
             token: xbl_response.authorization_token.token,
             gamertag: user.gtg.unwrap_or_default(),
             xuid: user.xid.unwrap_or_default(),
             user_hash: user.uhs.unwrap_or_default(),
+            expires_at,
         })
     }
 }

@@ -25,7 +25,8 @@ pub struct RtaMessage {
 pub type EventHandler = Box<dyn Fn(&Value) + Send + Sync>;
 
 pub struct RtaClient {
-    token: XblToken,
+    /// The current token - can be updated for reconnection with fresh token.
+    token: Arc<RwLock<XblToken>>,
     connection_id: Arc<RwLock<Option<String>>>,
     shutdown: Arc<RwLock<bool>>,
     event_handlers: Arc<Mutex<Vec<EventHandler>>>,
@@ -34,19 +35,31 @@ pub struct RtaClient {
 impl RtaClient {
     pub fn new(token: XblToken) -> Self {
         Self {
-            token,
+            token: Arc::new(RwLock::new(token)),
             connection_id: Arc::new(RwLock::new(None)),
             shutdown: Arc::new(RwLock::new(false)),
             event_handlers: Arc::new(Mutex::new(Vec::new())),
         }
     }
 
+    /// Update the token for reconnection.
+    /// Call this before reconnecting if the token may have expired.
+    pub async fn update_token(&self, token: XblToken) {
+        *self.token.write().await = token;
+    }
+
+    /// Get a clone of the current token.
+    pub async fn get_token(&self) -> XblToken {
+        self.token.read().await.clone()
+    }
+
     pub async fn connect_and_run(&self) -> XblResult<()> {
+        let token = self.token.read().await.clone();
         let key = tokio_tungstenite::tungstenite::handshake::client::generate_key();
 
         let request = tokio_tungstenite::tungstenite::handshake::client::Request::builder()
             .uri(RTA_URL)
-            .header("Authorization", self.token.auth_header())
+            .header("Authorization", token.auth_header())
             .header("Sec-WebSocket-Key", key)
             .header("Sec-WebSocket-Version", "13")
             .header("Host", "rta.xboxlive.com")
@@ -181,12 +194,13 @@ impl RtaClient {
                 info!("RTA Connection ID: {}", conn_id);
 
                 // Subscribe to friends
+                let xuid = self.token.read().await.xuid.clone();
                 let sub_msg = serde_json::json!([
                     1,
                     2,
                     format!(
                         "https://social.xboxlive.com/users/xuid({})/friends",
-                        self.token.xuid
+                        xuid
                     )
                 ]);
                 write.send(Message::Text(sub_msg.to_string())).await.ok();
