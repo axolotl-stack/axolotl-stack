@@ -17,12 +17,14 @@
 //! ```
 
 pub mod config;
+pub mod discord;
 pub mod screenshots;
 pub mod session;
 pub mod token_cache;
 pub mod transfer;
 
-pub use config::{AxeleratorConfig, ConfigError, LoggingConfig, ScreenshotConfig};
+pub use config::{AxeleratorConfig, ConfigError, DiscordWebhookConfig, LoggingConfig, ScreenshotConfig};
+pub use discord::{DiscordNotifier, NotificationLevel};
 pub use screenshots::ScreenshotManager;
 pub use session::Axelerator;
 pub use token_cache::{CachedToken, TokenCache};

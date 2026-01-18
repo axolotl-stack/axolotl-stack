@@ -65,6 +65,10 @@ pub struct AxeleratorConfig {
     /// Screenshot/showcase image configuration.
     #[serde(default)]
     pub screenshots: ScreenshotConfig,
+
+    /// Discord webhook configuration for error notifications.
+    #[serde(default)]
+    pub discord: DiscordWebhookConfig,
 }
 
 /// Logging configuration.
@@ -148,6 +152,64 @@ impl Default for ScreenshotConfig {
     }
 }
 
+/// Discord webhook configuration for error notifications.
+///
+/// When enabled, critical errors (auth failures after refresh, crashes, etc.)
+/// will be sent to the configured Discord webhook in addition to terminal logging.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct DiscordWebhookConfig {
+    /// Enable Discord webhook notifications.
+    pub enabled: bool,
+
+    /// Discord webhook URL.
+    /// Get this from Discord: Server Settings -> Integrations -> Webhooks -> New Webhook -> Copy URL
+    pub webhook_url: Option<String>,
+
+    /// Custom username for the webhook bot (optional).
+    /// Defaults to "Axelerator".
+    pub username: Option<String>,
+
+    /// Custom avatar URL for the webhook bot (optional).
+    pub avatar_url: Option<String>,
+
+    /// Send notification on successful startup.
+    pub notify_on_startup: bool,
+
+    /// Send notification on graceful shutdown.
+    pub notify_on_shutdown: bool,
+
+    /// Send notification on authentication errors (after token refresh fails).
+    pub notify_on_auth_error: bool,
+
+    /// Send notification on fatal/crash errors.
+    pub notify_on_crash: bool,
+
+    /// Send notification on session tampering detection.
+    pub notify_on_tampering: bool,
+
+    /// Minimum seconds between notifications to prevent spam.
+    /// Default: 60 seconds
+    pub rate_limit_secs: u64,
+}
+
+impl Default for DiscordWebhookConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            webhook_url: None,
+            username: Some("Axelerator".into()),
+            avatar_url: None,
+            notify_on_startup: true,
+            notify_on_shutdown: true,
+            notify_on_auth_error: true,
+            notify_on_crash: true,
+            notify_on_tampering: true,
+            rate_limit_secs: 60,
+        }
+    }
+}
+
 impl Default for AxeleratorConfig {
     fn default() -> Self {
         Self {
@@ -168,6 +230,7 @@ impl Default for AxeleratorConfig {
             auto_block_attackers: false,
             logging: LoggingConfig::default(),
             screenshots: ScreenshotConfig::default(),
+            discord: DiscordWebhookConfig::default(),
         }
     }
 }

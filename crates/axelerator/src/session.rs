@@ -4,6 +4,7 @@
 //! then transfers players to the actual RakNet server.
 
 use crate::config::AxeleratorConfig;
+use crate::discord::DiscordNotifier;
 use crate::screenshots::ScreenshotManager;
 use crate::token_cache::TokenCache;
 use crate::transfer::TransferStats;
@@ -34,16 +35,19 @@ pub struct Axelerator {
     session_info: Arc<RwLock<Option<ExpandedSessionInfo>>>,
     shutdown_notify: Arc<Notify>,
     transfer_shutdown: Arc<Notify>,
+    discord: DiscordNotifier,
 }
 
 impl Axelerator {
     /// Create a new Axelerator instance.
     pub fn new(config: AxeleratorConfig) -> Self {
+        let discord = DiscordNotifier::new(config.discord.clone());
         Self {
             config,
             session_info: Arc::new(RwLock::new(None)),
             shutdown_notify: Arc::new(Notify::new()),
             transfer_shutdown: Arc::new(Notify::new()),
+            discord,
         }
     }
 
@@ -67,6 +71,9 @@ impl Axelerator {
             xuid = %xbl_token.xuid,
             "Authenticated with Xbox Live"
         );
+
+        // Set gamertag for Discord notifications
+        self.discord.set_gamertag(xbl_token.gamertag().to_string()).await;
 
         // Step 1.5: Start RTA and Friend Manager
         let rta_client = Arc::new(axolotl_xbl::RtaClient::new(xbl_token.clone()));
@@ -213,6 +220,9 @@ impl Axelerator {
             "Session created - server is now visible to friends!"
         );
 
+        // Send startup notification to Discord
+        self.discord.notify_startup(&self.config.server_ip, self.config.server_port);
+
         // Store session info with handle_id
         session_info.handle_id = Some(handle_id.clone());
         {
@@ -296,6 +306,9 @@ impl Axelerator {
         } else {
             debug!("Presence set to inactive");
         }
+
+        // Send shutdown notification to Discord
+        self.discord.notify_shutdown("Graceful shutdown");
 
         info!("Cleanup complete");
         result
@@ -480,10 +493,12 @@ impl Axelerator {
                                     // Token expired - refresh and restart
                                     token_refresh_attempts += 1;
                                     if token_refresh_attempts > MAX_TOKEN_REFRESH_ATTEMPTS {
-                                        error!(
+                                        let err_msg = format!(
                                             "Token refresh failed {} times, giving up",
                                             token_refresh_attempts
                                         );
+                                        error!("{}", err_msg);
+                                        self.discord.notify_auth_error(&err_msg);
                                         break;
                                     }
 
@@ -528,17 +543,23 @@ impl Axelerator {
                                     continue;
                                 }
                                 ShutdownReason::ListenerClosed | ShutdownReason::FatalError => {
-                                    error!("Transfer server stopped unexpectedly: {:?}", reason);
+                                    let err_msg = format!("Transfer server stopped unexpectedly: {:?}", reason);
+                                    error!("{}", err_msg);
+                                    self.discord.notify_crash(&err_msg);
                                     break;
                                 }
                             }
                         }
                         Ok(Err(e)) => {
-                            error!("Transfer server error: {}", e);
+                            let err_msg = format!("Transfer server error: {}", e);
+                            error!("{}", err_msg);
+                            self.discord.notify_crash(&err_msg);
                             break;
                         }
                         Err(e) => {
-                            error!("Transfer server task panicked: {}", e);
+                            let err_msg = format!("Transfer server task panicked: {}", e);
+                            error!("{}", err_msg);
+                            self.discord.notify_crash(&err_msg);
                             break;
                         }
                     }
@@ -695,6 +716,14 @@ impl Axelerator {
                                             }
                                         }
                                     }
+
+                                    // Notify Discord about tampering
+                                    let details = result.modified_fields
+                                        .iter()
+                                        .map(|f| format!("**{}**: expected `{}`, got `{}`", f.field, f.expected, f.actual))
+                                        .collect::<Vec<_>>()
+                                        .join("\n");
+                                    self.discord.notify_tampering(&details);
 
                                     info!("Attempting auto-repair...");
                                     match session_client.repair_session(&monitor_token, session).await {
