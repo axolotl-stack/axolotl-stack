@@ -173,7 +173,13 @@ impl<T: Transport> BedrockTransport<T> {
         // 2. Encrypt & Send
         let msg = if self.encryption_enabled {
             let mut bm = BytesMut::from(batch_buffer.as_ref());
+            tracing::trace!(
+                "Encrypting batch of {} bytes (send_counter={})",
+                bm.len(),
+                self.send_counter
+            );
             self.encrypt_outgoing(&mut bm)?;
+            tracing::trace!("Encrypted batch is {} bytes", bm.len());
             TransportMessage::reliable(bm.freeze())
         } else if reliable {
             TransportMessage::reliable(batch_buffer)
@@ -182,9 +188,11 @@ impl<T: Transport> BedrockTransport<T> {
         };
 
         // Send using poll_fn to convert poll-based API to async
+        tracing::trace!("Sending {} bytes to RakNet", msg.buffer.len());
         poll_fn(|cx| Pin::new(&mut self.inner).poll_send(cx, msg.clone()))
             .await
             .map_err(|e| JolyneError::Transport(e.to_string()))?;
+        tracing::trace!("Sent successfully");
 
         Ok(())
     }
@@ -271,10 +279,12 @@ impl<T: Transport> BedrockTransport<T> {
     #[instrument(skip_all, level = "trace", fields(peer_addr = %self.peer_addr()))]
     pub async fn recv_batch_raw(&mut self) -> Result<Vec<RawPacket>, JolyneError> {
         // 1. Read Raw Frame
+        tracing::trace!("Waiting for raw RakNet frame...");
         let recv_result = poll_fn(|cx| Pin::new(&mut self.inner).poll_recv(cx)).await;
         let mut packet_bytes = recv_result
             .ok_or(JolyneError::ConnectionClosed)?
             .map_err(|e| JolyneError::Transport(e.to_string()))?;
+        tracing::trace!("Received {} bytes from RakNet", packet_bytes.len());
 
         // 2. Decrypt
         if self.encryption_enabled {

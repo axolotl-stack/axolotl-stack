@@ -2,7 +2,7 @@
 //!
 //! Update user presence to show as online and playing Minecraft.
 
-use crate::auth::XblToken;
+use crate::auth::{XblToken, sign_request_for_url, update_server_time_from_header};
 use crate::constants::endpoints;
 use crate::error::{XblError, XblResult};
 use serde::Serialize;
@@ -43,26 +43,57 @@ impl PresenceClient {
         }
     }
 
+    fn signature(method: &str, url: &str, authorization: &str, body: &[u8]) -> XblResult<String> {
+        sign_request_for_url(method, url, authorization, body)
+            .map_err(|e| XblError::Auth(format!("Failed to sign Xbox request: {}", e)))
+    }
+
+    fn sync_server_time(response: &reqwest::Response) {
+        if let Some(date) = response.headers().get("Date").and_then(|v| v.to_str().ok()) {
+            update_server_time_from_header(date);
+        }
+    }
+
     /// Update user presence.
     ///
     /// Returns the recommended heartbeat interval in seconds.
     pub async fn update(&self, token: &XblToken, state: PresenceState) -> XblResult<u64> {
         let url = endpoints::USER_PRESENCE_FMT.replace("{}", &token.xuid);
-        let body = PresenceUpdate {
-            state: state.as_str().into(),
-        };
-
         debug!(state = ?state, "Updating presence");
+        let response = match state {
+            PresenceState::Active => {
+                let body = PresenceUpdate {
+                    state: state.as_str().into(),
+                };
+                let body_bytes = serde_json::to_vec(&body)?;
+                let authorization = token.auth_header();
+                let signature = Self::signature("POST", &url, &authorization, &body_bytes)?;
 
-        let response = self
-            .client
-            .post(&url)
-            .header("Authorization", token.auth_header())
-            .header("Content-Type", "application/json")
-            .header("x-xbl-contract-version", "3")
-            .json(&body)
-            .send()
-            .await?;
+                self.client
+                    .post(&url)
+                    .header("Authorization", authorization)
+                    .header("Signature", signature)
+                    .header("Content-Type", "application/json")
+                    .header("x-xbl-contract-version", "3")
+                    .body(body_bytes)
+                    .send()
+                    .await?
+            }
+            // Presence API supports DELETE for inactivation.
+            PresenceState::Inactive => {
+                let authorization = token.auth_header();
+                let signature = Self::signature("DELETE", &url, &authorization, b"")?;
+
+                self.client
+                    .delete(&url)
+                    .header("Authorization", authorization)
+                    .header("Signature", signature)
+                    .header("x-xbl-contract-version", "3")
+                    .send()
+                    .await?
+            }
+        };
+        Self::sync_server_time(&response);
 
         if !response.status().is_success() {
             return Err(XblError::XboxLive(format!(

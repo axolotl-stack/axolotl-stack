@@ -2365,6 +2365,8 @@ dependencies = [
  "aes",
  "aes-gcm",
  "anyhow",
+ "axelerator",
+ "axolotl-xbl",
  "base64 0.22.1",
  "bytes",
  "clap",
@@ -2635,6 +2637,22 @@ dependencies = [
  "libc",
  "wasi",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "mpsd-poc"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axolotl-xbl",
+ "chrono",
+ "clap",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

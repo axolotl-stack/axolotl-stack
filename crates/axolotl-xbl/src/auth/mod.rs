@@ -58,7 +58,9 @@ mod signing;
 mod xbl_token;
 
 pub use device_code::{DeviceCodeAuth, DeviceCodeResponse, OAuthToken};
-pub use signing::{SigningKeyPair, update_server_time_from_header};
+pub use signing::{
+    SigningKeyPair, shared_signing_key, sign_request_for_url, update_server_time_from_header,
+};
 pub use xbl_token::{XblToken, XblTokenClient, relying_party};
 
 /// Minecraft's official client ID.

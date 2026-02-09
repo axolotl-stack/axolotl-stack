@@ -23,7 +23,9 @@ pub mod session;
 pub mod token_cache;
 pub mod transfer;
 
-pub use config::{AxeleratorConfig, ConfigError, DiscordWebhookConfig, LoggingConfig, ScreenshotConfig};
+pub use config::{
+    AxeleratorConfig, ConfigError, DiscordWebhookConfig, LoggingConfig, ScreenshotConfig,
+};
 pub use discord::{DiscordNotifier, NotificationLevel};
 pub use screenshots::ScreenshotManager;
 pub use session::Axelerator;

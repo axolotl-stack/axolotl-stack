@@ -10,7 +10,7 @@ use p384::{PublicKey, SecretKey, pkcs8::DecodePublicKey};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use tokio_raknet::RaknetStream;
-use tracing::{instrument, warn};
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::error::{JolyneError, ProtocolError};
@@ -20,15 +20,40 @@ use crate::stream::{
     transport::{BedrockTransport, RakNetTransport, Transport},
 };
 use crate::valentine::{
-    AvailableEntityIdentifiersPacket, BiomeDefinitionListPacket, ClientToServerHandshakePacket,
-    CreativeContentPacket, ItemRegistryPacket, LoginPacket, PlayStatusPacketStatus,
-    RequestChunkRadiusPacket, RequestNetworkSettingsPacket, ResourcePackClientResponsePacket,
-    ResourcePackClientResponsePacketResponseStatus, ServerboundLoadingScreenPacket,
-    SetLocalPlayerAsInitializedPacket, StartGamePacket,
+    AvailableEntityIdentifiersPacket, BiomeDefinitionListPacket, ClientCacheStatusPacket,
+    ClientToServerHandshakePacket, CreativeContentPacket, ItemRegistryPacket, LoginPacket,
+    PlayStatusPacketStatus, RequestChunkRadiusPacket, RequestNetworkSettingsPacket,
+    ResourcePackClientResponsePacket, ResourcePackClientResponsePacketResponseStatus,
+    ServerboundLoadingScreenPacket, SetLocalPlayerAsInitializedPacket, StartGamePacket,
 };
 use crate::valentine::{McpePacket, McpePacketData};
 
 // --- Config ---
+
+/// Xbox Live credentials for authenticated connections.
+#[derive(Debug, Clone)]
+pub struct XblCredentials {
+    /// The XBL authorization token (from BEDROCK_MULTIPLAYER relying party)
+    pub token: String,
+    /// The user hash for the XBL auth header
+    pub user_hash: String,
+    /// Xbox User ID (numeric string)
+    pub xuid: String,
+}
+
+impl XblCredentials {
+    pub fn new(
+        token: impl Into<String>,
+        user_hash: impl Into<String>,
+        xuid: impl Into<String>,
+    ) -> Self {
+        Self {
+            token: token.into(),
+            user_hash: user_hash.into(),
+            xuid: xuid.into(),
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct ClientHandshakeConfig {
@@ -36,17 +61,37 @@ pub struct ClientHandshakeConfig {
     pub identity_key: SecretKey, // Client's private key
     pub display_name: String,
     pub uuid: Uuid,
+    /// Xbox Live credentials for authenticated servers (optional)
+    pub xbl_credentials: Option<XblCredentials>,
 }
 
 impl ClientHandshakeConfig {
     /// Generates a configuration with a random identity key and UUID.
-    /// Useful for testing or simple bots.
+    /// Useful for testing or simple bots that don't need Xbox Live auth.
     pub fn random(server_addr: SocketAddr, display_name: impl Into<String>) -> Self {
         Self {
             server_addr,
             identity_key: SecretKey::random(&mut rand::thread_rng()),
             display_name: display_name.into(),
             uuid: Uuid::new_v4(),
+            xbl_credentials: None,
+        }
+    }
+
+    /// Creates a configuration with Xbox Live credentials for authenticated servers.
+    pub fn with_xbox_live(
+        server_addr: SocketAddr,
+        identity_key: SecretKey,
+        display_name: impl Into<String>,
+        uuid: Uuid,
+        xbl_credentials: XblCredentials,
+    ) -> Self {
+        Self {
+            server_addr,
+            identity_key,
+            display_name: display_name.into(),
+            uuid,
+            xbl_credentials: Some(xbl_credentials),
         }
     }
 }
@@ -148,12 +193,32 @@ impl<T: Transport> BedrockStream<Login, Client, T> {
         mut self,
         config: &ClientHandshakeConfig,
     ) -> Result<BedrockStream<SecurePending, Client, T>, JolyneError> {
-        // Generate JWT Chain
-        let (chain, client_token) = crate::auth::client::generate_self_signed_chain(
-            &config.identity_key,
-            &config.display_name,
-            config.uuid,
-        )?;
+        // Generate JWT Chain - use Xbox Live auth if credentials provided
+        let (chain, client_token) = if let Some(xbl) = &config.xbl_credentials {
+            // Get Mojang-signed chain from Minecraft authentication service
+            tracing::debug!("Requesting Mojang-signed authentication chain...");
+            let mojang_chain = crate::auth::client::request_minecraft_chain(
+                &config.identity_key,
+                &xbl.token,
+                &xbl.user_hash,
+            )
+            .await?;
+            tracing::debug!("Got Mojang chain, encoding login request");
+
+            // Encode the login request with the Mojang chain
+            crate::auth::client::encode_with_mojang_chain(
+                &config.identity_key,
+                &config.display_name,
+                config.uuid,
+                &mojang_chain,
+            )?
+        } else {
+            crate::auth::client::generate_self_signed_chain(
+                &config.identity_key,
+                &config.display_name,
+                config.uuid,
+            )?
+        };
 
         let login_pkt = LoginPacket {
             protocol_version: crate::valentine::PROTOCOL_VERSION,
@@ -191,10 +256,13 @@ impl<T: Transport> BedrockStream<SecurePending, Client, T> {
         mut self,
         client_identity_key: &SecretKey,
     ) -> Result<BedrockStream<ResourcePacks, Client, T>, JolyneError> {
+        tracing::debug!("Waiting for ServerToClientHandshake...");
         let next_pkt = self.transport.recv_packet().await?;
+        tracing::debug!("Received packet ID: {:?}", next_pkt.data.packet_id());
 
         match next_pkt.data {
             McpePacketData::PacketServerToClientHandshake(hs) => {
+                tracing::debug!("Processing ServerToClientHandshake");
                 // 1. Decode Header to find Server Public Key (x5u)
                 let header = decode_header(&hs.token).map_err(|e| {
                     ProtocolError::UnexpectedHandshake(format!("Invalid JWT Header: {}", e))
@@ -252,9 +320,13 @@ impl<T: Transport> BedrockStream<SecurePending, Client, T> {
                         ProtocolError::UnexpectedHandshake(format!("Invalid payload JSON: {}", e))
                     })?;
 
-                let salt = STANDARD_NO_PAD.decode(&token_data.salt).map_err(|e| {
-                    ProtocolError::UnexpectedHandshake(format!("Invalid salt base64: {}", e))
-                })?;
+                // Try standard base64 first (with padding), fall back to no-pad
+                let salt = STANDARD
+                    .decode(&token_data.salt)
+                    .or_else(|_| STANDARD_NO_PAD.decode(&token_data.salt))
+                    .map_err(|e| {
+                        ProtocolError::UnexpectedHandshake(format!("Invalid salt base64: {}", e))
+                    })?;
 
                 // 3. ECDH Shared Secret
                 let shared_secret = p384::ecdh::diffie_hellman(
@@ -296,37 +368,72 @@ impl<T: Transport> BedrockStream<SecurePending, Client, T> {
                 // Yes, Server enables encryption right after sending. So it expects the NEXT packet (Ack) to be encrypted.
                 // So Client must enable encryption BEFORE sending Ack.
 
+                tracing::debug!("Enabling encryption...");
                 self.transport.enable_encryption(*key, iv);
 
+                tracing::debug!("Sending ClientToServerHandshake...");
                 let ack = ClientToServerHandshakePacket {};
                 self.transport.send_batch(&[McpePacket::from(ack)]).await?;
+                tracing::debug!("ClientToServerHandshake sent");
 
                 // 6. Wait for PlayStatus::LoginSuccess (Encrypted)
-                let status = self.transport.recv_packet().await?;
-                if !matches!(status.data, McpePacketData::PacketPlayStatus(_)) {
-                    // Could be ResourcePacksInfo if server skips PlayStatus?
-                    // But usually LoginSuccess is sent.
-                    // server.rs sends LoginSuccess.
-                    warn!("Expected PlayStatus, got {:?}", status.header.id);
+                // Note: Some servers (like LBSG) send ResourcePacksInfo BEFORE PlayStatus,
+                // so we need to handle both orders.
+                tracing::debug!("Waiting for PlayStatus (may receive ResourcePacksInfo first)...");
+
+                let mut received_play_status = false;
+                let mut early_resource_packs_info: Option<McpePacket> = None;
+
+                // Loop until we get PlayStatus (LoginSuccess)
+                while !received_play_status {
+                    let pkt = self.transport.recv_packet().await?;
+                    tracing::debug!("Received packet: {:?}", pkt.data.packet_id());
+
+                    match &pkt.data {
+                        McpePacketData::PacketPlayStatus(status) => {
+                            tracing::debug!("Received PlayStatus: {:?}", status.status);
+                            if status.status != PlayStatusPacketStatus::LoginSuccess {
+                                return Err(ProtocolError::UnexpectedHandshake(format!(
+                                    "Login failed: {:?}",
+                                    status.status
+                                ))
+                                .into());
+                            }
+                            received_play_status = true;
+                        }
+                        McpePacketData::PacketResourcePacksInfo(_) => {
+                            // LBSG sends ResourcePacksInfo before PlayStatus
+                            tracing::debug!("Received early ResourcePacksInfo (before PlayStatus)");
+                            early_resource_packs_info = Some(pkt);
+                        }
+                        _ => {
+                            // Ignore other packets during handshake
+                            tracing::debug!(
+                                "Ignoring packet during handshake: {:?}",
+                                pkt.data.packet_id()
+                            );
+                        }
+                    }
                 }
 
-                if let McpePacketData::PacketPlayStatus(status) = status.data {
-                    use crate::valentine::PlayStatusPacketStatus;
-                    if status.status != PlayStatusPacketStatus::LoginSuccess {
-                        return Err(ProtocolError::UnexpectedHandshake(format!(
-                            "Login failed: {:?}",
-                            status.status
-                        ))
-                        .into());
-                    }
-                } else {
-                    return Err(ProtocolError::UnexpectedHandshake(
-                        "Expected PlayStatus after encryption".into(),
-                    )
-                    .into());
-                }
+                // Send ClientCacheStatus AFTER PlayStatus - tells server we're ready for ResourcePacksInfo
+                tracing::debug!("Sending ClientCacheStatus (enabled=false)...");
+                let cache_status = ClientCacheStatusPacket { enabled: false };
+                self.transport
+                    .send_batch(&[McpePacket::from(cache_status)])
+                    .await?;
+                tracing::debug!("ClientCacheStatus sent");
 
                 tracing::debug!("Handshake complete, encryption active");
+
+                // Store early ResourcePacksInfo in stream state if received
+                return Ok(BedrockStream {
+                    transport: self.transport,
+                    state: ResourcePacks {
+                        early_packet: early_resource_packs_info,
+                    },
+                    _role: PhantomData,
+                });
             }
             McpePacketData::PacketPlayStatus(status) => {
                 // Encryption skipped by server?
@@ -349,7 +456,7 @@ impl<T: Transport> BedrockStream<SecurePending, Client, T> {
 
         Ok(BedrockStream {
             transport: self.transport,
-            state: ResourcePacks,
+            state: ResourcePacks { early_packet: None },
             _role: PhantomData,
         })
     }
@@ -362,23 +469,128 @@ impl<T: Transport> BedrockStream<ResourcePacks, Client, T> {
     pub async fn handle_packs(
         mut self,
     ) -> Result<BedrockStream<StartGame, Client, T>, JolyneError> {
-        let info_pkt = self.transport.recv_packet().await?;
-        if !matches!(info_pkt.data, McpePacketData::PacketResourcePacksInfo(_)) {
-            return Err(
-                ProtocolError::UnexpectedHandshake("Expected ResourcePacksInfo".into()).into(),
+        // Check if we already received ResourcePacksInfo during handshake (LBSG sends it early)
+        let info_pkt = if let Some(early) = self.state.early_packet.take() {
+            tracing::debug!("Using early ResourcePacksInfo received during handshake");
+            early
+        } else {
+            tracing::debug!("Waiting for ResourcePacksInfo (with 30s timeout)...");
+            // Loop to handle any unexpected packets, with a timeout
+            let timeout_duration = std::time::Duration::from_secs(30);
+            let start = std::time::Instant::now();
+
+            loop {
+                // Check timeout
+                if start.elapsed() > timeout_duration {
+                    tracing::error!(
+                        "Timeout waiting for ResourcePacksInfo after {:?}",
+                        start.elapsed()
+                    );
+                    return Err(ProtocolError::UnexpectedHandshake(
+                        "Timeout waiting for ResourcePacksInfo".into(),
+                    )
+                    .into());
+                }
+
+                // Use tokio timeout for the recv - use raw packet to catch any packets
+                let recv_result = tokio::time::timeout(
+                    std::time::Duration::from_secs(5),
+                    self.transport.recv_packet_raw(),
+                )
+                .await;
+
+                match recv_result {
+                    Ok(Ok(raw_pkt)) => {
+                        let packet_id = raw_pkt.id;
+                        let body_len = raw_pkt.body().len();
+                        tracing::debug!(
+                            "Received raw packet: {:?} (body_len={})",
+                            packet_id,
+                            body_len
+                        );
+
+                        // Try to decode
+                        let pkt = match raw_pkt.decode(&self.transport.session) {
+                            Ok(pkt) => pkt,
+                            Err(e) => {
+                                tracing::warn!("Failed to decode packet {:?}: {:?}", packet_id, e);
+                                continue;
+                            }
+                        };
+
+                        match &pkt.data {
+                            McpePacketData::PacketResourcePacksInfo(_) => break pkt,
+                            McpePacketData::PacketDisconnect(dc) => {
+                                tracing::warn!("Server disconnected: {:?}", dc.reason);
+                                return Err(ProtocolError::UnexpectedHandshake(format!(
+                                    "Server disconnected: {:?}",
+                                    dc.reason
+                                ))
+                                .into());
+                            }
+                            _ => {
+                                tracing::debug!(
+                                    "Ignoring unexpected packet while waiting for ResourcePacksInfo: {:?}",
+                                    pkt.data.packet_id()
+                                );
+                            }
+                        }
+                    }
+                    Ok(Err(e)) => {
+                        tracing::error!("Error receiving packet: {:?}", e);
+                        return Err(e);
+                    }
+                    Err(_) => {
+                        tracing::debug!("No packet received in 5s, still waiting...");
+                    }
+                }
+            }
+        };
+
+        // Extract pack info for logging
+        if let McpePacketData::PacketResourcePacksInfo(ref info) = info_pkt.data {
+            tracing::debug!(
+                "ResourcePacksInfo: must_accept={}, texture_packs={}",
+                info.must_accept,
+                info.texture_packs.len()
             );
+            for pack in &info.texture_packs {
+                tracing::debug!("  Pack: {} v{}", pack.uuid, pack.version);
+            }
         }
 
-        tracing::debug!("Received ResourcePacksInfo");
-
+        // For now, claim we have all packs (don't download any)
+        // This is equivalent to gophertunnel's "AllPacksDownloaded" response
+        tracing::debug!("Sending HaveAllPacks response...");
         let resp = ResourcePackClientResponsePacket {
             response_status: ResourcePackClientResponsePacketResponseStatus::HaveAllPacks,
             resourcepackids: vec![],
         };
         self.transport.send_batch(&[McpePacket::from(resp)]).await?;
 
-        let _stack_pkt = self.transport.recv_packet().await?;
+        // Wait for ResourcePackStack
+        tracing::debug!("Waiting for ResourcePackStack...");
+        let stack_pkt = self.transport.recv_packet().await?;
 
+        if let McpePacketData::PacketResourcePackStack(ref stack) = stack_pkt.data {
+            tracing::debug!(
+                "ResourcePackStack: must_accept={}, game_version={}, resource_packs={}",
+                stack.must_accept,
+                stack.game_version,
+                stack.resource_packs.len()
+            );
+            for pack in &stack.resource_packs {
+                tracing::debug!("  Stack pack: {} v{}", pack.uuid, pack.version);
+            }
+        } else {
+            tracing::warn!(
+                "Expected ResourcePackStack, got: {:?}",
+                stack_pkt.data.packet_id()
+            );
+        }
+
+        // Send Completed to finish resource pack negotiation
+        tracing::debug!("Sending Completed response...");
         let complete = ResourcePackClientResponsePacket {
             response_status: ResourcePackClientResponsePacketResponseStatus::Completed,
             resourcepackids: vec![],
@@ -387,7 +599,7 @@ impl<T: Transport> BedrockStream<ResourcePacks, Client, T> {
             .send_batch(&[McpePacket::from(complete)])
             .await?;
 
-        tracing::debug!("Resource packs negotiated");
+        tracing::debug!("Resource packs negotiated successfully");
 
         Ok(BedrockStream {
             transport: self.transport,
@@ -420,8 +632,47 @@ impl<T: Transport> BedrockStream<StartGame, Client, T> {
         tracing::debug!("Waiting for StartGame sequence...");
 
         // 1. Receive StartGame -> Request Radius -> Receive Spawn
+        // Use raw packet receiving to handle decode errors gracefully
+        let start_time = std::time::Instant::now();
         loop {
-            let pkt = self.transport.recv_packet().await?;
+            // Log periodic status
+            if start_time.elapsed().as_secs() % 10 == 0 && start_time.elapsed().as_secs() > 0 {
+                tracing::debug!(
+                    "Still waiting for StartGame... elapsed={:?}",
+                    start_time.elapsed()
+                );
+            }
+
+            // Use timeout to prevent infinite blocking
+            let recv_result = tokio::time::timeout(
+                std::time::Duration::from_secs(5),
+                self.transport.recv_packet_raw(),
+            )
+            .await;
+
+            let raw_pkt = match recv_result {
+                Ok(Ok(pkt)) => pkt,
+                Ok(Err(e)) => return Err(e),
+                Err(_) => {
+                    tracing::debug!("No packet received in 5s during StartGame, still waiting...");
+                    continue;
+                }
+            };
+
+            // Try to decode the packet - skip on decode errors for non-essential packets
+            let packet_id = raw_pkt.id;
+            let pkt = match raw_pkt.decode(&self.transport.session) {
+                Ok(pkt) => pkt,
+                Err(e) => {
+                    tracing::warn!(
+                        packet_id = ?packet_id,
+                        "Skipping packet due to decode error: {:?}",
+                        e
+                    );
+                    continue;
+                }
+            };
+
             match pkt.data {
                 McpePacketData::PacketStartGame(start) => {
                     tracing::debug!(runtime_id = %start.runtime_entity_id, "StartGame received");
@@ -457,12 +708,23 @@ impl<T: Transport> BedrockStream<StartGame, Client, T> {
                     creative_content = Some(content);
                 }
                 McpePacketData::PacketPlayStatus(status) => {
+                    tracing::debug!("PlayStatus received: {:?}", status.status);
                     if status.status == PlayStatusPacketStatus::PlayerSpawn {
                         tracing::debug!("PlayerSpawn received");
                         break;
                     }
                 }
-                _ => {}
+                McpePacketData::PacketDisconnect(dc) => {
+                    tracing::warn!("Server disconnected: {:?}", dc.reason);
+                    return Err(ProtocolError::UnexpectedHandshake(format!(
+                        "Server disconnected during StartGame: {:?}",
+                        dc.reason
+                    ))
+                    .into());
+                }
+                _ => {
+                    tracing::debug!("StartGame: ignoring packet {:?}", pkt.data.packet_id());
+                }
             }
         }
 

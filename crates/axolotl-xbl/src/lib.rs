@@ -57,6 +57,20 @@ pub use playfab::PlayFabClient;
 pub use presence::{PresenceClient, PresenceState};
 pub use rta::RtaClient;
 pub use session::{
-    ExpandedSessionInfo, HandleHijackResult, HandleInfo, HandleVerification, SessionClient,
-    SessionInfo, SessionSnapshot, SuspiciousHandle, TamperField, TamperResult,
+    // MPSD Enumeration (security research)
+    EnumerationResult,
+    ExpandedSessionInfo,
+    HandleHijackResult,
+    HandleInfo,
+    HandleVerification,
+    MpsdEnumerator,
+    SessionClient,
+    SessionEntry,
+    SessionInfo,
+    SessionSnapshot,
+    SuspiciousHandle,
+    TamperField,
+    TamperResult,
+    scids,
+    templates,
 };

@@ -8,6 +8,8 @@
 /.gemini
 token.json
 token.*.json
+mpsd_token.json
+mpsd_token.*.json
 
 /go-nethernet
 /go-playfab
@@ -25,4 +27,4 @@ worlds/
 /gophertunnel
 /java-ed-world
 /dragonfly
-/broadcaster
+/broadcastergophertunnel/

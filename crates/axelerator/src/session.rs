@@ -13,7 +13,7 @@ use axolotl_xbl::{
     ExpandedSessionInfo, FriendsClient, PlayFabClient, PresenceClient, SessionClient, SessionInfo,
     discovery::DiscoveryClient,
 };
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
@@ -24,6 +24,58 @@ use tracing::{debug, error, info, warn};
 const PRESENCE_INITIAL_BACKOFF_SECS: u64 = 5;
 const PRESENCE_MAX_BACKOFF_SECS: u64 = 300;
 const PRESENCE_MAX_FAILURES: u32 = 5;
+const FRIEND_SYNC_MIN_INTERVAL_SECS: u64 = 20;
+const FRIEND_SYNC_RATE_LIMIT_FALLBACK_SECS: u64 = 60;
+const PROCESSED_XUIDS_MAX_ENTRIES: usize = 50_000;
+
+type SharedProcessedXuids = Arc<RwLock<ProcessedXuids>>;
+
+/// Bounded cache of XUIDs already processed for follow-back/invite flow.
+///
+/// Keeps memory usage fixed while preserving enough history to avoid immediate duplicates.
+struct ProcessedXuids {
+    set: HashSet<String>,
+    order: VecDeque<String>,
+    max_entries: usize,
+}
+
+impl ProcessedXuids {
+    fn new(max_entries: usize) -> Self {
+        Self {
+            set: HashSet::new(),
+            order: VecDeque::new(),
+            max_entries,
+        }
+    }
+
+    fn contains(&self, xuid: &str) -> bool {
+        self.set.contains(xuid)
+    }
+
+    fn insert(&mut self, xuid: String) {
+        if !self.set.insert(xuid.clone()) {
+            return;
+        }
+
+        self.order.push_back(xuid);
+        while self.set.len() > self.max_entries {
+            if let Some(evicted) = self.order.pop_front() {
+                self.set.remove(&evicted);
+            } else {
+                break;
+            }
+        }
+    }
+
+    fn extend<I>(&mut self, xuids: I)
+    where
+        I: IntoIterator<Item = String>,
+    {
+        for xuid in xuids {
+            self.insert(xuid);
+        }
+    }
+}
 
 /// Main Axelerator broadcast server.
 ///
@@ -73,7 +125,9 @@ impl Axelerator {
         );
 
         // Set gamertag for Discord notifications
-        self.discord.set_gamertag(xbl_token.gamertag().to_string()).await;
+        self.discord
+            .set_gamertag(xbl_token.gamertag().to_string())
+            .await;
 
         // Step 1.5: Start RTA and Friend Manager
         let rta_client = Arc::new(axolotl_xbl::RtaClient::new(xbl_token.clone()));
@@ -81,7 +135,9 @@ impl Axelerator {
         let session_client = Arc::new(SessionClient::new());
 
         // Track processed XUIDs to avoid duplicate invites (shared across RTA handler and periodic sync)
-        let processed_xuids: Arc<RwLock<HashSet<String>>> = Arc::new(RwLock::new(HashSet::new()));
+        let processed_xuids: SharedProcessedXuids = Arc::new(RwLock::new(ProcessedXuids::new(
+            PROCESSED_XUIDS_MAX_ENTRIES,
+        )));
 
         let token_cache_for_rta = token_cache.clone();
         let friends_client_clone = friends_client.clone();
@@ -133,14 +189,20 @@ impl Axelerator {
                         break;
                     }
                     result = rta_run.connect_and_run() => {
-                        match result {
+                        let is_auth_error = matches!(&result, Err(e) if e.is_auth_error());
+
+                        match &result {
                             Ok(_) => {
                                 info!("RTA client disconnected normally");
                                 // Reset backoff on clean disconnect (might just be server maintenance)
                                 backoff_ms = 1000;
+                                retry_count = 0;
+                            }
+                            Err(e) if e.is_auth_error() => {
+                                warn!("RTA client auth error: {}", e);
                             }
                             Err(e) => {
-                                warn!("RTA client error: {}", e);
+                                warn!("RTA client transport error: {}", e);
                             }
                         }
 
@@ -148,7 +210,13 @@ impl Axelerator {
 
                         // Refresh token before reconnection attempt
                         // This ensures we don't keep trying with an expired token
-                        match rta_token_cache.get_or_authenticate().await {
+                        let refresh_result = if is_auth_error {
+                            rta_token_cache.force_refresh_xbl().await
+                        } else {
+                            rta_token_cache.get_or_authenticate().await
+                        };
+
+                        match refresh_result {
                             Ok(fresh_token) => {
                                 rta_run.update_token(fresh_token).await;
                                 debug!("RTA token refreshed for reconnection");
@@ -221,7 +289,8 @@ impl Axelerator {
         );
 
         // Send startup notification to Discord
-        self.discord.notify_startup(&self.config.server_ip, self.config.server_port);
+        self.discord
+            .notify_startup(&self.config.server_ip, self.config.server_port);
 
         // Store session info with handle_id
         session_info.handle_id = Some(handle_id.clone());
@@ -229,6 +298,26 @@ impl Axelerator {
             let mut info = self.session_info.write().await;
             *info = Some(session_info.clone());
         }
+
+        // Keep MPSD session connection_id in sync when RTA reconnects.
+        let rta_connection_sync_handle = {
+            let rta = rta_client.clone();
+            let sessions = session_client.clone();
+            let token_cache_for_sync = token_cache.clone();
+            let session_info_for_sync = self.session_info.clone();
+            let shutdown = self.shutdown_notify.clone();
+
+            Some(tokio::spawn(async move {
+                run_rta_connection_sync(
+                    rta,
+                    sessions,
+                    token_cache_for_sync,
+                    session_info_for_sync,
+                    shutdown,
+                )
+                .await;
+            }))
+        };
 
         // Initial friend sync - now that session is created, accept pending requests and send invites
         accept_friends_and_invite(
@@ -241,7 +330,7 @@ impl Axelerator {
         .await;
 
         // Also sync followers on startup (catches people who followed us while we were offline)
-        sync_followers(
+        let _ = sync_followers(
             &friends_client,
             &session_client,
             &token_cache,
@@ -252,7 +341,17 @@ impl Axelerator {
 
         // Start periodic friend sync task (catches followers that RTA might miss, e.g. PS5 users)
         let friend_sync_handle = if self.config.friend_sync_interval > 0 {
-            let interval = Duration::from_secs(self.config.friend_sync_interval);
+            let configured_interval = self.config.friend_sync_interval;
+            let effective_interval = configured_interval.max(FRIEND_SYNC_MIN_INTERVAL_SECS);
+            if effective_interval != configured_interval {
+                warn!(
+                    configured_secs = configured_interval,
+                    effective_secs = effective_interval,
+                    "friend_sync_interval is too low and may hit Xbox rate limits; clamping"
+                );
+            }
+
+            let interval = Duration::from_secs(effective_interval);
             let friends = friends_client.clone();
             let sessions = session_client.clone();
             let token_cache_for_sync = token_cache.clone();
@@ -297,6 +396,11 @@ impl Axelerator {
 
         // Stop friend sync
         if let Some(handle) = friend_sync_handle {
+            handle.abort();
+        }
+
+        // Stop RTA connection sync
+        if let Some(handle) = rta_connection_sync_handle {
             handle.abort();
         }
 
@@ -383,7 +487,8 @@ impl Axelerator {
         };
 
         // Get initial mc_token
-        let mut mc_token = get_fresh_mc_token(token_cache.clone(), session.device_id.clone()).await?;
+        let mut mc_token =
+            get_fresh_mc_token(token_cache.clone(), session.device_id.clone()).await?;
 
         // Create transfer stats tracker
         let transfer_stats = Arc::new(TransferStats::new());
@@ -393,24 +498,25 @@ impl Axelerator {
         const MAX_TOKEN_REFRESH_ATTEMPTS: u32 = 5;
 
         // Spawn the transfer server with proper shutdown handling
-        let spawn_transfer_server = |signaling_url: String,
-                                      nethernet_id: u64,
-                                      mc_token: String,
-                                      config: AxeleratorConfig,
-                                      shutdown: Arc<Notify>,
-                                      stats: Arc<TransferStats>| {
-            tokio::spawn(async move {
-                crate::transfer::run_transfer_server(
-                    &signaling_url,
-                    nethernet_id,
-                    &mc_token,
-                    &config,
-                    shutdown,
-                    Some(stats),
-                )
-                .await
-            })
-        };
+        let spawn_transfer_server =
+            |signaling_url: String,
+             nethernet_id: u64,
+             mc_token: String,
+             config: AxeleratorConfig,
+             shutdown: Arc<Notify>,
+             stats: Arc<TransferStats>| {
+                tokio::spawn(async move {
+                    crate::transfer::run_transfer_server(
+                        &signaling_url,
+                        nethernet_id,
+                        &mc_token,
+                        &config,
+                        shutdown,
+                        Some(stats),
+                    )
+                    .await
+                })
+            };
 
         let mut transfer_handle = spawn_transfer_server(
             signaling_url.clone(),
@@ -834,7 +940,7 @@ async fn accept_friends_and_invite(
     session_client: &SessionClient,
     token_cache: &TokenCache,
     session_info: Arc<RwLock<Option<ExpandedSessionInfo>>>,
-    processed_xuids: &Arc<RwLock<HashSet<String>>>,
+    processed_xuids: &SharedProcessedXuids,
 ) {
     // Get current token
     let token = match token_cache.get_or_authenticate().await {
@@ -921,9 +1027,7 @@ async fn accept_friends_and_invite(
     // Mark all as processed
     {
         let mut processed = processed_xuids.write().await;
-        for xuid in &requests {
-            processed.insert(xuid.clone());
-        }
+        processed.extend(requests.iter().cloned());
     }
 
     // Get session info for sending invites
@@ -981,10 +1085,11 @@ async fn run_periodic_friend_sync(
     token_cache: Arc<TokenCache>,
     session_info: Arc<RwLock<Option<ExpandedSessionInfo>>>,
     shutdown: Arc<Notify>,
-    processed_xuids: Arc<RwLock<HashSet<String>>>,
+    processed_xuids: SharedProcessedXuids,
 ) {
     let mut ticker = tokio::time::interval(interval);
     ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    let mut cooldown_until: Option<Instant> = None;
 
     // Skip first immediate tick (we already did initial sync)
     ticker.tick().await;
@@ -999,7 +1104,131 @@ async fn run_periodic_friend_sync(
             }
 
             _ = ticker.tick() => {
-                sync_followers(&friends_client, &session_client, &token_cache, &session_info, &processed_xuids).await;
+                let now = Instant::now();
+                if let Some(until) = cooldown_until {
+                    if now < until {
+                        let remaining = until.saturating_duration_since(now);
+                        debug!(
+                            remaining_secs = remaining.as_secs(),
+                            "Friend sync is in rate-limit cooldown; skipping tick"
+                        );
+                        continue;
+                    }
+                    cooldown_until = None;
+                }
+
+                if let Some(cooldown) = sync_followers(
+                    &friends_client,
+                    &session_client,
+                    &token_cache,
+                    &session_info,
+                    &processed_xuids,
+                )
+                .await
+                {
+                    let cooldown_secs = cooldown.as_secs();
+                    warn!(
+                        cooldown_secs,
+                        "Friend sync rate-limited; delaying next sync attempts"
+                    );
+                    cooldown_until = Some(Instant::now() + cooldown);
+                }
+            }
+        }
+    }
+}
+
+/// Keep the MPSD session's connection_id updated as RTA reconnects.
+///
+/// Without this, the session can keep a stale RTA connection_id after reconnects,
+/// causing joinability and invite behavior to degrade until restart.
+async fn run_rta_connection_sync(
+    rta_client: Arc<axolotl_xbl::RtaClient>,
+    session_client: Arc<SessionClient>,
+    token_cache: Arc<TokenCache>,
+    session_info: Arc<RwLock<Option<ExpandedSessionInfo>>>,
+    shutdown: Arc<Notify>,
+) {
+    let mut ticker = tokio::time::interval(Duration::from_secs(5));
+    ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+
+    // Track last seen RTA connection_id to detect reconnect changes.
+    let mut last_connection_id = rta_client.connection_id().await;
+
+    loop {
+        tokio::select! {
+            biased;
+
+            _ = shutdown.notified() => {
+                debug!("RTA connection sync shutting down");
+                break;
+            }
+
+            _ = ticker.tick() => {
+                let current_connection_id = match rta_client.connection_id().await {
+                    Some(id) => id,
+                    None => continue,
+                };
+
+                if last_connection_id.as_deref() == Some(current_connection_id.as_str()) {
+                    continue;
+                }
+                last_connection_id = Some(current_connection_id.clone());
+
+                let mut session = match session_info.read().await.clone() {
+                    Some(s) => s,
+                    None => continue,
+                };
+
+                if session.connection_id == current_connection_id {
+                    continue;
+                }
+
+                warn!(
+                    old_connection_id = %session.connection_id,
+                    new_connection_id = %current_connection_id,
+                    "RTA reconnected with a new connection ID; updating session"
+                );
+
+                session.connection_id = current_connection_id.clone();
+
+                let token = match token_cache.get_or_authenticate().await {
+                    Ok(t) => t,
+                    Err(e) => {
+                        warn!("Failed to get XBL token for RTA session sync: {}", e);
+                        continue;
+                    }
+                };
+
+                let update_result = match session_client.create_session(&token, &session).await {
+                    Ok(_) => Ok(()),
+                    Err(e) if e.is_auth_error() => {
+                        warn!("Auth error updating session after RTA reconnect, refreshing token...");
+                        let fresh = match token_cache.force_refresh_xbl().await {
+                            Ok(t) => t,
+                            Err(refresh_err) => {
+                                warn!("Failed to refresh token for RTA session sync: {}", refresh_err);
+                                continue;
+                            }
+                        };
+                        session_client.create_session(&fresh, &session).await
+                    }
+                    Err(e) => Err(e),
+                };
+
+                match update_result {
+                    Ok(_) => {
+                        let mut info = session_info.write().await;
+                        *info = Some(session.clone());
+                        info!(
+                            connection_id = %current_connection_id,
+                            "Session updated with latest RTA connection ID"
+                        );
+                    }
+                    Err(e) => {
+                        warn!("Failed to update session with new RTA connection ID: {}", e);
+                    }
+                }
             }
         }
     }
@@ -1014,14 +1243,14 @@ async fn sync_followers(
     session_client: &SessionClient,
     token_cache: &TokenCache,
     session_info: &Arc<RwLock<Option<ExpandedSessionInfo>>>,
-    processed_xuids: &Arc<RwLock<HashSet<String>>>,
-) {
+    processed_xuids: &SharedProcessedXuids,
+) -> Option<Duration> {
     // Get current token
     let token = match token_cache.get_or_authenticate().await {
         Ok(t) => t,
         Err(e) => {
             debug!("Failed to get XBL token: {}", e);
-            return;
+            return None;
         }
     };
 
@@ -1034,20 +1263,28 @@ async fn sync_followers(
                 Ok(t) => t,
                 Err(e) => {
                     warn!("Failed to refresh XBL token: {}", e);
-                    return;
+                    return None;
                 }
             };
             match friends_client.get_followers(&token).await {
                 Ok(f) => f,
                 Err(e) => {
                     debug!("Failed to get followers after token refresh: {}", e);
-                    return;
+                    let err = e.to_string();
+                    if is_rate_limited_error(&err) {
+                        return Some(Duration::from_secs(FRIEND_SYNC_RATE_LIMIT_FALLBACK_SECS));
+                    }
+                    return None;
                 }
             }
         }
         Err(e) => {
             debug!("Failed to get followers: {}", e);
-            return;
+            let err = e.to_string();
+            if is_rate_limited_error(&err) {
+                return Some(Duration::from_secs(FRIEND_SYNC_RATE_LIMIT_FALLBACK_SECS));
+            }
+            return None;
         }
     };
 
@@ -1063,7 +1300,7 @@ async fn sync_followers(
     drop(processed);
 
     if to_follow.is_empty() {
-        return;
+        return None;
     }
 
     info!("Found {} new followers to follow back", to_follow.len());
@@ -1080,11 +1317,11 @@ async fn sync_followers(
         Ok(t) => t,
         Err(e) => {
             warn!("Failed to get XBL token: {}", e);
-            return;
+            return None;
         }
     };
 
-    // Bulk add all friends at once (with retry on auth error)
+    // Add friends in adaptive mode (bulk first, then individual fallback in client).
     let added_xuids = match friends_client.add_friends_bulk(&token, &xuids).await {
         Ok(added) => {
             for xuid in &added {
@@ -1102,7 +1339,7 @@ async fn sync_followers(
                 Ok(t) => t,
                 Err(e) => {
                     warn!("Failed to refresh XBL token: {}", e);
-                    return;
+                    return None;
                 }
             };
             match friends_client.add_friends_bulk(&token, &xuids).await {
@@ -1120,28 +1357,41 @@ async fn sync_followers(
                     added
                 }
                 Err(e) => {
-                    warn!("Failed to bulk add friends after token refresh: {}", e);
-                    return;
+                    let err_str = e.to_string();
+                    if is_rate_limited_error(&err_str) {
+                        let retry_after = parse_retry_after_secs(&err_str)
+                            .unwrap_or(FRIEND_SYNC_RATE_LIMIT_FALLBACK_SECS);
+                        warn!(
+                            retry_after_secs = retry_after,
+                            "Rate limited while following friends after token refresh"
+                        );
+                        return Some(Duration::from_secs(retry_after));
+                    }
+                    warn!("Failed to add friends after token refresh: {}", e);
+                    return None;
                 }
             }
         }
         Err(e) => {
             let err_str = e.to_string();
-            if err_str.contains("Rate limited") {
-                warn!("Rate limited while following friends, will retry next cycle");
-            } else {
-                warn!("Failed to bulk add friends: {}", e);
+            if is_rate_limited_error(&err_str) {
+                let retry_after = parse_retry_after_secs(&err_str)
+                    .unwrap_or(FRIEND_SYNC_RATE_LIMIT_FALLBACK_SECS);
+                warn!(
+                    retry_after_secs = retry_after,
+                    "Rate limited while following friends"
+                );
+                return Some(Duration::from_secs(retry_after));
             }
-            return;
+            warn!("Failed to add friends: {}", e);
+            return None;
         }
     };
 
     // Mark successfully added as processed
     {
         let mut processed = processed_xuids.write().await;
-        for xuid in &added_xuids {
-            processed.insert(xuid.clone());
-        }
+        processed.extend(added_xuids.iter().cloned());
     }
 
     // Send invites to all successfully added friends
@@ -1149,7 +1399,7 @@ async fn sync_followers(
         Some(s) => s,
         None => {
             debug!("Session not yet created, skipping invites");
-            return;
+            return None;
         }
     };
 
@@ -1158,7 +1408,7 @@ async fn sync_followers(
         Ok(t) => t,
         Err(e) => {
             warn!("Failed to get XBL token for invites: {}", e);
-            return;
+            return None;
         }
     };
 
@@ -1192,6 +1442,27 @@ async fn sync_followers(
             Err(e) => warn!("Failed to send invite to {}: {}", gamertag, e),
         }
     }
+
+    None
+}
+
+fn is_rate_limited_error(err: &str) -> bool {
+    let lower = err.to_ascii_lowercase();
+    lower.contains("429")
+        || lower.contains("rate limited")
+        || lower.contains("too many requests")
+        || lower.contains("retry after")
+}
+
+fn parse_retry_after_secs(err: &str) -> Option<u64> {
+    let lower = err.to_ascii_lowercase();
+    let idx = lower.find("retry after ")?;
+    let rest = &lower[idx + "retry after ".len()..];
+    let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+    if digits.is_empty() {
+        return None;
+    }
+    digits.parse::<u64>().ok()
 }
 
 /// Check if an XUID is a guest/split-screen account.

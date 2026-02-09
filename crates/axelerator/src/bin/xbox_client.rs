@@ -265,6 +265,7 @@ async fn main() -> Result<()> {
     let xbl_credentials = jolyne::stream::client::XblCredentials::new(
         &bedrock_token.token,
         &bedrock_token.user_hash,
+        &bedrock_token.xuid,
     );
 
     let client_config = ClientHandshakeConfig::with_xbox_live(

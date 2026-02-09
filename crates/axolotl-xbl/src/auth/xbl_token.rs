@@ -12,12 +12,13 @@
 use crate::error::{XblError, XblResult};
 use chrono::DateTime;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{debug, info, warn};
 use uuid::Uuid;
 
 use super::device_code::OAuthToken;
-use super::signing::SigningKeyPair;
+use super::signing::{SigningKeyPair, shared_signing_key};
 use super::{DEVICE_AUTH_URL, SISU_AUTHORIZE_URL};
 
 /// Buffer time (in seconds) before actual expiration to trigger refresh.
@@ -169,7 +170,7 @@ impl CachedDeviceToken {
 /// Acquires Xbox Live tokens from OAuth tokens.
 pub struct XblTokenClient {
     client: reqwest::Client,
-    signing_key: SigningKeyPair,
+    signing_key: Arc<SigningKeyPair>,
     /// Cached device token with expiration tracking.
     cached_device_token: tokio::sync::RwLock<Option<CachedDeviceToken>>,
 }
@@ -179,7 +180,7 @@ impl XblTokenClient {
     pub fn new() -> Self {
         Self {
             client: reqwest::Client::new(),
-            signing_key: SigningKeyPair::generate(),
+            signing_key: shared_signing_key(),
             cached_device_token: tokio::sync::RwLock::new(None),
         }
     }

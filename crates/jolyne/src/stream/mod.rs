@@ -105,7 +105,11 @@ pub struct SecurePending {
 impl State for SecurePending {}
 
 /// State: Negotiating resource packs (ResourcePacksInfo, ResourcePackStack).
-pub struct ResourcePacks;
+pub struct ResourcePacks {
+    /// Some servers (like LBSG) send ResourcePacksInfo before PlayStatus.
+    /// If we received it early during handshake, it's stored here.
+    pub early_packet: Option<McpePacket>,
+}
 impl State for ResourcePacks {}
 
 /// State: Connection is initialized, waiting for StartGame packet/processing.

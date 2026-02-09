@@ -110,8 +110,8 @@ impl CachedXblToken {
 pub struct TokenCache {
     /// Path to the cache file.
     path: PathBuf,
-    /// Cached OAuth token (with RwLock for refresh support).
-    oauth: RwLock<Option<OAuthToken>>,
+    /// Cached OAuth token with expiry metadata.
+    oauth: RwLock<Option<CachedToken>>,
     /// Cached XBL token for default RP (Xbox Live).
     xbl: RwLock<Option<CachedXblToken>>,
     /// XBL token client - reused to share device token across all RP requests.
@@ -210,9 +210,11 @@ impl TokenCache {
     pub async fn force_refresh_xbl(&self) -> Result<XblToken> {
         info!("Force refreshing XBL token...");
 
-        // Clear the cached XBL token
+        // Clear in-memory caches so OAuth is reloaded/refreshed too.
         {
+            let mut oauth = self.oauth.write().await;
             let mut cached = self.xbl.write().await;
+            *oauth = None;
             *cached = None;
         }
 
@@ -222,23 +224,49 @@ impl TokenCache {
 
     /// Get or refresh the OAuth token.
     async fn get_or_refresh_oauth(&self) -> Result<OAuthToken> {
-        // Check if we have a valid cached OAuth token
+        // Check if we have a valid cached OAuth token.
         {
             let cached = self.oauth.read().await;
             if let Some(ref token) = *cached {
-                // OAuth tokens are short-lived (1 hour), but we refresh them
-                // when getting XBL tokens, so just return it
-                return Ok(token.clone());
+                if !token.is_expired() {
+                    return Ok(token.oauth.clone());
+                }
+
+                debug!(
+                    expires_at = token.expires_at,
+                    "Cached OAuth token expired, attempting refresh..."
+                );
             }
         }
 
-        // Need to load or create OAuth token
+        // Attempt to refresh expired in-memory OAuth token before loading from disk.
+        let expired_token = {
+            let cached = self.oauth.read().await;
+            cached.as_ref().map(|t| t.oauth.clone())
+        };
+
+        if let Some(old_token) = expired_token {
+            match self.try_refresh(&old_token).await {
+                Ok(refreshed) => {
+                    let mut cached = self.oauth.write().await;
+                    *cached = Some(CachedToken::new(refreshed.clone()));
+                    return Ok(refreshed);
+                }
+                Err(e) => {
+                    warn!("In-memory OAuth refresh failed: {}", e);
+                    let mut cached = self.oauth.write().await;
+                    *cached = None;
+                }
+            }
+        }
+
+        // Need to load or create OAuth token.
         let token = self.load_or_authenticate_oauth().await?;
 
-        // Cache it
+        // Cache it with expiry metadata.
         {
             let mut cached = self.oauth.write().await;
-            *cached = Some(token.clone());
+            *cached = Some(CachedToken::new(token.clone()));
         }
 
         Ok(token)

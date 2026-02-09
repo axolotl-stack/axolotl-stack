@@ -4,10 +4,10 @@
 
 use glam::DVec3;
 use jolyne::auth::ValidatedIdentity;
+use jolyne::stream::raknet_types::{ServerLogin, ServerPlay};
 use jolyne::stream::server::ServerHandshakeConfig;
 use jolyne::valentine::BlockCoordinates;
 use jolyne::valentine::types::Vec3F;
-use jolyne::stream::raknet_types::{ServerLogin, ServerPlay};
 use jolyne::{JolyneError, WorldTemplate};
 use p384::SecretKey;
 

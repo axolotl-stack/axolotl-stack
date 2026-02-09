@@ -129,11 +129,7 @@ impl GameServer {
         ecs.world_mut().add_observer(on_block_changed);
         register_chunk_systems(ecs.schedule_mut());
         ecs.schedule_mut().add_systems(
-            (
-                tick_block_breaking,
-                plugins::process_plugin_actions,
-            )
-                .in_set(EntityLogicSet),
+            (tick_block_breaking, plugins::process_plugin_actions).in_set(EntityLogicSet),
         );
         ecs.schedule_mut().add_systems(
             (

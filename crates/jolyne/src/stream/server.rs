@@ -244,7 +244,7 @@ impl<T: Transport> BedrockStream<SecurePending, Server, T> {
 
         Ok(BedrockStream {
             transport: self.transport,
-            state: ResourcePacks,
+            state: ResourcePacks { early_packet: None },
             _role: PhantomData,
         })
     }

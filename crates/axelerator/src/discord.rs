@@ -29,7 +29,7 @@ impl NotificationLevel {
         match self {
             NotificationLevel::Info => 0x3498db,     // Blue
             NotificationLevel::Warning => 0xf39c12,  // Orange
-            NotificationLevel::Error => 0xe74c3c,   // Red
+            NotificationLevel::Error => 0xe74c3c,    // Red
             NotificationLevel::Critical => 0x9b59b6, // Purple
         }
     }
@@ -305,7 +305,11 @@ impl DiscordNotifier {
 
             let embed_fields: Vec<EmbedField> = fields
                 .into_iter()
-                .map(|(name, value, inline)| EmbedField { name, value, inline })
+                .map(|(name, value, inline)| EmbedField {
+                    name,
+                    value,
+                    inline,
+                })
                 .collect();
 
             let embed = DiscordEmbed {

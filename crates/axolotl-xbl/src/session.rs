@@ -7,7 +7,7 @@
 //! Use [`SessionClient::get_session`] and [`SessionClient::get_session_via_handle`]
 //! to monitor session state and detect tampering attacks.
 
-use crate::auth::XblToken;
+use crate::auth::{XblToken, sign_request_for_url, update_server_time_from_header};
 use crate::constants::{SERVICE_CONFIG_ID, TEMPLATE_NAME, TITLE_ID, endpoints};
 use crate::error::{XblError, XblResult};
 use serde::{Deserialize, Serialize};
@@ -440,6 +440,17 @@ impl SessionClient {
         }
     }
 
+    fn signature(method: &str, url: &str, authorization: &str, body: &[u8]) -> XblResult<String> {
+        sign_request_for_url(method, url, authorization, body)
+            .map_err(|e| XblError::Auth(format!("Failed to sign Xbox request: {}", e)))
+    }
+
+    fn sync_server_time(response: &reqwest::Response) {
+        if let Some(date) = response.headers().get("Date").and_then(|v| v.to_str().ok()) {
+            update_server_time_from_header(date);
+        }
+    }
+
     /// Create or update a session.
     pub async fn create_session(
         &self,
@@ -448,18 +459,23 @@ impl SessionClient {
     ) -> XblResult<()> {
         let url = format!("{}{}", endpoints::CREATE_SESSION_FMT, session.session_id);
         let body = CreateSessionRequest::from_session(session);
+        let body_bytes = serde_json::to_vec(&body)?;
+        let authorization = token.auth_header();
+        let signature = Self::signature("PUT", &url, &authorization, &body_bytes)?;
 
         debug!(session_id = %session.session_id, "Creating session");
 
         let response = self
             .client
             .put(&url)
-            .header("Authorization", token.auth_header())
+            .header("Authorization", authorization)
+            .header("Signature", signature)
             .header("Content-Type", "application/json")
             .header("x-xbl-contract-version", "107")
-            .json(&body)
+            .body(body_bytes)
             .send()
             .await?;
+        Self::sync_server_time(&response);
 
         if !response.status().is_success() {
             let status = response.status();
@@ -491,18 +507,28 @@ impl SessionClient {
             invited_xuid: None,
             invite_attributes: None,
         };
+        let body_bytes = serde_json::to_vec(&body)?;
+        let authorization = token.auth_header();
+        let signature = Self::signature(
+            "POST",
+            endpoints::CREATE_HANDLE,
+            &authorization,
+            &body_bytes,
+        )?;
 
         debug!("Creating session handle");
 
         let response = self
             .client
             .post(endpoints::CREATE_HANDLE)
-            .header("Authorization", token.auth_header())
+            .header("Authorization", authorization)
+            .header("Signature", signature)
             .header("Content-Type", "application/json")
             .header("x-xbl-contract-version", "107")
-            .json(&body)
+            .body(body_bytes)
             .send()
             .await?;
+        Self::sync_server_time(&response);
 
         if !response.status().is_success() {
             let status = response.status();
@@ -539,16 +565,26 @@ impl SessionClient {
             invited_xuid: Some(xuid.into()),
             invite_attributes: Some(invite_attributes),
         };
+        let body_bytes = serde_json::to_vec(&body)?;
+        let authorization = token.auth_header();
+        let signature = Self::signature(
+            "POST",
+            endpoints::CREATE_HANDLE,
+            &authorization,
+            &body_bytes,
+        )?;
 
         let response = self
             .client
             .post(endpoints::CREATE_HANDLE)
-            .header("Authorization", token.auth_header())
+            .header("Authorization", authorization)
+            .header("Signature", signature)
             .header("Content-Type", "application/json")
             .header("x-xbl-contract-version", "107")
-            .json(&body)
+            .body(body_bytes)
             .send()
             .await?;
+        Self::sync_server_time(&response);
 
         if !response.status().is_success() {
             return Err(XblError::XboxLive(format!(
@@ -574,14 +610,18 @@ impl SessionClient {
         session_id: &str,
     ) -> XblResult<serde_json::Value> {
         let url = format!("{}{}", endpoints::CREATE_SESSION_FMT, session_id);
+        let authorization = token.auth_header();
+        let signature = Self::signature("GET", &url, &authorization, b"")?;
 
         let response = self
             .client
             .get(&url)
-            .header("Authorization", token.auth_header())
+            .header("Authorization", authorization)
+            .header("Signature", signature)
             .header("x-xbl-contract-version", "107")
             .send()
             .await?;
+        Self::sync_server_time(&response);
 
         if !response.status().is_success() {
             let status = response.status();
@@ -606,14 +646,18 @@ impl SessionClient {
         handle_id: &str,
     ) -> XblResult<serde_json::Value> {
         let url = endpoints::JOIN_SESSION_FMT.replace("{}", handle_id);
+        let authorization = token.auth_header();
+        let signature = Self::signature("GET", &url, &authorization, b"")?;
 
         let response = self
             .client
             .get(&url)
-            .header("Authorization", token.auth_header())
+            .header("Authorization", authorization)
+            .header("Signature", signature)
             .header("x-xbl-contract-version", "107")
             .send()
             .await?;
+        Self::sync_server_time(&response);
 
         if !response.status().is_success() {
             let status = response.status();
@@ -800,14 +844,18 @@ impl SessionClient {
         handle_id: &str,
     ) -> XblResult<serde_json::Value> {
         let url = endpoints::GET_HANDLE_FMT.replace("{}", handle_id);
+        let authorization = token.auth_header();
+        let signature = Self::signature("GET", &url, &authorization, b"")?;
 
         let response = self
             .client
             .get(&url)
-            .header("Authorization", token.auth_header())
+            .header("Authorization", authorization)
+            .header("Signature", signature)
             .header("x-xbl-contract-version", "107")
             .send()
             .await?;
+        Self::sync_server_time(&response);
 
         if !response.status().is_success() {
             let status = response.status();
@@ -982,6 +1030,712 @@ pub struct HandleHijackResult {
 }
 
 impl Default for SessionClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ============================================================================
+// MPSD Enumeration API (Security Research)
+// ============================================================================
+
+/// Known Minecraft Service Configuration IDs (SCIDs).
+/// Different sources report different SCIDs - we test both.
+pub mod scids {
+    /// SCID used in axolotl-stack (from reverse engineering).
+    pub const AXOLOTL: &str = "4fc10100-5f7a-4470-899b-280835760c07";
+    /// SCID reported in security research discussions.
+    pub const RESEARCH: &str = "4fc10100-5f7a-4470-899b-034571447731";
+}
+
+/// Known Minecraft session template names.
+pub mod templates {
+    /// Main lobby template for Minecraft sessions.
+    pub const MINECRAFT_LOBBY: &str = "MinecraftLobby";
+    /// Realms template (discovered via enumeration).
+    pub const MINECRAFT_REALMS: &str = "MinecraftRealms";
+    /// All known valid templates.
+    pub const ALL: &[&str] = &[MINECRAFT_LOBBY, MINECRAFT_REALMS];
+}
+
+/// A session entry returned from bulk queries.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionEntry {
+    /// Session name/ID.
+    pub name: Option<String>,
+    /// Session reference.
+    #[serde(rename = "sessionRef")]
+    pub session_ref: Option<SessionRefResponse>,
+    /// Custom properties (contains NetherNet ID, version, etc).
+    pub custom_properties: Option<serde_json::Value>,
+    /// When this entry expires.
+    pub expiration_time: Option<String>,
+}
+
+/// Session reference in response.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionRefResponse {
+    pub scid: Option<String>,
+    pub template_name: Option<String>,
+    pub name: Option<String>,
+}
+
+/// Response from session enumeration queries.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionQueryResponse {
+    /// List of sessions found.
+    pub results: Option<Vec<SessionEntry>>,
+    /// Continuation token for pagination.
+    pub continuation_token: Option<String>,
+}
+
+/// Response from template enumeration.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TemplateQueryResponse {
+    /// List of template names.
+    pub results: Option<Vec<TemplateEntry>>,
+}
+
+/// A template entry.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TemplateEntry {
+    pub name: Option<String>,
+}
+
+/// Batch query request body (for /batch endpoints).
+#[derive(Debug, Serialize)]
+pub struct BatchQueryRequest {
+    /// Array of XUIDs to query.
+    pub xuids: Vec<String>,
+}
+
+/// Handle query request body (for /handles/query).
+/// See: https://docs.microsoft.com/en-us/gaming/xbox-live/features/multiplayer/mpsd/concepts/live-mpsd-handles
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HandleQueryRequest {
+    /// Type of handles to query (e.g., "activity", "invite").
+    #[serde(rename = "type")]
+    pub handle_type: String,
+    /// Owners to query - array of objects with "type" and "xuid".
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owners: Option<HandleOwners>,
+}
+
+/// Owners specification for handle query.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HandleOwners {
+    /// Type of owner lookup (e.g., "user").
+    #[serde(rename = "type")]
+    pub owner_type: String,
+    /// XUIDs of owners to query.
+    pub xuids: Vec<String>,
+}
+
+/// Result of an enumeration attempt.
+#[derive(Debug)]
+pub struct EnumerationResult {
+    /// The endpoint tested.
+    pub endpoint: String,
+    /// HTTP status code received.
+    pub status: u16,
+    /// Whether the query was successful.
+    pub success: bool,
+    /// Number of sessions returned (if any).
+    pub session_count: usize,
+    /// Raw response body (for analysis).
+    pub raw_response: String,
+    /// Parsed sessions (if successful).
+    pub sessions: Vec<SessionEntry>,
+    /// Error message (if failed).
+    pub error: Option<String>,
+}
+
+/// MPSD Enumeration client for security research.
+///
+/// This client tests whether the Xbox Live MPSD API allows
+/// enumeration of sessions beyond what should be accessible.
+pub struct MpsdEnumerator {
+    client: reqwest::Client,
+}
+
+impl MpsdEnumerator {
+    pub fn new() -> Self {
+        Self {
+            client: reqwest::Client::new(),
+        }
+    }
+
+    fn signature(
+        method: &str,
+        url: &str,
+        authorization: &str,
+        body: &[u8],
+    ) -> Result<String, String> {
+        sign_request_for_url(method, url, authorization, body)
+    }
+
+    fn sync_server_time(response: &reqwest::Response) {
+        if let Some(date) = response.headers().get("Date").and_then(|v| v.to_str().ok()) {
+            update_server_time_from_header(date);
+        }
+    }
+
+    /// Enumerate session templates for a SCID.
+    ///
+    /// GET /serviceconfigs/{scid}/sessiontemplates
+    pub async fn enumerate_templates(&self, token: &XblToken, scid: &str) -> EnumerationResult {
+        let url = endpoints::SESSION_TEMPLATES_FMT.replace("{scid}", scid);
+
+        self.do_get_request(token, &url, "enumerate_templates")
+            .await
+    }
+
+    /// Enumerate sessions by SCID only.
+    ///
+    /// GET /serviceconfigs/{scid}/sessions
+    pub async fn enumerate_by_scid(&self, token: &XblToken, scid: &str) -> EnumerationResult {
+        let url = endpoints::SCID_SESSIONS_FMT.replace("{scid}", scid);
+
+        self.do_get_request(token, &url, "enumerate_by_scid").await
+    }
+
+    /// Enumerate sessions by SCID and template.
+    ///
+    /// GET /serviceconfigs/{scid}/sessiontemplates/{templateName}/sessions
+    pub async fn enumerate_by_template(
+        &self,
+        token: &XblToken,
+        scid: &str,
+        template: &str,
+    ) -> EnumerationResult {
+        let url = endpoints::TEMPLATE_SESSIONS_FMT
+            .replace("{scid}", scid)
+            .replace("{template}", template);
+
+        self.do_get_request(token, &url, "enumerate_by_template")
+            .await
+    }
+
+    /// Batch query at SCID level with list of XUIDs.
+    ///
+    /// POST /serviceconfigs/{scid}/batch
+    pub async fn batch_query_scid(
+        &self,
+        token: &XblToken,
+        scid: &str,
+        xuids: &[&str],
+    ) -> EnumerationResult {
+        let url = endpoints::SCID_BATCH_FMT.replace("{scid}", scid);
+
+        let body = BatchQueryRequest {
+            xuids: xuids.iter().map(|s| s.to_string()).collect(),
+        };
+
+        self.do_post_request(token, &url, &body, "batch_query_scid")
+            .await
+    }
+
+    /// Batch query at template level with list of XUIDs.
+    ///
+    /// POST /serviceconfigs/{scid}/sessiontemplates/{templateName}/batch
+    pub async fn batch_query_template(
+        &self,
+        token: &XblToken,
+        scid: &str,
+        template: &str,
+        xuids: &[&str],
+    ) -> EnumerationResult {
+        let url = endpoints::TEMPLATE_BATCH_FMT
+            .replace("{scid}", scid)
+            .replace("{template}", template);
+
+        let body = BatchQueryRequest {
+            xuids: xuids.iter().map(|s| s.to_string()).collect(),
+        };
+
+        self.do_post_request(token, &url, &body, "batch_query_template")
+            .await
+    }
+
+    /// Query session handles by type.
+    ///
+    /// POST /handles/query
+    pub async fn query_handles(
+        &self,
+        token: &XblToken,
+        handle_type: &str,
+        xuids: &[&str],
+    ) -> EnumerationResult {
+        let body = HandleQueryRequest {
+            handle_type: handle_type.to_string(),
+            owners: Some(HandleOwners {
+                owner_type: "user".to_string(),
+                xuids: xuids.iter().map(|s| s.to_string()).collect(),
+            }),
+        };
+
+        self.do_post_request(token, endpoints::QUERY_HANDLES, &body, "query_handles")
+            .await
+    }
+
+    /// Enumerate sessions by keyword search.
+    /// This is the potential vulnerability vector - can we search for sessions
+    /// that don't belong to our friends?
+    ///
+    /// GET /serviceconfigs/{scid}/sessiontemplates/{templateName}/sessions?keyword=...
+    pub async fn enumerate_by_keyword(
+        &self,
+        token: &XblToken,
+        scid: &str,
+        template: &str,
+        keyword: &str,
+    ) -> EnumerationResult {
+        self.enumerate_with_params(token, scid, template, &[("keyword", keyword)], "107")
+            .await
+    }
+
+    /// Query PeopleHub for friend presence with decorations.
+    /// This might expose session/game info for friends.
+    pub async fn query_peoplehub_presence(&self, token: &XblToken) -> EnumerationResult {
+        // Simple friends list with presence
+        let url = "https://peoplehub.xboxlive.com/users/me/people/social";
+
+        self.do_get_request_with_headers(
+            token,
+            &url,
+            "peoplehub_presence",
+            &[
+                ("x-xbl-contract-version", "5"),
+                ("Accept-Encoding", "identity"), // Disable compression
+            ],
+        )
+        .await
+    }
+
+    /// Query activity feed for potential session exposure.
+    pub async fn query_activity_feed(&self, token: &XblToken) -> EnumerationResult {
+        // Correct activity endpoint
+        let url = "https://userpresence.xboxlive.com/users/me";
+
+        self.do_get_request_with_headers(
+            token,
+            &url,
+            "activity_feed",
+            &[("x-xbl-contract-version", "3")],
+        )
+        .await
+    }
+
+    /// Get rich presence for a specific XUID - might contain session handle.
+    pub async fn get_user_presence(&self, token: &XblToken, xuid: &str) -> EnumerationResult {
+        // Get presence record for a user
+        let url = format!("https://userpresence.xboxlive.com/users/xuid({})", xuid);
+
+        self.do_get_request_with_headers(
+            token,
+            &url,
+            "user_presence",
+            &[("x-xbl-contract-version", "3")],
+        )
+        .await
+    }
+
+    /// Get multiplayer activity for friends - might expose session handles
+    pub async fn get_multiplayer_activity(&self, token: &XblToken) -> EnumerationResult {
+        // Try POST instead of GET
+        let url = "https://sessiondirectory.xboxlive.com/handles/query";
+
+        let body = serde_json::json!({
+            "type": "activity",
+            "scid": SERVICE_CONFIG_ID
+        });
+
+        self.do_post_request(token, &url, &body, "multiplayer_activity")
+            .await
+    }
+
+    // ========================================================================
+    // Minecraft Signaling Server Tests
+    // ========================================================================
+
+    /// Test signaling server HTTP endpoints.
+    /// The signaling server is at signal.franchise.minecraft-services.net
+    pub async fn test_signaling_discovery(&self, token: &XblToken) -> EnumerationResult {
+        // Try the root endpoint
+        let url = "https://signal.franchise.minecraft-services.net/";
+
+        self.do_get_request(token, &url, "signaling_root").await
+    }
+
+    /// Test signaling API endpoints
+    pub async fn test_signaling_api(&self, token: &XblToken) -> EnumerationResult {
+        let url = "https://signal.franchise.minecraft-services.net/api/v1.0/";
+
+        self.do_get_request(token, &url, "signaling_api").await
+    }
+
+    /// Test authorization server session endpoints
+    pub async fn test_auth_sessions(&self, token: &XblToken) -> EnumerationResult {
+        // Try listing sessions endpoint
+        let url = "https://authorization.franchise.minecraft-services.net/api/v1.0/sessions";
+
+        self.do_get_request(token, &url, "auth_sessions").await
+    }
+
+    /// Test Minecraft services discovery
+    pub async fn test_mc_discovery(&self, token: &XblToken) -> EnumerationResult {
+        let url = "https://client.discovery.minecraft-services.net/api/v1.0/discovery/MinecraftPE";
+
+        self.do_get_request(token, &url, "mc_discovery").await
+    }
+
+    /// Test Realms API
+    pub async fn test_realms_api(&self, token: &XblToken) -> EnumerationResult {
+        let url = "https://pocket.realms.minecraft.net/worlds";
+
+        self.do_get_request_with_headers(
+            token,
+            &url,
+            "realms_api",
+            &[("Client-Version", "1.21.50"), ("User-Agent", "MCPE/UWP")],
+        )
+        .await
+    }
+
+    async fn do_get_request_with_headers(
+        &self,
+        token: &XblToken,
+        url: &str,
+        endpoint_name: &str,
+        headers: &[(&str, &str)],
+    ) -> EnumerationResult {
+        debug!("GET {} with custom headers", url);
+        let authorization = token.auth_header();
+        let signature = match Self::signature("GET", url, &authorization, b"") {
+            Ok(sig) => sig,
+            Err(e) => {
+                return EnumerationResult {
+                    endpoint: format!("{} ({})", endpoint_name, url),
+                    status: 0,
+                    success: false,
+                    session_count: 0,
+                    raw_response: String::new(),
+                    sessions: Vec::new(),
+                    error: Some(format!("Failed to sign request: {}", e)),
+                };
+            }
+        };
+
+        let mut req = self
+            .client
+            .get(url)
+            .header("Authorization", authorization.clone())
+            .header("Signature", signature)
+            .header("Accept", "application/json");
+
+        for (key, value) in headers {
+            req = req.header(*key, *value);
+        }
+
+        let response = match req.send().await {
+            Ok(r) => {
+                Self::sync_server_time(&r);
+                r
+            }
+            Err(e) => {
+                return EnumerationResult {
+                    endpoint: format!("{} ({})", endpoint_name, url),
+                    status: 0,
+                    success: false,
+                    session_count: 0,
+                    raw_response: String::new(),
+                    sessions: Vec::new(),
+                    error: Some(format!("Request failed: {}", e)),
+                };
+            }
+        };
+
+        let status = response.status().as_u16();
+        let body = response.text().await.unwrap_or_default();
+
+        self.parse_response(endpoint_name, url, status, body)
+    }
+
+    /// Run all enumeration tests and return results.
+    pub async fn run_all_tests(&self, token: &XblToken) -> Vec<EnumerationResult> {
+        let mut results = Vec::new();
+        let own_xuid = token.xuid();
+
+        // Test both known SCIDs
+        for scid in [scids::AXOLOTL, scids::RESEARCH] {
+            info!("Testing SCID: {}", scid);
+
+            // 1. Enumerate templates
+            results.push(self.enumerate_templates(token, scid).await);
+
+            // 2. Enumerate by SCID only
+            results.push(self.enumerate_by_scid(token, scid).await);
+
+            // 3. Enumerate by each template (with XUID)
+            for template in templates::ALL {
+                results.push(
+                    self.enumerate_with_params(token, scid, template, &[("xuid", own_xuid)], "107")
+                        .await,
+                );
+            }
+
+            // 4. Keyword enumeration (the vulnerability test)
+            for template in templates::ALL {
+                for keyword in ["a", "Minecraft", "Server"] {
+                    results.push(
+                        self.enumerate_by_keyword(token, scid, template, keyword)
+                            .await,
+                    );
+                }
+            }
+
+            // 5. Batch query at SCID level
+            results.push(self.batch_query_scid(token, scid, &[own_xuid]).await);
+
+            // 6. Batch query at template level
+            for template in templates::ALL {
+                results.push(
+                    self.batch_query_template(token, scid, template, &[own_xuid])
+                        .await,
+                );
+            }
+        }
+
+        // 7. Query handles
+        results.push(self.query_handles(token, "activity", &[own_xuid]).await);
+
+        results
+    }
+
+    /// Query sessions with specific parameters.
+    ///
+    /// GET /serviceconfigs/{scid}/sessiontemplates/{templateName}/sessions?keyword=...
+    pub async fn enumerate_with_params(
+        &self,
+        token: &XblToken,
+        scid: &str,
+        template: &str,
+        params: &[(&str, &str)],
+        contract_version: &str,
+    ) -> EnumerationResult {
+        let mut url = endpoints::TEMPLATE_SESSIONS_FMT
+            .replace("{scid}", scid)
+            .replace("{template}", template);
+
+        if !params.is_empty() {
+            url.push('?');
+            for (i, (k, v)) in params.iter().enumerate() {
+                if i > 0 {
+                    url.push('&');
+                }
+                url.push_str(k);
+                url.push('=');
+                url.push_str(v);
+            }
+        }
+
+        self.do_get_request_versioned(token, &url, "enumerate_with_params", contract_version)
+            .await
+    }
+
+    async fn do_get_request(
+        &self,
+        token: &XblToken,
+        url: &str,
+        endpoint_name: &str,
+    ) -> EnumerationResult {
+        self.do_get_request_versioned(token, url, endpoint_name, "107")
+            .await
+    }
+
+    async fn do_get_request_versioned(
+        &self,
+        token: &XblToken,
+        url: &str,
+        endpoint_name: &str,
+        contract_version: &str,
+    ) -> EnumerationResult {
+        debug!("GET {} (contract: {})", url, contract_version);
+        let authorization = token.auth_header();
+        let signature = match Self::signature("GET", url, &authorization, b"") {
+            Ok(sig) => sig,
+            Err(e) => {
+                return EnumerationResult {
+                    endpoint: format!("{} ({})", endpoint_name, url),
+                    status: 0,
+                    success: false,
+                    session_count: 0,
+                    raw_response: String::new(),
+                    sessions: Vec::new(),
+                    error: Some(format!("Failed to sign request: {}", e)),
+                };
+            }
+        };
+        let req = self
+            .client
+            .get(url)
+            .header("Authorization", authorization.clone())
+            .header("Signature", signature)
+            .header("x-xbl-contract-version", contract_version)
+            .header("Accept", "application/json");
+
+        let response = match req.send().await {
+            Ok(r) => {
+                Self::sync_server_time(&r);
+                r
+            }
+            Err(e) => {
+                return EnumerationResult {
+                    endpoint: format!("{} ({})", endpoint_name, url),
+                    status: 0,
+                    success: false,
+                    session_count: 0,
+                    raw_response: String::new(),
+                    sessions: Vec::new(),
+                    error: Some(format!("Request failed: {}", e)),
+                };
+            }
+        };
+
+        let status = response.status().as_u16();
+        let body = response.text().await.unwrap_or_default();
+
+        self.parse_response(endpoint_name, url, status, body)
+    }
+
+    async fn do_post_request<T: Serialize>(
+        &self,
+        token: &XblToken,
+        url: &str,
+        body: &T,
+        endpoint_name: &str,
+    ) -> EnumerationResult {
+        debug!("POST {}", url);
+        let body_bytes = match serde_json::to_vec(body) {
+            Ok(b) => b,
+            Err(e) => {
+                return EnumerationResult {
+                    endpoint: format!("{} ({})", endpoint_name, url),
+                    status: 0,
+                    success: false,
+                    session_count: 0,
+                    raw_response: String::new(),
+                    sessions: Vec::new(),
+                    error: Some(format!("Failed to serialize request body: {}", e)),
+                };
+            }
+        };
+        let authorization = token.auth_header();
+        let signature = match Self::signature("POST", url, &authorization, &body_bytes) {
+            Ok(sig) => sig,
+            Err(e) => {
+                return EnumerationResult {
+                    endpoint: format!("{} ({})", endpoint_name, url),
+                    status: 0,
+                    success: false,
+                    session_count: 0,
+                    raw_response: String::new(),
+                    sessions: Vec::new(),
+                    error: Some(format!("Failed to sign request: {}", e)),
+                };
+            }
+        };
+
+        let req = self
+            .client
+            .post(url)
+            .header("Authorization", authorization.clone())
+            .header("Signature", signature)
+            .header("x-xbl-contract-version", "107")
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json")
+            .body(body_bytes.clone());
+
+        let response = match req.send().await {
+            Ok(r) => {
+                Self::sync_server_time(&r);
+                r
+            }
+            Err(e) => {
+                return EnumerationResult {
+                    endpoint: format!("{} ({})", endpoint_name, url),
+                    status: 0,
+                    success: false,
+                    session_count: 0,
+                    raw_response: String::new(),
+                    sessions: Vec::new(),
+                    error: Some(format!("Request failed: {}", e)),
+                };
+            }
+        };
+
+        let status = response.status().as_u16();
+        let body = response.text().await.unwrap_or_default();
+
+        self.parse_response(endpoint_name, url, status, body)
+    }
+
+    fn parse_response(
+        &self,
+        endpoint_name: &str,
+        url: &str,
+        status: u16,
+        body: String,
+    ) -> EnumerationResult {
+        let success = status >= 200 && status < 300;
+
+        let sessions = if success {
+            // Try to parse as session query response
+            if let Ok(parsed) = serde_json::from_str::<SessionQueryResponse>(&body) {
+                parsed.results.unwrap_or_default()
+            } else if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&body) {
+                // Try to extract results from generic JSON
+                if let Some(results) = parsed.get("results").and_then(|r| r.as_array()) {
+                    results
+                        .iter()
+                        .filter_map(|v| serde_json::from_value(v.clone()).ok())
+                        .collect()
+                } else {
+                    Vec::new()
+                }
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+
+        let session_count = sessions.len();
+
+        EnumerationResult {
+            endpoint: format!("{} ({})", endpoint_name, url),
+            status,
+            success,
+            session_count,
+            raw_response: body,
+            sessions,
+            error: if success {
+                None
+            } else {
+                Some(format!("HTTP {}", status))
+            },
+        }
+    }
+}
+
+impl Default for MpsdEnumerator {
     fn default() -> Self {
         Self::new()
     }

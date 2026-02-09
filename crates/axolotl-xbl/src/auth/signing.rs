@@ -7,12 +7,18 @@ use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use p256::ecdsa::{Signature, SigningKey, signature::DigestSigner};
 use p256::elliptic_curve::rand_core::OsRng;
 use sha2::{Digest, Sha256};
-use std::sync::RwLock;
+use std::sync::{Arc, OnceLock, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
+use url::Url;
 
 /// Global server time offset, updated from response Date headers.
 /// This is critical because Xbox Live will reject signatures if the timestamp is off.
 static SERVER_TIME_OFFSET: RwLock<Option<i64>> = RwLock::new(None);
+/// Shared signing key used across auth and service requests.
+///
+/// Service request signatures must match the proof key context used while
+/// acquiring XBL tokens, so we keep one process-wide keypair.
+static SHARED_SIGNING_KEY: OnceLock<Arc<SigningKeyPair>> = OnceLock::new();
 
 /// Update the server time offset from an HTTP Date header.
 /// Call this after each response to keep time in sync.
@@ -30,6 +36,32 @@ pub fn update_server_time_from_header(date_header: &str) {
             *guard = Some(offset);
         }
     }
+}
+
+/// Get the process-wide signing key pair.
+pub fn shared_signing_key() -> Arc<SigningKeyPair> {
+    SHARED_SIGNING_KEY
+        .get_or_init(|| Arc::new(SigningKeyPair::generate()))
+        .clone()
+}
+
+/// Sign a request given a full URL.
+///
+/// Automatically extracts `path[?query]` for Xbox signature material.
+pub fn sign_request_for_url(
+    method: &str,
+    url: &str,
+    authorization: &str,
+    body: &[u8],
+) -> Result<String, String> {
+    let parsed = Url::parse(url).map_err(|e| format!("Invalid URL: {}", e))?;
+    let mut path_with_query = parsed.path().to_string();
+    if let Some(query) = parsed.query() {
+        path_with_query.push('?');
+        path_with_query.push_str(query);
+    }
+
+    Ok(shared_signing_key().sign_request(method, &path_with_query, authorization, body))
 }
 
 /// ECDSA P-256 key pair for signing Xbox Live requests.

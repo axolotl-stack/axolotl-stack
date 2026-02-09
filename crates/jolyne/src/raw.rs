@@ -60,7 +60,16 @@ impl RawPacket {
         }
 
         let mut buf = self.inner_frame;
-        let (header, data) = McpePacketData::decode_inner(&mut buf, session.into())?;
+        let (header, data) =
+            McpePacketData::decode_inner(&mut buf, session.into()).map_err(|e| {
+                tracing::error!(
+                    packet_id = ?self.id,
+                    body_len = self.body.len(),
+                    "Failed to decode packet: {:?}",
+                    e
+                );
+                e
+            })?;
         Ok(McpePacket::new(header, data))
     }
 

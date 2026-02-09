@@ -1,4 +1,4 @@
-use crate::auth::XblToken;
+use crate::auth::{XblToken, sign_request_for_url, update_server_time_from_header};
 use crate::error::{XblError, XblResult};
 use serde::{Deserialize, Serialize};
 
@@ -32,15 +32,31 @@ impl FriendsClient {
         }
     }
 
+    fn signature(method: &str, url: &str, authorization: &str, body: &[u8]) -> XblResult<String> {
+        sign_request_for_url(method, url, authorization, body)
+            .map_err(|e| XblError::Auth(format!("Failed to sign Xbox request: {}", e)))
+    }
+
+    fn sync_server_time(response: &reqwest::Response) {
+        if let Some(date) = response.headers().get("Date").and_then(|v| v.to_str().ok()) {
+            update_server_time_from_header(date);
+        }
+    }
+
     pub async fn get_summary(&self, token: &XblToken, url: &str) -> XblResult<SocialSummary> {
+        let authorization = token.auth_header();
+        let signature = Self::signature("GET", url, &authorization, b"")?;
+
         let response = self
             .client
             .get(url)
-            .header("Authorization", token.auth_header())
+            .header("Authorization", authorization)
+            .header("Signature", signature)
             .header("x-xbl-contract-version", "5")
             .header("accept-language", "en-GB")
             .send()
             .await?;
+        Self::sync_server_time(&response);
 
         if !response.status().is_success() {
             return Err(XblError::XboxLive(format!(
@@ -60,14 +76,19 @@ impl FriendsClient {
 
     pub async fn add_friend(&self, token: &XblToken, xuid: &str) -> XblResult<()> {
         let url = format!("https://social.xboxlive.com/users/me/people/xuid({})", xuid);
+        let authorization = token.auth_header();
+        let signature = Self::signature("PUT", &url, &authorization, b"")?;
+
         let response = self
             .client
             .put(&url)
-            .header("Authorization", token.auth_header())
+            .header("Authorization", authorization)
+            .header("Signature", signature)
             .header("x-xbl-contract-version", "2")
             .header("Content-Length", "0")
             .send()
             .await?;
+        Self::sync_server_time(&response);
 
         // 204 = success, friend added
         // 400 with code 1028 = friend list full
@@ -76,9 +97,18 @@ impl FriendsClient {
         if status.as_u16() == 204 {
             Ok(())
         } else if status.as_u16() == 429 {
-            Err(XblError::XboxLive(
-                "Rate limited - too many friend requests".into(),
-            ))
+            let retry_after = response
+                .headers()
+                .get("Retry-After")
+                .and_then(|v| v.to_str().ok())
+                .and_then(|v| v.parse::<u64>().ok());
+            let message = match retry_after {
+                Some(secs) => {
+                    format!("Rate limited - too many friend requests (retry after {secs}s)")
+                }
+                None => "Rate limited - too many friend requests".into(),
+            };
+            Err(XblError::XboxLive(message))
         } else {
             let body = response.text().await.unwrap_or_default();
             Err(XblError::XboxLive(format!(
@@ -90,12 +120,18 @@ impl FriendsClient {
 
     pub async fn remove_friend(&self, token: &XblToken, xuid: &str) -> XblResult<()> {
         let url = format!("https://social.xboxlive.com/users/me/people/xuid({})", xuid);
-        self.client
+        let authorization = token.auth_header();
+        let signature = Self::signature("DELETE", &url, &authorization, b"")?;
+
+        let response = self
+            .client
             .delete(&url)
-            .header("Authorization", token.auth_header())
+            .header("Authorization", authorization)
+            .header("Signature", signature)
             .header("x-xbl-contract-version", "2")
             .send()
             .await?;
+        Self::sync_server_time(&response);
         Ok(())
     }
 
@@ -117,7 +153,8 @@ impl FriendsClient {
     /// Bulk add friends (accept requests or follow back).
     ///
     /// Returns the list of XUIDs that were successfully added.
-    /// Automatically chunks requests to stay under Xbox's limit.
+    /// Automatically chunks requests and falls back to single-add mode if
+    /// the bulk endpoint fails (which happens intermittently on some accounts).
     pub async fn add_friends_bulk(
         &self,
         token: &XblToken,
@@ -144,7 +181,22 @@ impl FriendsClient {
                         // Return partial results
                         return Ok(all_added);
                     }
-                    return Err(e);
+
+                    // Bulk endpoints can fail while single-add still works.
+                    let added = match self.add_friends_individual(token, chunk).await {
+                        Ok(added) => added,
+                        Err(e) => {
+                            if e.to_string().contains("Rate limited") {
+                                if all_added.is_empty() {
+                                    return Err(e);
+                                }
+                                return Ok(all_added);
+                            }
+                            return Err(e);
+                        }
+                    };
+
+                    all_added.extend(added);
                 }
             }
         }
@@ -160,21 +212,36 @@ impl FriendsClient {
     ) -> XblResult<Vec<String>> {
         let url = "https://social.xboxlive.com/bulk/users/me/people/friends/v2?method=add";
         let body = serde_json::json!({ "xuids": xuids });
+        let body_bytes = serde_json::to_vec(&body)?;
+        let authorization = token.auth_header();
+        let signature = Self::signature("POST", url, &authorization, &body_bytes)?;
 
         let response = self
             .client
             .post(url)
-            .header("Authorization", token.auth_header())
+            .header("Authorization", authorization)
+            .header("Signature", signature)
+            .header("Content-Type", "application/json")
             .header("x-xbl-contract-version", "2")
-            .json(&body)
+            .body(body_bytes)
             .send()
             .await?;
+        Self::sync_server_time(&response);
 
         let status = response.status();
         if status.as_u16() == 429 {
-            return Err(XblError::XboxLive(
-                "Rate limited - too many friend requests".into(),
-            ));
+            let retry_after = response
+                .headers()
+                .get("Retry-After")
+                .and_then(|v| v.to_str().ok())
+                .and_then(|v| v.parse::<u64>().ok());
+            let message = match retry_after {
+                Some(secs) => {
+                    format!("Rate limited - too many friend requests (retry after {secs}s)")
+                }
+                None => "Rate limited - too many friend requests".into(),
+            };
+            return Err(XblError::XboxLive(message));
         }
 
         // Parse response to get which XUIDs were actually added
@@ -203,6 +270,67 @@ impl FriendsClient {
         Ok(xuids.to_vec())
     }
 
+    /// Fallback path: add friends individually.
+    ///
+    /// This mirrors the behavior used by older broadcaster implementations and
+    /// tends to be more stable when bulk mutations are rejected.
+    async fn add_friends_individual(
+        &self,
+        token: &XblToken,
+        xuids: &[String],
+    ) -> XblResult<Vec<String>> {
+        let mut added = Vec::new();
+
+        for xuid in xuids {
+            match self.add_friend(token, xuid).await {
+                Ok(_) => added.push(xuid.clone()),
+                Err(e) => {
+                    let err = e.to_string();
+
+                    if err.contains("Rate limited") {
+                        if added.is_empty() {
+                            return Err(e);
+                        }
+                        return Ok(added);
+                    }
+
+                    if Self::is_friend_list_full_error(&err) {
+                        return Err(XblError::XboxLive(
+                            "Friend list full - cannot add more friends".into(),
+                        ));
+                    }
+
+                    // Skip users who cannot be added due to account/privacy restrictions.
+                    if Self::is_friend_restriction_error(&err) {
+                        continue;
+                    }
+
+                    return Err(e);
+                }
+            }
+        }
+
+        Ok(added)
+    }
+
+    fn is_friend_list_full_error(err: &str) -> bool {
+        err.contains("\"code\":1028")
+            || err.contains("\"code\": 1028")
+            || err.contains("code 1028")
+            || err.contains("Code\":1028")
+    }
+
+    fn is_friend_restriction_error(err: &str) -> bool {
+        err.contains("\"code\":1011")
+            || err.contains("\"code\": 1011")
+            || err.contains("code 1011")
+            || err.contains("Code\":1011")
+            || err.contains("\"code\":1049")
+            || err.contains("\"code\": 1049")
+            || err.contains("code 1049")
+            || err.contains("Code\":1049")
+    }
+
     pub async fn accept_requests(&self, token: &XblToken, xuids: Vec<String>) -> XblResult<()> {
         self.add_friends_bulk(token, &xuids).await?;
         Ok(())
@@ -221,13 +349,17 @@ impl FriendsClient {
             "https://social.xboxlive.com/users/me/people/follower/xuid({})",
             xuid
         );
+        let authorization = token.auth_header();
+        let signature = Self::signature("DELETE", &url, &authorization, b"")?;
         let response = self
             .client
             .delete(&url)
-            .header("Authorization", token.auth_header())
+            .header("Authorization", authorization)
+            .header("Signature", signature)
             .header("x-xbl-contract-version", "2")
             .send()
             .await?;
+        Self::sync_server_time(&response);
 
         if !response.status().is_success() {
             return Err(XblError::XboxLive(format!(
@@ -244,14 +376,18 @@ impl FriendsClient {
             "https://profile.xboxlive.com/users/xuid({})/profile/settings?settings=Gamertag",
             xuid
         );
+        let authorization = token.auth_header();
+        let signature = Self::signature("GET", &url, &authorization, b"")?;
 
         let response = self
             .client
             .get(&url)
-            .header("Authorization", token.auth_header())
+            .header("Authorization", authorization)
+            .header("Signature", signature)
             .header("x-xbl-contract-version", "2")
             .send()
             .await?;
+        Self::sync_server_time(&response);
 
         if !response.status().is_success() {
             return Err(XblError::XboxLive(format!(

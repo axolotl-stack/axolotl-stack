@@ -80,4 +80,31 @@ pub mod endpoints {
 
     /// Gallery for showcase images.
     pub const GALLERY: &str = "https://persona.franchise.minecraft-services.net/api/v1.0/gallery";
+
+    // ========================================================================
+    // MPSD Enumeration Endpoints (for security research)
+    // ========================================================================
+
+    /// Query sessions by SCID only.
+    /// GET /serviceconfigs/{scid}/sessions
+    pub const SCID_SESSIONS_FMT: &str =
+        "https://sessiondirectory.xboxlive.com/serviceconfigs/{scid}/sessions";
+
+    /// Query sessions by SCID and template.
+    /// GET /serviceconfigs/{scid}/sessiontemplates/{templateName}/sessions
+    pub const TEMPLATE_SESSIONS_FMT: &str = "https://sessiondirectory.xboxlive.com/serviceconfigs/{scid}/sessionTemplates/{template}/sessions";
+
+    /// Batch query at SCID level.
+    /// POST /serviceconfigs/{scid}/batch
+    pub const SCID_BATCH_FMT: &str =
+        "https://sessiondirectory.xboxlive.com/serviceconfigs/{scid}/batch";
+
+    /// Batch query at template level.
+    /// POST /serviceconfigs/{scid}/sessiontemplates/{templateName}/batch
+    pub const TEMPLATE_BATCH_FMT: &str = "https://sessiondirectory.xboxlive.com/serviceconfigs/{scid}/sessionTemplates/{template}/batch";
+
+    /// Query session templates.
+    /// GET /serviceconfigs/{scid}/sessiontemplates
+    pub const SESSION_TEMPLATES_FMT: &str =
+        "https://sessiondirectory.xboxlive.com/serviceconfigs/{scid}/sessionTemplates";
 }
