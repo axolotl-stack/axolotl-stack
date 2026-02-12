@@ -19,6 +19,9 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y zlib1g-dev libsnappy-dev
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
@@ -84,6 +87,9 @@ jobs:
         with:
           fetch-depth: 0
           submodules: recursive
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y zlib1g-dev libsnappy-dev
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
