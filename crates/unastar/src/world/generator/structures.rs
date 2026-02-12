@@ -2,6 +2,7 @@
 //!
 //! This module handles finding structure generation positions using
 //! vanilla-accurate algorithms ported from cubiomes.
+#![allow(dead_code)]
 
 use super::xoroshiro::JavaRandom;
 
@@ -200,9 +201,9 @@ pub fn find_structures_in_area(
 /// Ported from cubiomes isSlimeChunk.
 pub fn is_slime_chunk(seed: i64, chunk_x: i32, chunk_z: i32) -> bool {
     let mut rnd = seed as u64;
-    rnd = rnd.wrapping_add((chunk_x as i32).wrapping_mul(0x5ac0db) as u64);
+    rnd = rnd.wrapping_add(chunk_x.wrapping_mul(0x5ac0db) as u64);
     rnd = rnd.wrapping_add((chunk_x.wrapping_mul(chunk_x)).wrapping_mul(0x4c1906) as u64);
-    rnd = rnd.wrapping_add((chunk_z as i32).wrapping_mul(0x5f24f) as u64);
+    rnd = rnd.wrapping_add(chunk_z.wrapping_mul(0x5f24f) as u64);
     rnd = rnd.wrapping_add((chunk_z.wrapping_mul(chunk_z) as u64).wrapping_mul(0x4307a7));
     rnd ^= 0x3ad8025f;
 
@@ -459,7 +460,7 @@ mod tests {
         // Known slime chunk at seed 0, chunk (0, 0) should be testable
         let is_slime = is_slime_chunk(0, 0, 0);
         // Just verify it runs without panic
-        assert!(is_slime || !is_slime);
+        let _ = is_slime;
     }
 
     #[test]

@@ -19,7 +19,7 @@ use jolyne::valentine::{
     AnimatePacket, ContainerClosePacket, ContainerOpenPacket, InteractPacket,
     InteractPacketActionId, McpePacket, McpePacketData, MobEquipmentPacket, PlayerActionPacket,
     TextPacket, TextPacketCategory, TextPacketContent, TextPacketContentAuthored, TextPacketExtra,
-    TextPacketExtraAnnouncement, TextPacketExtraJson, TextPacketType,
+    TextPacketExtraAnnouncement, TextPacketType,
 };
 
 impl GameServer {
@@ -236,25 +236,23 @@ impl GameServer {
         }
 
         // Emit toggle events after releasing PlayerState borrow
-        if let Some(is_sneaking) = toggle_sneak {
-            if let Some(mut event_buffer) =
+        if let Some(is_sneaking) = toggle_sneak
+            && let Some(mut event_buffer) =
                 world.get_resource_mut::<crate::ecs::events::EventBuffer>()
-            {
-                event_buffer.push(crate::ecs::events::ServerEvent::PlayerToggleSneak {
-                    entity,
-                    is_sneaking,
-                });
-            }
+        {
+            event_buffer.push(crate::ecs::events::ServerEvent::PlayerToggleSneak {
+                entity,
+                is_sneaking,
+            });
         }
-        if let Some(is_sprinting) = toggle_sprint {
-            if let Some(mut event_buffer) =
+        if let Some(is_sprinting) = toggle_sprint
+            && let Some(mut event_buffer) =
                 world.get_resource_mut::<crate::ecs::events::EventBuffer>()
-            {
-                event_buffer.push(crate::ecs::events::ServerEvent::PlayerToggleSprint {
-                    entity,
-                    is_sprinting,
-                });
-            }
+        {
+            event_buffer.push(crate::ecs::events::ServerEvent::PlayerToggleSprint {
+                entity,
+                is_sprinting,
+            });
         }
 
         // Handle block actions (breaking blocks)
@@ -285,16 +283,15 @@ impl GameServer {
             }
         }
 
-        if let Some(old_slot) = slot_changed {
-            if let Some(mut event_buffer) =
+        if let Some(old_slot) = slot_changed
+            && let Some(mut event_buffer) =
                 world.get_resource_mut::<crate::ecs::events::EventBuffer>()
-            {
-                event_buffer.push(crate::ecs::events::ServerEvent::PlayerHeldSlotChange {
-                    entity,
-                    old_slot,
-                    new_slot: pk.selected_slot,
-                });
-            }
+        {
+            event_buffer.push(crate::ecs::events::ServerEvent::PlayerHeldSlotChange {
+                entity,
+                old_slot,
+                new_slot: pk.selected_slot,
+            });
         }
 
         // TODO: Broadcast held item change to other players for rendering
@@ -317,11 +314,11 @@ impl GameServer {
                 // which would crash the client
                 {
                     let world = self.ecs.world();
-                    if let Some(opened) = world.get::<InventoryOpened>(entity) {
-                        if opened.0 {
-                            debug!(entity = ?entity, "Inventory already open, skipping");
-                            return;
-                        }
+                    if let Some(opened) = world.get::<InventoryOpened>(entity)
+                        && opened.0
+                    {
+                        debug!(entity = ?entity, "Inventory already open, skipping");
+                        return;
                     }
                 }
 
@@ -674,7 +671,7 @@ impl GameServer {
                     }
                 }
                 TransactionActionsItemSourceType::WorldInteraction => {
-                    use jolyne::valentine::types::TransactionActionsItemContent;
+
                     // World interaction (Item Use / Interact Block)
                     // The flags in transaction_data.action_type might tell us more, but
                     // TransactionActionsItemSourceType::WorldInteraction usually accompanies item use.
@@ -744,12 +741,8 @@ impl GameServer {
                         }
                     }
                 }
-                TransactionActionsItemSourceType::WorldInteraction => {
-                    // Dropping item into world
-                    debug!(slot = action.slot, "World interaction (item drop)");
-                }
-                _ => {
-                    debug!(source_type = ?action.source_type, "Unhandled action source type");
+                other => {
+                    debug!(source_type = ?other, slot = action.slot, "Unhandled action source type");
                 }
             }
         }
@@ -759,6 +752,7 @@ impl GameServer {
     ///
     /// When a player swings their arm or performs other animations,
     /// we need to broadcast this to nearby players so they can see it.
+    #[allow(dead_code)]
     pub(super) fn handle_animate(
         &mut self,
         session_id: SessionId,
@@ -775,14 +769,13 @@ impl GameServer {
         );
 
         use jolyne::valentine::types::AnimatePacketActionId;
-        if pk.action_id == AnimatePacketActionId::SwingArm {
-            if let Some(mut event_buffer) = self
+        if pk.action_id == AnimatePacketActionId::SwingArm
+            && let Some(mut event_buffer) = self
                 .ecs
                 .world_mut()
                 .get_resource_mut::<crate::ecs::events::EventBuffer>()
-            {
-                event_buffer.push(crate::ecs::events::ServerEvent::PlayerSwing { entity });
-            }
+        {
+            event_buffer.push(crate::ecs::events::ServerEvent::PlayerSwing { entity });
         }
 
         // Get the sender's runtime ID for broadcasting

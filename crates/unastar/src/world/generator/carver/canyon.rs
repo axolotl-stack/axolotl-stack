@@ -37,6 +37,7 @@ impl CanyonCarver {
     }
 
     /// Carve the canyon path.
+    #[allow(clippy::too_many_arguments)]
     fn carve_canyon(
         &self,
         chunk: &mut Chunk,
@@ -95,6 +96,7 @@ impl CanyonCarver {
     }
 
     /// Carve a vertical section of the canyon.
+    #[allow(clippy::too_many_arguments)]
     fn carve_section(
         &self,
         chunk: &mut Chunk,

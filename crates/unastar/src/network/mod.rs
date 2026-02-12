@@ -6,7 +6,7 @@ use jolyne::BedrockStream;
 use jolyne::stream::{Play, Server as ServerRole};
 use jolyne::valentine::McpePacket;
 use tokio::sync::{broadcast, mpsc};
-use tracing::{debug, info, trace, warn};
+use tracing::{info, trace, warn};
 
 // Re-export types
 pub use events::{NetworkEvent, SessionId};

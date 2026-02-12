@@ -243,7 +243,6 @@ impl PacketRouter {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn test_player_action_routing() {

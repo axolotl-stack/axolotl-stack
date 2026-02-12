@@ -90,24 +90,24 @@ impl CachedToken {
 /// Load or create OAuth token.
 async fn get_oauth_token(token_path: &PathBuf) -> Result<axolotl_xbl::OAuthToken> {
     // Try to load existing token
-    if let Ok(data) = tokio::fs::read_to_string(token_path).await {
-        if let Ok(cached) = serde_json::from_str::<CachedToken>(&data) {
-            if !cached.is_expired() {
-                info!("Using cached OAuth token");
-                return Ok(cached.oauth);
-            }
+    if let Ok(data) = tokio::fs::read_to_string(token_path).await
+        && let Ok(cached) = serde_json::from_str::<CachedToken>(&data)
+    {
+        if !cached.is_expired() {
+            info!("Using cached OAuth token");
+            return Ok(cached.oauth);
+        }
 
-            if cached.can_refresh() {
-                info!("Refreshing expired OAuth token...");
-                let auth = DeviceCodeAuth::new();
-                match auth.refresh(&cached.oauth.refresh_token).await {
-                    Ok(refreshed) => {
-                        save_token(token_path, &refreshed).await?;
-                        return Ok(refreshed);
-                    }
-                    Err(e) => {
-                        warn!("Token refresh failed: {}", e);
-                    }
+        if cached.can_refresh() {
+            info!("Refreshing expired OAuth token...");
+            let auth = DeviceCodeAuth::new();
+            match auth.refresh(&cached.oauth.refresh_token).await {
+                Ok(refreshed) => {
+                    save_token(token_path, &refreshed).await?;
+                    return Ok(refreshed);
+                }
+                Err(e) => {
+                    warn!("Token refresh failed: {}", e);
                 }
             }
         }

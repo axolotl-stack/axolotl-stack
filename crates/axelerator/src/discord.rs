@@ -130,11 +130,11 @@ impl DiscordNotifier {
             // Check rate limit
             {
                 let last = last_notification.read().await;
-                if let Some(last_time) = *last {
-                    if last_time.elapsed() < Duration::from_secs(rate_limit_secs) {
-                        debug!("Discord notification rate limited");
-                        return;
-                    }
+                if let Some(last_time) = *last
+                    && last_time.elapsed() < Duration::from_secs(rate_limit_secs)
+                {
+                    debug!("Discord notification rate limited");
+                    return;
                 }
             }
 
@@ -288,11 +288,11 @@ impl DiscordNotifier {
             // Check rate limit
             {
                 let last = last_notification.read().await;
-                if let Some(last_time) = *last {
-                    if last_time.elapsed() < Duration::from_secs(rate_limit_secs) {
-                        debug!("Discord notification rate limited");
-                        return;
-                    }
+                if let Some(last_time) = *last
+                    && last_time.elapsed() < Duration::from_secs(rate_limit_secs)
+                {
+                    debug!("Discord notification rate limited");
+                    return;
                 }
             }
 

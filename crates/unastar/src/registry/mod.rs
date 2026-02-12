@@ -108,11 +108,11 @@ impl<T: RegistryEntry> Registry<T> {
     /// Unregister an entry by ID.
     pub fn unregister(&mut self, id: u32) -> Option<T> {
         let idx = id as usize;
-        if idx < self.entries.len() {
-            if let Some(entry) = self.entries[idx].take() {
-                self.count -= 1;
-                return Some(entry);
-            }
+        if idx < self.entries.len()
+            && let Some(entry) = self.entries[idx].take()
+        {
+            self.count -= 1;
+            return Some(entry);
         }
         None
     }

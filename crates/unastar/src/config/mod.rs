@@ -137,6 +137,7 @@ impl Default for UnastarConfig {
 }
 
 impl UnastarConfig {
+    #[allow(clippy::result_large_err)]
     pub fn load_or_create(path: impl AsRef<Path>) -> Result<Self, ConfigError> {
         let path = path.as_ref().to_path_buf();
 

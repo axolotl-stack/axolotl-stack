@@ -165,6 +165,7 @@ const ROTATION_THRESHOLD: f32 = 1.0;
 ///
 /// Note: EntityGrid insertion is handled by SpatialChunk's on_insert hook.
 /// Runs in NetworkSendSet after all spawn logic is complete.
+#[allow(clippy::type_complexity)]
 pub fn broadcast_spawn_system(
     mut events: MessageReader<PlayerSpawnedEvent>,
     // Query for new players by entity from the event
@@ -265,6 +266,7 @@ pub fn broadcast_spawn_system(
 /// the EntityGrid here.
 ///
 /// Runs before broadcast systems to ensure spatial data is current.
+#[allow(clippy::type_complexity)]
 pub fn sync_spatial_chunks(
     mut grid: ResMut<EntityGrid>,
     mut players: Query<(Entity, &Position, &mut SpatialChunk), (With<Player>, Changed<Position>)>,
@@ -289,6 +291,7 @@ pub fn sync_spatial_chunks(
 ///
 /// Uses EntityGrid for O(N) spatial lookups instead of O(N²).
 /// Only broadcasts if position changed by more than MOVEMENT_THRESHOLD or rotation changed.
+#[allow(clippy::type_complexity)]
 pub fn broadcast_movement_system(
     grid: Res<EntityGrid>,
     mut players: Query<
@@ -308,7 +311,7 @@ pub fn broadcast_movement_system(
 
     let player_count = players.iter().count();
     for (entity, rid, pos, rot, last_pos) in players.iter() {
-        let dist_sq = position_distance_sq(&last_pos, pos);
+        let dist_sq = position_distance_sq(last_pos, pos);
         let yaw_diff = (last_pos.yaw - rot.yaw).abs();
         let pitch_diff = (last_pos.pitch - rot.pitch).abs();
 
@@ -317,15 +320,7 @@ pub fn broadcast_movement_system(
             || pitch_diff > ROTATION_THRESHOLD
         {
             updates.push((
-                entity,
-                rid.0,
-                pos.clone(),
-                rot.clone(),
-                pos.0.x,
-                pos.0.y,
-                pos.0.z,
-                rot.yaw,
-                rot.pitch,
+                entity, rid.0, *pos, *rot, pos.0.x, pos.0.y, pos.0.z, rot.yaw, rot.pitch,
             ));
         }
     }

@@ -494,6 +494,12 @@ pub struct GameContext {
     pub actions: RefCell<Vec<PluginAction>>,
 }
 
+impl Default for GameContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GameContext {
     pub fn new() -> Self {
         Self {
@@ -672,7 +678,7 @@ impl GameContext {
         None
     }
 
-    pub fn player(&self, _handle: PlayerHandle) -> Option<Player> {
+    pub fn player(&self, _handle: PlayerHandle) -> Option<Player<'_>> {
         None
     }
     pub fn get_block(&self, _x: i32, _y: i32, _z: i32) -> BlockId {

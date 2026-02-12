@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, FnArg, ImplItem, ItemImpl, Pat, PatType, Path, Type};
+use syn::{parse_macro_input, FnArg, ImplItem, ItemImpl, Type};
 
 #[proc_macro_attribute]
 pub fn event_handler(_attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -351,11 +351,11 @@ fn is_matching_type(ty: &Type, name: &str) -> bool {
     match ty {
         Type::Path(tp) => {
             if let Some(ident) = tp.path.get_ident() {
-                return ident.to_string() == name;
+                return *ident == name;
             }
             // Check last segment
             if let Some(seg) = tp.path.segments.last() {
-                return seg.ident.to_string() == name;
+                return seg.ident == name;
             }
             false
         }

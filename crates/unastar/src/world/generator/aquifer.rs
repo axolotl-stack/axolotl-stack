@@ -43,7 +43,6 @@ use crate::world::generator::density::{
     compute_preliminary_surface_level,
 };
 use crate::world::generator::xoroshiro::PositionalRandomFactory;
-use unastar_noise::NoiseSource;
 
 // ========== Constants ==========
 
@@ -291,6 +290,7 @@ fn is_deep_dark_region(
 /// Uses AOT-compiled density functions for maximum performance.
 ///
 /// Generic over `F: FluidPicker` to avoid Box allocation overhead.
+#[allow(dead_code)]
 pub struct NoiseBasedAquifer<'a, F: FluidPicker> {
     // Noise registry for computing density functions
     noises: &'a NoiseRegistry,
@@ -998,7 +998,7 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
         // Java: if (OverworldBiomeBuilder.isDeepDarkRegion(this.erosion, this.depth, singlePointContext)) { d=-1; e=-1; }
         // When in deep dark region, both thresholds become -1.0, which with floodedness clamped to [-1,1]
         // means neither e>0 nor d>0 can be true, so we return WAY_BELOW_MIN_Y (no aquifer)
-        if is_deep_dark_region(&ctx, self.noises, &grid, &col) {
+        if is_deep_dark_region(&ctx, self.noises, grid, &col) {
             return WAY_BELOW_MIN_Y;
         }
 
@@ -1136,7 +1136,7 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
     fn calculate_pressure(
         &self,
         ctx: &FunctionContext,
-        col: &ColumnContext,
+        _col: &ColumnContext,
         barrier_value: &mut f64,
         fluid1: &FluidStatus,
         fluid2: &FluidStatus,
@@ -1192,7 +1192,7 @@ impl<'a, F: FluidPicker> NoiseBasedAquifer<'a, F> {
         };
 
         // Java (lines 343-353): Add barrier noise when q is in range [-2, 2]
-        let barrier = if q >= -2.0 && q <= 2.0 {
+        let barrier = if (-2.0..=2.0).contains(&q) {
             if barrier_value.is_nan() {
                 // Simple noise lookup - no FlatCache or Cache2D needed
                 *barrier_value = compute_barrier(ctx, self.noises);
@@ -1351,7 +1351,7 @@ mod tests {
             let packed = pack_pos(x, y, z);
             assert_eq!(unpack_x(packed), x, "X mismatch for ({}, {}, {})", x, y, z);
             // Y is 12-bit signed, so only low bits matter
-            let expected_y = ((y as i32) << 20) >> 20; // Sign extend 12 bits
+            let expected_y = (y << 20) >> 20; // Sign extend 12 bits
             assert_eq!(
                 unpack_y(packed),
                 expected_y,

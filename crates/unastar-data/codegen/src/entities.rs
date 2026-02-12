@@ -188,12 +188,11 @@ fn parse_entity_node(node: &KdlNode) -> miette::Result<ParsedEntity> {
                 "events" => {
                     if let Some(event_children) = child.children() {
                         for event in event_children.nodes() {
-                            if event.name().value() == "event" {
-                                if let Some(name) =
+                            if event.name().value() == "event"
+                                && let Some(name) =
                                     event.entries().first().and_then(|e| e.value().as_string())
-                                {
-                                    entity.events.push(name.to_string());
-                                }
+                            {
+                                entity.events.push(name.to_string());
                             }
                         }
                     }
@@ -283,12 +282,11 @@ fn parse_property_node(node: &KdlNode) -> Option<ParsedProperty> {
     // Get enum values from children
     if let Some(children) = node.children() {
         for child in children.nodes() {
-            if child.name().value() == "value" {
-                if let Some(entry) = child.entries().first() {
-                    if let Some(s) = entry.value().as_string() {
-                        prop.values.push(s.to_string());
-                    }
-                }
+            if child.name().value() == "value"
+                && let Some(entry) = child.entries().first()
+                && let Some(s) = entry.value().as_string()
+            {
+                prop.values.push(s.to_string());
             }
         }
     }
@@ -486,26 +484,26 @@ fn field_type_to_tokens(field_type: &FieldType) -> TokenStream {
 fn field_default_value(field_type: &FieldType, default: Option<&str>) -> TokenStream {
     match field_type {
         FieldType::Float => {
-            if let Some(d) = default {
-                if let Ok(v) = d.parse::<f32>() {
-                    return quote! { #v };
-                }
+            if let Some(d) = default
+                && let Ok(v) = d.parse::<f32>()
+            {
+                return quote! { #v };
             }
             quote! { 0.0 }
         }
         FieldType::Integer => {
-            if let Some(d) = default {
-                if let Ok(v) = d.parse::<i32>() {
-                    return quote! { #v };
-                }
+            if let Some(d) = default
+                && let Ok(v) = d.parse::<i32>()
+            {
+                return quote! { #v };
             }
             quote! { 0 }
         }
         FieldType::Bool => {
-            if let Some(d) = default {
-                if d == "true" {
-                    return quote! { true };
-                }
+            if let Some(d) = default
+                && d == "true"
+            {
+                return quote! { true };
             }
             quote! { false }
         }

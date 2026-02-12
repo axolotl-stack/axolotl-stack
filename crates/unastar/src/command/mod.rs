@@ -38,6 +38,7 @@ impl CommandArgs {
         Self { tokens, index: 0 }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> Option<&str> {
         let token = self.tokens.get(self.index)?;
         self.index += 1;

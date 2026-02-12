@@ -199,7 +199,7 @@ impl GameServer {
                 result,
                 payload: subchunk_data,
                 heightmap_type: hm_type,
-                heightmap: hm_data.clone(),
+                heightmap: hm_data,
                 render_heightmap_type: hm_type,
                 render_heightmap: hm_data,
             });
@@ -239,13 +239,13 @@ impl GameServer {
         };
 
         let world = self.ecs.world();
-        if let Some(session) = world.get::<PlayerSession>(entity) {
-            if !session.send(McpePacket::from(response)) {
-                debug!(
-                    session_id,
-                    "Failed to send SubChunk response (channel full or closed)"
-                );
-            }
+        if let Some(session) = world.get::<PlayerSession>(entity)
+            && !session.send(McpePacket::from(response))
+        {
+            debug!(
+                session_id,
+                "Failed to send SubChunk response (channel full or closed)"
+            );
         }
     }
 }

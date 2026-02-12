@@ -140,7 +140,7 @@ impl WorldProvider for LevelDBWorldProvider {
             // Write batch atomically - method is on WriteBatch, takes &db
             batch
                 .write(&db, &write_opts)
-                .map_err(|e| StorageError::Database(e))?;
+                .map_err(StorageError::Database)?;
 
             Ok(())
         })

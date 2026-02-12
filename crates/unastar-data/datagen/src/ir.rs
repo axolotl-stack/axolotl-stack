@@ -60,7 +60,7 @@ pub enum ComponentValue {
 }
 
 /// Event definition
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct EventDef {
     pub add_groups: Vec<String>,
     pub remove_groups: Vec<String>,
@@ -69,20 +69,6 @@ pub struct EventDef {
     pub sequence: Vec<EventDef>,
     pub randomize: Vec<RandomizeEntry>,
     pub filters: Option<serde_json::Value>,
-}
-
-impl Default for EventDef {
-    fn default() -> Self {
-        Self {
-            add_groups: Vec::new(),
-            remove_groups: Vec::new(),
-            set_properties: HashMap::new(),
-            trigger: None,
-            sequence: Vec::new(),
-            randomize: Vec::new(),
-            filters: None,
-        }
-    }
 }
 
 #[derive(Debug, Clone)]

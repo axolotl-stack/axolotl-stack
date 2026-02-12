@@ -22,12 +22,12 @@ use std::sync::Arc;
 use tracing::{info, trace, warn};
 
 use crate::command::CommandRegistry;
-use crate::config::{PlayerDataStore, PlayerLastPosition, SpawnLocation};
+use crate::config::PlayerDataStore;
 use crate::ecs::{CleanupSet, EntityLogicSet, NetworkSendSet, UnastarEcs};
 use crate::entity::bundles::PlayerBundle;
 use crate::entity::components::transform::{Position, Rotation};
 use crate::entity::components::{
-    ArmourInventory, BreakingState, ChunkRadius, CursorItem, GameMode, HeldSlot, InventoryOpened,
+    ArmourInventory, BreakingState, ChunkRadius, CursorItem, HeldSlot, InventoryOpened,
     ItemStackRequestState, LastBroadcastPosition, MainInventory, OffhandSlot, Player, PlayerInput,
     PlayerName, PlayerSession, PlayerState, PlayerUuid, RuntimeEntityId, SpatialChunk,
 };
@@ -232,7 +232,7 @@ impl GameServer {
                     data.outbound_tx,
                 ),
                 runtime_id: RuntimeEntityId(runtime_id),
-                position: position.clone(),
+                position,
                 rotation: Rotation::default(),
                 game_mode: self.config.default_gamemode,
                 state: PlayerState::default(),
@@ -291,7 +291,7 @@ impl GameServer {
     pub fn tick(&mut self) {
         self.current_tick += 1;
         self.ecs.tick();
-        if self.current_tick % 100 == 0 {
+        if self.current_tick.is_multiple_of(100) {
             trace!(tick = self.current_tick, "Tick");
         }
     }
@@ -335,7 +335,7 @@ impl GameServer {
 
             for group in tab_groups {
                 protocol_groups.push(CreativeContentPacketGroupsItem {
-                    category: category.clone(),
+                    category,
                     name: group.group_name.clone(),
                     icon_item: ItemLegacy::default(),
                 });

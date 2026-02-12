@@ -99,20 +99,18 @@ pub async fn resolve_spawn_location(
     // Check spawn rules in order
     for rule in &config.spawn_rules {
         // Check for previous position first if enabled
-        if rule.previous_position {
-            if let Some(uuid) = uuid {
-                if let Ok(Some(last)) = player_data_store.load_last_position(uuid).await {
-                    if last.dimension == world_dimension {
-                        return last.location;
-                    }
-                }
-            }
+        if rule.previous_position
+            && let Some(uuid) = uuid
+            && let Ok(Some(last)) = player_data_store.load_last_position(uuid).await
+            && last.dimension == world_dimension
+        {
+            return last.location;
         }
         // Use configured location directly (trust the user's config)
-        if rule.always_at_location {
-            if let Some(location) = rule.location {
-                return location;
-            }
+        if rule.always_at_location
+            && let Some(location) = rule.location
+        {
+            return location;
         }
     }
 

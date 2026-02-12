@@ -52,7 +52,7 @@ pub fn parse_overrides(dir: &Path) -> miette::Result<Overrides> {
         for entry in WalkDir::new(&entities_dir)
             .into_iter()
             .filter_map(|e| e.ok())
-            .filter(|e| e.path().extension().map_or(false, |ext| ext == "kdl"))
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "kdl"))
         {
             let path = entry.path();
             debug!("Parsing override: {}", path.display());
@@ -115,10 +115,10 @@ fn parse_entity_override_kdl(path: &Path) -> miette::Result<(String, EntityOverr
     for node in doc.nodes() {
         if node.name().value() == "entity" {
             // Get entity identifier from first argument
-            if let Some(arg) = node.entries().first() {
-                if let Some(s) = arg.value().as_string() {
-                    entity_name = s.strip_prefix("minecraft:").unwrap_or(s).to_string();
-                }
+            if let Some(arg) = node.entries().first()
+                && let Some(s) = arg.value().as_string()
+            {
+                entity_name = s.strip_prefix("minecraft:").unwrap_or(s).to_string();
             }
 
             // Parse children
@@ -192,10 +192,10 @@ fn kdl_node_to_json(node: &kdl::KdlNode) -> serde_json::Value {
 
     // If no properties and no children, return the first argument as value
     if obj.is_empty() {
-        if let Some(arg) = node.entries().first() {
-            if arg.name().is_none() {
-                return kdl_value_to_json(arg.value());
-            }
+        if let Some(arg) = node.entries().first()
+            && arg.name().is_none()
+        {
+            return kdl_value_to_json(arg.value());
         }
         return serde_json::Value::Object(serde_json::Map::new());
     }

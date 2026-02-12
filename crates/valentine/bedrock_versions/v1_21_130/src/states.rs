@@ -819,7 +819,7 @@ impl BlockState for StairState {
             return None;
         }
         let mut rem = offset;
-        let upside_down_bit = (rem % 2) != 0;
+        let upside_down_bit = !rem.is_multiple_of(2);
         rem /= 2;
         let weirdo_direction = (rem % 4) as u8;
         Some(Self {
@@ -1012,7 +1012,7 @@ impl BlockState for WallState {
         rem /= 3;
         let wall_connection_type_west = WallConnectionTypeWest::from_raw((rem % 3) as u8)?;
         rem /= 3;
-        let wall_post_bit = (rem % 2) != 0;
+        let wall_post_bit = !rem.is_multiple_of(2);
         Some(Self {
             wall_connection_type_east,
             wall_connection_type_north,
@@ -1094,13 +1094,13 @@ impl BlockState for DoorState {
             return None;
         }
         let mut rem = offset;
-        let door_hinge_bit = (rem % 2) != 0;
+        let door_hinge_bit = !rem.is_multiple_of(2);
         rem /= 2;
         let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
         rem /= 4;
-        let open_bit = (rem % 2) != 0;
+        let open_bit = !rem.is_multiple_of(2);
         rem /= 2;
-        let upper_block_bit = (rem % 2) != 0;
+        let upper_block_bit = !rem.is_multiple_of(2);
         Some(Self {
             door_hinge_bit,
             cardinal_direction,
@@ -1181,9 +1181,9 @@ impl BlockState for TrapdoorState {
         let mut rem = offset;
         let direction = (rem % 4) as u8;
         rem /= 4;
-        let open_bit = (rem % 2) != 0;
+        let open_bit = !rem.is_multiple_of(2);
         rem /= 2;
-        let upside_down_bit = (rem % 2) != 0;
+        let upside_down_bit = !rem.is_multiple_of(2);
         Some(Self {
             direction,
             open_bit,
@@ -1279,7 +1279,7 @@ impl BlockState for CandleCakeState {
             return None;
         }
         let rem = offset;
-        let lit = (rem % 2) != 0;
+        let lit = !rem.is_multiple_of(2);
         Some(Self { lit })
     }
 
@@ -1339,7 +1339,7 @@ impl BlockState for CandleState {
         let mut rem = offset;
         let candles = (rem % 4) as u8;
         rem /= 4;
-        let lit = (rem % 2) != 0;
+        let lit = !rem.is_multiple_of(2);
         Some(Self { candles, lit })
     }
 
@@ -1403,7 +1403,7 @@ impl BlockState for ButtonState {
             return None;
         }
         let mut rem = offset;
-        let button_pressed_bit = (rem % 2) != 0;
+        let button_pressed_bit = !rem.is_multiple_of(2);
         rem /= 2;
         let facing_direction = (rem % 6) as u8;
         Some(Self {
@@ -1530,11 +1530,11 @@ impl BlockState for FenceGateState {
             return None;
         }
         let mut rem = offset;
-        let in_wall_bit = (rem % 2) != 0;
+        let in_wall_bit = !rem.is_multiple_of(2);
         rem /= 2;
         let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
         rem /= 4;
-        let open_bit = (rem % 2) != 0;
+        let open_bit = !rem.is_multiple_of(2);
         Some(Self {
             in_wall_bit,
             cardinal_direction,
@@ -1614,7 +1614,7 @@ impl BlockState for ShelfState {
         let mut rem = offset;
         let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
         rem /= 4;
-        let powered_bit = (rem % 2) != 0;
+        let powered_bit = !rem.is_multiple_of(2);
         rem /= 2;
         let powered_shelf_type = (rem % 4) as u8;
         Some(Self {
@@ -1712,13 +1712,13 @@ impl BlockState for HangingSignState {
             return None;
         }
         let mut rem = offset;
-        let attached_bit = (rem % 2) != 0;
+        let attached_bit = !rem.is_multiple_of(2);
         rem /= 2;
         let facing_direction = (rem % 6) as u8;
         rem /= 6;
         let ground_sign_direction = (rem % 16) as u8;
         rem /= 16;
-        let hanging = (rem % 2) != 0;
+        let hanging = !rem.is_multiple_of(2);
         Some(Self {
             attached_bit,
             facing_direction,
@@ -1779,9 +1779,9 @@ impl BlockState for LeavesState {
             return None;
         }
         let mut rem = offset;
-        let persistent_bit = (rem % 2) != 0;
+        let persistent_bit = !rem.is_multiple_of(2);
         rem /= 2;
-        let update_bit = (rem % 2) != 0;
+        let update_bit = !rem.is_multiple_of(2);
         Some(Self {
             persistent_bit,
             update_bit,
@@ -1826,7 +1826,7 @@ impl BlockState for LanternState {
             return None;
         }
         let rem = offset;
-        let hanging = (rem % 2) != 0;
+        let hanging = !rem.is_multiple_of(2);
         Some(Self { hanging })
     }
 
@@ -2012,7 +2012,7 @@ impl BlockState for SaplingState {
             return None;
         }
         let rem = offset;
-        let age_bit = (rem % 2) != 0;
+        let age_bit = !rem.is_multiple_of(2);
         Some(Self { age_bit })
     }
 
@@ -2078,7 +2078,7 @@ impl BlockState for LightningRodState {
         let mut rem = offset;
         let facing_direction = (rem % 6) as u8;
         rem /= 6;
-        let powered_bit = (rem % 2) != 0;
+        let powered_bit = !rem.is_multiple_of(2);
         Some(Self {
             facing_direction,
             powered_bit,
@@ -2134,9 +2134,9 @@ impl BlockState for CopperBulbState {
             return None;
         }
         let mut rem = offset;
-        let lit = (rem % 2) != 0;
+        let lit = !rem.is_multiple_of(2);
         rem /= 2;
-        let powered_bit = (rem % 2) != 0;
+        let powered_bit = !rem.is_multiple_of(2);
         Some(Self { lit, powered_bit })
     }
 
@@ -2178,7 +2178,7 @@ impl BlockState for DoublePlantState {
             return None;
         }
         let rem = offset;
-        let upper_block_bit = (rem % 2) != 0;
+        let upper_block_bit = !rem.is_multiple_of(2);
         Some(Self { upper_block_bit })
     }
 
@@ -2548,7 +2548,7 @@ impl BlockState for CommandState {
             return None;
         }
         let mut rem = offset;
-        let conditional_bit = (rem % 2) != 0;
+        let conditional_bit = !rem.is_multiple_of(2);
         rem /= 2;
         let facing_direction = (rem % 6) as u8;
         Some(Self {
@@ -2769,7 +2769,7 @@ impl BlockState for RailState {
             return None;
         }
         let mut rem = offset;
-        let rail_data_bit = (rem % 2) != 0;
+        let rail_data_bit = !rem.is_multiple_of(2);
         rem /= 2;
         let rail_direction = (rem % 6) as u8;
         Some(Self {
@@ -2839,7 +2839,7 @@ impl BlockState for BrushableState {
         let mut rem = offset;
         let brushed_progress = (rem % 4) as u8;
         rem /= 4;
-        let hanging = (rem % 2) != 0;
+        let hanging = !rem.is_multiple_of(2);
         Some(Self {
             brushed_progress,
             hanging,
@@ -2977,9 +2977,9 @@ impl BlockState for ComparatorState {
         let mut rem = offset;
         let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
         rem /= 4;
-        let output_lit_bit = (rem % 2) != 0;
+        let output_lit_bit = !rem.is_multiple_of(2);
         rem /= 2;
-        let output_subtract_bit = (rem % 2) != 0;
+        let output_subtract_bit = !rem.is_multiple_of(2);
         Some(Self {
             cardinal_direction,
             output_lit_bit,
@@ -3249,7 +3249,7 @@ impl BlockState for DispenserState {
         let mut rem = offset;
         let facing_direction = (rem % 6) as u8;
         rem /= 6;
-        let triggered_bit = (rem % 2) != 0;
+        let triggered_bit = !rem.is_multiple_of(2);
         Some(Self {
             facing_direction,
             triggered_bit,
@@ -3327,9 +3327,9 @@ impl BlockState for FrameState {
         let mut rem = offset;
         let facing_direction = (rem % 6) as u8;
         rem /= 6;
-        let item_frame_map_bit = (rem % 2) != 0;
+        let item_frame_map_bit = !rem.is_multiple_of(2);
         rem /= 2;
-        let item_frame_photo_bit = (rem % 2) != 0;
+        let item_frame_photo_bit = !rem.is_multiple_of(2);
         Some(Self {
             facing_direction,
             item_frame_map_bit,
@@ -3388,7 +3388,7 @@ impl BlockState for CampfireState {
             return None;
         }
         let mut rem = offset;
-        let extinguished = (rem % 2) != 0;
+        let extinguished = !rem.is_multiple_of(2);
         rem /= 2;
         let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
         Some(Self {
@@ -3502,7 +3502,7 @@ impl BlockState for TntState {
             return None;
         }
         let rem = offset;
-        let explode_bit = (rem % 2) != 0;
+        let explode_bit = !rem.is_multiple_of(2);
         Some(Self { explode_bit })
     }
 
@@ -3543,7 +3543,7 @@ impl BlockState for PaleHangingMossState {
             return None;
         }
         let rem = offset;
-        let tip = (rem % 2) != 0;
+        let tip = !rem.is_multiple_of(2);
         Some(Self { tip })
     }
 
@@ -3675,7 +3675,7 @@ impl BlockState for BellState {
         rem /= 4;
         let direction = (rem % 4) as u8;
         rem /= 4;
-        let toggle_bit = (rem % 2) != 0;
+        let toggle_bit = !rem.is_multiple_of(2);
         Some(Self {
             attachment,
             direction,
@@ -3789,7 +3789,7 @@ impl BlockState for ObserverState {
         let mut rem = offset;
         let facing_direction = FacingDirection::from_raw((rem % 6) as u8)?;
         rem /= 6;
-        let powered_bit = (rem % 2) != 0;
+        let powered_bit = !rem.is_multiple_of(2);
         Some(Self {
             facing_direction,
             powered_bit,
@@ -3855,7 +3855,7 @@ impl BlockState for SnowLayerState {
             return None;
         }
         let mut rem = offset;
-        let covered_bit = (rem % 2) != 0;
+        let covered_bit = !rem.is_multiple_of(2);
         rem /= 2;
         let height = (rem % 8) as u8;
         Some(Self {
@@ -3964,7 +3964,7 @@ impl BlockState for EndPortalFrameState {
             return None;
         }
         let mut rem = offset;
-        let end_portal_eye_bit = (rem % 2) != 0;
+        let end_portal_eye_bit = !rem.is_multiple_of(2);
         rem /= 2;
         let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
         Some(Self {
@@ -4026,7 +4026,7 @@ impl BlockState for LecternState {
         let mut rem = offset;
         let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
         rem /= 4;
-        let powered_bit = (rem % 2) != 0;
+        let powered_bit = !rem.is_multiple_of(2);
         Some(Self {
             cardinal_direction,
             powered_bit,
@@ -4137,7 +4137,7 @@ impl BlockState for BarrelState {
         let mut rem = offset;
         let facing_direction = (rem % 6) as u8;
         rem /= 6;
-        let open_bit = (rem % 2) != 0;
+        let open_bit = !rem.is_multiple_of(2);
         Some(Self {
             facing_direction,
             open_bit,
@@ -4207,7 +4207,7 @@ impl BlockState for CreakingHeartBlockState {
         let mut rem = offset;
         let creaking_heart_state = CreakingHeartState::from_raw((rem % 3) as u8)?;
         rem /= 3;
-        let natural = (rem % 2) != 0;
+        let natural = !rem.is_multiple_of(2);
         rem /= 2;
         let pillar_axis = PillarAxis::from_raw((rem % 3) as u8)?;
         Some(Self {
@@ -4270,7 +4270,7 @@ impl BlockState for SmallDripleafBlockState {
         let mut rem = offset;
         let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
         rem /= 4;
-        let upper_block_bit = (rem % 2) != 0;
+        let upper_block_bit = !rem.is_multiple_of(2);
         Some(Self {
             cardinal_direction,
             upper_block_bit,
@@ -4379,7 +4379,7 @@ impl BlockState for PointedDripstoneState {
         let mut rem = offset;
         let dripstone_thickness = DripstoneThickness::from_raw((rem % 5) as u8)?;
         rem /= 5;
-        let hanging = (rem % 2) != 0;
+        let hanging = !rem.is_multiple_of(2);
         Some(Self {
             dripstone_thickness,
             hanging,
@@ -4699,13 +4699,13 @@ impl BlockState for TripWireState {
             return None;
         }
         let mut rem = offset;
-        let attached_bit = (rem % 2) != 0;
+        let attached_bit = !rem.is_multiple_of(2);
         rem /= 2;
-        let disarmed_bit = (rem % 2) != 0;
+        let disarmed_bit = !rem.is_multiple_of(2);
         rem /= 2;
-        let powered_bit = (rem % 2) != 0;
+        let powered_bit = !rem.is_multiple_of(2);
         rem /= 2;
-        let suspended_bit = (rem % 2) != 0;
+        let suspended_bit = !rem.is_multiple_of(2);
         Some(Self {
             attached_bit,
             disarmed_bit,
@@ -4751,7 +4751,7 @@ impl BlockState for BedrockState {
             return None;
         }
         let rem = offset;
-        let infiniburn_bit = (rem % 2) != 0;
+        let infiniburn_bit = !rem.is_multiple_of(2);
         Some(Self { infiniburn_bit })
     }
 
@@ -4792,7 +4792,7 @@ impl BlockState for BubbleColumnState {
             return None;
         }
         let rem = offset;
-        let drag_down = (rem % 2) != 0;
+        let drag_down = !rem.is_multiple_of(2);
         Some(Self { drag_down })
     }
 
@@ -4934,7 +4934,7 @@ impl BlockState for PaleMossCarpetState {
         rem /= 3;
         let pale_moss_carpet_side_west = PaleMossCarpetSideWest::from_raw((rem % 3) as u8)?;
         rem /= 3;
-        let upper_block_bit = (rem % 2) != 0;
+        let upper_block_bit = !rem.is_multiple_of(2);
         Some(Self {
             pale_moss_carpet_side_east,
             pale_moss_carpet_side_north,
@@ -4992,9 +4992,9 @@ impl BlockState for SculkShriekerState {
             return None;
         }
         let mut rem = offset;
-        let active = (rem % 2) != 0;
+        let active = !rem.is_multiple_of(2);
         rem /= 2;
-        let can_summon = (rem % 2) != 0;
+        let can_summon = !rem.is_multiple_of(2);
         Some(Self { active, can_summon })
     }
 
@@ -5059,11 +5059,11 @@ impl BlockState for BrewingStandState {
             return None;
         }
         let mut rem = offset;
-        let brewing_stand_slot_a_bit = (rem % 2) != 0;
+        let brewing_stand_slot_a_bit = !rem.is_multiple_of(2);
         rem /= 2;
-        let brewing_stand_slot_b_bit = (rem % 2) != 0;
+        let brewing_stand_slot_b_bit = !rem.is_multiple_of(2);
         rem /= 2;
-        let brewing_stand_slot_c_bit = (rem % 2) != 0;
+        let brewing_stand_slot_c_bit = !rem.is_multiple_of(2);
         Some(Self {
             brewing_stand_slot_a_bit,
             brewing_stand_slot_b_bit,
@@ -5108,7 +5108,7 @@ impl BlockState for FlowerPotState {
             return None;
         }
         let rem = offset;
-        let update_bit = (rem % 2) != 0;
+        let update_bit = !rem.is_multiple_of(2);
         Some(Self { update_bit })
     }
 
@@ -5173,11 +5173,11 @@ impl BlockState for CrafterState {
             return None;
         }
         let mut rem = offset;
-        let crafting = (rem % 2) != 0;
+        let crafting = !rem.is_multiple_of(2);
         rem /= 2;
         let orientation = Orientation::from_raw((rem % 12) as u8)?;
         rem /= 12;
-        let triggered_bit = (rem % 2) != 0;
+        let triggered_bit = !rem.is_multiple_of(2);
         Some(Self {
             crafting,
             orientation,
@@ -5246,7 +5246,7 @@ impl BlockState for HopperState {
         let mut rem = offset;
         let facing_direction = (rem % 6) as u8;
         rem /= 6;
-        let toggle_bit = (rem % 2) != 0;
+        let toggle_bit = !rem.is_multiple_of(2);
         Some(Self {
             facing_direction,
             toggle_bit,
@@ -5410,7 +5410,7 @@ impl BlockState for SeaPickleState {
         let mut rem = offset;
         let cluster_count = (rem % 4) as u8;
         rem /= 4;
-        let dead_bit = (rem % 2) != 0;
+        let dead_bit = !rem.is_multiple_of(2);
         Some(Self {
             cluster_count,
             dead_bit,
@@ -5454,7 +5454,7 @@ impl BlockState for SculkCatalystState {
             return None;
         }
         let rem = offset;
-        let bloom = (rem % 2) != 0;
+        let bloom = !rem.is_multiple_of(2);
         Some(Self { bloom })
     }
 
@@ -5521,7 +5521,7 @@ impl BlockState for VaultBlockState {
         let mut rem = offset;
         let cardinal_direction = CardinalDirection::from_raw((rem % 4) as u8)?;
         rem /= 4;
-        let ominous = (rem % 2) != 0;
+        let ominous = !rem.is_multiple_of(2);
         rem /= 2;
         let vault_state = VaultState::from_raw((rem % 4) as u8)?;
         Some(Self {
@@ -5592,7 +5592,7 @@ impl BlockState for ScaffoldingState {
         let mut rem = offset;
         let stability = (rem % 8) as u8;
         rem /= 8;
-        let stability_check = (rem % 2) != 0;
+        let stability_check = !rem.is_multiple_of(2);
         Some(Self {
             stability,
             stability_check,
@@ -5660,7 +5660,7 @@ impl BlockState for BigDripleafState {
             return None;
         }
         let mut rem = offset;
-        let big_dripleaf_head = (rem % 2) != 0;
+        let big_dripleaf_head = !rem.is_multiple_of(2);
         rem /= 2;
         let big_dripleaf_tilt = BigDripleafTilt::from_raw((rem % 4) as u8)?;
         rem /= 4;
@@ -5973,7 +5973,7 @@ impl BlockState for LeverState {
         let mut rem = offset;
         let lever_direction = LeverDirection::from_raw((rem % 8) as u8)?;
         rem /= 8;
-        let open_bit = (rem % 2) != 0;
+        let open_bit = !rem.is_multiple_of(2);
         Some(Self {
             lever_direction,
             open_bit,
@@ -6051,9 +6051,9 @@ impl BlockState for BedState {
         let mut rem = offset;
         let direction = (rem % 4) as u8;
         rem /= 4;
-        let head_piece_bit = (rem % 2) != 0;
+        let head_piece_bit = !rem.is_multiple_of(2);
         rem /= 2;
-        let occupied_bit = (rem % 2) != 0;
+        let occupied_bit = !rem.is_multiple_of(2);
         Some(Self {
             direction,
             head_piece_bit,
@@ -6122,7 +6122,7 @@ impl BlockState for BambooState {
             return None;
         }
         let mut rem = offset;
-        let age_bit = (rem % 2) != 0;
+        let age_bit = !rem.is_multiple_of(2);
         rem /= 2;
         let bamboo_leaf_size = BambooLeafSize::from_raw((rem % 3) as u8)?;
         rem /= 3;
@@ -6193,7 +6193,7 @@ impl BlockState for MangrovePropaguleState {
             return None;
         }
         let mut rem = offset;
-        let hanging = (rem % 2) != 0;
+        let hanging = !rem.is_multiple_of(2);
         rem /= 2;
         let propagule_stage = (rem % 5) as u8;
         Some(Self {
@@ -6523,7 +6523,7 @@ impl BlockState for PitcherCropState {
         let mut rem = offset;
         let growth = (rem % 8) as u8;
         rem /= 8;
-        let upper_block_bit = (rem % 2) != 0;
+        let upper_block_bit = !rem.is_multiple_of(2);
         Some(Self {
             growth,
             upper_block_bit,
@@ -6599,11 +6599,11 @@ impl BlockState for TripwireHookState {
             return None;
         }
         let mut rem = offset;
-        let attached_bit = (rem % 2) != 0;
+        let attached_bit = !rem.is_multiple_of(2);
         rem /= 2;
         let direction = (rem % 4) as u8;
         rem /= 4;
-        let powered_bit = (rem % 2) != 0;
+        let powered_bit = !rem.is_multiple_of(2);
         Some(Self {
             attached_bit,
             direction,
@@ -6738,7 +6738,7 @@ impl BlockState for TrialSpawnerState {
             return None;
         }
         let mut rem = offset;
-        let ominous = (rem % 2) != 0;
+        let ominous = !rem.is_multiple_of(2);
         rem /= 2;
         let trial_spawner_state = (rem % 6) as u8;
         Some(Self {

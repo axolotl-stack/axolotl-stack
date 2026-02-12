@@ -1309,7 +1309,7 @@ impl MpsdEnumerator {
 
         self.do_get_request_with_headers(
             token,
-            &url,
+            url,
             "peoplehub_presence",
             &[
                 ("x-xbl-contract-version", "5"),
@@ -1326,7 +1326,7 @@ impl MpsdEnumerator {
 
         self.do_get_request_with_headers(
             token,
-            &url,
+            url,
             "activity_feed",
             &[("x-xbl-contract-version", "3")],
         )
@@ -1357,7 +1357,7 @@ impl MpsdEnumerator {
             "scid": SERVICE_CONFIG_ID
         });
 
-        self.do_post_request(token, &url, &body, "multiplayer_activity")
+        self.do_post_request(token, url, &body, "multiplayer_activity")
             .await
     }
 
@@ -1371,14 +1371,14 @@ impl MpsdEnumerator {
         // Try the root endpoint
         let url = "https://signal.franchise.minecraft-services.net/";
 
-        self.do_get_request(token, &url, "signaling_root").await
+        self.do_get_request(token, url, "signaling_root").await
     }
 
     /// Test signaling API endpoints
     pub async fn test_signaling_api(&self, token: &XblToken) -> EnumerationResult {
         let url = "https://signal.franchise.minecraft-services.net/api/v1.0/";
 
-        self.do_get_request(token, &url, "signaling_api").await
+        self.do_get_request(token, url, "signaling_api").await
     }
 
     /// Test authorization server session endpoints
@@ -1386,14 +1386,14 @@ impl MpsdEnumerator {
         // Try listing sessions endpoint
         let url = "https://authorization.franchise.minecraft-services.net/api/v1.0/sessions";
 
-        self.do_get_request(token, &url, "auth_sessions").await
+        self.do_get_request(token, url, "auth_sessions").await
     }
 
     /// Test Minecraft services discovery
     pub async fn test_mc_discovery(&self, token: &XblToken) -> EnumerationResult {
         let url = "https://client.discovery.minecraft-services.net/api/v1.0/discovery/MinecraftPE";
 
-        self.do_get_request(token, &url, "mc_discovery").await
+        self.do_get_request(token, url, "mc_discovery").await
     }
 
     /// Test Realms API
@@ -1402,7 +1402,7 @@ impl MpsdEnumerator {
 
         self.do_get_request_with_headers(
             token,
-            &url,
+            url,
             "realms_api",
             &[("Client-Version", "1.21.50"), ("User-Agent", "MCPE/UWP")],
         )
@@ -1694,7 +1694,7 @@ impl MpsdEnumerator {
         status: u16,
         body: String,
     ) -> EnumerationResult {
-        let success = status >= 200 && status < 300;
+        let success = (200..300).contains(&status);
 
         let sessions = if success {
             // Try to parse as session query response

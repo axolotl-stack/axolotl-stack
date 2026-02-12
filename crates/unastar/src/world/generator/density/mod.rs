@@ -50,6 +50,7 @@ pub fn lerp(t: f64, a: f64, b: f64) -> f64 {
 
 // Helper for trilinear interpolation
 #[inline]
+#[allow(clippy::too_many_arguments)]
 pub fn lerp3(
     tx: f64,
     ty: f64,

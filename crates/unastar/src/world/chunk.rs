@@ -688,22 +688,15 @@ impl Chunk {
         let storage_count = data[1];
         // Skip y_index byte (data[2]) - we already know the Y from the key
 
-        let mut offset = 3;
+        let offset = 3;
 
-        // Decode each storage layer (usually just 1)
-        for _ in 0..storage_count {
-            if offset >= data.len() {
-                break;
-            }
-
+        // Decode first storage layer (we only use the first one)
+        if storage_count > 0 && offset < data.len() {
             let storage = PalettedStorage::decode(&data[offset..])?;
-            offset += storage.1; // Skip bytes consumed
+            let _ = storage.1; // bytes consumed (only first layer used)
 
             // Replace the subchunk's storage with the decoded one
             self.sub_chunks[array_idx].storage = storage.0;
-
-            // Only use first storage layer
-            break;
         }
 
         // Update heightmap for this subchunk
@@ -941,6 +934,7 @@ impl PalettedStorage {
     }
 
     /// Calculate bits needed per block index.
+    #[allow(dead_code)]
     fn bits_per_block(&self) -> u8 {
         self.size as u8
     }

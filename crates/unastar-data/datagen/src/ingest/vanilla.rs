@@ -55,7 +55,7 @@ pub fn parse_vanilla_entities(dir: &Path) -> miette::Result<HashMap<String, Enti
     for entry in WalkDir::new(dir)
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "json"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "json"))
     {
         let path = entry.path();
         debug!("Parsing vanilla: {}", path.display());
@@ -219,7 +219,7 @@ fn parse_property(value: &serde_json::Value) -> Option<PropertyDef> {
 fn parse_components(raw: HashMap<String, serde_json::Value>) -> HashMap<String, ComponentValue> {
     raw.into_iter()
         .map(|(name, value)| {
-            let comp = if value.as_object().map_or(false, |o| o.is_empty()) {
+            let comp = if value.as_object().is_some_and(|o| o.is_empty()) {
                 ComponentValue::Marker
             } else {
                 ComponentValue::Data(value)

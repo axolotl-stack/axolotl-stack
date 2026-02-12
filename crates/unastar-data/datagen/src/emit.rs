@@ -241,13 +241,12 @@ fn add_json_to_component(node: &mut KdlNode, json: &serde_json::Value, component
     match json {
         serde_json::Value::Object(obj) => {
             // Check for single "value" field pattern -> use as argument
-            if obj.len() == 1 {
-                if let Some(val) = obj.get("value") {
-                    if is_simple_value(val) {
-                        node.push(KdlEntry::new(json_to_kdl_value(val)));
-                        return;
-                    }
-                }
+            if obj.len() == 1
+                && let Some(val) = obj.get("value")
+                && is_simple_value(val)
+            {
+                node.push(KdlEntry::new(json_to_kdl_value(val)));
+                return;
             }
 
             // Check if all values are simple enough to inline as properties
@@ -550,55 +549,52 @@ fn add_json_to_semantic_node(node: &mut KdlNode, json: &serde_json::Value, node_
 
 /// Special handling for Bedrock filter structures
 fn add_filters_to_node(node: &mut KdlNode, json: &serde_json::Value) {
-    match json {
-        serde_json::Value::Object(obj) => {
-            // Check for filter group types
-            if let Some(all_of) = obj.get("all_of") {
-                let mut children = KdlDocument::new();
-                if let serde_json::Value::Array(filters) = all_of {
-                    for filter in filters {
-                        let mut filter_node = KdlNode::new("filter");
-                        add_filter_props(&mut filter_node, filter);
-                        children.nodes_mut().push(filter_node);
-                    }
+    if let serde_json::Value::Object(obj) = json {
+        // Check for filter group types
+        if let Some(all_of) = obj.get("all_of") {
+            let mut children = KdlDocument::new();
+            if let serde_json::Value::Array(filters) = all_of {
+                for filter in filters {
+                    let mut filter_node = KdlNode::new("filter");
+                    add_filter_props(&mut filter_node, filter);
+                    children.nodes_mut().push(filter_node);
                 }
-                node.set_children(children);
-            } else if let Some(any_of) = obj.get("any_of") {
-                let mut any_node = KdlNode::new("any_of");
-                let mut any_children = KdlDocument::new();
-                if let serde_json::Value::Array(filters) = any_of {
-                    for filter in filters {
-                        let mut filter_node = KdlNode::new("filter");
-                        add_filter_props(&mut filter_node, filter);
-                        any_children.nodes_mut().push(filter_node);
-                    }
-                }
-                any_node.set_children(any_children);
-
-                let mut children = KdlDocument::new();
-                children.nodes_mut().push(any_node);
-                node.set_children(children);
-            } else if let Some(none_of) = obj.get("none_of") {
-                let mut none_node = KdlNode::new("none_of");
-                let mut none_children = KdlDocument::new();
-                if let serde_json::Value::Array(filters) = none_of {
-                    for filter in filters {
-                        let mut filter_node = KdlNode::new("filter");
-                        add_filter_props(&mut filter_node, filter);
-                        none_children.nodes_mut().push(filter_node);
-                    }
-                }
-                none_node.set_children(none_children);
-
-                let mut children = KdlDocument::new();
-                children.nodes_mut().push(none_node);
-                node.set_children(children);
-            } else {
-                // Single filter - add as properties
-                add_filter_props(node, json);
             }
+            node.set_children(children);
+        } else if let Some(any_of) = obj.get("any_of") {
+            let mut any_node = KdlNode::new("any_of");
+            let mut any_children = KdlDocument::new();
+            if let serde_json::Value::Array(filters) = any_of {
+                for filter in filters {
+                    let mut filter_node = KdlNode::new("filter");
+                    add_filter_props(&mut filter_node, filter);
+                    any_children.nodes_mut().push(filter_node);
+                }
+            }
+            any_node.set_children(any_children);
+
+            let mut children = KdlDocument::new();
+            children.nodes_mut().push(any_node);
+            node.set_children(children);
+        } else if let Some(none_of) = obj.get("none_of") {
+            let mut none_node = KdlNode::new("none_of");
+            let mut none_children = KdlDocument::new();
+            if let serde_json::Value::Array(filters) = none_of {
+                for filter in filters {
+                    let mut filter_node = KdlNode::new("filter");
+                    add_filter_props(&mut filter_node, filter);
+                    none_children.nodes_mut().push(filter_node);
+                }
+            }
+            none_node.set_children(none_children);
+
+            let mut children = KdlDocument::new();
+            children.nodes_mut().push(none_node);
+            node.set_children(children);
+        } else {
+            // Single filter - add as properties
+            add_filter_props(node, json);
         }
-        _ => {}
     }
 }
 

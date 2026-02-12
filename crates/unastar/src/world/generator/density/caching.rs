@@ -31,6 +31,7 @@ use unastar_noise::{
 /// that only depend on X and Z coordinates. The grid stores values at quart positions
 /// (block >> 2) and is pre-computed once when first accessed.
 #[derive(Clone, Copy)]
+#[allow(dead_code)]
 pub struct FlatCacheData {
     /// Pre-computed XZ grid (5x5 quart positions for 16x16 block chunk).
     /// Indexed as values[qz_offset][qx_offset] where offset is relative to first_quart_x/z.
@@ -45,6 +46,7 @@ pub struct FlatCacheData {
 
 impl FlatCacheData {
     /// Create new uninitialized FlatCacheData for the given chunk.
+    #[allow(dead_code)]
     pub fn new(chunk_x: i32, chunk_z: i32) -> Self {
         Self {
             values: [[0.0; 5]; 5],

@@ -60,14 +60,8 @@ impl PickupDelay {
 }
 
 /// Owner of the dropped item (has pickup priority).
-#[derive(Component, Debug, Clone)]
+#[derive(Component, Debug, Clone, Default)]
 pub struct ItemOwner(pub Option<Entity>);
-
-impl Default for ItemOwner {
-    fn default() -> Self {
-        Self(None)
-    }
-}
 
 /// Despawn timer for items that have existed too long.
 #[derive(Component, Debug, Clone, Copy)]

@@ -36,6 +36,7 @@ impl CaveCarver {
     }
 
     /// Carve a single cave branch.
+    #[allow(clippy::too_many_arguments)]
     fn carve_branch(
         &self,
         chunk: &mut Chunk,
@@ -119,6 +120,7 @@ impl CaveCarver {
     }
 
     /// Carve a spheroid at the given position.
+    #[allow(clippy::too_many_arguments)]
     fn carve_sphere(
         &self,
         chunk: &mut Chunk,

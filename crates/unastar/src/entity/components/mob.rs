@@ -38,14 +38,8 @@ pub struct AiState {
 }
 
 /// Whether the mob is hostile.
-#[derive(Component, Debug, Clone, Copy)]
+#[derive(Component, Debug, Clone, Copy, Default)]
 pub struct Hostile(pub bool);
-
-impl Default for Hostile {
-    fn default() -> Self {
-        Self(false)
-    }
-}
 
 /// Whether the mob can be tamed.
 #[derive(Component, Debug, Default)]
@@ -54,15 +48,9 @@ pub struct Tameable {
 }
 
 /// Mob age (for babies).
-#[derive(Component, Debug, Clone, Copy)]
+#[derive(Component, Debug, Clone, Copy, Default)]
 pub struct MobAge {
     pub ticks: i32, // Negative = baby
-}
-
-impl Default for MobAge {
-    fn default() -> Self {
-        Self { ticks: 0 }
-    }
 }
 
 impl MobAge {

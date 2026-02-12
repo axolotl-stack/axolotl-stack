@@ -228,7 +228,7 @@ impl VanillaGenerator {
                     noise_chunk.select_cell_yz(cell_y, cell_z);
 
                     // Iterate blocks within cell (Y descending for surface)
-                    for y_in_cell in (0..cell_height as i32).rev() {
+                    for y_in_cell in (0..cell_height).rev() {
                         let block_y = min_y + (cell_y as i32) * cell_height + y_in_cell;
 
                         // Update Y interpolation
@@ -248,7 +248,7 @@ impl VanillaGenerator {
                             let local_x = ((cell_x as i32) * cell_width + x_in_cell) as u8;
 
                             // Check if we're in ore vein Y range (-60 to 50) to avoid function call overhead
-                            let in_vein_range = block_y >= -60 && block_y <= 50;
+                            let in_vein_range = (-60..=50).contains(&block_y);
 
                             if all_positive {
                                 // Fast path: all 4 blocks are solid
@@ -345,6 +345,7 @@ impl VanillaGenerator {
     }
 
     /// Carve caves into the chunk using vanilla worm algorithm.
+    #[allow(dead_code)]
     fn carve_caves<F: super::aquifer::FluidPicker>(
         &self,
         chunk: &mut Chunk,
@@ -423,6 +424,7 @@ impl VanillaGenerator {
     }
 
     /// Carve a large cave room.
+    #[allow(dead_code, clippy::too_many_arguments)]
     fn carve_cave_room<F: super::aquifer::FluidPicker>(
         &self,
         chunk: &mut Chunk,
@@ -454,6 +456,7 @@ impl VanillaGenerator {
     }
 
     /// Carve a cave tunnel (worm algorithm from vanilla).
+    #[allow(dead_code, clippy::too_many_arguments)]
     fn carve_cave_tunnel<F: super::aquifer::FluidPicker>(
         &self,
         chunk: &mut Chunk,
@@ -590,14 +593,14 @@ impl VanillaGenerator {
 
                     for lx in min_x..max_x {
                         // Safety check: ensure lx is within chunk bounds
-                        if lx < 0 || lx >= 16 {
+                        if !(0..16).contains(&lx) {
                             continue;
                         }
                         let dx = ((lx + chunk_x * 16) as f64 + 0.5 - x) / radius;
 
                         for lz in min_z..max_z {
                             // Safety check: ensure lz is within chunk bounds
-                            if lz < 0 || lz >= 16 {
+                            if !(0..16).contains(&lz) {
                                 continue;
                             }
                             let dz = ((lz + chunk_z * 16) as f64 + 0.5 - z) / radius;
@@ -649,6 +652,7 @@ impl VanillaGenerator {
 
     /// Carve ravines (vanilla-accurate from MapGenRavine.java)
     /// Ravines are rarer but larger than caves, with a distinctive tall/narrow shape
+    #[allow(dead_code)]
     fn carve_ravines<F: super::aquifer::FluidPicker>(
         &self,
         chunk: &mut Chunk,
@@ -708,6 +712,7 @@ impl VanillaGenerator {
     }
 
     /// Carve a ravine tunnel (similar to cave but taller and shallower)
+    #[allow(dead_code, clippy::too_many_arguments)]
     fn carve_ravine_tunnel<F: super::aquifer::FluidPicker>(
         &self,
         chunk: &mut Chunk,
@@ -798,14 +803,14 @@ impl VanillaGenerator {
 
                     for lx in min_x..max_x {
                         // Safety check: ensure lx is within chunk bounds
-                        if lx < 0 || lx >= 16 {
+                        if !(0..16).contains(&lx) {
                             continue;
                         }
                         let dx = ((lx + chunk_x * 16) as f64 + 0.5 - x) / h_radius;
 
                         for lz in min_z..max_z {
                             // Safety check: ensure lz is within chunk bounds
-                            if lz < 0 || lz >= 16 {
+                            if !(0..16).contains(&lz) {
                                 continue;
                             }
                             let dz = ((lz + chunk_z * 16) as f64 + 0.5 - z) / h_radius;

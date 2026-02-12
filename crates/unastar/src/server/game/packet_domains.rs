@@ -3,6 +3,7 @@
 //! This module defines packet enums grouped by logical domain (Movement, Blocks, Inventory, etc.).
 //! Each domain represents a cohesive set of related packet types that will be processed together
 //! by specialized handler systems, enabling parallel packet processing via Bevy ECS.
+#![allow(dead_code)]
 
 use jolyne::valentine::*;
 

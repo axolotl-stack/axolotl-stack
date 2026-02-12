@@ -222,10 +222,10 @@ impl SurfaceSystem {
                         if block == self.default_block {
                             ctx.update_y(y, stone_depth_above, 0, water_height, column_biome);
 
-                            if let Some(new_block) = self.rule.try_apply(&ctx, &get_block) {
-                                if new_block != block {
-                                    chunk.set_block(local_x, y as i16, local_z, new_block);
-                                }
+                            if let Some(new_block) = self.rule.try_apply(&ctx, &get_block)
+                                && new_block != block
+                            {
+                                chunk.set_block(local_x, y as i16, local_z, new_block);
                             }
                         }
 
@@ -273,7 +273,7 @@ mod tests {
         let system = create_test_system();
         let depth = system.get_surface_depth(0, 0);
         // Surface depth should be in reasonable range
-        assert!(depth >= 0 && depth <= 10, "Depth {} out of range", depth);
+        assert!((0..=10).contains(&depth), "Depth {} out of range", depth);
     }
 
     #[test]

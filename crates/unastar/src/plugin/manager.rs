@@ -14,6 +14,7 @@ use unastar_api::{BlockId, LogLevel, PlayerHandle, PluginAction, PluginEvent};
 // Host Context
 // ============================================================================
 
+#[allow(dead_code)]
 struct HostContext {
     wasi: WasiP1Ctx,
     plugin_id: PluginId,
@@ -59,6 +60,7 @@ impl HostContext {
     }
 
     // Unsafe helper to get mutable world reference
+    #[allow(dead_code)]
     unsafe fn world_mut(&mut self) -> Option<&mut bevy_ecs::world::World> {
         if self.world_ptr.is_null() {
             None
@@ -258,12 +260,11 @@ impl PluginManager {
                     let (cx, cz) = world_to_chunk_coords(x, z);
                     let (lx, ly, lz) = world_to_local_coords(x, y, z);
 
-                    if let Some(chunk_entity) = chunk_manager.get_by_coords(cx, cz) {
-                        if let Some(chunk_data) =
+                    if let Some(chunk_entity) = chunk_manager.get_by_coords(cx, cz)
+                        && let Some(chunk_data) =
                             world.get::<crate::world::ecs::ChunkData>(chunk_entity)
-                        {
-                            return chunk_data.inner.get_block(lx, ly, lz);
-                        }
+                    {
+                        return chunk_data.inner.get_block(lx, ly, lz);
                     }
                 }
                 0 // Air or unknown
@@ -294,7 +295,7 @@ impl PluginManager {
                 }
 
                 if let Some(memory) = caller.get_export("memory").and_then(|m| m.into_memory()) {
-                    if let Err(_) = memory.write(&mut caller, buf_ptr as usize, &data) {
+                    if memory.write(&mut caller, buf_ptr as usize, &data).is_err() {
                         return 0;
                     }
                     return data_len;
@@ -305,8 +306,8 @@ impl PluginManager {
 
         // fn host_schedule_task(data_ptr: *const u8, data_len: u32) -> u32 (task_id)
         let next_task_id = self.next_task_id.clone();
-        let pending_tasks = self.pending_tasks.clone();
-        let task_results_tx = self.task_results_tx.clone();
+        let _pending_tasks = self.pending_tasks.clone();
+        let _task_results_tx = self.task_results_tx.clone();
         linker.func_wrap(
             "env",
             "host_schedule_task",
@@ -322,19 +323,18 @@ impl PluginManager {
                     return 0;
                 }
 
-                let task_request: unastar_api::TaskRequest = match borsh::from_slice(&buf) {
+                let _task_request: unastar_api::TaskRequest = match borsh::from_slice(&buf) {
                     Ok(req) => req,
                     Err(_) => return 0,
                 };
 
                 // Generate task ID
-                let task_id = next_task_id.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
                 // TODO: Spawn async task and track it
                 // let pending_tasks_clone = pending_tasks.clone();
                 // let task_results_tx_clone = task_results_tx.clone();
 
-                task_id
+                next_task_id.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
             },
         )?;
 
@@ -722,60 +722,57 @@ impl PluginManager {
 
     /// Execute the default server behavior for an event (e.g., broadcasting chat).
     fn execute_default_behavior(event: ServerEvent, world: &mut bevy_ecs::world::World) {
-        match event {
-            ServerEvent::PlayerChat {
-                entity,
-                player_id: _,
-                message,
-            } => {
-                use crate::entity::components::{PlayerName, PlayerSession};
-                use jolyne::valentine::{
-                    McpePacket, TextPacket, TextPacketCategory, TextPacketContent,
-                    TextPacketContentAuthored, TextPacketExtra, TextPacketExtraAnnouncement,
-                    TextPacketType,
-                };
+        // Add other default behaviors here as needed (e.g. block breaking drops, etc.)
+        if let ServerEvent::PlayerChat {
+            entity,
+            player_id: _,
+            message,
+        } = event
+        {
+            use crate::entity::components::{PlayerName, PlayerSession};
+            use jolyne::valentine::{
+                McpePacket, TextPacket, TextPacketCategory, TextPacketContent,
+                TextPacketContentAuthored, TextPacketExtra, TextPacketExtraAnnouncement,
+                TextPacketType,
+            };
 
-                let sender_name = world
-                    .get::<PlayerName>(entity)
-                    .map(|n| n.0.clone())
-                    .unwrap_or_else(|| "Unknown".to_string());
+            let sender_name = world
+                .get::<PlayerName>(entity)
+                .map(|n| n.0.clone())
+                .unwrap_or_else(|| "Unknown".to_string());
 
-                let packet = TextPacket {
-                    type_: TextPacketType::Chat,
-                    needs_translation: false,
-                    category: TextPacketCategory::Authored,
-                    content: Some(TextPacketContent::Authored(TextPacketContentAuthored {
-                        chat: message.clone(),
-                        whisper: String::new(),
-                        announcement: String::new(),
-                    })),
-                    extra: Some(TextPacketExtra::Chat(TextPacketExtraAnnouncement {
-                        source_name: sender_name.clone(),
-                        message: message.clone(),
-                    })),
-                    xuid: "0".to_string(),
-                    platform_chat_id: String::new(),
-                    filtered_message: None,
-                };
+            let packet = TextPacket {
+                type_: TextPacketType::Chat,
+                needs_translation: false,
+                category: TextPacketCategory::Authored,
+                content: Some(TextPacketContent::Authored(TextPacketContentAuthored {
+                    chat: message.clone(),
+                    whisper: String::new(),
+                    announcement: String::new(),
+                })),
+                extra: Some(TextPacketExtra::Chat(TextPacketExtraAnnouncement {
+                    source_name: sender_name.clone(),
+                    message: message.clone(),
+                })),
+                xuid: "0".to_string(),
+                platform_chat_id: String::new(),
+                filtered_message: None,
+            };
 
-                // Broadcast to all players
-                let session_map =
-                    match world.get_resource::<crate::server::game::SessionEntityMap>() {
-                        Some(map) => map,
-                        None => return,
-                    };
+            // Broadcast to all players
+            let Some(session_map) = world.get_resource::<crate::server::game::SessionEntityMap>()
+            else {
+                return;
+            };
 
-                // We need to collect entities to query sessions, since we can't iterate query while borrowing world
-                let entities: Vec<Entity> = session_map.iter().map(|(_, e)| e).collect();
+            // We need to collect entities to query sessions, since we can't iterate query while borrowing world
+            let entities: Vec<Entity> = session_map.iter().map(|(_, e)| e).collect();
 
-                for other_entity in entities {
-                    if let Some(other_session) = world.get::<PlayerSession>(other_entity) {
-                        let _ = other_session.send(McpePacket::from(packet.clone()));
-                    }
+            for other_entity in entities {
+                if let Some(other_session) = world.get::<PlayerSession>(other_entity) {
+                    let _ = other_session.send(McpePacket::from(packet.clone()));
                 }
             }
-            // Add other default behaviors here as needed (e.g. block breaking drops, etc.)
-            _ => {}
         }
     }
 

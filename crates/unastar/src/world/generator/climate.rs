@@ -67,8 +67,10 @@ impl BiomeNoise {
     /// Java Edition samples climate at "quart positions" (block / 4) with an
     /// additional 0.25 scale factor applied to the noise. This effectively
     /// samples at block / 16 scale. We replicate this by:
+    ///
     /// 1. Converting to quart positions (>> 2 = divide by 4)
     /// 2. Applying 0.25 scale (multiply by 0.25)
+    ///
     /// Result: position / 4 * 0.25 = position / 16
     pub fn sample_climate(&self, x: i32, y: i32, z: i32) -> [i64; 6] {
         // Convert to quart coordinates then apply 0.25 scale factor
@@ -235,7 +237,7 @@ impl BiomeNoise {
                 return Biome::StonyShore;
             }
             // Beach at medium-high erosion
-            if ei >= 3 && ei <= 4 {
+            if (3..=4).contains(&ei) {
                 return Self::pick_beach(ti);
             }
         }
@@ -243,9 +245,9 @@ impl BiomeNoise {
         // Valley weirdness = rivers
         let is_valley = weird.abs() < 500; // -0.05 to 0.05
 
-        if is_valley && cont >= COAST_CONT && cont < MID_INLAND_CONT {
+        if is_valley && (COAST_CONT..MID_INLAND_CONT).contains(&cont) {
             // Rivers in valleys
-            if ei >= 2 && ei <= 5 {
+            if (2..=5).contains(&ei) {
                 return if ti == 0 {
                     Biome::FrozenRiver
                 } else {
@@ -314,10 +316,8 @@ impl BiomeNoise {
 
     fn pick_middle_biome(ti: usize, hi: usize, use_variant: bool) -> Biome {
         use unastar_noise::biome_tables::*;
-        if use_variant {
-            if let Some(variant) = MIDDLE_BIOMES_VARIANT[ti][hi] {
-                return variant;
-            }
+        if use_variant && let Some(variant) = MIDDLE_BIOMES_VARIANT[ti][hi] {
+            return variant;
         }
         MIDDLE_BIOMES[ti][hi]
     }
@@ -332,10 +332,8 @@ impl BiomeNoise {
 
     fn pick_plateau_biome(ti: usize, hi: usize, use_variant: bool) -> Biome {
         use unastar_noise::biome_tables::*;
-        if use_variant {
-            if let Some(variant) = PLATEAU_BIOMES_VARIANT[ti][hi] {
-                return variant;
-            }
+        if use_variant && let Some(variant) = PLATEAU_BIOMES_VARIANT[ti][hi] {
+            return variant;
         }
         PLATEAU_BIOMES[ti][hi]
     }

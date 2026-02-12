@@ -1,5 +1,5 @@
 use bevy_ecs::prelude::*;
-use unastar_api::{PluginAction, PluginEvent};
+use unastar_api::PluginAction;
 
 use bevy_ecs::prelude::Entity;
 

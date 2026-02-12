@@ -205,6 +205,7 @@ impl ChunkLoader {
 
     /// Check if a chunk position is within range of the center.
     #[inline]
+    #[allow(dead_code)]
     fn is_in_range(cx: i32, cz: i32, x: i32, z: i32, radius: i32) -> bool {
         let dx = x - cx;
         let dz = z - cz;
@@ -274,10 +275,10 @@ impl Component for ChunkLoader {
             // Remove player from each chunk's viewers
             let mut cleaned = 0;
             for chunk_entity in chunk_entities {
-                if let Some(mut viewers) = world.get_mut::<ChunkViewers>(chunk_entity) {
-                    if viewers.remove(player_entity) {
-                        cleaned += 1;
-                    }
+                if let Some(mut viewers) = world.get_mut::<ChunkViewers>(chunk_entity)
+                    && viewers.remove(player_entity)
+                {
+                    cleaned += 1;
                 }
             }
 

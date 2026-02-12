@@ -337,7 +337,7 @@ mod tests {
         window.on_resend(Sequence24::new(1));
 
         // The cwnd should still be at MTU, not further reduced
-        assert_eq!(window.get_transmission_bandwidth(), mtu as usize);
+        assert_eq!(window.get_transmission_bandwidth(), mtu);
     }
 
     #[test]

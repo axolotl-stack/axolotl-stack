@@ -140,10 +140,10 @@ impl EntityMetadata {
         let mut meta = Self::new();
         let mut entity_flags: u64 = flags::HAS_GRAVITY | flags::HAS_COLLISION | flags::BREATHING;
 
-        if let Some(fire) = on_fire {
-            if fire.is_on_fire() {
-                entity_flags |= flags::ON_FIRE;
-            }
+        if let Some(fire) = on_fire
+            && fire.is_on_fire()
+        {
+            entity_flags |= flags::ON_FIRE;
         }
 
         meta.set_long(keys::FLAGS, entity_flags as i64);

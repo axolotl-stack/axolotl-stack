@@ -84,7 +84,7 @@ impl PlayerSession {
             Ok(()) => true,
             Err(mpsc::error::TrySendError::Full(_)) => {
                 let dropped = self.packets_dropped.fetch_add(1, Ordering::Relaxed) + 1;
-                if dropped == 1 || dropped % 100 == 0 {
+                if dropped == 1 || dropped.is_multiple_of(100) {
                     tracing::warn!(
                         session_id = %self.session_id,
                         packets_dropped = dropped,
@@ -277,7 +277,7 @@ impl BreakingState {
             return false;
         }
         self.break_counter += 1;
-        self.break_counter % 5 == 0
+        self.break_counter.is_multiple_of(5)
     }
 
     /// Get the current break counter.

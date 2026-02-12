@@ -169,7 +169,7 @@ impl<'a> OreVeinifier<'a> {
         // Fast early exit: no ore veins possible outside the combined Y range
         // Iron: -60 to -8, Copper: 0 to 50
         // Combined range: -60 to 50
-        if y < -60 || y > 50 {
+        if !(-60..=50).contains(&y) {
             return None;
         }
 

@@ -3,7 +3,6 @@
 //! Loads and parses vanilla creative inventory JSON files from pmmp/BedrockData.
 
 use serde::Deserialize;
-use std::collections::HashMap;
 
 /// Represents a single creative inventory group (tab subdivision).
 #[derive(Debug, Clone, Deserialize)]

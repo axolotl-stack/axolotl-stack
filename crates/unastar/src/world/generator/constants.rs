@@ -7,6 +7,7 @@ pub use unastar_noise::Biome;
 
 /// Biome parameter ranges [temperature_min, temperature_max].
 /// Each entry is two i64 values scaled by 10000.
+#[allow(dead_code)]
 pub const BIOME_PARAMS: [[i64; 2]; 139] = [
     [-12000, -10500],
     [-12000, -4550],

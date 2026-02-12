@@ -52,6 +52,7 @@ impl PacketQueues {
     ///
     /// This should be called at the start of each tick after handler systems have processed
     /// all packets from the previous tick.
+    #[allow(dead_code)]
     pub fn clear_all(&mut self) {
         self.movement.clear();
         self.blocks.clear();

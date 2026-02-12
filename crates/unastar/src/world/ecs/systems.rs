@@ -125,29 +125,28 @@ pub fn update_chunk_loaders(
         if loader.radius() != radius.0 {
             let radius_evicted = loader.set_radius(radius.0);
             for pos in radius_evicted {
-                if !evicted.contains(&pos) {
-                    if let Some(chunk_entity) = chunk_manager.get_by_coords(pos.0, pos.1) {
-                        if let Ok(mut viewers) = chunks.get_mut(chunk_entity) {
-                            viewers.remove(player_entity);
-                        }
-                    }
+                if !evicted.contains(&pos)
+                    && let Some(chunk_entity) = chunk_manager.get_by_coords(pos.0, pos.1)
+                    && let Ok(mut viewers) = chunks.get_mut(chunk_entity)
+                {
+                    viewers.remove(player_entity);
                 }
             }
         }
 
         // Remove player as viewer from evicted chunks
         for (ex, ez) in &evicted {
-            if let Some(chunk_entity) = chunk_manager.get_by_coords(*ex, *ez) {
-                if let Ok(mut viewers) = chunks.get_mut(chunk_entity) {
-                    viewers.remove(player_entity);
+            if let Some(chunk_entity) = chunk_manager.get_by_coords(*ex, *ez)
+                && let Ok(mut viewers) = chunks.get_mut(chunk_entity)
+            {
+                viewers.remove(player_entity);
 
-                    trace!(
-                        player = ?player_entity,
-                        chunk = ?(ex, ez),
-                        remaining_viewers = viewers.len(),
-                        "Player left chunk view"
-                    );
-                }
+                trace!(
+                    player = ?player_entity,
+                    chunk = ?(ex, ez),
+                    remaining_viewers = viewers.len(),
+                    "Player left chunk view"
+                );
             }
         }
 
@@ -182,7 +181,7 @@ pub fn process_chunk_load_queues(
         ),
         With<Player>,
     >,
-    mut chunks: Query<(&mut ChunkViewers, &ChunkData)>,
+    chunks: Query<(&mut ChunkViewers, &ChunkData)>,
 ) {
     for (player_entity, position, session, mut loader, mut publisher_state) in players.iter_mut() {
         let sent_this_tick = loader.sent_this_tick;
@@ -192,7 +191,7 @@ pub fn process_chunk_load_queues(
         let chunk_x = (position.0.x.floor() as i32) >> 4;
         let chunk_z = (position.0.z.floor() as i32) >> 4;
         let radius = loader.radius();
-        let publisher_radius = (radius as i32).saturating_mul(16);
+        let publisher_radius = radius.saturating_mul(16);
 
         // Check if publisher update is needed
         let need_publisher_update = publisher_state.chunk_x != chunk_x
@@ -228,7 +227,7 @@ pub fn process_chunk_load_queues(
         // We still update publisher state above, but skip chunk processing.
         if chunk_manager.has_async_generation() {
             let has_pending = loader.has_pending();
-            if publisher_state.queue_was_empty != !has_pending {
+            if publisher_state.queue_was_empty == has_pending {
                 debug!(player=?player_entity, has_pending, "Publisher state queue_was_empty updated");
             }
             publisher_state.queue_was_empty = !has_pending;
@@ -440,10 +439,9 @@ pub fn request_chunk_generation(
             // Skip if already pending generation
             if chunk_manager.is_generation_pending(cx, cz) {
                 trace!(chunk = ?(cx, cz), "Chunk generation already pending, adding as viewer.");
-                chunk_manager
-                    .pending_generation
-                    .get_mut(&(cx, cz))
-                    .map(|viewers| viewers.push(player_entity));
+                if let Some(viewers) = chunk_manager.pending_generation.get_mut(&(cx, cz)) {
+                    viewers.push(player_entity)
+                }
                 loader.mark_loaded(cx, cz); // Mark as "loaded" to prevent re-requesting
                 processed += 1;
                 continue;
@@ -467,7 +465,7 @@ pub fn process_completed_generations(
     mut pending_gens: ResMut<PendingChunkGenerations>,
     config: Res<ChunkLoadConfig>,
     sessions: Query<&PlayerSession>,
-    mut loaders: Query<&mut ChunkLoader>,
+    _loaders: Query<&mut ChunkLoader>,
 ) {
     if pending_gens.is_empty() {
         return;
@@ -560,6 +558,7 @@ pub fn process_completed_generations(
 
 /// System: Handle ChunkRadius changes.
 /// When a player's chunk radius changes, update their loader.
+#[allow(clippy::type_complexity)]
 pub fn handle_radius_changes(
     mut players: Query<
         (&ChunkRadius, &mut ChunkLoader, &mut LastPublisherState),
@@ -583,6 +582,7 @@ pub fn handle_radius_changes(
 
 /// System: Schedule chunks for unload when they have no viewers.
 /// Adds ChunkPendingUnload with grace period.
+#[allow(clippy::type_complexity)]
 pub fn schedule_chunk_unloads(
     mut commands: Commands,
     config: Res<ChunkLoadConfig>,
@@ -626,6 +626,7 @@ pub fn cancel_chunk_unloads(
 
 /// System: Process pending chunk unloads.
 /// Ticks down grace period, saves modified chunks, and despawns when expired.
+#[allow(clippy::type_complexity)]
 pub fn process_chunk_unloads(
     mut commands: Commands,
     mut chunk_manager: ResMut<ChunkManager>,
@@ -643,50 +644,49 @@ pub fn process_chunk_unloads(
             // Grace period expired - unload the chunk
 
             // First, freeze any non-player entities in the chunk
-            if let Some(entities) = chunk_entities {
-                if !entities.is_empty() {
-                    trace!(
-                        chunk = ?(pos.x, pos.z),
-                        entity_count = entities.len(),
-                        "TODO: Freeze entities before chunk unload"
-                    );
-                }
+            if let Some(entities) = chunk_entities
+                && !entities.is_empty()
+            {
+                trace!(
+                    chunk = ?(pos.x, pos.z),
+                    entity_count = entities.len(),
+                    "TODO: Freeze entities before chunk unload"
+                );
             }
 
             // Save modified chunks before despawning (check dirty flag)
             let is_dirty = state_flags.map(|f| f.is_dirty()).unwrap_or(false);
-            if is_dirty {
-                if let Some(chunk_data) = chunk_data {
-                    if let Some(provider) = chunk_manager.provider() {
-                        let chunk_pos = crate::world::ChunkPos::new(pos.x, pos.z);
-                        let dim = chunk_manager.dimension();
-                        let column = crate::storage::ChunkColumn::new(chunk_data.inner.clone());
+            if is_dirty
+                && let Some(chunk_data) = chunk_data
+                && let Some(provider) = chunk_manager.provider()
+            {
+                let chunk_pos = crate::world::ChunkPos::new(pos.x, pos.z);
+                let dim = chunk_manager.dimension();
+                let column = crate::storage::ChunkColumn::new(chunk_data.inner.clone());
 
-                        // Block on async save (same pattern as load_or_generate_chunk)
-                        if let Ok(handle) = tokio::runtime::Handle::try_current() {
-                            let save_result = std::thread::spawn(move || {
-                                handle.block_on(provider.save_column(chunk_pos, dim, &column))
-                            })
-                            .join();
+                // Block on async save (same pattern as load_or_generate_chunk)
+                if let Ok(handle) = tokio::runtime::Handle::try_current() {
+                    let save_result = std::thread::spawn(move || {
+                        handle.block_on(provider.save_column(chunk_pos, dim, &column))
+                    })
+                    .join();
 
-                            match save_result {
-                                Ok(Ok(())) => {
-                                    debug!(chunk = ?(pos.x, pos.z), "Saved modified chunk before unload");
-                                }
-                                Ok(Err(e)) => {
-                                    tracing::warn!(
-                                        chunk = ?(pos.x, pos.z),
-                                        error = %e,
-                                        "Failed to save chunk before unload"
-                                    );
-                                }
-                                Err(_) => {
-                                    tracing::warn!(
-                                        chunk = ?(pos.x, pos.z),
-                                        "Thread panic while saving chunk"
-                                    );
-                                }
-                            }
+                    match save_result {
+                        Ok(Ok(())) => {
+                            debug!(chunk = ?(pos.x, pos.z), "Saved modified chunk before unload");
+                        }
+                        Ok(Err(e)) => {
+                            tracing::warn!(
+                                chunk = ?(pos.x, pos.z),
+                                error = %e,
+                                "Failed to save chunk before unload"
+                            );
+                        }
+                        Err(_) => {
+                            tracing::warn!(
+                                chunk = ?(pos.x, pos.z),
+                                "Thread panic while saving chunk"
+                            );
                         }
                     }
                 }

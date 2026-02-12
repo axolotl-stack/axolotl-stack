@@ -282,7 +282,7 @@ impl UnastarServer {
                     let total_elapsed = tick_start.elapsed();
 
                     // Log slow ticks (> 20ms = taking more than half our budget)
-                    if total_elapsed.as_millis() > 20 || tick_count % 200 == 0 {
+                    if total_elapsed.as_millis() > 20 || tick_count.is_multiple_of(200) {
                         trace!(
                             tick = tick_count,
                             events = events_processed,

@@ -105,7 +105,7 @@ impl BlazeDBProvider {
         let config = config.unwrap_or_default();
 
         // Ensure directory exists
-        std::fs::create_dir_all(&path).map_err(|e| StorageError::Io(e))?;
+        std::fs::create_dir_all(&path).map_err(StorageError::Io)?;
 
         let data_path = path.join("chunks.dat");
         let index_path = path.join("index.dat");
@@ -115,8 +115,9 @@ impl BlazeDBProvider {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(false)
             .open(&data_path)
-            .map_err(|e| StorageError::Io(e))?;
+            .map_err(StorageError::Io)?;
 
         let write_offset = data_file.metadata().map(|m| m.len()).unwrap_or(0);
 
@@ -165,10 +166,9 @@ impl BlazeDBProvider {
 
     /// Load index from file.
     fn load_index(path: &Path) -> StorageResult<HashMap<u64, IndexEntry>> {
-        let mut file = File::open(path).map_err(|e| StorageError::Io(e))?;
+        let mut file = File::open(path).map_err(StorageError::Io)?;
         let mut data = Vec::new();
-        file.read_to_end(&mut data)
-            .map_err(|e| StorageError::Io(e))?;
+        file.read_to_end(&mut data).map_err(StorageError::Io)?;
 
         let mut index = HashMap::new();
         let mut cursor = 0;
@@ -187,14 +187,13 @@ impl BlazeDBProvider {
 
     /// Rebuild index by scanning the data file.
     fn rebuild_index(file: &File) -> StorageResult<HashMap<u64, IndexEntry>> {
-        let mut file = file.try_clone().map_err(|e| StorageError::Io(e))?;
+        let mut file = file.try_clone().map_err(StorageError::Io)?;
         let mut index = HashMap::new();
 
-        file.seek(SeekFrom::Start(0))
-            .map_err(|e| StorageError::Io(e))?;
+        file.seek(SeekFrom::Start(0)).map_err(StorageError::Io)?;
 
         loop {
-            let offset = file.stream_position().map_err(|e| StorageError::Io(e))?;
+            let offset = file.stream_position().map_err(StorageError::Io)?;
 
             // Read header
             let mut header = [0u8; 4];
@@ -211,24 +210,19 @@ impl BlazeDBProvider {
 
             // Read size
             let mut size_buf = [0u8; 4];
-            file.read_exact(&mut size_buf)
-                .map_err(|e| StorageError::Io(e))?;
+            file.read_exact(&mut size_buf).map_err(StorageError::Io)?;
             let size = u32::from_le_bytes(size_buf);
 
             // Skip CRC
-            file.seek(SeekFrom::Current(4))
-                .map_err(|e| StorageError::Io(e))?;
+            file.seek(SeekFrom::Current(4)).map_err(StorageError::Io)?;
 
             // Read coordinates
             let mut x_buf = [0u8; 4];
             let mut z_buf = [0u8; 4];
             let mut dim_buf = [0u8; 4];
-            file.read_exact(&mut x_buf)
-                .map_err(|e| StorageError::Io(e))?;
-            file.read_exact(&mut z_buf)
-                .map_err(|e| StorageError::Io(e))?;
-            file.read_exact(&mut dim_buf)
-                .map_err(|e| StorageError::Io(e))?;
+            file.read_exact(&mut x_buf).map_err(StorageError::Io)?;
+            file.read_exact(&mut z_buf).map_err(StorageError::Io)?;
+            file.read_exact(&mut dim_buf).map_err(StorageError::Io)?;
 
             let x = i32::from_le_bytes(x_buf);
             let z = i32::from_le_bytes(z_buf);
@@ -241,7 +235,7 @@ impl BlazeDBProvider {
             let remaining = size as i64 - 20; // 4 + 4 + 4 + 4 + 4 + 4 - 4 (magic already counted)
             if remaining > 0 {
                 file.seek(SeekFrom::Current(remaining))
-                    .map_err(|e| StorageError::Io(e))?;
+                    .map_err(StorageError::Io)?;
             }
         }
 
@@ -260,7 +254,7 @@ impl BlazeDBProvider {
             data.extend_from_slice(&entry.size.to_le_bytes());
         }
 
-        std::fs::write(&index_path, &data).map_err(|e| StorageError::Io(e))?;
+        std::fs::write(&index_path, &data).map_err(StorageError::Io)?;
         Ok(())
     }
 
@@ -282,10 +276,10 @@ impl BlazeDBProvider {
                 }
                 Ok(None) => {
                     // Channel closed, flush and exit
-                    if !pending_writes.is_empty() {
-                        if let Err(e) = provider.flush_writes(&mut pending_writes) {
-                            error!("Error flushing writes on shutdown: {}", e);
-                        }
+                    if !pending_writes.is_empty()
+                        && let Err(e) = provider.flush_writes(&mut pending_writes)
+                    {
+                        error!("Error flushing writes on shutdown: {}", e);
                     }
                     break;
                 }
@@ -356,8 +350,8 @@ impl BlazeDBProvider {
 
             // Write to file
             file.seek(SeekFrom::Start(offset))
-                .map_err(|e| StorageError::Io(e))?;
-            file.write_all(&entry).map_err(|e| StorageError::Io(e))?;
+                .map_err(StorageError::Io)?;
+            file.write_all(&entry).map_err(StorageError::Io)?;
 
             // Update offset and index
             let new_offset = offset + entry.len() as u64;
@@ -372,21 +366,21 @@ impl BlazeDBProvider {
             );
         }
 
-        file.flush().map_err(|e| StorageError::Io(e))?;
+        file.flush().map_err(StorageError::Io)?;
 
         Ok(())
     }
 
     /// Read a chunk from disk at the given offset.
+    #[allow(dead_code)]
     fn read_chunk_at(&self, entry: IndexEntry) -> StorageResult<ChunkColumn> {
         let mut file = self.data_file.lock();
 
         file.seek(SeekFrom::Start(entry.offset))
-            .map_err(|e| StorageError::Io(e))?;
+            .map_err(StorageError::Io)?;
 
         let mut header = [0u8; 24];
-        file.read_exact(&mut header)
-            .map_err(|e| StorageError::Io(e))?;
+        file.read_exact(&mut header).map_err(StorageError::Io)?;
 
         // Verify magic
         if &header[0..4] != MAGIC {
@@ -402,8 +396,7 @@ impl BlazeDBProvider {
         // Read data
         let data_size = size as usize - 24;
         let mut data = vec![0u8; data_size];
-        file.read_exact(&mut data)
-            .map_err(|e| StorageError::Io(e))?;
+        file.read_exact(&mut data).map_err(StorageError::Io)?;
 
         // Skip compression byte and version in the data
         if data.len() < 4 {
@@ -541,12 +534,12 @@ impl WorldProvider for BlazeDBProvider {
         };
 
         // Read from disk (blocking, so spawn_blocking)
-        let provider = self.data_file.clone();
+        let _provider = self.data_file.clone();
         let this_entry = entry;
 
         // Clone self for the blocking task
         let data_file = self.data_file.clone();
-        let config_compression = self.config.compression;
+        let _config_compression = self.config.compression;
 
         let result = tokio::task::spawn_blocking(move || {
             let mut file = data_file.lock();
@@ -578,7 +571,7 @@ impl WorldProvider for BlazeDBProvider {
         })
         .await
         .map_err(|e| StorageError::Database(format!("Join error: {}", e)))?
-        .map_err(|e| StorageError::Io(e))?;
+        .map_err(StorageError::Io)?;
 
         let (x, z, data) = result;
 
@@ -636,7 +629,7 @@ impl WorldProvider for BlazeDBProvider {
         // Sync data file
         {
             let file = self.data_file.lock();
-            file.sync_all().map_err(|e| StorageError::Io(e))?;
+            file.sync_all().map_err(StorageError::Io)?;
         }
 
         // Save index

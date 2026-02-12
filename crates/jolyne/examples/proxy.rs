@@ -82,6 +82,7 @@ async fn handle_proxy_client(
         identity_key: up_key.clone(),
         display_name: "ProxyUser".to_string(),
         uuid: Uuid::new_v4(),
+        xbl_credentials: None,
     };
     let up_secure = up_login.send_login(&up_config).await?;
     let up_packs = up_secure.await_handshake(&up_key).await?;

@@ -89,20 +89,15 @@ impl ProjectileHit {
 }
 
 /// Pickup state for arrows.
-#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PickupMode {
     /// Cannot be picked up.
     None,
     /// Only the owner can pick up.
     Owner,
     /// Anyone can pick up.
+    #[default]
     Anyone,
     /// Creative only.
     Creative,
-}
-
-impl Default for PickupMode {
-    fn default() -> Self {
-        Self::Anyone
-    }
 }

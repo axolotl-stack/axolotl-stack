@@ -324,11 +324,11 @@ impl ChunkManager {
         }
 
         // Start generation via worker
-        if let Some(worker) = &self.generation_worker {
-            if let Some(receiver) = worker.generate(x, z) {
-                self.pending_generation.insert((x, z), vec![viewer]);
-                return Some(receiver);
-            }
+        if let Some(worker) = &self.generation_worker
+            && let Some(receiver) = worker.generate(x, z)
+        {
+            self.pending_generation.insert((x, z), vec![viewer]);
+            return Some(receiver);
         }
 
         None

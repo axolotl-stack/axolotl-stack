@@ -36,7 +36,7 @@ impl NoiseRegistry {
             );
             let salted_seed = Self::hash_seed(seed, *noise_ref);
             let mut rng = Xoroshiro128::from_seed(salted_seed);
-            let noise = DoublePerlinNoise::new(&mut rng, &params.amplitudes, params.first_octave);
+            let noise = DoublePerlinNoise::new(&mut rng, params.amplitudes, params.first_octave);
             noises.push(noise);
         }
 

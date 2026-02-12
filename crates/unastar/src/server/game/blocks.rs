@@ -18,7 +18,7 @@ use tracing::{debug, info, trace};
 
 use super::GameServer;
 use crate::ecs::events::EventBuffer;
-use crate::entity::components::{BreakingState, PlayerName, PlayerSession, PlayerUuid};
+use crate::entity::components::{BreakingState, PlayerSession, PlayerUuid};
 use crate::world::chunk::blocks;
 use crate::world::ecs::{BlockBroadcastEvent, BlockChanged, ChunkManager, ChunkViewers};
 use crate::world::ecs::{world_to_chunk_coords, world_to_local_coords};
@@ -61,10 +61,7 @@ impl GameServer {
                 })
             };
 
-            match action_item.action {
-                // Log ALL actions for debugging
-                ref action => trace!(?action, "Block action received"),
-            }
+            trace!(?action_item.action, "Block action received");
 
             match action_item.action {
                 // Creative mode: instant block destroy
@@ -499,11 +496,10 @@ impl GameServer {
                     // Also send to chunk viewers
                     if let Some(chunk_viewers) = world.get::<ChunkViewers>(chunk_entity) {
                         for viewer in chunk_viewers.iter() {
-                            if viewer != breaking_player {
-                                if let Some(viewer_session) = world.get::<PlayerSession>(viewer) {
-                                    let _ =
-                                        viewer_session.send(McpePacket::from(item_packet.clone()));
-                                }
+                            if viewer != breaking_player
+                                && let Some(viewer_session) = world.get::<PlayerSession>(viewer)
+                            {
+                                let _ = viewer_session.send(McpePacket::from(item_packet.clone()));
                             }
                         }
                     }
@@ -570,13 +566,13 @@ impl GameServer {
             }
 
             // Always send to breaking player if not already sent
-            if !sent_to.contains(&breaking_player) {
-                if let Some(session) = world.get::<PlayerSession>(breaking_player) {
-                    info!("Sending break effects directly to breaking player (not in viewers)");
-                    let _ = session.send(McpePacket::from(update_packet.clone()));
-                    let _ = session.send(McpePacket::from(particle_packet.clone()));
-                    let _ = session.send(McpePacket::from(sound_packet.clone()));
-                }
+            if !sent_to.contains(&breaking_player)
+                && let Some(session) = world.get::<PlayerSession>(breaking_player)
+            {
+                info!("Sending break effects directly to breaking player (not in viewers)");
+                let _ = session.send(McpePacket::from(update_packet.clone()));
+                let _ = session.send(McpePacket::from(particle_packet.clone()));
+                let _ = session.send(McpePacket::from(sound_packet.clone()));
             }
         } else {
             // No chunk viewers - still send to breaking player

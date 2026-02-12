@@ -63,7 +63,7 @@ fn main() {
         println!("This means find_top_surface never found density > 0.0");
         println!("Checking if ALL densities are negative...");
 
-        let all_negative = (128..=-64).step_by(8).all(|y| {
+        let all_negative = (-64..=128).rev().step_by(8).all(|y| {
             let ctx = FunctionContext::new(block_x, y, block_z);
             compute_final_density(&ctx, &noises, &grid, &col) <= 0.0
         });

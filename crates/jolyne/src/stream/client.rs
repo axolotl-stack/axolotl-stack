@@ -636,7 +636,9 @@ impl<T: Transport> BedrockStream<StartGame, Client, T> {
         let start_time = std::time::Instant::now();
         loop {
             // Log periodic status
-            if start_time.elapsed().as_secs() % 10 == 0 && start_time.elapsed().as_secs() > 0 {
+            if start_time.elapsed().as_secs().is_multiple_of(10)
+                && start_time.elapsed().as_secs() > 0
+            {
                 tracing::debug!(
                     "Still waiting for StartGame... elapsed={:?}",
                     start_time.elapsed()

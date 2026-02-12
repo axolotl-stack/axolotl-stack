@@ -40,7 +40,7 @@ pub fn process_plugin_actions(
                 player_id,
                 position: pos,
             } => {
-                for (mut player_pos, mut rot, rid, uuid, session, _) in players.iter_mut() {
+                for (mut player_pos, rot, rid, uuid, session, _) in players.iter_mut() {
                     info!(
                         "Checking player {} against target {}",
                         uuid.0.to_string(),
@@ -95,7 +95,7 @@ pub fn process_plugin_actions(
 
                         // Try to add to inventory (find first empty slot)
                         if let Some(empty_slot) =
-                            (0..36).find(|&i| inv.0.item(i).map_or(true, |item| item.is_empty()))
+                            (0..36).find(|&i| inv.0.item(i).is_none_or(|item| item.is_empty()))
                         {
                             let _ = inv.0.set_item(empty_slot, item_stack.clone());
                             info!(player=%player_id, item=%item_id, count, slot=empty_slot, "Plugin gave item");
