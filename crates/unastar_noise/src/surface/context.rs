@@ -83,7 +83,9 @@ pub struct SurfaceContext {
     pub last_update_y: u64,
 
     // Chunk position for local coordinate calculations
+    #[allow(dead_code)]
     chunk_x: i32,
+    #[allow(dead_code)]
     chunk_z: i32,
 }
 

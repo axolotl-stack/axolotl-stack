@@ -18,11 +18,9 @@ fn main() {
     println!("cargo:rerun-if-changed=worldgen_data");
 
     // Also emit rerun-if-changed for individual JSON files
-    for entry in walkdir::WalkDir::new(&json_root) {
-        if let Ok(e) = entry {
-            if e.path().extension().is_some_and(|ext| ext == "json") {
-                println!("cargo:rerun-if-changed={}", e.path().display());
-            }
+    for e in walkdir::WalkDir::new(&json_root).into_iter().flatten() {
+        if e.path().extension().is_some_and(|ext| ext == "json") {
+            println!("cargo:rerun-if-changed={}", e.path().display());
         }
     }
 

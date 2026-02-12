@@ -32,6 +32,7 @@ pub struct BlockState {
     pub name: String,
     /// Optional block state properties (e.g., {"snowy": "false"}).
     #[serde(rename = "Properties", default)]
+    #[allow(dead_code)]
     pub properties: Option<HashMap<String, String>>,
 }
 
@@ -83,6 +84,7 @@ pub enum ConditionSource {
     /// Vertical gradient - probabilistic condition based on Y coordinate.
     #[serde(rename = "minecraft:vertical_gradient")]
     VerticalGradient {
+        #[allow(dead_code)]
         random_name: String,
         true_at_and_below: VerticalAnchor,
         false_at_and_above: VerticalAnchor,

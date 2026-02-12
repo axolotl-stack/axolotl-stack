@@ -58,8 +58,8 @@ impl PerlinNoise {
         let mut d = [0i32; 257];
 
         // Initialize with identity
-        for i in 0..256 {
-            d[i] = i as i32;
+        for (i, slot) in d.iter_mut().enumerate().take(256) {
+            *slot = i as i32;
         }
 
         // Fisher-Yates shuffle
@@ -670,7 +670,7 @@ impl OctaveNoise {
             0.503937007874016,
             0.5019607843137255,
             0.5009775171065493,
-            0.5004882812500000,
+            0.500_488_281_25,
         ];
 
         let len = amplitudes.len();
@@ -1090,7 +1090,7 @@ impl BlendedNoise {
                     self.main_smear_scale * o, // k * o
                     gy * o_v,                  // h * o (not wrapped, used for clamping)
                 );
-                n = n + sampled / o_v;
+                n += sampled / o_v;
             }
             o /= 2.0;
         }
@@ -1239,16 +1239,14 @@ impl SimplexNoise {
         let mut p = [0i32; 512];
 
         // Initialize with identity permutation
-        for i in 0..256 {
-            p[i] = i as i32;
+        for (i, slot) in p.iter_mut().enumerate().take(256) {
+            *slot = i as i32;
         }
 
         // Fisher-Yates shuffle (matching Java's exact algorithm)
         for i in 0..256 {
             let j = rng.next_int(256 - i as u32) as usize;
-            let k = p[i];
-            p[i] = p[j + i];
-            p[j + i] = k;
+            p.swap(i, j + i);
         }
 
         Self { p, xo, yo, zo }
@@ -1493,7 +1491,7 @@ mod tests {
             for z in -10..10 {
                 let value = noise.sample(x as f64 * 0.5, 0.0, z as f64 * 0.5);
                 assert!(
-                    value >= -2.0 && value <= 2.0,
+                    (-2.0..=2.0).contains(&value),
                     "Noise value {} out of expected range at ({}, {})",
                     value,
                     x,
@@ -1601,7 +1599,11 @@ mod tests {
 
         // All values should be in 0..256 range
         for &val in &noise.d[..256] {
-            assert!(val >= 0 && val < 256, "Invalid permutation value: {}", val);
+            assert!(
+                (0..256).contains(&val),
+                "Invalid permutation value: {}",
+                val
+            );
         }
 
         // Wrap value should match first value

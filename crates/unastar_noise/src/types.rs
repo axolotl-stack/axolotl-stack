@@ -63,6 +63,7 @@ pub trait NoiseSource {
     /// Sample old blended noise (base_3d_noise).
     ///
     /// This implements the legacy blended noise algorithm used for base terrain variation.
+    #[allow(clippy::too_many_arguments)]
     fn sample_blended_noise(
         &self,
         x: f64,
@@ -76,6 +77,7 @@ pub trait NoiseSource {
     ) -> f64;
 
     /// Sample old blended noise (SIMD version for 4 Y positions).
+    #[allow(clippy::too_many_arguments)]
     fn sample_blended_noise_4(
         &self,
         x: f64,

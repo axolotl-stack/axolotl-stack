@@ -10,6 +10,7 @@ pub fn emit_noise_params(
     // Use regular comments instead of doc comments for include!() compatibility
     content.push_str("// Generated noise parameters.\n");
     content.push_str("// Do not edit manually - regenerated at build time from worldgen JSON.\n\n");
+    content.push_str("#![allow(clippy::excessive_precision)]\n\n");
 
     // Generate NoiseRef enum
     content.push_str("/// Reference to a noise parameter set (resolved at runtime with seed).\n");
@@ -34,7 +35,7 @@ pub fn emit_noise_params(
     content.push_str("}\n\n");
 
     content.push_str("impl NoiseRef {\n");
-    content.push_str(&format!("    /// Total number of noise variants.\n"));
+    content.push_str("    /// Total number of noise variants.\n");
     content.push_str(&format!(
         "    pub const COUNT: usize = {};\n\n",
         noise_names.len()

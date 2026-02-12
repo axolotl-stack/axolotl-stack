@@ -52,12 +52,12 @@ impl Xoroshiro128 {
 
     /// Generate a random integer in [0, bound).
     pub fn next_int(&mut self, bound: u32) -> u32 {
-        let mut r = ((self.next_long() as u32 as u64) * (bound as u64)) as u64;
+        let mut r = (self.next_long() as u32 as u64) * (bound as u64);
 
         if (r as u32) < bound {
             let threshold = ((!bound).wrapping_add(1)) % bound;
             while (r as u32) < threshold {
-                r = ((self.next_long() as u32 as u64) * (bound as u64)) as u64;
+                r = (self.next_long() as u32 as u64) * (bound as u64);
             }
         }
 
@@ -309,7 +309,7 @@ mod tests {
         let mut rng = JavaRandom::from_seed(12345);
         let v1 = rng.next_int(100);
         let v2 = rng.next_int(100);
-        assert!(v1 >= 0 && v1 < 100);
-        assert!(v2 >= 0 && v2 < 100);
+        assert!((0..100).contains(&v1));
+        assert!((0..100).contains(&v2));
     }
 }

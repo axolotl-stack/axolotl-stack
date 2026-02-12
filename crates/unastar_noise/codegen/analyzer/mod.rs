@@ -236,10 +236,10 @@ impl<'a> GraphBuilder<'a> {
                 if let Some(resolved) = self.refs.get(name).cloned() {
                     let id = self.visit(&resolved);
                     // Update the node's ref_name if not already set
-                    if let Some(node) = self.nodes.get_mut(&id) {
-                        if node.ref_name.is_none() {
-                            node.ref_name = Some(name.clone());
-                        }
+                    if let Some(node) = self.nodes.get_mut(&id)
+                        && node.ref_name.is_none()
+                    {
+                        node.ref_name = Some(name.clone());
                     }
                     self.ref_cache.insert(name.clone(), id.clone());
                     id
@@ -268,16 +268,12 @@ impl<'a> GraphBuilder<'a> {
         let node_def = def.clone();
         let id = self.make_node(node_def, deps, y_indep, None);
 
-        if is_flat_cache {
-            if let Some(node) = self.nodes.get_mut(&id) {
-                node.is_flat_cache = true;
-            }
+        if is_flat_cache && let Some(node) = self.nodes.get_mut(&id) {
+            node.is_flat_cache = true;
         }
 
-        if is_cache_2d {
-            if let Some(node) = self.nodes.get_mut(&id) {
-                node.is_cache_2d = true;
-            }
+        if is_cache_2d && let Some(node) = self.nodes.get_mut(&id) {
+            node.is_cache_2d = true;
         }
 
         self.canonical_cache.insert(canonical, id.clone());

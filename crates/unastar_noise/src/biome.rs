@@ -3,10 +3,11 @@
 //! These biome IDs match vanilla Minecraft.
 
 /// Biome IDs matching vanilla Minecraft.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 #[repr(u8)]
 pub enum Biome {
     Ocean = 0,
+    #[default]
     Plains = 1,
     Desert = 2,
     WindsweptHills = 3,
@@ -83,12 +84,6 @@ pub enum Biome {
     MangroveSwamp = 184,
     CherryGrove = 185,
     PaleGarden = 186,
-}
-
-impl Default for Biome {
-    fn default() -> Self {
-        Self::Plains
-    }
 }
 
 impl From<u8> for Biome {

@@ -71,7 +71,7 @@ struct SplineKey {
 impl SplineKey {
     fn from_spline(spline: &SplineDef) -> Self {
         use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
+        use std::hash::Hasher;
 
         let mut hasher = DefaultHasher::new();
         Self::hash_spline(spline, &mut hasher);
@@ -164,6 +164,7 @@ pub struct AotEmitter<'a> {
     /// Accumulated statements for current function
     statements: Vec<TokenStream>,
     /// Spline counter for unique spline variable names
+    #[allow(dead_code)]
     spline_counter: usize,
     /// When true, FlatCache nodes are expanded inline instead of using grid lookups.
     expand_flat_cache_inline: bool,
@@ -269,6 +270,12 @@ impl<'a> AotEmitter<'a> {
                 clippy::double_parens,
                 clippy::approx_constant,
                 clippy::neg_multiply,
+                clippy::let_and_return,
+                clippy::collapsible_else_if,
+                clippy::collapsible_if,
+                clippy::needless_range_loop,
+                clippy::manual_range_contains,
+                clippy::possible_missing_else,
             )]
 
             use crate::{FunctionContext, FunctionContext4, RarityType, NoiseSource, find_top_surface};
@@ -671,12 +678,11 @@ impl<'a> AotEmitter<'a> {
         let mut functions = Vec::new();
 
         for (root_name, root_id) in &self.graph.roots.clone() {
-            if let Some(node) = self.graph.nodes.get(root_id) {
-                if matches!(node.def, DensityFunctionDef::FindTopSurface { .. }) {
-                    if let Some(inner_id) = node.dependencies.first() {
-                        functions.push(self.emit_inner_density_function(root_name, inner_id));
-                    }
-                }
+            if let Some(node) = self.graph.nodes.get(root_id)
+                && matches!(node.def, DensityFunctionDef::FindTopSurface { .. })
+                && let Some(inner_id) = node.dependencies.first()
+            {
+                functions.push(self.emit_inner_density_function(root_name, inner_id));
             }
         }
 
@@ -1096,7 +1102,7 @@ impl<'a> AotEmitter<'a> {
                 let min_v = *min_inclusive;
                 let max_v = *max_exclusive;
                 quote! {
-                    if #inp >= #min_v && #inp < #max_v { #wir } else { #wor }
+                    { let inp = #inp; if (#min_v..#max_v).contains(&inp) { #wir } else { #wor } }
                 }
             }
 
@@ -1605,7 +1611,9 @@ impl<'a> AotEmitter<'a> {
         let last_val = self.emit_spline_value(&spline.points.last().unwrap().value);
 
         let num_segments = spline.points.len() - 1;
-        let mut branches = Vec::new();
+        let mut branches: Vec<TokenStream> = Vec::new();
+        branches.push(quote! { if coord <= #first_loc { #first_val } });
+        branches.push(quote! { else if coord >= #last_loc { #last_val } });
 
         for i in 0..num_segments {
             let p0 = &spline.points[i];
@@ -1631,11 +1639,7 @@ impl<'a> AotEmitter<'a> {
                 h00 * v0 + h10 * #dt * #d0 + h01 * v1 + h11 * #dt * #d1
             };
 
-            if num_segments == 1 {
-                branches.push(eval);
-            } else if i == 0 {
-                branches.push(quote! { if coord < #loc1 { #eval } });
-            } else if i == num_segments - 1 {
+            if i == num_segments - 1 {
                 branches.push(quote! { else { #eval } });
             } else {
                 branches.push(quote! { else if coord < #loc1 { #eval } });
@@ -1645,9 +1649,7 @@ impl<'a> AotEmitter<'a> {
         quote! {
             {
                 let coord = #coord_expr;
-                if coord <= #first_loc { #first_val }
-                else if coord >= #last_loc { #last_val }
-                else { #(#branches)* }
+                #(#branches)*
             }
         }
     }
@@ -1724,7 +1726,9 @@ impl<'a> AotEmitter<'a> {
             let fval = values[0];
             let lval = *values.last().unwrap();
 
-            let mut branches = Vec::new();
+            let mut branches: Vec<TokenStream> = Vec::new();
+            branches.push(quote! { if coord <= #first_loc { #fval } });
+            branches.push(quote! { else if coord >= #last_loc { #lval } });
             for (i, seg) in segments.iter().enumerate() {
                 let x_min = seg.x_min;
                 let x_max = seg.x_max;
@@ -1739,11 +1743,7 @@ impl<'a> AotEmitter<'a> {
                     #a + t * (#b + t * (#c + t * #d))
                 };
 
-                if segments.len() == 1 {
-                    branches.push(eval);
-                } else if i == 0 {
-                    branches.push(quote! { if coord < #x_max { #eval } });
-                } else if i == segments.len() - 1 {
+                if i == segments.len() - 1 {
                     branches.push(quote! { else { #eval } });
                 } else {
                     branches.push(quote! { else if coord < #x_max { #eval } });
@@ -1751,15 +1751,15 @@ impl<'a> AotEmitter<'a> {
             }
 
             return quote! {
-                if coord <= #first_loc { #fval }
-                else if coord >= #last_loc { #lval }
-                else { #(#branches)* }
+                #(#branches)*
             };
         }
 
         // Non-constant spline
         let num_segments = spline.points.len() - 1;
-        let mut branches = Vec::new();
+        let mut branches: Vec<TokenStream> = Vec::new();
+        branches.push(quote! { if coord <= #first_loc { #first_val } });
+        branches.push(quote! { else if coord >= #last_loc { #last_val } });
 
         for i in 0..num_segments {
             let p0 = &spline.points[i];
@@ -1785,11 +1785,7 @@ impl<'a> AotEmitter<'a> {
                 h00 * v0 + h10 * #dt * #d0 + h01 * v1 + h11 * #dt * #d1
             };
 
-            if num_segments == 1 {
-                branches.push(eval);
-            } else if i == 0 {
-                branches.push(quote! { if coord < #loc1 { #eval } });
-            } else if i == num_segments - 1 {
+            if i == num_segments - 1 {
                 branches.push(quote! { else { #eval } });
             } else {
                 branches.push(quote! { else if coord < #loc1 { #eval } });
@@ -1797,9 +1793,7 @@ impl<'a> AotEmitter<'a> {
         }
 
         quote! {
-            if coord <= #first_loc { #first_val }
-            else if coord >= #last_loc { #last_val }
-            else { #(#branches)* }
+            #(#branches)*
         }
     }
 
@@ -1861,6 +1855,7 @@ impl<'a> AotEmitter<'a> {
         }
     }
 
+    #[allow(dead_code)]
     fn emit_arg_expr_lane(&mut self, arg: &DensityFunctionArg, lane: usize) -> TokenStream {
         match arg {
             DensityFunctionArg::Constant(v) => {
@@ -1868,13 +1863,12 @@ impl<'a> AotEmitter<'a> {
                 quote! { #val }
             }
             DensityFunctionArg::Reference(name) => {
-                if let Some(node_id) = self.find_node_by_ref_name(name) {
-                    if let Some(node) = self.graph.nodes.get(&node_id) {
-                        if node.is_flat_cache {
-                            let field = self.flat_cache_field_ident(&node_id);
-                            return quote! { flat.lookup(&flat.#field, ctx.block_x, ctx.block_z) };
-                        }
-                    }
+                if let Some(node_id) = self.find_node_by_ref_name(name)
+                    && let Some(node) = self.graph.nodes.get(&node_id)
+                    && node.is_flat_cache
+                {
+                    let field = self.flat_cache_field_ident(&node_id);
+                    return quote! { flat.lookup(&flat.#field, ctx.block_x, ctx.block_z) };
                 }
                 quote! { 0.0_f64 }
             }
@@ -1932,6 +1926,7 @@ impl<'a> AotEmitter<'a> {
         }
     }
 
+    #[allow(dead_code)]
     fn emit_inline_def_lane(&mut self, def: &DensityFunctionDef, lane: usize) -> TokenStream {
         match def {
             DensityFunctionDef::Constant { argument } => {
@@ -2114,7 +2109,7 @@ impl<'a> AotEmitter<'a> {
                 let min_v = *min_inclusive;
                 let max_v = *max_exclusive;
                 quote! {
-                    if #inp >= #min_v && #inp < #max_v { #wir } else { #wor }
+                    { let inp = #inp; if (#min_v..#max_v).contains(&inp) { #wir } else { #wor } }
                 }
             }
 
@@ -2153,7 +2148,7 @@ impl<'a> AotEmitter<'a> {
 
             DensityFunctionDef::FindTopSurface {
                 lower_bound,
-                upper_bound,
+                upper_bound: _,
                 cell_height,
                 ..
             } => {
@@ -2172,14 +2167,14 @@ impl<'a> AotEmitter<'a> {
     }
 
     fn emit_fc_dep(&self, idx: usize, node: &DensityNode) -> TokenStream {
-        if let Some(dep_id) = node.dependencies.get(idx) {
-            if let Some(dep_node) = self.graph.nodes.get(dep_id) {
-                if dep_node.is_flat_cache {
-                    let field = self.flat_cache_field_ident(dep_id);
-                    return quote! { grid.#field[qz as usize][qx as usize] };
-                }
-                return self.emit_flat_cache_inner(dep_node);
+        if let Some(dep_id) = node.dependencies.get(idx)
+            && let Some(dep_node) = self.graph.nodes.get(dep_id)
+        {
+            if dep_node.is_flat_cache {
+                let field = self.flat_cache_field_ident(dep_id);
+                return quote! { grid.#field[qz as usize][qx as usize] };
             }
+            return self.emit_flat_cache_inner(dep_node);
         }
         quote! { 0.0_f64 }
     }
@@ -2203,6 +2198,7 @@ impl<'a> AotEmitter<'a> {
         self.emit_fc_spline_hermite(spline, coord_expr)
     }
 
+    #[allow(dead_code)]
     fn emit_fc_spline_optimized(&self, spline: &SplineDef, coord_expr: TokenStream) -> TokenStream {
         let values = extract_constant_values(&spline.points);
         let first_loc = spline.points[0].location;
@@ -2245,7 +2241,9 @@ impl<'a> AotEmitter<'a> {
                 }
             }
         } else {
-            let mut branches = Vec::new();
+            let mut branches: Vec<TokenStream> = Vec::new();
+            branches.push(quote! { if coord <= #first_loc { #first_val } });
+            branches.push(quote! { else if coord >= #last_loc { #last_val } });
             for (i, seg) in segments.iter().enumerate() {
                 let x_min = seg.x_min;
                 let x_max = seg.x_max;
@@ -2260,9 +2258,7 @@ impl<'a> AotEmitter<'a> {
                     #a + t * (#b + t * (#c + t * #d))
                 };
 
-                if i == 0 {
-                    branches.push(quote! { if coord < #x_max { #eval } });
-                } else if i == segments.len() - 1 {
+                if i == segments.len() - 1 {
                     branches.push(quote! { else { #eval } });
                 } else {
                     branches.push(quote! { else if coord < #x_max { #eval } });
@@ -2271,9 +2267,7 @@ impl<'a> AotEmitter<'a> {
             quote! {
                 {
                     let coord = #coord_expr;
-                    if coord <= #first_loc { #first_val }
-                    else if coord >= #last_loc { #last_val }
-                    else { #(#branches)* }
+                    #(#branches)*
                 }
             }
         }
@@ -2373,7 +2367,9 @@ impl<'a> AotEmitter<'a> {
                 }
             }
         } else {
-            let mut branches = Vec::new();
+            let mut branches: Vec<TokenStream> = Vec::new();
+            branches.push(quote! { if coord <= #first_loc { #first_val } });
+            branches.push(quote! { else if coord >= #last_loc { #last_val } });
             for (i, seg) in segments.iter().enumerate() {
                 let x_min = seg.x_min;
                 let x_max = seg.x_max;
@@ -2388,18 +2384,14 @@ impl<'a> AotEmitter<'a> {
                     #a + t * (#b + t * (#c + t * #d))
                 };
 
-                if i == 0 {
-                    branches.push(quote! { if coord < #x_max { #eval } });
-                } else if i == segments.len() - 1 {
+                if i == segments.len() - 1 {
                     branches.push(quote! { else { #eval } });
                 } else {
                     branches.push(quote! { else if coord < #x_max { #eval } });
                 }
             }
             quote! {
-                if coord <= #first_loc { #first_val }
-                else if coord >= #last_loc { #last_val }
-                else { #(#branches)* }
+                #(#branches)*
             }
         }
     }
@@ -2411,7 +2403,9 @@ impl<'a> AotEmitter<'a> {
         let last_val = self.emit_fc_spline_value(&spline.points.last().unwrap().value);
 
         let num_segments = spline.points.len() - 1;
-        let mut branches = Vec::new();
+        let mut branches: Vec<TokenStream> = Vec::new();
+        branches.push(quote! { if coord <= #first_loc { #first_val } });
+        branches.push(quote! { else if coord >= #last_loc { #last_val } });
 
         for i in 0..num_segments {
             let p0 = &spline.points[i];
@@ -2437,11 +2431,7 @@ impl<'a> AotEmitter<'a> {
                 h00 * v0 + h10 * #dt * #d0 + h01 * v1 + h11 * #dt * #d1
             };
 
-            if num_segments == 1 {
-                branches.push(eval);
-            } else if i == 0 {
-                branches.push(quote! { if coord < #loc1 { #eval } });
-            } else if i == num_segments - 1 {
+            if i == num_segments - 1 {
                 branches.push(quote! { else { #eval } });
             } else {
                 branches.push(quote! { else if coord < #loc1 { #eval } });
@@ -2451,9 +2441,7 @@ impl<'a> AotEmitter<'a> {
         quote! {
             {
                 let coord = #coord_expr;
-                if coord <= #first_loc { #first_val }
-                else if coord >= #last_loc { #last_val }
-                else { #(#branches)* }
+                #(#branches)*
             }
         }
     }
@@ -2475,14 +2463,14 @@ impl<'a> AotEmitter<'a> {
                 quote! { #val }
             }
             DensityFunctionArg::Reference(name) => {
-                if let Some(node_id) = self.find_node_by_ref_name(name) {
-                    if let Some(node) = self.graph.nodes.get(&node_id) {
-                        if node.is_flat_cache {
-                            let field = self.flat_cache_field_ident(&node_id);
-                            return quote! { grid.#field[qz as usize][qx as usize] };
-                        }
-                        return self.emit_flat_cache_inner(node);
+                if let Some(node_id) = self.find_node_by_ref_name(name)
+                    && let Some(node) = self.graph.nodes.get(&node_id)
+                {
+                    if node.is_flat_cache {
+                        let field = self.flat_cache_field_ident(&node_id);
+                        return quote! { grid.#field[qz as usize][qx as usize] };
                     }
+                    return self.emit_flat_cache_inner(node);
                 }
                 quote! { 0.0_f64 }
             }
@@ -2519,10 +2507,10 @@ impl<'a> AotEmitter<'a> {
 
     fn find_node_by_ref_name(&self, name: &str) -> Option<NodeId> {
         for (id, node) in &self.graph.nodes {
-            if let Some(ref_name) = &node.ref_name {
-                if ref_name == name {
-                    return Some(id.clone());
-                }
+            if let Some(ref_name) = &node.ref_name
+                && ref_name == name
+            {
+                return Some(id.clone());
             }
         }
         None
@@ -3272,7 +3260,7 @@ impl<'a> AotEmitter<'a> {
                 let min_v = *min_inclusive;
                 let max_v = *max_exclusive;
                 quote! {
-                    if #inp >= #min_v && #inp < #max_v { #wir } else { #wor }
+                    { let inp = #inp; if (#min_v..#max_v).contains(&inp) { #wir } else { #wor } }
                 }
             }
 
@@ -3472,49 +3460,49 @@ impl<'a> AotEmitter<'a> {
 
     /// Emit a 4-wide SIMD dependency reference.
     fn emit_cc_dep_4(&self, idx: usize, node: &DensityNode) -> TokenStream {
-        if let Some(dep_id) = node.dependencies.get(idx) {
-            if let Some(dep_node) = self.graph.nodes.get(dep_id) {
-                // If the dependency is a cache_2d node, reference its field (already f64x4)
-                if dep_node.is_cache_2d {
-                    let field = self.column_context_field_ident(dep_id);
-                    return quote! { #field };
-                }
-                // If it's a flat_cache node, use the pre-computed f64x4 local variable
-                if dep_node.is_flat_cache {
-                    let local_var = self.cc_flat_local_var(dep_id);
-                    return quote! { #local_var };
-                }
-                // Otherwise, inline the 4-wide computation
-                return self.emit_column_context_inner_4_impl(dep_node);
+        if let Some(dep_id) = node.dependencies.get(idx)
+            && let Some(dep_node) = self.graph.nodes.get(dep_id)
+        {
+            // If the dependency is a cache_2d node, reference its field (already f64x4)
+            if dep_node.is_cache_2d {
+                let field = self.column_context_field_ident(dep_id);
+                return quote! { #field };
             }
+            // If it's a flat_cache node, use the pre-computed f64x4 local variable
+            if dep_node.is_flat_cache {
+                let local_var = self.cc_flat_local_var(dep_id);
+                return quote! { #local_var };
+            }
+            // Otherwise, inline the 4-wide computation
+            return self.emit_column_context_inner_4_impl(dep_node);
         }
         quote! { f64x4::splat(0.0_f64) }
     }
 
     /// Emit a dependency reference for ColumnContext initialization.
     fn emit_cc_dep(&self, idx: usize, node: &DensityNode) -> TokenStream {
-        if let Some(dep_id) = node.dependencies.get(idx) {
-            if let Some(dep_node) = self.graph.nodes.get(dep_id) {
-                // If the dependency is a cache_2d node, reference its field
-                if dep_node.is_cache_2d {
-                    let field = self.column_context_field_ident(dep_id);
-                    return quote! { #field };
-                }
-                // If it's a flat_cache node:
-                // - In normal mode: use pre-computed local variable (via tracking)
-                // - In standalone mode: compute it inline
-                if dep_node.is_flat_cache {
-                    if self.column_context_standalone_mode {
-                        // Standalone mode: inline the flat_cache computation
-                        return self.emit_flat_cache_init_for_standalone(dep_node);
-                    } else {
-                        // Normal mode: use pre-computed local variable (or direct lookup if not tracking)
-                        return self.track_and_emit_cc_flat_lookup(dep_id);
-                    }
-                }
-                // Otherwise, inline the computation
-                return self.emit_column_context_inner(dep_node);
+        if let Some(dep_id) = node.dependencies.get(idx)
+            && let Some(dep_node) = self.graph.nodes.get(dep_id)
+        {
+            // If the dependency is a cache_2d node, reference its field
+            if dep_node.is_cache_2d {
+                let field = self.column_context_field_ident(dep_id);
+                return quote! { #field };
             }
+            // If it's a flat_cache node:
+            // - In normal mode: use pre-computed local variable (via tracking)
+            // - In standalone mode: compute it inline
+            if dep_node.is_flat_cache {
+                if self.column_context_standalone_mode {
+                    // Standalone mode: inline the flat_cache computation
+                    return self.emit_flat_cache_init_for_standalone(dep_node);
+                } else {
+                    // Normal mode: use pre-computed local variable (or direct lookup if not tracking)
+                    return self.track_and_emit_cc_flat_lookup(dep_id);
+                }
+            }
+            // Otherwise, inline the computation
+            return self.emit_column_context_inner(dep_node);
         }
         quote! { 0.0_f64 }
     }
@@ -3691,13 +3679,13 @@ impl<'a> AotEmitter<'a> {
 
     /// Emit a dependency reference for standalone flat_cache computation.
     fn emit_fc_standalone_dep(&self, idx: usize, node: &DensityNode) -> TokenStream {
-        if let Some(dep_id) = node.dependencies.get(idx) {
-            if let Some(dep_node) = self.graph.nodes.get(dep_id) {
-                if dep_node.is_flat_cache {
-                    return self.emit_flat_cache_init_for_standalone(dep_node);
-                }
-                return self.emit_fc_inner_for_standalone(dep_node);
+        if let Some(dep_id) = node.dependencies.get(idx)
+            && let Some(dep_node) = self.graph.nodes.get(dep_id)
+        {
+            if dep_node.is_flat_cache {
+                return self.emit_flat_cache_init_for_standalone(dep_node);
             }
+            return self.emit_fc_inner_for_standalone(dep_node);
         }
         quote! { 0.0_f64 }
     }
@@ -3988,7 +3976,9 @@ impl<'a> AotEmitter<'a> {
                 }
             }
         } else {
-            let mut branches = Vec::new();
+            let mut branches: Vec<TokenStream> = Vec::new();
+            branches.push(quote! { if coord <= #first_loc { #first_val } });
+            branches.push(quote! { else if coord >= #last_loc { #last_val } });
             for (i, seg) in segments.iter().enumerate() {
                 let x_min = seg.x_min;
                 let x_max = seg.x_max;
@@ -4003,9 +3993,7 @@ impl<'a> AotEmitter<'a> {
                     #a + t * (#b + t * (#c + t * #d))
                 };
 
-                if i == 0 {
-                    branches.push(quote! { if coord < #x_max { #eval } });
-                } else if i == segments.len() - 1 {
+                if i == segments.len() - 1 {
                     branches.push(quote! { else { #eval } });
                 } else {
                     branches.push(quote! { else if coord < #x_max { #eval } });
@@ -4014,9 +4002,7 @@ impl<'a> AotEmitter<'a> {
             quote! {
                 {
                     let coord = #coord_expr;
-                    if coord <= #first_loc { #first_val }
-                    else if coord >= #last_loc { #last_val }
-                    else { #(#branches)* }
+                    #(#branches)*
                 }
             }
         }
@@ -4029,7 +4015,9 @@ impl<'a> AotEmitter<'a> {
         let last_val = self.emit_cc_spline_value(&spline.points.last().unwrap().value);
 
         let num_segments = spline.points.len() - 1;
-        let mut branches = Vec::new();
+        let mut branches: Vec<TokenStream> = Vec::new();
+        branches.push(quote! { if coord <= #first_loc { #first_val } });
+        branches.push(quote! { else if coord >= #last_loc { #last_val } });
 
         for i in 0..num_segments {
             let p0 = &spline.points[i];
@@ -4055,11 +4043,7 @@ impl<'a> AotEmitter<'a> {
                 h00 * v0 + h10 * #dt * #d0 + h01 * v1 + h11 * #dt * #d1
             };
 
-            if num_segments == 1 {
-                branches.push(eval);
-            } else if i == 0 {
-                branches.push(quote! { if coord < #loc1 { #eval } });
-            } else if i == num_segments - 1 {
+            if i == num_segments - 1 {
                 branches.push(quote! { else { #eval } });
             } else {
                 branches.push(quote! { else if coord < #loc1 { #eval } });
@@ -4069,9 +4053,7 @@ impl<'a> AotEmitter<'a> {
         quote! {
             {
                 let coord = #coord_expr;
-                if coord <= #first_loc { #first_val }
-                else if coord >= #last_loc { #last_val }
-                else { #(#branches)* }
+                #(#branches)*
             }
         }
     }
@@ -4341,23 +4323,23 @@ impl<'a> AotEmitter<'a> {
                 quote! { f64x4::splat(#val) }
             }
             DensityFunctionArg::Reference(name) => {
-                if let Some(node_id) = self.find_node_by_ref_name(name) {
-                    if let Some(node) = self.graph.nodes.get(&node_id) {
-                        if node.is_cache_2d {
-                            let field = self.column_context_field_ident(&node_id);
-                            return quote! { #field };
-                        }
-                        if node.is_flat_cache {
-                            if self.column_context_standalone_mode {
-                                // Standalone mode: inline the flat_cache computation (4-wide)
-                                return self.emit_flat_cache_init_for_standalone_4(node);
-                            } else {
-                                // Normal mode: use pre-computed local variable (4-wide lookup)
-                                return self.track_and_emit_cc_flat_lookup_4(&node_id);
-                            }
-                        }
-                        return self.emit_column_context_inner_4(node);
+                if let Some(node_id) = self.find_node_by_ref_name(name)
+                    && let Some(node) = self.graph.nodes.get(&node_id)
+                {
+                    if node.is_cache_2d {
+                        let field = self.column_context_field_ident(&node_id);
+                        return quote! { #field };
                     }
+                    if node.is_flat_cache {
+                        if self.column_context_standalone_mode {
+                            // Standalone mode: inline the flat_cache computation (4-wide)
+                            return self.emit_flat_cache_init_for_standalone_4(node);
+                        } else {
+                            // Normal mode: use pre-computed local variable (4-wide lookup)
+                            return self.track_and_emit_cc_flat_lookup_4(&node_id);
+                        }
+                    }
+                    return self.emit_column_context_inner_4(node);
                 }
                 quote! { f64x4::splat(0.0_f64) }
             }
@@ -4413,23 +4395,23 @@ impl<'a> AotEmitter<'a> {
                 quote! { #val }
             }
             DensityFunctionArg::Reference(name) => {
-                if let Some(node_id) = self.find_node_by_ref_name(name) {
-                    if let Some(node) = self.graph.nodes.get(&node_id) {
-                        if node.is_cache_2d {
-                            let field = self.column_context_field_ident(&node_id);
-                            return quote! { #field };
-                        }
-                        if node.is_flat_cache {
-                            if self.column_context_standalone_mode {
-                                // Standalone mode: inline the flat_cache computation
-                                return self.emit_flat_cache_init_for_standalone(node);
-                            } else {
-                                // Normal mode: use pre-computed local variable (or direct lookup if not tracking)
-                                return self.track_and_emit_cc_flat_lookup(&node_id);
-                            }
-                        }
-                        return self.emit_column_context_inner(node);
+                if let Some(node_id) = self.find_node_by_ref_name(name)
+                    && let Some(node) = self.graph.nodes.get(&node_id)
+                {
+                    if node.is_cache_2d {
+                        let field = self.column_context_field_ident(&node_id);
+                        return quote! { #field };
                     }
+                    if node.is_flat_cache {
+                        if self.column_context_standalone_mode {
+                            // Standalone mode: inline the flat_cache computation
+                            return self.emit_flat_cache_init_for_standalone(node);
+                        } else {
+                            // Normal mode: use pre-computed local variable (or direct lookup if not tracking)
+                            return self.track_and_emit_cc_flat_lookup(&node_id);
+                        }
+                    }
+                    return self.emit_column_context_inner(node);
                 }
                 quote! { 0.0_f64 }
             }
