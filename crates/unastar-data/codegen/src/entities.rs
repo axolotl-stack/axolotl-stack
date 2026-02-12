@@ -33,6 +33,7 @@ struct ParsedComponent {
     /// Named properties (e.g., `max=20` -> {"max": "20"})
     properties: HashMap<String, String>,
     /// Whether this is a marker component (no data)
+    #[allow(dead_code)]
     is_marker: bool,
 }
 

@@ -31,7 +31,7 @@ pub struct Attribution {
 pub enum Source {
     Defaults,
     Vanilla,
-    Override(String), // filename
+    Override(#[allow(dead_code)] String), // filename
 }
 
 /// Entity property (synced enum or value)
@@ -64,10 +64,13 @@ pub enum ComponentValue {
 pub struct EventDef {
     pub add_groups: Vec<String>,
     pub remove_groups: Vec<String>,
+    #[allow(dead_code)]
     pub set_properties: HashMap<String, serde_json::Value>,
     pub trigger: Option<String>,
+    #[allow(dead_code)]
     pub sequence: Vec<EventDef>,
     pub randomize: Vec<RandomizeEntry>,
+    #[allow(dead_code)]
     pub filters: Option<serde_json::Value>,
 }
 
@@ -75,6 +78,8 @@ pub struct EventDef {
 pub struct RandomizeEntry {
     pub weight: i32,
     pub trigger: Option<String>,
+    #[allow(dead_code)]
     pub add_groups: Vec<String>,
+    #[allow(dead_code)]
     pub remove_groups: Vec<String>,
 }

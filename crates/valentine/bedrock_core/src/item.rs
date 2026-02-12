@@ -75,7 +75,7 @@ pub enum EnchantmentCategory {
 
 impl EnchantmentCategory {
     /// Parse enchantment category from string (as found in JSON).
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn from_name(s: &str) -> Option<Self> {
         match s {
             "weapon" => Some(Self::Weapon),
             "sword" => Some(Self::Sword),

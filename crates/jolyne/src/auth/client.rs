@@ -12,6 +12,7 @@ use uuid::Uuid;
 const MINECRAFT_AUTH_URL: &str = "https://multiplayer.minecraft.net/authentication";
 
 /// Response from Minecraft authentication endpoint
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct MinecraftAuthResponse {
     chain: Vec<String>,

@@ -6,8 +6,6 @@ use unastar::world::generator::density::{
     ColumnContext, FlatCacheGrid, FunctionContext, NoiseRegistry, compute_final_density,
     compute_preliminary_surface_level,
 };
-use unastar_noise::NoiseSource;
-
 fn main() {
     println!("Testing density function evaluation...\n");
 
