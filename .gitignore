@@ -22,6 +22,9 @@ worlds/
 /java-source
 /cubiomes
 
+# Reference repos (cloned for comparison)
+.reference/
+
 # Auto Claude data directory
 .auto-claude/
 /gophertunnel

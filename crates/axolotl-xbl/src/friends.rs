@@ -2,10 +2,37 @@ use crate::auth::{XblToken, sign_request_for_url, update_server_time_from_header
 use crate::error::{XblError, XblResult};
 use serde::{Deserialize, Serialize};
 
+/// Maximum number of friends allowed by Xbox Live.
+/// Increased from 1000 to 2000 in August 2024.
+pub const MAX_FRIENDS: usize = 2000;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SocialSummary {
     #[serde(default)]
     pub people: Vec<Person>,
+}
+
+/// Summary of social relationship counts from Xbox Live.
+#[derive(Debug, Clone)]
+pub struct SocialSummaryInfo {
+    /// Number of people we are following.
+    pub following_count: i64,
+    /// Number of people following us.
+    pub follower_count: i64,
+    /// Remaining friend slots before hitting the limit.
+    pub available_slots: i64,
+}
+
+/// Raw social summary response from Xbox.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SocialSummaryResponse {
+    #[serde(default)]
+    target_following_count: i64,
+    #[serde(default)]
+    target_follower_count: i64,
+    #[serde(default)]
+    available_people_slots: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -137,7 +164,33 @@ impl FriendsClient {
 
     pub async fn get_incoming_requests(&self, token: &XblToken) -> XblResult<Vec<String>> {
         let url = "https://peoplehub.xboxlive.com/users/me/people/friendrequests(received)";
-        let summary = self.get_summary(token, url).await?;
+        let authorization = token.auth_header();
+        let signature = Self::signature("GET", url, &authorization, b"")?;
+
+        let response = self
+            .client
+            .get(url)
+            .header("Authorization", authorization)
+            .header("Signature", signature)
+            .header("x-xbl-contract-version", "7")
+            .header("accept-language", "en-GB")
+            .send()
+            .await?;
+        Self::sync_server_time(&response);
+
+        if !response.status().is_success() {
+            return Err(XblError::XboxLive(format!(
+                "Failed to get friend requests: {}",
+                response.status()
+            )));
+        }
+
+        let text = response.text().await?;
+        if text.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let summary: SocialSummary = serde_json::from_str(&text)?;
         Ok(summary.people.into_iter().map(|p| p.xuid).collect())
     }
 
@@ -148,6 +201,88 @@ impl FriendsClient {
         let url = "https://peoplehub.xboxlive.com/users/me/people/followers";
         let summary = self.get_summary(token, url).await?;
         Ok(summary.people)
+    }
+
+    /// Get list of people we follow (our social/following list).
+    ///
+    /// This returns everyone we are following, regardless of whether they follow us back.
+    pub async fn get_social(&self, token: &XblToken) -> XblResult<Vec<Person>> {
+        let url = "https://peoplehub.xboxlive.com/users/me/people/social";
+        let summary = self.get_summary(token, url).await?;
+        Ok(summary.people)
+    }
+
+    /// Get a merged view of followers and social (people we follow).
+    ///
+    /// This combines both lists by XUID, OR-ing the boolean flags
+    /// (`is_following_caller`, `is_followed_by_caller`). This matches
+    /// Broadcaster's `FriendManager.get()` merge behavior and gives a
+    /// complete picture of the relationship state for each person.
+    pub async fn get_merged_friends(&self, token: &XblToken) -> XblResult<Vec<Person>> {
+        let followers = self.get_followers(token).await?;
+        let social = self.get_social(token).await?;
+
+        let mut merged: std::collections::HashMap<String, Person> = std::collections::HashMap::new();
+
+        for person in followers {
+            merged
+                .entry(person.xuid.clone())
+                .and_modify(|existing| {
+                    existing.is_following_caller =
+                        existing.is_following_caller || person.is_following_caller;
+                    existing.is_followed_by_caller =
+                        existing.is_followed_by_caller || person.is_followed_by_caller;
+                })
+                .or_insert(person);
+        }
+
+        for person in social {
+            merged
+                .entry(person.xuid.clone())
+                .and_modify(|existing| {
+                    existing.is_following_caller =
+                        existing.is_following_caller || person.is_following_caller;
+                    existing.is_followed_by_caller =
+                        existing.is_followed_by_caller || person.is_followed_by_caller;
+                })
+                .or_insert(person);
+        }
+
+        Ok(merged.into_values().collect())
+    }
+
+    /// Get social summary with friend counts and available slots.
+    ///
+    /// Uses the `social.xboxlive.com/users/me/summary` endpoint to get
+    /// following/follower counts and remaining friend slots.
+    pub async fn get_social_summary(&self, token: &XblToken) -> XblResult<SocialSummaryInfo> {
+        let url = "https://social.xboxlive.com/users/me/summary";
+        let authorization = token.auth_header();
+        let signature = Self::signature("GET", url, &authorization, b"")?;
+
+        let response = self
+            .client
+            .get(url)
+            .header("Authorization", authorization)
+            .header("Signature", signature)
+            .header("x-xbl-contract-version", "5")
+            .send()
+            .await?;
+        Self::sync_server_time(&response);
+
+        if !response.status().is_success() {
+            return Err(XblError::XboxLive(format!(
+                "Failed to get social summary: {}",
+                response.status()
+            )));
+        }
+
+        let resp: SocialSummaryResponse = response.json().await?;
+        Ok(SocialSummaryInfo {
+            following_count: resp.target_following_count,
+            follower_count: resp.target_follower_count,
+            available_slots: resp.available_people_slots,
+        })
     }
 
     /// Bulk add friends (accept requests or follow back).
@@ -300,8 +435,21 @@ impl FriendsClient {
                         ));
                     }
 
-                    // Skip users who cannot be added due to account/privacy restrictions.
+                    // Account/privacy restrictions (codes 1011, 1049) — force-remove
+                    // them as a follower so they stop appearing in every sync cycle.
+                    // Matches Broadcaster's forceUnfollow() behavior.
                     if Self::is_friend_restriction_error(&err) {
+                        if let Err(e) = self.force_remove_follower(token, xuid).await {
+                            tracing::debug!(
+                                xuid,
+                                "Failed to force-remove restricted follower: {}", e
+                            );
+                        } else {
+                            tracing::info!(
+                                xuid,
+                                "Force-removed restricted follower (privacy settings block friend requests)"
+                            );
+                        }
                         continue;
                     }
 

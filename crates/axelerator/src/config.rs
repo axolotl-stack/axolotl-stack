@@ -40,12 +40,24 @@ pub struct AxeleratorConfig {
     /// Auto-accept pending friend requests.
     pub auto_accept_friends: bool,
 
+    /// Automatically unfollow people who have unfollowed us.
+    /// This prevents the friend list from filling up with stale one-way follows.
+    /// Default: true (matches Broadcaster behavior).
+    pub auto_unfollow: bool,
+
     /// Interval for periodic friend sync (seconds).
     /// This checks for new followers and auto-follows them back.
     /// Set to 0 to disable periodic sync (only use RTA notifications).
     /// Values below 20 seconds are clamped to reduce rate-limit risk.
     /// Default: 60 seconds.
     pub friend_sync_interval: u64,
+
+    /// Interval for periodic session refresh (seconds).
+    /// Re-PUTs session data to Xbox and checks member count.
+    /// When members reach 28/30, the session is recreated to avoid the Xbox limit.
+    /// Set to 0 to disable. Values below 20 are clamped.
+    /// Default: 30 seconds.
+    pub session_refresh_interval: u64,
 
     /// Heartbeat interval for presence (seconds).
     pub presence_heartbeat: u64,
@@ -59,6 +71,11 @@ pub struct AxeleratorConfig {
     /// Automatically block (unfriend) detected attackers.
     pub auto_block_attackers: bool,
 
+    /// Friend expiry configuration.
+    /// Automatically removes friends who haven't joined in a configurable number of days.
+    #[serde(default)]
+    pub friend_expiry: FriendExpiryConfig,
+
     /// Logging configuration.
     #[serde(default)]
     pub logging: LoggingConfig,
@@ -70,6 +87,36 @@ pub struct AxeleratorConfig {
     /// Discord webhook configuration for error notifications.
     #[serde(default)]
     pub discord: DiscordWebhookConfig,
+}
+
+/// Friend expiry configuration.
+///
+/// When enabled, friends who haven't joined (transferred) within a configurable
+/// number of days are automatically unfollowed. This prevents the friend list
+/// from filling up with inactive players.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct FriendExpiryConfig {
+    /// Enable friend expiry. Default: false (opt-in).
+    pub enabled: bool,
+
+    /// Number of days after which an inactive friend is expired.
+    /// Default: 15 days.
+    pub days: u64,
+
+    /// How often to check for expired friends (seconds).
+    /// Default: 1800 (30 minutes).
+    pub check_interval: u64,
+}
+
+impl Default for FriendExpiryConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            days: 15,
+            check_interval: 1800,
+        }
+    }
 }
 
 /// Logging configuration.
@@ -224,11 +271,14 @@ impl Default for AxeleratorConfig {
             display_players: 1,
             token_cache_path: "token.json".into(),
             auto_accept_friends: false,
+            auto_unfollow: true,
             friend_sync_interval: 60,
+            session_refresh_interval: 30,
             presence_heartbeat: 300,
             monitor_tampering: false,
             monitor_interval: 30,
             auto_block_attackers: false,
+            friend_expiry: FriendExpiryConfig::default(),
             logging: LoggingConfig::default(),
             screenshots: ScreenshotConfig::default(),
             discord: DiscordWebhookConfig::default(),

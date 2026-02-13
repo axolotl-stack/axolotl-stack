@@ -16,6 +16,7 @@ use tokio::sync::Notify;
 use tracing::{debug, error, info, warn};
 
 use crate::AxeleratorConfig;
+use crate::player_history::PlayerHistory;
 
 /// Maximum retry attempts before giving up completely.
 const MAX_RETRY_ATTEMPTS: u32 = 10;
@@ -87,6 +88,7 @@ pub async fn run_transfer_server(
     config: &AxeleratorConfig,
     shutdown: Arc<Notify>,
     stats: Option<Arc<TransferStats>>,
+    player_history: Option<PlayerHistory>,
 ) -> anyhow::Result<ShutdownReason> {
     let stats = stats.unwrap_or_else(|| Arc::new(TransferStats::new()));
     let mut retry_count: u32 = 0;
@@ -106,6 +108,7 @@ pub async fn run_transfer_server(
             config,
             shutdown.clone(),
             stats.clone(),
+            player_history.clone(),
         )
         .await
         {
@@ -207,6 +210,7 @@ async fn run_transfer_server_inner(
     config: &AxeleratorConfig,
     shutdown: Arc<Notify>,
     stats: Arc<TransferStats>,
+    player_history: Option<PlayerHistory>,
 ) -> anyhow::Result<ShutdownReason> {
     // Create listener with builder API
     let mut builder = BedrockListener::nethernet().xbox(signaling_url, nethernet_id, mc_token);
@@ -264,6 +268,7 @@ async fn run_transfer_server_inner(
                         let host = target_host.clone();
                         let port = target_port;
                         let stats = stats.clone();
+                        let history = player_history.clone();
 
                         tokio::spawn(async move {
                             handle_transfer_connection(
@@ -273,6 +278,7 @@ async fn run_transfer_server_inner(
                                 host,
                                 port,
                                 stats,
+                                history,
                             )
                             .await;
                         });
@@ -337,6 +343,7 @@ async fn handle_transfer_connection<T: jolyne::stream::transport::Transport>(
     target_host: String,
     target_port: u16,
     stats: Arc<TransferStats>,
+    player_history: Option<PlayerHistory>,
 ) {
     debug!("Starting Bedrock handshake...");
 
@@ -359,6 +366,14 @@ async fn handle_transfer_connection<T: jolyne::stream::transport::Transport>(
             } else {
                 info!(identity = %display_name, "Transfer packet sent successfully!");
                 stats.transfers_successful.fetch_add(1, Ordering::Relaxed);
+
+                // Update player history on successful transfer
+                if let Some(ref history) = player_history
+                    && let Some(ref xuid) = identity.xuid
+                {
+                    history.update_last_seen(xuid).await;
+                    debug!(xuid, display_name, "Updated player history last-seen");
+                }
             }
 
             // Give client time to process the transfer
@@ -407,6 +422,7 @@ pub async fn run_transfer_server_legacy(
         mc_token,
         config,
         shutdown,
+        None,
         None,
     )
     .await

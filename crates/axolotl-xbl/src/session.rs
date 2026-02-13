@@ -11,6 +11,7 @@ use crate::auth::{XblToken, sign_request_for_url, update_server_time_from_header
 use crate::constants::{SERVICE_CONFIG_ID, TEMPLATE_NAME, TITLE_ID, endpoints};
 use crate::error::{XblError, XblResult};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use tracing::{debug, info, warn};
 use uuid::Uuid;
 
@@ -228,6 +229,23 @@ pub struct SessionCustomProperties {
 pub struct CreateSessionRequest {
     pub properties: SessionProperties,
     pub members: serde_json::Value,
+}
+
+/// Response from creating/updating a session.
+///
+/// Contains the full session state as returned by Xbox, including
+/// the members map which is used to detect member count limits.
+#[derive(Debug, Deserialize)]
+pub struct CreateSessionResponse {
+    #[serde(default)]
+    pub members: HashMap<String, serde_json::Value>,
+}
+
+impl CreateSessionResponse {
+    /// Get the number of members currently in the session.
+    pub fn member_count(&self) -> usize {
+        self.members.len()
+    }
 }
 
 // ============================================================================
@@ -452,11 +470,15 @@ impl SessionClient {
     }
 
     /// Create or update a session.
+    ///
+    /// Returns the parsed session response which includes member information.
+    /// Use `CreateSessionResponse::member_count()` to check how many members
+    /// are in the session (useful for detecting the 30-member limit).
     pub async fn create_session(
         &self,
         token: &XblToken,
         session: &ExpandedSessionInfo,
-    ) -> XblResult<()> {
+    ) -> XblResult<CreateSessionResponse> {
         let url = format!("{}{}", endpoints::CREATE_SESSION_FMT, session.session_id);
         let body = CreateSessionRequest::from_session(session);
         let body_bytes = serde_json::to_vec(&body)?;
@@ -486,8 +508,18 @@ impl SessionClient {
             )));
         }
 
-        info!(session_id = %session.session_id, "Session created");
-        Ok(())
+        let text = response.text().await?;
+        let session_response: CreateSessionResponse =
+            serde_json::from_str(&text).unwrap_or(CreateSessionResponse {
+                members: HashMap::new(),
+            });
+
+        info!(
+            session_id = %session.session_id,
+            members = session_response.member_count(),
+            "Session created"
+        );
+        Ok(session_response)
     }
 
     /// Create a session handle (makes session visible to friends).
@@ -828,7 +860,8 @@ impl SessionClient {
             session_id = %session.session_id,
             "Repairing potentially tampered session"
         );
-        self.create_session(token, session).await
+        let _ = self.create_session(token, session).await?;
+        Ok(())
     }
 
     // ========================================================================

@@ -51,12 +51,14 @@ pub mod session;
 pub use auth::{DeviceCodeAuth, OAuthToken, XblToken, XblTokenClient};
 pub use constants::{SERVICE_CONFIG_ID, TEMPLATE_NAME, TITLE_ID, endpoints};
 pub use error::{XblError, XblResult};
-pub use friends::{FriendsClient, Person, SocialSummary};
+pub use friends::{FriendsClient, MAX_FRIENDS, Person, SocialSummary, SocialSummaryInfo};
 pub use gallery::{GalleryClient, GalleryImage, SetShowcaseResult};
 pub use playfab::PlayFabClient;
 pub use presence::{PresenceClient, PresenceState};
 pub use rta::RtaClient;
 pub use session::{
+    // Session response
+    CreateSessionResponse,
     // MPSD Enumeration (security research)
     EnumerationResult,
     ExpandedSessionInfo,

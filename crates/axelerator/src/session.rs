@@ -5,6 +5,7 @@
 
 use crate::config::AxeleratorConfig;
 use crate::discord::DiscordNotifier;
+use crate::player_history::PlayerHistory;
 use crate::screenshots::ScreenshotManager;
 use crate::token_cache::TokenCache;
 use crate::transfer::TransferStats;
@@ -128,6 +129,32 @@ impl Axelerator {
         self.discord
             .set_gamertag(xbl_token.gamertag().to_string())
             .await;
+
+        // Log friend count at startup
+        let friends_client_init = axolotl_xbl::FriendsClient::new();
+        match friends_client_init.get_social_summary(&xbl_token).await {
+            Ok(summary) => {
+                info!(
+                    following = summary.following_count,
+                    followers = summary.follower_count,
+                    available_slots = summary.available_slots,
+                    max = axolotl_xbl::MAX_FRIENDS,
+                    "Friend list: {}/{} following, {} followers",
+                    summary.following_count,
+                    axolotl_xbl::MAX_FRIENDS,
+                    summary.follower_count,
+                );
+                if summary.available_slots <= 50 {
+                    warn!(
+                        available_slots = summary.available_slots,
+                        "Friend list is nearly full! Auto-unfollow or friend expiry recommended."
+                    );
+                }
+            }
+            Err(e) => {
+                debug!("Failed to get social summary: {}", e);
+            }
+        }
 
         // Step 1.5: Start RTA and Friend Manager
         let rta_client = Arc::new(axolotl_xbl::RtaClient::new(xbl_token.clone()));
@@ -271,10 +298,15 @@ impl Axelerator {
         let mut session_info = self.create_session_info(&xbl_token.xuid);
         session_info.connection_id = connection_id;
 
-        session_client
+        let session_response = session_client
             .create_session(&xbl_token, &session_info)
             .await
             .context("Failed to create session")?;
+
+        info!(
+            initial_members = session_response.member_count(),
+            "Session created with initial member count"
+        );
 
         let handle_id = session_client
             .create_handle(&xbl_token, &session_info)
@@ -336,6 +368,7 @@ impl Axelerator {
             &token_cache,
             &self.session_info,
             &processed_xuids,
+            self.config.auto_unfollow,
         )
         .await;
 
@@ -358,6 +391,7 @@ impl Axelerator {
             let session_info_for_sync = self.session_info.clone();
             let shutdown = self.shutdown_notify.clone();
             let processed_for_sync = processed_xuids.clone();
+            let auto_unfollow = self.config.auto_unfollow;
 
             Some(tokio::spawn(async move {
                 run_periodic_friend_sync(
@@ -368,6 +402,60 @@ impl Axelerator {
                     session_info_for_sync,
                     shutdown,
                     processed_for_sync,
+                    auto_unfollow,
+                )
+                .await;
+            }))
+        } else {
+            None
+        };
+
+        // Initialize friend expiry: seed existing friends on first run
+        let friend_expiry_handle = if self.config.friend_expiry.enabled {
+            let history_path =
+                PlayerHistory::path_from_token_cache(&self.config.token_cache_path);
+            let history = PlayerHistory::load(&history_path);
+
+            // Seed existing friends with current timestamp so they aren't immediately expired
+            let init_token = match token_cache.get_or_authenticate().await {
+                Ok(t) => t,
+                Err(e) => {
+                    warn!("Failed to get token for friend expiry init: {}", e);
+                    // Non-fatal, continue without initialization
+                    xbl_token.clone()
+                }
+            };
+            match friends_client.get_followers(&init_token).await {
+                Ok(followers) => {
+                    let xuids: Vec<String> = followers.iter().map(|f| f.xuid.clone()).collect();
+                    history.initialize_friends(&xuids).await;
+                    history.save_if_dirty().await;
+                }
+                Err(e) => {
+                    warn!("Failed to initialize friend expiry history: {}", e);
+                }
+            }
+
+            // Spawn expiry check task
+            let expiry_config = self.config.friend_expiry.clone();
+            let expiry_friends = friends_client.clone();
+            let expiry_token_cache = token_cache.clone();
+            let expiry_shutdown = self.shutdown_notify.clone();
+            let expiry_history = history;
+
+            info!(
+                days = expiry_config.days,
+                check_interval = expiry_config.check_interval,
+                "Friend expiry system enabled"
+            );
+
+            Some(tokio::spawn(async move {
+                run_friend_expiry_check(
+                    expiry_config,
+                    expiry_friends,
+                    expiry_token_cache,
+                    expiry_history,
+                    expiry_shutdown,
                 )
                 .await;
             }))
@@ -396,6 +484,11 @@ impl Axelerator {
 
         // Stop friend sync
         if let Some(handle) = friend_sync_handle {
+            handle.abort();
+        }
+
+        // Stop friend expiry
+        if let Some(handle) = friend_expiry_handle {
             handle.abort();
         }
 
@@ -497,6 +590,17 @@ impl Axelerator {
         let mut token_refresh_attempts = 0u32;
         const MAX_TOKEN_REFRESH_ATTEMPTS: u32 = 5;
 
+        // Load player history for friend expiry tracking
+        let player_history = if self.config.friend_expiry.enabled {
+            let history_path =
+                PlayerHistory::path_from_token_cache(&self.config.token_cache_path);
+            let history = PlayerHistory::load(&history_path);
+            info!("Player history loaded from {}", history_path.display());
+            Some(history)
+        } else {
+            None
+        };
+
         // Spawn the transfer server with proper shutdown handling
         let spawn_transfer_server =
             |signaling_url: String,
@@ -504,7 +608,8 @@ impl Axelerator {
              mc_token: String,
              config: AxeleratorConfig,
              shutdown: Arc<Notify>,
-             stats: Arc<TransferStats>| {
+             stats: Arc<TransferStats>,
+             history: Option<PlayerHistory>| {
                 tokio::spawn(async move {
                     crate::transfer::run_transfer_server(
                         &signaling_url,
@@ -513,6 +618,7 @@ impl Axelerator {
                         &config,
                         shutdown,
                         Some(stats),
+                        history,
                     )
                     .await
                 })
@@ -525,6 +631,7 @@ impl Axelerator {
             self.config.clone(),
             self.transfer_shutdown.clone(),
             transfer_stats.clone(),
+            player_history.clone(),
         );
 
         let presence = PresenceClient::new();
@@ -548,6 +655,19 @@ impl Axelerator {
 
         // Current handle_id (mutable for recreation)
         let mut current_handle_id = handle_id.to_string();
+
+        // Session refresh tracking
+        let session_refresh_interval = if self.config.session_refresh_interval == 0 {
+            0
+        } else {
+            self.config.session_refresh_interval.max(20)
+        };
+        let mut last_session_refresh = Instant::now();
+        // Mutable copy of session info for potential recreation on member limit
+        let mut current_session = session.clone();
+
+        // Player history periodic save tracking (every 60 seconds)
+        let mut last_history_save = Instant::now();
 
         // Screenshot/showcase image management
         let mut screenshot_manager = ScreenshotManager::new(self.config.screenshots.clone());
@@ -638,6 +758,7 @@ impl Axelerator {
                                                 self.config.clone(),
                                                 self.transfer_shutdown.clone(),
                                                 transfer_stats.clone(),
+                                                player_history.clone(),
                                             );
                                         }
                                         Err(e) => {
@@ -648,8 +769,54 @@ impl Axelerator {
                                     }
                                     continue;
                                 }
-                                ShutdownReason::ListenerClosed | ShutdownReason::FatalError => {
-                                    let err_msg = format!("Transfer server stopped unexpectedly: {:?}", reason);
+                                ShutdownReason::ListenerClosed => {
+                                    // Signaling connection died - try to recover by refreshing
+                                    // MC token and restarting the transfer server.
+                                    // This matches Broadcaster's checkConnection() -> createSession() pattern.
+                                    warn!("Transfer server listener closed, attempting recovery...");
+
+                                    // Refresh MC token
+                                    match get_fresh_mc_token(token_cache.clone(), session.device_id.clone()).await {
+                                        Ok(new_token) => {
+                                            mc_token = new_token;
+                                            info!("MC token refreshed, restarting transfer server...");
+
+                                            // Re-PUT session to keep it alive
+                                            let session_token = match token_cache.get_or_authenticate().await {
+                                                Ok(t) => t,
+                                                Err(e) => {
+                                                    let err_msg = format!("Failed to get XBL token for session refresh during recovery: {}", e);
+                                                    error!("{}", err_msg);
+                                                    self.discord.notify_crash(&err_msg);
+                                                    break;
+                                                }
+                                            };
+                                            if let Err(e) = session_client.create_session(&session_token, &current_session).await {
+                                                warn!("Failed to refresh session during recovery: {}", e);
+                                                // Continue anyway - transfer server restart is more important
+                                            }
+
+                                            transfer_handle = spawn_transfer_server(
+                                                signaling_url.clone(),
+                                                nethernet_id,
+                                                mc_token.clone(),
+                                                self.config.clone(),
+                                                self.transfer_shutdown.clone(),
+                                                transfer_stats.clone(),
+                                                player_history.clone(),
+                                            );
+                                            continue;
+                                        }
+                                        Err(e) => {
+                                            let err_msg = format!("Failed to refresh MC token during recovery: {}", e);
+                                            error!("{}", err_msg);
+                                            self.discord.notify_crash(&err_msg);
+                                            break;
+                                        }
+                                    }
+                                }
+                                ShutdownReason::FatalError => {
+                                    let err_msg = format!("Transfer server fatal error: {:?}", reason);
                                     error!("{}", err_msg);
                                     self.discord.notify_crash(&err_msg);
                                     break;
@@ -724,6 +891,85 @@ impl Axelerator {
                         }
                     }
 
+                    // Session refresh - re-PUT session data and check member count
+                    if session_refresh_interval > 0
+                        && now.duration_since(last_session_refresh).as_secs() >= session_refresh_interval
+                    {
+                        last_session_refresh = now;
+
+                        let refresh_token = match token_cache.get_or_authenticate().await {
+                            Ok(t) => t,
+                            Err(e) => {
+                                warn!("Failed to get token for session refresh: {}", e);
+                                continue;
+                            }
+                        };
+
+                        match session_client.create_session(&refresh_token, &current_session).await {
+                            Ok(resp) => {
+                                let members = resp.member_count();
+                                debug!(members, "Session refreshed");
+
+                                // Xbox has a 30-member limit. At 28+, recreate session
+                                // with a new session_id but keep nethernet_id and connection_id
+                                // so the transfer server stays alive.
+                                if members >= 28 {
+                                    warn!(
+                                        members,
+                                        "Session approaching member limit (30), recreating session"
+                                    );
+
+                                    let old_nethernet_id = current_session.nethernet_id;
+                                    let old_connection_id = current_session.connection_id.clone();
+
+                                    // Create new session with fresh ID but preserved NetherNet identity
+                                    let mut new_session = self.create_session_info(&current_session.xuid);
+                                    new_session.nethernet_id = old_nethernet_id;
+                                    new_session.connection_id = old_connection_id;
+
+                                    match session_client.create_session(&refresh_token, &new_session).await {
+                                        Ok(_) => {
+                                            match session_client.create_handle(&refresh_token, &new_session).await {
+                                                Ok(new_handle) => {
+                                                    info!(
+                                                        old_session = %current_session.session_id,
+                                                        new_session = %new_session.session_id,
+                                                        handle = %new_handle,
+                                                        "Session recreated due to member limit"
+                                                    );
+                                                    current_handle_id = new_handle.clone();
+                                                    new_session.handle_id = Some(new_handle);
+                                                    current_session = new_session;
+
+                                                    // Update shared session info
+                                                    let mut info = self.session_info.write().await;
+                                                    *info = Some(current_session.clone());
+                                                }
+                                                Err(e) => {
+                                                    error!("Failed to create handle for new session: {}", e);
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            error!("Failed to create replacement session: {}", e);
+                                        }
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                warn!("Failed to refresh session: {}", e);
+                            }
+                        }
+                    }
+
+                    // Periodic save of player history (every 60 seconds)
+                    if let Some(ref history) = player_history
+                        && now.duration_since(last_history_save).as_secs() >= 60
+                    {
+                        last_history_save = now;
+                        history.save_if_dirty().await;
+                    }
+
                     // Screenshot upload check
                     if screenshot_manager.is_enabled() {
                         let should_upload = if screenshot_manager.image_count() > 1 {
@@ -768,7 +1014,7 @@ impl Axelerator {
                         };
 
                         // 1. Session tampering detection
-                        match session_client.check_tampering_via_handle(&monitor_token, session, &current_handle_id).await {
+                        match session_client.check_tampering_via_handle(&monitor_token, &current_session, &current_handle_id).await {
                             Ok(result) => {
                                 if result.tampered {
                                     tamper_count += 1;
@@ -832,7 +1078,7 @@ impl Axelerator {
                                     self.discord.notify_tampering(&details);
 
                                     info!("Attempting auto-repair...");
-                                    match session_client.repair_session(&monitor_token, session).await {
+                                    match session_client.repair_session(&monitor_token, &current_session).await {
                                         Ok(_) => info!("Session repaired successfully"),
                                         Err(e) => error!("Failed to repair session: {}", e),
                                     }
@@ -848,9 +1094,9 @@ impl Axelerator {
                         // 2. Handle hijacking detection
                         match session_client.check_handle_hijacking(
                             &monitor_token,
-                            &session.xuid,
+                            &current_session.xuid,
                             &current_handle_id,
-                            &session.session_id,
+                            &current_session.session_id,
                         ).await {
                             Ok(result) => {
                                 if result.hijack_detected {
@@ -873,7 +1119,7 @@ impl Axelerator {
 
                                     if !result.our_handle_exists {
                                         warn!("Our handle was deleted! Recreating...");
-                                        match session_client.create_handle(&monitor_token, session).await {
+                                        match session_client.create_handle(&monitor_token, &current_session).await {
                                             Ok(new_handle) => {
                                                 info!("Handle recreated: {}", new_handle);
                                                 current_handle_id = new_handle;
@@ -1086,6 +1332,7 @@ async fn run_periodic_friend_sync(
     session_info: Arc<RwLock<Option<ExpandedSessionInfo>>>,
     shutdown: Arc<Notify>,
     processed_xuids: SharedProcessedXuids,
+    auto_unfollow: bool,
 ) {
     let mut ticker = tokio::time::interval(interval);
     ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -1123,6 +1370,7 @@ async fn run_periodic_friend_sync(
                     &token_cache,
                     &session_info,
                     &processed_xuids,
+                    auto_unfollow,
                 )
                 .await
                 {
@@ -1211,7 +1459,7 @@ async fn run_rta_connection_sync(
                                 continue;
                             }
                         };
-                        session_client.create_session(&fresh, &session).await
+                        session_client.create_session(&fresh, &session).await.map(|_| ())
                     }
                     Err(e) => Err(e),
                 };
@@ -1234,9 +1482,19 @@ async fn run_rta_connection_sync(
     }
 }
 
-/// Check followers and auto-follow back anyone who follows us but we don't follow.
+/// Sync friend relationships: follow back new followers and unfollow stale one-way follows.
 ///
-/// Only processes new followers that haven't been seen before (tracked in processed_xuids).
+/// **Priority order** (matching Broadcaster's `internalProcess()`):
+/// 1. **Follow-back** — people who follow us but we don't follow (highest priority, these are players trying to join)
+/// 2. **Unfollow** — people we follow who don't follow us back (cleanup, capped per cycle)
+///
+/// This ordering ensures new players can always join even when the account has many
+/// stale follows to clean up. Unfollows are capped at `MAX_UNFOLLOWS_PER_CYCLE` to
+/// avoid exhausting the rate limit budget.
+///
+/// Uses `get_merged_friends()` to get a complete picture of the relationship state,
+/// matching Broadcaster's `FriendManager.get()` merge behavior.
+///
 /// On 401/403 errors, the XBL token is refreshed and the operation is retried once.
 async fn sync_followers(
     friends_client: &FriendsClient,
@@ -1244,7 +1502,13 @@ async fn sync_followers(
     token_cache: &TokenCache,
     session_info: &Arc<RwLock<Option<ExpandedSessionInfo>>>,
     processed_xuids: &SharedProcessedXuids,
+    auto_unfollow: bool,
 ) -> Option<Duration> {
+    /// Maximum unfollows per sync cycle. Prevents unfollows from starving follow-backs
+    /// when there are many stale one-way follows (e.g., 200+ on a 700-friend account).
+    /// Remaining unfollows are processed in subsequent cycles.
+    const MAX_UNFOLLOWS_PER_CYCLE: usize = 10;
+
     // Get current token
     let token = match token_cache.get_or_authenticate().await {
         Ok(t) => t,
@@ -1254,11 +1518,11 @@ async fn sync_followers(
         }
     };
 
-    // Get our followers (with retry on auth error)
-    let followers = match friends_client.get_followers(&token).await {
+    // Get merged friend list (followers + social) for complete relationship picture
+    let people = match friends_client.get_merged_friends(&token).await {
         Ok(f) => f,
         Err(e) if e.is_auth_error() => {
-            warn!("Auth error getting followers, refreshing token...");
+            warn!("Auth error getting merged friends, refreshing token...");
             let token = match token_cache.force_refresh_xbl().await {
                 Ok(t) => t,
                 Err(e) => {
@@ -1266,10 +1530,10 @@ async fn sync_followers(
                     return None;
                 }
             };
-            match friends_client.get_followers(&token).await {
+            match friends_client.get_merged_friends(&token).await {
                 Ok(f) => f,
                 Err(e) => {
-                    debug!("Failed to get followers after token refresh: {}", e);
+                    debug!("Failed to get merged friends after token refresh: {}", e);
                     let err = e.to_string();
                     if is_rate_limited_error(&err) {
                         return Some(Duration::from_secs(FRIEND_SYNC_RATE_LIMIT_FALLBACK_SECS));
@@ -1279,7 +1543,7 @@ async fn sync_followers(
             }
         }
         Err(e) => {
-            debug!("Failed to get followers: {}", e);
+            debug!("Failed to get merged friends: {}", e);
             let err = e.to_string();
             if is_rate_limited_error(&err) {
                 return Some(Duration::from_secs(FRIEND_SYNC_RATE_LIMIT_FALLBACK_SECS));
@@ -1288,162 +1552,302 @@ async fn sync_followers(
         }
     };
 
-    // Find people who follow us but we don't follow back AND haven't been processed yet
+    // ── Step 1: Follow-back (HIGHEST PRIORITY) ──────────────────────────
+    // People who follow us but we don't follow back. These are players
+    // trying to join — process them first before spending budget on cleanup.
+
     let processed = processed_xuids.read().await;
-    let to_follow: Vec<_> = followers
+    let to_follow: Vec<_> = people
         .iter()
         .filter(|p| p.is_following_caller && !p.is_followed_by_caller)
-        .filter(|p| !is_guest_account(&p.xuid)) // Skip split-screen/guest accounts
-        .filter(|p| !processed.contains(&p.xuid)) // Skip already processed
+        .filter(|p| !is_guest_account(&p.xuid))
+        .filter(|p| !processed.contains(&p.xuid))
         .cloned()
         .collect();
     drop(processed);
 
-    if to_follow.is_empty() {
-        return None;
-    }
+    let mut cooldown: Option<Duration> = None;
 
-    info!("Found {} new followers to follow back", to_follow.len());
+    if !to_follow.is_empty() {
+        info!("Found {} new followers to follow back", to_follow.len());
 
-    // Build XUID list and gamertag lookup
-    let xuids: Vec<String> = to_follow.iter().map(|p| p.xuid.clone()).collect();
-    let gamertag_map: std::collections::HashMap<String, String> = to_follow
-        .iter()
-        .map(|p| (p.xuid.clone(), p.gamertag.clone()))
-        .collect();
+        let xuids: Vec<String> = to_follow.iter().map(|p| p.xuid.clone()).collect();
+        let gamertag_map: std::collections::HashMap<String, String> = to_follow
+            .iter()
+            .map(|p| (p.xuid.clone(), p.gamertag.clone()))
+            .collect();
 
-    // Get fresh token for adding friends
-    let token = match token_cache.get_or_authenticate().await {
-        Ok(t) => t,
-        Err(e) => {
-            warn!("Failed to get XBL token: {}", e);
-            return None;
-        }
-    };
-
-    // Add friends in adaptive mode (bulk first, then individual fallback in client).
-    let added_xuids = match friends_client.add_friends_bulk(&token, &xuids).await {
-        Ok(added) => {
-            for xuid in &added {
-                let gamertag = gamertag_map
-                    .get(xuid)
-                    .map(|s| s.as_str())
-                    .unwrap_or("Unknown");
-                info!("Followed back {} ({})", gamertag, xuid);
+        // Get fresh token for adding friends
+        let token = match token_cache.get_or_authenticate().await {
+            Ok(t) => t,
+            Err(e) => {
+                warn!("Failed to get XBL token: {}", e);
+                return None;
             }
-            added
-        }
-        Err(e) if e.is_auth_error() => {
-            warn!("Auth error adding friends, refreshing token...");
-            let token = match token_cache.force_refresh_xbl().await {
-                Ok(t) => t,
-                Err(e) => {
-                    warn!("Failed to refresh XBL token: {}", e);
-                    return None;
+        };
+
+        // Add friends in adaptive mode (bulk first, then individual fallback in client).
+        let added_xuids = match friends_client.add_friends_bulk(&token, &xuids).await {
+            Ok(added) => {
+                for xuid in &added {
+                    let gamertag = gamertag_map
+                        .get(xuid)
+                        .map(|s| s.as_str())
+                        .unwrap_or("Unknown");
+                    info!("Followed back {} ({})", gamertag, xuid);
                 }
-            };
-            match friends_client.add_friends_bulk(&token, &xuids).await {
-                Ok(added) => {
-                    for xuid in &added {
-                        let gamertag = gamertag_map
-                            .get(xuid)
-                            .map(|s| s.as_str())
-                            .unwrap_or("Unknown");
-                        info!(
-                            "Followed back {} ({}) (after token refresh)",
-                            gamertag, xuid
-                        );
-                    }
-                    added
-                }
-                Err(e) => {
-                    let err_str = e.to_string();
-                    if is_rate_limited_error(&err_str) {
-                        let retry_after = parse_retry_after_secs(&err_str)
-                            .unwrap_or(FRIEND_SYNC_RATE_LIMIT_FALLBACK_SECS);
-                        warn!(
-                            retry_after_secs = retry_after,
-                            "Rate limited while following friends after token refresh"
-                        );
-                        return Some(Duration::from_secs(retry_after));
-                    }
-                    warn!("Failed to add friends after token refresh: {}", e);
-                    return None;
-                }
+                added
             }
-        }
-        Err(e) => {
-            let err_str = e.to_string();
-            if is_rate_limited_error(&err_str) {
-                let retry_after = parse_retry_after_secs(&err_str)
-                    .unwrap_or(FRIEND_SYNC_RATE_LIMIT_FALLBACK_SECS);
-                warn!(
-                    retry_after_secs = retry_after,
-                    "Rate limited while following friends"
-                );
-                return Some(Duration::from_secs(retry_after));
-            }
-            warn!("Failed to add friends: {}", e);
-            return None;
-        }
-    };
-
-    // Mark successfully added as processed
-    {
-        let mut processed = processed_xuids.write().await;
-        processed.extend(added_xuids.iter().cloned());
-    }
-
-    // Send invites to all successfully added friends
-    let session = match session_info.read().await.clone() {
-        Some(s) => s,
-        None => {
-            debug!("Session not yet created, skipping invites");
-            return None;
-        }
-    };
-
-    // Get fresh token for invites
-    let token = match token_cache.get_or_authenticate().await {
-        Ok(t) => t,
-        Err(e) => {
-            warn!("Failed to get XBL token for invites: {}", e);
-            return None;
-        }
-    };
-
-    for xuid in &added_xuids {
-        let gamertag = gamertag_map
-            .get(xuid)
-            .map(|s| s.as_str())
-            .unwrap_or("Unknown");
-        match session_client.send_invite(&token, &session, xuid).await {
-            Ok(_) => info!("Sent game invite to {}", gamertag),
             Err(e) if e.is_auth_error() => {
-                warn!(
-                    "Auth error sending invite to {}, refreshing token...",
-                    gamertag
-                );
+                warn!("Auth error adding friends, refreshing token...");
                 let token = match token_cache.force_refresh_xbl().await {
                     Ok(t) => t,
                     Err(e) => {
                         warn!("Failed to refresh XBL token: {}", e);
-                        continue;
+                        return None;
                     }
                 };
-                match session_client.send_invite(&token, &session, xuid).await {
-                    Ok(_) => info!("Sent game invite to {} (after token refresh)", gamertag),
-                    Err(e) => warn!(
-                        "Failed to send invite to {} after token refresh: {}",
-                        gamertag, e
-                    ),
+                match friends_client.add_friends_bulk(&token, &xuids).await {
+                    Ok(added) => {
+                        for xuid in &added {
+                            let gamertag = gamertag_map
+                                .get(xuid)
+                                .map(|s| s.as_str())
+                                .unwrap_or("Unknown");
+                            info!(
+                                "Followed back {} ({}) (after token refresh)",
+                                gamertag, xuid
+                            );
+                        }
+                        added
+                    }
+                    Err(e) => {
+                        let err_str = e.to_string();
+                        if is_rate_limited_error(&err_str) {
+                            let retry_after = parse_retry_after_secs(&err_str)
+                                .unwrap_or(FRIEND_SYNC_RATE_LIMIT_FALLBACK_SECS);
+                            warn!(
+                                retry_after_secs = retry_after,
+                                "Rate limited while following friends after token refresh"
+                            );
+                            cooldown = Some(Duration::from_secs(retry_after));
+                        } else {
+                            warn!("Failed to add friends after token refresh: {}", e);
+                        }
+                        vec![]
+                    }
                 }
             }
-            Err(e) => warn!("Failed to send invite to {}: {}", gamertag, e),
+            Err(e) => {
+                let err_str = e.to_string();
+                if is_rate_limited_error(&err_str) {
+                    let retry_after = parse_retry_after_secs(&err_str)
+                        .unwrap_or(FRIEND_SYNC_RATE_LIMIT_FALLBACK_SECS);
+                    warn!(
+                        retry_after_secs = retry_after,
+                        "Rate limited while following friends"
+                    );
+                    cooldown = Some(Duration::from_secs(retry_after));
+                } else {
+                    warn!("Failed to add friends: {}", e);
+                }
+                vec![]
+            }
+        };
+
+        // Mark successfully added as processed
+        if !added_xuids.is_empty() {
+            {
+                let mut processed = processed_xuids.write().await;
+                processed.extend(added_xuids.iter().cloned());
+            }
+
+            // Send invites to all successfully added friends
+            let session = session_info.read().await.clone();
+            if let Some(session) = session {
+                let token = match token_cache.get_or_authenticate().await {
+                    Ok(t) => t,
+                    Err(e) => {
+                        warn!("Failed to get XBL token for invites: {}", e);
+                        return cooldown;
+                    }
+                };
+
+                for xuid in &added_xuids {
+                    let gamertag = gamertag_map
+                        .get(xuid)
+                        .map(|s| s.as_str())
+                        .unwrap_or("Unknown");
+                    match session_client.send_invite(&token, &session, xuid).await {
+                        Ok(_) => info!("Sent game invite to {}", gamertag),
+                        Err(e) if e.is_auth_error() => {
+                            warn!(
+                                "Auth error sending invite to {}, refreshing token...",
+                                gamertag
+                            );
+                            let token = match token_cache.force_refresh_xbl().await {
+                                Ok(t) => t,
+                                Err(e) => {
+                                    warn!("Failed to refresh XBL token: {}", e);
+                                    continue;
+                                }
+                            };
+                            match session_client.send_invite(&token, &session, xuid).await {
+                                Ok(_) => {
+                                    info!("Sent game invite to {} (after token refresh)", gamertag)
+                                }
+                                Err(e) => warn!(
+                                    "Failed to send invite to {} after token refresh: {}",
+                                    gamertag, e
+                                ),
+                            }
+                        }
+                        Err(e) => warn!("Failed to send invite to {}: {}", gamertag, e),
+                    }
+                }
+            }
+        }
+    }
+
+    // If follow-back was rate limited, skip unfollows this cycle
+    if cooldown.is_some() {
+        return cooldown;
+    }
+
+    // ── Step 2: Unfollow stale one-way follows (CLEANUP, CAPPED) ─────────
+    // People we follow who don't follow us back. Capped at MAX_UNFOLLOWS_PER_CYCLE
+    // to avoid exhausting rate limit budget. Remaining unfollows happen in later cycles.
+
+    if auto_unfollow {
+        let to_unfollow: Vec<_> = people
+            .iter()
+            .filter(|p| !p.is_following_caller && p.is_followed_by_caller)
+            .filter(|p| !is_guest_account(&p.xuid))
+            .take(MAX_UNFOLLOWS_PER_CYCLE)
+            .cloned()
+            .collect();
+
+        if !to_unfollow.is_empty() {
+            let total_stale = people
+                .iter()
+                .filter(|p| !p.is_following_caller && p.is_followed_by_caller)
+                .filter(|p| !is_guest_account(&p.xuid))
+                .count();
+
+            info!(
+                processing = to_unfollow.len(),
+                total_stale,
+                "Unfollowing stale one-way follows (capped at {} per cycle)",
+                MAX_UNFOLLOWS_PER_CYCLE,
+            );
+
+            let unfollow_token = match token_cache.get_or_authenticate().await {
+                Ok(t) => t,
+                Err(e) => {
+                    warn!("Failed to get XBL token for unfollow: {}", e);
+                    return None;
+                }
+            };
+
+            for person in &to_unfollow {
+                match friends_client
+                    .remove_friend(&unfollow_token, &person.xuid)
+                    .await
+                {
+                    Ok(_) => {
+                        info!(
+                            "Unfollowed {} ({}) - they no longer follow us",
+                            person.gamertag, person.xuid
+                        );
+                    }
+                    Err(e) => {
+                        let err_str = e.to_string();
+                        if is_rate_limited_error(&err_str) {
+                            let retry_after = parse_retry_after_secs(&err_str)
+                                .unwrap_or(FRIEND_SYNC_RATE_LIMIT_FALLBACK_SECS);
+                            warn!(
+                                retry_after_secs = retry_after,
+                                "Rate limited while unfollowing, will continue next cycle"
+                            );
+                            return Some(Duration::from_secs(retry_after));
+                        }
+                        warn!(
+                            "Failed to unfollow {} ({}): {}",
+                            person.gamertag, person.xuid, e
+                        );
+                    }
+                }
+            }
         }
     }
 
     None
+}
+
+/// Periodically check for expired friends and remove them.
+async fn run_friend_expiry_check(
+    config: crate::config::FriendExpiryConfig,
+    friends_client: Arc<FriendsClient>,
+    token_cache: Arc<TokenCache>,
+    history: PlayerHistory,
+    shutdown: Arc<Notify>,
+) {
+    let interval = Duration::from_secs(config.check_interval.max(60));
+    let mut ticker = tokio::time::interval(interval);
+    ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+
+    // Skip first immediate tick
+    ticker.tick().await;
+
+    loop {
+        tokio::select! {
+            biased;
+
+            _ = shutdown.notified() => {
+                debug!("Friend expiry check shutting down");
+                // Final save
+                history.save_if_dirty().await;
+                break;
+            }
+
+            _ = ticker.tick() => {
+                let expired = history.get_expired(config.days).await;
+                if expired.is_empty() {
+                    debug!("No expired friends found");
+                    continue;
+                }
+
+                info!("Found {} expired friends (>{} days inactive)", expired.len(), config.days);
+
+                let token = match token_cache.get_or_authenticate().await {
+                    Ok(t) => t,
+                    Err(e) => {
+                        warn!("Failed to get token for friend expiry: {}", e);
+                        continue;
+                    }
+                };
+
+                for xuid in &expired {
+                    match friends_client.remove_friend(&token, xuid).await {
+                        Ok(_) => {
+                            info!("Expired friend removed: {}", xuid);
+                            history.remove(xuid).await;
+                        }
+                        Err(e) => {
+                            let err_str = e.to_string();
+                            if is_rate_limited_error(&err_str) {
+                                warn!("Rate limited during friend expiry, will retry next cycle");
+                                break;
+                            }
+                            warn!("Failed to remove expired friend {}: {}", xuid, e);
+                        }
+                    }
+                }
+
+                history.save_if_dirty().await;
+            }
+        }
+    }
 }
 
 fn is_rate_limited_error(err: &str) -> bool {

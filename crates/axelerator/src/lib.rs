@@ -18,13 +18,15 @@
 
 pub mod config;
 pub mod discord;
+pub mod player_history;
 pub mod screenshots;
 pub mod session;
 pub mod token_cache;
 pub mod transfer;
 
 pub use config::{
-    AxeleratorConfig, ConfigError, DiscordWebhookConfig, LoggingConfig, ScreenshotConfig,
+    AxeleratorConfig, ConfigError, DiscordWebhookConfig, FriendExpiryConfig, LoggingConfig,
+    ScreenshotConfig,
 };
 pub use discord::{DiscordNotifier, NotificationLevel};
 pub use screenshots::ScreenshotManager;
