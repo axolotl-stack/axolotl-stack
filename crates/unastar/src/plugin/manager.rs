@@ -470,7 +470,7 @@ impl PluginManager {
         // Track cancelled event indices
         let mut cancelled_indices = std::collections::HashSet::new();
 
-        for (_id, plugin) in &mut self.plugins {
+        for plugin in self.plugins.values_mut() {
             plugin.store.data_mut().world_ptr = world_ptr;
             plugin.store.data_mut().pending_actions.clear();
 

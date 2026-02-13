@@ -8,7 +8,7 @@ impl Plugin for ExamplePlugin {
     }
 
     fn on_tick(tick_id: u64) {
-        if tick_id % 100 == 0 {
+        if tick_id.is_multiple_of(100) {
             let count = host::get_player_count();
             host::log(
                 LogLevel::Info,

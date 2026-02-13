@@ -9,6 +9,10 @@ A Minecraft Bedrock Edition server written in Rust. Monorepo with multiple crate
 - **ECS**: bevy_ecs 0.17
 - **Plugin System**: WASM-based (wasmtime), migrating to Component Model + WIT
 
+## Build & Verification
+- **After any code changes**, always run `cargo clippy` before considering work complete
+- Fix all clippy warnings before presenting changes to the user
+
 ## Crate Structure
 - `unastar` - Main server binary
 - `unastar-api` - Plugin API types and traits (guest SDK)

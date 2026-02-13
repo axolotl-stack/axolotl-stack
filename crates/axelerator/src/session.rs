@@ -1324,6 +1324,7 @@ async fn accept_friends_and_invite(
 ///
 /// This runs every `interval` and checks for followers who we haven't followed back.
 /// This catches cases where RTA notifications are missed (common with PS5 users).
+#[allow(clippy::too_many_arguments)]
 async fn run_periodic_friend_sync(
     interval: Duration,
     friends_client: Arc<FriendsClient>,
