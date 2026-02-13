@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
+use crate::ecs::events::EventKind;
+
 /// Unique identifier for a plugin.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PluginId(pub String);
@@ -10,8 +12,6 @@ impl std::fmt::Display for PluginId {
         write!(f, "{}", self.0)
     }
 }
-
-use unastar_api::EventKind;
 
 /// The manifest file (`plugin.toml`) for a plugin.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,7 +38,7 @@ pub struct PluginManifest {
 /// Resource limits for a plugin.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginLimits {
-    /// Maximum fuel (instructions) per tick. Defaults to 10M.
+    /// Maximum fuel (epoch ticks) per tick. Defaults to 10M.
     #[serde(default = "default_fuel")]
     pub fuel_per_tick: u64,
     /// Maximum memory in bytes. Defaults to 64MB.

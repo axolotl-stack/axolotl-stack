@@ -1,0 +1,14 @@
+package unastar:plugin@0.2.0;
+
+interface host {
+    use types.{vec3, block-pos, log-level};
+
+    get-tick-id: func() -> u64;
+    get-tps: func() -> f32;
+    get-player-count: func() -> u32;
+    get-spawn: func() -> vec3;
+    get-block: func(pos: block-pos) -> u32;
+    set-block: func(pos: block-pos, block-id: u32);
+    log: func(level: log-level, message: string);
+    list-players: func() -> list<string>;
+}

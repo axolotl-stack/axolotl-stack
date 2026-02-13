@@ -32,11 +32,9 @@ parking_lot = "0.12"
 lz4_flex = "0.11"
 crc32fast = "1.4"
 
-# Plugin dependencies (WASM only)
-wasmtime = "23.0"
-wasmtime-wasi = "23.0"
-borsh = { version = "1.5", features = ["derive"] }
-unastar_api = { path = "../unastar-api" }
+# Plugin dependencies (Component Model)
+wasmtime = { version = "41.0", features = ["component-model", "async"] }
+wasmtime-wasi = "41.0"
 
 #dhat = "0.3"
 # tracy-client = "0.18"

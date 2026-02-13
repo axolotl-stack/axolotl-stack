@@ -1,15 +1,10 @@
 [package]
 name = "example_plugin"
-version = "0.1.0"
-edition = "2021"
+version = "0.2.0"
+edition.workspace = true
 
 [lib]
-# No longer cdylib - just a regular Rust library
-crate-type = ["rlib", "cdylib"]
+crate-type = ["cdylib"]
 
 [dependencies]
-# Native plugin dependencies
-unastar_api = { path = "../unastar-api", features = ["native"] }
-bevy_ecs = { workspace = true }
-tracing.workspace = true
-abi_stable = "0.11"
+unastar_api = { path = "../unastar-api" }

@@ -124,7 +124,7 @@ impl UnastarServer {
         // Load plugins from "plugins" directory relative to CWD
         let plugins_dir = std::env::current_dir()?.join("plugins");
         info!(path = %plugins_dir.display(), "Loading plugins from directory");
-        if let Err(e) = plugin_manager.load_plugins(&plugins_dir).await {
+        if let Err(e) = plugin_manager.load_plugins(&plugins_dir) {
             warn!(error = %e, "Failed to load plugins");
         }
 
@@ -273,7 +273,7 @@ impl UnastarServer {
                     self.server.tick();
 
                     // Run plugin tick
-                    self.plugin_manager.tick(self.server.ecs.world_mut()).await;
+                    self.plugin_manager.tick(self.server.ecs.world_mut());
                     let tick_logic_elapsed = tick_logic_start.elapsed();
 
                     // Signal all network tasks to flush their buffers

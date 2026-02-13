@@ -8,7 +8,7 @@ members = [
     "crates/unastar",
     "crates/unastar_noise",
     "crates/unastar-api",
-    "crates/unastar-api-macros",
+    "crates/example-plugin",
     "crates/unastar-data",
     "crates/unastar-data/datagen",
     "crates/unastar-data/codegen",

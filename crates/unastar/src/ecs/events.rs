@@ -1,10 +1,56 @@
 use bevy_ecs::prelude::*;
-use unastar_api::PluginAction;
 
-use bevy_ecs::prelude::Entity;
+/// Actions produced by plugin host trait implementations.
+/// These are queued during WASM calls and processed by the ECS system.
+#[derive(Debug, Clone)]
+pub enum PluginAction {
+    SendMessage {
+        player_id: String,
+        message: String,
+    },
+    Teleport {
+        player_id: String,
+        position: (f64, f64, f64),
+    },
+    GiveItem {
+        player_id: String,
+        item_id: String,
+        count: u8,
+    },
+    Kick {
+        player_id: String,
+        reason: String,
+    },
+    SetBlock {
+        position: (i32, i32, i32),
+        block_id: u32,
+    },
+}
+
+/// Event kind for subscription filtering (host-side only).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EventKind {
+    Tick,
+    PlayerJoin,
+    PlayerChat,
+    BlockBreak,
+    BlockPlace,
+    Timer,
+    PlayerMove,
+    PlayerJump,
+    PlayerToggleSneak,
+    PlayerToggleSprint,
+    PlayerQuit,
+    PlayerHeldSlotChange,
+    PlayerStartBreak,
+    PlayerInteractBlock,
+    PlayerItemUse,
+    PlayerSwing,
+}
 
 /// Internal event representation carrying Entity references.
-/// These are converted to PluginEvent (with handles) by the PluginManager.
+/// These are dispatched as individual typed WIT export calls by the PluginManager.
 #[derive(Debug, Clone)]
 pub enum ServerEvent {
     Tick {
@@ -75,15 +121,10 @@ pub enum ServerEvent {
     PlayerSwing {
         entity: Entity,
     },
-    TaskComplete {
-        task_id: u32,
-        result: unastar_api::TaskResult,
-    },
 }
 
 impl ServerEvent {
-    pub fn kind(&self) -> unastar_api::EventKind {
-        use unastar_api::EventKind;
+    pub fn kind(&self) -> EventKind {
         match self {
             ServerEvent::Tick { .. } => EventKind::Tick,
             ServerEvent::PlayerJoin { .. } => EventKind::PlayerJoin,
@@ -101,13 +142,12 @@ impl ServerEvent {
             ServerEvent::PlayerInteractBlock { .. } => EventKind::PlayerInteractBlock,
             ServerEvent::PlayerItemUse { .. } => EventKind::PlayerItemUse,
             ServerEvent::PlayerSwing { .. } => EventKind::PlayerSwing,
-            ServerEvent::TaskComplete { .. } => EventKind::TaskComplete,
         }
     }
 }
 
 /// A buffer of events that occurred during the current tick.
-/// This is drained by the PluginManager and sent to WASM plugins.
+/// This is drained by the PluginManager and dispatched to WASM plugins.
 #[derive(Resource, Default)]
 pub struct EventBuffer {
     events: Vec<ServerEvent>,

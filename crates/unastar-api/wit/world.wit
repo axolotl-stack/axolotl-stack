@@ -1,0 +1,27 @@
+package unastar:plugin@0.2.0;
+
+world unastar-plugin {
+    import types;
+    import host;
+
+    use types.{player, vec3, block-pos};
+
+    export on-load: func();
+    export on-unload: func();
+    export on-tick: func(tick-id: u64);
+    export on-player-join: func(player: borrow<player>, username: string);
+    export on-player-quit: func(player: borrow<player>);
+    export on-player-chat: func(player: borrow<player>, message: string) -> bool;
+    export on-block-break: func(player: borrow<player>, position: block-pos, block-id: u32) -> bool;
+    export on-block-place: func(player: borrow<player>, position: block-pos, block-id: u32) -> bool;
+    export on-player-move: func(player: borrow<player>, old-position: vec3, new-position: vec3);
+    export on-player-jump: func(player: borrow<player>);
+    export on-player-toggle-sneak: func(player: borrow<player>, is-sneaking: bool);
+    export on-player-toggle-sprint: func(player: borrow<player>, is-sprinting: bool);
+    export on-player-held-slot-change: func(player: borrow<player>, old-slot: u8, new-slot: u8);
+    export on-player-start-break: func(player: borrow<player>, position: block-pos, face: u8);
+    export on-player-interact-block: func(player: borrow<player>, position: block-pos, face: u8) -> bool;
+    export on-player-item-use: func(player: borrow<player>);
+    export on-player-swing: func(player: borrow<player>);
+    export on-timer: func(timer-id: u64);
+}

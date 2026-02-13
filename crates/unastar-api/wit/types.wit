@@ -1,0 +1,47 @@
+package unastar:plugin@0.2.0;
+
+interface types {
+    record vec3 {
+        x: f64,
+        y: f64,
+        z: f64,
+    }
+
+    record block-pos {
+        x: s32,
+        y: s32,
+        z: s32,
+    }
+
+    enum game-mode {
+        survival,
+        creative,
+        adventure,
+        spectator,
+    }
+
+    enum log-level {
+        info,
+        warn,
+        error,
+    }
+
+    record item-stack {
+        item-id: string,
+        count: u8,
+    }
+
+    resource player {
+        get-name: func() -> string;
+        get-uuid: func() -> string;
+        get-position: func() -> vec3;
+        get-rotation: func() -> tuple<f32, f32>;
+        get-health: func() -> f32;
+        get-max-health: func() -> f32;
+        get-game-mode: func() -> game-mode;
+        send-message: func(message: string);
+        teleport: func(position: vec3);
+        give-item: func(item-id: string, count: u8);
+        kick: func(reason: string);
+    }
+}

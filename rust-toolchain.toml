@@ -1,5 +1,4 @@
 [toolchain]
 channel = "nightly-2025-12-25"
 components = ["rust-src", "rustfmt", "clippy"]
-# For plugins eventually:
-# targets = ["wasm32-unknown-unknown"]
+targets = ["wasm32-wasip2"]
