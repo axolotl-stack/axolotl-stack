@@ -34,11 +34,22 @@ impl GameServer {
             .copied()
             .unwrap_or(GameMode::Survival);
 
+        let config = world
+            .get_resource::<super::types::ServerConfigResource>()
+            .unwrap();
+        let world_template = world
+            .get_resource::<super::types::ServerWorldTemplate>()
+            .unwrap();
+        let current_tick = world
+            .get_resource::<crate::ecs::resources::TickCounter>()
+            .unwrap()
+            .current;
+
         let _ = session.send(McpePacket::from(ChunkRadiusUpdatePacket {
-            chunk_radius: self.config.default_chunk_radius,
+            chunk_radius: config.0.default_chunk_radius,
         }));
         let _ = session.send(McpePacket::from(
-            self.world_template.available_entities.as_ref().clone(),
+            world_template.0.available_entities.as_ref().clone(),
         ));
 
         // Send gamemode to client (hides hunger bar in creative, etc.)
@@ -144,7 +155,7 @@ impl GameServer {
         let _ = session.send(McpePacket::from(UpdateAttributesPacket {
             runtime_entity_id: runtime_id,
             attributes,
-            tick: self.current_tick as i64,
+            tick: current_tick as i64,
         }));
 
         // Send entity metadata with proper flags for player behavior:
@@ -210,7 +221,7 @@ impl GameServer {
             runtime_entity_id: runtime_id,
             metadata,
             properties: EntityProperties::default(),
-            tick: self.current_tick as i64,
+            tick: current_tick as i64,
         }));
 
         // Send inventory contents to enable inventory UI

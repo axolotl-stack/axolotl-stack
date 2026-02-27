@@ -1,6 +1,7 @@
 //! ECS application wrapper.
 
 use bevy_ecs::prelude::*;
+use bevy_tasks::{ComputeTaskPool, TaskPoolBuilder};
 
 use super::events::{ActionQueue, EventBuffer};
 use super::resources::*;
@@ -17,6 +18,10 @@ pub struct UnastarEcs {
 impl UnastarEcs {
     /// Create a new ECS application with default resources.
     pub fn new() -> Self {
+        // Initialize the compute task pool for multi-threaded system scheduling.
+        // bevy_ecs's multi-threaded executor uses ComputeTaskPool internally.
+        ComputeTaskPool::get_or_init(|| TaskPoolBuilder::default().build());
+
         let mut world = World::new();
 
         // Insert global resources
@@ -28,6 +33,7 @@ impl UnastarEcs {
         let mut tick_schedule = Schedule::default();
         tick_schedule.configure_sets(
             (
+                PacketApplySet,
                 PhysicsSet,
                 EntityLogicSet,
                 ChunkSet,

@@ -11,12 +11,12 @@
 //! allowing you to enable `--features bedrock_X_Y_Z` and import
 //! `valentine::bedrock::version::vX_Y_Z::*` without duplicating protocol code.
 pub use valentine_bedrock_core::bedrock::version::BedrockVersionInfo;
-#[cfg(feature = "bedrock_1_21_130")]
-pub mod v1_21_130 {
-    pub use super::super::protocol::v1_21_130::*;
-    pub const GAME_VERSION: &str = "1.21.130";
-    pub const PROTOCOL_VERSION: i32 = 898i32;
-    pub const MAJOR_VERSION: &str = "1.21";
+#[cfg(feature = "bedrock_1_26_0")]
+pub mod v1_26_0 {
+    pub use super::super::protocol::v1_26_0::*;
+    pub const GAME_VERSION: &str = "1.26.0";
+    pub const PROTOCOL_VERSION: i32 = 924i32;
+    pub const MAJOR_VERSION: &str = "1.26";
     pub const RELEASE_TYPE: &str = "release";
     pub const INFO: super::BedrockVersionInfo = super::BedrockVersionInfo {
         minecraft_version: GAME_VERSION,

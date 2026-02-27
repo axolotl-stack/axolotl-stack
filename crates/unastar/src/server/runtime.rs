@@ -40,11 +40,9 @@ impl UnastarServer {
     /// Create a new server instance from config.
     pub async fn new(config: Arc<UnastarConfig>) -> Result<Self, Box<dyn std::error::Error>> {
         let player_data_store = Arc::new(PlayerDataStore::new(config.players.data_dir.clone()));
-        let save_previous_position = config.players.save_previous_position;
 
         // Create ECS-based game server
         let mut server = GameServer::with_config(config.server_config());
-        server.set_player_data_store(player_data_store.clone(), save_previous_position);
 
         // Initialize LevelDB player provider (if enabled)
         if config.players.leveldb_enabled {
@@ -52,8 +50,9 @@ impl UnastarServer {
             match LevelDBPlayerProvider::open(&player_db_path) {
                 Ok(provider) => {
                     info!(path = %player_db_path.display(), "Opened player LevelDB");
-                    server
-                        .set_player_provider(Arc::new(provider), config.players.save_on_disconnect);
+                    server.ecs.world_mut().insert_resource(
+                        crate::server::game::types::PlayerProviderResource(provider),
+                    );
                 }
                 Err(e) => {
                     warn!(error = %e, "Failed to open player LevelDB, persistence disabled");
@@ -101,16 +100,12 @@ impl UnastarServer {
         };
 
         if let Some(provider) = provider {
-            server.set_world_provider(provider.clone());
-
-            // Also set provider on ChunkManager resource for load-before-generate
+            // Set provider on ChunkManager resource for load-before-generate
+            let world = server.ecs.world_mut();
+            if let Some(mut chunk_manager) =
+                world.get_resource_mut::<crate::world::ecs::ChunkManager>()
             {
-                let world = server.ecs.world_mut();
-                if let Some(mut chunk_manager) =
-                    world.get_resource_mut::<crate::world::ecs::ChunkManager>()
-                {
-                    chunk_manager.set_provider(provider);
-                }
+                chunk_manager.set_provider(provider);
             }
         }
 
@@ -143,7 +138,14 @@ impl UnastarServer {
     /// This binds the listener, spawns the accept loop, and runs the tick loop until shutdown.
     pub async fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         info!("run() called, starting server initialization");
-        let default_chunk_radius = self.server.config.default_chunk_radius;
+        let default_chunk_radius = self
+            .server
+            .ecs
+            .world()
+            .get_resource::<crate::server::game::ServerConfigResource>()
+            .unwrap()
+            .0
+            .default_chunk_radius;
 
         // Build listener config from server settings
         let listener_config = BedrockListenerConfig {
@@ -172,7 +174,13 @@ impl UnastarServer {
         // Spawn accept loop
         spawn_accept_loop(
             listener,
-            self.server.world_template.clone(),
+            self.server
+                .ecs
+                .world()
+                .get_resource::<crate::server::game::types::ServerWorldTemplate>()
+                .unwrap()
+                .0
+                .clone(),
             self.server_key.clone(),
             self.config.clone(),
             self.player_data_store.clone(),
@@ -258,7 +266,7 @@ impl UnastarServer {
                                 self.server.spawn_player(spawn_data);
                             }
                             NetworkEvent::Packet { session_id, packet } => {
-                                self.server.handle_packet(session_id, packet);
+                                self.server.route_packet(session_id, packet);
                             }
                             NetworkEvent::Disconnected { session_id } => {
                                 self.server.despawn_player(session_id);

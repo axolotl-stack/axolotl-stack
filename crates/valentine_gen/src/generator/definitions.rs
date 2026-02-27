@@ -847,7 +847,8 @@ pub fn define_type(
             underlying,
             variants,
         } => {
-            let mut variant_tokens = Vec::new();
+            // Build deduped (rust_name, discriminant) pairs
+            let mut deduped_variants: Vec<(String, i64)> = Vec::new();
             let mut used_names = HashSet::new();
             for (name, val) in variants.iter() {
                 let base = safe_camel_ident(name);
@@ -857,15 +858,31 @@ pub fn define_type(
                     base
                 };
                 used_names.insert(pick.clone());
-                let v_ident = format_ident!("{}", pick);
-                let lit = enum_value_literal(underlying, *val)?;
-                variant_tokens.push(quote! { #v_ident = #lit });
+                deduped_variants.push((pick, *val));
             }
+            let variant_tokens: Vec<_> = deduped_variants
+                .iter()
+                .map(|(name, _)| {
+                    let v_ident = format_ident!("{}", name);
+                    quote! { #v_ident }
+                })
+                .collect();
+            // Pick a fallback variant name that doesn't collide with schema variants
+            let fallback_name = if used_names.contains("Unknown") {
+                "UnknownValue"
+            } else {
+                "Unknown"
+            };
             let repr_ty = primitive_to_enum_repr_tokens(underlying);
-            let codec_impl = generate_enum_type_codec(&safe_name_str, underlying, variants)?;
+            let codec_impl = generate_enum_type_codec(
+                &safe_name_str,
+                underlying,
+                &deduped_variants,
+                fallback_name,
+            )?;
 
-            let default_impl = if let Some((first_name, _)) = variants.first() {
-                let first_ident = format_ident!("{}", safe_camel_ident(first_name));
+            let default_impl = if let Some((first_name, _)) = deduped_variants.first() {
+                let first_ident = format_ident!("{}", first_name);
                 quote! {
                     impl Default for #ident {
                         fn default() -> Self {
@@ -877,10 +894,10 @@ pub fn define_type(
                 quote! {}
             };
 
+            let fallback_ident = format_ident!("{}", fallback_name);
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-                #[repr(#repr_ty)]
-                pub enum #ident { #(#variant_tokens),* }
+                pub enum #ident { #(#variant_tokens),* , #fallback_ident(#repr_ty) }
                 #codec_impl
                 #default_impl
             }

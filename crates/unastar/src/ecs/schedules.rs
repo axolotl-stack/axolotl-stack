@@ -2,6 +2,12 @@
 
 use bevy_ecs::prelude::*;
 
+/// System set for applying packet-driven state changes.
+/// Runs before physics so that movement, inventory, blocks, etc.
+/// are applied before physics simulation.
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PacketApplySet;
+
 /// System set for physics and movement.
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PhysicsSet;

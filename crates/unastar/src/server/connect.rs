@@ -94,6 +94,7 @@ pub async fn resolve_spawn_location(
         StartGamePacketDimension::Overworld => 0,
         StartGamePacketDimension::Nether => 1,
         StartGamePacketDimension::End => 2,
+        _ => 0, // Unknown dimensions default to Overworld
     };
 
     // Check spawn rules in order

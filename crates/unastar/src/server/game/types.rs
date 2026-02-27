@@ -26,6 +26,22 @@ pub struct ItemRegistryResource(pub Arc<crate::registry::ItemRegistry>);
 #[derive(Resource)]
 pub struct BlockRegistryResource(pub Arc<crate::registry::BlockRegistry>);
 
+/// Server configuration as an ECS Resource.
+#[derive(Resource, Clone)]
+pub struct ServerConfigResource(pub super::ServerConfig);
+
+/// Command registry as an ECS Resource.
+#[derive(Resource)]
+pub struct CommandRegistryResource(pub crate::command::CommandRegistry);
+
+/// Counter for spawning item entities with unique IDs.
+#[derive(Resource)]
+pub struct ItemEntityIdCounter(pub i64);
+
+/// Player data provider as an ECS Resource (for save/load persistence).
+#[derive(Resource)]
+pub struct PlayerProviderResource(pub crate::storage::LevelDBPlayerProvider);
+
 /// Mapping from session ID to ECS entity.
 #[derive(Resource, Default)]
 pub struct SessionEntityMap {
@@ -83,20 +99,12 @@ pub struct PlayerPersistenceData {
 
 /// Create a system text message packet.
 pub fn system_text(message: &str) -> TextPacket {
-    use jolyne::valentine::{
-        TextPacketCategory, TextPacketContent, TextPacketContentAuthored, TextPacketExtra,
-        TextPacketExtraAnnouncement,
-    };
+    use jolyne::valentine::{TextPacketCategory, TextPacketContent, TextPacketContentAnnouncement};
     TextPacket {
         type_: TextPacketType::Chat,
         needs_translation: false,
         category: TextPacketCategory::Authored,
-        content: Some(TextPacketContent::Authored(TextPacketContentAuthored {
-            chat: message.to_string(),
-            whisper: String::new(),
-            announcement: String::new(),
-        })),
-        extra: Some(TextPacketExtra::Chat(TextPacketExtraAnnouncement {
+        content: Some(TextPacketContent::Chat(TextPacketContentAnnouncement {
             source_name: "§eServer§r".to_string(),
             message: message.to_string(),
         })),

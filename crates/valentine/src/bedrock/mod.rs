@@ -18,5 +18,5 @@ pub mod error;
 pub mod protocol;
 pub mod version;
 /// Convenience re-exports so users can do `bedrock::vX_Y_Z`.
-#[cfg(feature = "bedrock_1_21_130")]
-pub use self::version::v1_21_130;
+#[cfg(feature = "bedrock_1_26_0")]
+pub use self::version::v1_26_0;

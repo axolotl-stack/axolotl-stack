@@ -169,27 +169,22 @@ impl wit_bindings::unastar::plugin::types::HostPlayer for HostContext {
 
     fn send_message(&mut self, self_: Resource<wit_types::Player>, message: String) {
         let entity = self.player_entity(&self_);
-        let uuid = self.player_uuid(entity);
-        self.pending_actions.push(PluginAction::SendMessage {
-            player_id: uuid,
-            message,
-        });
+        self.pending_actions
+            .push(PluginAction::SendMessage { entity, message });
     }
 
     fn teleport(&mut self, self_: Resource<wit_types::Player>, position: wit_types::Vec3) {
         let entity = self.player_entity(&self_);
-        let uuid = self.player_uuid(entity);
         self.pending_actions.push(PluginAction::Teleport {
-            player_id: uuid,
+            entity,
             position: (position.x, position.y, position.z),
         });
     }
 
     fn give_item(&mut self, self_: Resource<wit_types::Player>, item_id: String, count: u8) {
         let entity = self.player_entity(&self_);
-        let uuid = self.player_uuid(entity);
         self.pending_actions.push(PluginAction::GiveItem {
-            player_id: uuid,
+            entity,
             item_id,
             count,
         });
@@ -197,11 +192,8 @@ impl wit_bindings::unastar::plugin::types::HostPlayer for HostContext {
 
     fn kick(&mut self, self_: Resource<wit_types::Player>, reason: String) {
         let entity = self.player_entity(&self_);
-        let uuid = self.player_uuid(entity);
-        self.pending_actions.push(PluginAction::Kick {
-            player_id: uuid,
-            reason,
-        });
+        self.pending_actions
+            .push(PluginAction::Kick { entity, reason });
     }
 
     fn drop(&mut self, rep: Resource<wit_types::Player>) -> wasmtime::Result<()> {
@@ -717,8 +709,7 @@ impl PluginManager {
             use crate::entity::components::{PlayerName, PlayerSession};
             use jolyne::valentine::{
                 McpePacket, TextPacket, TextPacketCategory, TextPacketContent,
-                TextPacketContentAuthored, TextPacketExtra, TextPacketExtraAnnouncement,
-                TextPacketType,
+                TextPacketContentAnnouncement, TextPacketType,
             };
 
             let sender_name = world
@@ -730,12 +721,7 @@ impl PluginManager {
                 type_: TextPacketType::Chat,
                 needs_translation: false,
                 category: TextPacketCategory::Authored,
-                content: Some(TextPacketContent::Authored(TextPacketContentAuthored {
-                    chat: message.clone(),
-                    whisper: String::new(),
-                    announcement: String::new(),
-                })),
-                extra: Some(TextPacketExtra::Chat(TextPacketExtraAnnouncement {
+                content: Some(TextPacketContent::Chat(TextPacketContentAnnouncement {
                     source_name: sender_name.clone(),
                     message: message.clone(),
                 })),

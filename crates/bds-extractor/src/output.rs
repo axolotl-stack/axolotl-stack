@@ -213,7 +213,12 @@ impl ExtractedData {
                 .groups
                 .into_iter()
                 .map(|g| CreativeGroup {
-                    category: g.category as i32,
+                    category: {
+                        use valentine::bedrock::codec::BedrockCodec;
+                        let mut buf = Vec::new();
+                        let _ = g.category.encode(&mut buf);
+                        buf.first().copied().unwrap_or(0) as i32
+                    },
                     name: g.name,
                     icon_item_id: g.icon_item.network_id,
                 })

@@ -5,20 +5,20 @@ use bevy_ecs::prelude::*;
 #[derive(Debug, Clone)]
 pub enum PluginAction {
     SendMessage {
-        player_id: String,
+        entity: Entity,
         message: String,
     },
     Teleport {
-        player_id: String,
+        entity: Entity,
         position: (f64, f64, f64),
     },
     GiveItem {
-        player_id: String,
+        entity: Entity,
         item_id: String,
         count: u8,
     },
     Kick {
-        player_id: String,
+        entity: Entity,
         reason: String,
     },
     SetBlock {

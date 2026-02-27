@@ -11,7 +11,7 @@ path = "src/main.rs"
 [dependencies]
 # Workspace crates
 jolyne = { workspace = true, features = ["client", "raknet"] }
-valentine = { workspace = true, features = ["bedrock_1_21_130"] }
+valentine = { workspace = true, features = ["bedrock_1_26_0"] }
 
 # Async runtime
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }

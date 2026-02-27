@@ -3,7 +3,7 @@ resolver = "3"
 members = [
     "crates/valentine",
     "crates/valentine/bedrock_core",
-    "crates/valentine/bedrock_versions/v1_21_130",
+    "crates/valentine/bedrock_versions/v1_26_0",
     "crates/jolyne",
     "crates/unastar",
     "crates/unastar_noise",
@@ -108,7 +108,8 @@ http = "1.0"
 webrtc = "0.12"
 
 # ECS
-bevy_ecs = "0.17"
+bevy_ecs = { version = "0.17", features = ["multi_threaded"] }
+bevy_tasks = "0.17"
 
 # NBT
 zuri_nbt = "0.4"
@@ -126,7 +127,7 @@ hex = "0.4"
 # Workspace crates
 valentine = { path = "crates/valentine", default-features = false }
 valentine_bedrock_core = { path = "crates/valentine/bedrock_core" }
-valentine_bedrock_1_21_130 = { path = "crates/valentine/bedrock_versions/v1_21_130" }
+valentine_bedrock_1_26_0 = { path = "crates/valentine/bedrock_versions/v1_26_0" }
 jolyne = { path = "crates/jolyne", default-features = false }
 tokio-raknet = { path = "crates/tokio-raknet", version = "0.3" }
 tokio-nethernet = { path = "crates/tokio-nethernet", default-features = false }

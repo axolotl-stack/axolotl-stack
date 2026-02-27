@@ -131,6 +131,7 @@ impl Default for WorldTemplate {
             world_template_id: Uuid::nil(),
             client_side_generation: false,
             server_controlled_sound: false,
+            server_join_info: None,
         };
 
         Self {

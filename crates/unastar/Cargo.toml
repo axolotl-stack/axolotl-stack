@@ -14,13 +14,14 @@ tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 p384.workspace = true
 rand.workspace = true
 zuri_nbt.workspace = true
-valentine = { workspace = true, features = ["bedrock_1_21_130"] }
+valentine = { workspace = true, features = ["bedrock_1_26_0"] }
 serde.workspace = true
 thiserror.workspace = true
 toml_edit = { workspace = true, features = ["serde"] }
 glam.workspace = true
 uuid.workspace = true
 bevy_ecs.workspace = true
+bevy_tasks.workspace = true
 async-trait.workspace = true
 bleveldb.workspace = true
 serde_json.workspace = true

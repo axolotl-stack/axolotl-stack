@@ -6,10 +6,11 @@
 mod blocks;
 mod chunks;
 mod commands;
+mod inventory;
 mod join;
+mod movement;
 mod packet_domains;
-mod packet_router;
-mod packet_routing;
+mod packet_queues;
 mod packets;
 mod plugins;
 pub mod types;
@@ -19,11 +20,10 @@ use jolyne::WorldTemplate;
 use jolyne::valentine::StartGamePacketDimension;
 use jolyne::valentine::types::{BlockCoordinates, Vec3F};
 use std::sync::Arc;
-use tracing::{info, trace, warn};
+use tracing::{info, warn};
 
 use crate::command::CommandRegistry;
-use crate::config::PlayerDataStore;
-use crate::ecs::{CleanupSet, EntityLogicSet, NetworkSendSet, UnastarEcs};
+use crate::ecs::{CleanupSet, EntityLogicSet, NetworkSendSet, PacketApplySet, UnastarEcs};
 use crate::entity::bundles::PlayerBundle;
 use crate::entity::components::transform::{Position, Rotation};
 use crate::entity::components::{
@@ -37,35 +37,26 @@ use crate::server::broadcast::{
     EntityGrid, broadcast_block_updates, broadcast_despawn_system, broadcast_movement_system,
     broadcast_spawn_system, cleanup_despawned_entities, sync_spatial_chunks, tick_block_breaking,
 };
+use crate::world::ChunkManager;
 use crate::world::ecs::{
     BlockBroadcastEvent, ChunkLoadConfig, ChunkLoader, ChunkTickingState, LastPublisherState,
     PendingChunkGenerations, PlayerDespawnedEvent, PlayerSpawnedEvent, on_block_changed,
     register_chunk_systems,
 };
-use crate::world::{ChunkManager, WorldConfig};
 
 // Re-export public types
 pub use super::config::ServerConfig;
-pub use types::{PlayerPersistenceData, PlayerSpawnData, SessionEntityMap};
+pub use types::{
+    CommandRegistryResource, ItemEntityIdCounter, PlayerPersistenceData, PlayerSpawnData,
+    ServerConfigResource, SessionEntityMap,
+};
 
 /// The ECS-based game server.
+///
+/// Thin wrapper around the ECS World and Schedule.
+/// All game state lives inside the World as Resources.
 pub struct GameServer {
     pub ecs: UnastarEcs,
-    pub world_config: WorldConfig,
-    pub world_template: Arc<WorldTemplate>,
-    pub config: ServerConfig,
-    pub commands: CommandRegistry,
-    pub current_tick: u64,
-    player_data_store: Option<Arc<PlayerDataStore>>,
-    save_previous_position: bool,
-    player_provider: Option<Arc<dyn crate::storage::PlayerProvider>>,
-    save_on_disconnect: bool,
-    world_provider: Option<Arc<dyn crate::storage::WorldProvider>>,
-    pub items: ItemRegistry,
-    pub entities: EntityRegistry,
-    pub biomes: BiomeRegistry,
-    pub blocks: BlockRegistry,
-    pub next_item_entity_id: i64,
 }
 
 impl GameServer {
@@ -105,8 +96,15 @@ impl GameServer {
         let world_template = Arc::new(world_template);
         let world_config = config.world;
         let mut ecs = UnastarEcs::new();
+
+        // Insert all game state as ECS Resources
         ecs.world_mut()
             .insert_resource(types::ServerWorldTemplate(world_template.clone()));
+        ecs.world_mut()
+            .insert_resource(ServerConfigResource(config.clone()));
+        ecs.world_mut()
+            .insert_resource(CommandRegistryResource(CommandRegistry::with_defaults()));
+        ecs.world_mut().insert_resource(ItemEntityIdCounter(100000));
         ecs.world_mut().insert_resource(SessionEntityMap::default());
         ecs.world_mut().insert_resource(EntityGrid::default());
         ecs.world_mut()
@@ -122,12 +120,52 @@ impl GameServer {
         ecs.world_mut()
             .init_resource::<bevy_ecs::message::Messages<PlayerDespawnedEvent>>();
 
-        // Initialize packet routing queues
+        // Per-domain packet queues and event buffers
         ecs.world_mut()
-            .insert_resource(packet_routing::PacketQueues::default());
+            .init_resource::<packet_queues::MovementPacketQueue>();
+        ecs.world_mut()
+            .init_resource::<packet_queues::BlockPacketQueue>();
+        ecs.world_mut()
+            .init_resource::<packet_queues::InventoryPacketQueue>();
+        ecs.world_mut()
+            .init_resource::<packet_queues::ChatPacketQueue>();
+        ecs.world_mut()
+            .init_resource::<packet_queues::ChunkPacketQueue>();
+        ecs.world_mut()
+            .init_resource::<packet_queues::MovementEvents>();
+        ecs.world_mut()
+            .init_resource::<packet_queues::InventoryEvents>();
+        ecs.world_mut().init_resource::<packet_queues::ChatEvents>();
 
         ecs.world_mut().add_observer(on_block_changed);
         register_chunk_systems(ecs.schedule_mut());
+
+        // Domain systems in PacketApplySet (movement, inventory, chunks run parallel)
+        ecs.schedule_mut().add_systems(
+            (
+                movement::apply_movement,
+                inventory::apply_inventory,
+                chunks::apply_chunk_requests,
+                commands::apply_chat_and_commands,
+            )
+                .in_set(PacketApplySet),
+        );
+        // Exclusive block system runs after movement (which forwards block actions)
+        ecs.schedule_mut().add_systems(
+            blocks::apply_block_actions
+                .in_set(PacketApplySet)
+                .after(movement::apply_movement),
+        );
+        // Consolidate per-domain events into main EventBuffer after all domain systems
+        ecs.schedule_mut().add_systems(
+            packet_queues::consolidate_domain_events
+                .in_set(PacketApplySet)
+                .after(blocks::apply_block_actions)
+                .after(inventory::apply_inventory)
+                .after(chunks::apply_chunk_requests)
+                .after(commands::apply_chat_and_commands),
+        );
+
         ecs.schedule_mut().add_systems(
             (tick_block_breaking, plugins::process_plugin_actions).in_set(EntityLogicSet),
         );
@@ -146,56 +184,21 @@ impl GameServer {
             .add_systems(cleanup_despawned_entities.in_set(CleanupSet));
 
         ecs.world_mut()
-            .insert_resource(types::ItemRegistryResource(Arc::new(items.clone())));
+            .insert_resource(types::ItemRegistryResource(Arc::new(items)));
         ecs.world_mut()
-            .insert_resource(types::BlockRegistryResource(Arc::new(blocks.clone())));
+            .insert_resource(types::BlockRegistryResource(Arc::new(blocks)));
 
         info!("Registries loaded");
-        Self {
-            ecs,
-            world_config,
-            world_template,
-            config,
-            commands: CommandRegistry::with_defaults(),
-            current_tick: 0,
-            player_data_store: None,
-            save_previous_position: false,
-            player_provider: None,
-            save_on_disconnect: false,
-            world_provider: None,
-            items,
-            entities,
-            biomes,
-            blocks,
-            next_item_entity_id: 100000,
-        }
-    }
-
-    pub fn set_player_data_store(&mut self, store: Arc<PlayerDataStore>, save_previous: bool) {
-        self.player_data_store = Some(store);
-        self.save_previous_position = save_previous;
-    }
-
-    pub fn set_player_provider(
-        &mut self,
-        provider: Arc<dyn crate::storage::PlayerProvider>,
-        save_on_disconnect: bool,
-    ) {
-        self.player_provider = Some(provider);
-        self.save_on_disconnect = save_on_disconnect;
-    }
-
-    pub fn set_world_provider(&mut self, provider: Arc<dyn crate::storage::WorldProvider>) {
-        self.world_provider = Some(provider);
+        Self { ecs }
     }
 
     pub async fn save_all_players(&self) -> usize {
-        // Implementation moved back here, simplified for brevity
+        // TODO: implement persistence
         0
     }
 
     pub async fn save_all_chunks(&mut self) -> usize {
-        // Implementation moved back here, simplified for brevity
+        // TODO: implement persistence
         0
     }
 
@@ -217,6 +220,14 @@ impl GameServer {
             chunk_loader.force_reload();
         }
 
+        let default_gamemode = self
+            .ecs
+            .world()
+            .get_resource::<ServerConfigResource>()
+            .unwrap()
+            .0
+            .default_gamemode;
+
         let entity = self
             .ecs
             .world_mut()
@@ -234,7 +245,7 @@ impl GameServer {
                 runtime_id: RuntimeEntityId(runtime_id),
                 position,
                 rotation: Rotation::default(),
-                game_mode: self.config.default_gamemode,
+                game_mode: default_gamemode,
                 state: PlayerState::default(),
                 input: PlayerInput::default(),
                 chunk_radius: ChunkRadius(data.chunk_radius),
@@ -274,7 +285,6 @@ impl GameServer {
     }
 
     pub fn despawn_player(&mut self, session_id: SessionId) {
-        // Implementation moved back here, simplified for brevity
         let entity = {
             if let Some(mut map) = self.ecs.world_mut().get_resource_mut::<SessionEntityMap>() {
                 map.remove(session_id)
@@ -289,18 +299,13 @@ impl GameServer {
     }
 
     pub fn tick(&mut self) {
-        self.current_tick += 1;
         self.ecs.tick();
-        if self.current_tick.is_multiple_of(100) {
-            trace!(tick = self.current_tick, "Tick");
-        }
     }
 
     fn build_creative_content(
         items: &ItemRegistry,
         blocks: &BlockRegistry,
     ) -> jolyne::valentine::CreativeContentPacket {
-        // Re-implementation of creative content building
         use crate::registry::CreativeInventoryData;
         use jolyne::valentine::{
             CreativeContentPacket, CreativeContentPacketGroupsItem,
@@ -341,17 +346,15 @@ impl GameServer {
                 });
 
                 for creative_item in &group.items {
-                    // Always increment entry_id to maintain correct indexing with client
                     let item_network_id = items
                         .get_by_name(creative_item.item_id())
                         .map(|item| item.id as i32)
                         .unwrap_or_else(|| {
-                            // Item not found in registry - use placeholder
                             warn!(
                                 "Creative item not found in registry: {}",
                                 creative_item.item_id()
                             );
-                            1 // Use dirt as placeholder
+                            1
                         });
 
                     let block_runtime_id = blocks

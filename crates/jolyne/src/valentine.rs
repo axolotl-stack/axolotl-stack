@@ -2,4 +2,4 @@
 //!
 //! This hides the underlying `valentine` version module from downstream users.
 
-pub use valentine::bedrock::v1_21_130::*;
+pub use valentine::bedrock::v1_26_0::*;

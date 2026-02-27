@@ -78,7 +78,7 @@ dimension = 0
 
 [players]
 # Where Unastar stores per-player files (e.g. last known position).
-data_dir = \"playerdata\"
+data_dir = "playerdata"
 
 # If true, Unastar writes a player's last known position on disconnect (legacy TOML format).
 save_previous_position = true

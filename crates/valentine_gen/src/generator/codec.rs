@@ -2236,26 +2236,13 @@ fn generate_switch_decode_logic(
             .iter()
             .all(|(_, t)| matches!(t, Type::Primitive(Primitive::Void)));
 
-        // Helper: check if enum fully covered by case keys (to avoid unreachable default/_ arms)
-        fn enum_fully_covered(ty: Option<&Type>, fields: &[(String, Type)], ctx: &Context) -> bool {
-            let resolved_enum = ty.map(|t| resolve_type(t, ctx));
-            if let Some(Type::Reference(r)) = resolved_enum.as_ref() {
-                if let Some(inner) = ctx.type_lookup.get(r) {
-                    return enum_fully_covered(Some(inner), fields, ctx);
-                }
-            }
-            if let Some(Type::Enum { variants, .. }) = resolved_enum {
-                let case_names: std::collections::HashSet<String> = fields
-                    .iter()
-                    .map(|(k, _)| crate::generator::utils::safe_camel_ident(k))
-                    .filter(|k| !k.is_empty() && k != "_" && !k.eq_ignore_ascii_case("default"))
-                    .collect();
-                let variant_names: std::collections::HashSet<String> = variants
-                    .iter()
-                    .map(|(n, _)| crate::generator::utils::safe_camel_ident(n))
-                    .collect();
-                return variant_names.iter().all(|v| case_names.contains(v));
-            }
+        // Mapper enums always have an Unknown/UnknownValue fallback variant,
+        // so switch matches are never exhaustive — always emit a `_ =>` arm.
+        fn enum_fully_covered(
+            _ty: Option<&Type>,
+            _fields: &[(String, Type)],
+            _ctx: &Context,
+        ) -> bool {
             false
         }
         let compare_enum_covered = enum_fully_covered(compare_ty_hint.as_ref(), fields, ctx);
@@ -2570,12 +2557,13 @@ pub fn generate_enum_type_codec(
     name: &str,
     underlying: &Primitive,
     variants: &[(String, i64)],
+    fallback_variant_name: &str,
 ) -> Result<TokenStream, Box<dyn std::error::Error>> {
     let struct_ident = format_ident!("{}", name);
     let repr_ty = primitive_to_enum_repr_tokens(underlying);
     let mut match_arms = Vec::new();
     for (var_name, val) in variants {
-        let variant_ident = format_ident!("{}", safe_camel_ident(var_name));
+        let variant_ident = format_ident!("{}", var_name);
         let val_lit = enum_value_literal(underlying, *val)?;
         match_arms.push(quote! { #val_lit => Ok(#struct_ident::#variant_ident), });
     }
@@ -2650,21 +2638,31 @@ pub fn generate_enum_type_codec(
         },
     };
 
+    // Build encode match arms: known variants map to their discriminant, fallback holds raw value
+    let mut encode_arms = Vec::new();
+    for (var_name, val) in variants {
+        let variant_ident = format_ident!("{}", var_name);
+        let val_lit = enum_value_literal(underlying, *val)?;
+        encode_arms.push(quote! { #struct_ident::#variant_ident => #val_lit, });
+    }
+
+    let fallback_ident = format_ident!("{}", fallback_variant_name);
+
     Ok(quote! {
         impl crate::bedrock::codec::BedrockCodec for #struct_ident {
             type Args = ();
             fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-                let val = *self as #repr_ty;
+                let val: #repr_ty = match self {
+                    #(#encode_arms)*
+                    #struct_ident::#fallback_ident(v) => *v,
+                };
                 #encode_logic
             }
             fn decode<B: bytes::Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, crate::bedrock::error::DecodeError> {
                 #decode_logic
                 match val {
                     #(#match_arms)*
-                    _ => Err(crate::bedrock::error::DecodeError::InvalidEnumValue {
-                        enum_name: stringify!(#struct_ident),
-                        value: val as i64,
-                    })
+                    other => Ok(#struct_ident::#fallback_ident(other))
                 }
             }
         }
