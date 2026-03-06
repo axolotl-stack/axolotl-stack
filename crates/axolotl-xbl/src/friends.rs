@@ -222,7 +222,8 @@ impl FriendsClient {
         let followers = self.get_followers(token).await?;
         let social = self.get_social(token).await?;
 
-        let mut merged: std::collections::HashMap<String, Person> = std::collections::HashMap::new();
+        let mut merged: std::collections::HashMap<String, Person> =
+            std::collections::HashMap::new();
 
         for person in followers {
             merged
@@ -442,7 +443,8 @@ impl FriendsClient {
                         if let Err(e) = self.force_remove_follower(token, xuid).await {
                             tracing::debug!(
                                 xuid,
-                                "Failed to force-remove restricted follower: {}", e
+                                "Failed to force-remove restricted follower: {}",
+                                e
                             );
                         } else {
                             tracing::info!(

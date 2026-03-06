@@ -817,6 +817,70 @@ fn generate_field_decode_expr(
                 <#type_tokens as crate::bedrock::codec::BedrockCodec>::decode(buf, #arg_expr)?
             })
         }
+        Type::Enum {
+            underlying,
+            variants,
+        } => {
+            let has_true = variants.iter().any(|(n, _)| n.eq_ignore_ascii_case("true"));
+            let has_false = variants
+                .iter()
+                .any(|(n, _)| n.eq_ignore_ascii_case("false"));
+
+            // Bool-like enum with a non-bool underlying type (e.g., lu16 => { 0xffff: true, 0: false })
+            // Must decode using the underlying wire type, then compare to the "true" discriminant.
+            if variants.len() == 2
+                && has_true
+                && has_false
+                && !matches!(underlying, Primitive::Bool)
+            {
+                let true_val = variants
+                    .iter()
+                    .find(|(n, _)| n.eq_ignore_ascii_case("true"))
+                    .map(|(_, v)| *v)
+                    .unwrap();
+                let true_lit = proc_macro2::Literal::i64_unsuffixed(true_val);
+
+                let decode_expr = match underlying {
+                    Primitive::U16LE => {
+                        quote! {
+                            <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 as i64 == #true_lit
+                        }
+                    }
+                    Primitive::I16LE => {
+                        quote! {
+                            <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 as i64 == #true_lit
+                        }
+                    }
+                    Primitive::U8 => {
+                        quote! {
+                            <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? as i64 == #true_lit
+                        }
+                    }
+                    Primitive::I8 => {
+                        quote! {
+                            <i8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? as i64 == #true_lit
+                        }
+                    }
+                    _ => {
+                        // Fallback: decode as bool (1 byte)
+                        quote! {
+                            <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
+                        }
+                    }
+                };
+                Ok(decode_expr)
+            } else {
+                // Non-bool enum or actual bool underlying: use standard type resolution
+                let type_tokens = resolve_type_to_tokens(
+                    ty,
+                    &format!("{}{}", container_name, camel_case(var_name)),
+                    ctx,
+                )?;
+                Ok(
+                    quote! { <#type_tokens as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? },
+                )
+            }
+        }
         _ => {
             let type_tokens = resolve_type_to_tokens(
                 ty,

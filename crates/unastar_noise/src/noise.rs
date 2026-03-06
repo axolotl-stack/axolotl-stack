@@ -4,6 +4,7 @@
 //! Uses portable SIMD for cross-platform vectorization.
 
 use super::xoroshiro::Xoroshiro128;
+use std::simd::Select;
 use std::simd::StdFloat;
 use std::simd::prelude::*;
 

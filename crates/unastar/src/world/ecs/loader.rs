@@ -185,7 +185,7 @@ impl ChunkLoader {
         }
 
         // Sort by distance (descending so pop() gives closest first)
-        to_load.sort_by(|a, b| b.0.cmp(&a.0));
+        to_load.sort_by_key(|b| std::cmp::Reverse(b.0));
 
         // Update queue
         self.load_queue = to_load.into_iter().map(|(_, x, z)| (x, z)).collect();

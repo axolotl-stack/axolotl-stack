@@ -90,7 +90,11 @@ impl PlayerHistory {
         }
         if initialized > 0 {
             inner.dirty = true;
-            debug!(initialized, total = inner.data.len(), "Initialized friend history entries");
+            debug!(
+                initialized,
+                total = inner.data.len(),
+                "Initialized friend history entries"
+            );
         }
     }
 

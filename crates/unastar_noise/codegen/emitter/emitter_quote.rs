@@ -281,6 +281,7 @@ impl<'a> AotEmitter<'a> {
             use crate::{FunctionContext, FunctionContext4, RarityType, NoiseSource, find_top_surface};
             use super::noise_params::NoiseRef;
             use std::simd::prelude::*;
+            use std::simd::Select;
 
             #helpers
             #(#spline_helpers)*

@@ -2,8 +2,7 @@ use crate::generator::analysis::{get_deps, should_box_variant};
 use crate::generator::codec::{generate_codec_impl, generate_enum_type_codec};
 use crate::generator::context::{Context, PacketSymbol};
 use crate::generator::primitives::{
-    enum_value_literal, primitive_to_enum_repr_tokens, primitive_to_rust_tokens,
-    primitive_to_unsigned_tokens,
+    primitive_to_enum_repr_tokens, primitive_to_rust_tokens, primitive_to_unsigned_tokens,
 };
 use crate::generator::resolver::PacketSignature;
 use crate::generator::structs::build_container_struct;

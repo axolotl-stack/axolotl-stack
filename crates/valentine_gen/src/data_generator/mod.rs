@@ -10,12 +10,14 @@
 mod biomes;
 mod block_states;
 mod blocks;
+pub mod canonical_blocks;
 mod entities;
 mod items;
 
 pub use biomes::generate_biomes;
 pub use block_states::generate_block_states;
 pub use blocks::generate_blocks;
+pub use canonical_blocks::parse_canonical_block_states;
 pub use entities::generate_entities;
 pub use items::generate_items;
 
@@ -59,6 +61,9 @@ pub struct DataPaths {
     pub entities: Option<std::path::PathBuf>,
     pub biomes: Option<std::path::PathBuf>,
     pub legacy: Option<std::path::PathBuf>,
+    /// Path to canonical_block_states.nbt from pmmp/BedrockData.
+    /// When present, block runtime IDs come from this file (index = runtime ID).
+    pub canonical_block_states: Option<std::path::PathBuf>,
 }
 
 /// Generate data modules for a specific version.
@@ -73,6 +78,18 @@ pub fn generate_version_data(
     fs::create_dir_all(output_dir)?;
 
     let mut generated = Vec::new();
+
+    // Parse canonical block states if available (used for correct runtime IDs + block palette)
+    let canonical_states = if let Some(ref canonical_path) = paths.canonical_block_states {
+        if canonical_path.exists() {
+            info!(path = %canonical_path.display(), "Parsing canonical block states from pmmp/BedrockData");
+            Some(parse_canonical_block_states(canonical_path)?)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
 
     if config.items {
         if let Some(ref path) = paths.items {
@@ -90,12 +107,24 @@ pub fn generate_version_data(
                 let block_states_path = paths.block_states.as_ref();
                 if let Some(states_path) = block_states_path {
                     if states_path.exists() {
-                        generate_blocks(path, states_path, paths.legacy.as_deref(), output_dir)?;
+                        generate_blocks(
+                            canonical_states.as_deref(),
+                            path,
+                            states_path,
+                            paths.legacy.as_deref(),
+                            output_dir,
+                        )?;
                         generated.push("blocks");
                     }
                 } else {
                     // No blockStates available, generate without state types
-                    generate_blocks(path, path, paths.legacy.as_deref(), output_dir)?;
+                    generate_blocks(
+                        canonical_states.as_deref(),
+                        path,
+                        path,
+                        paths.legacy.as_deref(),
+                        output_dir,
+                    )?;
                     generated.push("blocks");
                 }
             }

@@ -56,6 +56,7 @@ struct CliArgs {
     list_versions: bool,
     log_filter: String,
     minecraft_data: Option<PathBuf>,
+    bedrock_data: Option<PathBuf>,
     /// Generation targets (composable)
     gen_proto: bool,
     gen_items: bool,
@@ -88,6 +89,7 @@ GENERATION TARGETS (composable, default: all):
 
 OTHER OPTIONS:
   --minecraft-data <DIR>  Path to a minecraft-data checkout (defaults to ./minecraft-data)
+  --bedrock-data <DIR>    Path to a pmmp/BedrockData checkout (defaults to ./bedrock-data)
   --log <FILTER>          tracing filter (default: "info"), e.g. "debug" or "valentine_gen=debug"
   -h, --help              Print help and exit
 "#
@@ -101,6 +103,7 @@ fn parse_args() -> Result<CliArgs, String> {
     let mut list_versions = false;
     let mut log_filter = "info".to_string();
     let mut minecraft_data: Option<PathBuf> = None;
+    let mut bedrock_data: Option<PathBuf> = None;
 
     // Generation targets - all false means "generate all"
     let mut gen_proto = false;
@@ -145,6 +148,12 @@ fn parse_args() -> Result<CliArgs, String> {
                     .ok_or_else(|| "--minecraft-data expects a path".to_string())?;
                 minecraft_data = Some(PathBuf::from(raw));
             }
+            "--bedrock-data" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--bedrock-data expects a path".to_string())?;
+                bedrock_data = Some(PathBuf::from(raw));
+            }
             _ if arg.starts_with("--versions=") => {
                 let raw = arg.trim_start_matches("--versions=");
                 for v in raw.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {
@@ -156,6 +165,9 @@ fn parse_args() -> Result<CliArgs, String> {
             }
             _ if arg.starts_with("--minecraft-data=") => {
                 minecraft_data = Some(PathBuf::from(arg.trim_start_matches("--minecraft-data=")));
+            }
+            _ if arg.starts_with("--bedrock-data=") => {
+                bedrock_data = Some(PathBuf::from(arg.trim_start_matches("--bedrock-data=")));
             }
             _ => return Err(format!("Unknown argument: {arg}")),
         }
@@ -191,6 +203,7 @@ fn parse_args() -> Result<CliArgs, String> {
         list_versions,
         log_filter,
         minecraft_data,
+        bedrock_data,
         gen_proto,
         gen_items,
         gen_blocks,
@@ -270,6 +283,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .clone()
         .map(|p| if p.is_relative() { root.join(p) } else { p })
         .unwrap_or_else(|| root.join("minecraft-data"));
+
+    let bedrock_data_root = args
+        .bedrock_data
+        .clone()
+        .map(|p| if p.is_relative() { root.join(p) } else { p })
+        .unwrap_or_else(|| root.join("bedrock-data"));
 
     let valentine_root = root
         .parent()
@@ -467,6 +486,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             if data_config.any() {
+                // Check for canonical_block_states.nbt from pmmp/BedrockData
+                let canonical_block_states = {
+                    let p = bedrock_data_root.join("canonical_block_states.nbt");
+                    if p.exists() { Some(p) } else { None }
+                };
+
                 let data_paths = data_generator::DataPaths {
                     items: items_path,
                     blocks: blocks_path,
@@ -474,6 +499,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     entities: entities_path,
                     biomes: biomes_path,
                     legacy: legacy_path,
+                    canonical_block_states,
                 };
 
                 if let Err(e) =

@@ -176,6 +176,8 @@ pub fn generate_block_states(
     writeln!(out, "//! Generated block state types.")?;
     writeln!(out, "//! Do not edit: regenerate with valentine_gen.")?;
     writeln!(out)?;
+    writeln!(out, "#![allow(clippy::manual_is_multiple_of)]")?;
+    writeln!(out)?;
     writeln!(out, "use valentine_bedrock_core::block::BlockState;")?;
     writeln!(out)?;
 
@@ -219,7 +221,7 @@ pub fn generate_block_states(
 
     // Find largest clusters and generate named state types for them
     let mut sorted_clusters: Vec<_> = shape_clusters.iter().collect();
-    sorted_clusters.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
+    sorted_clusters.sort_by_key(|b| std::cmp::Reverse(b.1.len()));
 
     // Track names already used (include enum names to prevent clashes)
     let mut generated_states: HashSet<String> = string_enums.keys().cloned().collect();

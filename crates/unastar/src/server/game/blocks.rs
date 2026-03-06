@@ -195,11 +195,7 @@ fn broadcast_block_crack_start(world: &World, x: i32, y: i32, z: i32, break_time
         return;
     };
 
-    let break_data = if break_time_ticks > 0 {
-        (65535 / break_time_ticks) as i32
-    } else {
-        65535
-    };
+    let break_data = 65535u32.checked_div(break_time_ticks).unwrap_or(65535) as i32;
 
     let packet = LevelEventPacket {
         event: LevelEventPacketEvent::BlockStartBreak,
@@ -325,17 +321,29 @@ fn break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32, z: i3
             .unwrap_or(true);
 
         if is_survival {
-            let block_name = BLOCKS.get(original_block_id as usize).map(|b| b.name());
-
-            use crate::registry::RegistryEntry;
+            // Look up the block by runtime ID to get its string_id,
+            // then find the matching item to get its network_id
             let item_network_id = world
-                .get_resource::<super::types::ItemRegistryResource>()
-                .and_then(|items| {
-                    block_name.and_then(|name| items.0.get_by_name(name).map(|item| item.id()))
+                .get_resource::<super::types::BlockRegistryResource>()
+                .and_then(|blocks| {
+                    blocks
+                        .0
+                        .get_by_runtime_id(original_block_id)
+                        .map(|b| b.string_id.clone())
+                })
+                .and_then(|block_string_id| {
+                    world
+                        .get_resource::<super::types::ItemRegistryResource>()
+                        .and_then(|items| {
+                            items
+                                .0
+                                .get_by_name(&block_string_id)
+                                .map(|item| item.network_id)
+                        })
                 })
                 .unwrap_or(0);
 
-            if item_network_id > 0 {
+            if item_network_id != 0 {
                 let item_entity_id = {
                     let mut counter = world
                         .get_resource_mut::<super::types::ItemEntityIdCounter>()
@@ -354,7 +362,7 @@ fn break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32, z: i3
                     entity_id_self: item_entity_id,
                     runtime_entity_id: item_entity_id,
                     item: Item {
-                        network_id: item_network_id as i32,
+                        network_id: item_network_id,
                         content: Some(Box::new(ItemContent {
                             count: 1,
                             metadata: 0,
@@ -548,7 +556,7 @@ fn handle_block_click(
         let Some(block_reg) = world.get_resource::<super::types::BlockRegistryResource>() else {
             return;
         };
-        if let Some(item_entry) = items.0.get(network_id as u32) {
+        if let Some(item_entry) = items.0.get_by_network_id(network_id) {
             if let Some(block_entry) = block_reg.0.get_by_name(&item_entry.string_id) {
                 debug!(
                     network_id,

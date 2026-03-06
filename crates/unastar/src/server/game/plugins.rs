@@ -90,7 +90,7 @@ pub fn process_plugin_actions(
                         let network_id = item_registry
                             .0
                             .get_by_name(&item_id)
-                            .map(|entry| entry.id as i32)
+                            .map(|entry| entry.network_id)
                             .unwrap_or_else(|| {
                                 warn!("Item {} not found in registry, using placeholder", item_id);
                                 1

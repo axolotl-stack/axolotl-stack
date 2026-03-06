@@ -102,7 +102,7 @@ fn handle_item_stack_request(
                     if let Some(entry) = world_template.0.creative_content.items.get(index) {
                         let item_id = items
                             .0
-                            .get(entry.item.network_id as u32)
+                            .get_by_network_id(entry.item.network_id)
                             .map(|e| e.string_id.clone())
                             .unwrap_or_else(|| {
                                 warn!(

@@ -332,7 +332,14 @@ pub fn generate_protocol_module(
     }
 
     // Include generated data modules if they exist
-    for data_mod in ["items", "blocks", "states", "entities", "biomes"] {
+    for data_mod in [
+        "items",
+        "blocks",
+        "block_palette",
+        "states",
+        "entities",
+        "biomes",
+    ] {
         let mod_path = version_dir.join(format!("{}.rs", data_mod));
         if mod_path.exists() {
             let ident = format_ident!("{}", data_mod);

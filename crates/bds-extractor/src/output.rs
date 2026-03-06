@@ -174,6 +174,9 @@ impl ExtractedData {
                             "data_driven".to_string()
                         }
                         jolyne::valentine::types::ItemstatesItemVersion::None => "none".to_string(),
+                        jolyne::valentine::types::ItemstatesItemVersion::Unknown(v) => {
+                            format!("unknown({v})")
+                        }
                     };
 
                     // Encode NBT to base64 if present

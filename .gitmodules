@@ -4,3 +4,6 @@
 [submodule "crates/unastar-data/data/vanilla_bp"]
 	path = crates/unastar-data/data/vanilla_bp
 	url = https://github.com/Mojang/bedrock-samples.git
+[submodule "crates/valentine_gen/bedrock-data"]
+	path = crates/valentine_gen/bedrock-data
+	url = https://github.com/pmmp/BedrockData.git

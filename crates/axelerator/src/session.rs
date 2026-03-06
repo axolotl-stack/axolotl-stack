@@ -412,8 +412,7 @@ impl Axelerator {
 
         // Initialize friend expiry: seed existing friends on first run
         let friend_expiry_handle = if self.config.friend_expiry.enabled {
-            let history_path =
-                PlayerHistory::path_from_token_cache(&self.config.token_cache_path);
+            let history_path = PlayerHistory::path_from_token_cache(&self.config.token_cache_path);
             let history = PlayerHistory::load(&history_path);
 
             // Seed existing friends with current timestamp so they aren't immediately expired
@@ -592,8 +591,7 @@ impl Axelerator {
 
         // Load player history for friend expiry tracking
         let player_history = if self.config.friend_expiry.enabled {
-            let history_path =
-                PlayerHistory::path_from_token_cache(&self.config.token_cache_path);
+            let history_path = PlayerHistory::path_from_token_cache(&self.config.token_cache_path);
             let history = PlayerHistory::load(&history_path);
             info!("Player history loaded from {}", history_path.display());
             Some(history)

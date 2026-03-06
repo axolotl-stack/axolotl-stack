@@ -346,16 +346,11 @@ impl GameServer {
                 });
 
                 for creative_item in &group.items {
-                    let item_network_id = items
-                        .get_by_name(creative_item.item_id())
-                        .map(|item| item.id as i32)
-                        .unwrap_or_else(|| {
-                            warn!(
-                                "Creative item not found in registry: {}",
-                                creative_item.item_id()
-                            );
-                            1
-                        });
+                    let Some(item_entry) = items.get_by_name(creative_item.item_id()) else {
+                        // Skip items not in the registry (internal state blocks, etc.)
+                        continue;
+                    };
+                    let item_network_id = item_entry.network_id;
 
                     let block_runtime_id = blocks
                         .get_by_name(creative_item.item_id())

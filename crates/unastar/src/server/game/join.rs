@@ -228,9 +228,8 @@ impl GameServer {
         // Without these packets, the client won't allow opening the inventory
         self.send_inventory_contents(session);
 
-        // Creative content packet causes client disconnect - needs investigation
-        // TODO: Fix item format in creative content packet
-        // self.send_creative_content(session);  // DISABLED FOR TEST - use jolyne's empty one
+        // Creative content is sent via WorldTemplate during the StartGame sequence
+        // (see jolyne::stream::server). Network IDs are now correct from required_item_list.json.
     }
 
     /// Send initial inventory contents to the client.
