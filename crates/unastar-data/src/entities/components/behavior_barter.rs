@@ -1,7 +1,13 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:behavior.barter`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+/// Bedrock component `minecraft:behavior.barter`. Enables the mob to barter for items that have been configured as barter currency. Must be used in combination with the barter component
+#[derive(Component, Debug, Clone, PartialEq)]
+#[component(storage = "SparseSet")]
 pub struct BehaviorBarter {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    /// priority
+    pub priority: Option<i32>,
+}
+impl Default for BehaviorBarter {
+    fn default() -> Self {
+        Self { priority: None }
+    }
 }

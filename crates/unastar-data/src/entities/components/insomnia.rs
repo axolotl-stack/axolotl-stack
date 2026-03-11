@@ -1,7 +1,15 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:insomnia`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+/// Bedrock component `minecraft:insomnia`. Adds a timer since last rested to see if phantoms should spawn.
+#[derive(Component, Debug, Clone, PartialEq)]
+#[component(storage = "SparseSet")]
 pub struct Insomnia {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    /// days_until_insomnia
+    pub days_until_insomnia: Option<f32>,
+}
+impl Default for Insomnia {
+    fn default() -> Self {
+        Self {
+            days_until_insomnia: Some(3f32),
+        }
+    }
 }

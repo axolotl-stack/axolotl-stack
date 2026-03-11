@@ -14,38 +14,46 @@ impl HappyGhast {
 /// Component bundle for spawning a `minecraft:happy_ghast`
 #[derive(Bundle, Clone)]
 pub struct HappyGhastBundle {
-    pub can_fly: CanFly,
+    pub behavior_float: BehaviorFloat,
+    pub body_rotation_always_follows_head: BodyRotationAlwaysFollowsHead,
     pub collision_box: CollisionBox,
-    pub follow_range: FollowRange,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
     pub is_tamed: IsTamed,
-    pub leashable: Leashable,
-    pub nameable: Nameable,
+    pub jump_static: JumpStatic,
     pub physics: Physics,
     pub pushable: Pushable,
+    pub renders_when_invisible: RendersWhenInvisible,
 }
 /// Spawn a new `minecraft:happy_ghast` entity with default Bedrock components
 pub fn spawn_happy_ghast(commands: &mut Commands) -> Entity {
     commands
         .spawn(HappyGhastBundle {
-            can_fly: CanFly,
-            collision_box: CollisionBox {
-                width: 4f32,
-                height: 4f32,
+            behavior_float: BehaviorFloat {
+                chance_per_tick_to_float: Some(0.8f32),
+                priority: Some(0i32),
+                sink_with_passengers: Some(false),
+                time_under_water_to_dismount_passengers: Some(0f32),
             },
-            follow_range: FollowRange { range: 16i32 },
+            body_rotation_always_follows_head: BodyRotationAlwaysFollowsHead,
+            collision_box: CollisionBox {
+                height: Some(4f32),
+                width: Some(4f32),
+            },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
             is_tamed: IsTamed,
-            leashable: Leashable,
-            nameable: Nameable,
+            jump_static: JumpStatic {
+                jump_power: Some(0.42f32),
+            },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(false),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
+            renders_when_invisible: RendersWhenInvisible,
         })
         .id()
 }

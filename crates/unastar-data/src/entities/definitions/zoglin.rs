@@ -14,15 +14,16 @@ impl Zoglin {
 /// Component bundle for spawning a `minecraft:zoglin`
 #[derive(Bundle, Clone)]
 pub struct ZoglinBundle {
-    pub breathable: Breathable,
+    pub balloonable: Balloonable,
+    pub behavior_random_stroll: BehaviorRandomStroll,
     pub can_climb: CanClimb,
     pub collision_box: CollisionBox,
+    pub experience_reward: ExperienceReward,
     pub fire_immune: FireImmune,
-    pub health: Health,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub leashable: Leashable,
-    pub movement: Movement,
-    pub nameable: Nameable,
+    pub jump_static: JumpStatic,
+    pub loot: Loot,
+    pub movement_basic: MovementBasic,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -30,36 +31,48 @@ pub struct ZoglinBundle {
 pub fn spawn_zoglin(commands: &mut Commands) -> Entity {
     commands
         .spawn(ZoglinBundle {
-            breathable: Breathable {
-                total_supply: 15i32,
-                suffocate_time: 0i32,
-                breathes_air: false,
-                breathes_water: true,
-                breathes_lava: false,
-                breathes_solids: false,
-                generates_bubbles: false,
+            balloonable: Balloonable {
+                mass: None,
+                max_distance: None,
+                on_balloon: None,
+                on_unballoon: None,
+                soft_distance: None,
+            },
+            behavior_random_stroll: BehaviorRandomStroll {
+                interval: Some(120i32),
+                priority: Some(7i32),
+                speed_multiplier: Some(1f32),
+                xz_dist: Some(10i32),
+                y_dist: Some(7i32),
             },
             can_climb: CanClimb,
             collision_box: CollisionBox {
-                width: 0.6f32,
-                height: 1.8f32,
+                height: Some(1.8f32),
+                width: Some(0.6f32),
+            },
+            experience_reward: ExperienceReward {
+                on_bred: None,
+                on_death: Some("query.last_hit_by_player ? 5 : 0".to_string()),
             },
             fire_immune: FireImmune,
-            health: Health {
-                value: 40i32,
-                max: Some(40i32),
-            },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            leashable: Leashable,
-            movement: Movement { speed: 0.25f32 },
-            nameable: Nameable,
+            jump_static: JumpStatic {
+                jump_power: Some(0.42f32),
+            },
+            loot: Loot {
+                table: "loot_tables/entities/zoglin.json".to_string(),
+            },
+            movement_basic: MovementBasic {
+                max_turn: Some(30f32),
+            },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

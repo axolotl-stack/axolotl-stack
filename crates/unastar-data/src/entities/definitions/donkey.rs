@@ -14,13 +14,13 @@ impl Donkey {
 /// Component bundle for spawning a `minecraft:donkey`
 #[derive(Bundle, Clone)]
 pub struct DonkeyBundle {
-    pub breathable: Breathable,
+    pub balloonable: Balloonable,
+    pub behavior_float: BehaviorFloat,
+    pub behavior_random_stroll: BehaviorRandomStroll,
     pub collision_box: CollisionBox,
-    pub health: Health,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub leashable: Leashable,
-    pub movement: Movement,
-    pub nameable: Nameable,
+    pub jump_static: JumpStatic,
+    pub movement_basic: MovementBasic,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -28,34 +28,45 @@ pub struct DonkeyBundle {
 pub fn spawn_donkey(commands: &mut Commands) -> Entity {
     commands
         .spawn(DonkeyBundle {
-            breathable: Breathable {
-                total_supply: 15i32,
-                suffocate_time: 0i32,
-                breathes_air: false,
-                breathes_water: false,
-                breathes_lava: false,
-                breathes_solids: false,
-                generates_bubbles: false,
+            balloonable: Balloonable {
+                mass: None,
+                max_distance: None,
+                on_balloon: None,
+                on_unballoon: None,
+                soft_distance: None,
+            },
+            behavior_float: BehaviorFloat {
+                chance_per_tick_to_float: Some(1f32),
+                priority: Some(0i32),
+                sink_with_passengers: Some(false),
+                time_under_water_to_dismount_passengers: Some(2f32),
+            },
+            behavior_random_stroll: BehaviorRandomStroll {
+                interval: Some(120i32),
+                priority: Some(6i32),
+                speed_multiplier: Some(0.7f32),
+                xz_dist: Some(10i32),
+                y_dist: Some(7i32),
             },
             collision_box: CollisionBox {
-                width: 1.4f32,
-                height: 1.6f32,
-            },
-            health: Health {
-                value: 0,
-                max: None,
+                height: Some(1.6f32),
+                width: Some(1.4f32),
             },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            leashable: Leashable,
-            movement: Movement { speed: 0.175f32 },
-            nameable: Nameable,
+            jump_static: JumpStatic {
+                jump_power: Some(0.42f32),
+            },
+            movement_basic: MovementBasic {
+                max_turn: Some(30f32),
+            },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

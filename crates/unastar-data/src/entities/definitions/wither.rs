@@ -14,15 +14,19 @@ impl Wither {
 /// Component bundle for spawning a `minecraft:wither`
 #[derive(Bundle, Clone)]
 pub struct WitherBundle {
-    pub breathable: Breathable,
+    pub behavior_float: BehaviorFloat,
+    pub behavior_random_stroll: BehaviorRandomStroll,
+    pub behavior_wither_random_attack_pos_goal: BehaviorWitherRandomAttackPosGoal,
+    pub boss: Boss,
     pub can_climb: CanClimb,
-    pub can_fly: CanFly,
     pub collision_box: CollisionBox,
+    pub experience_reward: ExperienceReward,
     pub fire_immune: FireImmune,
-    pub health: Health,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub movement: Movement,
-    pub nameable: Nameable,
+    pub jump_static: JumpStatic,
+    pub loot: Loot,
+    pub movement_basic: MovementBasic,
+    pub persistent: Persistent,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -30,36 +34,56 @@ pub struct WitherBundle {
 pub fn spawn_wither(commands: &mut Commands) -> Entity {
     commands
         .spawn(WitherBundle {
-            breathable: Breathable {
-                total_supply: 15i32,
-                suffocate_time: 0i32,
-                breathes_air: false,
-                breathes_water: true,
-                breathes_lava: false,
-                breathes_solids: false,
-                generates_bubbles: false,
+            behavior_float: BehaviorFloat {
+                chance_per_tick_to_float: Some(0.8f32),
+                priority: Some(1i32),
+                sink_with_passengers: Some(false),
+                time_under_water_to_dismount_passengers: Some(0f32),
+            },
+            behavior_random_stroll: BehaviorRandomStroll {
+                interval: Some(120i32),
+                priority: Some(5i32),
+                speed_multiplier: Some(1f32),
+                xz_dist: Some(10i32),
+                y_dist: Some(7i32),
+            },
+            behavior_wither_random_attack_pos_goal: BehaviorWitherRandomAttackPosGoal {
+                priority: Some(3i32),
+            },
+            boss: Boss {
+                hud_range: Some(55i32),
+                name: Some("55".to_string()),
+                should_darken_sky: Some(true),
             },
             can_climb: CanClimb,
-            can_fly: CanFly,
             collision_box: CollisionBox {
-                width: 1f32,
-                height: 3f32,
+                height: Some(3f32),
+                width: Some(1f32),
+            },
+            experience_reward: ExperienceReward {
+                on_bred: None,
+                on_death: Some("50".to_string()),
             },
             fire_immune: FireImmune,
-            health: Health {
-                value: 600i32,
-                max: Some(600i32),
-            },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            movement: Movement { speed: 0.25f32 },
-            nameable: Nameable,
+            jump_static: JumpStatic {
+                jump_power: Some(0.42f32),
+            },
+            loot: Loot {
+                table: "loot_tables/entities/wither_boss.json".to_string(),
+            },
+            movement_basic: MovementBasic {
+                max_turn: Some(180f32),
+            },
+            persistent: Persistent,
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

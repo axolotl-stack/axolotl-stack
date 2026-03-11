@@ -14,14 +14,19 @@ impl GlowSquid {
 /// Component bundle for spawning a `minecraft:glow_squid`
 #[derive(Bundle, Clone)]
 pub struct GlowSquidBundle {
-    pub breathable: Breathable,
+    pub balloonable: Balloonable,
+    pub behavior_squid_dive: BehaviorSquidDive,
+    pub behavior_squid_flee: BehaviorSquidFlee,
+    pub behavior_squid_idle: BehaviorSquidIdle,
+    pub behavior_squid_move_away_from_ground: BehaviorSquidMoveAwayFromGround,
+    pub behavior_squid_out_of_water: BehaviorSquidOutOfWater,
     pub can_climb: CanClimb,
     pub collision_box: CollisionBox,
-    pub health: Health,
+    pub experience_reward: ExperienceReward,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub leashable: Leashable,
-    pub movement: Movement,
-    pub nameable: Nameable,
+    pub jump_static: JumpStatic,
+    pub loot: Loot,
+    pub movement_basic: MovementBasic,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -29,35 +34,57 @@ pub struct GlowSquidBundle {
 pub fn spawn_glow_squid(commands: &mut Commands) -> Entity {
     commands
         .spawn(GlowSquidBundle {
-            breathable: Breathable {
-                total_supply: 15i32,
-                suffocate_time: 0i32,
-                breathes_air: false,
-                breathes_water: true,
-                breathes_lava: false,
-                breathes_solids: false,
-                generates_bubbles: false,
+            balloonable: Balloonable {
+                mass: Some(0.5f32),
+                max_distance: None,
+                on_balloon: None,
+                on_unballoon: None,
+                soft_distance: None,
+            },
+            behavior_squid_dive: BehaviorSquidDive {
+                priority: Some(2i32),
+            },
+            behavior_squid_flee: BehaviorSquidFlee {
+                priority: Some(2i32),
+            },
+            behavior_squid_idle: BehaviorSquidIdle {
+                priority: Some(2i32),
+            },
+            behavior_squid_move_away_from_ground: BehaviorSquidMoveAwayFromGround {
+                priority: Some(1i32),
+            },
+            behavior_squid_out_of_water: BehaviorSquidOutOfWater {
+                priority: Some(2i32),
             },
             can_climb: CanClimb,
             collision_box: CollisionBox {
-                width: 0.8f32,
-                height: 0.8f32,
+                height: Some(0.8f32),
+                width: Some(0.8f32),
             },
-            health: Health {
-                value: 10i32,
-                max: Some(10i32),
+            experience_reward: ExperienceReward {
+                on_bred: None,
+                on_death: Some(
+                    "!query.is_baby && query.last_hit_by_player ? Math.Random(1,3) : 0".to_string(),
+                ),
             },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            leashable: Leashable,
-            movement: Movement { speed: 0.2f32 },
-            nameable: Nameable,
+            jump_static: JumpStatic {
+                jump_power: Some(0.42f32),
+            },
+            loot: Loot {
+                table: "loot_tables/entities/glow_squid.json".to_string(),
+            },
+            movement_basic: MovementBasic {
+                max_turn: Some(30f32),
+            },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

@@ -4600,6 +4600,7 @@ dependencies = [
  "prettyplease",
  "proc-macro2",
  "quote",
+ "serde_json",
  "syn",
  "thiserror 2.0.17",
  "tracing",

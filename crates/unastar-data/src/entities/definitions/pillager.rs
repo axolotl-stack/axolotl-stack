@@ -14,49 +14,72 @@ impl Pillager {
 /// Component bundle for spawning a `minecraft:pillager`
 #[derive(Bundle, Clone)]
 pub struct PillagerBundle {
-    pub breathable: Breathable,
+    pub behavior_equip_item: BehaviorEquipItem,
+    pub behavior_float: BehaviorFloat,
+    pub behavior_random_stroll: BehaviorRandomStroll,
+    pub can_join_raid: CanJoinRaid,
     pub collision_box: CollisionBox,
-    pub follow_range: FollowRange,
-    pub health: Health,
+    pub experience_reward: ExperienceReward,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub movement: Movement,
-    pub nameable: Nameable,
+    pub jump_static: JumpStatic,
+    pub loot: Loot,
+    pub movement_basic: MovementBasic,
     pub physics: Physics,
     pub pushable: Pushable,
+    pub variant: Variant,
 }
 /// Spawn a new `minecraft:pillager` entity with default Bedrock components
 pub fn spawn_pillager(commands: &mut Commands) -> Entity {
     commands
         .spawn(PillagerBundle {
-            breathable: Breathable {
-                total_supply: 15i32,
-                suffocate_time: 0i32,
-                breathes_air: false,
-                breathes_water: false,
-                breathes_lava: false,
-                breathes_solids: false,
-                generates_bubbles: false,
+            behavior_equip_item: BehaviorEquipItem {
+                priority: Some(3i32),
             },
+            behavior_float: BehaviorFloat {
+                chance_per_tick_to_float: Some(0.8f32),
+                priority: Some(0i32),
+                sink_with_passengers: Some(false),
+                time_under_water_to_dismount_passengers: Some(0f32),
+            },
+            behavior_random_stroll: BehaviorRandomStroll {
+                interval: Some(120i32),
+                priority: Some(8i32),
+                speed_multiplier: Some(1f32),
+                xz_dist: Some(10i32),
+                y_dist: Some(7i32),
+            },
+            can_join_raid: CanJoinRaid,
             collision_box: CollisionBox {
-                width: 0.6f32,
-                height: 1.9f32,
+                height: Some(1.9f32),
+                width: Some(0.6f32),
             },
-            follow_range: FollowRange { range: 64i32 },
-            health: Health {
-                value: 24i32,
-                max: Some(24i32),
+            experience_reward: ExperienceReward {
+                on_bred: None,
+                on_death: Some(
+                    "query.last_hit_by_player ? (query.is_baby ? 12 : 5) + (Math.die_roll(query.equipment_count,1,3)) : 0"
+                        .to_string(),
+                ),
             },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            movement: Movement { speed: 0.35f32 },
-            nameable: Nameable,
+            jump_static: JumpStatic {
+                jump_power: Some(0.42f32),
+            },
+            loot: Loot {
+                table: "loot_tables/entities/pillager.json".to_string(),
+            },
+            movement_basic: MovementBasic {
+                max_turn: Some(30f32),
+            },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
+            variant: Variant { value: 0i32 },
         })
         .id()
 }

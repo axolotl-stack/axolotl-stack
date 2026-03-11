@@ -1,7 +1,5 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:entity_sensor`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
-pub struct EntitySensor {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
-}
+/// Bedrock component `minecraft:entity_sensor`. A component that fires an event when a set of conditions are met by other entities within the defined range.
+#[derive(Component, Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[component(storage = "SparseSet")]
+pub struct EntitySensor;

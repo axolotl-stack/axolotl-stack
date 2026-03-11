@@ -23,16 +23,17 @@ pub fn spawn_ominous_item_spawner(commands: &mut Commands) -> Entity {
     commands
         .spawn(OminousItemSpawnerBundle {
             collision_box: CollisionBox {
-                width: 0.6f32,
-                height: 1.8f32,
+                height: Some(1.8f32),
+                width: Some(0.6f32),
             },
             physics: Physics {
-                has_gravity: true,
-                has_collision: true,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

@@ -1,7 +1,18 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:player.level`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+/// Bedrock component `minecraft:player.level`. Defines the player's level.
+#[derive(Component, Debug, Clone, PartialEq)]
+#[component(storage = "SparseSet")]
 pub struct PlayerLevel {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    /// max
+    pub max: Option<i32>,
+    /// value
+    pub value: i32,
+}
+impl Default for PlayerLevel {
+    fn default() -> Self {
+        Self {
+            max: None,
+            value: 0,
+        }
+    }
 }

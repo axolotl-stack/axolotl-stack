@@ -1,7 +1,13 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:is_stackable`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+/// Bedrock component `minecraft:is_stackable`. Sets that this entity can be stacked.
+#[derive(Component, Debug, Clone, PartialEq)]
+#[component(storage = "SparseSet")]
 pub struct IsStackable {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    /// value
+    pub value: bool,
+}
+impl Default for IsStackable {
+    fn default() -> Self {
+        Self { value: false }
+    }
 }

@@ -14,11 +14,11 @@ impl Slime {
 /// Component bundle for spawning a `minecraft:slime`
 #[derive(Bundle, Clone)]
 pub struct SlimeBundle {
-    pub breathable: Breathable,
     pub can_climb: CanClimb,
     pub collision_box: CollisionBox,
+    pub experience_reward: ExperienceReward,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub nameable: Nameable,
+    pub jump_static: JumpStatic,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -26,29 +26,27 @@ pub struct SlimeBundle {
 pub fn spawn_slime(commands: &mut Commands) -> Entity {
     commands
         .spawn(SlimeBundle {
-            breathable: Breathable {
-                total_supply: 15i32,
-                suffocate_time: 0i32,
-                breathes_air: false,
-                breathes_water: false,
-                breathes_lava: false,
-                breathes_solids: false,
-                generates_bubbles: false,
-            },
             can_climb: CanClimb,
             collision_box: CollisionBox {
-                width: 2.08f32,
-                height: 2.08f32,
+                height: Some(2.08f32),
+                width: Some(2.08f32),
+            },
+            experience_reward: ExperienceReward {
+                on_bred: None,
+                on_death: Some("query.last_hit_by_player ? query.variant : 0".to_string()),
             },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            nameable: Nameable,
+            jump_static: JumpStatic {
+                jump_power: Some(0.42f32),
+            },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

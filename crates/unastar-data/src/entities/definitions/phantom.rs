@@ -14,57 +14,52 @@ impl Phantom {
 /// Component bundle for spawning a `minecraft:phantom`
 #[derive(Bundle, Clone)]
 pub struct PhantomBundle {
-    pub attack: Attack,
-    pub breathable: Breathable,
-    pub burns_in_daylight: BurnsInDaylight,
     pub collision_box: CollisionBox,
-    pub follow_range: FollowRange,
-    pub health: Health,
+    pub experience_reward: ExperienceReward,
+    pub game_event_movement_tracking: GameEventMovementTracking,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub movement: Movement,
-    pub nameable: Nameable,
+    pub loot: Loot,
+    pub movement_glide: MovementGlide,
     pub physics: Physics,
     pub pushable: Pushable,
+    pub renders_when_invisible: RendersWhenInvisible,
 }
 /// Spawn a new `minecraft:phantom` entity with default Bedrock components
 pub fn spawn_phantom(commands: &mut Commands) -> Entity {
     commands
         .spawn(PhantomBundle {
-            attack: Attack {
-                damage: 6i32,
-                effect_name: None,
-                effect_duration: None,
-            },
-            breathable: Breathable {
-                total_supply: 15i32,
-                suffocate_time: 0i32,
-                breathes_air: true,
-                breathes_water: true,
-                breathes_lava: false,
-                breathes_solids: false,
-                generates_bubbles: false,
-            },
-            burns_in_daylight: BurnsInDaylight,
             collision_box: CollisionBox {
-                width: 0.9f32,
-                height: 0.5f32,
+                height: Some(0.5f32),
+                width: Some(0.9f32),
             },
-            follow_range: FollowRange { range: 64i32 },
-            health: Health {
-                value: 20i32,
-                max: Some(20i32),
+            experience_reward: ExperienceReward {
+                on_bred: None,
+                on_death: Some("query.last_hit_by_player ? 5 : 0".to_string()),
+            },
+            game_event_movement_tracking: GameEventMovementTracking {
+                emit_flap: Some(true),
+                emit_move: Some(true),
+                emit_swim: Some(true),
             },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            movement: Movement { speed: 1.8f32 },
-            nameable: Nameable,
+            loot: Loot {
+                table: "loot_tables/entities/phantom.json".to_string(),
+            },
+            movement_glide: MovementGlide {
+                max_turn: None,
+                speed_when_turning: Some(0.2f32),
+                start_speed: Some(0.1f32),
+            },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(false),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
+            renders_when_invisible: RendersWhenInvisible,
         })
         .id()
 }

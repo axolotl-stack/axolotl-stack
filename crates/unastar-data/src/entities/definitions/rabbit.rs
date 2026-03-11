@@ -14,14 +14,15 @@ impl Rabbit {
 /// Component bundle for spawning a `minecraft:rabbit`
 #[derive(Bundle, Clone)]
 pub struct RabbitBundle {
-    pub breathable: Breathable,
+    pub balloonable: Balloonable,
+    pub behavior_breed: BehaviorBreed,
+    pub behavior_float: BehaviorFloat,
+    pub behavior_random_stroll: BehaviorRandomStroll,
+    pub block_climber: BlockClimber,
     pub can_climb: CanClimb,
     pub collision_box: CollisionBox,
-    pub health: Health,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub leashable: Leashable,
-    pub movement: Movement,
-    pub nameable: Nameable,
+    pub movement_skip: MovementSkip,
     pub physics: Physics,
     pub pushable: Pushable,
     pub scale: Scale,
@@ -30,35 +31,48 @@ pub struct RabbitBundle {
 pub fn spawn_rabbit(commands: &mut Commands) -> Entity {
     commands
         .spawn(RabbitBundle {
-            breathable: Breathable {
-                total_supply: 15i32,
-                suffocate_time: 0i32,
-                breathes_air: false,
-                breathes_water: false,
-                breathes_lava: false,
-                breathes_solids: false,
-                generates_bubbles: false,
+            balloonable: Balloonable {
+                mass: Some(0.4f32),
+                max_distance: None,
+                on_balloon: None,
+                on_unballoon: None,
+                soft_distance: None,
             },
+            behavior_breed: BehaviorBreed {
+                priority: Some(2i32),
+                speed_multiplier: Some(0.8f32),
+            },
+            behavior_float: BehaviorFloat {
+                chance_per_tick_to_float: Some(0.8f32),
+                priority: Some(0i32),
+                sink_with_passengers: Some(false),
+                time_under_water_to_dismount_passengers: Some(0f32),
+            },
+            behavior_random_stroll: BehaviorRandomStroll {
+                interval: Some(120i32),
+                priority: Some(6i32),
+                speed_multiplier: Some(0.6f32),
+                xz_dist: Some(2i32),
+                y_dist: Some(1i32),
+            },
+            block_climber: BlockClimber,
             can_climb: CanClimb,
             collision_box: CollisionBox {
-                width: 0.67f32,
-                height: 0.67f32,
-            },
-            health: Health {
-                value: 3i32,
-                max: Some(3i32),
+                height: Some(0.67f32),
+                width: Some(0.67f32),
             },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            leashable: Leashable,
-            movement: Movement { speed: 0.3f32 },
-            nameable: Nameable,
+            movement_skip: MovementSkip {
+                max_turn: Some(30f32),
+            },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
             scale: Scale { value: 0.6f32 },
         })

@@ -18,28 +18,35 @@ pub struct CommandBlockMinecartBundle {
     pub inventory: Inventory,
     pub physics: Physics,
     pub pushable: Pushable,
+    pub rail_movement: RailMovement,
 }
 /// Spawn a new `minecraft:command_block_minecart` entity with default Bedrock components
 pub fn spawn_command_block_minecart(commands: &mut Commands) -> Entity {
     commands
         .spawn(CommandBlockMinecartBundle {
             collision_box: CollisionBox {
-                width: 0.98f32,
-                height: 0.7f32,
+                height: Some(0.7f32),
+                width: Some(0.98f32),
             },
             inventory: Inventory {
-                size: 0,
-                container_type: None,
-                can_be_siphoned_from: false,
-                private: false,
+                additional_slots_per_strength: Some(0i32),
+                can_be_siphoned_from: Some(false),
+                container_type: Some("none".to_string()),
+                inventory_size: Some(5i32),
+                private: Some(false),
+                restrict_to_owner: Some(false),
             },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
+            },
+            rail_movement: RailMovement {
+                max_speed: Some(0.4f32),
             },
         })
         .id()

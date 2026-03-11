@@ -16,8 +16,8 @@ impl Npc {
 pub struct NpcBundle {
     pub collision_box: CollisionBox,
     pub fire_immune: FireImmune,
-    pub movement: Movement,
-    pub nameable: Nameable,
+    pub loot: Loot,
+    pub persistent: Persistent,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -26,19 +26,22 @@ pub fn spawn_npc(commands: &mut Commands) -> Entity {
     commands
         .spawn(NpcBundle {
             collision_box: CollisionBox {
-                width: 0.6f32,
-                height: 2.1f32,
+                height: Some(2.1f32),
+                width: Some(0.6f32),
             },
             fire_immune: FireImmune,
-            movement: Movement { speed: 0.5f32 },
-            nameable: Nameable,
+            loot: Loot {
+                table: "loot_tables/empty.json".to_string(),
+            },
+            persistent: Persistent,
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

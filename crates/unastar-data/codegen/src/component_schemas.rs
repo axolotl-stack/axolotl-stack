@@ -1,85 +1,74 @@
-//! Component schema definitions for typed code generation.
+//! Component schema definitions and defaults loaded from vendored upstream metadata.
 //!
-//! Type definitions are in Rust (field names, types, optionality).
-//! Default values are loaded from `_defaults.kdl` at codegen time.
+//! Type definitions come from the Blockception Bedrock entity JSON Schema.
+//! Default values come from Mojang creator-tools entity forms, with local KDL
+//! overrides layered on top for project-specific corrections.
 
+use heck::{ToPascalCase, ToSnakeCase};
 use kdl::{KdlDocument, KdlValue};
-use std::collections::HashMap;
+use serde_json::{Map, Value};
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
-/// How often a component appears across all entities
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ComponentFrequency {
-    /// Present on most entities (>50%) - use Table storage
-    Common,
-    /// Present on some entities (10-50%) - use Table storage
-    Moderate,
-    /// Rarely present (<10%) - use SparseSet storage
-    Sparse,
-}
-
-/// Field type in a component schema
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FieldType {
-    /// f32
     Float,
-    /// i32
     Integer,
-    /// bool
     Bool,
-    /// String
     String,
-    /// Optional wrapper
     Option(Box<FieldType>),
 }
 
-/// A field in a component schema
 #[derive(Debug, Clone)]
 pub struct FieldSchema {
-    pub name: &'static str,
-    pub rust_name: &'static str,
+    pub name: String,
+    pub rust_name: String,
     pub field_type: FieldType,
-    pub is_primary: bool, // If true, use as argument not property
+    pub is_primary: bool,
 }
 
-/// Schema for a component (type info only, no defaults)
 #[derive(Debug, Clone)]
 pub struct ComponentSchema {
-    pub name: &'static str,
-    pub rust_name: &'static str,
-    pub frequency: ComponentFrequency,
+    pub name: String,
+    pub rust_name: String,
+    pub description: Option<String>,
     pub fields: Vec<FieldSchema>,
     pub is_marker: bool,
 }
 
-impl ComponentSchema {
-    pub const fn marker(
-        name: &'static str,
-        rust_name: &'static str,
-        frequency: ComponentFrequency,
-    ) -> Self {
-        Self {
-            name,
-            rust_name,
-            frequency,
-            fields: Vec::new(),
-            is_marker: true,
-        }
-    }
-}
-
-/// Defaults loaded from KDL
 #[derive(Debug, Clone, Default)]
 pub struct ComponentDefaults {
-    /// Map of component name -> field name -> default value string
     pub values: HashMap<String, HashMap<String, String>>,
-    /// Primary argument defaults (e.g., health 20 -> "20")
     pub primary_values: HashMap<String, String>,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct SchemaCatalog {
+    pub components: HashMap<String, ComponentSchema>,
+    pub defaults: ComponentDefaults,
+}
+
+impl SchemaCatalog {
+    pub fn load(upstream_dir: &Path, defaults_override_path: &Path) -> miette::Result<Self> {
+        let components = load_blockception_component_schemas(
+            &upstream_dir.join("blockception/entities.schema.json"),
+        )?;
+
+        let mut defaults =
+            load_mojang_component_defaults(&upstream_dir.join("mojang/entity_forms"))?;
+        if defaults_override_path.exists() {
+            defaults.merge_kdl(defaults_override_path)?;
+        }
+
+        Ok(Self {
+            components,
+            defaults,
+        })
+    }
+}
+
 impl ComponentDefaults {
-    /// Load defaults from _defaults.kdl
-    pub fn load(defaults_path: &Path) -> miette::Result<Self> {
+    pub fn merge_kdl(&mut self, defaults_path: &Path) -> miette::Result<()> {
         let content = std::fs::read_to_string(defaults_path)
             .map_err(|e| miette::miette!("Failed to read defaults: {}", e))?;
 
@@ -87,62 +76,56 @@ impl ComponentDefaults {
             .parse()
             .map_err(|e| miette::miette!("Failed to parse defaults KDL: {}", e))?;
 
-        let mut defaults = ComponentDefaults::default();
-
-        // Find the "defaults" node with type="entity"
         for node in doc.nodes() {
-            if node.name().value() == "defaults"
-                && let Some(children) = node.children()
-            {
-                for child in children.nodes() {
-                    let comp_name = child.name().value().to_string();
-                    let mut field_defaults = HashMap::new();
+            if node.name().value() != "defaults" {
+                continue;
+            }
 
-                    // Check for primary argument
-                    for entry in child.entries() {
-                        if entry.name().is_none() {
-                            // Positional argument = primary value
-                            defaults
-                                .primary_values
-                                .insert(comp_name.clone(), kdl_value_to_string(entry.value()));
-                        } else if let Some(prop_name) = entry.name() {
-                            // Named property
-                            field_defaults.insert(
-                                prop_name.value().to_string(),
-                                kdl_value_to_string(entry.value()),
-                            );
+            let Some(children) = node.children() else {
+                continue;
+            };
+
+            for child in children.nodes() {
+                let comp_name = child.name().value().to_string();
+                let mut field_defaults = HashMap::new();
+
+                for entry in child.entries() {
+                    if entry.name().is_none() {
+                        self.primary_values
+                            .insert(comp_name.clone(), kdl_value_to_string(entry.value()));
+                    } else if let Some(prop_name) = entry.name() {
+                        field_defaults.insert(
+                            prop_name.value().to_string(),
+                            kdl_value_to_string(entry.value()),
+                        );
+                    }
+                }
+
+                if let Some(comp_children) = child.children() {
+                    for prop_node in comp_children.nodes() {
+                        let prop_name = prop_node.name().value();
+                        if prop_name.starts_with("//") {
+                            continue;
+                        }
+                        if let Some(entry) = prop_node.entries().first() {
+                            field_defaults
+                                .insert(prop_name.to_string(), kdl_value_to_string(entry.value()));
                         }
                     }
+                }
 
-                    // Check children for nested properties
-                    if let Some(comp_children) = child.children() {
-                        for prop_node in comp_children.nodes() {
-                            let prop_name = prop_node.name().value();
-                            // Skip comments
-                            if prop_name.starts_with("//") {
-                                continue;
-                            }
-                            // Get the value (first argument or property)
-                            if let Some(entry) = prop_node.entries().first() {
-                                field_defaults.insert(
-                                    prop_name.to_string(),
-                                    kdl_value_to_string(entry.value()),
-                                );
-                            }
-                        }
-                    }
-
-                    if !field_defaults.is_empty() {
-                        defaults.values.insert(comp_name, field_defaults);
-                    }
+                if !field_defaults.is_empty() {
+                    self.values
+                        .entry(comp_name)
+                        .or_default()
+                        .extend(field_defaults);
                 }
             }
         }
 
-        Ok(defaults)
+        Ok(())
     }
 
-    /// Get default for a field
     pub fn get_field_default(&self, component: &str, field: &str) -> Option<&str> {
         self.values
             .get(component)
@@ -150,9 +133,425 @@ impl ComponentDefaults {
             .map(|s| s.as_str())
     }
 
-    /// Get primary value default for a component
     pub fn get_primary_default(&self, component: &str) -> Option<&str> {
         self.primary_values.get(component).map(|s| s.as_str())
+    }
+
+    fn merge_field_default(&mut self, component: &str, field: &str, value: String) {
+        self.values
+            .entry(component.to_string())
+            .or_default()
+            .entry(field.to_string())
+            .or_insert(value);
+    }
+
+    fn merge_primary_default(&mut self, component: &str, value: String) {
+        self.primary_values
+            .entry(component.to_string())
+            .or_insert(value);
+    }
+}
+
+fn load_mojang_component_defaults(forms_dir: &Path) -> miette::Result<ComponentDefaults> {
+    let mut defaults = ComponentDefaults::default();
+
+    if !forms_dir.exists() {
+        return Ok(defaults);
+    }
+
+    for entry in std::fs::read_dir(forms_dir)
+        .map_err(|e| miette::miette!("Failed to read Mojang forms dir: {}", e))?
+    {
+        let entry =
+            entry.map_err(|e| miette::miette!("Failed to read Mojang form entry: {}", e))?;
+        let path = entry.path();
+        if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
+            continue;
+        }
+
+        let content = std::fs::read_to_string(&path)
+            .map_err(|e| miette::miette!("Failed to read {}: {}", path.display(), e))?;
+        let json: Value = serde_json::from_str(&content)
+            .map_err(|e| miette::miette!("Failed to parse {}: {}", path.display(), e))?;
+
+        let Some(component_id) = json.get("id").and_then(|v| v.as_str()) else {
+            continue;
+        };
+        if !component_id.starts_with("minecraft:") {
+            continue;
+        }
+
+        let component_name = normalize_component_name(component_id);
+        let Some(fields) = json.get("fields").and_then(|v| v.as_array()) else {
+            continue;
+        };
+
+        for field in fields {
+            let Some(field_name) = field.get("id").and_then(|v| v.as_str()) else {
+                continue;
+            };
+            let Some(default_value) = field.get("defaultValue") else {
+                continue;
+            };
+            let Some(value) = simple_json_to_string(default_value) else {
+                continue;
+            };
+
+            defaults.merge_field_default(&component_name, field_name, value.clone());
+            if field_name == "value" {
+                defaults.merge_primary_default(&component_name, value);
+            }
+        }
+    }
+
+    Ok(defaults)
+}
+
+fn load_blockception_component_schemas(
+    schema_path: &Path,
+) -> miette::Result<HashMap<String, ComponentSchema>> {
+    if !schema_path.exists() {
+        return Ok(HashMap::new());
+    }
+
+    let content = std::fs::read_to_string(schema_path)
+        .map_err(|e| miette::miette!("Failed to read schema {}: {}", schema_path.display(), e))?;
+    let root: Value = serde_json::from_str(&content)
+        .map_err(|e| miette::miette!("Failed to parse schema {}: {}", schema_path.display(), e))?;
+
+    let definitions = root
+        .get("definitions")
+        .and_then(|v| v.as_object())
+        .ok_or_else(|| miette::miette!("Blockception schema is missing definitions"))?;
+
+    let component_props = definitions
+        .get("F")
+        .and_then(|v| v.get("properties"))
+        .and_then(|v| v.as_object())
+        .ok_or_else(|| miette::miette!("Blockception schema is missing component properties"))?;
+
+    let mut schemas = HashMap::new();
+
+    for (component_id, component_ref) in component_props {
+        if !component_id.starts_with("minecraft:") {
+            continue;
+        }
+
+        if let Some(schema) = build_component_schema(component_id, component_ref, definitions) {
+            schemas.insert(schema.name.clone(), schema);
+        }
+    }
+
+    Ok(schemas)
+}
+
+fn build_component_schema(
+    component_id: &str,
+    component_ref: &Value,
+    definitions: &Map<String, Value>,
+) -> Option<ComponentSchema> {
+    let resolved = resolve_schema(component_ref, definitions);
+    let name = normalize_component_name(component_id);
+    let rust_name = sanitize_rust_ident(&name.to_pascal_case(), true);
+    if rust_name.is_empty() {
+        return None;
+    }
+
+    let description = resolved
+        .get("description")
+        .and_then(|v| v.as_str())
+        .map(ToOwned::to_owned)
+        .or_else(|| {
+            resolved
+                .get("title")
+                .and_then(|v| v.as_str())
+                .map(ToOwned::to_owned)
+        });
+
+    let Some((properties, required)) = flatten_object_schema(resolved, definitions) else {
+        return None;
+    };
+
+    if properties.is_empty() {
+        return Some(ComponentSchema {
+            name,
+            rust_name,
+            description,
+            fields: Vec::new(),
+            is_marker: true,
+        });
+    }
+
+    let mut entries: Vec<_> = properties.into_iter().collect();
+    entries.sort_by(|a, b| a.0.cmp(&b.0));
+
+    let mut fields = Vec::with_capacity(entries.len());
+    for (field_name, field_schema) in entries {
+        let rust_field_name = sanitize_rust_ident(&field_name.to_snake_case(), false);
+        if rust_field_name.is_empty() {
+            return None;
+        }
+
+        let Some(mut field_type) = derive_field_type(&field_schema, definitions) else {
+            return None;
+        };
+
+        let is_primary = field_name == "value";
+        if !required.contains(&field_name) && !is_primary {
+            field_type = FieldType::Option(Box::new(field_type));
+        }
+
+        fields.push(FieldSchema {
+            name: field_name,
+            rust_name: rust_field_name,
+            field_type,
+            is_primary,
+        });
+    }
+
+    Some(ComponentSchema {
+        name,
+        rust_name,
+        description,
+        fields,
+        is_marker: false,
+    })
+}
+
+fn flatten_object_schema(
+    schema: &Value,
+    definitions: &Map<String, Value>,
+) -> Option<(HashMap<String, Value>, HashSet<String>)> {
+    let schema = resolve_schema(schema, definitions);
+    let is_object_like = schema
+        .get("type")
+        .and_then(|v| v.as_str())
+        .is_some_and(|ty| ty == "object")
+        || schema.get("properties").is_some()
+        || schema.get("allOf").is_some();
+
+    if !is_object_like {
+        return None;
+    }
+
+    let mut properties = HashMap::new();
+    let mut required = HashSet::new();
+
+    if let Some(all_of) = schema.get("allOf").and_then(|v| v.as_array()) {
+        for part in all_of {
+            if let Some((part_props, part_required)) = flatten_object_schema(part, definitions) {
+                properties.extend(part_props);
+                required.extend(part_required);
+            }
+        }
+    }
+
+    if let Some(props) = schema.get("properties").and_then(|v| v.as_object()) {
+        for (key, value) in props {
+            properties.insert(key.clone(), value.clone());
+        }
+    }
+
+    if let Some(reqs) = schema.get("required").and_then(|v| v.as_array()) {
+        for req in reqs {
+            if let Some(name) = req.as_str() {
+                required.insert(name.to_string());
+            }
+        }
+    }
+
+    Some((properties, required))
+}
+
+fn derive_field_type(schema: &Value, definitions: &Map<String, Value>) -> Option<FieldType> {
+    let schema = resolve_schema(schema, definitions);
+
+    if let Some(enum_values) = schema.get("enum").and_then(|v| v.as_array()) {
+        if !enum_values.is_empty() {
+            return Some(FieldType::String);
+        }
+    }
+
+    if let Some(variants) = schema
+        .get("oneOf")
+        .or_else(|| schema.get("anyOf"))
+        .and_then(|v| v.as_array())
+    {
+        return derive_union_field_type(variants, definitions);
+    }
+
+    derive_field_type_non_union(schema)
+}
+
+fn derive_union_field_type(
+    variants: &[Value],
+    definitions: &Map<String, Value>,
+) -> Option<FieldType> {
+    let mut saw_null = false;
+    let mut derived = Vec::new();
+
+    for variant in variants {
+        let resolved = resolve_schema(variant, definitions);
+        if is_null_schema(resolved) {
+            saw_null = true;
+            continue;
+        }
+
+        let field_type = if let Some(nested) = resolved
+            .get("oneOf")
+            .or_else(|| resolved.get("anyOf"))
+            .and_then(|v| v.as_array())
+        {
+            derive_union_field_type(nested, definitions)?
+        } else {
+            derive_field_type_non_union(resolved)?
+        };
+
+        derived.push(field_type);
+    }
+
+    let merged = merge_field_types(derived)?;
+    if saw_null {
+        Some(FieldType::Option(Box::new(merged)))
+    } else {
+        Some(merged)
+    }
+}
+
+fn derive_field_type_non_union(schema: &Value) -> Option<FieldType> {
+    if let Some(type_name) = schema.get("type").and_then(|v| v.as_str()) {
+        return match type_name {
+            "number" => Some(FieldType::Float),
+            "integer" => Some(FieldType::Integer),
+            "boolean" => Some(FieldType::Bool),
+            "string" => Some(FieldType::String),
+            _ => None,
+        };
+    }
+
+    if let Some(type_names) = schema.get("type").and_then(|v| v.as_array()) {
+        let mut saw_null = false;
+        let mut derived = Vec::new();
+        for type_name in type_names.iter().filter_map(|v| v.as_str()) {
+            match type_name {
+                "null" => saw_null = true,
+                "number" => derived.push(FieldType::Float),
+                "integer" => derived.push(FieldType::Integer),
+                "boolean" => derived.push(FieldType::Bool),
+                "string" => derived.push(FieldType::String),
+                _ => return None,
+            }
+        }
+        let merged = merge_field_types(derived)?;
+        if saw_null {
+            return Some(FieldType::Option(Box::new(merged)));
+        }
+        return Some(merged);
+    }
+
+    schema.get("const").and_then(const_field_type)
+}
+
+fn merge_field_types(types: Vec<FieldType>) -> Option<FieldType> {
+    let mut saw_float = false;
+    let mut saw_integer = false;
+    let mut saw_bool = false;
+    let mut saw_string = false;
+    let mut saw_option = false;
+
+    for field_type in types {
+        match field_type {
+            FieldType::Float => saw_float = true,
+            FieldType::Integer => saw_integer = true,
+            FieldType::Bool => saw_bool = true,
+            FieldType::String => saw_string = true,
+            FieldType::Option(inner) => {
+                saw_option = true;
+                match *inner {
+                    FieldType::Float => saw_float = true,
+                    FieldType::Integer => saw_integer = true,
+                    FieldType::Bool => saw_bool = true,
+                    FieldType::String => saw_string = true,
+                    FieldType::Option(_) => return None,
+                }
+            }
+        }
+    }
+
+    let primitive_count = [saw_float, saw_integer, saw_bool, saw_string]
+        .into_iter()
+        .filter(|v| *v)
+        .count();
+    if primitive_count == 0 {
+        return None;
+    }
+
+    let base = if saw_string {
+        FieldType::String
+    } else if saw_float && saw_integer {
+        FieldType::Float
+    } else if saw_float {
+        FieldType::Float
+    } else if saw_integer {
+        FieldType::Integer
+    } else if saw_bool {
+        FieldType::Bool
+    } else {
+        return None;
+    };
+
+    if saw_option {
+        Some(FieldType::Option(Box::new(base)))
+    } else {
+        Some(base)
+    }
+}
+
+fn const_field_type(value: &Value) -> Option<FieldType> {
+    match value {
+        Value::Number(n) if n.is_i64() || n.is_u64() => Some(FieldType::Integer),
+        Value::Number(_) => Some(FieldType::Float),
+        Value::Bool(_) => Some(FieldType::Bool),
+        Value::String(_) => Some(FieldType::String),
+        _ => None,
+    }
+}
+
+fn is_null_schema(schema: &Value) -> bool {
+    schema
+        .get("type")
+        .and_then(|v| v.as_str())
+        .is_some_and(|ty| ty == "null")
+        || schema.get("const").is_some_and(Value::is_null)
+}
+
+fn resolve_schema<'a>(schema: &'a Value, definitions: &'a Map<String, Value>) -> &'a Value {
+    let mut current = schema;
+    while let Some(reference) = current.get("$ref").and_then(|v| v.as_str()) {
+        let Some(name) = reference.strip_prefix("#/definitions/") else {
+            break;
+        };
+        let Some(resolved) = definitions.get(name) else {
+            break;
+        };
+        current = resolved;
+    }
+    current
+}
+
+fn normalize_component_name(component_id: &str) -> String {
+    component_id
+        .strip_prefix("minecraft:")
+        .unwrap_or(component_id)
+        .to_string()
+}
+
+fn simple_json_to_string(value: &Value) -> Option<String> {
+    match value {
+        Value::Null | Value::Array(_) | Value::Object(_) => None,
+        Value::Bool(v) => Some(v.to_string()),
+        Value::Number(v) => Some(v.to_string()),
+        Value::String(v) => Some(v.clone()),
     }
 }
 
@@ -166,409 +565,75 @@ fn kdl_value_to_string(value: &KdlValue) -> String {
     }
 }
 
-/// Get all known component schemas (type definitions only)
-pub fn get_component_schemas() -> HashMap<&'static str, ComponentSchema> {
-    let mut schemas = HashMap::new();
+fn sanitize_rust_ident(name: &str, pascal: bool) -> String {
+    let mut candidate = name.replace('.', "_").replace('-', "_");
+    if !pascal {
+        candidate = candidate.to_snake_case();
+    }
 
-    // === Core Components (Common) ===
+    if candidate.is_empty() {
+        return candidate;
+    }
 
-    schemas.insert(
-        "health",
-        ComponentSchema {
-            name: "health",
-            rust_name: "Health",
-            frequency: ComponentFrequency::Common,
-            fields: vec![
-                FieldSchema {
-                    name: "value",
-                    rust_name: "value",
-                    field_type: FieldType::Integer,
-                    is_primary: true,
-                },
-                FieldSchema {
-                    name: "max",
-                    rust_name: "max",
-                    field_type: FieldType::Option(Box::new(FieldType::Integer)),
-                    is_primary: false,
-                },
-            ],
-            is_marker: false,
-        },
-    );
+    if is_rust_keyword(&candidate) {
+        candidate.push('_');
+    }
 
-    schemas.insert(
-        "collision_box",
-        ComponentSchema {
-            name: "collision_box",
-            rust_name: "CollisionBox",
-            frequency: ComponentFrequency::Common,
-            fields: vec![
-                FieldSchema {
-                    name: "width",
-                    rust_name: "width",
-                    field_type: FieldType::Float,
-                    is_primary: false,
-                },
-                FieldSchema {
-                    name: "height",
-                    rust_name: "height",
-                    field_type: FieldType::Float,
-                    is_primary: false,
-                },
-            ],
-            is_marker: false,
-        },
-    );
-
-    schemas.insert(
-        "movement",
-        ComponentSchema {
-            name: "movement",
-            rust_name: "Movement",
-            frequency: ComponentFrequency::Common,
-            fields: vec![FieldSchema {
-                name: "value",
-                rust_name: "speed",
-                field_type: FieldType::Float,
-                is_primary: true,
-            }],
-            is_marker: false,
-        },
-    );
-
-    schemas.insert(
-        "physics",
-        ComponentSchema {
-            name: "physics",
-            rust_name: "Physics",
-            frequency: ComponentFrequency::Common,
-            fields: vec![
-                FieldSchema {
-                    name: "has_gravity",
-                    rust_name: "has_gravity",
-                    field_type: FieldType::Bool,
-                    is_primary: false,
-                },
-                FieldSchema {
-                    name: "has_collision",
-                    rust_name: "has_collision",
-                    field_type: FieldType::Bool,
-                    is_primary: false,
-                },
-            ],
-            is_marker: false,
-        },
-    );
-
-    schemas.insert(
-        "pushable",
-        ComponentSchema {
-            name: "pushable",
-            rust_name: "Pushable",
-            frequency: ComponentFrequency::Common,
-            fields: vec![
-                FieldSchema {
-                    name: "is_pushable",
-                    rust_name: "is_pushable",
-                    field_type: FieldType::Bool,
-                    is_primary: false,
-                },
-                FieldSchema {
-                    name: "is_pushable_by_piston",
-                    rust_name: "is_pushable_by_piston",
-                    field_type: FieldType::Bool,
-                    is_primary: false,
-                },
-            ],
-            is_marker: false,
-        },
-    );
-
-    schemas.insert(
-        "attack",
-        ComponentSchema {
-            name: "attack",
-            rust_name: "Attack",
-            frequency: ComponentFrequency::Moderate,
-            fields: vec![
-                FieldSchema {
-                    name: "damage",
-                    rust_name: "damage",
-                    field_type: FieldType::Integer,
-                    is_primary: false,
-                },
-                FieldSchema {
-                    name: "effect_name",
-                    rust_name: "effect_name",
-                    field_type: FieldType::Option(Box::new(FieldType::String)),
-                    is_primary: false,
-                },
-                FieldSchema {
-                    name: "effect_duration",
-                    rust_name: "effect_duration",
-                    field_type: FieldType::Option(Box::new(FieldType::Float)),
-                    is_primary: false,
-                },
-            ],
-            is_marker: false,
-        },
-    );
-
-    schemas.insert(
-        "flying_speed",
-        ComponentSchema {
-            name: "flying_speed",
-            rust_name: "FlyingSpeed",
-            frequency: ComponentFrequency::Sparse,
-            fields: vec![FieldSchema {
-                name: "value",
-                rust_name: "speed",
-                field_type: FieldType::Float,
-                is_primary: true,
-            }],
-            is_marker: false,
-        },
-    );
-
-    schemas.insert(
-        "follow_range",
-        ComponentSchema {
-            name: "follow_range",
-            rust_name: "FollowRange",
-            frequency: ComponentFrequency::Moderate,
-            fields: vec![FieldSchema {
-                name: "value",
-                rust_name: "range",
-                field_type: FieldType::Integer,
-                is_primary: true,
-            }],
-            is_marker: false,
-        },
-    );
-
-    schemas.insert(
-        "scale",
-        ComponentSchema {
-            name: "scale",
-            rust_name: "Scale",
-            frequency: ComponentFrequency::Sparse,
-            fields: vec![FieldSchema {
-                name: "value",
-                rust_name: "value",
-                field_type: FieldType::Float,
-                is_primary: true,
-            }],
-            is_marker: false,
-        },
-    );
-
-    // === Marker Components (no data) ===
-
-    schemas.insert(
-        "can_climb",
-        ComponentSchema::marker("can_climb", "CanClimb", ComponentFrequency::Moderate),
-    );
-
-    schemas.insert(
-        "can_fly",
-        ComponentSchema::marker("can_fly", "CanFly", ComponentFrequency::Sparse),
-    );
-
-    schemas.insert(
-        "can_power_jump",
-        ComponentSchema::marker("can_power_jump", "CanPowerJump", ComponentFrequency::Sparse),
-    );
-
-    schemas.insert(
-        "fire_immune",
-        ComponentSchema::marker("fire_immune", "FireImmune", ComponentFrequency::Sparse),
-    );
-
-    schemas.insert(
-        "floats_in_liquid",
-        ComponentSchema::marker(
-            "floats_in_liquid",
-            "FloatsInLiquid",
-            ComponentFrequency::Sparse,
-        ),
-    );
-
-    schemas.insert(
-        "is_baby",
-        ComponentSchema::marker("is_baby", "IsBaby", ComponentFrequency::Sparse),
-    );
-
-    schemas.insert(
-        "is_hidden_when_invisible",
-        ComponentSchema::marker(
-            "is_hidden_when_invisible",
-            "IsHiddenWhenInvisible",
-            ComponentFrequency::Common,
-        ),
-    );
-
-    schemas.insert(
-        "is_ignited",
-        ComponentSchema::marker("is_ignited", "IsIgnited", ComponentFrequency::Sparse),
-    );
-
-    schemas.insert(
-        "is_saddled",
-        ComponentSchema::marker("is_saddled", "IsSaddled", ComponentFrequency::Sparse),
-    );
-
-    schemas.insert(
-        "is_sheared",
-        ComponentSchema::marker("is_sheared", "IsSheared", ComponentFrequency::Sparse),
-    );
-
-    schemas.insert(
-        "is_tamed",
-        ComponentSchema::marker("is_tamed", "IsTamed", ComponentFrequency::Sparse),
-    );
-
-    schemas.insert(
-        "leashable",
-        ComponentSchema::marker("leashable", "Leashable", ComponentFrequency::Moderate),
-    );
-
-    schemas.insert(
-        "nameable",
-        ComponentSchema::marker("nameable", "Nameable", ComponentFrequency::Common),
-    );
-
-    schemas.insert(
-        "burns_in_daylight",
-        ComponentSchema::marker(
-            "burns_in_daylight",
-            "BurnsInDaylight",
-            ComponentFrequency::Sparse,
-        ),
-    );
-
-    // === Inventory Component ===
-
-    schemas.insert(
-        "inventory",
-        ComponentSchema {
-            name: "inventory",
-            rust_name: "Inventory",
-            frequency: ComponentFrequency::Moderate,
-            fields: vec![
-                FieldSchema {
-                    name: "inventory_size",
-                    rust_name: "size",
-                    field_type: FieldType::Integer,
-                    is_primary: false,
-                },
-                FieldSchema {
-                    name: "container_type",
-                    rust_name: "container_type",
-                    field_type: FieldType::Option(Box::new(FieldType::String)),
-                    is_primary: false,
-                },
-                FieldSchema {
-                    name: "can_be_siphoned_from",
-                    rust_name: "can_be_siphoned_from",
-                    field_type: FieldType::Bool,
-                    is_primary: false,
-                },
-                FieldSchema {
-                    name: "private",
-                    rust_name: "private",
-                    field_type: FieldType::Bool,
-                    is_primary: false,
-                },
-            ],
-            is_marker: false,
-        },
-    );
-
-    // === Breathable Component ===
-
-    schemas.insert(
-        "breathable",
-        ComponentSchema {
-            name: "breathable",
-            rust_name: "Breathable",
-            frequency: ComponentFrequency::Common,
-            fields: vec![
-                FieldSchema {
-                    name: "total_supply",
-                    rust_name: "total_supply",
-                    field_type: FieldType::Integer,
-                    is_primary: false,
-                },
-                FieldSchema {
-                    name: "suffocate_time",
-                    rust_name: "suffocate_time",
-                    field_type: FieldType::Integer,
-                    is_primary: false,
-                },
-                FieldSchema {
-                    name: "breathes_air",
-                    rust_name: "breathes_air",
-                    field_type: FieldType::Bool,
-                    is_primary: false,
-                },
-                FieldSchema {
-                    name: "breathes_water",
-                    rust_name: "breathes_water",
-                    field_type: FieldType::Bool,
-                    is_primary: false,
-                },
-                FieldSchema {
-                    name: "breathes_lava",
-                    rust_name: "breathes_lava",
-                    field_type: FieldType::Bool,
-                    is_primary: false,
-                },
-                FieldSchema {
-                    name: "breathes_solids",
-                    rust_name: "breathes_solids",
-                    field_type: FieldType::Bool,
-                    is_primary: false,
-                },
-                FieldSchema {
-                    name: "generates_bubbles",
-                    rust_name: "generates_bubbles",
-                    field_type: FieldType::Bool,
-                    is_primary: false,
-                },
-            ],
-            is_marker: false,
-        },
-    );
-
-    schemas
+    candidate
 }
 
-/// Components that should use SparseSet storage
-/// These are added/removed frequently or very rare
-pub fn get_sparse_components() -> Vec<&'static str> {
-    vec![
-        // State changes - frequently added/removed
-        "is_baby",
-        "is_tamed",
-        "is_saddled",
-        "is_sheared",
-        "is_ignited",
-        "is_charged",
-        "is_stunned",
-        "is_illager_captain",
-        // Rare entity features
-        "can_fly",
-        "can_power_jump",
-        "fire_immune",
-        "burns_in_daylight",
-        "floats_in_liquid",
-        "flying_speed",
-        "glide",
-        // Boss-specific
-        "boss",
-        // Temporary effects
-        "angry",
-        "on_fire",
-        "strength",
-    ]
+fn is_rust_keyword(value: &str) -> bool {
+    matches!(
+        value,
+        "as" | "break"
+            | "const"
+            | "continue"
+            | "crate"
+            | "else"
+            | "enum"
+            | "extern"
+            | "false"
+            | "fn"
+            | "for"
+            | "if"
+            | "impl"
+            | "in"
+            | "let"
+            | "loop"
+            | "match"
+            | "mod"
+            | "move"
+            | "mut"
+            | "pub"
+            | "ref"
+            | "return"
+            | "self"
+            | "Self"
+            | "static"
+            | "struct"
+            | "super"
+            | "trait"
+            | "true"
+            | "type"
+            | "unsafe"
+            | "use"
+            | "where"
+            | "while"
+            | "async"
+            | "await"
+            | "dyn"
+            | "abstract"
+            | "become"
+            | "box"
+            | "do"
+            | "final"
+            | "macro"
+            | "override"
+            | "priv"
+            | "typeof"
+            | "unsized"
+            | "virtual"
+            | "yield"
+            | "try"
+    )
 }

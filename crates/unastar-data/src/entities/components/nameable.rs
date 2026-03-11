@@ -1,4 +1,7 @@
 use bevy_ecs::prelude::*;
-/// Bedrock component `minecraft:nameable`
-#[derive(Component, Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
-pub struct Nameable;
+/// Component DTO for `minecraft:nameable`
+#[derive(Component, Debug, Clone, Default, PartialEq)]
+pub struct Nameable {
+    /// Raw data - schema not yet defined
+    pub data: Option<serde_json::Value>,
+}

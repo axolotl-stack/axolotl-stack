@@ -14,12 +14,12 @@ impl Nautilus {
 /// Component bundle for spawning a `minecraft:nautilus`
 #[derive(Bundle, Clone)]
 pub struct NautilusBundle {
-    pub attack: Attack,
-    pub breathable: Breathable,
+    pub behavior_random_swim: BehaviorRandomSwim,
     pub collision_box: CollisionBox,
-    pub health: Health,
+    pub experience_reward: ExperienceReward,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub nameable: Nameable,
+    pub loot: Loot,
+    pub movement_sway: MovementSway,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -27,37 +27,41 @@ pub struct NautilusBundle {
 pub fn spawn_nautilus(commands: &mut Commands) -> Entity {
     commands
         .spawn(NautilusBundle {
-            attack: Attack {
-                damage: 3i32,
-                effect_name: None,
-                effect_duration: None,
-            },
-            breathable: Breathable {
-                total_supply: 15i32,
-                suffocate_time: 0i32,
-                breathes_air: false,
-                breathes_water: true,
-                breathes_lava: false,
-                breathes_solids: false,
-                generates_bubbles: false,
+            behavior_random_swim: BehaviorRandomSwim {
+                avoid_surface: Some(true),
+                interval: Some(0i32),
+                priority: Some(6i32),
+                speed_multiplier: Some(1.5f32),
+                xz_dist: Some(16i32),
+                y_dist: Some(4i32),
             },
             collision_box: CollisionBox {
-                width: 0.6f32,
-                height: 1.8f32,
+                height: Some(1.8f32),
+                width: Some(0.6f32),
             },
-            health: Health {
-                value: 15i32,
-                max: Some(15i32),
+            experience_reward: ExperienceReward {
+                on_bred: Some("Math.Random(1,7)".to_string()),
+                on_death: Some(
+                    "query.last_hit_by_player && !query.is_baby ? Math.Random(1,3) : 0".to_string(),
+                ),
             },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            nameable: Nameable,
+            loot: Loot {
+                table: "loot_tables/entities/nautilus.json".to_string(),
+            },
+            movement_sway: MovementSway {
+                max_turn: Some(30f32),
+                sway_amplitude: Some(0f32),
+                sway_frequency: Some(0.5f32),
+            },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

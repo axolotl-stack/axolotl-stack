@@ -23,16 +23,17 @@ pub fn spawn_breeze_wind_charge_projectile(commands: &mut Commands) -> Entity {
     commands
         .spawn(BreezeWindChargeProjectileBundle {
             collision_box: CollisionBox {
-                width: 0.3125f32,
-                height: 0.3125f32,
+                height: Some(0.3125f32),
+                width: Some(0.3125f32),
             },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: false,
-                is_pushable_by_piston: true,
+                is_pushable: Some(false),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

@@ -1,7 +1,18 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:behavior.flee_sun`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+/// Bedrock component `minecraft:behavior.flee_sun`. Allows the mob to run away from direct sunlight and seek shade.
+#[derive(Component, Debug, Clone, PartialEq)]
+#[component(storage = "SparseSet")]
 pub struct BehaviorFleeSun {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    /// priority
+    pub priority: Option<i32>,
+    /// speed_multiplier
+    pub speed_multiplier: Option<f32>,
+}
+impl Default for BehaviorFleeSun {
+    fn default() -> Self {
+        Self {
+            priority: None,
+            speed_multiplier: Some(1f32),
+        }
+    }
 }

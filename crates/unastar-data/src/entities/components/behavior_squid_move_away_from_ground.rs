@@ -1,7 +1,13 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:behavior.squid_move_away_from_ground`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+/// Bedrock component `minecraft:behavior.squid_move_away_from_ground`. Allows the squid to move away from ground blocks and back to water. Can only be used by the Squid.
+#[derive(Component, Debug, Clone, PartialEq)]
+#[component(storage = "SparseSet")]
 pub struct BehaviorSquidMoveAwayFromGround {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    /// priority
+    pub priority: Option<i32>,
+}
+impl Default for BehaviorSquidMoveAwayFromGround {
+    fn default() -> Self {
+        Self { priority: None }
+    }
 }

@@ -14,13 +14,13 @@ impl ZombieNautilus {
 /// Component bundle for spawning a `minecraft:zombie_nautilus`
 #[derive(Bundle, Clone)]
 pub struct ZombieNautilusBundle {
-    pub attack: Attack,
-    pub breathable: Breathable,
-    pub burns_in_daylight: BurnsInDaylight,
+    pub behavior_random_swim: BehaviorRandomSwim,
     pub collision_box: CollisionBox,
-    pub health: Health,
+    pub experience_reward: ExperienceReward,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub nameable: Nameable,
+    pub leashable_to: LeashableTo,
+    pub loot: Loot,
+    pub movement_sway: MovementSway,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -28,38 +28,42 @@ pub struct ZombieNautilusBundle {
 pub fn spawn_zombie_nautilus(commands: &mut Commands) -> Entity {
     commands
         .spawn(ZombieNautilusBundle {
-            attack: Attack {
-                damage: 3i32,
-                effect_name: None,
-                effect_duration: None,
+            behavior_random_swim: BehaviorRandomSwim {
+                avoid_surface: Some(true),
+                interval: Some(0i32),
+                priority: Some(4i32),
+                speed_multiplier: Some(1.5f32),
+                xz_dist: Some(16i32),
+                y_dist: Some(4i32),
             },
-            breathable: Breathable {
-                total_supply: 15i32,
-                suffocate_time: 0i32,
-                breathes_air: true,
-                breathes_water: true,
-                breathes_lava: false,
-                breathes_solids: false,
-                generates_bubbles: false,
-            },
-            burns_in_daylight: BurnsInDaylight,
             collision_box: CollisionBox {
-                width: 0.875f32,
-                height: 0.95f32,
+                height: Some(0.95f32),
+                width: Some(0.875f32),
             },
-            health: Health {
-                value: 15i32,
-                max: Some(15i32),
+            experience_reward: ExperienceReward {
+                on_bred: None,
+                on_death: Some("query.last_hit_by_player ? Math.Random(1,3) : 0".to_string()),
             },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            nameable: Nameable,
+            leashable_to: LeashableTo {
+                can_retrieve_from: Some(false),
+            },
+            loot: Loot {
+                table: "loot_tables/entities/zombie_nautilus.json".to_string(),
+            },
+            movement_sway: MovementSway {
+                max_turn: Some(30f32),
+                sway_amplitude: Some(0f32),
+                sway_frequency: Some(0.5f32),
+            },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

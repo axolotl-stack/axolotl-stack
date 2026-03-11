@@ -23,16 +23,17 @@ pub fn spawn_area_effect_cloud(commands: &mut Commands) -> Entity {
     commands
         .spawn(AreaEffectCloudBundle {
             collision_box: CollisionBox {
-                width: 0.6f32,
-                height: 1.8f32,
+                height: Some(1.8f32),
+                width: Some(0.6f32),
             },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(false),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

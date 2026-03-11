@@ -14,13 +14,14 @@ impl Hoglin {
 /// Component bundle for spawning a `minecraft:hoglin`
 #[derive(Bundle, Clone)]
 pub struct HoglinBundle {
-    pub breathable: Breathable,
+    pub balloonable: Balloonable,
+    pub behavior_random_stroll: BehaviorRandomStroll,
     pub can_climb: CanClimb,
     pub collision_box: CollisionBox,
-    pub health: Health,
+    pub experience_reward: ExperienceReward,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub leashable: Leashable,
-    pub nameable: Nameable,
+    pub jump_static: JumpStatic,
+    pub movement_basic: MovementBasic,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -28,34 +29,44 @@ pub struct HoglinBundle {
 pub fn spawn_hoglin(commands: &mut Commands) -> Entity {
     commands
         .spawn(HoglinBundle {
-            breathable: Breathable {
-                total_supply: 15i32,
-                suffocate_time: 0i32,
-                breathes_air: false,
-                breathes_water: false,
-                breathes_lava: false,
-                breathes_solids: false,
-                generates_bubbles: false,
+            balloonable: Balloonable {
+                mass: None,
+                max_distance: None,
+                on_balloon: None,
+                on_unballoon: None,
+                soft_distance: None,
+            },
+            behavior_random_stroll: BehaviorRandomStroll {
+                interval: Some(120i32),
+                priority: Some(7i32),
+                speed_multiplier: Some(0.4f32),
+                xz_dist: Some(10i32),
+                y_dist: Some(7i32),
             },
             can_climb: CanClimb,
             collision_box: CollisionBox {
-                width: 0.6f32,
-                height: 1.8f32,
+                height: Some(1.8f32),
+                width: Some(0.6f32),
             },
-            health: Health {
-                value: 40i32,
-                max: Some(40i32),
+            experience_reward: ExperienceReward {
+                on_bred: Some("Math.Random(1,7)".to_string()),
+                on_death: Some("query.last_hit_by_player ? 5 : 0".to_string()),
             },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            leashable: Leashable,
-            nameable: Nameable,
+            jump_static: JumpStatic {
+                jump_power: Some(0.42f32),
+            },
+            movement_basic: MovementBasic {
+                max_turn: Some(30f32),
+            },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

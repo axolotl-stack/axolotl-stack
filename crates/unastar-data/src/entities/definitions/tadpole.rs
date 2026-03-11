@@ -14,13 +14,11 @@ impl Tadpole {
 /// Component bundle for spawning a `minecraft:tadpole`
 #[derive(Bundle, Clone)]
 pub struct TadpoleBundle {
-    pub breathable: Breathable,
+    pub behavior_random_swim: BehaviorRandomSwim,
     pub collision_box: CollisionBox,
-    pub health: Health,
     pub is_baby: IsBaby,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub movement: Movement,
-    pub nameable: Nameable,
+    pub movement_sway: MovementSway,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -28,34 +26,33 @@ pub struct TadpoleBundle {
 pub fn spawn_tadpole(commands: &mut Commands) -> Entity {
     commands
         .spawn(TadpoleBundle {
-            breathable: Breathable {
-                total_supply: 8i32,
-                suffocate_time: 0i32,
-                breathes_air: false,
-                breathes_water: true,
-                breathes_lava: false,
-                breathes_solids: false,
-                generates_bubbles: false,
+            behavior_random_swim: BehaviorRandomSwim {
+                avoid_surface: Some(true),
+                interval: Some(100i32),
+                priority: Some(2i32),
+                speed_multiplier: Some(1f32),
+                xz_dist: Some(10i32),
+                y_dist: Some(7i32),
             },
             collision_box: CollisionBox {
-                width: 0.8f32,
-                height: 0.6f32,
-            },
-            health: Health {
-                value: 6i32,
-                max: None,
+                height: Some(0.6f32),
+                width: Some(0.8f32),
             },
             is_baby: IsBaby,
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            movement: Movement { speed: 0.1f32 },
-            nameable: Nameable,
+            movement_sway: MovementSway {
+                max_turn: Some(30f32),
+                sway_amplitude: Some(0f32),
+                sway_frequency: Some(0.5f32),
+            },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: false,
-                is_pushable_by_piston: false,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

@@ -1,7 +1,13 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:behavior.stay_while_sitting`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+/// Bedrock component `minecraft:behavior.stay_while_sitting`. Allows the mob to stay put while it is in a sitting state instead of doing something else.
+#[derive(Component, Debug, Clone, PartialEq)]
+#[component(storage = "SparseSet")]
 pub struct BehaviorStayWhileSitting {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    /// priority
+    pub priority: Option<i32>,
+}
+impl Default for BehaviorStayWhileSitting {
+    fn default() -> Self {
+        Self { priority: None }
+    }
 }

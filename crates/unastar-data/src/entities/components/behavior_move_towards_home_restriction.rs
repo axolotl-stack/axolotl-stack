@@ -1,7 +1,18 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:behavior.move_towards_home_restriction`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+/// Bedrock component `minecraft:behavior.move_towards_home_restriction`. Allows mobs with the home component to move toward their pre-defined area that the mob should be restricted to.
+#[derive(Component, Debug, Clone, PartialEq)]
+#[component(storage = "SparseSet")]
 pub struct BehaviorMoveTowardsHomeRestriction {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    /// priority
+    pub priority: Option<i32>,
+    /// speed_multiplier
+    pub speed_multiplier: Option<f32>,
+}
+impl Default for BehaviorMoveTowardsHomeRestriction {
+    fn default() -> Self {
+        Self {
+            priority: Some(0i32),
+            speed_multiplier: Some(1f32),
+        }
+    }
 }

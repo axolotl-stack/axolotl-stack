@@ -14,55 +14,63 @@ impl Zombie {
 /// Component bundle for spawning a `minecraft:zombie`
 #[derive(Bundle, Clone)]
 pub struct ZombieBundle {
-    pub attack: Attack,
-    pub breathable: Breathable,
-    pub burns_in_daylight: BurnsInDaylight,
+    pub behavior_equip_item: BehaviorEquipItem,
+    pub behavior_random_stroll: BehaviorRandomStroll,
+    pub behavior_stomp_turtle_egg: BehaviorStompTurtleEgg,
     pub can_climb: CanClimb,
     pub collision_box: CollisionBox,
-    pub health: Health,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub nameable: Nameable,
+    pub jump_static: JumpStatic,
+    pub movement_basic: MovementBasic,
     pub physics: Physics,
     pub pushable: Pushable,
+    pub rotation_locked_to_vehicle: RotationLockedToVehicle,
 }
 /// Spawn a new `minecraft:zombie` entity with default Bedrock components
 pub fn spawn_zombie(commands: &mut Commands) -> Entity {
     commands
         .spawn(ZombieBundle {
-            attack: Attack {
-                damage: 3i32,
-                effect_name: None,
-                effect_duration: None,
+            behavior_equip_item: BehaviorEquipItem {
+                priority: Some(2i32),
             },
-            breathable: Breathable {
-                total_supply: 15i32,
-                suffocate_time: 0i32,
-                breathes_air: true,
-                breathes_water: true,
-                breathes_lava: false,
-                breathes_solids: false,
-                generates_bubbles: false,
+            behavior_random_stroll: BehaviorRandomStroll {
+                interval: Some(120i32),
+                priority: Some(7i32),
+                speed_multiplier: Some(1f32),
+                xz_dist: Some(10i32),
+                y_dist: Some(7i32),
             },
-            burns_in_daylight: BurnsInDaylight,
+            behavior_stomp_turtle_egg: BehaviorStompTurtleEgg {
+                goal_radius: Some(1.14f32),
+                interval: Some(20i32),
+                priority: Some(5i32),
+                search_count: None,
+                search_height: Some(2i32),
+                search_range: Some(10i32),
+                speed_multiplier: Some(1f32),
+            },
             can_climb: CanClimb,
             collision_box: CollisionBox {
-                width: 0.6f32,
-                height: 1.9f32,
-            },
-            health: Health {
-                value: 20i32,
-                max: Some(20i32),
+                height: Some(1.9f32),
+                width: Some(0.6f32),
             },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            nameable: Nameable,
+            jump_static: JumpStatic {
+                jump_power: Some(0.42f32),
+            },
+            movement_basic: MovementBasic {
+                max_turn: Some(30f32),
+            },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
+            rotation_locked_to_vehicle: RotationLockedToVehicle,
         })
         .id()
 }

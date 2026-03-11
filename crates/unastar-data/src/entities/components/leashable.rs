@@ -1,4 +1,7 @@
 use bevy_ecs::prelude::*;
-/// Bedrock component `minecraft:leashable`
-#[derive(Component, Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
-pub struct Leashable;
+/// Component DTO for `minecraft:leashable`
+#[derive(Component, Debug, Clone, Default, PartialEq)]
+pub struct Leashable {
+    /// Raw data - schema not yet defined
+    pub data: Option<serde_json::Value>,
+}

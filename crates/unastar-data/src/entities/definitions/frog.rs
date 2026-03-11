@@ -14,13 +14,16 @@ impl Frog {
 /// Component bundle for spawning a `minecraft:frog`
 #[derive(Bundle, Clone)]
 pub struct FrogBundle {
-    pub breathable: Breathable,
+    pub behavior_breed: BehaviorBreed,
+    pub behavior_eat_mob: BehaviorEatMob,
+    pub behavior_move_to_land: BehaviorMoveToLand,
+    pub behavior_random_stroll: BehaviorRandomStroll,
     pub collision_box: CollisionBox,
-    pub health: Health,
+    pub experience_reward: ExperienceReward,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub leashable: Leashable,
-    pub movement: Movement,
-    pub nameable: Nameable,
+    pub jump_static: JumpStatic,
+    pub leashable_to: LeashableTo,
+    pub movement_amphibious: MovementAmphibious,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -28,34 +31,60 @@ pub struct FrogBundle {
 pub fn spawn_frog(commands: &mut Commands) -> Entity {
     commands
         .spawn(FrogBundle {
-            breathable: Breathable {
-                total_supply: 15i32,
-                suffocate_time: 0i32,
-                breathes_air: true,
-                breathes_water: true,
-                breathes_lava: false,
-                breathes_solids: false,
-                generates_bubbles: false,
+            behavior_breed: BehaviorBreed {
+                priority: Some(4i32),
+                speed_multiplier: Some(1f32),
+            },
+            behavior_eat_mob: BehaviorEatMob {
+                eat_animation_time: Some(1f32),
+                eat_mob_sound: Some("".to_string()),
+                loot_table: Some("".to_string()),
+                priority: Some(0i32),
+                pull_in_force: Some(1f32),
+                reach_mob_distance: Some(1f32),
+                run_speed: Some(1f32),
+            },
+            behavior_move_to_land: BehaviorMoveToLand {
+                goal_radius: Some(2f32),
+                priority: Some(6i32),
+                search_count: Some(80i32),
+                search_height: Some(8i32),
+                search_range: Some(30i32),
+                speed_multiplier: Some(1f32),
+            },
+            behavior_random_stroll: BehaviorRandomStroll {
+                interval: Some(120i32),
+                priority: Some(11i32),
+                speed_multiplier: Some(1f32),
+                xz_dist: Some(10i32),
+                y_dist: Some(7i32),
             },
             collision_box: CollisionBox {
-                width: 0.5f32,
-                height: 0.55f32,
+                height: Some(0.55f32),
+                width: Some(0.5f32),
             },
-            health: Health {
-                value: 10i32,
-                max: None,
+            experience_reward: ExperienceReward {
+                on_bred: Some("Math.Random(1,7)".to_string()),
+                on_death: Some("query.last_hit_by_player ? Math.Random(1,3) : 0".to_string()),
             },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            leashable: Leashable,
-            movement: Movement { speed: 0.1f32 },
-            nameable: Nameable,
+            jump_static: JumpStatic {
+                jump_power: Some(0.42f32),
+            },
+            leashable_to: LeashableTo {
+                can_retrieve_from: Some(false),
+            },
+            movement_amphibious: MovementAmphibious {
+                max_turn: Some(30f32),
+            },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: false,
-                is_pushable_by_piston: false,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

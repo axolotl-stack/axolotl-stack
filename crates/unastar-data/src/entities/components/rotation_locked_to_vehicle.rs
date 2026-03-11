@@ -1,7 +1,5 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:rotation_locked_to_vehicle`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
-pub struct RotationLockedToVehicle {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
-}
+/// Bedrock component `minecraft:rotation_locked_to_vehicle`. Aligns both the entity's body rotation and its overall rotation with that of its mounted vehicle
+#[derive(Component, Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[component(storage = "SparseSet")]
+pub struct RotationLockedToVehicle;

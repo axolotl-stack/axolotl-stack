@@ -1,7 +1,14 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:movement.basic`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+/// Bedrock component `minecraft:movement.basic`. defines the movement of an entity.
+#[derive(Component, Debug, Clone, PartialEq)]
 pub struct MovementBasic {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    /// max_turn
+    pub max_turn: Option<f32>,
+}
+impl Default for MovementBasic {
+    fn default() -> Self {
+        Self {
+            max_turn: Some(30f32),
+        }
+    }
 }

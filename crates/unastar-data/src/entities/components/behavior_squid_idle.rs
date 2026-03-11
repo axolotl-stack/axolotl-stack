@@ -1,7 +1,13 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:behavior.squid_idle`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+/// Bedrock component `minecraft:behavior.squid_idle`. Allows the squid to swim in place idly. Can only be used by the Squid.
+#[derive(Component, Debug, Clone, PartialEq)]
+#[component(storage = "SparseSet")]
 pub struct BehaviorSquidIdle {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    /// priority
+    pub priority: Option<i32>,
+}
+impl Default for BehaviorSquidIdle {
+    fn default() -> Self {
+        Self { priority: None }
+    }
 }

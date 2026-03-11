@@ -1,12 +1,7 @@
 use bevy_ecs::prelude::*;
-/// Bedrock component `minecraft:follow_range`
-#[derive(Component, Debug, Clone, PartialEq)]
+/// Component DTO for `minecraft:follow_range`
+#[derive(Component, Debug, Clone, Default, PartialEq)]
 pub struct FollowRange {
-    /// value
-    pub range: i32,
-}
-impl Default for FollowRange {
-    fn default() -> Self {
-        Self { range: 16i32 }
-    }
+    /// Raw data - schema not yet defined
+    pub data: Option<serde_json::Value>,
 }

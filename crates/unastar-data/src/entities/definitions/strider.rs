@@ -14,13 +14,13 @@ impl Strider {
 /// Component bundle for spawning a `minecraft:strider`
 #[derive(Bundle, Clone)]
 pub struct StriderBundle {
+    pub balloonable: Balloonable,
     pub collision_box: CollisionBox,
     pub fire_immune: FireImmune,
-    pub health: Health,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub leashable: Leashable,
-    pub movement: Movement,
-    pub nameable: Nameable,
+    pub jump_static: JumpStatic,
+    pub movement_basic: MovementBasic,
+    pub movement_sound_distance_offset: MovementSoundDistanceOffset,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -28,26 +28,34 @@ pub struct StriderBundle {
 pub fn spawn_strider(commands: &mut Commands) -> Entity {
     commands
         .spawn(StriderBundle {
+            balloonable: Balloonable {
+                mass: None,
+                max_distance: None,
+                on_balloon: None,
+                on_unballoon: None,
+                soft_distance: None,
+            },
             collision_box: CollisionBox {
-                width: 0.9f32,
-                height: 1.7f32,
+                height: Some(1.7f32),
+                width: Some(0.9f32),
             },
             fire_immune: FireImmune,
-            health: Health {
-                value: 20i32,
-                max: Some(20i32),
-            },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            leashable: Leashable,
-            movement: Movement { speed: 0.16f32 },
-            nameable: Nameable,
+            jump_static: JumpStatic {
+                jump_power: Some(0.42f32),
+            },
+            movement_basic: MovementBasic {
+                max_turn: Some(30f32),
+            },
+            movement_sound_distance_offset: MovementSoundDistanceOffset { value: 0.6f32 },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

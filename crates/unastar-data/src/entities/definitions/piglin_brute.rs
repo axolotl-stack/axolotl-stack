@@ -14,13 +14,14 @@ impl PiglinBrute {
 /// Component bundle for spawning a `minecraft:piglin_brute`
 #[derive(Bundle, Clone)]
 pub struct PiglinBruteBundle {
-    pub breathable: Breathable,
+    pub annotation_open_door: AnnotationOpenDoor,
+    pub behavior_random_stroll: BehaviorRandomStroll,
     pub collision_box: CollisionBox,
-    pub follow_range: FollowRange,
-    pub health: Health,
+    pub experience_reward: ExperienceReward,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub movement: Movement,
-    pub nameable: Nameable,
+    pub jump_static: JumpStatic,
+    pub loot: Loot,
+    pub movement_basic: MovementBasic,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -28,34 +29,40 @@ pub struct PiglinBruteBundle {
 pub fn spawn_piglin_brute(commands: &mut Commands) -> Entity {
     commands
         .spawn(PiglinBruteBundle {
-            breathable: Breathable {
-                total_supply: 15i32,
-                suffocate_time: 0i32,
-                breathes_air: false,
-                breathes_water: false,
-                breathes_lava: false,
-                breathes_solids: false,
-                generates_bubbles: false,
+            annotation_open_door: AnnotationOpenDoor,
+            behavior_random_stroll: BehaviorRandomStroll {
+                interval: Some(120i32),
+                priority: Some(7i32),
+                speed_multiplier: Some(0.6f32),
+                xz_dist: Some(10i32),
+                y_dist: Some(7i32),
             },
             collision_box: CollisionBox {
-                width: 0.6f32,
-                height: 1.9f32,
+                height: Some(1.9f32),
+                width: Some(0.6f32),
             },
-            follow_range: FollowRange { range: 64i32 },
-            health: Health {
-                value: 50i32,
-                max: Some(50i32),
+            experience_reward: ExperienceReward {
+                on_bred: None,
+                on_death: Some("query.last_hit_by_player ? 20 : 0".to_string()),
             },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            movement: Movement { speed: 0.35f32 },
-            nameable: Nameable,
+            jump_static: JumpStatic {
+                jump_power: Some(0.42f32),
+            },
+            loot: Loot {
+                table: "loot_tables/entities/piglin.json".to_string(),
+            },
+            movement_basic: MovementBasic {
+                max_turn: Some(30f32),
+            },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

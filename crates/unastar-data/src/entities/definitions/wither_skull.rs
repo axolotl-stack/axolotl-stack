@@ -15,6 +15,7 @@ impl WitherSkull {
 #[derive(Bundle, Clone)]
 pub struct WitherSkullBundle {
     pub collision_box: CollisionBox,
+    pub dimension_bound: DimensionBound,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -23,16 +24,18 @@ pub fn spawn_wither_skull(commands: &mut Commands) -> Entity {
     commands
         .spawn(WitherSkullBundle {
             collision_box: CollisionBox {
-                width: 0.15f32,
-                height: 0.15f32,
+                height: Some(0.15f32),
+                width: Some(0.15f32),
             },
+            dimension_bound: DimensionBound,
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

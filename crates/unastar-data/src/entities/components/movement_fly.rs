@@ -1,7 +1,15 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:movement.fly`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+/// Bedrock component `minecraft:movement.fly`. This move control causes the mob to fly.
+#[derive(Component, Debug, Clone, PartialEq)]
+#[component(storage = "SparseSet")]
 pub struct MovementFly {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    /// max_turn
+    pub max_turn: Option<f32>,
+}
+impl Default for MovementFly {
+    fn default() -> Self {
+        Self {
+            max_turn: Some(30f32),
+        }
+    }
 }

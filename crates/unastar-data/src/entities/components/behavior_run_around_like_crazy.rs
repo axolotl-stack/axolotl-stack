@@ -1,7 +1,18 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:behavior.run_around_like_crazy`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+/// Bedrock component `minecraft:behavior.run_around_like_crazy`. Allows the mob to run around aimlessly.
+#[derive(Component, Debug, Clone, PartialEq)]
+#[component(storage = "SparseSet")]
 pub struct BehaviorRunAroundLikeCrazy {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    /// priority
+    pub priority: Option<i32>,
+    /// speed_multiplier
+    pub speed_multiplier: Option<f32>,
+}
+impl Default for BehaviorRunAroundLikeCrazy {
+    fn default() -> Self {
+        Self {
+            priority: None,
+            speed_multiplier: Some(1f32),
+        }
+    }
 }

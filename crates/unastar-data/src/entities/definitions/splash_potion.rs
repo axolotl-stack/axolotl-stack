@@ -23,16 +23,17 @@ pub fn spawn_splash_potion(commands: &mut Commands) -> Entity {
     commands
         .spawn(SplashPotionBundle {
             collision_box: CollisionBox {
-                width: 0.25f32,
-                height: 0.25f32,
+                height: Some(0.25f32),
+                width: Some(0.25f32),
             },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

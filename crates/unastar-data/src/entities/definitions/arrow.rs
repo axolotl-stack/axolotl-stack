@@ -15,6 +15,7 @@ impl Arrow {
 #[derive(Bundle, Clone)]
 pub struct ArrowBundle {
     pub collision_box: CollisionBox,
+    pub dimension_bound: DimensionBound,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -23,16 +24,18 @@ pub fn spawn_arrow(commands: &mut Commands) -> Entity {
     commands
         .spawn(ArrowBundle {
             collision_box: CollisionBox {
-                width: 0.25f32,
-                height: 0.25f32,
+                height: Some(0.25f32),
+                width: Some(0.25f32),
             },
+            dimension_bound: DimensionBound,
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: false,
-                is_pushable_by_piston: true,
+                is_pushable: Some(false),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

@@ -14,55 +14,72 @@ impl Spider {
 /// Component bundle for spawning a `minecraft:spider`
 #[derive(Bundle, Clone)]
 pub struct SpiderBundle {
-    pub attack: Attack,
-    pub breathable: Breathable,
+    pub behavior_float: BehaviorFloat,
+    pub behavior_mount_pathing: BehaviorMountPathing,
+    pub behavior_random_stroll: BehaviorRandomStroll,
     pub can_climb: CanClimb,
     pub collision_box: CollisionBox,
-    pub health: Health,
+    pub experience_reward: ExperienceReward,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub movement: Movement,
-    pub nameable: Nameable,
+    pub jump_static: JumpStatic,
+    pub loot: Loot,
+    pub movement_basic: MovementBasic,
     pub physics: Physics,
     pub pushable: Pushable,
+    pub renders_when_invisible: RendersWhenInvisible,
 }
 /// Spawn a new `minecraft:spider` entity with default Bedrock components
 pub fn spawn_spider(commands: &mut Commands) -> Entity {
     commands
         .spawn(SpiderBundle {
-            attack: Attack {
-                damage: 2i32,
-                effect_name: None,
-                effect_duration: None,
+            behavior_float: BehaviorFloat {
+                chance_per_tick_to_float: Some(0.8f32),
+                priority: Some(1i32),
+                sink_with_passengers: Some(false),
+                time_under_water_to_dismount_passengers: Some(0f32),
             },
-            breathable: Breathable {
-                total_supply: 15i32,
-                suffocate_time: 0i32,
-                breathes_air: false,
-                breathes_water: false,
-                breathes_lava: false,
-                breathes_solids: false,
-                generates_bubbles: false,
+            behavior_mount_pathing: BehaviorMountPathing {
+                priority: Some(5i32),
+                speed_multiplier: Some(1.25f32),
+                target_dist: Some(0f32),
+                track_target: Some(true),
+            },
+            behavior_random_stroll: BehaviorRandomStroll {
+                interval: Some(120i32),
+                priority: Some(6i32),
+                speed_multiplier: Some(0.8f32),
+                xz_dist: Some(10i32),
+                y_dist: Some(7i32),
             },
             can_climb: CanClimb,
             collision_box: CollisionBox {
-                width: 1.4f32,
-                height: 0.9f32,
+                height: Some(0.9f32),
+                width: Some(1.4f32),
             },
-            health: Health {
-                value: 16i32,
-                max: Some(16i32),
+            experience_reward: ExperienceReward {
+                on_bred: None,
+                on_death: Some("query.last_hit_by_player ? 5 : 0".to_string()),
             },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            movement: Movement { speed: 0.3f32 },
-            nameable: Nameable,
+            jump_static: JumpStatic {
+                jump_power: Some(0.42f32),
+            },
+            loot: Loot {
+                table: "loot_tables/entities/spider.json".to_string(),
+            },
+            movement_basic: MovementBasic {
+                max_turn: Some(30f32),
+            },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
+            renders_when_invisible: RendersWhenInvisible,
         })
         .id()
 }

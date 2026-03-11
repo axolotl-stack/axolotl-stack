@@ -15,7 +15,7 @@ impl TripodCamera {
 #[derive(Bundle, Clone)]
 pub struct TripodCameraBundle {
     pub collision_box: CollisionBox,
-    pub health: Health,
+    pub loot: Loot,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -24,20 +24,20 @@ pub fn spawn_tripod_camera(commands: &mut Commands) -> Entity {
     commands
         .spawn(TripodCameraBundle {
             collision_box: CollisionBox {
-                width: 0.75f32,
-                height: 1.8f32,
+                height: Some(1.8f32),
+                width: Some(0.75f32),
             },
-            health: Health {
-                value: 4i32,
-                max: Some(4i32),
+            loot: Loot {
+                table: "loot_tables/empty.json".to_string(),
             },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

@@ -14,14 +14,14 @@ impl Axolotl {
 /// Component bundle for spawning a `minecraft:axolotl`
 #[derive(Bundle, Clone)]
 pub struct AxolotlBundle {
-    pub attack: Attack,
-    pub breathable: Breathable,
+    pub behavior_move_to_water: BehaviorMoveToWater,
+    pub behavior_random_stroll: BehaviorRandomStroll,
+    pub behavior_random_swim: BehaviorRandomSwim,
     pub collision_box: CollisionBox,
-    pub health: Health,
+    pub combat_regeneration: CombatRegeneration,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub leashable: Leashable,
-    pub movement: Movement,
-    pub nameable: Nameable,
+    pub jump_static: JumpStatic,
+    pub movement_amphibious: MovementAmphibious,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -29,39 +29,53 @@ pub struct AxolotlBundle {
 pub fn spawn_axolotl(commands: &mut Commands) -> Entity {
     commands
         .spawn(AxolotlBundle {
-            attack: Attack {
-                damage: 2i32,
-                effect_name: None,
-                effect_duration: None,
+            behavior_move_to_water: BehaviorMoveToWater {
+                goal_radius: Some(0.1f32),
+                priority: Some(6i32),
+                search_count: Some(1i32),
+                search_height: Some(5i32),
+                search_range: Some(16i32),
+                speed_multiplier: Some(1f32),
             },
-            breathable: Breathable {
-                total_supply: 15i32,
-                suffocate_time: 0i32,
-                breathes_air: true,
-                breathes_water: true,
-                breathes_lava: false,
-                breathes_solids: false,
-                generates_bubbles: false,
+            behavior_random_stroll: BehaviorRandomStroll {
+                interval: Some(100i32),
+                priority: Some(9i32),
+                speed_multiplier: Some(1f32),
+                xz_dist: Some(10i32),
+                y_dist: Some(7i32),
+            },
+            behavior_random_swim: BehaviorRandomSwim {
+                avoid_surface: Some(true),
+                interval: Some(0i32),
+                priority: Some(8i32),
+                speed_multiplier: Some(1f32),
+                xz_dist: Some(30i32),
+                y_dist: Some(15i32),
             },
             collision_box: CollisionBox {
-                width: 0.75f32,
-                height: 0.42f32,
+                height: Some(0.42f32),
+                width: Some(0.75f32),
             },
-            health: Health {
-                value: 14i32,
-                max: None,
+            combat_regeneration: CombatRegeneration {
+                apply_to_family: Some(false),
+                apply_to_self: Some(false),
+                regeneration_duration: Some("5".to_string()),
             },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            leashable: Leashable,
-            movement: Movement { speed: 0.1f32 },
-            nameable: Nameable,
+            jump_static: JumpStatic {
+                jump_power: Some(0.42f32),
+            },
+            movement_amphibious: MovementAmphibious {
+                max_turn: Some(15f32),
+            },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

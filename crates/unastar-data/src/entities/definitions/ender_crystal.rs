@@ -16,7 +16,6 @@ impl EnderCrystal {
 pub struct EnderCrystalBundle {
     pub collision_box: CollisionBox,
     pub fire_immune: FireImmune,
-    pub health: Health,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -25,21 +24,18 @@ pub fn spawn_ender_crystal(commands: &mut Commands) -> Entity {
     commands
         .spawn(EnderCrystalBundle {
             collision_box: CollisionBox {
-                width: 2f32,
-                height: 2f32,
+                height: Some(2f32),
+                width: Some(2f32),
             },
             fire_immune: FireImmune,
-            health: Health {
-                value: 1i32,
-                max: Some(1i32),
-            },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

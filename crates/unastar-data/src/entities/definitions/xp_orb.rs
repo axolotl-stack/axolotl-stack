@@ -15,7 +15,6 @@ impl XpOrb {
 #[derive(Bundle, Clone)]
 pub struct XpOrbBundle {
     pub collision_box: CollisionBox,
-    pub health: Health,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -24,20 +23,17 @@ pub fn spawn_xp_orb(commands: &mut Commands) -> Entity {
     commands
         .spawn(XpOrbBundle {
             collision_box: CollisionBox {
-                width: 0.25f32,
-                height: 0.25f32,
-            },
-            health: Health {
-                value: 5i32,
-                max: Some(5i32),
+                height: Some(0.25f32),
+                width: Some(0.25f32),
             },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: false,
-                is_pushable_by_piston: true,
+                is_pushable: Some(false),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

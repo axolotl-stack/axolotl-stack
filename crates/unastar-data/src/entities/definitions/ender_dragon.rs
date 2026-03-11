@@ -14,13 +14,14 @@ impl EnderDragon {
 /// Component bundle for spawning a `minecraft:ender_dragon`
 #[derive(Bundle, Clone)]
 pub struct EnderDragonBundle {
-    pub attack: Attack,
+    pub boss: Boss,
     pub collision_box: CollisionBox,
+    pub dimension_bound: DimensionBound,
     pub fire_immune: FireImmune,
     pub flying_speed: FlyingSpeed,
-    pub health: Health,
+    pub game_event_movement_tracking: GameEventMovementTracking,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub movement: Movement,
+    pub persistent: Persistent,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -28,30 +29,33 @@ pub struct EnderDragonBundle {
 pub fn spawn_ender_dragon(commands: &mut Commands) -> Entity {
     commands
         .spawn(EnderDragonBundle {
-            attack: Attack {
-                damage: 3i32,
-                effect_name: None,
-                effect_duration: None,
+            boss: Boss {
+                hud_range: Some(125i32),
+                name: Some("55".to_string()),
+                should_darken_sky: Some(false),
             },
             collision_box: CollisionBox {
-                width: 13f32,
-                height: 4f32,
+                height: Some(4f32),
+                width: Some(13f32),
             },
+            dimension_bound: DimensionBound,
             fire_immune: FireImmune,
-            flying_speed: FlyingSpeed { speed: 0.6f32 },
-            health: Health {
-                value: 200i32,
-                max: Some(200i32),
+            flying_speed: FlyingSpeed { value: 0.6f32 },
+            game_event_movement_tracking: GameEventMovementTracking {
+                emit_flap: Some(true),
+                emit_move: Some(true),
+                emit_swim: Some(true),
             },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            movement: Movement { speed: 0.3f32 },
+            persistent: Persistent,
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(false),
+                has_gravity: Some(false),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

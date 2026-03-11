@@ -14,14 +14,17 @@ impl CopperGolem {
 /// Component bundle for spawning a `minecraft:copper_golem`
 #[derive(Bundle, Clone)]
 pub struct CopperGolemBundle {
-    pub attack: Attack,
+    pub annotation_open_door: AnnotationOpenDoor,
+    pub balloonable: Balloonable,
+    pub behavior_random_stroll: BehaviorRandomStroll,
     pub can_climb: CanClimb,
     pub collision_box: CollisionBox,
-    pub health: Health,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub leashable: Leashable,
-    pub movement: Movement,
-    pub nameable: Nameable,
+    pub jump_static: JumpStatic,
+    pub leashable_to: LeashableTo,
+    pub loot: Loot,
+    pub movement_basic: MovementBasic,
+    pub persistent: Persistent,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -29,31 +32,48 @@ pub struct CopperGolemBundle {
 pub fn spawn_copper_golem(commands: &mut Commands) -> Entity {
     commands
         .spawn(CopperGolemBundle {
-            attack: Attack {
-                damage: 2i32,
-                effect_name: None,
-                effect_duration: None,
+            annotation_open_door: AnnotationOpenDoor,
+            balloonable: Balloonable {
+                mass: None,
+                max_distance: None,
+                on_balloon: None,
+                on_unballoon: None,
+                soft_distance: None,
+            },
+            behavior_random_stroll: BehaviorRandomStroll {
+                interval: Some(120i32),
+                priority: Some(5i32),
+                speed_multiplier: Some(1f32),
+                xz_dist: Some(3i32),
+                y_dist: Some(7i32),
             },
             can_climb: CanClimb,
             collision_box: CollisionBox {
-                width: 0.6f32,
-                height: 0.98f32,
-            },
-            health: Health {
-                value: 12i32,
-                max: Some(12i32),
+                height: Some(0.98f32),
+                width: Some(0.6f32),
             },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            leashable: Leashable,
-            movement: Movement { speed: 0.2f32 },
-            nameable: Nameable,
+            jump_static: JumpStatic {
+                jump_power: Some(0.42f32),
+            },
+            leashable_to: LeashableTo {
+                can_retrieve_from: Some(false),
+            },
+            loot: Loot {
+                table: "loot_tables/entities/copper_golem.json".to_string(),
+            },
+            movement_basic: MovementBasic {
+                max_turn: Some(30f32),
+            },
+            persistent: Persistent,
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

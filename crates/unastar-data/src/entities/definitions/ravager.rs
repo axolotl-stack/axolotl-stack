@@ -14,14 +14,14 @@ impl Ravager {
 /// Component bundle for spawning a `minecraft:ravager`
 #[derive(Bundle, Clone)]
 pub struct RavagerBundle {
-    pub attack: Attack,
-    pub breathable: Breathable,
+    pub behavior_float: BehaviorFloat,
+    pub can_join_raid: CanJoinRaid,
     pub collision_box: CollisionBox,
-    pub follow_range: FollowRange,
-    pub health: Health,
+    pub experience_reward: ExperienceReward,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub movement: Movement,
-    pub nameable: Nameable,
+    pub jump_static: JumpStatic,
+    pub loot: Loot,
+    pub movement_basic: MovementBasic,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -29,39 +29,39 @@ pub struct RavagerBundle {
 pub fn spawn_ravager(commands: &mut Commands) -> Entity {
     commands
         .spawn(RavagerBundle {
-            attack: Attack {
-                damage: 12i32,
-                effect_name: None,
-                effect_duration: None,
+            behavior_float: BehaviorFloat {
+                chance_per_tick_to_float: Some(0.8f32),
+                priority: Some(0i32),
+                sink_with_passengers: Some(false),
+                time_under_water_to_dismount_passengers: Some(0f32),
             },
-            breathable: Breathable {
-                total_supply: 15i32,
-                suffocate_time: 0i32,
-                breathes_air: false,
-                breathes_water: false,
-                breathes_lava: false,
-                breathes_solids: false,
-                generates_bubbles: false,
-            },
+            can_join_raid: CanJoinRaid,
             collision_box: CollisionBox {
-                width: 1.95f32,
-                height: 2.2f32,
+                height: Some(2.2f32),
+                width: Some(1.95f32),
             },
-            follow_range: FollowRange { range: 64i32 },
-            health: Health {
-                value: 100i32,
-                max: Some(100i32),
+            experience_reward: ExperienceReward {
+                on_bred: None,
+                on_death: Some("query.last_hit_by_player ? 20 : 0".to_string()),
             },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            movement: Movement { speed: 0f32 },
-            nameable: Nameable,
+            jump_static: JumpStatic {
+                jump_power: Some(0.42f32),
+            },
+            loot: Loot {
+                table: "loot_tables/entities/ravager.json".to_string(),
+            },
+            movement_basic: MovementBasic {
+                max_turn: Some(30f32),
+            },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

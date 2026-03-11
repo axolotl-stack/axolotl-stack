@@ -1,10 +1,8 @@
-//! Generated component DTOs from Bedrock behavior packs.
+//! Generated component DTOs from Bedrock entity metadata.
 //!
 //! Components marked with `#[component(storage = "SparseSet")]` are:
-//! - Rarely present across entities, or
-//! - Frequently added/removed at runtime
-//!
-//! All other components use the default Table storage for cache-friendly iteration.
+//! - Rare across vanilla entities, or
+//! - Frequently added and removed at runtime.
 pub mod admire_item;
 pub mod ageable;
 pub mod ambient_sound_interval;

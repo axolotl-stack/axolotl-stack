@@ -14,44 +14,46 @@ impl Creaking {
 /// Component bundle for spawning a `minecraft:creaking`
 #[derive(Bundle, Clone)]
 pub struct CreakingBundle {
-    pub attack: Attack,
     pub can_climb: CanClimb,
     pub collision_box: CollisionBox,
-    pub follow_range: FollowRange,
-    pub health: Health,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub nameable: Nameable,
+    pub jump_static: JumpStatic,
+    pub movement_basic: MovementBasic,
     pub physics: Physics,
     pub pushable: Pushable,
+    pub renders_when_invisible: RendersWhenInvisible,
+    pub variable_max_auto_step: VariableMaxAutoStep,
 }
 /// Spawn a new `minecraft:creaking` entity with default Bedrock components
 pub fn spawn_creaking(commands: &mut Commands) -> Entity {
     commands
         .spawn(CreakingBundle {
-            attack: Attack {
-                damage: 3i32,
-                effect_name: None,
-                effect_duration: None,
-            },
             can_climb: CanClimb,
             collision_box: CollisionBox {
-                width: 0.9f32,
-                height: 2.7f32,
-            },
-            follow_range: FollowRange { range: 32i32 },
-            health: Health {
-                value: 1i32,
-                max: Some(1i32),
+                height: Some(2.7f32),
+                width: Some(0.9f32),
             },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            nameable: Nameable,
+            jump_static: JumpStatic {
+                jump_power: Some(0.42f32),
+            },
+            movement_basic: MovementBasic {
+                max_turn: Some(30f32),
+            },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
+            },
+            renders_when_invisible: RendersWhenInvisible,
+            variable_max_auto_step: VariableMaxAutoStep {
+                base_value: Some(1.0625f32),
+                controlled_value: Some(0.5625f32),
+                jump_prevented_value: Some(0.5625f32),
             },
         })
         .id()

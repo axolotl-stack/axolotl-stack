@@ -1,17 +1,7 @@
 use bevy_ecs::prelude::*;
-/// Bedrock component `minecraft:health`
-#[derive(Component, Debug, Clone, PartialEq)]
+/// Component DTO for `minecraft:health`
+#[derive(Component, Debug, Clone, Default, PartialEq)]
 pub struct Health {
-    /// value
-    pub value: i32,
-    /// max
-    pub max: Option<i32>,
-}
-impl Default for Health {
-    fn default() -> Self {
-        Self {
-            value: 20i32,
-            max: None,
-        }
-    }
+    /// Raw data - schema not yet defined
+    pub data: Option<serde_json::Value>,
 }

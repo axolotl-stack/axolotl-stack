@@ -15,8 +15,8 @@ impl ArmorStand {
 #[derive(Bundle, Clone)]
 pub struct ArmorStandBundle {
     pub collision_box: CollisionBox,
-    pub health: Health,
-    pub nameable: Nameable,
+    pub loot: Loot,
+    pub persistent: Persistent,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -25,21 +25,21 @@ pub fn spawn_armor_stand(commands: &mut Commands) -> Entity {
     commands
         .spawn(ArmorStandBundle {
             collision_box: CollisionBox {
-                width: 0.5f32,
-                height: 1.975f32,
+                height: Some(1.975f32),
+                width: Some(0.5f32),
             },
-            health: Health {
-                value: 6i32,
-                max: Some(6i32),
+            loot: Loot {
+                table: "loot_tables/entities/armor_stand.json".to_string(),
             },
-            nameable: Nameable,
+            persistent: Persistent,
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: false,
-                is_pushable_by_piston: true,
+                is_pushable: Some(false),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

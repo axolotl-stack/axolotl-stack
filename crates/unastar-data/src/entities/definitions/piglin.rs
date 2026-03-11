@@ -14,13 +14,17 @@ impl Piglin {
 /// Component bundle for spawning a `minecraft:piglin`
 #[derive(Bundle, Clone)]
 pub struct PiglinBundle {
-    pub breathable: Breathable,
+    pub admire_item: AdmireItem,
+    pub annotation_open_door: AnnotationOpenDoor,
+    pub behavior_barter: BehaviorBarter,
+    pub behavior_equip_item: BehaviorEquipItem,
+    pub behavior_random_stroll: BehaviorRandomStroll,
     pub collision_box: CollisionBox,
-    pub follow_range: FollowRange,
-    pub health: Health,
     pub inventory: Inventory,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub nameable: Nameable,
+    pub jump_static: JumpStatic,
+    pub loot: Loot,
+    pub movement_basic: MovementBasic,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -28,39 +32,54 @@ pub struct PiglinBundle {
 pub fn spawn_piglin(commands: &mut Commands) -> Entity {
     commands
         .spawn(PiglinBundle {
-            breathable: Breathable {
-                total_supply: 15i32,
-                suffocate_time: 0i32,
-                breathes_air: false,
-                breathes_water: false,
-                breathes_lava: false,
-                breathes_solids: false,
-                generates_bubbles: false,
+            admire_item: AdmireItem {
+                cooldown_after_being_attacked: Some(20i32),
+                duration: Some(8i32),
+            },
+            annotation_open_door: AnnotationOpenDoor,
+            behavior_barter: BehaviorBarter {
+                priority: Some(3i32),
+            },
+            behavior_equip_item: BehaviorEquipItem {
+                priority: Some(5i32),
+            },
+            behavior_random_stroll: BehaviorRandomStroll {
+                interval: Some(120i32),
+                priority: Some(10i32),
+                speed_multiplier: Some(0.6f32),
+                xz_dist: Some(10i32),
+                y_dist: Some(7i32),
             },
             collision_box: CollisionBox {
-                width: 0.6f32,
-                height: 1.9f32,
-            },
-            follow_range: FollowRange { range: 64i32 },
-            health: Health {
-                value: 16i32,
-                max: Some(16i32),
+                height: Some(1.9f32),
+                width: Some(0.6f32),
             },
             inventory: Inventory {
-                size: 8i32,
-                container_type: None,
-                can_be_siphoned_from: false,
-                private: false,
+                additional_slots_per_strength: Some(0i32),
+                can_be_siphoned_from: Some(false),
+                container_type: Some("none".to_string()),
+                inventory_size: Some(8i32),
+                private: Some(false),
+                restrict_to_owner: Some(false),
             },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            nameable: Nameable,
+            jump_static: JumpStatic {
+                jump_power: Some(0.42f32),
+            },
+            loot: Loot {
+                table: "loot_tables/entities/piglin.json".to_string(),
+            },
+            movement_basic: MovementBasic {
+                max_turn: Some(30f32),
+            },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

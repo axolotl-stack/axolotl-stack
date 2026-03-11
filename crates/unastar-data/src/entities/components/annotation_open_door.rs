@@ -1,7 +1,5 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:annotation.open_door`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
-pub struct AnnotationOpenDoor {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
-}
+/// Bedrock component `minecraft:annotation.open_door`. Allows the actor to open doors assuming that that flags set up for the component to use in navigation.
+#[derive(Component, Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[component(storage = "SparseSet")]
+pub struct AnnotationOpenDoor;

@@ -1,7 +1,18 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:player.experience`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+/// Bedrock component `minecraft:player.experience`. Defines how much experience each player action should take.
+#[derive(Component, Debug, Clone, PartialEq)]
+#[component(storage = "SparseSet")]
 pub struct PlayerExperience {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    /// max
+    pub max: Option<i32>,
+    /// value
+    pub value: i32,
+}
+impl Default for PlayerExperience {
+    fn default() -> Self {
+        Self {
+            max: Some(5i32),
+            value: 1i32,
+        }
+    }
 }

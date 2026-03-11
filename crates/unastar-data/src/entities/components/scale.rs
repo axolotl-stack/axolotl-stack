@@ -1,5 +1,5 @@
 use bevy_ecs::prelude::*;
-/// Bedrock component `minecraft:scale`
+/// Bedrock component `minecraft:scale`. Sets the entity's visual size.
 #[derive(Component, Debug, Clone, PartialEq)]
 #[component(storage = "SparseSet")]
 pub struct Scale {

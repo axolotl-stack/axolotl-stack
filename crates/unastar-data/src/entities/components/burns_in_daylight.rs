@@ -1,5 +1,8 @@
 use bevy_ecs::prelude::*;
-/// Bedrock component `minecraft:burns_in_daylight`
-#[derive(Component, Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+/// Component DTO for `minecraft:burns_in_daylight`
+#[derive(Component, Debug, Clone, Default, PartialEq)]
 #[component(storage = "SparseSet")]
-pub struct BurnsInDaylight;
+pub struct BurnsInDaylight {
+    /// Raw data - schema not yet defined
+    pub data: Option<serde_json::Value>,
+}

@@ -14,49 +14,68 @@ impl Shulker {
 /// Component bundle for spawning a `minecraft:shulker`
 #[derive(Bundle, Clone)]
 pub struct ShulkerBundle {
-    pub breathable: Breathable,
+    pub behavior_ranged_attack: BehaviorRangedAttack,
     pub collision_box: CollisionBox,
+    pub experience_reward: ExperienceReward,
     pub fire_immune: FireImmune,
-    pub health: Health,
+    pub is_collidable: IsCollidable,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub movement: Movement,
-    pub nameable: Nameable,
+    pub loot: Loot,
+    pub movement_basic: MovementBasic,
     pub physics: Physics,
     pub pushable: Pushable,
+    pub renders_when_invisible: RendersWhenInvisible,
 }
 /// Spawn a new `minecraft:shulker` entity with default Bedrock components
 pub fn spawn_shulker(commands: &mut Commands) -> Entity {
     commands
         .spawn(ShulkerBundle {
-            breathable: Breathable {
-                total_supply: 15i32,
-                suffocate_time: 0i32,
-                breathes_air: false,
-                breathes_water: false,
-                breathes_lava: false,
-                breathes_solids: false,
-                generates_bubbles: false,
+            behavior_ranged_attack: BehaviorRangedAttack {
+                attack_interval: Some(0f32),
+                attack_interval_max: Some(3f32),
+                attack_interval_min: Some(1f32),
+                attack_radius: Some(15f32),
+                attack_radius_min: Some(0f32),
+                burst_interval: Some(0f32),
+                burst_shots: Some(1i32),
+                charge_charged_trigger: Some(0f32),
+                charge_shoot_trigger: Some(0f32),
+                priority: None,
+                ranged_fov: Some(90f32),
+                set_persistent: Some(false),
+                speed_multiplier: Some(1f32),
+                swing: Some(false),
+                target_in_sight_time: Some(1f32),
+                x_max_rotation: Some(30f32),
+                y_max_head_rotation: Some(30f32),
             },
             collision_box: CollisionBox {
-                width: 0.6f32,
-                height: 1.8f32,
+                height: Some(1.8f32),
+                width: Some(0.6f32),
+            },
+            experience_reward: ExperienceReward {
+                on_bred: None,
+                on_death: Some("query.last_hit_by_player ? 5: 0".to_string()),
             },
             fire_immune: FireImmune,
-            health: Health {
-                value: 30i32,
-                max: Some(30i32),
-            },
+            is_collidable: IsCollidable,
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            movement: Movement { speed: 0f32 },
-            nameable: Nameable,
+            loot: Loot {
+                table: "loot_tables/entities/shulker.json".to_string(),
+            },
+            movement_basic: MovementBasic {
+                max_turn: Some(30f32),
+            },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
+            renders_when_invisible: RendersWhenInvisible,
         })
         .id()
 }

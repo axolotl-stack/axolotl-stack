@@ -14,14 +14,14 @@ impl Guardian {
 /// Component bundle for spawning a `minecraft:guardian`
 #[derive(Bundle, Clone)]
 pub struct GuardianBundle {
-    pub attack: Attack,
-    pub breathable: Breathable,
+    pub behavior_move_towards_home_restriction: BehaviorMoveTowardsHomeRestriction,
+    pub behavior_random_swim: BehaviorRandomSwim,
     pub collision_box: CollisionBox,
-    pub follow_range: FollowRange,
-    pub health: Health,
+    pub experience_reward: ExperienceReward,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub movement: Movement,
-    pub nameable: Nameable,
+    pub jump_static: JumpStatic,
+    pub loot: Loot,
+    pub movement_sway: MovementSway,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -29,39 +29,46 @@ pub struct GuardianBundle {
 pub fn spawn_guardian(commands: &mut Commands) -> Entity {
     commands
         .spawn(GuardianBundle {
-            attack: Attack {
-                damage: 5i32,
-                effect_name: None,
-                effect_duration: None,
+            behavior_move_towards_home_restriction: BehaviorMoveTowardsHomeRestriction {
+                priority: Some(5i32),
+                speed_multiplier: Some(1f32),
             },
-            breathable: Breathable {
-                total_supply: 0,
-                suffocate_time: 0,
-                breathes_air: false,
-                breathes_water: true,
-                breathes_lava: false,
-                breathes_solids: false,
-                generates_bubbles: false,
+            behavior_random_swim: BehaviorRandomSwim {
+                avoid_surface: Some(false),
+                interval: Some(80i32),
+                priority: Some(7i32),
+                speed_multiplier: Some(1f32),
+                xz_dist: Some(10i32),
+                y_dist: Some(7i32),
             },
             collision_box: CollisionBox {
-                width: 0.85f32,
-                height: 0.85f32,
+                height: Some(0.85f32),
+                width: Some(0.85f32),
             },
-            follow_range: FollowRange { range: 16i32 },
-            health: Health {
-                value: 30i32,
-                max: Some(30i32),
+            experience_reward: ExperienceReward {
+                on_bred: None,
+                on_death: Some("query.last_hit_by_player ? 10 : 0".to_string()),
             },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            movement: Movement { speed: 0.12f32 },
-            nameable: Nameable,
+            jump_static: JumpStatic {
+                jump_power: Some(0.42f32),
+            },
+            loot: Loot {
+                table: "loot_tables/entities/guardian.json".to_string(),
+            },
+            movement_sway: MovementSway {
+                max_turn: Some(30f32),
+                sway_amplitude: Some(0.05f32),
+                sway_frequency: Some(0.5f32),
+            },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

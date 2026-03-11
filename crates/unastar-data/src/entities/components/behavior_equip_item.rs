@@ -1,7 +1,12 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:behavior.equip_item`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+/// Bedrock component `minecraft:behavior.equip_item`. The entity puts on the desired equipment.
+#[derive(Component, Debug, Clone, PartialEq)]
 pub struct BehaviorEquipItem {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    /// priority
+    pub priority: Option<i32>,
+}
+impl Default for BehaviorEquipItem {
+    fn default() -> Self {
+        Self { priority: None }
+    }
 }

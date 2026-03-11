@@ -1,7 +1,18 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:player.exhaustion`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+/// Bedrock component `minecraft:player.exhaustion`. Defines the player's exhaustion level.
+#[derive(Component, Debug, Clone, PartialEq)]
+#[component(storage = "SparseSet")]
 pub struct PlayerExhaustion {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    /// max
+    pub max: Option<i32>,
+    /// value
+    pub value: i32,
+}
+impl Default for PlayerExhaustion {
+    fn default() -> Self {
+        Self {
+            max: None,
+            value: 0,
+        }
+    }
 }

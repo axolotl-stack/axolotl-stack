@@ -14,13 +14,12 @@ impl MagmaCube {
 /// Component bundle for spawning a `minecraft:magma_cube`
 #[derive(Bundle, Clone)]
 pub struct MagmaCubeBundle {
-    pub breathable: Breathable,
-    pub burns_in_daylight: BurnsInDaylight,
     pub can_climb: CanClimb,
     pub collision_box: CollisionBox,
+    pub experience_reward: ExperienceReward,
     pub fire_immune: FireImmune,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub nameable: Nameable,
+    pub jump_static: JumpStatic,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -28,31 +27,28 @@ pub struct MagmaCubeBundle {
 pub fn spawn_magma_cube(commands: &mut Commands) -> Entity {
     commands
         .spawn(MagmaCubeBundle {
-            breathable: Breathable {
-                total_supply: 15i32,
-                suffocate_time: 0i32,
-                breathes_air: false,
-                breathes_water: false,
-                breathes_lava: true,
-                breathes_solids: false,
-                generates_bubbles: false,
-            },
-            burns_in_daylight: BurnsInDaylight,
             can_climb: CanClimb,
             collision_box: CollisionBox {
-                width: 2.08f32,
-                height: 2.08f32,
+                height: Some(2.08f32),
+                width: Some(2.08f32),
+            },
+            experience_reward: ExperienceReward {
+                on_bred: None,
+                on_death: Some("query.last_hit_by_player ? query.variant : 0".to_string()),
             },
             fire_immune: FireImmune,
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            nameable: Nameable,
+            jump_static: JumpStatic {
+                jump_power: Some(0.42f32),
+            },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

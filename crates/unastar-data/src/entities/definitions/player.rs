@@ -14,49 +14,78 @@ impl Player {
 /// Component bundle for spawning a `minecraft:player`
 #[derive(Bundle, Clone)]
 pub struct PlayerBundle {
-    pub attack: Attack,
-    pub breathable: Breathable,
+    pub block_climber: BlockClimber,
     pub can_climb: CanClimb,
     pub collision_box: CollisionBox,
+    pub exhaustion_values: ExhaustionValues,
+    pub experience_reward: ExperienceReward,
+    pub insomnia: Insomnia,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub movement: Movement,
-    pub nameable: Nameable,
+    pub loot: Loot,
     pub physics: Physics,
+    pub player_exhaustion: PlayerExhaustion,
+    pub player_experience: PlayerExperience,
+    pub player_level: PlayerLevel,
+    pub player_saturation: PlayerSaturation,
     pub pushable: Pushable,
 }
 /// Spawn a new `minecraft:player` entity with default Bedrock components
 pub fn spawn_player(commands: &mut Commands) -> Entity {
     commands
         .spawn(PlayerBundle {
-            attack: Attack {
-                damage: 1i32,
-                effect_name: None,
-                effect_duration: None,
-            },
-            breathable: Breathable {
-                total_supply: 15i32,
-                suffocate_time: -1i32,
-                breathes_air: false,
-                breathes_water: false,
-                breathes_lava: false,
-                breathes_solids: false,
-                generates_bubbles: false,
-            },
+            block_climber: BlockClimber,
             can_climb: CanClimb,
             collision_box: CollisionBox {
-                width: 0.6f32,
-                height: 1.8f32,
+                height: Some(1.8f32),
+                width: Some(0.6f32),
+            },
+            exhaustion_values: ExhaustionValues {
+                attack: Some(0.1f32),
+                damage: Some(0.1f32),
+                heal: Some(6f32),
+                jump: Some(0.05f32),
+                lunge: Some(4f32),
+                mine: Some(0.005f32),
+                sprint: Some(0.01f32),
+                sprint_jump: Some(0.2f32),
+                swim: Some(0.01f32),
+                walk: Some(0f32),
+            },
+            experience_reward: ExperienceReward {
+                on_bred: None,
+                on_death: Some("Math.Min(query.player_level * 7, 100)".to_string()),
+            },
+            insomnia: Insomnia {
+                days_until_insomnia: Some(3f32),
             },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            movement: Movement { speed: 0.1f32 },
-            nameable: Nameable,
+            loot: Loot {
+                table: "loot_tables/empty.json".to_string(),
+            },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(true),
+            },
+            player_exhaustion: PlayerExhaustion {
+                max: Some(20i32),
+                value: 0i32,
+            },
+            player_experience: PlayerExperience {
+                max: Some(1i32),
+                value: 0i32,
+            },
+            player_level: PlayerLevel {
+                max: Some(24791i32),
+                value: 0i32,
+            },
+            player_saturation: PlayerSaturation {
+                max: Some(20i32),
+                value: 5i32,
             },
             pushable: Pushable {
-                is_pushable: false,
-                is_pushable_by_piston: true,
+                is_pushable: Some(false),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

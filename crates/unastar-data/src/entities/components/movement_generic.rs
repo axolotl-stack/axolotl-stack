@@ -1,7 +1,15 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:movement.generic`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+/// Bedrock component `minecraft:movement.generic`. This move control allows a mob to fly, swim, climb, etc.
+#[derive(Component, Debug, Clone, PartialEq)]
+#[component(storage = "SparseSet")]
 pub struct MovementGeneric {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    /// max_turn
+    pub max_turn: Option<f32>,
+}
+impl Default for MovementGeneric {
+    fn default() -> Self {
+        Self {
+            max_turn: Some(30f32),
+        }
+    }
 }

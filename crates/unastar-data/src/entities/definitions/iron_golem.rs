@@ -14,15 +14,19 @@ impl IronGolem {
 /// Component bundle for spawning a `minecraft:iron_golem`
 #[derive(Bundle, Clone)]
 pub struct IronGolemBundle {
-    pub attack: Attack,
+    pub balloonable: Balloonable,
+    pub behavior_move_through_village: BehaviorMoveThroughVillage,
+    pub behavior_move_towards_dwelling_restriction: BehaviorMoveTowardsDwellingRestriction,
+    pub behavior_move_towards_target: BehaviorMoveTowardsTarget,
+    pub behavior_random_stroll: BehaviorRandomStroll,
     pub can_climb: CanClimb,
     pub collision_box: CollisionBox,
-    pub follow_range: FollowRange,
-    pub health: Health,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
-    pub leashable: Leashable,
-    pub movement: Movement,
-    pub nameable: Nameable,
+    pub jump_static: JumpStatic,
+    pub leashable_to: LeashableTo,
+    pub loot: Loot,
+    pub movement_basic: MovementBasic,
+    pub persistent: Persistent,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -30,32 +34,61 @@ pub struct IronGolemBundle {
 pub fn spawn_iron_golem(commands: &mut Commands) -> Entity {
     commands
         .spawn(IronGolemBundle {
-            attack: Attack {
-                damage: 0,
-                effect_name: None,
-                effect_duration: None,
+            balloonable: Balloonable {
+                mass: Some(2f32),
+                max_distance: None,
+                on_balloon: None,
+                on_unballoon: None,
+                soft_distance: None,
+            },
+            behavior_move_through_village: BehaviorMoveThroughVillage {
+                only_at_night: Some(true),
+                priority: Some(3i32),
+                speed_multiplier: Some(0.6f32),
+            },
+            behavior_move_towards_dwelling_restriction: BehaviorMoveTowardsDwellingRestriction {
+                priority: Some(4i32),
+                speed_multiplier: Some(1f32),
+            },
+            behavior_move_towards_target: BehaviorMoveTowardsTarget {
+                priority: Some(2i32),
+                speed_multiplier: Some(0.9f32),
+                within_radius: Some(32f32),
+            },
+            behavior_random_stroll: BehaviorRandomStroll {
+                interval: Some(120i32),
+                priority: Some(6i32),
+                speed_multiplier: Some(0.6f32),
+                xz_dist: Some(16i32),
+                y_dist: Some(7i32),
             },
             can_climb: CanClimb,
             collision_box: CollisionBox {
-                width: 1.4f32,
-                height: 2.9f32,
-            },
-            follow_range: FollowRange { range: 64i32 },
-            health: Health {
-                value: 100i32,
-                max: Some(100i32),
+                height: Some(2.9f32),
+                width: Some(1.4f32),
             },
             is_hidden_when_invisible: IsHiddenWhenInvisible,
-            leashable: Leashable,
-            movement: Movement { speed: 0.25f32 },
-            nameable: Nameable,
+            jump_static: JumpStatic {
+                jump_power: Some(0.42f32),
+            },
+            leashable_to: LeashableTo {
+                can_retrieve_from: Some(false),
+            },
+            loot: Loot {
+                table: "loot_tables/entities/iron_golem.json".to_string(),
+            },
+            movement_basic: MovementBasic {
+                max_turn: Some(30f32),
+            },
+            persistent: Persistent,
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

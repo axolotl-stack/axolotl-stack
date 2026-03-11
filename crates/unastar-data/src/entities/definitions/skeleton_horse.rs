@@ -14,15 +14,17 @@ impl SkeletonHorse {
 /// Component bundle for spawning a `minecraft:skeleton_horse`
 #[derive(Bundle, Clone)]
 pub struct SkeletonHorseBundle {
-    pub breathable: Breathable,
+    pub balloonable: Balloonable,
+    pub behavior_mount_pathing: BehaviorMountPathing,
+    pub behavior_player_ride_tamed: BehaviorPlayerRideTamed,
+    pub behavior_random_stroll: BehaviorRandomStroll,
     pub can_power_jump: CanPowerJump,
     pub collision_box: CollisionBox,
-    pub health: Health,
+    pub input_ground_controlled: InputGroundControlled,
     pub is_hidden_when_invisible: IsHiddenWhenInvisible,
     pub is_tamed: IsTamed,
-    pub leashable: Leashable,
-    pub movement: Movement,
-    pub nameable: Nameable,
+    pub jump_static: JumpStatic,
+    pub movement_basic: MovementBasic,
     pub physics: Physics,
     pub pushable: Pushable,
 }
@@ -30,36 +32,49 @@ pub struct SkeletonHorseBundle {
 pub fn spawn_skeleton_horse(commands: &mut Commands) -> Entity {
     commands
         .spawn(SkeletonHorseBundle {
-            breathable: Breathable {
-                total_supply: 15i32,
-                suffocate_time: 0i32,
-                breathes_air: false,
-                breathes_water: true,
-                breathes_lava: false,
-                breathes_solids: false,
-                generates_bubbles: false,
+            balloonable: Balloonable {
+                mass: None,
+                max_distance: None,
+                on_balloon: None,
+                on_unballoon: None,
+                soft_distance: None,
+            },
+            behavior_mount_pathing: BehaviorMountPathing {
+                priority: Some(2i32),
+                speed_multiplier: Some(1.5f32),
+                target_dist: Some(4f32),
+                track_target: Some(true),
+            },
+            behavior_player_ride_tamed: BehaviorPlayerRideTamed { priority: None },
+            behavior_random_stroll: BehaviorRandomStroll {
+                interval: Some(120i32),
+                priority: Some(6i32),
+                speed_multiplier: Some(0.7f32),
+                xz_dist: Some(10i32),
+                y_dist: Some(7i32),
             },
             can_power_jump: CanPowerJump,
             collision_box: CollisionBox {
-                width: 0.6f32,
-                height: 1.8f32,
+                height: Some(1.8f32),
+                width: Some(0.6f32),
             },
-            health: Health {
-                value: 15i32,
-                max: Some(15i32),
-            },
+            input_ground_controlled: InputGroundControlled,
             is_hidden_when_invisible: IsHiddenWhenInvisible,
             is_tamed: IsTamed,
-            leashable: Leashable,
-            movement: Movement { speed: 0.2f32 },
-            nameable: Nameable,
+            jump_static: JumpStatic {
+                jump_power: Some(0.42f32),
+            },
+            movement_basic: MovementBasic {
+                max_turn: Some(30f32),
+            },
             physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
             pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

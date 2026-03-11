@@ -1,9 +1,6 @@
 //! Entity code generation from KDL.
 
-use crate::component_schemas::{
-    ComponentDefaults, ComponentFrequency, ComponentSchema, FieldType, get_component_schemas,
-    get_sparse_components,
-};
+use crate::component_schemas::{ComponentDefaults, ComponentSchema, FieldType, SchemaCatalog};
 use heck::{ToPascalCase, ToSnakeCase};
 use kdl::{KdlDocument, KdlNode, KdlValue};
 use proc_macro2::TokenStream;
@@ -54,19 +51,15 @@ pub fn generate_entities(input_dir: &Path, output_dir: &Path) -> miette::Result<
         return Ok(());
     }
 
-    // Load defaults from the data directory (relative to input)
-    let defaults_path = input_dir
-        .parent()
-        .unwrap_or(input_dir)
-        .join("data/overrides/_defaults.kdl");
+    let data_dir = input_dir.parent().unwrap_or(input_dir).join("data");
+    let defaults_path = data_dir.join("overrides/_defaults.kdl");
+    let upstream_dir = data_dir.join("upstream");
+    let catalog = SchemaCatalog::load(&upstream_dir, &defaults_path)?;
 
-    let defaults = if defaults_path.exists() {
-        info!("Loading defaults from {}", defaults_path.display());
-        ComponentDefaults::load(&defaults_path)?
-    } else {
-        info!("No _defaults.kdl found, using empty defaults");
-        ComponentDefaults::default()
-    };
+    info!(
+        "Loaded {} upstream component schemas",
+        catalog.components.len()
+    );
 
     let content = std::fs::read_to_string(&kdl_path)
         .map_err(|e| miette::miette!("Failed to read entities.kdl: {}", e))?;
@@ -78,12 +71,14 @@ pub fn generate_entities(input_dir: &Path, output_dir: &Path) -> miette::Result<
     // Parse entities
     let mut entities = Vec::new();
     let mut all_components = HashSet::new();
+    let mut component_counts = HashMap::new();
 
     for node in doc.nodes() {
         if node.name().value() == "entity" {
             let entity = parse_entity_node(node)?;
             for comp in &entity.components {
                 all_components.insert(comp.name.clone());
+                *component_counts.entry(comp.name.clone()).or_insert(0usize) += 1;
             }
             entities.push(entity);
         }
@@ -104,16 +99,24 @@ pub fn generate_entities(input_dir: &Path, output_dir: &Path) -> miette::Result<
     std::fs::create_dir_all(entities_dir.join("definitions"))
         .map_err(|e| miette::miette!("Failed to create definitions dir: {}", e))?;
 
-    // Generate components module with typed structs (using defaults from KDL)
-    generate_components_module(&all_components, &entities_dir, &defaults)?;
+    generate_components_module(
+        &all_components,
+        &component_counts,
+        entities.len(),
+        &entities_dir,
+        &catalog,
+    )?;
 
-    // Generate entity definitions with spawn functions
     for entity in &entities {
-        generate_entity_definition(entity, &entities_dir)?;
+        generate_entity_definition(
+            entity,
+            &entities_dir,
+            &catalog.components,
+            &catalog.defaults,
+        )?;
     }
 
-    // Generate mod.rs files
-    generate_entities_mod(&entities, &entities_dir)?;
+    generate_entities_mod(&entities, &entities_dir, &catalog.components)?;
 
     Ok(())
 }
@@ -297,12 +300,14 @@ fn parse_property_node(node: &KdlNode) -> Option<ParsedProperty> {
 
 fn generate_components_module(
     components: &HashSet<String>,
+    component_counts: &HashMap<String, usize>,
+    entity_count: usize,
     output_dir: &Path,
-    defaults: &ComponentDefaults,
+    catalog: &SchemaCatalog,
 ) -> miette::Result<()> {
     let components_dir = output_dir.join("components");
-    let schemas = get_component_schemas();
-    let sparse_components = get_sparse_components();
+    let schemas = &catalog.components;
+    let defaults = &catalog.defaults;
 
     let mut mod_items = Vec::new();
 
@@ -310,18 +315,15 @@ fn generate_components_module(
         let module_name = name.to_snake_case();
         let struct_name = name.to_pascal_case();
 
-        // Skip empty or invalid names
         if module_name.is_empty() || struct_name.is_empty() {
             tracing::warn!("Skipping component with invalid name: {:?}", name);
             continue;
         }
 
-        // Check if we have a schema for this component
-        let code = if let Some(schema) = schemas.get(name.as_str()) {
-            generate_typed_component(schema, &sparse_components, defaults)
+        let is_sparse = component_is_sparse(name, component_counts, entity_count);
+        let code = if let Some(schema) = schemas.get(name) {
+            generate_typed_component(schema, is_sparse, defaults)
         } else {
-            // Fallback to generic component
-            let is_sparse = sparse_components.contains(&name.as_str());
             generate_generic_component(name, &struct_name, is_sparse)
         };
 
@@ -336,10 +338,8 @@ fn generate_components_module(
         mod_items.push((module_name, struct_name));
     }
 
-    // Sort for deterministic output
     mod_items.sort_by(|a, b| a.0.cmp(&b.0));
 
-    // Generate mod.rs
     let mods: Vec<TokenStream> = mod_items
         .iter()
         .map(|(m, _)| {
@@ -358,13 +358,11 @@ fn generate_components_module(
         .collect();
 
     let code = quote! {
-        //! Generated component DTOs from Bedrock behavior packs.
+        //! Generated component DTOs from Bedrock entity metadata.
         //!
         //! Components marked with `#[component(storage = "SparseSet")]` are:
-        //! - Rarely present across entities, or
-        //! - Frequently added/removed at runtime
-        //!
-        //! All other components use the default Table storage for cache-friendly iteration.
+        //! - Rare across vanilla entities, or
+        //! - Frequently added and removed at runtime.
 
         #(#mods)*
 
@@ -377,16 +375,58 @@ fn generate_components_module(
     Ok(())
 }
 
+fn component_is_sparse(
+    component: &str,
+    component_counts: &HashMap<String, usize>,
+    entity_count: usize,
+) -> bool {
+    const MANUAL_SPARSE_COMPONENTS: &[&str] = &[
+        "is_baby",
+        "is_tamed",
+        "is_saddled",
+        "is_sheared",
+        "is_ignited",
+        "is_charged",
+        "is_stunned",
+        "is_illager_captain",
+        "can_fly",
+        "can_power_jump",
+        "fire_immune",
+        "burns_in_daylight",
+        "floats_in_liquid",
+        "flying_speed",
+        "glide",
+        "boss",
+        "angry",
+        "on_fire",
+        "strength",
+    ];
+
+    if MANUAL_SPARSE_COMPONENTS.contains(&component) {
+        return true;
+    }
+
+    let Some(count) = component_counts.get(component) else {
+        return false;
+    };
+
+    entity_count > 0 && (*count as f32 / entity_count as f32) < 0.10
+}
+
 fn generate_typed_component(
     schema: &ComponentSchema,
-    sparse_list: &[&str],
+    is_sparse: bool,
     defaults: &ComponentDefaults,
 ) -> TokenStream {
     let struct_ident = format_ident!("{}", schema.rust_name);
-    let doc = format!(" Bedrock component `minecraft:{}`", schema.name);
-
-    let is_sparse = matches!(schema.frequency, ComponentFrequency::Sparse)
-        || sparse_list.contains(&schema.name);
+    let doc = if let Some(description) = &schema.description {
+        format!(
+            " Bedrock component `minecraft:{}`. {}",
+            schema.name, description
+        )
+    } else {
+        format!(" Bedrock component `minecraft:{}`", schema.name)
+    };
 
     let storage_attr = if is_sparse {
         quote! { #[component(storage = "SparseSet")] }
@@ -448,9 +488,9 @@ fn generate_default_impl(schema: &ComponentSchema, defaults: &ComponentDefaults)
 
             // Look up default from KDL: primary value or field property
             let kdl_default = if f.is_primary {
-                defaults.get_primary_default(schema.name)
+                defaults.get_primary_default(&schema.name)
             } else {
-                defaults.get_field_default(schema.name, f.name)
+                defaults.get_field_default(&schema.name, &f.name)
             };
 
             let default_value = field_default_value(&f.field_type, kdl_default);
@@ -514,7 +554,14 @@ fn field_default_value(field_type: &FieldType, default: Option<&str>) -> TokenSt
             }
             quote! { String::new() }
         }
-        FieldType::Option(_) => quote! { None },
+        FieldType::Option(inner) => {
+            if let Some(d) = default {
+                let inner_value = field_default_value(inner, Some(d));
+                quote! { Some(#inner_value) }
+            } else {
+                quote! { None }
+            }
+        }
     }
 }
 
@@ -541,7 +588,12 @@ fn generate_generic_component(name: &str, struct_name: &str, is_sparse: bool) ->
     }
 }
 
-fn generate_entity_definition(entity: &ParsedEntity, output_dir: &Path) -> miette::Result<()> {
+fn generate_entity_definition(
+    entity: &ParsedEntity,
+    output_dir: &Path,
+    schemas: &HashMap<String, ComponentSchema>,
+    defaults: &ComponentDefaults,
+) -> miette::Result<()> {
     let definitions_dir = output_dir.join("definitions");
     let module_name = entity.name.to_snake_case();
     let struct_name = entity.name.to_pascal_case();
@@ -560,11 +612,8 @@ fn generate_entity_definition(entity: &ParsedEntity, output_dir: &Path) -> miett
     // Property enums
     let property_enums = generate_property_enums(entity, &struct_name);
 
-    // Generate spawn function
-    let spawn_fn = generate_spawn_function(entity, &struct_name);
-
-    // Generate bundle struct
-    let bundle_struct = generate_bundle_struct(entity, &struct_name);
+    let spawn_fn = generate_spawn_function(entity, &struct_name, schemas, defaults);
+    let bundle_struct = generate_bundle_struct(entity, &struct_name, schemas);
 
     let doc = format!(" Entity definition for `{}`", identifier);
 
@@ -723,20 +772,21 @@ fn generate_property_enums(entity: &ParsedEntity, struct_name: &str) -> Vec<Toke
         .collect()
 }
 
-fn generate_bundle_struct(entity: &ParsedEntity, struct_name: &str) -> TokenStream {
+fn generate_bundle_struct(
+    entity: &ParsedEntity,
+    struct_name: &str,
+    schemas: &HashMap<String, ComponentSchema>,
+) -> TokenStream {
     let bundle_name = format_ident!("{}Bundle", struct_name);
-    let schemas = get_component_schemas();
 
-    // Only include components we have schemas for (typed components)
     let bundle_fields: Vec<TokenStream> = entity
         .components
         .iter()
-        .filter(|c| schemas.contains_key(c.name.as_str()))
-        .map(|c| {
-            let schema = schemas.get(c.name.as_str()).unwrap();
+        .filter_map(|c| {
+            let schema = schemas.get(&c.name)?;
             let field_name = format_ident!("{}", c.name.to_snake_case());
             let type_name = format_ident!("{}", schema.rust_name);
-            quote! { pub #field_name: #type_name }
+            Some(quote! { pub #field_name: #type_name })
         })
         .collect();
 
@@ -755,21 +805,23 @@ fn generate_bundle_struct(entity: &ParsedEntity, struct_name: &str) -> TokenStre
     }
 }
 
-fn generate_spawn_function(entity: &ParsedEntity, struct_name: &str) -> TokenStream {
+fn generate_spawn_function(
+    entity: &ParsedEntity,
+    struct_name: &str,
+    schemas: &HashMap<String, ComponentSchema>,
+    defaults: &ComponentDefaults,
+) -> TokenStream {
     let fn_name = format_ident!("spawn_{}", entity.name.to_snake_case());
     let bundle_name = format_ident!("{}Bundle", struct_name);
-    let schemas = get_component_schemas();
 
-    // Generate component initializers
     let component_inits: Vec<TokenStream> = entity
         .components
         .iter()
-        .filter(|c| schemas.contains_key(c.name.as_str()))
-        .map(|c| {
-            let schema = schemas.get(c.name.as_str()).unwrap();
+        .filter_map(|c| {
+            let schema = schemas.get(&c.name)?;
             let field_name = format_ident!("{}", c.name.to_snake_case());
-            let init = generate_component_init(c, schema);
-            quote! { #field_name: #init }
+            let init = generate_component_init(c, schema, defaults);
+            Some(quote! { #field_name: #init })
         })
         .collect();
 
@@ -793,7 +845,11 @@ fn generate_spawn_function(entity: &ParsedEntity, struct_name: &str) -> TokenStr
     }
 }
 
-fn generate_component_init(comp: &ParsedComponent, schema: &ComponentSchema) -> TokenStream {
+fn generate_component_init(
+    comp: &ParsedComponent,
+    schema: &ComponentSchema,
+    defaults: &ComponentDefaults,
+) -> TokenStream {
     let type_name = format_ident!("{}", schema.rust_name);
 
     if schema.is_marker {
@@ -807,17 +863,20 @@ fn generate_component_init(comp: &ParsedComponent, schema: &ComponentSchema) -> 
         .map(|f| {
             let field_ident = format_ident!("{}", f.rust_name);
 
-            // Check if we have a value for this field
             let value = if f.is_primary {
-                comp.primary_value.as_deref()
+                comp.primary_value
+                    .as_deref()
+                    .or_else(|| defaults.get_primary_default(&schema.name))
             } else {
-                comp.properties.get(f.name).map(|s| s.as_str())
+                comp.properties
+                    .get(&f.name)
+                    .map(|s| s.as_str())
+                    .or_else(|| defaults.get_field_default(&schema.name, &f.name))
             };
 
             let value_tokens = if let Some(v) = value {
                 parse_field_value(&f.field_type, v)
             } else {
-                // No value provided - use type default (zero/false/empty)
                 field_default_value(&f.field_type, None)
             };
 
@@ -865,7 +924,11 @@ fn parse_field_value(field_type: &FieldType, value: &str) -> TokenStream {
     }
 }
 
-fn generate_entities_mod(entities: &[ParsedEntity], output_dir: &Path) -> miette::Result<()> {
+fn generate_entities_mod(
+    entities: &[ParsedEntity],
+    output_dir: &Path,
+    schemas: &HashMap<String, ComponentSchema>,
+) -> miette::Result<()> {
     // Sort entities for deterministic output
     let mut sorted_entities: Vec<_> = entities.iter().collect();
     sorted_entities.sort_by(|a, b| a.name.cmp(&b.name));
@@ -882,13 +945,7 @@ fn generate_entities_mod(entities: &[ParsedEntity], output_dir: &Path) -> miette
     // Re-export spawn functions
     let spawn_uses: Vec<TokenStream> = sorted_entities
         .iter()
-        .filter(|e| {
-            // Only export if entity has typed components
-            let schemas = get_component_schemas();
-            e.components
-                .iter()
-                .any(|c| schemas.contains_key(c.name.as_str()))
-        })
+        .filter(|e| e.components.iter().any(|c| schemas.contains_key(&c.name)))
         .map(|e| {
             let mod_ident = format_ident!("{}", e.name.to_snake_case());
             let fn_name = format_ident!("spawn_{}", e.name.to_snake_case());
@@ -913,7 +970,7 @@ fn generate_entities_mod(entities: &[ParsedEntity], output_dir: &Path) -> miette
 
     // entities/mod.rs
     let entities_code = quote! {
-        //! Generated entity definitions from Bedrock behavior packs.
+        //! Generated entity definitions from Bedrock entity metadata.
         //!
         //! This module is auto-generated by `unastar-data-codegen`.
         //! Do not edit manually.
