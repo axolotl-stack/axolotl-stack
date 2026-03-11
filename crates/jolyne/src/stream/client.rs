@@ -19,6 +19,7 @@ use crate::stream::{
     BedrockStream, Client, Handshake, Login, Play, ResourcePacks, SecurePending, StartGame,
     transport::{BedrockTransport, RakNetTransport, Transport},
 };
+use crate::valentine::BorrowedMcpePacketData;
 use crate::valentine::{
     AvailableEntityIdentifiersPacket, BiomeDefinitionListPacket, ClientCacheStatusPacket,
     ClientToServerHandshakePacket, CreativeContentPacket, ItemRegistryPacket, LoginPacket,
@@ -138,10 +139,10 @@ impl<T: Transport> BedrockStream<Handshake, Client, T> {
         };
         self.transport.send_raw(McpePacket::from(req)).await?;
 
-        let settings_pkt = self.transport.recv_packet().await?;
+        let settings_pkt = self.transport.recv_packet_borrowed().await?;
 
         match settings_pkt.data {
-            McpePacketData::PacketNetworkSettings(settings) => {
+            BorrowedMcpePacketData::PacketNetworkSettings(settings) => {
                 self.transport
                     .set_compression(true, 7, settings.compression_threshold);
 
@@ -782,7 +783,18 @@ impl<T: Transport> BedrockStream<StartGame, Client, T> {
 // --- State: Play ---
 
 impl<T: Transport> BedrockStream<Play, Client, T> {
+    /// Receive the next packet as a borrowed protocol view.
+    #[instrument(skip_all, level = "trace")]
+    pub async fn recv_packet_borrowed(
+        &mut self,
+    ) -> Result<crate::valentine::BorrowedMcpePacket, JolyneError> {
+        self.transport.recv_packet_borrowed().await
+    }
+
     /// Receive the next packet from the server.
+    ///
+    /// This materializes an owned packet. Prefer [`Self::recv_packet_borrowed`]
+    /// when the caller can stay on borrowed packet data.
     #[instrument(skip_all, level = "trace")]
     pub async fn recv_packet(&mut self) -> Result<McpePacket, JolyneError> {
         self.transport.recv_packet().await

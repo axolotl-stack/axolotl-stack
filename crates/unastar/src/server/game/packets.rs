@@ -4,13 +4,16 @@
 //! Each packet is pushed into a typed queue Resource, which the corresponding
 //! domain system drains during `PacketApplySet`.
 
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 use super::GameServer;
 use super::packet_queues::*;
 use super::types::SessionEntityMap;
 use crate::network::SessionId;
-use jolyne::valentine::{McpePacket, McpePacketData};
+use jolyne::valentine::{
+    BorrowedMcpePacket, BorrowedMcpePacketData, McpePacket, McpePacketArgs, McpePacketData,
+    McpePacketName,
+};
 
 impl GameServer {
     /// Route an inbound packet into the appropriate domain queue.
@@ -18,7 +21,12 @@ impl GameServer {
     /// Called from the main tick loop before ECS tick runs. Pushes the
     /// packet data into a typed queue Resource so the domain system can
     /// process it during `PacketApplySet`.
-    pub fn route_packet(&mut self, session_id: SessionId, packet: McpePacket) {
+    pub fn route_packet(
+        &mut self,
+        session_id: SessionId,
+        packet_args: McpePacketArgs,
+        packet: BorrowedMcpePacket,
+    ) {
         // Resolve entity
         let entity = {
             let session_map = match self.ecs.world().get_resource::<SessionEntityMap>() {
@@ -32,7 +40,7 @@ impl GameServer {
         };
 
         // Disconnect is immediate (not queued) — despawn must happen now
-        if matches!(&packet.data, McpePacketData::PacketDisconnect(_)) {
+        if packet.packet_id() == McpePacketName::PacketDisconnect {
             info!(session_id, "Client sent disconnect packet");
             if let Some(mut event_buffer) = self
                 .ecs
@@ -48,52 +56,83 @@ impl GameServer {
         // Route by packet type into domain queues
         let world = self.ecs.world_mut();
 
-        match packet.data {
+        match packet {
             // ── Movement ──────────────────────────────────────────────────
+            BorrowedMcpePacket {
+                data: BorrowedMcpePacketData::PacketPlayerAction(pk),
+                ..
+            } => {
+                if let Some(mut q) = world.get_resource_mut::<MovementPacketQueue>() {
+                    q.0.push((entity, MovementInput::PlayerAction(pk.into())));
+                }
+            }
+
+            // ── Chat & Commands ───────────────────────────────────────────
+            BorrowedMcpePacket {
+                data: BorrowedMcpePacketData::PacketCommandRequest(pk),
+                ..
+            } => {
+                if let Some(mut q) = world.get_resource_mut::<ChatPacketQueue>() {
+                    q.0.push((entity, session_id, ChatAction::Command(pk.into())));
+                }
+            }
+
+            // ── Chunks ────────────────────────────────────────────────────
+            BorrowedMcpePacket {
+                data: BorrowedMcpePacketData::PacketRequestChunkRadius(req),
+                ..
+            } => {
+                if let Some(mut q) = world.get_resource_mut::<ChunkPacketQueue>() {
+                    q.0.push((entity, ChunkAction::RadiusRequest(req.into())));
+                }
+            }
+            BorrowedMcpePacket {
+                data: BorrowedMcpePacketData::PacketSubchunkRequest(req),
+                ..
+            } => {
+                if let Some(mut q) = world.get_resource_mut::<ChunkPacketQueue>() {
+                    q.0.push((entity, ChunkAction::SubchunkRequest(req.into())));
+                }
+            }
+
+            // ── Inventory ─────────────────────────────────────────────────
+            BorrowedMcpePacket {
+                data: BorrowedMcpePacketData::PacketContainerClose(pk),
+                ..
+            } => {
+                if let Some(mut q) = world.get_resource_mut::<InventoryPacketQueue>() {
+                    q.0.push((entity, InventoryAction::ContainerClose(pk.into())));
+                }
+            }
+            other => match other.into_owned(packet_args) {
+                Ok(packet) => Self::route_owned_packet(world, entity, session_id, packet),
+                Err(error) => {
+                    warn!(session_id, ?error, "Failed to materialize borrowed packet");
+                }
+            },
+        }
+    }
+
+    fn route_owned_packet(
+        world: &mut bevy_ecs::world::World,
+        entity: bevy_ecs::prelude::Entity,
+        session_id: SessionId,
+        packet: McpePacket,
+    ) {
+        match packet.data {
             McpePacketData::PacketPlayerAuthInput(pk) => {
                 if let Some(mut q) = world.get_resource_mut::<MovementPacketQueue>() {
                     q.0.push((entity, MovementInput::AuthInput(*pk)));
                 }
             }
-            McpePacketData::PacketPlayerAction(pk) => {
-                if let Some(mut q) = world.get_resource_mut::<MovementPacketQueue>() {
-                    q.0.push((entity, MovementInput::PlayerAction(*pk)));
-                }
-            }
-
-            // ── Chat & Commands ───────────────────────────────────────────
             McpePacketData::PacketText(pk) => {
                 if let Some(mut q) = world.get_resource_mut::<ChatPacketQueue>() {
                     q.0.push((entity, session_id, ChatAction::Text(*pk)));
                 }
             }
-            McpePacketData::PacketCommandRequest(pk) => {
-                if let Some(mut q) = world.get_resource_mut::<ChatPacketQueue>() {
-                    q.0.push((entity, session_id, ChatAction::Command(*pk)));
-                }
-            }
-
-            // ── Chunks ────────────────────────────────────────────────────
-            McpePacketData::PacketRequestChunkRadius(req) => {
-                if let Some(mut q) = world.get_resource_mut::<ChunkPacketQueue>() {
-                    q.0.push((entity, ChunkAction::RadiusRequest(req)));
-                }
-            }
-            McpePacketData::PacketSubchunkRequest(req) => {
-                if let Some(mut q) = world.get_resource_mut::<ChunkPacketQueue>() {
-                    q.0.push((entity, ChunkAction::SubchunkRequest(req)));
-                }
-            }
-
-            // ── Inventory ─────────────────────────────────────────────────
             McpePacketData::PacketMobEquipment(pk) => {
                 if let Some(mut q) = world.get_resource_mut::<InventoryPacketQueue>() {
                     q.0.push((entity, InventoryAction::MobEquipment(*pk)));
-                }
-            }
-            McpePacketData::PacketContainerClose(pk) => {
-                if let Some(mut q) = world.get_resource_mut::<InventoryPacketQueue>() {
-                    q.0.push((entity, InventoryAction::ContainerClose(pk)));
                 }
             }
             McpePacketData::PacketItemStackRequest(pk) => {
@@ -106,8 +145,6 @@ impl GameServer {
                     q.0.push((entity, InventoryAction::Interact(*pk)));
                 }
             }
-
-            // ── Inventory Transaction (split routing) ─────────────────────
             McpePacketData::PacketInventoryTransaction(mut pk) => {
                 use jolyne::valentine::types::{
                     TransactionTransactionData, TransactionTransactionType,
@@ -133,13 +170,9 @@ impl GameServer {
                     q.0.push((entity, InventoryAction::Transaction(*pk)));
                 }
             }
-
-            // ── Ignored ───────────────────────────────────────────────────
             McpePacketData::PacketMovePlayer(_) => {
                 // Intentionally ignored — use PlayerAuthInput instead
             }
-
-            // ── Unhandled ─────────────────────────────────────────────────
             _other => {
                 debug!(session_id, "Unhandled packet");
             }

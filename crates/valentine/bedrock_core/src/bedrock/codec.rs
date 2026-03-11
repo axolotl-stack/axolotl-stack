@@ -14,6 +14,18 @@ pub trait BedrockCodec: Sized {
     fn decode<B: Buf>(buf: &mut B, args: Self::Args) -> Result<Self, DecodeError>;
 }
 
+/// Computes the exact encoded wire size for a value without writing it.
+pub trait BedrockSized {
+    fn encoded_size(&self) -> usize;
+}
+
+pub fn decode_utf8_lossy_owned(bytes: Vec<u8>) -> String {
+    match String::from_utf8(bytes) {
+        Ok(s) => s,
+        Err(err) => String::from_utf8_lossy(&err.into_bytes()).into_owned(),
+    }
+}
+
 #[derive(Clone)]
 pub struct ProtocolArgs<'a> {
     pub shield_id: i32,
@@ -47,6 +59,12 @@ macro_rules! le_int_newtype {
                 Ok(Self(buf.$get()))
             }
         }
+
+        impl BedrockSized for $name {
+            fn encoded_size(&self) -> usize {
+                mem::size_of::<$inner>()
+            }
+        }
     };
 }
 
@@ -69,6 +87,12 @@ macro_rules! le_float_newtype {
                     });
                 }
                 Ok(Self(buf.$get()))
+            }
+        }
+
+        impl BedrockSized for $name {
+            fn encoded_size(&self) -> usize {
+                mem::size_of::<$inner>()
             }
         }
     };
@@ -94,6 +118,12 @@ impl BedrockCodec for ZigZag32 {
     }
 }
 
+impl BedrockSized for ZigZag32 {
+    fn encoded_size(&self) -> usize {
+        wire::var_u32_len(wire::zigzag32_encode(self.0))
+    }
+}
+
 impl BedrockCodec for ZigZag64 {
     type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
@@ -103,6 +133,22 @@ impl BedrockCodec for ZigZag64 {
     fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, DecodeError> {
         Ok(ZigZag64(wire::read_zigzag64(buf)?))
     }
+}
+
+impl BedrockSized for ZigZag64 {
+    fn encoded_size(&self) -> usize {
+        wire::var_u64_len(wire::zigzag64_encode(self.0))
+    }
+}
+
+macro_rules! fixed_size_codec {
+    ($ty:ty) => {
+        impl BedrockSized for $ty {
+            fn encoded_size(&self) -> usize {
+                mem::size_of::<$ty>()
+            }
+        }
+    };
 }
 
 impl BedrockCodec for bool {
@@ -121,6 +167,7 @@ impl BedrockCodec for bool {
         Ok(buf.get_u8() != 0)
     }
 }
+fixed_size_codec!(bool);
 
 impl BedrockCodec for u8 {
     type Args = ();
@@ -139,6 +186,7 @@ impl BedrockCodec for u8 {
         }
     }
 }
+fixed_size_codec!(u8);
 impl BedrockCodec for i8 {
     type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
@@ -156,6 +204,7 @@ impl BedrockCodec for i8 {
         }
     }
 }
+fixed_size_codec!(i8);
 impl BedrockCodec for u16 {
     type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
@@ -173,6 +222,7 @@ impl BedrockCodec for u16 {
         }
     }
 }
+fixed_size_codec!(u16);
 impl BedrockCodec for i16 {
     type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
@@ -190,6 +240,7 @@ impl BedrockCodec for i16 {
         }
     }
 }
+fixed_size_codec!(i16);
 impl BedrockCodec for u32 {
     type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
@@ -207,6 +258,7 @@ impl BedrockCodec for u32 {
         }
     }
 }
+fixed_size_codec!(u32);
 impl BedrockCodec for i32 {
     type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
@@ -224,6 +276,7 @@ impl BedrockCodec for i32 {
         }
     }
 }
+fixed_size_codec!(i32);
 impl BedrockCodec for u64 {
     type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
@@ -241,6 +294,7 @@ impl BedrockCodec for u64 {
         }
     }
 }
+fixed_size_codec!(u64);
 impl BedrockCodec for i64 {
     type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
@@ -258,6 +312,7 @@ impl BedrockCodec for i64 {
         }
     }
 }
+fixed_size_codec!(i64);
 
 impl BedrockCodec for f32 {
     type Args = ();
@@ -276,6 +331,7 @@ impl BedrockCodec for f32 {
         }
     }
 }
+fixed_size_codec!(f32);
 
 impl BedrockCodec for f64 {
     type Args = ();
@@ -294,6 +350,7 @@ impl BedrockCodec for f64 {
         }
     }
 }
+fixed_size_codec!(f64);
 
 impl BedrockCodec for String {
     type Args = ();
@@ -313,8 +370,15 @@ impl BedrockCodec for String {
         }
         let mut v = vec![0u8; len];
         buf.copy_to_slice(&mut v);
-        // Bedrock strings may contain arbitrary bytes; tolerate invalid UTF-8 by lossily decoding.
-        Ok(String::from_utf8_lossy(&v).into_owned())
+        // Bedrock strings are effectively byte strings in the wild. Match gophertunnel's
+        // tolerant decoding and avoid rejecting packets that carry non-UTF-8 payloads.
+        Ok(decode_utf8_lossy_owned(v))
+    }
+}
+
+impl BedrockSized for String {
+    fn encoded_size(&self) -> usize {
+        wire::var_u32_len(self.len() as u32) + self.len()
     }
 }
 
@@ -325,6 +389,12 @@ impl<T: BedrockCodec> BedrockCodec for Box<T> {
     }
     fn decode<B: Buf>(buf: &mut B, args: Self::Args) -> Result<Self, DecodeError> {
         Ok(Box::new(T::decode(buf, args)?))
+    }
+}
+
+impl<T: BedrockSized> BedrockSized for Box<T> {
+    fn encoded_size(&self) -> usize {
+        (**self).encoded_size()
     }
 }
 
@@ -347,6 +417,13 @@ where
             v.push(T::decode(buf, args.clone())?);
         }
         Ok(v)
+    }
+}
+
+impl<T: BedrockSized> BedrockSized for Vec<T> {
+    fn encoded_size(&self) -> usize {
+        wire::var_u32_len(self.len() as u32)
+            + self.iter().map(BedrockSized::encoded_size).sum::<usize>()
     }
 }
 
@@ -374,6 +451,12 @@ impl<T: BedrockCodec> BedrockCodec for Option<T> {
     }
 }
 
+impl<T: BedrockSized> BedrockSized for Option<T> {
+    fn encoded_size(&self) -> usize {
+        1 + self.as_ref().map_or(0, BedrockSized::encoded_size)
+    }
+}
+
 impl BedrockCodec for uuid::Uuid {
     type Args = ();
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
@@ -391,6 +474,12 @@ impl BedrockCodec for uuid::Uuid {
         let mut bytes = [0u8; 16];
         buf.copy_to_slice(&mut bytes);
         Ok(uuid::Uuid::from_bytes(bytes))
+    }
+}
+
+impl BedrockSized for uuid::Uuid {
+    fn encoded_size(&self) -> usize {
+        16
     }
 }
 
@@ -435,6 +524,12 @@ impl BedrockCodec for VarInt {
                 return Err(DecodeError::VarIntTooLarge);
             }
         }
+    }
+}
+
+impl BedrockSized for VarInt {
+    fn encoded_size(&self) -> usize {
+        wire::var_u32_len(self.0 as u32)
     }
 }
 
@@ -483,6 +578,12 @@ impl BedrockCodec for VarLong {
     }
 }
 
+impl BedrockSized for VarLong {
+    fn encoded_size(&self) -> usize {
+        wire::var_u64_len(self.0 as u64)
+    }
+}
+
 pub trait GamePacket: BedrockCodec {
     type PacketId;
     const PACKET_ID: Self::PacketId;
@@ -528,10 +629,32 @@ impl super::codec::BedrockCodec for Nbt {
         // --- FIXED LOGIC END ---
 
         let len = cursor.position() as usize;
-        let data = Bytes::copy_from_slice(&chunk[..len]);
-
-        buf.advance(len);
+        let data = buf.copy_to_bytes(len);
         Ok(Nbt(data))
+    }
+}
+
+impl BedrockSized for Nbt {
+    fn encoded_size(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl BedrockSized for Bytes {
+    fn encoded_size(&self) -> usize {
+        self.len()
+    }
+}
+
+impl BedrockSized for () {
+    fn encoded_size(&self) -> usize {
+        0
+    }
+}
+
+impl<T: BedrockSized, const N: usize> BedrockSized for [T; N] {
+    fn encoded_size(&self) -> usize {
+        self.iter().map(BedrockSized::encoded_size).sum()
     }
 }
 

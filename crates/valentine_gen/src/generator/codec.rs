@@ -1,4 +1,4 @@
-use crate::generator::analysis::{find_redundant_fields, get_deps, should_box_variant};
+use crate::generator::analysis::{find_redundant_fields, should_box_variant};
 use crate::generator::context::Context;
 use crate::generator::definitions::resolve_type_to_tokens;
 use crate::generator::primitives::{
@@ -21,10 +21,7 @@ pub fn generate_codec_impl(
     let struct_ident = format_ident!("{}", name);
 
     // PASS 1: Resolve every type/argument for this container
-    let resolved = ResolvedContainer::analyze(container, ctx);
-
-    // Keep the raw dependency list to know which args are global vs local
-    let deps = get_deps(&Type::Container(container.clone()), ctx);
+    let resolved = ResolvedContainer::analyze(container, name, ctx);
 
     let args_ident = format_ident!("{}Args", name);
     let mut args_struct_def = TokenStream::new();
@@ -38,163 +35,21 @@ pub fn generate_codec_impl(
         let mut proto_fields = Vec::new();
         let mut has_local_deps = false;
 
-        // Map dependency names to their resolved strong type
-        let resolved_arg_map: std::collections::HashMap<_, _> =
-            resolved.args.iter().cloned().collect();
-
-        let mut sorted_deps: Vec<_> = deps.into_iter().collect();
-        sorted_deps.sort_by(|a, b| match (&a.0, &b.0) {
-            (
-                crate::generator::analysis::Dependency::LocalField(sa)
-                | crate::generator::analysis::Dependency::Global(sa),
-                crate::generator::analysis::Dependency::LocalField(sb)
-                | crate::generator::analysis::Dependency::Global(sb),
-            ) => sa.cmp(sb),
-        });
-
-        for (dep, dep_type) in sorted_deps {
-            let fname = dep.name();
+        for arg in &resolved.args {
+            let fname = arg.name();
             let f_ident = format_ident!("{}", fname);
-
             let hint = format!("{}{}", name, camel_case(fname));
-            // Prefer the resolved strong type from analysis; fall back to the raw dep type.
-            // Also try common cleaned variants of the name (e.g., "type" vs "type_").
-            let mut name_keys = Vec::new();
-            name_keys.push(fname.to_string());
-            if let Some(stripped) = fname.strip_prefix('_') {
-                name_keys.push(stripped.to_string());
-            } else {
-                name_keys.push(format!("_{}", fname));
-            }
-
-            // CRITICAL: dep_type (from get_deps) is already the "best known" type for this dep.
-            // Use it directly when present in resolved_arg_map; otherwise pull from variable_types.
-            // Do NOT degrade to primitive unless nothing better is known.
-            let mut final_arg_type = resolved_arg_map
-                .get(fname)
-                .cloned()
-                .or_else(|| {
-                    name_keys
-                        .iter()
-                        .find_map(|k| resolved.variable_types.get(k).cloned())
-                })
-                .unwrap_or(dep_type.clone());
-
-            // Special-case: SetScoreEntries discriminator should stay as the action enum.
-            // Handles both old naming (PacketSetScore*) and new naming (SetScorePacket*)
-            if fname == "action"
-                && (name.starts_with("PacketSetScoreEntriesItem")
-                    || name.starts_with("SetScorePacketEntriesItem"))
-            {
-                final_arg_type = Type::Reference("SetScorePacketAction".to_string());
-            }
-
-            // Special-case: SetScoreboardIdentity entries should use the action enum.
-            // Handles both old naming (PacketSetScoreboardIdentity*) and new naming (SetScoreboardIdentityPacket*)
-            if fname == "action"
-                && (name.starts_with("PacketSetScoreboardIdentityEntriesItem")
-                    || name.starts_with("SetScoreboardIdentityPacketEntriesItem"))
-            {
-                final_arg_type = Type::Reference("SetScoreboardIdentityPacketAction".to_string());
-            }
-
-            // Special-case: shield_item_id is a discriminator, not the payload.
-            if fname == "shield_item_id" || fname == "_shield_item_id" {
-                final_arg_type = Type::Primitive(Primitive::VarInt);
-            }
-
-            // Heuristic: if still an int and the name suggests an enum discriminator, try to
-            // map to a well-known "*Type" enum based on the container prefix.
-            // If this looks like a discriminator, force it to the best-matching Enum we know.
-            let mut forced_enum_ident: Option<proc_macro2::Ident> = None;
-            // Derive a deterministic candidate enum name from the container name.
-            let mut base_from_container = name.to_string();
-            for suf in ["EntriesItem", "Entries", "Entry", "Item", "Content"] {
-                if let Some(stripped) = base_from_container.strip_suffix(suf) {
-                    base_from_container = stripped.to_string();
-                    break;
-                }
-            }
-            let container_candidate = format!("{}Type", base_from_container);
-
-            if fname.contains("type") {
-                if fname.contains("enum_type") {
-                    let clean =
-                        format_ident!("{}", clean_type_name("enum_size_based_on_values_len"));
-                    final_arg_type = Type::Reference("enum_size_based_on_values_len".to_string());
-                    forced_enum_ident = Some(clean);
-                } else {
-                    // Find the best enum name: prefer prefix match, then suffix match.
-                    let mut best_name: Option<String> = None;
-                    let mut best_score: usize = 0;
-                    for (ename, ety) in &ctx.type_lookup {
-                        if !matches!(ety, Type::Enum { .. }) {
-                            continue;
-                        }
-                        let base = ename.trim_end_matches("Type");
-                        let mut score = 0;
-                        if !base.is_empty() && name.starts_with(base) {
-                            score = base.len() * 2; // weight prefix higher
-                        } else if ename.ends_with(&container_candidate) {
-                            score = container_candidate.len();
-                        }
-                        if score > best_score {
-                            best_score = score;
-                            best_name = Some(ename.clone());
-                        }
-                    }
-
-                    if best_score > 0 {
-                        let chosen = best_name.unwrap_or(container_candidate.clone());
-                        let clean = clean_type_name(&chosen);
-                        final_arg_type = Type::Reference(clean.clone());
-                        forced_enum_ident = Some(format_ident!("{}", clean));
-                    } else {
-                        // Last-resort: use the container-derived candidate even if missing in lookup.
-                        let clean = clean_type_name(&container_candidate);
-                        final_arg_type = Type::Reference(clean.clone());
-                        forced_enum_ident = Some(format_ident!("{}", clean));
-                    }
-                }
-            }
-
-            // Heuristic: known bool discriminator that was parsed as int.
-            if matches!(
-                final_arg_type,
-                Type::Primitive(Primitive::VarInt | Primitive::ZigZag32 | Primitive::VarLong)
-            ) && (fname == "network_ids" || fname == "_network_ids")
-            {
-                final_arg_type = Type::Primitive(Primitive::Bool);
-            }
-
-            if let Some(en) = forced_enum_ident.clone() {
-                arg_idents.insert(fname.to_string(), en);
-            } else if let Type::Reference(r) = &final_arg_type {
+            if let Type::Reference(r) = &arg.ty {
                 let ident = format_ident!("{}", clean_type_name(r));
                 arg_idents.insert(fname.to_string(), ident);
             }
-            let f_ty = if let Some(en) = forced_enum_ident {
-                quote! { #en }
-            } else {
-                resolve_type_to_tokens(&final_arg_type, &hint, ctx).unwrap_or_else(|_| {
-                    // If resolution failed but we have a reference name, still emit it; otherwise i32.
-                    if let Type::Reference(r) = &final_arg_type {
-                        let ident = format_ident!("{}", clean_type_name(r));
-                        quote! { #ident }
-                    } else {
-                        quote! { i32 }
-                    }
-                })
-            };
+            let f_ty = resolve_type_to_tokens(&arg.ty, &hint, ctx)?;
 
             fields.push(quote! { pub #f_ident: #f_ty });
-            match dep {
-                crate::generator::analysis::Dependency::Global(_) => {
-                    proto_fields.push(quote! { #f_ident: source.#f_ident });
-                }
-                crate::generator::analysis::Dependency::LocalField(_) => {
-                    has_local_deps = true;
-                }
+            if arg.is_local() {
+                has_local_deps = true;
+            } else {
+                proto_fields.push(quote! { #f_ident: source.#f_ident });
             }
         }
 
@@ -220,12 +75,19 @@ pub fn generate_codec_impl(
         }
     }
 
+    let size_body = generate_size_body(name, container, ctx)?;
     let encode_body = generate_encode_body(name, container, ctx)?;
     let decode_body = generate_decode_body(name, &resolved, ctx, &arg_idents)?;
 
     Ok(quote! {
         #args_struct_def
         #from_proto_impl
+
+        impl crate::bedrock::codec::BedrockSized for #struct_ident {
+            fn encoded_size(&self) -> usize {
+                #size_body
+            }
+        }
 
         impl crate::bedrock::codec::BedrockCodec for #struct_ident {
             type Args = #args_type_def;
@@ -566,7 +428,10 @@ fn generate_field_decode_expr(
                 _ => quote! { 0 },
             };
 
-            let decode_encoding = encoding.clone().unwrap_or_default();
+            let is_latin1 = encoding
+                .as_deref()
+                .map(|value| value.eq_ignore_ascii_case("latin1"))
+                .unwrap_or(false);
             let string_len_signed = matches!(
                 count_type.as_ref(),
                 Type::Primitive(
@@ -593,23 +458,33 @@ fn generate_field_decode_expr(
                 }
             };
 
-            Ok(quote! {{
-                #len_logic
-                if buf.remaining() < len {
-                    return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
-                        declared: len,
-                        available: buf.remaining(),
-                    });
-                }
-                let mut bytes = vec![0u8; len];
-                buf.copy_to_slice(&mut bytes);
-                let s = if #decode_encoding.eq_ignore_ascii_case("latin1") {
+            if is_latin1 {
+                Ok(quote! {{
+                    #len_logic
+                    if buf.remaining() < len {
+                        return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
+                            declared: len,
+                            available: buf.remaining(),
+                        });
+                    }
+                    let mut bytes = vec![0u8; len];
+                    buf.copy_to_slice(&mut bytes);
                     bytes.into_iter().map(|b| b as char).collect::<String>()
-                } else {
-                    String::from_utf8_lossy(&bytes).into_owned()
-                };
-                s
-            }})
+                }})
+            } else {
+                Ok(quote! {{
+                    #len_logic
+                    if buf.remaining() < len {
+                        return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
+                            declared: len,
+                            available: buf.remaining(),
+                        });
+                    }
+                    let mut bytes = vec![0u8; len];
+                    buf.copy_to_slice(&mut bytes);
+                    crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+                }})
+            }
         }
         Type::Encapsulated { length_type, inner } => {
             let len_read = match length_type.as_ref() {
@@ -901,24 +776,6 @@ fn construct_args_expr(
     resolved: &ResolvedContainer,
 ) -> TokenStream {
     let has_args = !resolved.args.is_empty();
-    let arg_type_lookup: std::collections::HashMap<_, _> = resolved.args.iter().cloned().collect();
-
-    let resolved_ty = match ty {
-        Type::Reference(r) => ctx
-            .type_lookup
-            .get(r)
-            .cloned()
-            .unwrap_or(Type::Primitive(Primitive::Void)),
-        Type::Container(c) => Type::Container(c.clone()),
-        _ => ty.clone(),
-    };
-
-    let deps = crate::generator::analysis::get_deps(&resolved_ty, ctx);
-
-    if deps.is_empty() {
-        return quote! { () };
-    }
-
     let type_name = match ty {
         Type::Reference(r) => clean_type_name(r),
         Type::Container(c) => {
@@ -931,6 +788,39 @@ fn construct_args_expr(
         }
         _ => "Unknown".to_string(),
     };
+
+    let resolved_ty = match ty {
+        Type::Reference(r) => ctx
+            .type_lookup
+            .get(r)
+            .cloned()
+            .unwrap_or(Type::Primitive(Primitive::Void)),
+        Type::Container(c) => Type::Container(c.clone()),
+        _ => ty.clone(),
+    };
+
+    let target_resolved = match &resolved_ty {
+        Type::Container(c) => Some(ResolvedContainer::analyze(c, &type_name, ctx)),
+        _ => None,
+    };
+
+    let arg_type_lookup: std::collections::HashMap<_, _> = target_resolved
+        .as_ref()
+        .map(|target| {
+            target
+                .args
+                .iter()
+                .map(|arg| (arg.name().to_string(), arg.ty.clone()))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let deps = crate::generator::analysis::get_deps(&resolved_ty, ctx);
+
+    if deps.is_empty() {
+        return quote! { () };
+    }
+
     let args_struct_ident = format_ident!("{}Args", type_name);
 
     let mut sorted_deps: Vec<_> = deps.into_iter().collect();
@@ -949,11 +839,10 @@ fn construct_args_expr(
     for (dep, target_type) in sorted_deps {
         let n = dep.name();
         let f_ident = format_ident!("{}", n);
-        // Prefer resolved variable/arg types over the raw dependency default.
+        // Prefer the callee's resolved argument type over the raw dependency default.
         let final_target_type = arg_type_lookup
             .get(n)
             .cloned()
-            .or_else(|| resolved.variable_types.get(n).cloned())
             .unwrap_or(target_type.clone());
 
         let value_expr = match dep {
@@ -1013,6 +902,460 @@ fn construct_args_expr(
     quote! {
         #args_struct_ident {
             #(#field_assigns),* }
+    }
+}
+
+fn generate_length_prefix_size_expr(length_type: &Type, len_expr: TokenStream) -> TokenStream {
+    match length_type {
+        Type::Primitive(p) => match p {
+            Primitive::VarInt => {
+                quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(#len_expr as i32)) }
+            }
+            Primitive::VarLong => {
+                quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarLong(#len_expr as i64)) }
+            }
+            Primitive::ZigZag32 => {
+                quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::ZigZag32(#len_expr as i32)) }
+            }
+            Primitive::ZigZag64 => {
+                quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::ZigZag64(#len_expr as i64)) }
+            }
+            Primitive::U8 | Primitive::I8 | Primitive::Bool => quote! { 1usize },
+            Primitive::U16 | Primitive::U16LE | Primitive::I16 | Primitive::I16LE => {
+                quote! { 2usize }
+            }
+            Primitive::U32
+            | Primitive::U32LE
+            | Primitive::I32
+            | Primitive::I32LE
+            | Primitive::F32
+            | Primitive::F32LE => quote! { 4usize },
+            Primitive::U64
+            | Primitive::U64LE
+            | Primitive::I64
+            | Primitive::I64LE
+            | Primitive::F64
+            | Primitive::F64LE => quote! { 8usize },
+            _ => {
+                let t = primitive_to_rust_tokens(p);
+                quote! { crate::bedrock::codec::BedrockSized::encoded_size(&(#len_expr as #t)) }
+            }
+        },
+        _ => quote! { crate::bedrock::codec::BedrockSized::encoded_size(&(#len_expr as u32)) },
+    }
+}
+
+fn generate_size_body(
+    name: &str,
+    container: &Container,
+    ctx: &mut Context,
+) -> Result<TokenStream, Box<dyn std::error::Error>> {
+    let mut stmts = Vec::new();
+    let redundant_fields = find_redundant_fields(container);
+    let unique_names = derive_field_names(container, name);
+
+    for (idx, field) in container.fields.iter().enumerate() {
+        let var_name = &unique_names[idx];
+        let var_ident = format_ident!("{}", var_name);
+        let expr = if redundant_fields.contains(&field.name) {
+            generate_redundant_size(name, field, container)
+        } else {
+            generate_field_size_expr(
+                name,
+                var_name,
+                &field.type_def,
+                quote! { self.#var_ident },
+                container,
+                ctx,
+                false,
+            )?
+        };
+        stmts.push(quote! { size += #expr; });
+    }
+
+    if stmts.is_empty() {
+        return Ok(quote! { 0usize });
+    }
+
+    Ok(quote! {
+        let mut size = 0usize;
+        #(#stmts)*
+        size
+    })
+}
+
+fn generate_field_size_expr(
+    container_name: &str,
+    var_name: &str,
+    ty: &Type,
+    access_expr: TokenStream,
+    container: &Container,
+    ctx: &mut Context,
+    is_ref: bool,
+) -> Result<TokenStream, Box<dyn std::error::Error>> {
+    match ty {
+        Type::Switch { .. } => generate_switch_size_logic(
+            container_name,
+            var_name,
+            ty,
+            container,
+            ctx,
+            access_expr,
+            is_ref,
+        ),
+        Type::Array {
+            count_type,
+            inner_type,
+        } => {
+            let len_size = generate_length_prefix_size_expr(count_type.as_ref(), quote! { _len });
+            let items_expr = if is_ref {
+                quote! { #access_expr }
+            } else {
+                quote! { &#access_expr }
+            };
+            let inner_expr = generate_field_size_expr(
+                container_name,
+                &format!("{var_name}Item"),
+                inner_type,
+                quote! { _item },
+                container,
+                ctx,
+                true,
+            )?;
+            Ok(quote! {{
+                let _len = (#items_expr).len();
+                #len_size + (#items_expr).iter().map(|_item| { #inner_expr }).sum::<usize>()
+            }})
+        }
+        Type::FixedArray { inner_type, .. } => {
+            let items_expr = if is_ref {
+                quote! { #access_expr }
+            } else {
+                quote! { &#access_expr }
+            };
+            if matches!(inner_type.as_ref(), Type::Primitive(Primitive::U8)) {
+                Ok(quote! { (#items_expr).len() })
+            } else {
+                let inner_expr = generate_field_size_expr(
+                    container_name,
+                    &format!("{var_name}Item"),
+                    inner_type,
+                    quote! { _item },
+                    container,
+                    ctx,
+                    true,
+                )?;
+                Ok(quote! { (#items_expr).iter().map(|_item| { #inner_expr }).sum::<usize>() })
+            }
+        }
+        Type::String {
+            count_type,
+            encoding,
+        } => {
+            let len_size = generate_length_prefix_size_expr(count_type.as_ref(), quote! { _len });
+            let value_expr = if is_ref {
+                quote! { #access_expr }
+            } else {
+                quote! { &#access_expr }
+            };
+            let is_latin1 = encoding
+                .as_deref()
+                .map(|value| value.eq_ignore_ascii_case("latin1"))
+                .unwrap_or(false);
+            if is_latin1 {
+                Ok(quote! {{
+                    let _len = (#value_expr).chars().count();
+                    #len_size + _len
+                }})
+            } else {
+                Ok(quote! {{
+                    let _len = (#value_expr).as_bytes().len();
+                    #len_size + _len
+                }})
+            }
+        }
+        Type::Encapsulated { length_type, inner } => {
+            let inner_expr = generate_field_size_expr(
+                container_name,
+                &format!("{var_name}Encap"),
+                inner,
+                access_expr,
+                container,
+                ctx,
+                is_ref,
+            )?;
+            let len_size = generate_length_prefix_size_expr(length_type.as_ref(), quote! { _len });
+            Ok(quote! {{
+                let _len = #inner_expr;
+                #len_size + _len
+            }})
+        }
+        Type::Option(inner) => {
+            let match_expr = if is_ref {
+                quote! { #access_expr }
+            } else {
+                quote! { &#access_expr }
+            };
+            let inner_expr = generate_field_size_expr(
+                container_name,
+                &format!("{var_name}Some"),
+                inner,
+                quote! { _v },
+                container,
+                ctx,
+                true,
+            )?;
+            Ok(quote! {{
+                1usize + match #match_expr {
+                    Some(_v) => #inner_expr,
+                    None => 0usize,
+                }
+            }})
+        }
+        Type::Primitive(p) => {
+            let owned_expr = if is_ref {
+                quote! { *#access_expr }
+            } else {
+                access_expr.clone()
+            };
+            Ok(match p {
+                Primitive::VarInt => {
+                    quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(#owned_expr)) }
+                }
+                Primitive::VarLong => {
+                    quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarLong(#owned_expr)) }
+                }
+                Primitive::ZigZag32 => {
+                    quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::ZigZag32(#owned_expr)) }
+                }
+                Primitive::ZigZag64 => {
+                    quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::ZigZag64(#owned_expr)) }
+                }
+                Primitive::U8 | Primitive::I8 | Primitive::Bool => quote! { 1usize },
+                Primitive::U16 | Primitive::U16LE | Primitive::I16 | Primitive::I16LE => {
+                    quote! { 2usize }
+                }
+                Primitive::U32
+                | Primitive::U32LE
+                | Primitive::I32
+                | Primitive::I32LE
+                | Primitive::F32
+                | Primitive::F32LE => quote! { 4usize },
+                Primitive::U64
+                | Primitive::U64LE
+                | Primitive::I64
+                | Primitive::I64LE
+                | Primitive::F64
+                | Primitive::F64LE => quote! { 8usize },
+                Primitive::Uuid => quote! { 16usize },
+                Primitive::Void => quote! { 0usize },
+                _ => {
+                    if is_ref {
+                        quote! { crate::bedrock::codec::BedrockSized::encoded_size(#access_expr) }
+                    } else {
+                        quote! { crate::bedrock::codec::BedrockSized::encoded_size(&#access_expr) }
+                    }
+                }
+            })
+        }
+        Type::Reference(r) => {
+            if r == "enum_size_based_on_values_len" {
+                return Ok(quote! {{
+                    let len = self.values_len as usize;
+                    if len <= 0xff {
+                        1usize
+                    } else if len <= 0xffff {
+                        2usize
+                    } else {
+                        4usize
+                    }
+                }});
+            }
+
+            let clean = clean_type_name(r);
+            if clean == "LittleString" {
+                let value_expr = if is_ref {
+                    quote! { #access_expr }
+                } else {
+                    quote! { &#access_expr }
+                };
+                return Ok(quote! { 4usize + (#value_expr).as_bytes().len() });
+            }
+
+            let resolved_ty = resolve_type(ty, ctx);
+            if matches!(
+                resolved_ty,
+                Type::Array { .. }
+                    | Type::FixedArray { .. }
+                    | Type::Option(_)
+                    | Type::String { .. }
+                    | Type::Encapsulated { .. }
+                    | Type::Switch { .. }
+            ) {
+                return generate_field_size_expr(
+                    container_name,
+                    var_name,
+                    &resolved_ty,
+                    access_expr,
+                    container,
+                    ctx,
+                    is_ref,
+                );
+            }
+
+            if is_ref {
+                Ok(quote! { crate::bedrock::codec::BedrockSized::encoded_size(#access_expr) })
+            } else {
+                Ok(quote! { crate::bedrock::codec::BedrockSized::encoded_size(&#access_expr) })
+            }
+        }
+        _ => {
+            if is_ref {
+                Ok(quote! { crate::bedrock::codec::BedrockSized::encoded_size(#access_expr) })
+            } else {
+                Ok(quote! { crate::bedrock::codec::BedrockSized::encoded_size(&#access_expr) })
+            }
+        }
+    }
+}
+
+fn generate_switch_size_logic(
+    name: &str,
+    var_name: &str,
+    switch_def: &Type,
+    container: &Container,
+    ctx: &mut Context,
+    access_expr: TokenStream,
+    is_ref: bool,
+) -> Result<TokenStream, Box<dyn std::error::Error>> {
+    let Type::Switch {
+        fields, default, ..
+    } = switch_def
+    else {
+        return Err("Not a switch".into());
+    };
+
+    let default_is_void = matches!(default.as_ref(), Type::Primitive(Primitive::Void));
+    let all_explicit_void = fields
+        .iter()
+        .all(|(_, t)| matches!(t, Type::Primitive(Primitive::Void)));
+
+    if all_explicit_void && !default_is_void {
+        let inner_access = if is_ref {
+            quote! { #access_expr }
+        } else {
+            quote! { &#access_expr }
+        };
+        let default_expr = generate_field_size_expr(
+            name,
+            &format!("{var_name}Default"),
+            default,
+            quote! { _v },
+            container,
+            ctx,
+            true,
+        )?;
+        return Ok(quote! {
+            match #inner_access {
+                Some(_v) => #default_expr,
+                None => 0usize,
+            }
+        });
+    }
+
+    let enum_name = clean_type_name(&format!("{}{}", name, camel_case(var_name)));
+    let enum_ident = format_ident!("{}", enum_name);
+    let match_target = if is_ref {
+        quote! { #access_expr }
+    } else {
+        quote! { &#access_expr }
+    };
+
+    if default_is_void && fields.len() == 1 {
+        let (_case_name, case_type) = &fields[0];
+        let inner_expr = generate_field_size_expr(
+            name,
+            &format!("{var_name}Some"),
+            case_type,
+            quote! { _v },
+            container,
+            ctx,
+            true,
+        )?;
+        return Ok(quote! {
+            match #match_target {
+                Some(_v) => #inner_expr,
+                None => 0usize,
+            }
+        });
+    }
+
+    let is_bool_switch =
+        fields.len() == 2 && fields.iter().any(|(k, _)| k == "true" || k == "false");
+    let is_bool_switch_with_refs =
+        is_bool_switch && fields.iter().all(|(_, t)| matches!(t, Type::Reference(_)));
+
+    let mut match_arms = Vec::new();
+    for (case_name, case_type) in fields {
+        let variant_ident = if is_bool_switch_with_refs {
+            if let Type::Reference(r) = case_type {
+                format_ident!("{}", clean_type_name(r))
+            } else {
+                format_ident!("{}", safe_camel_ident(case_name))
+            }
+        } else {
+            format_ident!("{}", safe_camel_ident(case_name))
+        };
+
+        if matches!(case_type, Type::Primitive(Primitive::Void)) {
+            match_arms.push(quote! { #enum_ident::#variant_ident => 0usize, });
+        } else {
+            let inner_expr = generate_field_size_expr(
+                name,
+                &format!("{var_name}{case_name}"),
+                case_type,
+                quote! { _v },
+                container,
+                ctx,
+                true,
+            )?;
+            match_arms.push(quote! { #enum_ident::#variant_ident(_v) => #inner_expr, });
+        }
+    }
+
+    if default_is_void {
+        if is_bool_switch
+            && !fields
+                .iter()
+                .any(|(_, t)| matches!(t, Type::Primitive(Primitive::Void)))
+        {
+            Ok(quote! { match #match_target { #(#match_arms)* } })
+        } else {
+            Ok(quote! {
+                match #match_target {
+                    Some(_v) => match _v { #(#match_arms)* },
+                    None => 0usize,
+                }
+            })
+        }
+    } else {
+        let is_boxed = should_box_variant(default.as_ref(), ctx, 0);
+        let inner_access = if is_boxed {
+            quote! { (&**_v) }
+        } else {
+            quote! { _v }
+        };
+        let default_expr = generate_field_size_expr(
+            name,
+            &format!("{var_name}Default"),
+            default,
+            inner_access,
+            container,
+            ctx,
+            true,
+        )?;
+        match_arms.push(quote! { #enum_ident::Default(_v) => #default_expr, });
+        Ok(quote! { match #match_target { #(#match_arms)* } })
     }
 }
 
@@ -1233,29 +1576,37 @@ fn generate_field_encode(
                 _ => quote! { (len as u32).encode(buf)?; },
             };
 
-            let encode_encoding = encoding.clone().unwrap_or_default();
+            let is_latin1 = encoding
+                .as_deref()
+                .map(|value| value.eq_ignore_ascii_case("latin1"))
+                .unwrap_or(false);
             let val_expr = if is_ref {
                 quote! { #access_expr }
             } else {
                 quote! { &#access_expr }
             };
 
-            Ok(quote! {
-                let bytes: Vec<u8> = if #encode_encoding.eq_ignore_ascii_case("latin1") {
-                    (#val_expr)
+            if is_latin1 {
+                Ok(quote! {
+                    let bytes: Vec<u8> = (#val_expr)
                         .chars()
                         .map(|ch| {
                             let code = ch as u32;
                             if code <= 0xFF { code as u8 } else { b'?' }
                         })
-                        .collect()
-                } else {
-                    (#val_expr).as_bytes().to_vec()
-                };
-                let len = bytes.len();
-                #len_encode
-                buf.put_slice(&bytes);
-            })
+                        .collect();
+                    let len = bytes.len();
+                    #len_encode
+                    buf.put_slice(&bytes);
+                })
+            } else {
+                Ok(quote! {
+                    let bytes = (#val_expr).as_bytes();
+                    let len = bytes.len();
+                    #len_encode
+                    buf.put_slice(bytes);
+                })
+            }
         }
         Type::Encapsulated { length_type, inner } => {
             let len_encode = match length_type.as_ref() {
@@ -1314,16 +1665,20 @@ fn generate_field_encode(
                 ctx,
                 is_ref,
             )?;
+            let inner_size = generate_field_size_expr(
+                container_name,
+                &inner_name,
+                inner,
+                access_expr,
+                container,
+                ctx,
+                is_ref,
+            )?;
 
             Ok(quote! {
-                let mut __encap_tmp = bytes::BytesMut::new();
-                {
-                    let buf = &mut __encap_tmp;
-                    #inner_body
-                }
-                let len = __encap_tmp.len();
+                let len = #inner_size;
                 #len_encode
-                buf.put_slice(&__encap_tmp);
+                #inner_body
             })
         }
         Type::Option(inner) => {
@@ -1743,6 +2098,108 @@ fn generate_redundant_encode(
     }
 }
 
+fn generate_redundant_size(
+    name: &str,
+    field: &crate::ir::Field,
+    container: &Container,
+) -> TokenStream {
+    let mut target_field_name = None;
+    let mut target_switch: Option<&Type> = None;
+    for other in &container.fields {
+        if let Type::Switch { compare_to, .. } = &other.type_def
+            && compare_to.replace("../", "") == field.name
+        {
+            let other_clean = clean_field_name(&other.name, name);
+            target_field_name = Some(format_ident!("{}", other_clean));
+            target_switch = Some(&other.type_def);
+            break;
+        }
+    }
+
+    let (
+        Some(target),
+        Some(Type::Switch {
+            fields, default, ..
+        }),
+    ) = (target_field_name, target_switch)
+    else {
+        return quote! { 1usize };
+    };
+
+    let is_void = |ty: &Type| matches!(ty, Type::Primitive(Primitive::Void));
+
+    let mut true_ty: Option<&Type> = None;
+    let mut false_ty: Option<&Type> = None;
+    for (case_name, case_ty) in fields {
+        match case_name.to_ascii_lowercase().as_str() {
+            "true" | "1" => true_ty = Some(case_ty),
+            "false" | "0" => false_ty = Some(case_ty),
+            _ => {}
+        }
+    }
+
+    let default_ty = default.as_ref();
+    let true_is_void = is_void(true_ty.unwrap_or(default_ty));
+    let false_is_void = is_void(false_ty.unwrap_or(default_ty));
+
+    if !true_is_void && !false_is_void {
+        let _ = target;
+        return quote! { 1usize };
+    }
+
+    if let Type::Enum {
+        underlying,
+        variants,
+    } = &field.type_def
+    {
+        let mut true_val: Option<i64> = None;
+        let mut false_val: Option<i64> = None;
+        for (variant_name, discriminant) in variants {
+            match variant_name.to_ascii_lowercase().as_str() {
+                "true" | "1" => true_val = Some(*discriminant),
+                "false" | "0" => false_val = Some(*discriminant),
+                _ => {}
+            }
+        }
+
+        if true_val.is_some() && false_val.is_some() && !matches!(underlying, Primitive::Bool) {
+            return match underlying {
+                Primitive::U16LE | Primitive::I16LE | Primitive::U16 | Primitive::I16 => {
+                    quote! { 2usize }
+                }
+                Primitive::U8 | Primitive::I8 => quote! { 1usize },
+                Primitive::U32
+                | Primitive::U32LE
+                | Primitive::I32
+                | Primitive::I32LE
+                | Primitive::F32
+                | Primitive::F32LE => quote! { 4usize },
+                Primitive::U64
+                | Primitive::U64LE
+                | Primitive::I64
+                | Primitive::I64LE
+                | Primitive::F64
+                | Primitive::F64LE => quote! { 8usize },
+                Primitive::VarInt => {
+                    quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(0)) }
+                }
+                Primitive::VarLong => {
+                    quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarLong(0)) }
+                }
+                Primitive::ZigZag32 => {
+                    quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::ZigZag32(0)) }
+                }
+                Primitive::ZigZag64 => {
+                    quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::ZigZag64(0)) }
+                }
+                _ => quote! { 1usize },
+            };
+        }
+    }
+
+    quote! { 1usize }
+}
+
 fn resolve_path(
     path: &str,
     locals: &HashSet<String>,
@@ -1827,8 +2284,8 @@ fn resolve_path(
                 resolved
                     .args
                     .iter()
-                    .find(|(n, _)| n == &field_name)
-                    .map(|(_, t)| t.clone())
+                    .find(|arg| arg.name() == field_name)
+                    .map(|arg| arg.ty.clone())
             });
             return (quote! { args.#field_ident }, arg_ty);
         }
@@ -1858,8 +2315,8 @@ fn resolve_path(
                     resolved
                         .args
                         .iter()
-                        .find(|(n, _)| n == &s_ident)
-                        .map(|(_, t)| t.clone())
+                        .find(|arg| arg.name() == s_ident)
+                        .map(|arg| arg.ty.clone())
                 });
             } else {
                 tokens.push(quote! { #part_ident });
@@ -2037,12 +2494,15 @@ fn case_value_pattern(
     }
 
     // Final attempt: check resolved argument metadata for a matching discriminator.
-    if let Some((_, arg_ty)) = resolved.args.iter().find(|(n, _)| {
-        n == compare_field_name
-            || n.strip_prefix('_')
+    if let Some(arg) = resolved.args.iter().find(|arg| {
+        arg.name() == compare_field_name
+            || arg
+                .name()
+                .strip_prefix('_')
                 .map(|s| s == compare_field_name)
                 .unwrap_or(false)
     }) {
+        let arg_ty = &arg.ty;
         if matches!(arg_ty, Type::Reference(_) | Type::Enum { .. })
             && let Ok(type_tokens) = resolve_type_to_tokens(arg_ty, compare_field_name, ctx)
         {
@@ -2230,8 +2690,11 @@ fn generate_switch_decode_logic(
                 .or(compare_type.clone());
             if ty.is_none() {
                 // fallback to args map
-                let args_map: std::collections::HashMap<_, _> =
-                    resolved.args.iter().cloned().collect();
+                let args_map: std::collections::HashMap<_, _> = resolved
+                    .args
+                    .iter()
+                    .map(|arg| (arg.name().to_string(), arg.ty.clone()))
+                    .collect();
                 ty = keys.iter().find_map(|k| args_map.get(k).cloned());
             }
             ty
@@ -2711,8 +3174,50 @@ pub fn generate_enum_type_codec(
     }
 
     let fallback_ident = format_ident!("{}", fallback_variant_name);
+    let encoded_size = match underlying {
+        Primitive::VarInt => {
+            quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(_val as i32)) }
+        }
+        Primitive::VarLong => {
+            quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarLong(_val as i64)) }
+        }
+        Primitive::ZigZag32 => {
+            quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::ZigZag32(_val as i32)) }
+        }
+        Primitive::ZigZag64 => {
+            quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::ZigZag64(_val as i64)) }
+        }
+        Primitive::U8 | Primitive::I8 | Primitive::Bool => quote! { 1usize },
+        Primitive::U16 | Primitive::U16LE | Primitive::I16 | Primitive::I16LE => {
+            quote! { 2usize }
+        }
+        Primitive::U32
+        | Primitive::U32LE
+        | Primitive::I32
+        | Primitive::I32LE
+        | Primitive::F32
+        | Primitive::F32LE => quote! { 4usize },
+        Primitive::U64
+        | Primitive::U64LE
+        | Primitive::I64
+        | Primitive::I64LE
+        | Primitive::F64
+        | Primitive::F64LE => quote! { 8usize },
+        Primitive::Uuid => quote! { 16usize },
+        _ => quote! { crate::bedrock::codec::BedrockSized::encoded_size(&_val) },
+    };
 
     Ok(quote! {
+        impl crate::bedrock::codec::BedrockSized for #struct_ident {
+            fn encoded_size(&self) -> usize {
+                let _val: #repr_ty = match self {
+                    #(#encode_arms)*
+                    #struct_ident::#fallback_ident(v) => *v,
+                };
+                #encoded_size
+            }
+        }
+
         impl crate::bedrock::codec::BedrockCodec for #struct_ident {
             type Args = ();
             fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {

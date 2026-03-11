@@ -1,22 +1,28 @@
 pub mod analysis;
+pub mod borrowed;
 pub mod codec;
 pub mod context;
 pub mod definitions;
+pub mod emitter;
+pub mod packet;
 pub mod primitives;
 pub mod resolver;
 pub mod structs;
 pub mod utils;
 
-use crate::generator::analysis::{get_deps, should_box_variant};
+use crate::generator::analysis::should_box_variant;
+use crate::generator::borrowed::generate_borrowed_module;
 use crate::generator::definitions::{define_container, resolve_type_to_tokens};
+use crate::generator::resolver::ResolvedContainer;
 use crate::parser::ParseResult;
 use context::{Context, GlobalRegistry};
 use definitions::define_type;
+use emitter::{generated_module_tokens, write_rust_file};
+use packet::packet_naming;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::fs::{self, File};
-use std::io::Write;
+use std::fs::{self};
 use std::path::Path;
 use tracing::{debug, warn};
 
@@ -24,26 +30,16 @@ use self::primitives::is_primitive_name;
 use self::utils::{camel_case, clean_field_name};
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub struct VersionSnapshot {
-    pub module_name: String,
-    pub packets: HashMap<String, resolver::PacketSignature>,
-}
-
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct GenerationOutcome {
-    pub module_dependencies: HashSet<String>,
-    pub snapshot: VersionSnapshot,
+    pub crate_dependencies: HashSet<String>,
 }
 
 pub fn generate_protocol_module(
+    crate_name: &str,
     protocol_module_name: &str,
     parse_result: &ParseResult,
     output_dir: &Path,
     global_registry: &mut GlobalRegistry,
-    _items_path: Option<std::path::PathBuf>,
-    _previous_snapshot: Option<&VersionSnapshot>,
 ) -> Result<GenerationOutcome, Box<dyn std::error::Error>> {
     // Create directory for the version (or root if empty)
     let version_dir = if protocol_module_name.is_empty() {
@@ -55,10 +51,15 @@ pub fn generate_protocol_module(
         fs::create_dir_all(&version_dir)?;
     }
 
-    let current_module_path = if protocol_module_name.is_empty() {
+    let current_local_path = if protocol_module_name.is_empty() {
         "crate".to_string()
     } else {
-        format!("crate::bedrock::protocol::{}", protocol_module_name)
+        format!("crate::{protocol_module_name}")
+    };
+    let current_external_path = if protocol_module_name.is_empty() {
+        crate_name.to_string()
+    } else {
+        format!("{crate_name}::{protocol_module_name}")
     };
 
     let mut ctx = Context {
@@ -69,8 +70,10 @@ pub fn generate_protocol_module(
         inline_cache: HashMap::new(),
         type_lookup: parse_result.types.clone(),
         global_registry,
-        current_module_path,
-        module_dependencies: HashSet::new(),
+        current_crate_name: crate_name.to_string(),
+        current_local_path,
+        current_external_path,
+        crate_dependencies: HashSet::new(),
         argful_types: HashSet::new(),
     };
 
@@ -103,28 +106,17 @@ pub fn generate_protocol_module(
         }
     }
     // 2. Emit Packets (top-level)
-    let mut packet_signatures = HashMap::new();
-
     for packet in &parse_result.packets {
-        let base_name = camel_case(&packet.name);
-        let struct_name = if base_name.ends_with("Packet") {
-            base_name
-        } else if base_name.starts_with("Packet") {
-            // Convert old-style PacketFoo to FooPacket
-            format!("{}Packet", base_name.trim_start_matches("Packet"))
-        } else {
-            format!("{}Packet", base_name)
-        };
+        let naming = packet_naming(&packet.name);
+        let struct_name = naming.payload_name;
         let signature = resolver::compute_packet_signature(&struct_name, &packet.body, &ctx);
         define_container(&struct_name, &packet.body, &signature, &mut ctx)?;
-
-        packet_signatures.insert(struct_name, signature);
     }
 
     // 3. PacketId enum (Put in "common")
     let mut packet_variants = Vec::new();
     for packet in &parse_result.packets {
-        let name = format_ident!("{}", camel_case(&packet.name));
+        let name = packet_naming(&packet.name).variant_ident();
         let id = packet.id;
         packet_variants.push(quote! {
             #name = #id
@@ -167,7 +159,7 @@ pub fn generate_protocol_module(
     );
 
     // Write files
-    let module_dependencies = ctx.module_dependencies.clone();
+    let crate_dependencies = ctx.crate_dependencies.clone();
 
     // Extract "inherited" items to put directly in lib.rs
     let inherited_tokens = ctx
@@ -191,62 +183,53 @@ pub fn generate_protocol_module(
     if let Some(proto_tokens) = ctx.definitions_by_group.remove("proto") {
         has_proto = true;
         let proto_path = version_dir.join("proto.rs");
-        let mut file = File::create(&proto_path)?;
-
-        let final_code = quote! {
-            //! Generated protocol packet definitions.
-            #![allow(non_camel_case_types)]
-            #![allow(non_snake_case)]
-            #![allow(dead_code)]
-            #![allow(unused_parens)]
-            #![allow(clippy::all)]
-            use ::bitflags::bitflags;
-            use bytes::{Buf, BufMut};
-            use crate::types::*;
-            use crate::bedrock::codec::BedrockCodec;
-
-            #(#proto_tokens)*
-        };
-
-        let syntax_tree = syn::parse2(final_code.clone()).map_err(|e| {
-            let _ = std::fs::write("debug_gen_error_proto.rs", final_code.to_string());
-            format!("Failed to parse proto.rs: {}", e)
-        })?;
-        let formatted = prettyplease::unparse(&syntax_tree);
-
-        write!(file, "// Generated by valentine_gen. Do not edit.\n\n")?;
-        write!(file, "{}", formatted)?;
+        write_rust_file(
+            &proto_path,
+            generated_module_tokens(
+                Some("Generated protocol packet definitions."),
+                quote! {
+                    use bytes::Buf;
+                    use crate::types::*;
+                },
+                &proto_tokens,
+            ),
+            Some("debug_gen_error_proto.rs"),
+        )?;
     }
 
     // Write types.rs (all types) - group name is now just "types"
     if let Some(type_tokens) = ctx.definitions_by_group.remove("types") {
         has_types = true;
         let types_path = version_dir.join("types.rs");
-        let mut file = File::create(&types_path)?;
+        write_rust_file(
+            &types_path,
+            generated_module_tokens(
+                Some("Generated protocol type definitions."),
+                quote! {
+                    use ::bitflags::bitflags;
+                    use bytes::Buf;
+                },
+                &type_tokens,
+            ),
+            Some("debug_gen_error_types.rs"),
+        )?;
+    }
 
-        let final_code = quote! {
-            //! Generated protocol type definitions.
-            #![allow(non_camel_case_types)]
-            #![allow(non_snake_case)]
-            #![allow(dead_code)]
-            #![allow(unused_parens)]
-            #![allow(clippy::all)]
-            use ::bitflags::bitflags;
-            use bytes::{Buf, BufMut};
-            use crate::proto::*;
-            use crate::bedrock::codec::BedrockCodec;
-
-            #(#type_tokens)*
-        };
-
-        let syntax_tree = syn::parse2(final_code.clone()).map_err(|e| {
-            let _ = std::fs::write("debug_gen_error_types.rs", final_code.to_string());
-            format!("Failed to parse types.rs: {}", e)
-        })?;
-        let formatted = prettyplease::unparse(&syntax_tree);
-
-        write!(file, "// Generated by valentine_gen. Do not edit.\n\n")?;
-        write!(file, "{}", formatted)?;
+    if let Some(borrowed_tokens) = generate_borrowed_module(parse_result, &mut ctx)? {
+        let borrowed_path = version_dir.join("borrowed.rs");
+        write_rust_file(
+            &borrowed_path,
+            generated_module_tokens(
+                Some("Generated borrowed packet and type views."),
+                quote! {
+                    use crate::bedrock::codec::BedrockCodec;
+                    use crate::proto::*;
+                    use crate::types::*;
+                },
+                &[borrowed_tokens],
+            ),
+            Some("debug_gen_error_borrowed.rs"),
+        )?;
     }
 
     // Handle any remaining groups (e.g., "common", "types/mcpe") - write as misc files
@@ -257,45 +240,37 @@ pub fn generate_protocol_module(
         } else {
             &group
         };
+        if matches!(file_name, "proto" | "types" | "borrowed") {
+            continue;
+        }
         let file_path = version_dir.join(format!("{}.rs", file_name));
-        let mut file = File::create(&file_path)?;
-
-        let final_code = quote! {
-            #![allow(non_camel_case_types)]
-            #![allow(non_snake_case)]
-            #![allow(dead_code)]
-            #![allow(unused_parens)]
-            #![allow(clippy::all)]
-            use ::bitflags::bitflags;
-            use bytes::{Buf, BufMut};
-            use crate::types::*;
-            use crate::proto::*;
-            use crate::bedrock::codec::BedrockCodec;
-
-            #(#tokens)*
-        };
-
-        let syntax_tree = syn::parse2(final_code.clone()).map_err(|e| {
-            let dbg_name = format!("debug_gen_error_{}_{}.rs", protocol_module_name, group);
-            let _ = std::fs::write(dbg_name, final_code.to_string());
-            format!("Failed to parse generated code for {}: {}", group, e)
-        })?;
-        let formatted = prettyplease::unparse(&syntax_tree);
-
-        write!(file, "// Generated by valentine_gen. Do not edit.\n\n")?;
-        write!(file, "{}", formatted)?;
+        let debug_name = format!("debug_gen_error_{}_{}.rs", protocol_module_name, group);
+        write_rust_file(
+            &file_path,
+            generated_module_tokens(
+                None,
+                match file_name {
+                    "mcpe" => quote! {
+                        use bytes::Buf;
+                        use crate::proto::*;
+                        use crate::bedrock::codec::BedrockCodec;
+                    },
+                    "common" => quote! {},
+                    _ => quote! {
+                        use crate::proto::*;
+                    },
+                },
+                &tokens,
+            ),
+            Some(&debug_name),
+        )?;
     }
 
     // Write root lib.rs with flat module structure
     let mod_rs_path = version_dir.join("lib.rs");
-    let mut mod_file = File::create(mod_rs_path)?;
-    let mut mod_tokens = TokenStream::new();
-
-    // Add warning suppressions for the root lib.rs
-    mod_tokens.extend(quote! {
-        #![allow(ambiguous_glob_reexports)]
+    let mut mod_tokens = quote! {
         #![allow(unused_imports)]
-    });
+    };
 
     if !inherited_tokens.is_empty() {
         mod_tokens.extend(quote! { #(#inherited_tokens)* });
@@ -312,6 +287,13 @@ pub fn generate_protocol_module(
         mod_tokens.extend(quote! {
             pub mod types;
             pub use types::*;
+        });
+    }
+
+    if version_dir.join("borrowed.rs").exists() {
+        mod_tokens.extend(quote! {
+            pub mod borrowed;
+            pub use borrowed::*;
         });
     }
 
@@ -352,6 +334,7 @@ pub fn generate_protocol_module(
     // Re-export core bedrock/protocol modules so generated code can refer to crate::bedrock::...
     mod_tokens.extend(quote! {
         pub mod bedrock {
+            pub use valentine_bedrock_core::bedrock::borrowed;
             pub use valentine_bedrock_core::bedrock::codec;
             pub use valentine_bedrock_core::bedrock::context;
             pub use valentine_bedrock_core::bedrock::error;
@@ -363,22 +346,9 @@ pub fn generate_protocol_module(
         }
     });
 
-    let mod_formatted = prettyplease::unparse(&syn::parse2(mod_tokens)?);
-    write!(
-        mod_file,
-        "// Generated by valentine_gen\n\n{}",
-        mod_formatted
-    )?;
+    write_rust_file(&mod_rs_path, mod_tokens, Some("debug_gen_error_lib.rs"))?;
 
-    let snapshot = VersionSnapshot {
-        module_name: protocol_module_name.to_string(),
-        packets: packet_signatures,
-    };
-
-    Ok(GenerationOutcome {
-        module_dependencies,
-        snapshot,
-    })
+    Ok(GenerationOutcome { crate_dependencies })
 }
 
 fn generate_mcpe_packet_module(
@@ -399,16 +369,9 @@ fn generate_mcpe_packet_module(
     let mut metas = Vec::new();
 
     for packet in &parse_result.packets {
-        let name_pascal = camel_case(&packet.name);
-        let variant_ident = format_ident!("{}", name_pascal);
-        let payload_ident = if name_pascal.ends_with("Packet") {
-            format_ident!("{}", name_pascal)
-        } else if name_pascal.starts_with("Packet") {
-            // Convert old-style PacketFoo to FooPacket
-            format_ident!("{}Packet", name_pascal.trim_start_matches("Packet"))
-        } else {
-            format_ident!("{}Packet", name_pascal)
-        };
+        let naming = packet_naming(&packet.name);
+        let variant_ident = naming.variant_ident();
+        let payload_ident = naming.payload_ident();
 
         let container_ty = crate::ir::Type::Container(packet.body.clone());
         let needs_box = should_box_variant(&container_ty, ctx, 0);
@@ -418,26 +381,20 @@ fn generate_mcpe_packet_module(
             quote! { #payload_ident }
         };
 
-        let deps = get_deps(&container_ty, ctx);
+        let resolved = ResolvedContainer::analyze(&packet.body, &payload_ident.to_string(), ctx);
         let mut decode_args = quote! { () };
-        if !deps.is_empty() {
+        if !resolved.args.is_empty() {
             let args_ident = format_ident!("{}Args", payload_ident);
             let mut fields = Vec::new();
-            for (dep, dep_ty) in deps {
-                let clean = clean_field_name(dep.name(), "");
+            for arg in &resolved.args {
+                let clean = clean_field_name(arg.name(), "");
                 let field_ident = format_ident!("{}", clean);
-                let hint = format!("{}{}", payload_ident, camel_case(dep.name()));
+                let hint = format!("{}{}", payload_ident, camel_case(arg.name()));
+                let ty_tokens = resolve_type_to_tokens(&arg.ty, &hint, ctx)?;
 
-                let ty_tokens = if clean == "shield_item_id" {
-                    quote! { i32 }
-                } else {
-                    resolve_type_to_tokens(&dep_ty, &hint, ctx)?
-                };
-
-                arg_fields.entry(clean.clone()).or_insert((
-                    ty_tokens.clone(),
-                    matches!(dep, crate::generator::analysis::Dependency::LocalField(_)),
-                ));
+                arg_fields
+                    .entry(clean.clone())
+                    .or_insert((ty_tokens.clone(), arg.is_local()));
                 fields.push(quote! { #field_ident: _args.#field_ident });
             }
             decode_args = quote! { #args_ident { #(#fields),* } };
@@ -489,6 +446,7 @@ fn generate_mcpe_packet_module(
 
     let mut enum_variants = Vec::new();
     let mut packet_id_arms = Vec::new();
+    let mut size_match_arms = Vec::new();
     let mut encode_match_arms = Vec::new();
     let mut decode_match_arms = Vec::new();
 
@@ -500,8 +458,9 @@ fn generate_mcpe_packet_module(
 
         enum_variants.push(quote! { #variant(#payload_ty) });
         packet_id_arms.push(quote! { McpePacketData::#variant(_) => McpePacketName::#variant });
+        size_match_arms.push(quote! { McpePacketData::#variant(v) => crate::bedrock::codec::BedrockSized::encoded_size(v) });
         encode_match_arms.push(quote! { McpePacketData::#variant(v) => {
-            v.encode(&mut payload_buf)?;
+            v.encode(buf)?;
         }});
 
         let decode_expr = if meta.boxed {
@@ -558,6 +517,18 @@ fn generate_mcpe_packet_module(
 
     let mcpe = quote! {
         pub const GAME_PACKET_ID: u8 = 0xFE;
+
+        #[inline]
+        fn encode_var_u32_stack(mut value: u32, out: &mut [u8; 5]) -> usize {
+            let mut len = 0usize;
+            while value >= 0x80 {
+                out[len] = (value as u8) | 0x80;
+                value >>= 7;
+                len += 1;
+            }
+            out[len] = value as u8;
+            len + 1
+        }
 
         use crate::protocol::wire;
         /// The `McpePacketName` enum defines the unique identifier for each Minecraft Bedrock Edition
@@ -634,21 +605,61 @@ fn generate_mcpe_packet_module(
                 from_subclient: u32,
                 to_subclient: u32,
             ) -> Result<(), std::io::Error> {
-                let mut payload_buf = bytes::BytesMut::new();
-                match self {
-                    #(#encode_match_arms)*
-                }
                 let header = (self.packet_id() as u32)
                     | ((from_subclient & 0x3) << 10)
                     | ((to_subclient & 0x3) << 12);
 
-                let mut header_buf = bytes::BytesMut::new();
-                wire::write_var_u32(&mut header_buf, header);
-                let total_len = header_buf.len() + payload_buf.len();
+                let header_len = wire::var_u32_len(header);
+                let total_len = header_len + crate::bedrock::codec::BedrockSized::encoded_size(self);
 
                 wire::write_var_u32(buf, total_len as u32);
-                buf.put_slice(&header_buf);
-                buf.put_slice(&payload_buf);
+                wire::write_var_u32(buf, header);
+                match self {
+                    #(#encode_match_arms)*
+                }
+                Ok(())
+            }
+
+            /// Fast path for encoding into `BytesMut` without a second payload traversal.
+            pub fn encode_inner_bytes_mut(
+                &self,
+                buf: &mut bytes::BytesMut,
+                from_subclient: u32,
+                to_subclient: u32,
+            ) -> Result<(), std::io::Error> {
+                let header = (self.packet_id() as u32)
+                    | ((from_subclient & 0x3) << 10)
+                    | ((to_subclient & 0x3) << 12);
+
+                let prefix_start = buf.len();
+                let reserved_prefix = 10usize;
+                buf.resize(prefix_start + reserved_prefix, 0);
+                let body_start = buf.len();
+
+                match self {
+                    #(#encode_match_arms)*
+                }
+
+                let body_end = buf.len();
+                let body_len = body_end - body_start;
+
+                let mut total_len_buf = [0u8; 5];
+                let mut header_buf = [0u8; 5];
+                let header_len = encode_var_u32_stack(header, &mut header_buf);
+                let total_len = header_len + body_len;
+                let total_len_len = encode_var_u32_stack(total_len as u32, &mut total_len_buf);
+                let prefix_len = total_len_len + header_len;
+
+                if prefix_len != reserved_prefix {
+                    buf.copy_within(body_start..body_end, prefix_start + prefix_len);
+                    buf.truncate(body_end - (reserved_prefix - prefix_len));
+                }
+
+                buf[prefix_start..prefix_start + total_len_len]
+                    .copy_from_slice(&total_len_buf[..total_len_len]);
+                buf[prefix_start + total_len_len..prefix_start + prefix_len]
+                    .copy_from_slice(&header_buf[..header_len]);
+
                 Ok(())
             }
 
@@ -661,6 +672,17 @@ fn generate_mcpe_packet_module(
             ) -> Result<(), std::io::Error> {
                 buf.put_u8(GAME_PACKET_ID);
                 self.encode_inner(buf, from_subclient, to_subclient)
+            }
+
+            /// Fast path for encoding a game frame into `BytesMut`.
+            pub fn encode_game_frame_bytes_mut(
+                &self,
+                buf: &mut bytes::BytesMut,
+                from_subclient: u32,
+                to_subclient: u32,
+            ) -> Result<(), std::io::Error> {
+                bytes::BufMut::put_u8(buf, GAME_PACKET_ID);
+                self.encode_inner_bytes_mut(buf, from_subclient, to_subclient)
             }
 
             /// Decodes a batch entry from the provided buffer: `[Length] [Header] [Body]`.
@@ -720,6 +742,14 @@ fn generate_mcpe_packet_module(
             }
         }
 
+        impl crate::bedrock::codec::BedrockSized for McpePacketData {
+            fn encoded_size(&self) -> usize {
+                match self {
+                    #(#size_match_arms),*
+                }
+            }
+        }
+
         /// A complete Minecraft Bedrock Edition game packet, including its header and data.
         #[derive(Debug, Clone, PartialEq)]
         pub struct McpePacket {
@@ -730,6 +760,15 @@ fn generate_mcpe_packet_module(
         impl McpePacket {
             pub fn new(header: GameHeader, data: McpePacketData) -> Self {
                 Self { header, data }
+            }
+
+            /// Fast path for encoding into `BytesMut`.
+            pub fn encode_bytes_mut(&self, buf: &mut bytes::BytesMut) -> Result<(), std::io::Error> {
+                self.data.encode_game_frame_bytes_mut(
+                    buf,
+                    self.header.from_subclient,
+                    self.header.to_subclient,
+                )
             }
 
             /// Creates a new `McpePacket` from a packet payload and explicit subclient IDs.

@@ -9,10 +9,9 @@ use tokio_raknet::transport::RaknetStream;
 use valentine::bedrock::{
     codec::BedrockCodec,
     context::BedrockSession,
-    protocol::v1_21_130::{McpePacket, McpePacketData, RequestNetworkSettingsPacket},
+    protocol::v1_26_0::{McpePacket, McpePacketData, RequestNetworkSettingsPacket},
+    version::v1_26_0,
 };
-
-const PROTOCOL_VERSION: i32 = 860;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -41,7 +40,7 @@ async fn main() -> Result<()> {
     // Use McpePacket::from_payload_with_subclients for explicit header control.
     let network_settings_req = McpePacket::from_payload_with_subclients(
         RequestNetworkSettingsPacket {
-            client_protocol: PROTOCOL_VERSION,
+            client_protocol: v1_26_0::PROTOCOL_VERSION,
         },
         0, // from_subclient
         0, // to_subclient

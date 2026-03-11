@@ -2,9 +2,8 @@
 //!
 //! Wraps `tokio_raknet::RaknetStream` to implement the `Transport` trait.
 
-use super::{Transport, TransportMessage};
-use bytes::Bytes;
-use futures::{Sink, Stream};
+use super::{Transport, TransportMessage, TransportRecvMessage};
+use futures::Sink;
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -70,8 +69,16 @@ impl Transport for RakNetTransport {
     fn poll_recv(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Option<Result<Bytes, Self::Error>>> {
-        Pin::new(&mut self.inner).poll_next(cx)
+    ) -> Poll<Option<Result<TransportRecvMessage, Self::Error>>> {
+        match Pin::new(&mut self.inner).poll_recv_message(cx) {
+            Poll::Ready(Some(Ok(msg))) => Poll::Ready(Some(Ok(TransportRecvMessage::SplitFirst {
+                first: msg.id,
+                rest: msg.payload,
+            }))),
+            Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(e))),
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Pending => Poll::Pending,
+        }
     }
 
     fn peer_addr(&self) -> SocketAddr {

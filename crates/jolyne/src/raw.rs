@@ -13,6 +13,7 @@ use valentine::bedrock::context::BedrockSession;
 use valentine::protocol::wire;
 
 use crate::error::{JolyneError, ProtocolError};
+use crate::valentine::BorrowedMcpePacket;
 use crate::valentine::mcpe::{GameHeader, McpePacket, McpePacketData, McpePacketName};
 
 /// A packet with only the header parsed, body kept as raw bytes.
@@ -71,6 +72,12 @@ impl RawPacket {
                 e
             })?;
         Ok(McpePacket::new(header, data))
+    }
+
+    /// Decode the inner frame into a borrowed packet view.
+    pub fn decode_borrowed(self) -> Result<BorrowedMcpePacket, JolyneError> {
+        let mut buf = self.inner_frame;
+        Ok(BorrowedMcpePacket::decode_inner(&mut buf)?)
     }
 
     /// Returns the raw body bytes (payload after header).
@@ -153,6 +160,19 @@ pub fn decode_packet_raw(cursor: &mut Bytes) -> Result<RawPacket, JolyneError> {
         body,
         inner_frame,
     })
+}
+
+/// Decodes a single packet entry from a split frame where the first byte has
+/// already been separated from the remaining payload.
+///
+/// This still materializes a contiguous frame because [`RawPacket`] stores the
+/// complete inner frame for later forwarding and lazy decode.
+pub fn decode_packet_raw_split(first: u8, rest: Bytes) -> Result<RawPacket, JolyneError> {
+    let mut frame = BytesMut::with_capacity(1 + rest.len());
+    frame.extend_from_slice(&[first]);
+    frame.extend_from_slice(&rest);
+    let mut cursor = frame.freeze();
+    decode_packet_raw(&mut cursor)
 }
 
 /// Decodes all packets from a decompressed batch payload into [`RawPacket`]s.

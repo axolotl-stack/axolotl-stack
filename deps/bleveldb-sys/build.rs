@@ -114,8 +114,16 @@ fn main() {
 }
 
 fn find_vcpkg_root() -> Option<String> {
+    for key in ["VCPKG_ROOT", "VCPKG_INSTALLATION_ROOT"] {
+        if let Ok(value) = std::env::var(key)
+            && !value.trim().is_empty()
+        {
+            return Some(value);
+        }
+    }
+
     let output = Command::new("powershell")
-        .args(&["/C", "(Get-Command vcpkg).Source"])
+        .args(["-NoProfile", "-Command", "(Get-Command vcpkg).Source"])
         .output()
         .ok()?;
 

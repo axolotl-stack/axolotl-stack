@@ -21,13 +21,14 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::auth::{ValidatedIdentity, authenticate_login};
-use crate::error::{JolyneError, ProtocolError};
+use crate::error::{AuthError, JolyneError, ProtocolError};
 use crate::stream::{
     BedrockStream, Handshake, Login, Play, ResourcePacks, SecurePending, Server, StartGame,
     transport::{BedrockTransport, Transport},
 };
 use crate::valentine::types::Experiments;
 use crate::valentine::types::ResourcePackIdVersions;
+use crate::valentine::{BorrowedMcpePacketData, BorrowedRequestNetworkSettingsPacket};
 use crate::valentine::{McpePacket, McpePacketData};
 use crate::valentine::{NetworkSettingsPacket, NetworkSettingsPacketCompressionAlgorithm};
 use crate::world::{WorldJoinParams, WorldTemplate};
@@ -65,10 +66,11 @@ impl<T: Transport> BedrockStream<Handshake, Server, T> {
     pub async fn accept_network_settings(
         mut self,
     ) -> Result<BedrockStream<Login, Server, T>, JolyneError> {
-        let packet = self.transport.recv_packet().await?;
+        let packet = self.transport.recv_packet_borrowed().await?;
 
         match packet.data {
-            McpePacketData::PacketRequestNetworkSettings(req) => {
+            BorrowedMcpePacketData::PacketRequestNetworkSettings(req) => {
+                let req: BorrowedRequestNetworkSettingsPacket = req;
                 let server_protocol = crate::valentine::PROTOCOL_VERSION;
 
                 let client_protocol = req.client_protocol;
@@ -174,19 +176,23 @@ impl<T: Transport> BedrockStream<Login, Server, T> {
     pub async fn authenticate(
         mut self,
     ) -> Result<(BedrockStream<SecurePending, Server, T>, ValidatedIdentity), JolyneError> {
-        let packet = self.recv_expect_login().await?;
-
-        let login_data = match packet.data {
-            McpePacketData::PacketLogin(l) => l,
-
-            _ => unreachable!(),
-        };
+        let login_data = self.recv_expect_login().await?;
 
         let listener_config = self.state.config.as_ref().expect("config");
+        let identity = login_data
+            .tokens
+            .identity
+            .as_str()
+            .map_err(|_| AuthError::InvalidUtf8)?;
+        let client = login_data
+            .tokens
+            .client
+            .as_str()
+            .map_err(|_| AuthError::InvalidUtf8)?;
 
         let identity = authenticate_login(
-            &login_data.tokens.identity,
-            &login_data.tokens.client,
+            identity,
+            client,
             listener_config.online_mode,
             listener_config.allow_legacy_auth,
         )
@@ -206,13 +212,14 @@ impl<T: Transport> BedrockStream<Login, Server, T> {
         ))
     }
 
-    async fn recv_expect_login(&mut self) -> Result<McpePacket, JolyneError> {
-        let packet = self.transport.recv_packet().await?;
+    async fn recv_expect_login(
+        &mut self,
+    ) -> Result<crate::valentine::BorrowedLoginPacket, JolyneError> {
+        let packet = self.transport.recv_packet_borrowed().await?;
 
-        if matches!(packet.data, McpePacketData::PacketLogin(_)) {
-            Ok(packet)
-        } else {
-            Err(ProtocolError::MissingLoginPacket.into())
+        match packet.data {
+            BorrowedMcpePacketData::PacketLogin(login) => Ok(login),
+            _ => Err(ProtocolError::MissingLoginPacket.into()),
         }
     }
 }
@@ -306,12 +313,8 @@ impl<T: Transport> BedrockStream<SecurePending, Server, T> {
 
         self.transport.enable_encryption(*key, iv);
 
-        let packet = self.transport.recv_packet().await?;
-
-        if !matches!(
-            packet.data,
-            McpePacketData::PacketClientToServerHandshake(_)
-        ) {
+        let packet = self.transport.recv_packet_raw().await?;
+        if packet.id != crate::valentine::McpePacketName::PacketClientToServerHandshake {
             return Err(ProtocolError::UnexpectedHandshake(
                 "Expected ClientToServerHandshake".into(),
             )
@@ -516,7 +519,18 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
 // --- State: Play ---
 
 impl<T: Transport> BedrockStream<Play, Server, T> {
+    /// Receive the next packet as a borrowed protocol view.
+    #[instrument(skip_all, level = "trace")]
+    pub async fn recv_packet_borrowed(
+        &mut self,
+    ) -> Result<crate::valentine::BorrowedMcpePacket, JolyneError> {
+        self.transport.recv_packet_borrowed().await
+    }
+
     /// Receive the next packet from the client.
+    ///
+    /// This materializes an owned packet. Prefer [`Self::recv_packet_borrowed`]
+    /// on hot ingress paths when ownership is not required yet.
     #[instrument(skip_all, level = "trace")]
     pub async fn recv_packet(&mut self) -> Result<McpePacket, JolyneError> {
         self.transport.recv_packet().await

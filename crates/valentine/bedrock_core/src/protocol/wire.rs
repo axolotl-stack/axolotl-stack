@@ -10,6 +10,16 @@ pub fn write_var_u32<B: BufMut>(buf: &mut B, mut v: u32) {
 }
 
 #[inline]
+pub fn var_u32_len(mut v: u32) -> usize {
+    let mut len = 1;
+    while v >= 0x80 {
+        v >>= 7;
+        len += 1;
+    }
+    len
+}
+
+#[inline]
 pub fn read_var_u32<B: Buf>(buf: &mut B) -> Result<u32, std::io::Error> {
     let mut result: u32 = 0;
     let mut shift = 0u32;
@@ -43,6 +53,16 @@ pub fn write_var_u64<B: BufMut>(buf: &mut B, mut v: u64) {
         v >>= 7;
     }
     buf.put_u8(v as u8);
+}
+
+#[inline]
+pub fn var_u64_len(mut v: u64) -> usize {
+    let mut len = 1;
+    while v >= 0x80 {
+        v >>= 7;
+        len += 1;
+    }
+    len
 }
 
 #[inline]

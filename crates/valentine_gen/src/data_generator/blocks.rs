@@ -290,7 +290,7 @@ pub fn generate_blocks(
     writeln!(out)?;
     writeln!(
         out,
-        "use valentine_bedrock_core::block::{{BlockDef, BlockDefDyn, BlockState}};"
+        "use valentine_bedrock_core::block::{{BlockDef, BlockDefDyn}};"
     )?;
     writeln!(out)?;
 

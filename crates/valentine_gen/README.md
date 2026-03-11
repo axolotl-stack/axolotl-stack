@@ -1,12 +1,29 @@
 # `valentine_gen`
 
-Developer tool that generates Bedrock protocol crates under `crates/valentine/bedrock_versions/` and updates `crates/valentine/Cargo.toml` + re-exports.
+`valentine_gen` generates the Bedrock protocol crates consumed by `valentine`.
 
-The generated Rust sources are intentionally not committed (they are ignored via `.gitignore`). Run the generator after cloning when you need protocol code.
+It reads `minecraft-data` and `bedrock-data`, resolves protocol schema dependencies into typed Rust structures, emits formatted Rust with `quote` + `syn` + `prettyplease`, and updates the `valentine` workspace wiring.
+
+## What It Generates
+
+- `crates/valentine/bedrock_versions/vX_Y_Z/`
+- `crates/valentine/src/bedrock/protocol/mod.rs`
+- `crates/valentine/src/bedrock/version.rs`
+- `crates/valentine/Cargo.toml` feature/dependency entries
+
+## Generator Pipeline
+
+1. Parse `protocol.json` into the internal IR in `src/ir.rs`.
+2. Analyze containers in `src/generator/resolver.rs`.
+3. Resolve discriminator/argument types once and reuse that analysis for:
+   - packet signatures
+   - `BedrockCodec::Args` generation
+   - mcpe packet dispatch generation
+   - nested packet/type argument forwarding
+4. Emit `proto.rs`, `types.rs`, `mcpe.rs`, `common.rs`, and version `lib.rs`.
+5. Register canonical definitions so later versions generated in the same run can reuse identical types/packets and add the necessary inter-version crate dependencies automatically.
 
 ## Setup
-
-The generator reads protocol schemas from the `minecraft-data` submodule:
 
 ```bash
 git submodule update --init --recursive
@@ -14,17 +31,23 @@ git submodule update --init --recursive
 
 ## Usage
 
-Generate the latest Bedrock version (this matches `valentine`'s default feature):
+Generate the default/latest Bedrock version:
 
 ```bash
 cargo run -p valentine_gen -- --latest
 ```
 
-Generate a specific version (or multiple):
+Generate specific versions:
 
 ```bash
-cargo run -p valentine_gen -- --versions 1.21.130
-cargo run -p valentine_gen -- --versions 1.21.130,1.20.80
+cargo run -p valentine_gen -- --versions 1.21.120
+cargo run -p valentine_gen -- --versions 1.21.120,1.21.124,1.26.0
+```
+
+Generate only protocol code:
+
+```bash
+cargo run -p valentine_gen -- --latest --proto
 ```
 
 Generate everything:
@@ -33,15 +56,21 @@ Generate everything:
 cargo run -p valentine_gen -- --all
 ```
 
-List available versions:
+List supported Bedrock versions:
 
 ```bash
 cargo run -p valentine_gen -- --list-versions
 ```
 
-Logging:
+Enable debug logging:
 
 ```bash
-cargo run -p valentine_gen -- --log debug
+cargo run -p valentine_gen -- --latest --log debug
 ```
 
+## Maintenance Notes
+
+- Cross-version dedup only applies to versions processed in the same generator invocation.
+- Bedrock strings intentionally use tolerant byte-to-string decoding to match protocol behavior seen in existing implementations.
+- When changing generated output shape, update the analysis phase first rather than patching generated files by hand.
+- Generated packet/controller args may be more strongly typed than the raw stored schema field. Keep those concerns separate when modifying discriminator logic.

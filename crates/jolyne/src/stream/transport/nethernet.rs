@@ -2,8 +2,7 @@
 //!
 //! Wraps `tokio_nethernet::NetherNetStream` to implement the `Transport` trait.
 
-use super::{Transport, TransportMessage};
-use bytes::Bytes;
+use super::{Transport, TransportMessage, TransportRecvMessage};
 use futures::{Sink, Stream};
 use std::net::SocketAddr;
 use std::pin::Pin;
@@ -74,10 +73,12 @@ impl Transport for NetherNetTransport {
     fn poll_recv(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Option<Result<Bytes, Self::Error>>> {
+    ) -> Poll<Option<Result<TransportRecvMessage, Self::Error>>> {
         // NetherNetStream yields Result<Message, Error>, we need Result<Bytes, Error>
         match Pin::new(&mut self.stream).poll_next(cx) {
-            Poll::Ready(Some(Ok(msg))) => Poll::Ready(Some(Ok(msg.buffer))),
+            Poll::Ready(Some(Ok(msg))) => {
+                Poll::Ready(Some(Ok(TransportRecvMessage::Contiguous(msg.buffer))))
+            }
             Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(e))),
             Poll::Ready(None) => Poll::Ready(None),
             Poll::Pending => Poll::Pending,

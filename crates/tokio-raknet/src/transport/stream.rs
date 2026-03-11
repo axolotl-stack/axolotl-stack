@@ -197,12 +197,28 @@ impl Stream for RaknetStream {
     type Item = Result<Bytes, crate::RaknetError>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        match self.incoming.poll_recv(cx) {
-            Poll::Ready(Some(Ok(msg))) => Poll::Ready(Some(Ok(msg.buffer))),
+        match self.as_mut().poll_recv_message(cx) {
+            Poll::Ready(Some(Ok(msg))) => {
+                let mut full = BytesMut::with_capacity(1 + msg.payload.len());
+                full.put_u8(msg.id);
+                full.extend_from_slice(&msg.payload);
+                Poll::Ready(Some(Ok(full.freeze())))
+            }
             Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(e))),
             Poll::Ready(None) => Poll::Ready(None),
             Poll::Pending => Poll::Pending,
         }
+    }
+}
+
+impl RaknetStream {
+    /// Poll the next inbound RakNet user payload without rebuilding the leading
+    /// ID byte into the body buffer.
+    pub fn poll_recv_message(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Result<ReceivedMessage, crate::RaknetError>>> {
+        self.incoming.poll_recv(cx)
     }
 }
 
@@ -273,6 +289,7 @@ struct ClientMuxerContext {
 #[tracing::instrument(skip(socket, context), fields(server = %context.server, mtu = context.config.mtu), level = "debug")]
 async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
     let mut buf = BytesMut::with_capacity(context.config.mtu as usize + UDP_HEADER_SIZE + 64);
+    let mut send_buf = BytesMut::with_capacity(context.config.mtu as usize + UDP_HEADER_SIZE + 64);
     let mut managed: Option<ManagedSession> = None;
     let mut handshake_started = false;
     // We move the `ready` sender into a local Option
@@ -299,6 +316,7 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
             context.secure_connection_established,
             &socket,
             context.server,
+            &mut send_buf,
         )
         .await;
     }
@@ -416,7 +434,8 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
                         now,
                         context.secure_connection_established,
                         &socket,
-                        context.server
+                        context.server,
+                        &mut send_buf,
                     ).await;
 
                     // This logic remains the same, but was already correct
@@ -425,13 +444,9 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
                             for p in ManagedSession::filter_app_packets(pkts) {
                                 if let RaknetPacket::UserData { id, payload } = p.packet {
                                     tracing::trace!("received user packet");
-                                    // Reconstruct full packet: [ID] + [Payload]
-                                    // payload is Bytes.
-                                    let mut full = BytesMut::with_capacity(1 + payload.len());
-                                    full.put_u8(id);
-                                    full.extend_from_slice(&payload);
                                     let msg = ReceivedMessage {
-                                        buffer: full.freeze(),
+                                        id,
+                                        payload,
                                         reliability: p.reliability,
                                         channel: p.ordering_channel.unwrap_or(0),
                                     };
@@ -467,7 +482,7 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
                         return;
                     }
 
-                    flush_built_datagrams(ms, &socket, context.server, now, false).await;
+                    flush_built_datagrams(ms, &socket, context.server, now, false, &mut send_buf).await;
                 } else {
                     tracing::debug!("failed to decode datagram");
                 }
@@ -491,7 +506,8 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
                     now,
                     context.secure_connection_established,
                     &socket,
-                    context.server
+                    context.server,
+                    &mut send_buf,
                 ).await;
                 let _ = ms.queue_app_packet(
                     msg.packet,
@@ -499,14 +515,14 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
                     msg.channel,
                     msg.priority,
                 );
-                flush_built_datagrams(ms, &socket, context.server, now, false).await;
+                flush_built_datagrams(ms, &socket, context.server, now, false, &mut send_buf).await;
                 notify_client_ready(ms, &mut ready_signal);
             }
 
             _ = tick.tick() => {
                 if let Some(ms) = managed.as_mut() {
                     let now = Instant::now();
-                    flush_built_datagrams(ms, &socket, context.server, now, true).await;
+                    flush_built_datagrams(ms, &socket, context.server, now, true, &mut send_buf).await;
                     notify_client_ready(ms, &mut ready_signal);
                 }
             }
@@ -521,7 +537,15 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
             tracing::debug!("channel closed, sending disconnect notification");
             let _ = ms.send_disconnect(crate::protocol::state::DisconnectReason::Disconnected);
             // Flush the disconnect packet
-            flush_built_datagrams(&mut ms, &socket, context.server, Instant::now(), true).await;
+            flush_built_datagrams(
+                &mut ms,
+                &socket,
+                context.server,
+                Instant::now(),
+                true,
+                &mut send_buf,
+            )
+            .await;
         }
         _ => {}
     }
@@ -705,6 +729,7 @@ fn ensure_client_session<'a>(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn ensure_client_handshake(
     managed: &mut ManagedSession,
     handshake_started: &mut bool,
@@ -713,6 +738,7 @@ async fn ensure_client_handshake(
     secure_connection_established: bool,
     socket: &UdpSocket,
     server: SocketAddr,
+    send_buf: &mut BytesMut,
 ) {
     if !*handshake_started
         && managed
@@ -720,7 +746,7 @@ async fn ensure_client_handshake(
             .is_ok()
     {
         *handshake_started = true;
-        flush_built_datagrams(managed, socket, server, now, false).await;
+        flush_built_datagrams(managed, socket, server, now, false, send_buf).await;
     }
 }
 
@@ -731,27 +757,28 @@ async fn flush_built_datagrams(
     peer: SocketAddr,
     now: Instant,
     run_tick: bool,
+    out: &mut BytesMut,
 ) {
     if run_tick {
         for d in managed.on_tick(now) {
             tracing::trace!("send_tick_datagram");
-            let mut out = BytesMut::new();
-            if let Err(e) = d.encode(&mut out) {
+            out.clear();
+            if let Err(e) = d.encode(out) {
                 tracing::error!(error = ?e, "failed to encode tick datagram - dropping");
                 continue;
             }
-            let _ = socket.send_to(&out, peer).await;
+            let _ = socket.send_to(out.as_ref(), peer).await;
         }
     }
 
     while let Some(d) = managed.build_datagram(now) {
         tracing::trace!("send_datagram");
-        let mut out = BytesMut::new();
-        if let Err(e) = d.encode(&mut out) {
+        out.clear();
+        if let Err(e) = d.encode(out) {
             tracing::error!(error = ?e, "failed to encode datagram - dropping");
             continue;
         }
-        let _ = socket.send_to(&out, peer).await;
+        let _ = socket.send_to(out.as_ref(), peer).await;
     }
 
     // Delivery of any unblocked packets happens via drain_ready_to_app() at call sites.

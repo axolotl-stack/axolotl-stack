@@ -20,6 +20,7 @@ use flate2::write::DeflateEncoder;
 use std::io::{ErrorKind, Read};
 use std::slice;
 use tracing::{instrument, trace, warn};
+use valentine::bedrock::codec::BedrockSized;
 use valentine::bedrock::context::BedrockSession;
 use valentine::protocol::wire as bedrock_wire;
 
@@ -269,54 +270,94 @@ pub fn encode_batch_multi(
     compression_threshold: u16,
     use_batch_prefix: bool,
 ) -> Result<Bytes, JolyneError> {
-    let mut packet_buf = BytesMut::new();
+    Ok(encode_batch_multi_bytes_mut(
+        packets,
+        compression_enabled,
+        compression_level,
+        compression_threshold,
+        use_batch_prefix,
+    )?
+    .freeze())
+}
+
+pub(crate) fn encode_batch_multi_bytes_mut(
+    packets: &[McpePacket],
+    compression_enabled: bool,
+    compression_level: u32,
+    compression_threshold: u16,
+    use_batch_prefix: bool,
+) -> Result<BytesMut, JolyneError> {
+    let mut out = BytesMut::new();
+    encode_batch_multi_into(
+        packets,
+        compression_enabled,
+        compression_level,
+        compression_threshold,
+        use_batch_prefix,
+        &mut out,
+    )?;
+    Ok(out)
+}
+
+pub(crate) fn encode_batch_multi_into(
+    packets: &[McpePacket],
+    compression_enabled: bool,
+    compression_level: u32,
+    compression_threshold: u16,
+    use_batch_prefix: bool,
+    out: &mut BytesMut,
+) -> Result<(), JolyneError> {
+    let estimated_len = packets
+        .iter()
+        .map(|packet| 10usize + packet.data.encoded_size())
+        .sum();
+    out.clear();
+    out.reserve(estimated_len);
     for packet in packets {
-        packet.data.encode_inner(
-            &mut packet_buf,
+        packet.data.encode_inner_bytes_mut(
+            out,
             packet.header.from_subclient,
             packet.header.to_subclient,
         )?;
     }
 
-    let uncompressed = packet_buf.freeze();
-
-    let should_compress = compression_enabled
-        && compression_level > 0
-        && uncompressed.len() >= compression_threshold as usize;
-
     let payload = if compression_enabled {
+        let should_compress = compression_level > 0 && out.len() >= compression_threshold as usize;
         if should_compress {
             // Deflate (0x00)
             let mut encoder = DeflateEncoder::new(Vec::new(), Compression::new(compression_level));
-            std::io::Write::write_all(&mut encoder, &uncompressed).map_err(JolyneError::Io)?;
+            std::io::Write::write_all(&mut encoder, out.as_ref()).map_err(JolyneError::Io)?;
             let compressed = encoder.finish().map_err(JolyneError::Io)?;
 
             let mut out = BytesMut::with_capacity(1 + compressed.len());
             out.put_u8(BatchCompression::Deflate as u8);
             out.extend_from_slice(&compressed);
-            out.freeze()
+            out
         } else {
             // None (0xFF)
+            let uncompressed = out.split_off(0);
             let mut out = BytesMut::with_capacity(1 + uncompressed.len());
             out.put_u8(BatchCompression::None as u8);
             out.extend_from_slice(&uncompressed);
-            out.freeze()
+            out
         }
     } else {
         // No Marker
-        uncompressed.clone()
+        out.split_off(0)
     };
 
+    out.clear();
     if use_batch_prefix {
         // RakNet: [0xFE][payload]
-        let mut batch = BytesMut::with_capacity(1 + payload.len());
-        batch.put_u8(BATCH_PACKET_ID);
-        batch.extend_from_slice(&payload);
-        Ok(batch.freeze())
+        out.reserve(1 + payload.len());
+        out.put_u8(BATCH_PACKET_ID);
+        out.extend_from_slice(&payload);
     } else {
         // NetherNet: [payload] (no 0xFE prefix)
-        Ok(payload)
+        out.reserve(payload.len());
+        out.extend_from_slice(&payload);
     }
+    Ok(())
 }
 
 // ============================================================================
@@ -349,6 +390,75 @@ pub fn decode_batch_raw(
     }
 
     decode_batch_payload_raw(buf.clone(), compression_enabled, max_decompressed_size)
+}
+
+/// Decodes a RakNet batch/raw frame when the first byte has already been split
+/// from the remaining payload by the underlying transport.
+#[instrument(skip_all, level = "trace")]
+pub fn decode_batch_raw_split(
+    first: u8,
+    payload_raw: Bytes,
+    compression_enabled: bool,
+    max_decompressed_size: Option<usize>,
+) -> Result<Vec<RawPacket>, JolyneError> {
+    if first != BATCH_PACKET_ID {
+        return Err(
+            ProtocolError::InvalidBatchId(format!("expected 0xFE, got 0x{:02x}", first)).into(),
+        );
+    }
+
+    if compression_enabled {
+        if payload_raw.is_empty() {
+            return Err(JolyneError::Protocol(ProtocolError::UnexpectedHandshake(
+                "Empty compressed batch payload".to_string(),
+            )));
+        }
+
+        let alg_byte = payload_raw[0];
+        let alg = BatchCompression::try_from_u8(alg_byte).ok_or_else(|| {
+            JolyneError::Protocol(ProtocolError::UnexpectedHandshake(format!(
+                "Unknown compression algorithm: 0x{:02x} ({})",
+                alg_byte, alg_byte
+            )))
+        })?;
+
+        let compressed = payload_raw.slice(1..);
+
+        if let Some(max) = max_decompressed_size
+            && compressed.len() > max
+        {
+            warn!("Compressed payload large: {}", compressed.len());
+        }
+
+        match alg {
+            BatchCompression::Deflate => {
+                let decompressed = decompress_with_guard(
+                    DeflateDecoder::new(compressed.as_ref()),
+                    max_decompressed_size,
+                )
+                .map_err(|e| ProtocolError::DecompressionFailed(e.to_string()))?;
+                decode_packets_raw(Bytes::from(decompressed))
+            }
+            BatchCompression::None => decode_packets_raw(compressed),
+            BatchCompression::Snappy => Err(ProtocolError::UnexpectedHandshake(
+                "Snappy compression not implemented".into(),
+            )
+            .into()),
+        }
+    } else {
+        if let Some(max) = max_decompressed_size
+            && payload_raw.len() > max
+        {
+            return Err(JolyneError::Protocol(ProtocolError::UnexpectedHandshake(
+                format!(
+                    "Batch payload exceeds max decompressed size ({} > {})",
+                    payload_raw.len(),
+                    max
+                ),
+            )));
+        }
+        decode_packets_raw(payload_raw)
+    }
 }
 
 /// Decodes a batch packet WITHOUT the 0xFE prefix (NetherNet) into [`RawPacket`]s.
@@ -419,6 +529,43 @@ pub fn encode_batch_raw(
     compression_threshold: u16,
     use_batch_prefix: bool,
 ) -> Result<Bytes, JolyneError> {
+    Ok(encode_batch_raw_bytes_mut(
+        packets,
+        compression_enabled,
+        compression_level,
+        compression_threshold,
+        use_batch_prefix,
+    )?
+    .freeze())
+}
+
+pub(crate) fn encode_batch_raw_bytes_mut(
+    packets: &[RawPacket],
+    compression_enabled: bool,
+    compression_level: u32,
+    compression_threshold: u16,
+    use_batch_prefix: bool,
+) -> Result<BytesMut, JolyneError> {
+    let mut out = BytesMut::new();
+    encode_batch_raw_into(
+        packets,
+        compression_enabled,
+        compression_level,
+        compression_threshold,
+        use_batch_prefix,
+        &mut out,
+    )?;
+    Ok(out)
+}
+
+pub(crate) fn encode_batch_raw_into(
+    packets: &[RawPacket],
+    compression_enabled: bool,
+    compression_level: u32,
+    compression_threshold: u16,
+    use_batch_prefix: bool,
+    out: &mut BytesMut,
+) -> Result<(), JolyneError> {
     let uncompressed = encode_packets_raw(packets);
 
     let should_compress = compression_enabled
@@ -434,25 +581,27 @@ pub fn encode_batch_raw(
             let mut out = BytesMut::with_capacity(1 + compressed.len());
             out.put_u8(BatchCompression::Deflate as u8);
             out.extend_from_slice(&compressed);
-            out.freeze()
+            out
         } else {
             let mut out = BytesMut::with_capacity(1 + uncompressed.len());
             out.put_u8(BatchCompression::None as u8);
             out.extend_from_slice(&uncompressed);
-            out.freeze()
+            out
         }
     } else {
-        uncompressed
+        BytesMut::from(uncompressed.as_ref())
     };
 
+    out.clear();
     if use_batch_prefix {
-        let mut batch = BytesMut::with_capacity(1 + payload.len());
-        batch.put_u8(BATCH_PACKET_ID);
-        batch.extend_from_slice(&payload);
-        Ok(batch.freeze())
+        out.reserve(1 + payload.len());
+        out.put_u8(BATCH_PACKET_ID);
+        out.extend_from_slice(&payload);
     } else {
-        Ok(payload)
+        out.reserve(payload.len());
+        out.extend_from_slice(&payload);
     }
+    Ok(())
 }
 
 #[cfg(test)]

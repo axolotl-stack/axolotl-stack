@@ -9,16 +9,25 @@ pub struct PacketSymbol {
 }
 
 #[derive(Debug, Clone)]
+pub struct TypeCanonical {
+    pub owner_crate: String,
+    pub local_path: String,
+    pub external_path: String,
+}
+
+#[derive(Debug, Clone)]
 pub struct PacketCanonical {
-    pub packet_path: String,
-    pub args_path: Option<String>,
+    pub owner_crate: String,
+    pub packet_local_path: String,
+    pub packet_external_path: String,
+    pub args_local_path: Option<String>,
+    pub args_external_path: Option<String>,
     pub extra_symbols: Vec<PacketSymbol>,
 }
 
 pub struct GlobalRegistry {
-    // Map<Fingerprint, CanonicalPath>
-    // CanonicalPath: "crate::bedrock::protocol::vX_Y_Z::group::TypeName"
-    pub known_types: HashMap<String, String>,
+    // Map<Fingerprint, CanonicalType>
+    pub known_types: HashMap<String, TypeCanonical>,
     pub known_packets: HashMap<String, PacketCanonical>,
 }
 
@@ -30,26 +39,45 @@ impl GlobalRegistry {
         }
     }
 
-    pub fn register(&mut self, fingerprint: String, path: String) {
-        self.known_types.insert(fingerprint, path);
+    pub fn register(
+        &mut self,
+        fingerprint: String,
+        owner_crate: String,
+        local_path: String,
+        external_path: String,
+    ) {
+        self.known_types.insert(
+            fingerprint,
+            TypeCanonical {
+                owner_crate,
+                local_path,
+                external_path,
+            },
+        );
     }
 
-    pub fn get(&self, fingerprint: &str) -> Option<&String> {
+    pub fn get(&self, fingerprint: &str) -> Option<&TypeCanonical> {
         self.known_types.get(fingerprint)
     }
 
     pub fn register_packet(
         &mut self,
         fingerprint: String,
-        packet_path: String,
-        args_path: Option<String>,
+        owner_crate: String,
+        packet_local_path: String,
+        packet_external_path: String,
+        args_local_path: Option<String>,
+        args_external_path: Option<String>,
         extra_symbols: Vec<PacketSymbol>,
     ) {
         self.known_packets.insert(
             fingerprint,
             PacketCanonical {
-                packet_path,
-                args_path,
+                owner_crate,
+                packet_local_path,
+                packet_external_path,
+                args_local_path,
+                args_external_path,
                 extra_symbols,
             },
         );
@@ -68,8 +96,10 @@ pub struct Context<'a> {
     pub inline_cache: HashMap<String, String>,
     pub type_lookup: HashMap<String, Type>,
     pub global_registry: &'a mut GlobalRegistry,
-    pub current_module_path: String, // e.g., "crate::bedrock::protocol::v1_20_10"
-    pub module_dependencies: HashSet<String>,
+    pub current_crate_name: String,
+    pub current_local_path: String,
+    pub current_external_path: String,
+    pub crate_dependencies: HashSet<String>,
     /// Names of generated types whose BedrockCodec impl requires Args.
     pub argful_types: HashSet<String>,
 }

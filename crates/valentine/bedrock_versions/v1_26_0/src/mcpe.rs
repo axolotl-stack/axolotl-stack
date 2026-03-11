@@ -7,10 +7,19 @@
 #![allow(clippy::all)]
 use crate::bedrock::codec::BedrockCodec;
 use crate::proto::*;
-use crate::types::*;
-use ::bitflags::bitflags;
-use bytes::{Buf, BufMut};
+use bytes::Buf;
 pub const GAME_PACKET_ID: u8 = 0xFE;
+#[inline]
+fn encode_var_u32_stack(mut value: u32, out: &mut [u8; 5]) -> usize {
+    let mut len = 0usize;
+    while value >= 0x80 {
+        out[len] = (value as u8) | 0x80;
+        value >>= 7;
+        len += 1;
+    }
+    out[len] = value as u8;
+    len + 1
+}
 use crate::protocol::wire;
 /// The `McpePacketName` enum defines the unique identifier for each Minecraft Bedrock Edition
 /// packet. Each variant corresponds to a specific packet type and its associated numeric ID.
@@ -3485,717 +3494,1447 @@ impl McpePacketData {
         from_subclient: u32,
         to_subclient: u32,
     ) -> Result<(), std::io::Error> {
-        let mut payload_buf = bytes::BytesMut::new();
-        match self {
-            McpePacketData::PacketLogin(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketPlayStatus(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketServerToClientHandshake(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketClientToServerHandshake(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketDisconnect(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketResourcePacksInfo(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketResourcePackStack(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketResourcePackClientResponse(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketText(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSetTime(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketStartGame(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketAddPlayer(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketAddEntity(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketRemoveEntity(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketAddItemEntity(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketServerPostMove(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketTakeItemEntity(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketMoveEntity(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketMovePlayer(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketRiderJump(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketUpdateBlock(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketAddPainting(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketTickSync(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketLevelSoundEventOld(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketLevelEvent(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketBlockEvent(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketEntityEvent(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketMobEffect(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketUpdateAttributes(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketInventoryTransaction(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketMobEquipment(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketMobArmorEquipment(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketInteract(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketBlockPickRequest(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketEntityPickRequest(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketPlayerAction(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketHurtArmor(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSetEntityData(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSetEntityMotion(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSetEntityLink(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSetHealth(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSetSpawnPosition(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketAnimate(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketRespawn(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketContainerOpen(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketContainerClose(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketPlayerHotbar(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketInventoryContent(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketInventorySlot(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketContainerSetData(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketCraftingData(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketCraftingEvent(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketGuiDataPickItem(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketAdventureSettings(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketBlockEntityData(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketPlayerInput(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketLevelChunk(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSetCommandsEnabled(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSetDifficulty(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketChangeDimension(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSetPlayerGameType(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketPlayerList(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSimpleEvent(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketEvent(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSpawnExperienceOrb(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketClientboundMapItemData(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketMapInfoRequest(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketRequestChunkRadius(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketChunkRadiusUpdate(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketGameRulesChanged(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketCamera(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketBossEvent(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketShowCredits(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketAvailableCommands(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketCommandRequest(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketCommandBlockUpdate(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketCommandOutput(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketUpdateTrade(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketUpdateEquipment(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketResourcePackDataInfo(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketResourcePackChunkData(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketResourcePackChunkRequest(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketTransfer(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketPlaySound(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketStopSound(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSetTitle(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketAddBehaviorTree(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketStructureBlockUpdate(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketShowStoreOffer(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketPurchaseReceipt(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketPlayerSkin(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSubClientLogin(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketInitiateWebSocketConnection(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSetLastHurtBy(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketBookEdit(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketNpcRequest(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketPhotoTransfer(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketModalFormRequest(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketModalFormResponse(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketServerSettingsRequest(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketServerSettingsResponse(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketShowProfile(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSetDefaultGameType(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketRemoveObjective(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSetDisplayObjective(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSetScore(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketLabTable(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketUpdateBlockSynced(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketMoveEntityDelta(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSetScoreboardIdentity(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSetLocalPlayerAsInitialized(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketUpdateSoftEnum(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketNetworkStackLatency(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketScriptCustomEvent(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSpawnParticleEffect(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketAvailableEntityIdentifiers(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketLevelSoundEventV2(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketNetworkChunkPublisherUpdate(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketBiomeDefinitionList(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketLevelSoundEvent(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketLevelEventGeneric(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketLecternUpdate(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketVideoStreamConnect(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketClientCacheStatus(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketOnScreenTextureAnimation(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketMapCreateLockedCopy(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketStructureTemplateDataExportRequest(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketStructureTemplateDataExportResponse(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketUpdateBlockProperties(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketClientCacheBlobStatus(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketClientCacheMissResponse(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketEducationSettings(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketEmote(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketMultiplayerSettings(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSettingsCommand(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketAnvilDamage(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketCompletedUsingItem(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketNetworkSettings(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketPlayerAuthInput(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketCreativeContent(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketPlayerEnchantOptions(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketItemStackRequest(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketItemStackResponse(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketPlayerArmorDamage(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketCodeBuilder(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketUpdatePlayerGameType(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketEmoteList(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketPositionTrackingDbBroadcast(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketPositionTrackingDbRequest(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketDebugInfo(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketPacketViolationWarning(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketMotionPredictionHints(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketAnimateEntity(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketCameraShake(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketPlayerFog(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketCorrectPlayerMovePrediction(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketItemRegistry(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketFilterTextPacket(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketDebugRenderer(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSyncEntityProperty(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketAddVolumeEntity(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketRemoveVolumeEntity(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSimulationType(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketNpcDialogue(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketEduUriResourcePacket(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketCreatePhoto(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketUpdateSubchunkBlocks(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketPhotoInfoRequest(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSubchunk(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSubchunkRequest(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketClientStartItemCooldown(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketScriptMessage(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketCodeBuilderSource(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketTickingAreasLoadStatus(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketDimensionData(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketAgentAction(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketChangeMobProperty(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketLessonProgress(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketRequestAbility(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketRequestPermissions(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketToastRequest(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketUpdateAbilities(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketUpdateAdventureSettings(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketDeathInfo(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketEditorNetwork(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketFeatureRegistry(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketServerStats(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketRequestNetworkSettings(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketGameTestRequest(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketGameTestResults(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketUpdateClientInputLocks(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketClientCheatAbility(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketCameraPresets(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketUnlockedRecipes(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketCameraInstruction(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketCompressedBiomeDefinitions(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketTrimData(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketOpenSign(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketAgentAnimation(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketRefreshEntitlements(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketToggleCrafterSlotRequest(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSetPlayerInventoryOptions(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSetHud(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketAwardAchievement(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketClientboundCloseForm(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketServerboundLoadingScreen(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketJigsawStructureData(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketCurrentStructureFeature(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketServerboundDiagnostics(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketCameraAimAssist(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketContainerRegistryCleanup(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketMovementEffect(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketSetMovementAuthority(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketCameraAimAssistPresets(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketClientCameraAimAssist(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketClientMovementPredictionSync(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketUpdateClientOptions(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketPlayerVideoCapture(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketPlayerUpdateEntityOverrides(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketPlayerLocation(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketClientboundControlsScheme(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketServerScriptDebugDrawer(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketServerboundPackSettingChange(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketClientboundDataStore(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketGraphicsOverrideParameter(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketServerboundDataStore(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketClientboundDataDrivenUiShowScreen(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketClientboundDataDrivenUiCloseAllScreens(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketClientboundDataDrivenUiReload(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketClientboundTextureShift(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketVoxelShapes(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketCameraSpline(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-            McpePacketData::PacketCameraAimAssistActorPriority(v) => {
-                v.encode(&mut payload_buf)?;
-            }
-        }
         let header = (self.packet_id() as u32)
             | ((from_subclient & 0x3) << 10)
             | ((to_subclient & 0x3) << 12);
-        let mut header_buf = bytes::BytesMut::new();
-        wire::write_var_u32(&mut header_buf, header);
-        let total_len = header_buf.len() + payload_buf.len();
+        let header_len = wire::var_u32_len(header);
+        let total_len = header_len + crate::bedrock::codec::BedrockSized::encoded_size(self);
         wire::write_var_u32(buf, total_len as u32);
-        buf.put_slice(&header_buf);
-        buf.put_slice(&payload_buf);
+        wire::write_var_u32(buf, header);
+        match self {
+            McpePacketData::PacketLogin(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlayStatus(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketServerToClientHandshake(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientToServerHandshake(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketDisconnect(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketResourcePacksInfo(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketResourcePackStack(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketResourcePackClientResponse(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketText(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetTime(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketStartGame(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAddPlayer(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAddEntity(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketRemoveEntity(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAddItemEntity(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketServerPostMove(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketTakeItemEntity(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketMoveEntity(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketMovePlayer(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketRiderJump(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUpdateBlock(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAddPainting(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketTickSync(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketLevelSoundEventOld(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketLevelEvent(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketBlockEvent(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketEntityEvent(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketMobEffect(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUpdateAttributes(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketInventoryTransaction(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketMobEquipment(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketMobArmorEquipment(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketInteract(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketBlockPickRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketEntityPickRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlayerAction(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketHurtArmor(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetEntityData(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetEntityMotion(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetEntityLink(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetHealth(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetSpawnPosition(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAnimate(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketRespawn(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketContainerOpen(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketContainerClose(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlayerHotbar(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketInventoryContent(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketInventorySlot(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketContainerSetData(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCraftingData(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCraftingEvent(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketGuiDataPickItem(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAdventureSettings(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketBlockEntityData(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlayerInput(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketLevelChunk(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetCommandsEnabled(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetDifficulty(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketChangeDimension(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetPlayerGameType(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlayerList(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSimpleEvent(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketEvent(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSpawnExperienceOrb(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientboundMapItemData(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketMapInfoRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketRequestChunkRadius(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketChunkRadiusUpdate(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketGameRulesChanged(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCamera(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketBossEvent(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketShowCredits(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAvailableCommands(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCommandRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCommandBlockUpdate(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCommandOutput(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUpdateTrade(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUpdateEquipment(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketResourcePackDataInfo(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketResourcePackChunkData(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketResourcePackChunkRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketTransfer(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlaySound(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketStopSound(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetTitle(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAddBehaviorTree(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketStructureBlockUpdate(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketShowStoreOffer(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPurchaseReceipt(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlayerSkin(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSubClientLogin(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketInitiateWebSocketConnection(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetLastHurtBy(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketBookEdit(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketNpcRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPhotoTransfer(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketModalFormRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketModalFormResponse(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketServerSettingsRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketServerSettingsResponse(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketShowProfile(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetDefaultGameType(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketRemoveObjective(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetDisplayObjective(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetScore(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketLabTable(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUpdateBlockSynced(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketMoveEntityDelta(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetScoreboardIdentity(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetLocalPlayerAsInitialized(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUpdateSoftEnum(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketNetworkStackLatency(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketScriptCustomEvent(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSpawnParticleEffect(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAvailableEntityIdentifiers(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketLevelSoundEventV2(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketNetworkChunkPublisherUpdate(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketBiomeDefinitionList(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketLevelSoundEvent(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketLevelEventGeneric(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketLecternUpdate(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketVideoStreamConnect(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientCacheStatus(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketOnScreenTextureAnimation(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketMapCreateLockedCopy(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketStructureTemplateDataExportRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketStructureTemplateDataExportResponse(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUpdateBlockProperties(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientCacheBlobStatus(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientCacheMissResponse(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketEducationSettings(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketEmote(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketMultiplayerSettings(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSettingsCommand(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAnvilDamage(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCompletedUsingItem(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketNetworkSettings(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlayerAuthInput(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCreativeContent(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlayerEnchantOptions(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketItemStackRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketItemStackResponse(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlayerArmorDamage(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCodeBuilder(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUpdatePlayerGameType(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketEmoteList(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPositionTrackingDbBroadcast(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPositionTrackingDbRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketDebugInfo(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPacketViolationWarning(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketMotionPredictionHints(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAnimateEntity(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCameraShake(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlayerFog(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCorrectPlayerMovePrediction(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketItemRegistry(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketFilterTextPacket(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketDebugRenderer(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSyncEntityProperty(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAddVolumeEntity(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketRemoveVolumeEntity(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSimulationType(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketNpcDialogue(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketEduUriResourcePacket(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCreatePhoto(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUpdateSubchunkBlocks(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPhotoInfoRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSubchunk(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSubchunkRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientStartItemCooldown(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketScriptMessage(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCodeBuilderSource(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketTickingAreasLoadStatus(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketDimensionData(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAgentAction(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketChangeMobProperty(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketLessonProgress(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketRequestAbility(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketRequestPermissions(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketToastRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUpdateAbilities(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUpdateAdventureSettings(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketDeathInfo(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketEditorNetwork(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketFeatureRegistry(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketServerStats(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketRequestNetworkSettings(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketGameTestRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketGameTestResults(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUpdateClientInputLocks(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientCheatAbility(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCameraPresets(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUnlockedRecipes(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCameraInstruction(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCompressedBiomeDefinitions(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketTrimData(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketOpenSign(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAgentAnimation(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketRefreshEntitlements(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketToggleCrafterSlotRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetPlayerInventoryOptions(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetHud(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAwardAchievement(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientboundCloseForm(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketServerboundLoadingScreen(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketJigsawStructureData(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCurrentStructureFeature(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketServerboundDiagnostics(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCameraAimAssist(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketContainerRegistryCleanup(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketMovementEffect(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetMovementAuthority(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCameraAimAssistPresets(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientCameraAimAssist(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientMovementPredictionSync(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUpdateClientOptions(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlayerVideoCapture(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlayerUpdateEntityOverrides(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlayerLocation(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientboundControlsScheme(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketServerScriptDebugDrawer(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketServerboundPackSettingChange(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientboundDataStore(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketGraphicsOverrideParameter(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketServerboundDataStore(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientboundDataDrivenUiShowScreen(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientboundDataDrivenUiCloseAllScreens(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientboundDataDrivenUiReload(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientboundTextureShift(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketVoxelShapes(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCameraSpline(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCameraAimAssistActorPriority(v) => {
+                v.encode(buf)?;
+            }
+        }
+        Ok(())
+    }
+    /// Fast path for encoding into `BytesMut` without a second payload traversal.
+    pub fn encode_inner_bytes_mut(
+        &self,
+        buf: &mut bytes::BytesMut,
+        from_subclient: u32,
+        to_subclient: u32,
+    ) -> Result<(), std::io::Error> {
+        let header = (self.packet_id() as u32)
+            | ((from_subclient & 0x3) << 10)
+            | ((to_subclient & 0x3) << 12);
+        let prefix_start = buf.len();
+        let reserved_prefix = 10usize;
+        buf.resize(prefix_start + reserved_prefix, 0);
+        let body_start = buf.len();
+        match self {
+            McpePacketData::PacketLogin(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlayStatus(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketServerToClientHandshake(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientToServerHandshake(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketDisconnect(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketResourcePacksInfo(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketResourcePackStack(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketResourcePackClientResponse(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketText(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetTime(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketStartGame(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAddPlayer(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAddEntity(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketRemoveEntity(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAddItemEntity(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketServerPostMove(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketTakeItemEntity(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketMoveEntity(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketMovePlayer(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketRiderJump(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUpdateBlock(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAddPainting(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketTickSync(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketLevelSoundEventOld(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketLevelEvent(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketBlockEvent(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketEntityEvent(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketMobEffect(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUpdateAttributes(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketInventoryTransaction(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketMobEquipment(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketMobArmorEquipment(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketInteract(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketBlockPickRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketEntityPickRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlayerAction(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketHurtArmor(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetEntityData(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetEntityMotion(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetEntityLink(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetHealth(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetSpawnPosition(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAnimate(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketRespawn(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketContainerOpen(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketContainerClose(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlayerHotbar(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketInventoryContent(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketInventorySlot(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketContainerSetData(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCraftingData(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCraftingEvent(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketGuiDataPickItem(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAdventureSettings(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketBlockEntityData(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlayerInput(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketLevelChunk(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetCommandsEnabled(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetDifficulty(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketChangeDimension(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetPlayerGameType(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlayerList(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSimpleEvent(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketEvent(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSpawnExperienceOrb(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientboundMapItemData(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketMapInfoRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketRequestChunkRadius(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketChunkRadiusUpdate(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketGameRulesChanged(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCamera(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketBossEvent(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketShowCredits(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAvailableCommands(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCommandRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCommandBlockUpdate(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCommandOutput(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUpdateTrade(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUpdateEquipment(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketResourcePackDataInfo(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketResourcePackChunkData(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketResourcePackChunkRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketTransfer(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlaySound(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketStopSound(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetTitle(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAddBehaviorTree(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketStructureBlockUpdate(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketShowStoreOffer(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPurchaseReceipt(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlayerSkin(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSubClientLogin(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketInitiateWebSocketConnection(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetLastHurtBy(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketBookEdit(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketNpcRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPhotoTransfer(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketModalFormRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketModalFormResponse(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketServerSettingsRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketServerSettingsResponse(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketShowProfile(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetDefaultGameType(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketRemoveObjective(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetDisplayObjective(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetScore(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketLabTable(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUpdateBlockSynced(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketMoveEntityDelta(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetScoreboardIdentity(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetLocalPlayerAsInitialized(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUpdateSoftEnum(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketNetworkStackLatency(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketScriptCustomEvent(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSpawnParticleEffect(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAvailableEntityIdentifiers(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketLevelSoundEventV2(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketNetworkChunkPublisherUpdate(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketBiomeDefinitionList(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketLevelSoundEvent(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketLevelEventGeneric(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketLecternUpdate(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketVideoStreamConnect(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientCacheStatus(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketOnScreenTextureAnimation(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketMapCreateLockedCopy(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketStructureTemplateDataExportRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketStructureTemplateDataExportResponse(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUpdateBlockProperties(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientCacheBlobStatus(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientCacheMissResponse(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketEducationSettings(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketEmote(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketMultiplayerSettings(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSettingsCommand(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAnvilDamage(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCompletedUsingItem(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketNetworkSettings(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlayerAuthInput(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCreativeContent(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlayerEnchantOptions(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketItemStackRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketItemStackResponse(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlayerArmorDamage(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCodeBuilder(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUpdatePlayerGameType(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketEmoteList(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPositionTrackingDbBroadcast(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPositionTrackingDbRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketDebugInfo(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPacketViolationWarning(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketMotionPredictionHints(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAnimateEntity(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCameraShake(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlayerFog(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCorrectPlayerMovePrediction(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketItemRegistry(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketFilterTextPacket(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketDebugRenderer(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSyncEntityProperty(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAddVolumeEntity(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketRemoveVolumeEntity(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSimulationType(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketNpcDialogue(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketEduUriResourcePacket(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCreatePhoto(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUpdateSubchunkBlocks(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPhotoInfoRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSubchunk(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSubchunkRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientStartItemCooldown(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketScriptMessage(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCodeBuilderSource(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketTickingAreasLoadStatus(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketDimensionData(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAgentAction(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketChangeMobProperty(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketLessonProgress(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketRequestAbility(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketRequestPermissions(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketToastRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUpdateAbilities(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUpdateAdventureSettings(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketDeathInfo(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketEditorNetwork(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketFeatureRegistry(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketServerStats(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketRequestNetworkSettings(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketGameTestRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketGameTestResults(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUpdateClientInputLocks(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientCheatAbility(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCameraPresets(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUnlockedRecipes(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCameraInstruction(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCompressedBiomeDefinitions(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketTrimData(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketOpenSign(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAgentAnimation(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketRefreshEntitlements(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketToggleCrafterSlotRequest(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetPlayerInventoryOptions(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetHud(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketAwardAchievement(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientboundCloseForm(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketServerboundLoadingScreen(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketJigsawStructureData(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCurrentStructureFeature(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketServerboundDiagnostics(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCameraAimAssist(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketContainerRegistryCleanup(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketMovementEffect(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketSetMovementAuthority(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCameraAimAssistPresets(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientCameraAimAssist(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientMovementPredictionSync(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketUpdateClientOptions(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlayerVideoCapture(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlayerUpdateEntityOverrides(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketPlayerLocation(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientboundControlsScheme(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketServerScriptDebugDrawer(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketServerboundPackSettingChange(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientboundDataStore(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketGraphicsOverrideParameter(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketServerboundDataStore(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientboundDataDrivenUiShowScreen(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientboundDataDrivenUiCloseAllScreens(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientboundDataDrivenUiReload(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketClientboundTextureShift(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketVoxelShapes(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCameraSpline(v) => {
+                v.encode(buf)?;
+            }
+            McpePacketData::PacketCameraAimAssistActorPriority(v) => {
+                v.encode(buf)?;
+            }
+        }
+        let body_end = buf.len();
+        let body_len = body_end - body_start;
+        let mut total_len_buf = [0u8; 5];
+        let mut header_buf = [0u8; 5];
+        let header_len = encode_var_u32_stack(header, &mut header_buf);
+        let total_len = header_len + body_len;
+        let total_len_len = encode_var_u32_stack(total_len as u32, &mut total_len_buf);
+        let prefix_len = total_len_len + header_len;
+        if prefix_len != reserved_prefix {
+            buf.copy_within(body_start..body_end, prefix_start + prefix_len);
+            buf.truncate(body_end - (reserved_prefix - prefix_len));
+        }
+        buf[prefix_start..prefix_start + total_len_len]
+            .copy_from_slice(&total_len_buf[..total_len_len]);
+        buf[prefix_start + total_len_len..prefix_start + prefix_len]
+            .copy_from_slice(&header_buf[..header_len]);
         Ok(())
     }
     /// Encodes the packet payload into a game frame: `[0xFE] [Length] [Header] [Body]`.
@@ -4207,6 +4946,16 @@ impl McpePacketData {
     ) -> Result<(), std::io::Error> {
         buf.put_u8(GAME_PACKET_ID);
         self.encode_inner(buf, from_subclient, to_subclient)
+    }
+    /// Fast path for encoding a game frame into `BytesMut`.
+    pub fn encode_game_frame_bytes_mut(
+        &self,
+        buf: &mut bytes::BytesMut,
+        from_subclient: u32,
+        to_subclient: u32,
+    ) -> Result<(), std::io::Error> {
+        bytes::BufMut::put_u8(buf, GAME_PACKET_ID);
+        self.encode_inner_bytes_mut(buf, from_subclient, to_subclient)
     }
     /// Decodes a batch entry from the provided buffer: `[Length] [Header] [Body]`.
     /// Returns the header and the packet payload.
@@ -6396,6 +7145,699 @@ impl McpePacketData {
         Self::decode_inner(buf, _args)
     }
 }
+impl crate::bedrock::codec::BedrockSized for McpePacketData {
+    fn encoded_size(&self) -> usize {
+        match self {
+            McpePacketData::PacketLogin(v) => crate::bedrock::codec::BedrockSized::encoded_size(v),
+            McpePacketData::PacketPlayStatus(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketServerToClientHandshake(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketClientToServerHandshake(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketDisconnect(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketResourcePacksInfo(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketResourcePackStack(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketResourcePackClientResponse(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketText(v) => crate::bedrock::codec::BedrockSized::encoded_size(v),
+            McpePacketData::PacketSetTime(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketStartGame(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketAddPlayer(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketAddEntity(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketRemoveEntity(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketAddItemEntity(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketServerPostMove(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketTakeItemEntity(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketMoveEntity(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketMovePlayer(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketRiderJump(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketUpdateBlock(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketAddPainting(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketTickSync(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketLevelSoundEventOld(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketLevelEvent(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketBlockEvent(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketEntityEvent(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketMobEffect(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketUpdateAttributes(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketInventoryTransaction(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketMobEquipment(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketMobArmorEquipment(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketInteract(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketBlockPickRequest(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketEntityPickRequest(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketPlayerAction(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketHurtArmor(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketSetEntityData(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketSetEntityMotion(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketSetEntityLink(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketSetHealth(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketSetSpawnPosition(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketAnimate(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketRespawn(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketContainerOpen(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketContainerClose(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketPlayerHotbar(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketInventoryContent(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketInventorySlot(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketContainerSetData(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketCraftingData(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketCraftingEvent(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketGuiDataPickItem(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketAdventureSettings(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketBlockEntityData(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketPlayerInput(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketLevelChunk(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketSetCommandsEnabled(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketSetDifficulty(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketChangeDimension(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketSetPlayerGameType(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketPlayerList(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketSimpleEvent(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketEvent(v) => crate::bedrock::codec::BedrockSized::encoded_size(v),
+            McpePacketData::PacketSpawnExperienceOrb(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketClientboundMapItemData(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketMapInfoRequest(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketRequestChunkRadius(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketChunkRadiusUpdate(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketGameRulesChanged(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketCamera(v) => crate::bedrock::codec::BedrockSized::encoded_size(v),
+            McpePacketData::PacketBossEvent(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketShowCredits(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketAvailableCommands(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketCommandRequest(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketCommandBlockUpdate(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketCommandOutput(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketUpdateTrade(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketUpdateEquipment(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketResourcePackDataInfo(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketResourcePackChunkData(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketResourcePackChunkRequest(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketTransfer(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketPlaySound(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketStopSound(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketSetTitle(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketAddBehaviorTree(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketStructureBlockUpdate(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketShowStoreOffer(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketPurchaseReceipt(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketPlayerSkin(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketSubClientLogin(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketInitiateWebSocketConnection(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketSetLastHurtBy(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketBookEdit(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketNpcRequest(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketPhotoTransfer(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketModalFormRequest(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketModalFormResponse(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketServerSettingsRequest(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketServerSettingsResponse(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketShowProfile(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketSetDefaultGameType(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketRemoveObjective(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketSetDisplayObjective(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketSetScore(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketLabTable(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketUpdateBlockSynced(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketMoveEntityDelta(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketSetScoreboardIdentity(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketSetLocalPlayerAsInitialized(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketUpdateSoftEnum(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketNetworkStackLatency(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketScriptCustomEvent(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketSpawnParticleEffect(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketAvailableEntityIdentifiers(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketLevelSoundEventV2(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketNetworkChunkPublisherUpdate(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketBiomeDefinitionList(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketLevelSoundEvent(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketLevelEventGeneric(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketLecternUpdate(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketVideoStreamConnect(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketClientCacheStatus(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketOnScreenTextureAnimation(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketMapCreateLockedCopy(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketStructureTemplateDataExportRequest(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketStructureTemplateDataExportResponse(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketUpdateBlockProperties(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketClientCacheBlobStatus(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketClientCacheMissResponse(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketEducationSettings(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketEmote(v) => crate::bedrock::codec::BedrockSized::encoded_size(v),
+            McpePacketData::PacketMultiplayerSettings(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketSettingsCommand(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketAnvilDamage(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketCompletedUsingItem(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketNetworkSettings(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketPlayerAuthInput(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketCreativeContent(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketPlayerEnchantOptions(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketItemStackRequest(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketItemStackResponse(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketPlayerArmorDamage(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketCodeBuilder(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketUpdatePlayerGameType(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketEmoteList(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketPositionTrackingDbBroadcast(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketPositionTrackingDbRequest(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketDebugInfo(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketPacketViolationWarning(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketMotionPredictionHints(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketAnimateEntity(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketCameraShake(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketPlayerFog(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketCorrectPlayerMovePrediction(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketItemRegistry(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketFilterTextPacket(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketDebugRenderer(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketSyncEntityProperty(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketAddVolumeEntity(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketRemoveVolumeEntity(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketSimulationType(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketNpcDialogue(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketEduUriResourcePacket(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketCreatePhoto(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketUpdateSubchunkBlocks(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketPhotoInfoRequest(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketSubchunk(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketSubchunkRequest(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketClientStartItemCooldown(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketScriptMessage(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketCodeBuilderSource(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketTickingAreasLoadStatus(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketDimensionData(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketAgentAction(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketChangeMobProperty(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketLessonProgress(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketRequestAbility(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketRequestPermissions(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketToastRequest(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketUpdateAbilities(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketUpdateAdventureSettings(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketDeathInfo(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketEditorNetwork(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketFeatureRegistry(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketServerStats(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketRequestNetworkSettings(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketGameTestRequest(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketGameTestResults(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketUpdateClientInputLocks(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketClientCheatAbility(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketCameraPresets(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketUnlockedRecipes(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketCameraInstruction(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketCompressedBiomeDefinitions(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketTrimData(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketOpenSign(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketAgentAnimation(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketRefreshEntitlements(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketToggleCrafterSlotRequest(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketSetPlayerInventoryOptions(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketSetHud(v) => crate::bedrock::codec::BedrockSized::encoded_size(v),
+            McpePacketData::PacketAwardAchievement(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketClientboundCloseForm(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketServerboundLoadingScreen(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketJigsawStructureData(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketCurrentStructureFeature(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketServerboundDiagnostics(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketCameraAimAssist(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketContainerRegistryCleanup(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketMovementEffect(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketSetMovementAuthority(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketCameraAimAssistPresets(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketClientCameraAimAssist(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketClientMovementPredictionSync(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketUpdateClientOptions(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketPlayerVideoCapture(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketPlayerUpdateEntityOverrides(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketPlayerLocation(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketClientboundControlsScheme(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketServerScriptDebugDrawer(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketServerboundPackSettingChange(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketClientboundDataStore(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketGraphicsOverrideParameter(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketServerboundDataStore(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketClientboundDataDrivenUiShowScreen(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketClientboundDataDrivenUiCloseAllScreens(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketClientboundDataDrivenUiReload(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketClientboundTextureShift(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketVoxelShapes(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketCameraSpline(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+            McpePacketData::PacketCameraAimAssistActorPriority(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
+        }
+    }
+}
 /// A complete Minecraft Bedrock Edition game packet, including its header and data.
 #[derive(Debug, Clone, PartialEq)]
 pub struct McpePacket {
@@ -6405,6 +7847,14 @@ pub struct McpePacket {
 impl McpePacket {
     pub fn new(header: GameHeader, data: McpePacketData) -> Self {
         Self { header, data }
+    }
+    /// Fast path for encoding into `BytesMut`.
+    pub fn encode_bytes_mut(&self, buf: &mut bytes::BytesMut) -> Result<(), std::io::Error> {
+        self.data.encode_game_frame_bytes_mut(
+            buf,
+            self.header.from_subclient,
+            self.header.to_subclient,
+        )
     }
     /// Creates a new `McpePacket` from a packet payload and explicit subclient IDs.
     ///

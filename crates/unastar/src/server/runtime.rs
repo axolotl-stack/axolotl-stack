@@ -13,7 +13,7 @@ use tokio_raknet::RaknetListener;
 use tracing::{error, info, trace, warn};
 
 use crate::config::{PlayerDataStore, UnastarConfig};
-use crate::network::{NetworkEvent, spawn_network_task};
+use crate::network::{NetworkEvent, run_network_loop};
 use crate::plugin::PluginManager;
 use crate::server::connect::{accept_join_sequence, spawn_to_dvec3};
 use crate::server::{GameServer, PlayerSpawnData};
@@ -265,8 +265,12 @@ impl UnastarServer {
                                 };
                                 self.server.spawn_player(spawn_data);
                             }
-                            NetworkEvent::Packet { session_id, packet } => {
-                                self.server.route_packet(session_id, packet);
+                            NetworkEvent::Packet {
+                                session_id,
+                                packet_args,
+                                packet,
+                            } => {
+                                self.server.route_packet(session_id, packet_args, packet);
                             }
                             NetworkEvent::Disconnected { session_id } => {
                                 self.server.despawn_player(session_id);
@@ -401,15 +405,14 @@ fn spawn_accept_loop(
                                     return; // Server shutting down
                                 }
 
-                                // Spawn network task with tick receiver
-                                spawn_network_task(
+                                run_network_loop(
                                     play_stream,
                                     session_id,
-                                    display_name,
                                     event_tx,
                                     outbound_rx,
                                     tick_rx,
-                                );
+                                )
+                                .await;
                             }
                             Err(e) => {
                                 error!(%addr, "Handshake failed: {:?}", e);

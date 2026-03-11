@@ -11,6 +11,7 @@ use std::sync::{Arc, RwLock};
 use std::task::Poll;
 use std::time::Duration;
 
+use bytes::BytesMut;
 use tokio::io::ReadBuf;
 use tokio::net::UdpSocket;
 use tokio::sync::mpsc;
@@ -245,6 +246,7 @@ async fn run_listener_muxer(
     // Allocate a receive buffer large enough to avoid OS "message too long" errors even if a peer
     // sends a slightly larger probe than our configured MTU.
     let mut buf = vec![0u8; (config.max_mtu as usize + UDP_HEADER_SIZE + 64).max(2048)];
+    let mut send_buf = BytesMut::with_capacity(config.max_mtu as usize + UDP_HEADER_SIZE + 64);
     let mut sessions: HashMap<SocketAddr, SessionState> = HashMap::new();
     let mut pending: HashMap<SocketAddr, PendingConnection> = HashMap::new();
     let mut tick = new_tick_interval();
@@ -291,6 +293,7 @@ async fn run_listener_muxer(
                         &new_conn_tx,
                         &advertisement,
                         &mut rate_limiter,
+                        &mut send_buf,
                     )
                     .await;
                 }
@@ -308,11 +311,12 @@ async fn run_listener_muxer(
                     msg,
                     &mut sessions,
                     &config,
+                    &mut send_buf,
                 )
                 .await;
             }
             LoopEvent::Tick => {
-                tick_sessions(&socket, &mut sessions).await;
+                tick_sessions(&socket, &mut sessions, &mut send_buf).await;
             }
         }
     }

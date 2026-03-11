@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use bytes::{BufMut, BytesMut};
+use bytes::BytesMut;
 use tokio::net::UdpSocket;
 use tokio::time::{self, Interval, MissedTickBehavior};
 
@@ -24,27 +24,28 @@ pub async fn flush_managed(
     peer: std::net::SocketAddr,
     now: Instant,
     run_tick: bool,
+    out: &mut BytesMut,
 ) {
     if run_tick {
         for d in managed.on_tick(now) {
             tracing::trace!("send_tick_datagram");
-            let mut out = BytesMut::new();
-            if let Err(e) = d.encode(&mut out) {
+            out.clear();
+            if let Err(e) = d.encode(out) {
                 tracing::error!(error = ?e, "failed to encode tick datagram - dropping");
                 continue;
             }
-            let _ = socket.send_to(&out, peer).await;
+            let _ = socket.send_to(out.as_ref(), peer).await;
         }
     }
 
     while let Some(d) = managed.build_datagram(now) {
         tracing::trace!("send_datagram");
-        let mut out = BytesMut::new();
-        if let Err(e) = d.encode(&mut out) {
+        out.clear();
+        if let Err(e) = d.encode(out) {
             tracing::error!(error = ?e, "failed to encode datagram - dropping");
             continue;
         }
-        let _ = socket.send_to(&out, peer).await;
+        let _ = socket.send_to(out.as_ref(), peer).await;
     }
 }
 
@@ -54,11 +55,9 @@ pub fn into_received_messages(pkts: Vec<crate::session::IncomingPacket>) -> Vec<
     let mut out = Vec::new();
     for pkt in pkts {
         if let RaknetPacket::UserData { id, payload } = pkt.packet {
-            let mut buf = BytesMut::with_capacity(1 + payload.len());
-            buf.put_u8(id);
-            buf.extend_from_slice(&payload);
             out.push(ReceivedMessage {
-                buffer: buf.freeze(),
+                id,
+                payload,
                 reliability: pkt.reliability,
                 channel: pkt.ordering_channel.unwrap_or(0),
             });

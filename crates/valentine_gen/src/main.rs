@@ -323,10 +323,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Filter out legacy protocol versions that have incompatible schema formats
     // or are missing required type definitions in minecraft-data.
-    let supported_versions: Vec<String> = all_versions
+    let mut supported_versions: Vec<String> = all_versions
         .into_iter()
         .filter(|v| v != "0.14" && v != "0.15" && v != "1.0")
         .collect();
+    supported_versions.sort_by_key(|a| parse_version(a));
 
     if args.list_versions {
         for v in &supported_versions {
@@ -357,6 +358,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let mut version_decls: Vec<VersionDecl> = Vec::new();
+    let mut global_registry = GlobalRegistry::new();
 
     for version in &supported_versions {
         let Some(data) = bedrock.get(version).and_then(|v| v.as_object()) else {
@@ -412,9 +414,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Ensure directories exist (idempotent)
         fs::create_dir_all(&crate_src_dir)?;
 
-        // Update the crate's Cargo.toml (ensures dependencies are synced even if not regenerating code)
-        write_version_crate(&crate_dir, &crate_src_dir, &crate_name)?;
-
         if should_generate {
             info!(
                 minecraft_version = %version,
@@ -448,6 +447,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             });
 
             // Generate protocol code if requested
+            let mut crate_dependencies = HashSet::new();
             if args.gen_proto {
                 let parse_result = match parser::parse(&protocol_file) {
                     Ok(parse_result) => parse_result,
@@ -461,18 +461,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 };
 
-                // Use a fresh global registry per MC version to avoid cross-version dedup dependencies.
-                let mut global_registry = GlobalRegistry::new();
-                if let Err(e) = generator::generate_protocol_module(
+                match generator::generate_protocol_module(
+                    &crate_name,
                     "",
                     &parse_result,
                     &crate_src_dir,
                     &mut global_registry,
-                    items_path.clone(),
-                    None,
                 ) {
-                    error!(minecraft_version = %version, error = %e, "Error generating protocol");
-                    continue;
+                    Ok(outcome) => {
+                        crate_dependencies.extend(outcome.crate_dependencies);
+                    }
+                    Err(e) => {
+                        error!(minecraft_version = %version, error = %e, "Error generating protocol");
+                        continue;
+                    }
                 }
             }
 
@@ -509,6 +511,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     continue;
                 }
             }
+
+            write_version_crate(&crate_dir, &crate_src_dir, &crate_name, &crate_dependencies)?;
         }
 
         version_decls.push(VersionDecl {
@@ -611,8 +615,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         pub mod protocol;
         pub mod version;
         pub mod context;
+        pub mod borrowed;
 
-        /// Convenience re-exports so users can do `bedrock::vX_Y_Z`.
+        /// Compatibility re-exports for `bedrock::vX_Y_Z`.
+        ///
+        /// Prefer `bedrock::version::vX_Y_Z` in new code when you want the
+        /// canonical, version-pinned protocol surface.
         #(#reexport_items)*
     };
 
@@ -786,6 +794,7 @@ fn write_version_crate(
     crate_dir: &Path,
     crate_src_dir: &Path,
     crate_name: &str,
+    crate_dependencies: &HashSet<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all(crate_dir)?;
     fs::create_dir_all(crate_src_dir)?;
@@ -803,6 +812,15 @@ uuid = "1.8.0"
 valentine_bedrock_core = {{ path = "../../bedrock_core" }}
 "#
     );
+    let mut extra_deps: Vec<_> = crate_dependencies.iter().collect();
+    extra_deps.sort();
+
+    let mut cargo_toml = cargo_toml;
+    for dep in extra_deps {
+        let dep_path = dep.replacen("valentine_bedrock_", "v", 1);
+        cargo_toml.push_str(&format!(r#"{dep} = {{ path = "../{dep_path}" }}"#));
+        cargo_toml.push('\n');
+    }
     let mut cargo_file = File::create(crate_dir.join("Cargo.toml"))?;
     cargo_file.write_all(cargo_toml.as_bytes())?;
 

@@ -18,7 +18,12 @@ tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 futures.workspace = true
 flate2.workspace = true
 anyhow.workspace = true
+criterion.workspace = true
 
 [features]
 default = ["bedrock_1_26_0"]
 bedrock_1_26_0 = ["dep:valentine_bedrock_1_26_0"]
+
+[[bench]]
+name = "codec"
+harness = false

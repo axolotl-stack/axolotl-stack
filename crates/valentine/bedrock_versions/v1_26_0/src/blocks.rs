@@ -1,7 +1,7 @@
 //! Generated vanilla block definitions.
 //! Do not edit: regenerate with valentine_gen.
 
-use valentine_bedrock_core::block::{BlockDef, BlockDefDyn, BlockState};
+use valentine_bedrock_core::block::{BlockDef, BlockDefDyn};
 
 /// Cyan Terracotta
 pub struct CyanTerracotta;

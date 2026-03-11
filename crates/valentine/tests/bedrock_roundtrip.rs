@@ -2,7 +2,7 @@ use bytes::{Buf, BytesMut};
 
 use valentine::bedrock::codec::{BedrockCodec, VarInt};
 use valentine::bedrock::error::DecodeError;
-use valentine::bedrock::protocol::v1_21_130::{
+use valentine::bedrock::protocol::v1_26_0::{
     DisconnectFailReason, DisconnectPacket, DisconnectPacketContent, TextPacket, TextPacketType,
 };
 
@@ -66,20 +66,14 @@ fn packet_disconnect_roundtrip_hidden_reason() {
 
 #[test]
 fn packet_text_roundtrip_chat_message() {
-    use valentine_bedrock_1_21_130::{
-        TextPacketCategory, TextPacketContent, TextPacketContentAuthored, TextPacketExtra,
-        TextPacketExtraAnnouncement,
+    use valentine_bedrock_1_26_0::{
+        TextPacketCategory, TextPacketContent, TextPacketContentAnnouncement,
     };
     let packet = TextPacket {
         type_: TextPacketType::Chat,
         needs_translation: false,
         category: TextPacketCategory::Authored,
-        content: Some(TextPacketContent::Authored(TextPacketContentAuthored {
-            chat: "Hello, world!".to_string(),
-            whisper: String::new(),
-            announcement: String::new(),
-        })),
-        extra: Some(TextPacketExtra::Chat(TextPacketExtraAnnouncement {
+        content: Some(TextPacketContent::Chat(TextPacketContentAnnouncement {
             source_name: "PlayerName".to_string(),
             message: "Hello, world!".to_string(),
         })),
@@ -93,23 +87,19 @@ fn packet_text_roundtrip_chat_message() {
 
 #[test]
 fn packet_text_roundtrip_translation() {
-    use valentine_bedrock_1_21_130::{
-        TextPacketCategory, TextPacketContent, TextPacketContentParameters, TextPacketExtra,
-        TextPacketExtraJukeboxPopup,
+    use valentine_bedrock_1_26_0::{
+        TextPacketCategory, TextPacketContent, TextPacketContentJukeboxPopup,
     };
     let packet = TextPacket {
         type_: TextPacketType::Translation,
         needs_translation: true,
         category: TextPacketCategory::Parameters,
-        content: Some(TextPacketContent::Parameters(TextPacketContentParameters {
-            translate: "chat.type.text".to_string(),
-            popup: String::new(),
-            jukebox_popup: String::new(),
-        })),
-        extra: Some(TextPacketExtra::Translation(TextPacketExtraJukeboxPopup {
-            message: "chat.type.text".to_string(),
-            parameters: vec!["Player1".to_string(), "Hello".to_string()],
-        })),
+        content: Some(TextPacketContent::Translation(
+            TextPacketContentJukeboxPopup {
+                message: "chat.type.text".to_string(),
+                parameters: vec!["Player1".to_string(), "Hello".to_string()],
+            },
+        )),
         xuid: "".to_string(),
         platform_chat_id: "".to_string(),
         filtered_message: None,
@@ -154,7 +144,7 @@ fn packet_disconnect_rejects_truncated_payload() {
 
 #[test]
 fn enum_zigzag32_encodes_as_varint() {
-    use valentine::bedrock::protocol::v1_21_130::types::GameMode;
+    use valentine::bedrock::protocol::v1_26_0::types::GameMode;
 
     let mut buf = BytesMut::new();
     GameMode::Creative

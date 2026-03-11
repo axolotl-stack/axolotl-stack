@@ -108,7 +108,7 @@ jolyne = "0.1"
 ```rust,no_run
 use jolyne::stream::client::ClientHandshakeConfig;
 use jolyne::stream::BedrockStream;
-use jolyne::protocol::{McpePacket, PacketRequestChunkRadius};
+use jolyne::valentine::{McpePacket, RequestChunkRadiusPacket};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -124,7 +124,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut client = handshake.join(config).await?;
     
     // Send a chunk radius request (could be anything.)
-    let req = PacketRequestChunkRadius {
+    let req = RequestChunkRadiusPacket {
         chunk_radius: 8,
         max_radius: 8,
     };
@@ -133,6 +133,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+
+`jolyne::valentine` is the pinned Bedrock protocol facade for the single version currently supported by `jolyne`. The underlying canonical source is `valentine::bedrock::version::v1_26_0`.
 
 ## 🔮 Future Roadmap
 

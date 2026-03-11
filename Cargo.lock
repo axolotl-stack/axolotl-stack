@@ -2587,22 +2587,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mpsd-poc"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axolotl-xbl",
- "chrono",
- "clap",
- "reqwest",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "native-tls"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4750,6 +4734,7 @@ dependencies = [
  "anyhow",
  "bitflags 2.10.0",
  "bytes",
+ "criterion",
  "flate2",
  "futures",
  "serde",

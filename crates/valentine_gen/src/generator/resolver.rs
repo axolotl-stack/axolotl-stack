@@ -1,10 +1,31 @@
-use crate::generator::analysis::{find_redundant_fields, get_deps};
+//! Semantic analysis for generated containers.
+//!
+//! This pass upgrades raw schema dependencies into typed arguments so packet signatures,
+//! codec generation, and mcpe dispatch all agree on the same discriminator types.
+
+use crate::generator::analysis::{Dependency, find_redundant_fields, get_deps};
 use crate::generator::context::Context;
 use crate::generator::utils::{
     clean_field_name, clean_type_name, derive_field_names, safe_camel_ident,
 };
 use crate::ir::{Container, Type};
 use std::collections::{HashMap, HashSet};
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ResolvedArg {
+    pub dependency: Dependency,
+    pub ty: Type,
+}
+
+impl ResolvedArg {
+    pub fn name(&self) -> &str {
+        self.dependency.name()
+    }
+
+    pub fn is_local(&self) -> bool {
+        matches!(self.dependency, Dependency::LocalField(_))
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct ResolvedContainer {
@@ -13,7 +34,7 @@ pub struct ResolvedContainer {
 
     /// Arguments this container requires (Strongly Typed!)
     /// e.g. [("_enum_type", Type::Reference("PacketAvailableCommandsEnums"))]
-    pub args: Vec<(String, Type)>,
+    pub args: Vec<ResolvedArg>,
 
     /// A lookup table for the type of every field/local variable in this container.
     /// Used by decode logic to know if "x" is an Enum, Int, or Bool.
@@ -31,7 +52,7 @@ pub struct PacketSignature {
 }
 
 impl ResolvedContainer {
-    pub fn analyze(container: &Container, ctx: &Context) -> Self {
+    pub fn analyze(container: &Container, logical_name: &str, ctx: &Context) -> Self {
         let mut variable_types = HashMap::new();
         let mut switch_resolutions = HashMap::new();
         // Tracks variables whose type was upgraded due to switch discriminator inference.
@@ -263,6 +284,24 @@ impl ResolvedContainer {
                 *ty = Type::Reference("enum_size_based_on_values_len".to_string());
             }
 
+            if name == "action"
+                && (logical_name.starts_with("PacketSetScoreEntriesItem")
+                    || logical_name.starts_with("SetScorePacketEntriesItem"))
+            {
+                *ty = Type::Reference("SetScorePacketAction".to_string());
+            }
+
+            if name == "action"
+                && (logical_name.starts_with("PacketSetScoreboardIdentityEntriesItem")
+                    || logical_name.starts_with("SetScoreboardIdentityPacketEntriesItem"))
+            {
+                *ty = Type::Reference("SetScoreboardIdentityPacketAction".to_string());
+            }
+
+            if name == "shield_item_id" || name == "_shield_item_id" {
+                *ty = Type::Primitive(crate::ir::Primitive::VarInt);
+            }
+
             if matches!(
                 ty,
                 Type::Primitive(
@@ -272,7 +311,7 @@ impl ResolvedContainer {
                 )
             ) && name.contains("type")
             {
-                let mut prefix = container.name.clone();
+                let mut prefix = logical_name.to_string();
                 for suf in ["EntriesItem", "Entries", "Entry", "Item", "Content"] {
                     if let Some(stripped) = prefix.strip_suffix(suf) {
                         prefix = stripped.to_string();
@@ -289,7 +328,7 @@ impl ResolvedContainer {
                     }
                     let base = ename.trim_end_matches("Type");
                     let mut score = 0;
-                    if !base.is_empty() && container.name.starts_with(base) {
+                    if !base.is_empty() && logical_name.starts_with(base) {
                         score = base.len() * 2; // weight prefix higher
                     } else if ename.ends_with(&candidate) {
                         score = candidate.len();
@@ -351,7 +390,7 @@ impl ResolvedContainer {
                     }
                     let base = ename.trim_end_matches("Type");
                     let mut score = 0;
-                    if !base.is_empty() && container.name.starts_with(base) {
+                    if !base.is_empty() && logical_name.starts_with(base) {
                         score = base.len() * 2;
                     } else if name.starts_with(base) {
                         score = base.len();
@@ -366,18 +405,23 @@ impl ResolvedContainer {
                 }
             }
 
-            args.push((name.clone(), final_type.clone()));
+            args.push(ResolvedArg {
+                dependency: dep,
+                ty: final_type.clone(),
+            });
 
             // Keep variable_types consistent with upgraded args
             variable_types.entry(name).or_insert(final_type);
         }
 
         // Sort args for deterministic output
-        args.sort_by(|a, b| a.0.cmp(&b.0));
+        args.sort_by(|a, b| a.name().cmp(b.name()));
 
         // Make argument types available to downstream resolution
-        for (name, ty) in &args {
-            variable_types.entry(name.clone()).or_insert(ty.clone());
+        for arg in &args {
+            variable_types
+                .entry(arg.name().to_string())
+                .or_insert(arg.ty.clone());
         }
 
         Self {
@@ -659,10 +703,13 @@ pub fn compute_packet_signature(
         fields.push((fname, ftype));
     }
 
-    let resolved = ResolvedContainer::analyze(container, ctx);
+    let resolved = ResolvedContainer::analyze(container, struct_name, ctx);
     let mut args_vec = Vec::new();
-    for (name, ty) in &resolved.args {
-        args_vec.push((name.clone(), canonical_type_signature(ty, ctx)));
+    for arg in &resolved.args {
+        args_vec.push((
+            arg.name().to_string(),
+            canonical_type_signature(&arg.ty, ctx),
+        ));
     }
     args_vec.sort_by(|a, b| a.0.cmp(&b.0));
 

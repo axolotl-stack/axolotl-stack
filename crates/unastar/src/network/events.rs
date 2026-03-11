@@ -1,7 +1,7 @@
 //! Network events for communication between network tasks and main thread.
 
 use glam::DVec3;
-use jolyne::valentine::McpePacket;
+use jolyne::valentine::{BorrowedMcpePacket, McpePacket, McpePacketArgs};
 use tokio::sync::mpsc;
 
 /// Unique session identifier.
@@ -29,7 +29,8 @@ pub enum NetworkEvent {
     /// Player sent a packet.
     Packet {
         session_id: SessionId,
-        packet: McpePacket,
+        packet_args: McpePacketArgs,
+        packet: BorrowedMcpePacket,
     },
 
     /// Player disconnected (network task exiting).

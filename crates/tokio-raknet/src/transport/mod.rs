@@ -95,10 +95,12 @@ impl From<String> for Message {
 }
 
 /// Inbound message surfaced to applications.
-/// Carries the full user payload (ID + body) and metadata from the transport.
+/// Carries the RakNet user payload split into ID byte and body bytes, plus
+/// transport metadata.
 #[derive(Debug, Clone)]
 pub struct ReceivedMessage {
-    pub buffer: Bytes,
+    pub id: u8,
+    pub payload: Bytes,
     pub reliability: Reliability,
     pub channel: u8,
 }
@@ -230,12 +232,14 @@ mod tests {
     #[test]
     fn received_message_fields() {
         let msg = ReceivedMessage {
-            buffer: Bytes::from_static(b"payload"),
+            id: 0xfe,
+            payload: Bytes::from_static(b"payload"),
             reliability: Reliability::ReliableOrdered,
             channel: 3,
         };
 
-        assert_eq!(msg.buffer.as_ref(), b"payload");
+        assert_eq!(msg.id, 0xfe);
+        assert_eq!(msg.payload.as_ref(), b"payload");
         assert_eq!(msg.reliability, Reliability::ReliableOrdered);
         assert_eq!(msg.channel, 3);
     }

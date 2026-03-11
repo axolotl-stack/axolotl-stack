@@ -1,6 +1,6 @@
 use crate::generator::analysis::{get_deps, should_box_variant};
 use crate::generator::codec::{generate_codec_impl, generate_enum_type_codec};
-use crate::generator::context::{Context, PacketSymbol};
+use crate::generator::context::{Context, PacketSymbol, TypeCanonical};
 use crate::generator::primitives::{
     primitive_to_enum_repr_tokens, primitive_to_rust_tokens, primitive_to_unsigned_tokens,
 };
@@ -179,6 +179,29 @@ fn maybe_emit_packet_duplicate_alias(type_name: &str, group: &str, ctx: &mut Con
         .entry(group.to_string())
         .or_default()
         .push(quote! { pub use #original_ident as #alias_ident; });
+}
+
+fn selected_type_path(canonical: &TypeCanonical, ctx: &mut Context) -> String {
+    if canonical.owner_crate == ctx.current_crate_name {
+        canonical.local_path.clone()
+    } else {
+        ctx.crate_dependencies.insert(canonical.owner_crate.clone());
+        canonical.external_path.clone()
+    }
+}
+
+fn selected_packet_path(
+    local_path: &str,
+    external_path: &str,
+    owner_crate: &str,
+    ctx: &mut Context,
+) -> String {
+    if owner_crate == ctx.current_crate_name {
+        local_path.to_string()
+    } else {
+        ctx.crate_dependencies.insert(owner_crate.to_string());
+        external_path.to_string()
+    }
 }
 
 // ==============================================================================
@@ -398,17 +421,9 @@ pub fn define_type(
 
     // Only attempt deduplication if there are NO arguments.
     if !has_args {
-        if let Some(canonical_path) = ctx.global_registry.get(&fingerprint) {
-            if let Some(start) = canonical_path.find("::protocol::") {
-                let rest = &canonical_path[start + 12..];
-                if let Some(end) = rest.find("::") {
-                    let dep_mod = &rest[..end];
-                    if !ctx.current_module_path.ends_with(dep_mod) {
-                        ctx.module_dependencies.insert(dep_mod.to_string());
-                    }
-                }
-            }
-            let path_ident = syn::parse_str::<syn::Path>(canonical_path).unwrap_or_else(|_| {
+        if let Some(canonical) = ctx.global_registry.get(&fingerprint).cloned() {
+            let canonical_path = selected_type_path(&canonical, ctx);
+            let path_ident = syn::parse_str::<syn::Path>(&canonical_path).unwrap_or_else(|_| {
                 let parts: Vec<_> = canonical_path
                     .split("::")
                     .map(|s| format_ident!("{}", s))
@@ -466,6 +481,12 @@ pub fn define_type(
                 }
             }
 
+            impl crate::bedrock::codec::BedrockSized for LittleString {
+                fn encoded_size(&self) -> usize {
+                    4usize + self.0.as_bytes().len()
+                }
+            }
+
             impl crate::bedrock::codec::BedrockCodec for LittleString {
                 type Args = ();
                 fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
@@ -487,7 +508,7 @@ pub fn define_type(
                     }
                     let mut v = vec![0u8; len];
                     buf.copy_to_slice(&mut v);
-                    Ok(LittleString(String::from_utf8_lossy(&v).into_owned()))
+                    Ok(LittleString(crate::bedrock::codec::decode_utf8_lossy_owned(v)))
                 }
             }
         };
@@ -498,8 +519,14 @@ pub fn define_type(
         ctx.in_progress.remove(&safe_name_str);
         ctx.emitted.insert(safe_name_str.clone());
         if !has_args {
-            let canonical_path = format!("{}::{}", ctx.current_module_path, safe_name_str);
-            ctx.global_registry.register(fingerprint, canonical_path);
+            let local_path = format!("{}::{}", ctx.current_local_path, safe_name_str);
+            let external_path = format!("{}::{}", ctx.current_external_path, safe_name_str);
+            ctx.global_registry.register(
+                fingerprint,
+                ctx.current_crate_name.clone(),
+                local_path,
+                external_path,
+            );
         }
         return Ok(());
     }
@@ -823,6 +850,40 @@ pub fn define_type(
                 },
                 _ => quote! { (val as #wire_type).encode(buf) },
             };
+            let size_logic = match storage_type {
+                Primitive::VarInt => quote! {
+                    crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(_val as i32))
+                },
+                Primitive::VarLong => quote! {
+                    crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarLong(_val as i64))
+                },
+                Primitive::ZigZag32 => quote! {
+                    crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::ZigZag32(_val as i32))
+                },
+                Primitive::ZigZag64 => quote! {
+                    crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::ZigZag64(_val as i64))
+                },
+                Primitive::U8 | Primitive::I8 | Primitive::Bool => quote! { 1usize },
+                Primitive::U16 | Primitive::U16LE | Primitive::I16 | Primitive::I16LE => {
+                    quote! { 2usize }
+                }
+                Primitive::U32
+                | Primitive::U32LE
+                | Primitive::I32
+                | Primitive::I32LE
+                | Primitive::F32
+                | Primitive::F32LE => quote! { 4usize },
+                Primitive::U64
+                | Primitive::U64LE
+                | Primitive::I64
+                | Primitive::I64LE
+                | Primitive::F64
+                | Primitive::F64LE => quote! { 8usize },
+                Primitive::Uuid => quote! { 16usize },
+                _ => {
+                    quote! { crate::bedrock::codec::BedrockSized::encoded_size(&(_val as #wire_type)) }
+                }
+            };
 
             quote! {
                 bitflags! {
@@ -838,6 +899,12 @@ pub fn define_type(
                     fn decode<B: bytes::Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, crate::bedrock::error::DecodeError> {
                         #decode_logic
                         Ok(Self::from_bits_retain(bits))
+                    }
+                }
+                impl crate::bedrock::codec::BedrockSized for #ident {
+                    fn encoded_size(&self) -> usize {
+                        let _val = self.bits();
+                        #size_logic
                     }
                 }
             }
@@ -923,8 +990,14 @@ pub fn define_type(
 
     // Only register for deduplication if we did NOT have args.
     if !has_args {
-        let canonical_path = format!("{}::{}", ctx.current_module_path, safe_name_str);
-        ctx.global_registry.register(fingerprint, canonical_path);
+        let local_path = format!("{}::{}", ctx.current_local_path, safe_name_str);
+        let external_path = format!("{}::{}", ctx.current_external_path, safe_name_str);
+        ctx.global_registry.register(
+            fingerprint,
+            ctx.current_crate_name.clone(),
+            local_path,
+            external_path,
+        );
     }
 
     Ok(())
@@ -933,18 +1006,6 @@ pub fn define_type(
 // ==============================================================================
 //  DEFINE CONTAINER (Top-Level Packets)
 // ==============================================================================
-
-fn record_module_dependency_from_canonical_path(canonical_path: &str, ctx: &mut Context) {
-    if let Some(start) = canonical_path.find("::protocol::") {
-        let rest = &canonical_path[start + 12..];
-        if let Some(end) = rest.find("::") {
-            let dep_mod = &rest[..end];
-            if !ctx.current_module_path.ends_with(dep_mod) {
-                ctx.module_dependencies.insert(dep_mod.to_string());
-            }
-        }
-    }
-}
 
 fn parse_canonical_path(canonical_path: &str) -> syn::Path {
     syn::parse_str::<syn::Path>(canonical_path).unwrap_or_else(|_| {
@@ -993,17 +1054,41 @@ pub fn define_container(
     let fingerprint = compute_packet_fingerprint(&safe_name_str, signature);
 
     if let Some(canonical) = ctx.global_registry.get_packet(&fingerprint).cloned() {
-        record_module_dependency_from_canonical_path(&canonical.packet_path, ctx);
-        let path_ident = parse_canonical_path(&canonical.packet_path);
+        let packet_path = selected_packet_path(
+            &canonical.packet_local_path,
+            &canonical.packet_external_path,
+            &canonical.owner_crate,
+            ctx,
+        );
+        let path_ident = parse_canonical_path(&packet_path);
         let local_ident = format_ident!("{}", safe_name_str);
         ctx.definitions_by_group
             .entry(group.clone())
             .or_default()
             .push(quote! { pub use #path_ident as #local_ident; });
 
-        if let Some(args_path) = &canonical.args_path {
-            record_module_dependency_from_canonical_path(args_path, ctx);
-            let args_path_ident = parse_canonical_path(args_path);
+        let args_path = match (
+            canonical.args_local_path.as_deref(),
+            canonical.args_external_path.as_deref(),
+        ) {
+            (Some(local), Some(external)) => Some(selected_packet_path(
+                local,
+                external,
+                &canonical.owner_crate,
+                ctx,
+            )),
+            (Some(local), None) if canonical.owner_crate == ctx.current_crate_name => {
+                Some(local.to_string())
+            }
+            (None, Some(external)) if canonical.owner_crate != ctx.current_crate_name => {
+                ctx.crate_dependencies.insert(canonical.owner_crate.clone());
+                Some(external.to_string())
+            }
+            _ => None,
+        };
+
+        if let Some(args_path) = args_path {
+            let args_path_ident = parse_canonical_path(&args_path);
             let local_args_ident = format_ident!("{}Args", safe_name_str);
             ctx.definitions_by_group
                 .entry(group.clone())
@@ -1011,11 +1096,10 @@ pub fn define_container(
                 .push(quote! { pub use #args_path_ident as #local_args_ident; });
         }
 
-        let canonical_module_path = canonical
-            .packet_path
+        let canonical_module_path = packet_path
             .rsplit_once("::")
             .map(|(m, _)| m)
-            .unwrap_or(canonical.packet_path.as_str());
+            .unwrap_or(packet_path.as_str());
 
         let mut seen = std::collections::HashSet::<String>::new();
         for symbol in canonical.extra_symbols {
@@ -1030,7 +1114,6 @@ pub fn define_container(
             }
 
             let canonical_symbol_path = format!("{canonical_module_path}::{}", symbol.name);
-            record_module_dependency_from_canonical_path(&canonical_symbol_path, ctx);
             let sym_path_ident = parse_canonical_path(&canonical_symbol_path);
             let local_sym_ident = format_ident!("{}", symbol.name);
             let sym_group = get_group_name(&symbol.name);
@@ -1059,13 +1142,20 @@ pub fn define_container(
     entry.push(def);
     entry.push(codec);
 
-    let canonical_packet_path = format!("{}::{}", ctx.current_module_path, safe_name_str);
-    let canonical_args_path = if signature.args.is_empty() {
+    let canonical_packet_local_path = format!("{}::{}", ctx.current_local_path, safe_name_str);
+    let canonical_packet_external_path =
+        format!("{}::{}", ctx.current_external_path, safe_name_str);
+    let canonical_args_local_path = if signature.args.is_empty() {
+        None
+    } else {
+        Some(format!("{}::{}Args", ctx.current_local_path, safe_name_str))
+    };
+    let canonical_args_external_path = if signature.args.is_empty() {
         None
     } else {
         Some(format!(
             "{}::{}Args",
-            ctx.current_module_path, safe_name_str
+            ctx.current_external_path, safe_name_str
         ))
     };
 
@@ -1099,8 +1189,11 @@ pub fn define_container(
     extra_symbols.sort_by(|a, b| a.name.cmp(&b.name));
     ctx.global_registry.register_packet(
         fingerprint,
-        canonical_packet_path,
-        canonical_args_path,
+        ctx.current_crate_name.clone(),
+        canonical_packet_local_path,
+        canonical_packet_external_path,
+        canonical_args_local_path,
+        canonical_args_external_path,
         extra_symbols,
     );
     Ok(())

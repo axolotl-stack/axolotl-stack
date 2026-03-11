@@ -11,42 +11,23 @@ use tracing::{info, trace, warn};
 // Re-export types
 pub use events::{NetworkEvent, SessionId};
 
-/// Spawn a network task for a connected player.
-///
-/// Consolidates all network I/O for a session into a single task.
-/// Uses `NetworkEvent` to communicate with the main thread.
-///
-/// The `tick_rx` receives tick signals - on each tick, buffered packets are flushed.
-/// The `outbound_rx` is bounded to prevent memory explosion on slow connections.
-pub fn spawn_network_task(
-    stream: BedrockStream<Play, ServerRole, jolyne::stream::transport::RakNetTransport>,
-    session_id: SessionId,
-    display_name: String,
-    event_tx: mpsc::UnboundedSender<NetworkEvent>,
-    outbound_rx: mpsc::Receiver<McpePacket>,
-    tick_rx: broadcast::Receiver<()>,
-) {
-    tokio::spawn(async move {
-        run_network_loop(stream, session_id, event_tx.clone(), outbound_rx, tick_rx).await;
-
-        // Notify main thread that this session disconnected
-        let _ = event_tx.send(NetworkEvent::Disconnected { session_id });
-        info!(session_id, display_name = %display_name, "Network task ended");
-    });
-}
-
 /// Network loop: shuttle packets between network and main thread.
+///
+/// Runs a connected player's play-state transport until disconnect.
+/// The caller owns the task lifecycle; this keeps handshake and play
+/// handling in one connection task instead of bouncing through another spawn.
 ///
 /// Uses manual flushing for efficient batching:
 /// - `send_packet()` queues packets without sending
 /// - `flush()` sends all queued packets as a single batch on tick
-async fn run_network_loop(
-    mut stream: BedrockStream<Play, ServerRole, jolyne::stream::transport::RakNetTransport>,
+pub async fn run_network_loop(
+    stream: BedrockStream<Play, ServerRole, jolyne::stream::transport::RakNetTransport>,
     session_id: SessionId,
     event_tx: mpsc::UnboundedSender<NetworkEvent>,
     mut outbound_rx: mpsc::Receiver<McpePacket>,
     mut tick_rx: broadcast::Receiver<()>,
 ) {
+    let mut stream = stream;
     loop {
         tokio::select! {
             biased;
@@ -80,10 +61,15 @@ async fn run_network_loop(
             }
 
             // Priority 2: Inbound packets from client
-            result = stream.recv_packet() => {
+            result = stream.recv_packet_borrowed() => {
                 match result {
                     Ok(packet) => {
-                        if event_tx.send(NetworkEvent::Packet { session_id, packet }).is_err() {
+                        let packet_args = stream.packet_args();
+                        if event_tx.send(NetworkEvent::Packet {
+                            session_id,
+                            packet_args,
+                            packet,
+                        }).is_err() {
                             // Main thread dropped, exit
                             tracing::error!(session_id, "Main thread dropped event channel");
                             break;
@@ -126,4 +112,6 @@ async fn run_network_loop(
 
     // Final flush on disconnect
     let _ = stream.flush().await;
+    let _ = event_tx.send(NetworkEvent::Disconnected { session_id });
+    info!(session_id, "Network task ended");
 }

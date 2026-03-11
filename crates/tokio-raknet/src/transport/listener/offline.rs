@@ -73,6 +73,7 @@ pub(super) async fn handle_offline(
     )>,
     advertisement: &Arc<RwLock<Vec<u8>>>,
     rate_limiter: &mut PingRateLimiter,
+    send_buf: &mut BytesMut,
 ) {
     let now = Instant::now();
     pending.retain(|_, p| p.expires_at > now);
@@ -108,7 +109,7 @@ pub(super) async fn handle_offline(
                 advertisement: crate::protocol::types::Advertisement(ad_bytes),
             });
 
-            send_unconnected_packet(socket, peer, reply).await;
+            send_unconnected_packet(socket, peer, reply, send_buf).await;
         }
         RaknetPacket::UnconnectedPingOpenConnections(req) => {
             if req.magic != DEFAULT_UNCONNECTED_MAGIC {
@@ -134,7 +135,7 @@ pub(super) async fn handle_offline(
                 advertisement: crate::protocol::types::Advertisement(ad_bytes),
             });
 
-            send_unconnected_packet(socket, peer, reply).await;
+            send_unconnected_packet(socket, peer, reply, send_buf).await;
         }
         RaknetPacket::OpenConnectionRequest1(req) => {
             if req.magic != DEFAULT_UNCONNECTED_MAGIC {
@@ -148,7 +149,7 @@ pub(super) async fn handle_offline(
                         magic: DEFAULT_UNCONNECTED_MAGIC,
                         server_guid: server_guid(),
                     });
-                send_unconnected_packet(socket, peer, reply).await;
+                send_unconnected_packet(socket, peer, reply, send_buf).await;
                 return;
             }
 
@@ -163,7 +164,7 @@ pub(super) async fn handle_offline(
                 let reply = RaknetPacket::NoFreeIncomingConnections(
                     crate::protocol::packet::NoFreeIncomingConnections,
                 );
-                send_unconnected_packet(socket, peer, reply).await;
+                send_unconnected_packet(socket, peer, reply, send_buf).await;
                 return;
             }
 
@@ -187,7 +188,7 @@ pub(super) async fn handle_offline(
                 mtu: mtu_clamped,
             });
 
-            send_unconnected_packet(socket, peer, reply).await;
+            send_unconnected_packet(socket, peer, reply, send_buf).await;
         }
         RaknetPacket::OpenConnectionRequest2(req) => {
             if req.magic != DEFAULT_UNCONNECTED_MAGIC {
@@ -209,7 +210,7 @@ pub(super) async fn handle_offline(
                             // NO ENCRYPTION.
                             security: false,
                         });
-                        send_unconnected_packet(socket, peer, reply).await;
+                        send_unconnected_packet(socket, peer, reply, send_buf).await;
                     }
                     return;
                 }
@@ -220,7 +221,7 @@ pub(super) async fn handle_offline(
             }
 
             if req.mtu < MINIMUM_MTU_SIZE || req.mtu > MAXIMUM_MTU_SIZE {
-                send_already_connected(socket, peer).await;
+                send_already_connected(socket, peer, send_buf).await;
                 return;
             }
 
@@ -255,7 +256,7 @@ pub(super) async fn handle_offline(
                 security: false,
             });
 
-            send_unconnected_packet(socket, peer, reply).await;
+            send_unconnected_packet(socket, peer, reply, send_buf).await;
         }
         _ => {}
     }
@@ -294,17 +295,22 @@ fn server_guid() -> u64 {
     })
 }
 
-async fn send_unconnected_packet(socket: &UdpSocket, peer: SocketAddr, pkt: RaknetPacket) {
-    let mut buf = BytesMut::new();
-    if pkt.encode(&mut buf).is_ok() {
-        let _ = socket.send_to(&buf, peer).await;
+async fn send_unconnected_packet(
+    socket: &UdpSocket,
+    peer: SocketAddr,
+    pkt: RaknetPacket,
+    buf: &mut BytesMut,
+) {
+    buf.clear();
+    if pkt.encode(buf).is_ok() {
+        let _ = socket.send_to(buf.as_ref(), peer).await;
     }
 }
 
-async fn send_already_connected(socket: &UdpSocket, peer: SocketAddr) {
+async fn send_already_connected(socket: &UdpSocket, peer: SocketAddr, buf: &mut BytesMut) {
     let pkt = RaknetPacket::AlreadyConnected(AlreadyConnected {
         magic: DEFAULT_UNCONNECTED_MAGIC,
         server_guid: server_guid(),
     });
-    send_unconnected_packet(socket, peer, pkt).await;
+    send_unconnected_packet(socket, peer, pkt, buf).await;
 }

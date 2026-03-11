@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use crate::config::BedrockListenerConfig;
 use crate::error::JolyneError;
-use crate::valentine::McpePacket;
+use crate::valentine::{McpePacket, McpePacketArgs};
 use transport::{BedrockTransport, Transport};
 
 pub mod transport;
@@ -58,6 +58,11 @@ impl<S: State, R: Role, T: Transport> BedrockStream<S, R, T> {
     /// - `false`: `send()` queues packets. You MUST call `flush()` to send them (high throughput).
     pub fn set_auto_flush(&mut self, auto: bool) {
         self.transport.set_auto_flush(auto);
+    }
+
+    /// Returns the current packet args derived from transport session state.
+    pub fn packet_args(&self) -> McpePacketArgs {
+        self.transport.packet_args()
     }
 
     /// Flushes all buffered packets as a single batch (ReliableOrdered).

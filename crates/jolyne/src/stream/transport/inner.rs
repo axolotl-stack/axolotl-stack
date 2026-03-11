@@ -13,14 +13,16 @@ use bytes::BytesMut;
 use ctr::cipher::{KeyIvInit, StreamCipher};
 use sha2::{Digest, Sha256};
 use tracing::{debug, instrument};
+use valentine::bedrock::codec::BedrockSized;
 
-use super::{Transport, TransportMessage};
+use super::{Transport, TransportMessage, TransportRecvMessage};
 use crate::batch::{
-    decode_batch_no_prefix_raw, decode_batch_raw, encode_batch_multi, encode_batch_raw,
+    decode_batch_no_prefix_raw, decode_batch_raw, decode_batch_raw_split, encode_batch_multi_into,
+    encode_batch_raw_into,
 };
 use crate::error::{JolyneError, ProtocolError};
-use crate::raw::RawPacket;
-use crate::valentine::McpePacket;
+use crate::raw::{RawPacket, decode_packet_raw, decode_packet_raw_split};
+use crate::valentine::{BorrowedMcpePacket, McpePacket, McpePacketArgs};
 use valentine::bedrock::context::BedrockSession;
 
 type Aes256Ctr = ctr::Ctr32BE<Aes256>;
@@ -62,6 +64,11 @@ pub struct BedrockTransport<T: Transport> {
     pub(crate) compression_level: u32,
     pub(crate) compression_threshold: u16,
     max_decompressed_batch_size: Option<usize>,
+
+    // Reusable outbound buffers to avoid per-send allocation churn.
+    send_batch_buffer: BytesMut,
+    send_raw_buffer: BytesMut,
+    recv_decrypt_buffer: BytesMut,
 }
 
 impl<T: Transport> BedrockTransport<T> {
@@ -83,6 +90,9 @@ impl<T: Transport> BedrockTransport<T> {
             compression_level: 7,
             compression_threshold: 0,
             max_decompressed_batch_size: Some(1024 * 1024 * 4),
+            send_batch_buffer: BytesMut::new(),
+            send_raw_buffer: BytesMut::new(),
+            recv_decrypt_buffer: BytesMut::new(),
         }
     }
 
@@ -116,6 +126,11 @@ impl<T: Transport> BedrockTransport<T> {
     /// Configures the flushing strategy.
     pub fn set_auto_flush(&mut self, auto: bool) {
         self.auto_flush = auto;
+    }
+
+    /// Returns the current packet decode/encode args derived from transport session state.
+    pub fn packet_args(&self) -> McpePacketArgs {
+        McpePacketArgs::from(&self.session)
     }
 
     /// Sends a packet. Behavior depends on `set_auto_flush`.
@@ -162,29 +177,42 @@ impl<T: Transport> BedrockTransport<T> {
 
         // 1. Encode Batch (Handles Compression)
         // Use T::USES_BATCH_PREFIX to conditionally add 0xFE prefix
-        let batch_buffer = encode_batch_multi(
+        encode_batch_multi_into(
             packets,
             self.compression_enabled,
             self.compression_level,
             self.compression_threshold,
             T::USES_BATCH_PREFIX,
+            &mut self.send_batch_buffer,
         )?;
 
         // 2. Encrypt & Send
         let msg = if self.encryption_enabled {
-            let mut bm = BytesMut::from(batch_buffer.as_ref());
+            let cipher = self
+                .send_cipher
+                .as_mut()
+                .expect("encryption_enabled implies send_cipher is initialised");
+            let key_bytes = self
+                .key_bytes
+                .as_deref()
+                .expect("encryption_enabled implies key_bytes is initialised");
             tracing::trace!(
                 "Encrypting batch of {} bytes (send_counter={})",
-                bm.len(),
+                self.send_batch_buffer.len(),
                 self.send_counter
             );
-            self.encrypt_outgoing(&mut bm)?;
-            tracing::trace!("Encrypted batch is {} bytes", bm.len());
-            TransportMessage::reliable(bm.freeze())
+            Self::encrypt_buffer(
+                &mut self.send_batch_buffer,
+                cipher,
+                key_bytes,
+                &mut self.send_counter,
+            )?;
+            tracing::trace!("Encrypted batch is {} bytes", self.send_batch_buffer.len());
+            TransportMessage::reliable(self.send_batch_buffer.split().freeze())
         } else if reliable {
-            TransportMessage::reliable(batch_buffer)
+            TransportMessage::reliable(self.send_batch_buffer.split().freeze())
         } else {
-            TransportMessage::unreliable(batch_buffer)
+            TransportMessage::unreliable(self.send_batch_buffer.split().freeze())
         };
 
         // Send using poll_fn to convert poll-based API to async
@@ -204,33 +232,54 @@ impl<T: Transport> BedrockTransport<T> {
     /// - **NetherNet**: Uses inner format `[Length][Header][Body]` (no 0xFE)
     #[instrument(skip_all, level = "trace", fields(peer_addr = %self.peer_addr()))]
     pub async fn send_raw(&mut self, packet: McpePacket) -> Result<(), JolyneError> {
-        let mut buf = BytesMut::new();
+        let reserve = if T::USES_BATCH_PREFIX {
+            11usize + packet.data.encoded_size()
+        } else {
+            10usize + packet.data.encoded_size()
+        };
+        self.send_raw_buffer.clear();
+        self.send_raw_buffer.reserve(reserve);
 
         if T::USES_BATCH_PREFIX {
             // RakNet: Use full game frame with 0xFE prefix
-            use valentine::bedrock::codec::BedrockCodec;
-            packet.encode(&mut buf)?;
+            packet.encode_bytes_mut(&mut self.send_raw_buffer)?;
         } else {
             // NetherNet: Use inner format without 0xFE prefix
-            packet.data.encode_inner(
-                &mut buf,
+            packet.data.encode_inner_bytes_mut(
+                &mut self.send_raw_buffer,
                 packet.header.from_subclient,
                 packet.header.to_subclient,
             )?;
         }
 
         if self.encryption_enabled {
-            self.encrypt_outgoing(&mut buf)?;
+            let cipher = self
+                .send_cipher
+                .as_mut()
+                .expect("encryption_enabled implies send_cipher is initialised");
+            let key_bytes = self
+                .key_bytes
+                .as_deref()
+                .expect("encryption_enabled implies key_bytes is initialised");
+            Self::encrypt_buffer(
+                &mut self.send_raw_buffer,
+                cipher,
+                key_bytes,
+                &mut self.send_counter,
+            )?;
         }
 
-        let msg = TransportMessage::reliable(buf.freeze());
+        let msg = TransportMessage::reliable(self.send_raw_buffer.split().freeze());
         poll_fn(|cx| Pin::new(&mut self.inner).poll_send(cx, msg.clone()))
             .await
             .map_err(|e| JolyneError::Transport(e.to_string()))?;
         Ok(())
     }
 
-    /// Returns the next single packet, decoding from raw buffer on demand.
+    /// Returns the next single packet as an owned protocol packet.
+    ///
+    /// This materializes packet contents and is the convenience path for
+    /// higher-level code that wants owned values immediately.
     pub async fn recv_packet(&mut self) -> Result<McpePacket, JolyneError> {
         loop {
             if let Some(raw) = self.recv_queue.pop_front() {
@@ -245,10 +294,10 @@ impl<T: Transport> BedrockTransport<T> {
         }
     }
 
-    /// Reads a batch of packets from the network, returning fully decoded packets.
+    /// Reads a batch of packets from the network, returning owned packets.
     ///
-    /// Note: This decodes all packets in the batch immediately. For proxy use cases
-    /// where you want to inspect IDs without full decode, use `recv_batch_raw()` instead.
+    /// This eagerly materializes packet contents. For hot ingress paths, prefer
+    /// [`Self::recv_batch_borrowed`] or [`Self::recv_batch_raw`].
     #[instrument(skip_all, level = "trace", fields(peer_addr = %self.peer_addr()))]
     pub async fn recv_batch(&mut self) -> Result<Vec<McpePacket>, JolyneError> {
         let raw_packets = self.recv_batch_raw().await?;
@@ -275,49 +324,120 @@ impl<T: Transport> BedrockTransport<T> {
         }
     }
 
+    /// Returns the next packet as a borrowed protocol view.
+    ///
+    /// This is the preferred ingress path for handshake and other hot packet
+    /// processing where the caller can stay on borrowed data.
+    pub async fn recv_packet_borrowed(&mut self) -> Result<BorrowedMcpePacket, JolyneError> {
+        loop {
+            if let Some(raw) = self.recv_queue.pop_front() {
+                return raw.decode_borrowed();
+            }
+            let packets = self.recv_batch_raw().await?;
+            if packets.is_empty() {
+                continue;
+            }
+            self.recv_queue.extend(packets);
+        }
+    }
+
+    /// Returns all packets from the next network batch as borrowed protocol views.
+    ///
+    /// This is the preferred batch receive path when the caller can inspect or
+    /// route packets without immediately allocating owned payloads.
+    #[instrument(skip_all, level = "trace", fields(peer_addr = %self.peer_addr()))]
+    pub async fn recv_batch_borrowed(&mut self) -> Result<Vec<BorrowedMcpePacket>, JolyneError> {
+        let raw_packets = self.recv_batch_raw().await?;
+        raw_packets
+            .into_iter()
+            .map(RawPacket::decode_borrowed)
+            .collect()
+    }
+
     /// Returns all packets from the next network batch as raw bytes.
     #[instrument(skip_all, level = "trace", fields(peer_addr = %self.peer_addr()))]
     pub async fn recv_batch_raw(&mut self) -> Result<Vec<RawPacket>, JolyneError> {
         // 1. Read Raw Frame
         tracing::trace!("Waiting for raw RakNet frame...");
         let recv_result = poll_fn(|cx| Pin::new(&mut self.inner).poll_recv(cx)).await;
-        let mut packet_bytes = recv_result
+        let packet_bytes = recv_result
             .ok_or(JolyneError::ConnectionClosed)?
             .map_err(|e| JolyneError::Transport(e.to_string()))?;
-        tracing::trace!("Received {} bytes from RakNet", packet_bytes.len());
+        tracing::trace!("Received {} bytes from transport", packet_bytes.len());
 
         // 2. Decrypt
         if self.encryption_enabled {
-            let mut bm = BytesMut::from(packet_bytes.as_ref());
-            self.decrypt_incoming(&mut bm)?;
-            packet_bytes = bm.freeze();
-        }
+            packet_bytes.copy_into(&mut self.recv_decrypt_buffer);
+            let cipher = self
+                .recv_cipher
+                .as_mut()
+                .expect("encryption_enabled implies recv_cipher is initialised");
+            let key_bytes = self
+                .key_bytes
+                .as_deref()
+                .expect("encryption_enabled implies key_bytes is initialised");
+            Self::decrypt_buffer(
+                &mut self.recv_decrypt_buffer,
+                cipher,
+                key_bytes,
+                &mut self.recv_counter,
+            )?;
+            let mut buf = self.recv_decrypt_buffer.split().freeze();
+            if buf.is_empty() {
+                return Ok(vec![]);
+            }
 
-        if packet_bytes.is_empty() {
-            return Ok(vec![]);
-        }
-
-        // 3. Decode as raw packets
-        let mut buf = packet_bytes;
-
-        if T::USES_BATCH_PREFIX {
-            if buf[0] == 0xFE {
-                decode_batch_raw(
-                    &mut buf,
-                    self.compression_enabled,
-                    self.max_decompressed_batch_size,
-                )
+            if T::USES_BATCH_PREFIX {
+                if buf[0] == 0xFE {
+                    decode_batch_raw(
+                        &mut buf,
+                        self.compression_enabled,
+                        self.max_decompressed_batch_size,
+                    )
+                } else {
+                    Ok(vec![decode_packet_raw(&mut buf)?])
+                }
+            } else if self.compression_enabled {
+                decode_batch_no_prefix_raw(&mut buf, self.max_decompressed_batch_size)
             } else {
-                // Non-batch packet (before compression): parse as single raw packet
-                use crate::raw::decode_packet_raw;
                 Ok(vec![decode_packet_raw(&mut buf)?])
             }
-        } else if self.compression_enabled {
-            decode_batch_no_prefix_raw(&mut buf, self.max_decompressed_batch_size)
         } else {
-            // Before NetworkSettings: parse as single raw packet
-            use crate::raw::decode_packet_raw;
-            Ok(vec![decode_packet_raw(&mut buf)?])
+            match packet_bytes {
+                TransportRecvMessage::Contiguous(mut buf) => {
+                    if buf.is_empty() {
+                        return Ok(vec![]);
+                    }
+
+                    if T::USES_BATCH_PREFIX {
+                        if buf[0] == 0xFE {
+                            decode_batch_raw(
+                                &mut buf,
+                                self.compression_enabled,
+                                self.max_decompressed_batch_size,
+                            )
+                        } else {
+                            Ok(vec![decode_packet_raw(&mut buf)?])
+                        }
+                    } else if self.compression_enabled {
+                        decode_batch_no_prefix_raw(&mut buf, self.max_decompressed_batch_size)
+                    } else {
+                        Ok(vec![decode_packet_raw(&mut buf)?])
+                    }
+                }
+                TransportRecvMessage::SplitFirst { first, rest } => {
+                    if T::USES_BATCH_PREFIX && first == 0xFE {
+                        decode_batch_raw_split(
+                            first,
+                            rest,
+                            self.compression_enabled,
+                            self.max_decompressed_batch_size,
+                        )
+                    } else {
+                        Ok(vec![decode_packet_raw_split(first, rest)?])
+                    }
+                }
+            }
         }
     }
 
@@ -340,22 +460,35 @@ impl<T: Transport> BedrockTransport<T> {
             return Ok(());
         }
 
-        let batch_buffer = encode_batch_raw(
+        encode_batch_raw_into(
             packets,
             self.compression_enabled,
             self.compression_level,
             self.compression_threshold,
             T::USES_BATCH_PREFIX,
+            &mut self.send_batch_buffer,
         )?;
 
         let msg = if self.encryption_enabled {
-            let mut bm = BytesMut::from(batch_buffer.as_ref());
-            self.encrypt_outgoing(&mut bm)?;
-            TransportMessage::reliable(bm.freeze())
+            let cipher = self
+                .send_cipher
+                .as_mut()
+                .expect("encryption_enabled implies send_cipher is initialised");
+            let key_bytes = self
+                .key_bytes
+                .as_deref()
+                .expect("encryption_enabled implies key_bytes is initialised");
+            Self::encrypt_buffer(
+                &mut self.send_batch_buffer,
+                cipher,
+                key_bytes,
+                &mut self.send_counter,
+            )?;
+            TransportMessage::reliable(self.send_batch_buffer.split().freeze())
         } else if reliable {
-            TransportMessage::reliable(batch_buffer)
+            TransportMessage::reliable(self.send_batch_buffer.split().freeze())
         } else {
-            TransportMessage::unreliable(batch_buffer)
+            TransportMessage::unreliable(self.send_batch_buffer.split().freeze())
         };
 
         poll_fn(|cx| Pin::new(&mut self.inner).poll_send(cx, msg.clone()))
@@ -372,24 +505,20 @@ impl<T: Transport> BedrockTransport<T> {
 
     // --- Crypto Helpers ---
 
-    fn encrypt_outgoing(&mut self, buf: &mut BytesMut) -> Result<(), JolyneError> {
+    fn encrypt_buffer(
+        buf: &mut BytesMut,
+        cipher: &mut Aes256Ctr,
+        key_bytes: &[u8],
+        counter: &mut u64,
+    ) -> Result<(), JolyneError> {
         if buf.is_empty() {
             return Ok(());
         }
 
-        let cipher = self
-            .send_cipher
-            .as_mut()
-            .expect("encryption_enabled implies send_cipher is initialised");
-        let key_bytes = self
-            .key_bytes
-            .as_deref()
-            .expect("encryption_enabled implies key_bytes is initialised");
+        let counter_value = *counter;
+        *counter = counter.wrapping_add(1);
 
-        let counter = self.send_counter;
-        self.send_counter = self.send_counter.wrapping_add(1);
-
-        let counter_bytes = counter.to_le_bytes();
+        let counter_bytes = counter_value.to_le_bytes();
         let mut digest = Sha256::new();
         digest.update(counter_bytes);
         digest.update(&buf[1..]);
@@ -402,20 +531,12 @@ impl<T: Transport> BedrockTransport<T> {
         Ok(())
     }
 
-    fn decrypt_incoming(&mut self, buf: &mut BytesMut) -> Result<(), JolyneError> {
-        if buf.is_empty() {
-            return Ok(());
-        }
-
-        let cipher = self
-            .recv_cipher
-            .as_mut()
-            .expect("encryption_enabled implies recv_cipher is initialised");
-        let key_bytes = self
-            .key_bytes
-            .as_deref()
-            .expect("encryption_enabled implies key_bytes is initialised");
-
+    fn decrypt_buffer(
+        buf: &mut BytesMut,
+        cipher: &mut Aes256Ctr,
+        key_bytes: &[u8],
+        counter: &mut u64,
+    ) -> Result<(), JolyneError> {
         cipher.apply_keystream(&mut buf[1..]);
 
         if buf.len() < 1 + CHECKSUM_LEN {
@@ -430,10 +551,10 @@ impl<T: Transport> BedrockTransport<T> {
         let checksum_start = buf.len() - CHECKSUM_LEN;
         let their_checksum = &buf[checksum_start..];
 
-        let counter = self.recv_counter;
-        self.recv_counter = self.recv_counter.wrapping_add(1);
+        let counter_value = *counter;
+        *counter = counter.wrapping_add(1);
 
-        let counter_bytes = counter.to_le_bytes();
+        let counter_bytes = counter_value.to_le_bytes();
         let mut digest = Sha256::new();
         digest.update(counter_bytes);
         digest.update(&buf[1..checksum_start]);
@@ -444,7 +565,7 @@ impl<T: Transport> BedrockTransport<T> {
         if their_checksum != our_checksum {
             return Err(ProtocolError::UnexpectedHandshake(format!(
                 "invalid checksum of packet {}: expected {:02x?}, got {:02x?}",
-                counter, our_checksum, their_checksum
+                counter_value, our_checksum, their_checksum
             ))
             .into());
         }
