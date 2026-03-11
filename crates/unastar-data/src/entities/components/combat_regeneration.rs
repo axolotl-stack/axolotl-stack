@@ -3,19 +3,19 @@ use bevy_ecs::prelude::*;
 #[derive(Component, Debug, Clone, PartialEq)]
 #[component(storage = "SparseSet")]
 pub struct CombatRegeneration {
-    /// apply_to_family
+    ///Determines if the mob will grant mobs of the same type combat buffs if they kill the target.
     pub apply_to_family: Option<bool>,
-    /// apply_to_self
+    ///Determines if the mob will grant itself the combat buffs if it kills the target.
     pub apply_to_self: Option<bool>,
-    /// regeneration_duration
-    pub regeneration_duration: Option<String>,
+    ///The duration in seconds of Regeneration I added to the mob.
+    pub regeneration_duration: Option<crate::types::MolangOr<i32>>,
 }
 impl Default for CombatRegeneration {
     fn default() -> Self {
         Self {
             apply_to_family: Some(false),
             apply_to_self: Some(false),
-            regeneration_duration: Some("5".to_string()),
+            regeneration_duration: Some(crate::types::MolangOr::Value(5i32)),
         }
     }
 }

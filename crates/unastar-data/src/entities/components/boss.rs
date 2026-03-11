@@ -3,11 +3,11 @@ use bevy_ecs::prelude::*;
 #[derive(Component, Debug, Clone, PartialEq)]
 #[component(storage = "SparseSet")]
 pub struct Boss {
-    /// hud_range
+    ///The Maximum distance from the boss at which the boss's health bar is present on the players screen.
     pub hud_range: Option<i32>,
-    /// name
+    ///The name that will be displayed above the boss's health bar.
     pub name: Option<String>,
-    /// should_darken_sky
+    ///Whether the sky should darken in the presence of the boss.
     pub should_darken_sky: Option<bool>,
 }
 impl Default for Boss {

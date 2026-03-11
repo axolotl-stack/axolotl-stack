@@ -3,16 +3,16 @@ use bevy_ecs::prelude::*;
 #[derive(Component, Debug, Clone, PartialEq)]
 #[component(storage = "SparseSet")]
 pub struct PlayerExhaustion {
-    /// max
+    ///The maximum player exhaustion of this entity.
     pub max: Option<i32>,
-    /// value
+    ///The initial value of the player exhaustion.
     pub value: i32,
 }
 impl Default for PlayerExhaustion {
     fn default() -> Self {
         Self {
             max: None,
-            value: 0,
+            value: 0i32,
         }
     }
 }

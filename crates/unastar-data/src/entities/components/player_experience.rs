@@ -3,9 +3,9 @@ use bevy_ecs::prelude::*;
 #[derive(Component, Debug, Clone, PartialEq)]
 #[component(storage = "SparseSet")]
 pub struct PlayerExperience {
-    /// max
+    ///The maximum player experience of this entity.
     pub max: Option<i32>,
-    /// value
+    ///The initial value of the player experience.
     pub value: i32,
 }
 impl Default for PlayerExperience {

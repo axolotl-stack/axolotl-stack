@@ -3,7 +3,7 @@ use bevy_ecs::prelude::*;
 #[derive(Component, Debug, Clone, PartialEq)]
 #[component(storage = "SparseSet")]
 pub struct Scale {
-    /// value
+    ///The value of the scale. 1.0 means the entity will appear at the scale they are defined in their model. Higher numbers make the entity bigger
     pub value: f32,
 }
 impl Default for Scale {

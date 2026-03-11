@@ -3,7 +3,7 @@ use bevy_ecs::prelude::*;
 #[derive(Component, Debug, Clone, PartialEq)]
 #[component(storage = "SparseSet")]
 pub struct Insomnia {
-    /// days_until_insomnia
+    ///Number of days the mob has to stay up until the insomnia effect begins.
     pub days_until_insomnia: Option<f32>,
 }
 impl Default for Insomnia {

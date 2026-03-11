@@ -3,7 +3,7 @@ use bevy_ecs::prelude::*;
 #[derive(Component, Debug, Clone, PartialEq)]
 #[component(storage = "SparseSet")]
 pub struct WaterMovement {
-    /// drag_factor
+    ///Drag factor to determine movement speed when in water.
     pub drag_factor: Option<f32>,
 }
 impl Default for WaterMovement {

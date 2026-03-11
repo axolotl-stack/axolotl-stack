@@ -3,17 +3,17 @@ use bevy_ecs::prelude::*;
 #[derive(Component, Debug, Clone, PartialEq)]
 #[component(storage = "SparseSet")]
 pub struct Inventory {
-    /// additional_slots_per_strength
+    ///Number of slots that this entity can gain per extra strength.
     pub additional_slots_per_strength: Option<i32>,
-    /// can_be_siphoned_from
+    ///If true, the contents of this inventory can be removed by a hopper.
     pub can_be_siphoned_from: Option<bool>,
-    /// container_type
+    ///Type of container this entity has. Can be horse, minecart_chest, chest_boat, minecart_hopper, inventory, container or hopper
     pub container_type: Option<String>,
-    /// inventory_size
+    ///Number of slots the container has.
     pub inventory_size: Option<i32>,
-    /// private
+    ///If true, only the entity can access the inventory.
     pub private: Option<bool>,
-    /// restrict_to_owner
+    ///If true, the entity's inventory can only be accessed by its owner or itself.
     pub restrict_to_owner: Option<bool>,
 }
 impl Default for Inventory {

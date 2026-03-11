@@ -3,11 +3,11 @@ use bevy_ecs::prelude::*;
 #[derive(Component, Debug, Clone, PartialEq)]
 #[component(storage = "SparseSet")]
 pub struct GameEventMovementTracking {
-    /// emit_flap
+    ///If true, the `flap` game event will be emitted when the entity moves through air.
     pub emit_flap: Option<bool>,
-    /// emit_move
+    ///If true, the `entityMove` game event will be emitted when the entity moves on ground or through a solid.
     pub emit_move: Option<bool>,
-    /// emit_swim
+    ///If true, the `swim` game event will be emitted when the entity moves through a liquid.
     pub emit_swim: Option<bool>,
 }
 impl Default for GameEventMovementTracking {

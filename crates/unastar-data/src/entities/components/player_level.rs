@@ -3,16 +3,16 @@ use bevy_ecs::prelude::*;
 #[derive(Component, Debug, Clone, PartialEq)]
 #[component(storage = "SparseSet")]
 pub struct PlayerLevel {
-    /// max
+    ///The maximum player level value of the entity.
     pub max: Option<i32>,
-    /// value
+    ///The initial value of the player level.
     pub value: i32,
 }
 impl Default for PlayerLevel {
     fn default() -> Self {
         Self {
             max: None,
-            value: 0,
+            value: 0i32,
         }
     }
 }

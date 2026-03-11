@@ -1,6 +1,7 @@
 //! Generated definition for entity.
+#[allow(unused_imports)]
 use super::super::components::*;
-use bevy_ecs::prelude::*;
+use bevy_ecs::prelude::{Bundle, Commands, Entity};
 /// Entity definition for `minecraft:ender_crystal`
 pub struct EnderCrystal;
 impl EnderCrystal {
@@ -14,26 +15,43 @@ impl EnderCrystal {
 /// Component bundle for spawning a `minecraft:ender_crystal`
 #[derive(Bundle, Clone)]
 pub struct EnderCrystalBundle {
-    pub collision_box: CollisionBox,
-    pub fire_immune: FireImmune,
-    pub physics: Physics,
-    pub pushable: Pushable,
+    pub collision_box: super::super::components::CollisionBox,
+    pub conditional_bandwidth_optimization:
+        super::super::components::ConditionalBandwidthOptimization,
+    pub fire_immune: super::super::components::FireImmune,
+    pub health: super::super::components::Health,
+    pub on_hurt: super::super::components::OnHurt,
+    pub physics: super::super::components::Physics,
+    pub pushable: super::super::components::Pushable,
 }
 /// Spawn a new `minecraft:ender_crystal` entity with default Bedrock components
 pub fn spawn_ender_crystal(commands: &mut Commands) -> Entity {
     commands
         .spawn(EnderCrystalBundle {
-            collision_box: CollisionBox {
+            collision_box: super::super::components::CollisionBox {
                 height: Some(2f32),
                 width: Some(2f32),
             },
-            fire_immune: FireImmune,
-            physics: Physics {
+            conditional_bandwidth_optimization:
+                super::super::components::ConditionalBandwidthOptimization {
+                    conditional_values: None,
+                    default_values: None,
+                },
+            fire_immune: super::super::components::FireImmune,
+            health: super::super::components::Health {
+                max: Some(1f32),
+                min: None,
+                value: crate::types::RangeOrVal::Fixed(1f32),
+            },
+            on_hurt: super::super::components::OnHurt {
+                value: crate::types::BedrockValue::Null,
+            },
+            physics: super::super::components::Physics {
                 has_collision: Some(true),
                 has_gravity: Some(true),
                 push_towards_closest_space: Some(false),
             },
-            pushable: Pushable {
+            pushable: super::super::components::Pushable {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },

@@ -2,9 +2,9 @@ use bevy_ecs::prelude::*;
 /// Bedrock component `minecraft:collision_box`. Sets the width and height of the Entity's collision box.
 #[derive(Component, Debug, Clone, PartialEq)]
 pub struct CollisionBox {
-    /// height
+    ///Height of the collision box in blocks. A negative value will be assumed to be 0.
     pub height: Option<f32>,
-    /// width
+    ///Width of the collision box in blocks. A negative value will be assumed to be 0.
     pub width: Option<f32>,
 }
 impl Default for CollisionBox {

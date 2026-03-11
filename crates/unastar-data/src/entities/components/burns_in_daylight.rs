@@ -1,8 +1,15 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:burns_in_daylight`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+/// Bedrock component `minecraft:burns_in_daylight`. Specifies if/how a mob burns in daylight.
+#[derive(Component, Debug, Clone, PartialEq)]
 #[component(storage = "SparseSet")]
 pub struct BurnsInDaylight {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    ///value
+    pub value: crate::types::BedrockValue,
+}
+impl Default for BurnsInDaylight {
+    fn default() -> Self {
+        Self {
+            value: crate::types::BedrockValue::Null,
+        }
+    }
 }

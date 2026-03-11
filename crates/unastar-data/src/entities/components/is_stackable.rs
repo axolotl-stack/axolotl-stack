@@ -3,7 +3,7 @@ use bevy_ecs::prelude::*;
 #[derive(Component, Debug, Clone, PartialEq)]
 #[component(storage = "SparseSet")]
 pub struct IsStackable {
-    /// value
+    ///UNDOCUMENTED.
     pub value: bool,
 }
 impl Default for IsStackable {

@@ -3,7 +3,7 @@ use bevy_ecs::prelude::*;
 #[derive(Component, Debug, Clone, PartialEq)]
 #[component(storage = "SparseSet")]
 pub struct Variant {
-    /// value
+    ///The ID of the variant. By convention, 0 is the ID of the base entity
     pub value: i32,
 }
 impl Default for Variant {

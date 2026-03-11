@@ -3,7 +3,7 @@ use bevy_ecs::prelude::*;
 #[derive(Component, Debug, Clone, PartialEq)]
 #[component(storage = "SparseSet")]
 pub struct RailMovement {
-    /// max_speed
+    ///Maximum speed that this entity will move at when on the rail.
     pub max_speed: Option<f32>,
 }
 impl Default for RailMovement {

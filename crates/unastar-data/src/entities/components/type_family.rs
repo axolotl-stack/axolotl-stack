@@ -1,7 +1,12 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:type_family`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+/// Bedrock component `minecraft:type_family`. Defines the families this entity belongs to.
+#[derive(Component, Debug, Clone, PartialEq)]
 pub struct TypeFamily {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    ///List of family names.
+    pub family: Vec<String>,
+}
+impl Default for TypeFamily {
+    fn default() -> Self {
+        Self { family: Vec::new() }
+    }
 }

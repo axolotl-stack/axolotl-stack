@@ -2,15 +2,15 @@ use bevy_ecs::prelude::*;
 /// Bedrock component `minecraft:balloonable`. allows the entity to have a balloon attached and defines the conditions and events for the entity when is ballooned.
 #[derive(Component, Debug, Clone, PartialEq)]
 pub struct Balloonable {
-    /// mass
+    ///Mass that the entity has when computing balloon pull forces.
     pub mass: Option<f32>,
-    /// max_distance
+    ///Distance in blocks where the balloon breaks.
     pub max_distance: Option<f32>,
-    /// on_balloon
+    ///Event to call when the entity is ballooned.
     pub on_balloon: Option<String>,
-    /// on_unballoon
+    ///Event to call when the entity is unballooned.
     pub on_unballoon: Option<String>,
-    /// soft_distance
+    ///Distance in blocks where the 'spring' effect lifts the entity.
     pub soft_distance: Option<f32>,
 }
 impl Default for Balloonable {

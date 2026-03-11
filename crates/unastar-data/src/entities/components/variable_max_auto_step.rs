@@ -3,11 +3,11 @@ use bevy_ecs::prelude::*;
 #[derive(Component, Debug, Clone, PartialEq)]
 #[component(storage = "SparseSet")]
 pub struct VariableMaxAutoStep {
-    /// base_value
+    ///The maximum auto step height when on any other block.
     pub base_value: Option<f32>,
-    /// controlled_value
+    ///The maximum auto step height when on any other block and controlled by the player.
     pub controlled_value: Option<f32>,
-    /// jump_prevented_value
+    ///The maximum auto step height when on a block that prevents jumping.
     pub jump_prevented_value: Option<f32>,
 }
 impl Default for VariableMaxAutoStep {

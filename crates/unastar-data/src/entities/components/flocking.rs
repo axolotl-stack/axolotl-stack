@@ -3,41 +3,41 @@ use bevy_ecs::prelude::*;
 #[derive(Component, Debug, Clone, PartialEq)]
 #[component(storage = "SparseSet")]
 pub struct Flocking {
-    /// block_distance
+    ///The amount of blocks away the entity will look at to push away from.
     pub block_distance: Option<f32>,
-    /// block_weight
+    ///The weight of the push back away from blocks.
     pub block_weight: Option<f32>,
-    /// breach_influence
+    ///The amount of push back given to a flocker that breaches out of the water.
     pub breach_influence: Option<f32>,
-    /// cohesion_threshold
+    ///The threshold in which to start applying cohesion.
     pub cohesion_threshold: Option<f32>,
-    /// cohesion_weight
+    ///The weight applied for the cohesion steering of the flock.
     pub cohesion_weight: Option<f32>,
-    /// goal_weight
+    ///The weight on which to apply on the goal output.
     pub goal_weight: Option<f32>,
-    /// high_flock_limit
+    ///Determines the high bound amount of entities that can be allowed in the flock.
     pub high_flock_limit: Option<i32>,
-    /// in_water
+    ///Tells the Flocking Component if the entity exists in water.
     pub in_water: Option<bool>,
-    /// influence_radius
+    ///The area around the entity that allows others to be added to the flock.
     pub influence_radius: Option<f32>,
-    /// innner_cohesion_threshold
+    ///The distance in which the flocker will stop applying cohesion.
     pub innner_cohesion_threshold: Option<f32>,
-    /// loner_chance
+    ///The percentage chance between 0-1 that a fish will spawn and not want to join flocks. Invalid values will be capped at the end points.
     pub loner_chance: Option<f32>,
-    /// low_flock_limit
+    ///Determines the low bound amount of entities that can be allowed in the flock.
     pub low_flock_limit: Option<i32>,
-    /// match_variants
+    ///Tells the flockers that they can only match similar entities that also match the variant, mark variants, and color data of the other potential flockers.
     pub match_variants: Option<bool>,
-    /// max_height
+    ///The Maximum height allowable in the air or water.
     pub max_height: Option<f32>,
-    /// min_height
+    ///The Minimum height allowable in the air or water.
     pub min_height: Option<f32>,
-    /// separation_threshold
+    ///The distance that is determined to be to close to another flocking and to start applying separation.
     pub separation_threshold: Option<f32>,
-    /// separation_weight
+    ///The weight applied to the separation of the flock.
     pub separation_weight: Option<f32>,
-    /// use_center_of_mass
+    ///Tells the flockers that they will follow flocks based on the center of mass.
     pub use_center_of_mass: Option<bool>,
 }
 impl Default for Flocking {

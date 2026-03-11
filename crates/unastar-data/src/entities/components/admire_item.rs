@@ -3,9 +3,9 @@ use bevy_ecs::prelude::*;
 #[derive(Component, Debug, Clone, PartialEq)]
 #[component(storage = "SparseSet")]
 pub struct AdmireItem {
-    /// cooldown_after_being_attacked
+    ///Duration, in seconds, for which mob won't admire items if it was hurt.
     pub cooldown_after_being_attacked: Option<i32>,
-    /// duration
+    ///Duration, in seconds, that the mob is pacified.
     pub duration: Option<i32>,
 }
 impl Default for AdmireItem {

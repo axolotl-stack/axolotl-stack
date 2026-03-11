@@ -3,7 +3,7 @@ use bevy_ecs::prelude::*;
 #[derive(Component, Debug, Clone, PartialEq)]
 #[component(storage = "SparseSet")]
 pub struct MovementSoundDistanceOffset {
-    /// value
+    ///The higher the number, the less often the movement sound will be played.
     pub value: f32,
 }
 impl Default for MovementSoundDistanceOffset {

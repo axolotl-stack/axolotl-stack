@@ -3,11 +3,11 @@ use bevy_ecs::prelude::*;
 #[derive(Component, Debug, Clone, PartialEq)]
 #[component(storage = "SparseSet")]
 pub struct MovementSway {
-    /// max_turn
+    ///The maximum number in degrees the mob can turn per tick.
     pub max_turn: Option<f32>,
-    /// sway_amplitude
+    ///Strength of the sway movement.
     pub sway_amplitude: Option<f32>,
-    /// sway_frequency
+    ///Multiplier for the frequency of the sway movement.
     pub sway_frequency: Option<f32>,
 }
 impl Default for MovementSway {

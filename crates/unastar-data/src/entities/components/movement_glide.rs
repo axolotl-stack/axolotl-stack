@@ -3,11 +3,11 @@ use bevy_ecs::prelude::*;
 #[derive(Component, Debug, Clone, PartialEq)]
 #[component(storage = "SparseSet")]
 pub struct MovementGlide {
-    /// max_turn
+    ///The maximum number in degrees the mob can turn per tick.
     pub max_turn: Option<f32>,
-    /// speed_when_turning
+    ///UNDOCUMENTED.
     pub speed_when_turning: Option<f32>,
-    /// start_speed
+    ///UNDOCUMENTED.
     pub start_speed: Option<f32>,
 }
 impl Default for MovementGlide {

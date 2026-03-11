@@ -3,7 +3,7 @@ use bevy_ecs::prelude::*;
 #[derive(Component, Debug, Clone, PartialEq)]
 #[component(storage = "SparseSet")]
 pub struct FlyingSpeed {
-    /// value
+    ///Flying speed in blocks per tick.
     pub value: f32,
 }
 impl Default for FlyingSpeed {

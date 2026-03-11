@@ -3,25 +3,25 @@ use bevy_ecs::prelude::*;
 #[derive(Component, Debug, Clone, PartialEq)]
 #[component(storage = "SparseSet")]
 pub struct ExhaustionValues {
-    /// attack
+    ///Amount of exhaustion applied when attacking.
     pub attack: Option<f32>,
-    /// damage
+    ///Amount of exhaustion applied when taking damage.
     pub damage: Option<f32>,
-    /// heal
+    ///Amount of exhaustion applied when healed through food regeneration.
     pub heal: Option<f32>,
-    /// jump
+    ///Amount of exhaustion applied when jumping.
     pub jump: Option<f32>,
-    /// lunge
+    ///Amount of exhaustion applied when triggering the lunge enchantment, multiplied by the enchantment level.
     pub lunge: Option<f32>,
-    /// mine
+    ///Amount of exhaustion applied when mining.
     pub mine: Option<f32>,
-    /// sprint
+    ///Amount of exhaustion applied when sprinting.
     pub sprint: Option<f32>,
-    /// sprint_jump
+    ///Amount of exhaustion applied when sprint jumping.
     pub sprint_jump: Option<f32>,
-    /// swim
+    ///Amount of exhaustion applied when swimming.
     pub swim: Option<f32>,
-    /// walk
+    ///Amount of exhaustion applied when walking.
     pub walk: Option<f32>,
 }
 impl Default for ExhaustionValues {

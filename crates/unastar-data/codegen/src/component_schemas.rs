@@ -6,25 +6,44 @@
 
 use heck::{ToPascalCase, ToSnakeCase};
 use kdl::{KdlDocument, KdlValue};
-use serde_json::{Map, Value};
+use serde_json::{Map, Number, Value};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum FieldType {
+pub enum PrimitiveType {
     Float,
     Integer,
     Bool,
     String,
-    Option(Box<FieldType>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum SchemaType {
+    Primitive(PrimitiveType),
+    Option(Box<SchemaType>),
+    Vec(Box<SchemaType>),
+    Map(Box<SchemaType>),
+    Object(ObjectSchema),
+    RangeOrVal(Box<SchemaType>),
+    MolangOr(Box<SchemaType>),
+    BoolOrString,
+    DynamicValue,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct FieldSchema {
     pub name: String,
     pub rust_name: String,
-    pub field_type: FieldType,
+    pub description: Option<String>,
+    pub field_type: SchemaType,
     pub is_primary: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct ObjectSchema {
+    pub fields: Vec<FieldSchema>,
+    pub additional: Option<Box<SchemaType>>,
 }
 
 #[derive(Debug, Clone)]
@@ -32,14 +51,14 @@ pub struct ComponentSchema {
     pub name: String,
     pub rust_name: String,
     pub description: Option<String>,
-    pub fields: Vec<FieldSchema>,
+    pub root: ObjectSchema,
     pub is_marker: bool,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct ComponentDefaults {
-    pub values: HashMap<String, HashMap<String, String>>,
-    pub primary_values: HashMap<String, String>,
+    pub values: HashMap<String, HashMap<String, Value>>,
+    pub primary_values: HashMap<String, Value>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -92,11 +111,11 @@ impl ComponentDefaults {
                 for entry in child.entries() {
                     if entry.name().is_none() {
                         self.primary_values
-                            .insert(comp_name.clone(), kdl_value_to_string(entry.value()));
+                            .insert(comp_name.clone(), kdl_value_to_json(entry.value()));
                     } else if let Some(prop_name) = entry.name() {
                         field_defaults.insert(
                             prop_name.value().to_string(),
-                            kdl_value_to_string(entry.value()),
+                            kdl_value_to_json(entry.value()),
                         );
                     }
                 }
@@ -109,7 +128,7 @@ impl ComponentDefaults {
                         }
                         if let Some(entry) = prop_node.entries().first() {
                             field_defaults
-                                .insert(prop_name.to_string(), kdl_value_to_string(entry.value()));
+                                .insert(prop_name.to_string(), kdl_value_to_json(entry.value()));
                         }
                     }
                 }
@@ -126,18 +145,24 @@ impl ComponentDefaults {
         Ok(())
     }
 
-    pub fn get_field_default(&self, component: &str, field: &str) -> Option<&str> {
-        self.values
-            .get(component)
-            .and_then(|fields| fields.get(field))
-            .map(|s| s.as_str())
+    pub fn get_field_default(&self, component: &str, field: &str) -> Option<&Value> {
+        let fields = self.values.get(component)?;
+        if let Some(value) = fields.get(field) {
+            return Some(value);
+        }
+
+        let wanted = normalize_lookup_key(field);
+        fields
+            .iter()
+            .find(|(name, _)| normalize_lookup_key(name) == wanted)
+            .map(|(_, value)| value)
     }
 
-    pub fn get_primary_default(&self, component: &str) -> Option<&str> {
-        self.primary_values.get(component).map(|s| s.as_str())
+    pub fn get_primary_default(&self, component: &str) -> Option<&Value> {
+        self.primary_values.get(component)
     }
 
-    fn merge_field_default(&mut self, component: &str, field: &str, value: String) {
+    fn merge_field_default(&mut self, component: &str, field: &str, value: Value) {
         self.values
             .entry(component.to_string())
             .or_default()
@@ -145,7 +170,7 @@ impl ComponentDefaults {
             .or_insert(value);
     }
 
-    fn merge_primary_default(&mut self, component: &str, value: String) {
+    fn merge_primary_default(&mut self, component: &str, value: Value) {
         self.primary_values
             .entry(component.to_string())
             .or_insert(value);
@@ -193,13 +218,10 @@ fn load_mojang_component_defaults(forms_dir: &Path) -> miette::Result<ComponentD
             let Some(default_value) = field.get("defaultValue") else {
                 continue;
             };
-            let Some(value) = simple_json_to_string(default_value) else {
-                continue;
-            };
 
-            defaults.merge_field_default(&component_name, field_name, value.clone());
+            defaults.merge_field_default(&component_name, field_name, default_value.clone());
             if field_name == "value" {
-                defaults.merge_primary_default(&component_name, value);
+                defaults.merge_primary_default(&component_name, default_value.clone());
             }
         }
     }
@@ -237,9 +259,8 @@ fn load_blockception_component_schemas(
             continue;
         }
 
-        if let Some(schema) = build_component_schema(component_id, component_ref, definitions) {
-            schemas.insert(schema.name.clone(), schema);
-        }
+        let schema = build_component_schema(component_id, component_ref, definitions);
+        schemas.insert(schema.name.clone(), schema);
     }
 
     Ok(schemas)
@@ -249,13 +270,10 @@ fn build_component_schema(
     component_id: &str,
     component_ref: &Value,
     definitions: &Map<String, Value>,
-) -> Option<ComponentSchema> {
+) -> ComponentSchema {
     let resolved = resolve_schema(component_ref, definitions);
     let name = normalize_component_name(component_id);
     let rust_name = sanitize_rust_ident(&name.to_pascal_case(), true);
-    if rust_name.is_empty() {
-        return None;
-    }
 
     let description = resolved
         .get("description")
@@ -268,19 +286,201 @@ fn build_component_schema(
                 .map(ToOwned::to_owned)
         });
 
-    let Some((properties, required)) = flatten_object_schema(resolved, definitions) else {
-        return None;
+    let mut ref_stack = Vec::new();
+    let derived = derive_schema_type(component_ref, definitions, &mut ref_stack);
+    let root = match derived {
+        SchemaType::Object(object) => object,
+        other => ObjectSchema {
+            fields: vec![FieldSchema {
+                name: "value".to_string(),
+                rust_name: "value".to_string(),
+                description: None,
+                field_type: other,
+                is_primary: true,
+            }],
+            additional: None,
+        },
     };
 
-    if properties.is_empty() {
-        return Some(ComponentSchema {
-            name,
-            rust_name,
-            description,
-            fields: Vec::new(),
-            is_marker: true,
-        });
+    let is_marker = root.fields.is_empty() && root.additional.is_none();
+
+    ComponentSchema {
+        name,
+        rust_name,
+        description,
+        root,
+        is_marker,
     }
+}
+
+fn derive_schema_type(
+    schema: &Value,
+    definitions: &Map<String, Value>,
+    ref_stack: &mut Vec<String>,
+) -> SchemaType {
+    if let Some(reference) = schema.get("$ref").and_then(|v| v.as_str())
+        && let Some(name) = reference.strip_prefix("#/definitions/")
+    {
+        if ref_stack.iter().any(|existing| existing == name) {
+            return SchemaType::DynamicValue;
+        }
+
+        let Some(resolved) = definitions.get(name) else {
+            return SchemaType::DynamicValue;
+        };
+
+        ref_stack.push(name.to_string());
+        let derived = derive_schema_type(resolved, definitions, ref_stack);
+        ref_stack.pop();
+        return derived;
+    }
+
+    if let Some(union) = schema
+        .get("oneOf")
+        .or_else(|| schema.get("anyOf"))
+        .and_then(|v| v.as_array())
+    {
+        return derive_union_type(union, definitions, ref_stack);
+    }
+
+    if let Some(enum_values) = schema.get("enum").and_then(|v| v.as_array())
+        && !enum_values.is_empty()
+    {
+        return SchemaType::Primitive(PrimitiveType::String);
+    }
+
+    if is_object_like(schema) {
+        return SchemaType::Object(derive_object_schema(schema, definitions, ref_stack));
+    }
+
+    if let Some(type_name) = schema.get("type").and_then(|v| v.as_str()) {
+        return match type_name {
+            "number" => SchemaType::Primitive(PrimitiveType::Float),
+            "integer" => SchemaType::Primitive(PrimitiveType::Integer),
+            "boolean" => SchemaType::Primitive(PrimitiveType::Bool),
+            "string" => SchemaType::Primitive(PrimitiveType::String),
+            "array" => {
+                let item_type = derive_array_item_type(schema, definitions, ref_stack);
+                SchemaType::Vec(Box::new(item_type))
+            }
+            "object" => SchemaType::Object(derive_object_schema(schema, definitions, ref_stack)),
+            _ => SchemaType::DynamicValue,
+        };
+    }
+
+    if let Some(type_names) = schema.get("type").and_then(|v| v.as_array()) {
+        let mut variants = Vec::new();
+        let mut saw_null = false;
+        for type_name in type_names.iter().filter_map(|v| v.as_str()) {
+            match type_name {
+                "null" => saw_null = true,
+                "number" => variants.push(SchemaType::Primitive(PrimitiveType::Float)),
+                "integer" => variants.push(SchemaType::Primitive(PrimitiveType::Integer)),
+                "boolean" => variants.push(SchemaType::Primitive(PrimitiveType::Bool)),
+                "string" => variants.push(SchemaType::Primitive(PrimitiveType::String)),
+                "array" => variants.push(SchemaType::Vec(Box::new(SchemaType::DynamicValue))),
+                "object" => variants.push(SchemaType::Object(ObjectSchema::default())),
+                _ => variants.push(SchemaType::DynamicValue),
+            }
+        }
+
+        let merged = merge_scalar_like_types(variants).unwrap_or(SchemaType::DynamicValue);
+        return if saw_null {
+            SchemaType::Option(Box::new(merged))
+        } else {
+            merged
+        };
+    }
+
+    if let Some(const_value) = schema.get("const") {
+        return match const_value {
+            Value::Number(n) if n.is_i64() || n.is_u64() => {
+                SchemaType::Primitive(PrimitiveType::Integer)
+            }
+            Value::Number(_) => SchemaType::Primitive(PrimitiveType::Float),
+            Value::Bool(_) => SchemaType::Primitive(PrimitiveType::Bool),
+            Value::String(_) => SchemaType::Primitive(PrimitiveType::String),
+            _ => SchemaType::DynamicValue,
+        };
+    }
+
+    if let Some(additional) = schema.get("additionalProperties") {
+        return SchemaType::Map(Box::new(derive_additional_type(
+            additional,
+            definitions,
+            ref_stack,
+        )));
+    }
+
+    SchemaType::DynamicValue
+}
+
+fn derive_union_type(
+    variants: &[Value],
+    definitions: &Map<String, Value>,
+    ref_stack: &mut Vec<String>,
+) -> SchemaType {
+    let mut non_null = Vec::new();
+    let mut saw_null = false;
+
+    for variant in variants {
+        if is_null_schema(variant) {
+            saw_null = true;
+        } else {
+            non_null.push(variant);
+        }
+    }
+
+    if non_null.is_empty() {
+        return SchemaType::Option(Box::new(SchemaType::DynamicValue));
+    }
+
+    let mut derived = if let Some(primitive) = detect_range_or_val(non_null.as_slice()) {
+        SchemaType::RangeOrVal(Box::new(SchemaType::Primitive(primitive)))
+    } else if let Some(one_or_many) =
+        detect_one_or_many(non_null.as_slice(), definitions, ref_stack)
+    {
+        SchemaType::Vec(Box::new(one_or_many))
+    } else {
+        let resolved: Vec<SchemaType> = non_null
+            .iter()
+            .map(|variant| derive_schema_type(variant, definitions, ref_stack))
+            .collect();
+
+        if let Some(merged) = merge_object_variants(&resolved) {
+            SchemaType::Object(merged)
+        } else if let Some(merged) = merge_scalar_like_types(resolved.clone()) {
+            merged
+        } else {
+            SchemaType::DynamicValue
+        }
+    };
+
+    if saw_null {
+        derived = SchemaType::Option(Box::new(derived));
+    }
+
+    derived
+}
+
+fn derive_object_schema(
+    schema: &Value,
+    definitions: &Map<String, Value>,
+    ref_stack: &mut Vec<String>,
+) -> ObjectSchema {
+    let resolved = resolve_schema(schema, definitions);
+    let mut properties = HashMap::new();
+    let mut required = HashSet::new();
+    let mut additional = None;
+
+    collect_object_parts(
+        resolved,
+        definitions,
+        ref_stack,
+        &mut properties,
+        &mut required,
+        &mut additional,
+    );
 
     let mut entries: Vec<_> = properties.into_iter().collect();
     entries.sort_by(|a, b| a.0.cmp(&b.0));
@@ -289,66 +489,76 @@ fn build_component_schema(
     for (field_name, field_schema) in entries {
         let rust_field_name = sanitize_rust_ident(&field_name.to_snake_case(), false);
         if rust_field_name.is_empty() {
-            return None;
+            continue;
         }
 
-        let Some(mut field_type) = derive_field_type(&field_schema, definitions) else {
-            return None;
-        };
+        let description = field_schema
+            .get("description")
+            .and_then(|v| v.as_str())
+            .map(ToOwned::to_owned)
+            .or_else(|| {
+                field_schema
+                    .get("title")
+                    .and_then(|v| v.as_str())
+                    .map(ToOwned::to_owned)
+            });
 
         let is_primary = field_name == "value";
+        let mut field_type = derive_schema_type(&field_schema, definitions, ref_stack);
         if !required.contains(&field_name) && !is_primary {
-            field_type = FieldType::Option(Box::new(field_type));
+            field_type = wrap_optional(field_type);
         }
 
         fields.push(FieldSchema {
             name: field_name,
             rust_name: rust_field_name,
+            description,
             field_type,
             is_primary,
         });
     }
 
-    Some(ComponentSchema {
-        name,
-        rust_name,
-        description,
-        fields,
-        is_marker: false,
-    })
+    ObjectSchema { fields, additional }
 }
 
-fn flatten_object_schema(
+fn collect_object_parts(
     schema: &Value,
     definitions: &Map<String, Value>,
-) -> Option<(HashMap<String, Value>, HashSet<String>)> {
+    ref_stack: &mut Vec<String>,
+    properties: &mut HashMap<String, Value>,
+    required: &mut HashSet<String>,
+    additional: &mut Option<Box<SchemaType>>,
+) {
     let schema = resolve_schema(schema, definitions);
-    let is_object_like = schema
-        .get("type")
-        .and_then(|v| v.as_str())
-        .is_some_and(|ty| ty == "object")
-        || schema.get("properties").is_some()
-        || schema.get("allOf").is_some();
-
-    if !is_object_like {
-        return None;
-    }
-
-    let mut properties = HashMap::new();
-    let mut required = HashSet::new();
 
     if let Some(all_of) = schema.get("allOf").and_then(|v| v.as_array()) {
         for part in all_of {
-            if let Some((part_props, part_required)) = flatten_object_schema(part, definitions) {
-                properties.extend(part_props);
-                required.extend(part_required);
+            if let Some(then_schema) = part.get("then") {
+                collect_object_parts(
+                    then_schema,
+                    definitions,
+                    ref_stack,
+                    properties,
+                    required,
+                    additional,
+                );
             }
+            collect_object_parts(
+                part,
+                definitions,
+                ref_stack,
+                properties,
+                required,
+                additional,
+            );
         }
     }
 
     if let Some(props) = schema.get("properties").and_then(|v| v.as_object()) {
         for (key, value) in props {
-            properties.insert(key.clone(), value.clone());
+            properties
+                .entry(key.clone())
+                .or_insert_with(|| value.clone());
         }
     }
 
@@ -360,121 +570,215 @@ fn flatten_object_schema(
         }
     }
 
-    Some((properties, required))
-}
-
-fn derive_field_type(schema: &Value, definitions: &Map<String, Value>) -> Option<FieldType> {
-    let schema = resolve_schema(schema, definitions);
-
-    if let Some(enum_values) = schema.get("enum").and_then(|v| v.as_array()) {
-        if !enum_values.is_empty() {
-            return Some(FieldType::String);
-        }
-    }
-
-    if let Some(variants) = schema
-        .get("oneOf")
-        .or_else(|| schema.get("anyOf"))
-        .and_then(|v| v.as_array())
+    if additional.is_none()
+        && let Some(extra_schema) = schema.get("additionalProperties")
+        && !matches!(extra_schema, Value::Bool(false))
     {
-        return derive_union_field_type(variants, definitions);
+        *additional = Some(Box::new(derive_additional_type(
+            extra_schema,
+            definitions,
+            ref_stack,
+        )));
     }
-
-    derive_field_type_non_union(schema)
 }
 
-fn derive_union_field_type(
-    variants: &[Value],
+fn derive_additional_type(
+    additional: &Value,
     definitions: &Map<String, Value>,
-) -> Option<FieldType> {
-    let mut saw_null = false;
-    let mut derived = Vec::new();
-
-    for variant in variants {
-        let resolved = resolve_schema(variant, definitions);
-        if is_null_schema(resolved) {
-            saw_null = true;
-            continue;
-        }
-
-        let field_type = if let Some(nested) = resolved
-            .get("oneOf")
-            .or_else(|| resolved.get("anyOf"))
-            .and_then(|v| v.as_array())
-        {
-            derive_union_field_type(nested, definitions)?
-        } else {
-            derive_field_type_non_union(resolved)?
-        };
-
-        derived.push(field_type);
-    }
-
-    let merged = merge_field_types(derived)?;
-    if saw_null {
-        Some(FieldType::Option(Box::new(merged)))
-    } else {
-        Some(merged)
-    }
-}
-
-fn derive_field_type_non_union(schema: &Value) -> Option<FieldType> {
-    if let Some(type_name) = schema.get("type").and_then(|v| v.as_str()) {
-        return match type_name {
-            "number" => Some(FieldType::Float),
-            "integer" => Some(FieldType::Integer),
-            "boolean" => Some(FieldType::Bool),
-            "string" => Some(FieldType::String),
-            _ => None,
-        };
-    }
-
-    if let Some(type_names) = schema.get("type").and_then(|v| v.as_array()) {
-        let mut saw_null = false;
-        let mut derived = Vec::new();
-        for type_name in type_names.iter().filter_map(|v| v.as_str()) {
-            match type_name {
-                "null" => saw_null = true,
-                "number" => derived.push(FieldType::Float),
-                "integer" => derived.push(FieldType::Integer),
-                "boolean" => derived.push(FieldType::Bool),
-                "string" => derived.push(FieldType::String),
-                _ => return None,
+    ref_stack: &mut Vec<String>,
+) -> SchemaType {
+    match additional {
+        Value::Bool(false) => SchemaType::DynamicValue,
+        Value::Bool(true) => SchemaType::DynamicValue,
+        Value::Object(obj) => {
+            if obj.values().all(Value::is_object)
+                && !obj.contains_key("type")
+                && !obj.contains_key("oneOf")
+            {
+                SchemaType::DynamicValue
+            } else {
+                derive_schema_type(additional, definitions, ref_stack)
             }
         }
-        let merged = merge_field_types(derived)?;
-        if saw_null {
-            return Some(FieldType::Option(Box::new(merged)));
-        }
-        return Some(merged);
+        _ => SchemaType::DynamicValue,
     }
-
-    schema.get("const").and_then(const_field_type)
 }
 
-fn merge_field_types(types: Vec<FieldType>) -> Option<FieldType> {
+fn derive_array_item_type(
+    schema: &Value,
+    definitions: &Map<String, Value>,
+    ref_stack: &mut Vec<String>,
+) -> SchemaType {
+    if let Some(items) = schema.get("items") {
+        if let Some(arr) = items.as_array() {
+            let variants: Vec<SchemaType> = arr
+                .iter()
+                .map(|item| derive_schema_type(item, definitions, ref_stack))
+                .collect();
+            return merge_scalar_like_types(variants).unwrap_or(SchemaType::DynamicValue);
+        }
+
+        return derive_schema_type(items, definitions, ref_stack);
+    }
+
+    SchemaType::DynamicValue
+}
+
+fn detect_one_or_many(
+    variants: &[&Value],
+    definitions: &Map<String, Value>,
+    ref_stack: &mut Vec<String>,
+) -> Option<SchemaType> {
+    if variants.len() != 2 {
+        return None;
+    }
+
+    let first = resolve_schema(variants[0], definitions);
+    let second = resolve_schema(variants[1], definitions);
+
+    let (array_variant, single_variant) =
+        if first.get("type").and_then(|v| v.as_str()) == Some("array") {
+            (first, second)
+        } else if second.get("type").and_then(|v| v.as_str()) == Some("array") {
+            (second, first)
+        } else {
+            return None;
+        };
+
+    let array_item = derive_array_item_type(array_variant, definitions, ref_stack);
+    let single_item = derive_schema_type(single_variant, definitions, ref_stack);
+    if array_item == single_item {
+        Some(array_item)
+    } else {
+        None
+    }
+}
+
+fn detect_range_or_val(variants: &[&Value]) -> Option<PrimitiveType> {
+    if variants.len() < 2 {
+        return None;
+    }
+
+    let mut primitive = None;
+    let mut saw_scalar = false;
+    let mut saw_range = false;
+
+    for variant in variants {
+        let current = if is_number_schema(variant) {
+            saw_scalar = true;
+            if variant.get("type").and_then(|v| v.as_str()) == Some("integer") {
+                PrimitiveType::Integer
+            } else {
+                PrimitiveType::Float
+            }
+        } else if is_number_range_array_schema(variant) {
+            saw_range = true;
+            PrimitiveType::Float
+        } else if is_number_range_object_schema(variant) {
+            saw_range = true;
+            PrimitiveType::Float
+        } else if is_integer_range_object_schema(variant) {
+            saw_range = true;
+            PrimitiveType::Integer
+        } else {
+            return None;
+        };
+
+        match &primitive {
+            Some(existing) if existing != &current => {
+                if matches!(existing, PrimitiveType::Integer)
+                    && matches!(current, PrimitiveType::Float)
+                    || matches!(existing, PrimitiveType::Float)
+                        && matches!(current, PrimitiveType::Integer)
+                {
+                    primitive = Some(PrimitiveType::Float);
+                } else {
+                    return None;
+                }
+            }
+            None => primitive = Some(current),
+            _ => {}
+        }
+    }
+
+    if saw_scalar && saw_range {
+        primitive
+    } else {
+        None
+    }
+}
+
+fn merge_object_variants(variants: &[SchemaType]) -> Option<ObjectSchema> {
+    if variants.is_empty() {
+        return None;
+    }
+
+    let mut merged = ObjectSchema::default();
+    let mut any_object = false;
+
+    for variant in variants {
+        let SchemaType::Object(object) = variant else {
+            return None;
+        };
+        any_object = true;
+
+        for field in &object.fields {
+            if merged
+                .fields
+                .iter()
+                .any(|existing| existing.name == field.name)
+            {
+                continue;
+            }
+
+            let mut field = field.clone();
+            field.field_type = wrap_optional(field.field_type);
+            field.is_primary = field.name == "value";
+            merged.fields.push(field);
+        }
+
+        if merged.additional.is_none() {
+            merged.additional = object.additional.clone();
+        }
+    }
+
+    if any_object {
+        merged.fields.sort_by(|a, b| a.name.cmp(&b.name));
+        Some(merged)
+    } else {
+        None
+    }
+}
+
+fn merge_scalar_like_types(variants: Vec<SchemaType>) -> Option<SchemaType> {
     let mut saw_float = false;
     let mut saw_integer = false;
     let mut saw_bool = false;
     let mut saw_string = false;
     let mut saw_option = false;
 
-    for field_type in types {
-        match field_type {
-            FieldType::Float => saw_float = true,
-            FieldType::Integer => saw_integer = true,
-            FieldType::Bool => saw_bool = true,
-            FieldType::String => saw_string = true,
-            FieldType::Option(inner) => {
+    for variant in variants {
+        match variant {
+            SchemaType::Primitive(PrimitiveType::Float) => saw_float = true,
+            SchemaType::Primitive(PrimitiveType::Integer) => saw_integer = true,
+            SchemaType::Primitive(PrimitiveType::Bool) => saw_bool = true,
+            SchemaType::Primitive(PrimitiveType::String) => saw_string = true,
+            SchemaType::Option(inner) => {
                 saw_option = true;
                 match *inner {
-                    FieldType::Float => saw_float = true,
-                    FieldType::Integer => saw_integer = true,
-                    FieldType::Bool => saw_bool = true,
-                    FieldType::String => saw_string = true,
-                    FieldType::Option(_) => return None,
+                    SchemaType::Primitive(PrimitiveType::Float) => saw_float = true,
+                    SchemaType::Primitive(PrimitiveType::Integer) => saw_integer = true,
+                    SchemaType::Primitive(PrimitiveType::Bool) => saw_bool = true,
+                    SchemaType::Primitive(PrimitiveType::String) => saw_string = true,
+                    _ => return None,
                 }
             }
+            SchemaType::BoolOrString => {
+                saw_bool = true;
+                saw_string = true;
+            }
+            SchemaType::DynamicValue => return None,
+            _ => return None,
         }
     }
 
@@ -486,35 +790,50 @@ fn merge_field_types(types: Vec<FieldType>) -> Option<FieldType> {
         return None;
     }
 
-    let base = if saw_string {
-        FieldType::String
-    } else if saw_float && saw_integer {
-        FieldType::Float
-    } else if saw_float {
-        FieldType::Float
+    let mut base = if saw_bool && saw_string && !saw_float && !saw_integer {
+        SchemaType::BoolOrString
+    } else if saw_string && (saw_float || saw_integer) && !saw_bool {
+        let inner = if saw_float || (saw_float && saw_integer) {
+            SchemaType::Primitive(PrimitiveType::Float)
+        } else {
+            SchemaType::Primitive(PrimitiveType::Integer)
+        };
+        SchemaType::MolangOr(Box::new(inner))
+    } else if saw_string && !saw_float && !saw_integer && !saw_bool {
+        SchemaType::Primitive(PrimitiveType::String)
+    } else if saw_float || (saw_float && saw_integer) {
+        SchemaType::Primitive(PrimitiveType::Float)
     } else if saw_integer {
-        FieldType::Integer
+        SchemaType::Primitive(PrimitiveType::Integer)
     } else if saw_bool {
-        FieldType::Bool
+        SchemaType::Primitive(PrimitiveType::Bool)
     } else {
         return None;
     };
 
     if saw_option {
-        Some(FieldType::Option(Box::new(base)))
+        base = SchemaType::Option(Box::new(base));
+    }
+
+    Some(base)
+}
+
+fn wrap_optional(schema_type: SchemaType) -> SchemaType {
+    if matches!(schema_type, SchemaType::Option(_)) {
+        schema_type
     } else {
-        Some(base)
+        SchemaType::Option(Box::new(schema_type))
     }
 }
 
-fn const_field_type(value: &Value) -> Option<FieldType> {
-    match value {
-        Value::Number(n) if n.is_i64() || n.is_u64() => Some(FieldType::Integer),
-        Value::Number(_) => Some(FieldType::Float),
-        Value::Bool(_) => Some(FieldType::Bool),
-        Value::String(_) => Some(FieldType::String),
-        _ => None,
-    }
+fn is_object_like(schema: &Value) -> bool {
+    schema
+        .get("type")
+        .and_then(|v| v.as_str())
+        .is_some_and(|ty| ty == "object")
+        || schema.get("properties").is_some()
+        || schema.get("allOf").is_some()
+        || schema.get("additionalProperties").is_some()
 }
 
 fn is_null_schema(schema: &Value) -> bool {
@@ -523,6 +842,44 @@ fn is_null_schema(schema: &Value) -> bool {
         .and_then(|v| v.as_str())
         .is_some_and(|ty| ty == "null")
         || schema.get("const").is_some_and(Value::is_null)
+}
+
+fn is_number_schema(schema: &Value) -> bool {
+    matches!(
+        schema.get("type").and_then(|v| v.as_str()),
+        Some("number" | "integer")
+    )
+}
+
+fn is_number_range_array_schema(schema: &Value) -> bool {
+    let Some(items) = schema.get("items").and_then(|v| v.as_array()) else {
+        return false;
+    };
+    schema.get("type").and_then(|v| v.as_str()) == Some("array")
+        && !items.is_empty()
+        && items.iter().all(is_number_schema)
+}
+
+fn is_number_range_object_schema(schema: &Value) -> bool {
+    let Some(properties) = schema.get("properties").and_then(|v| v.as_object()) else {
+        return false;
+    };
+    let keys: HashSet<_> = properties.keys().map(String::as_str).collect();
+    (keys.contains("min") && keys.contains("max")
+        || keys.contains("range_min") && keys.contains("range_max"))
+        && properties.values().all(is_number_schema)
+}
+
+fn is_integer_range_object_schema(schema: &Value) -> bool {
+    let Some(properties) = schema.get("properties").and_then(|v| v.as_object()) else {
+        return false;
+    };
+    let keys: HashSet<_> = properties.keys().map(String::as_str).collect();
+    (keys.contains("min") && keys.contains("max")
+        || keys.contains("range_min") && keys.contains("range_max"))
+        && properties
+            .values()
+            .all(|value| value.get("type").and_then(|v| v.as_str()) == Some("integer"))
 }
 
 fn resolve_schema<'a>(schema: &'a Value, definitions: &'a Map<String, Value>) -> &'a Value {
@@ -546,22 +903,23 @@ fn normalize_component_name(component_id: &str) -> String {
         .to_string()
 }
 
-fn simple_json_to_string(value: &Value) -> Option<String> {
-    match value {
-        Value::Null | Value::Array(_) | Value::Object(_) => None,
-        Value::Bool(v) => Some(v.to_string()),
-        Value::Number(v) => Some(v.to_string()),
-        Value::String(v) => Some(v.clone()),
-    }
+fn normalize_lookup_key(value: &str) -> String {
+    value
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric())
+        .flat_map(|ch| ch.to_lowercase())
+        .collect()
 }
 
-fn kdl_value_to_string(value: &KdlValue) -> String {
+fn kdl_value_to_json(value: &KdlValue) -> Value {
     match value {
-        KdlValue::String(s) => s.clone(),
-        KdlValue::Integer(i) => i.to_string(),
-        KdlValue::Float(f) => f.to_string(),
-        KdlValue::Bool(b) => b.to_string(),
-        KdlValue::Null => "null".to_string(),
+        KdlValue::String(s) => Value::String(s.clone()),
+        KdlValue::Integer(i) => Value::Number(Number::from(*i as i64)),
+        KdlValue::Float(f) => Number::from_f64(*f)
+            .map(Value::Number)
+            .unwrap_or(Value::Null),
+        KdlValue::Bool(b) => Value::Bool(*b),
+        KdlValue::Null => Value::Null,
     }
 }
 
@@ -579,12 +937,16 @@ fn sanitize_rust_ident(name: &str, pascal: bool) -> String {
         candidate.push('_');
     }
 
+    if candidate.chars().next().is_some_and(|c| c.is_ascii_digit()) {
+        candidate.insert(0, '_');
+    }
+
     candidate
 }
 
-fn is_rust_keyword(value: &str) -> bool {
+fn is_rust_keyword(s: &str) -> bool {
     matches!(
-        value,
+        s,
         "as" | "break"
             | "const"
             | "continue"
@@ -622,18 +984,5 @@ fn is_rust_keyword(value: &str) -> bool {
             | "async"
             | "await"
             | "dyn"
-            | "abstract"
-            | "become"
-            | "box"
-            | "do"
-            | "final"
-            | "macro"
-            | "override"
-            | "priv"
-            | "typeof"
-            | "unsized"
-            | "virtual"
-            | "yield"
-            | "try"
     )
 }

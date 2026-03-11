@@ -1,8 +1,13 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:environment_sensor`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+/// Bedrock component `minecraft:environment_sensor`. Creates a trigger based on environment conditions.
+#[derive(Component, Debug, Clone, PartialEq)]
 #[component(storage = "SparseSet")]
 pub struct EnvironmentSensor {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    ///The list of triggers that fire when the environment conditions match the given filter criteria.
+    pub triggers: Option<crate::types::BedrockValue>,
+}
+impl Default for EnvironmentSensor {
+    fn default() -> Self {
+        Self { triggers: None }
+    }
 }

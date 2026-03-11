@@ -1,10 +1,13 @@
 //! Entity code generation from KDL.
 
-use crate::component_schemas::{ComponentDefaults, ComponentSchema, FieldType, SchemaCatalog};
+use crate::component_schemas::{
+    ComponentDefaults, ComponentSchema, ObjectSchema, PrimitiveType, SchemaCatalog, SchemaType,
+};
 use heck::{ToPascalCase, ToSnakeCase};
 use kdl::{KdlDocument, KdlNode, KdlValue};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
+use serde_json::{Map, Number, Value};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use tracing::info;
@@ -25,10 +28,7 @@ struct ParsedEntity {
 /// Parsed component with actual data
 struct ParsedComponent {
     name: String,
-    /// Primary argument value (e.g., `health 20` -> Some("20"))
-    primary_value: Option<String>,
-    /// Named properties (e.g., `max=20` -> {"max": "20"})
-    properties: HashMap<String, String>,
+    data: Option<Value>,
     /// Whether this is a marker component (no data)
     #[allow(dead_code)]
     is_marker: bool,
@@ -220,40 +220,112 @@ fn parse_entity_node(node: &KdlNode) -> miette::Result<ParsedEntity> {
 
 fn parse_component_node(node: &KdlNode) -> ParsedComponent {
     let name = node.name().value().to_string();
-    let mut primary_value = None;
-    let mut properties = HashMap::new();
-
-    for entry in node.entries() {
-        if let Some(prop_name) = entry.name() {
-            // Named property
-            properties.insert(
-                prop_name.value().to_string(),
-                kdl_value_to_string(entry.value()),
-            );
-        } else {
-            // Positional argument (primary value)
-            primary_value = Some(kdl_value_to_string(entry.value()));
-        }
-    }
-
-    let is_marker = primary_value.is_none() && properties.is_empty() && node.children().is_none();
+    let data = kdl_node_payload_to_json(node);
+    let is_marker = data.is_none();
 
     ParsedComponent {
         name,
-        primary_value,
-        properties,
+        data,
         is_marker,
     }
 }
 
-fn kdl_value_to_string(value: &KdlValue) -> String {
+fn kdl_value_to_json(value: &KdlValue) -> Value {
     match value {
-        KdlValue::String(s) => s.clone(),
-        KdlValue::Integer(i) => i.to_string(),
-        KdlValue::Float(f) => f.to_string(),
-        KdlValue::Bool(b) => b.to_string(),
-        KdlValue::Null => "null".to_string(),
+        KdlValue::String(s) => Value::String(s.clone()),
+        KdlValue::Integer(i) => Value::Number(Number::from(*i as i64)),
+        KdlValue::Float(f) => Number::from_f64(*f)
+            .map(Value::Number)
+            .unwrap_or(Value::Null),
+        KdlValue::Bool(b) => Value::Bool(*b),
+        KdlValue::Null => Value::Null,
     }
+}
+
+fn kdl_node_payload_to_json(node: &KdlNode) -> Option<Value> {
+    let positional: Vec<Value> = node
+        .entries()
+        .iter()
+        .filter(|entry| entry.name().is_none())
+        .map(|entry| kdl_value_to_json(entry.value()))
+        .collect();
+
+    let mut named = Map::new();
+    for entry in node.entries().iter().filter(|entry| entry.name().is_some()) {
+        if let Some(name) = entry.name() {
+            named.insert(name.value().to_string(), kdl_value_to_json(entry.value()));
+        }
+    }
+
+    let has_children = node
+        .children()
+        .is_some_and(|children| !children.nodes().is_empty());
+    if positional.is_empty() && named.is_empty() && !has_children {
+        return None;
+    }
+
+    if !has_children && named.is_empty() {
+        return match positional.len() {
+            0 => None,
+            1 => positional.into_iter().next(),
+            _ => Some(Value::Array(positional)),
+        };
+    }
+
+    let mut object = Map::new();
+    if !positional.is_empty() {
+        let value = if positional.len() == 1 {
+            positional[0].clone()
+        } else {
+            Value::Array(positional)
+        };
+        object.insert("value".to_string(), value);
+    }
+    object.extend(named);
+
+    if let Some(children) = node.children() {
+        let mut grouped: HashMap<String, Vec<Value>> = HashMap::new();
+        for child in children.nodes() {
+            let child_name = child.name().value().to_string();
+            let child_value = match child_name.as_str() {
+                "any_of" | "none_of" => parse_filter_group_node(child),
+                _ => kdl_node_payload_to_json(child).unwrap_or_else(|| Value::Object(Map::new())),
+            };
+            grouped.entry(child_name).or_default().push(child_value);
+        }
+
+        let mut child_names: Vec<_> = grouped.keys().cloned().collect();
+        child_names.sort();
+
+        for child_name in child_names {
+            let values = grouped.remove(&child_name).unwrap_or_default();
+            if node.name().value() == "filters" && child_name == "filter" {
+                object.insert("all_of".to_string(), Value::Array(values));
+                continue;
+            }
+
+            let value = if values.len() == 1 {
+                values.into_iter().next().unwrap()
+            } else {
+                Value::Array(values)
+            };
+            object.insert(child_name, value);
+        }
+    }
+
+    Some(Value::Object(object))
+}
+
+fn parse_filter_group_node(node: &KdlNode) -> Value {
+    let mut filters = Vec::new();
+    if let Some(children) = node.children() {
+        for child in children.nodes() {
+            if let Some(value) = kdl_node_payload_to_json(child) {
+                filters.push(value);
+            }
+        }
+    }
+    Value::Array(filters)
 }
 
 fn parse_property_node(node: &KdlNode) -> Option<ParsedProperty> {
@@ -272,9 +344,13 @@ fn parse_property_node(node: &KdlNode) -> Option<ParsedProperty> {
                 "type" => {
                     prop.prop_type = entry.value().as_string().unwrap_or("unknown").to_string();
                 }
-                "default" => {
-                    prop.default = kdl_value_to_string(entry.value());
-                }
+                "default" => match entry.value() {
+                    KdlValue::String(s) => prop.default = s.clone(),
+                    KdlValue::Integer(i) => prop.default = i.to_string(),
+                    KdlValue::Float(f) => prop.default = f.to_string(),
+                    KdlValue::Bool(b) => prop.default = b.to_string(),
+                    KdlValue::Null => prop.default = "null".to_string(),
+                },
                 "client_sync" => {
                     prop.client_sync = entry.value().as_bool().unwrap_or(false);
                 }
@@ -283,7 +359,6 @@ fn parse_property_node(node: &KdlNode) -> Option<ParsedProperty> {
         }
     }
 
-    // Get enum values from children
     if let Some(children) = node.children() {
         for child in children.nodes() {
             if child.name().value() == "value"
@@ -350,10 +425,9 @@ fn generate_components_module(
 
     let uses: Vec<TokenStream> = mod_items
         .iter()
-        .map(|(m, s)| {
+        .map(|(m, _)| {
             let mod_ident = format_ident!("{}", m);
-            let struct_ident = format_ident!("{}", s);
-            quote! { pub use #mod_ident::#struct_ident; }
+            quote! { pub use #mod_ident::*; }
         })
         .collect();
 
@@ -435,68 +509,173 @@ fn generate_typed_component(
     };
 
     if schema.is_marker {
-        // Marker component - no fields
-        quote! {
+        return quote! {
             use bevy_ecs::prelude::*;
 
             #[doc = #doc]
             #[derive(Component, Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
             #storage_attr
             pub struct #struct_ident;
+        };
+    }
+
+    let mut nested_defs = Vec::new();
+    let mut emitted = HashSet::new();
+    for field in &schema.root.fields {
+        let mut path = vec![schema.rust_name.clone(), field.name.to_pascal_case()];
+        collect_nested_type_defs(&field.field_type, &mut path, &mut emitted, &mut nested_defs);
+    }
+    if let Some(additional) = &schema.root.additional {
+        let mut path = vec![schema.rust_name.clone(), "Additional".to_string()];
+        collect_nested_type_defs(additional, &mut path, &mut emitted, &mut nested_defs);
+    }
+
+    let fields = object_fields_to_tokens(&schema.root, std::slice::from_ref(&schema.rust_name));
+    let default_impl = generate_default_impl(schema, defaults);
+
+    quote! {
+        use bevy_ecs::prelude::*;
+
+        #(#nested_defs)*
+
+        #[doc = #doc]
+        #[derive(Component, Debug, Clone, PartialEq)]
+        #storage_attr
+        pub struct #struct_ident {
+            #(#fields),*
         }
-    } else {
-        // Component with fields
-        let fields: Vec<TokenStream> = schema
-            .fields
-            .iter()
-            .map(|f| {
-                let field_ident = format_ident!("{}", f.rust_name);
-                let field_type = field_type_to_tokens(&f.field_type);
-                let doc = format!(" {}", f.name);
-                quote! {
-                    #[doc = #doc]
-                    pub #field_ident: #field_type
-                }
-            })
-            .collect();
 
-        let default_impl = generate_default_impl(schema, defaults);
+        #default_impl
+    }
+}
 
-        quote! {
-            use bevy_ecs::prelude::*;
-
-            #[doc = #doc]
-            #[derive(Component, Debug, Clone, PartialEq)]
-            #storage_attr
-            pub struct #struct_ident {
-                #(#fields),*
+fn collect_nested_type_defs(
+    schema_type: &SchemaType,
+    path: &mut Vec<String>,
+    emitted: &mut HashSet<String>,
+    out: &mut Vec<TokenStream>,
+) {
+    match schema_type {
+        SchemaType::Option(inner)
+        | SchemaType::Vec(inner)
+        | SchemaType::Map(inner)
+        | SchemaType::RangeOrVal(inner)
+        | SchemaType::MolangOr(inner) => collect_nested_type_defs(inner, path, emitted, out),
+        SchemaType::Object(object) => {
+            let type_name = type_name_from_path(path);
+            if !emitted.insert(type_name.clone()) {
+                return;
             }
 
-            #default_impl
+            for field in &object.fields {
+                path.push(field.name.to_pascal_case());
+                collect_nested_type_defs(&field.field_type, path, emitted, out);
+                path.pop();
+            }
+            if let Some(additional) = &object.additional {
+                path.push("Additional".to_string());
+                collect_nested_type_defs(additional, path, emitted, out);
+                path.pop();
+            }
+
+            let struct_ident = format_ident!("{}", type_name);
+            let fields = object_fields_to_tokens(object, path);
+            let defaults = object_default_fields(object, path);
+            out.push(quote! {
+                #[derive(Debug, Clone, PartialEq)]
+                pub struct #struct_ident {
+                    #(#fields),*
+                }
+
+                impl Default for #struct_ident {
+                    fn default() -> Self {
+                        Self {
+                            #(#defaults),*
+                        }
+                    }
+                }
+            });
         }
+        _ => {}
     }
+}
+
+fn object_fields_to_tokens(object: &ObjectSchema, path: &[String]) -> Vec<TokenStream> {
+    let mut fields: Vec<TokenStream> = object
+        .fields
+        .iter()
+        .map(|field| {
+            let field_ident = format_ident!("{}", field.rust_name);
+            let mut field_path = path.to_vec();
+            field_path.push(field.name.to_pascal_case());
+            let field_type = schema_type_to_tokens(&field.field_type, &field_path);
+            let doc = field
+                .description
+                .clone()
+                .unwrap_or_else(|| field.name.clone());
+            quote! {
+                #[doc = #doc]
+                pub #field_ident: #field_type
+            }
+        })
+        .collect();
+
+    if let Some(additional) = &object.additional {
+        let mut field_path = path.to_vec();
+        field_path.push("Additional".to_string());
+        let inner_tokens = schema_type_to_tokens(additional, &field_path);
+        fields.push(quote! {
+            /// Additional dynamic entries not captured by the upstream schema.
+            pub additional: std::collections::HashMap<String, #inner_tokens>
+        });
+    }
+
+    fields
+}
+
+fn object_default_fields(object: &ObjectSchema, path: &[String]) -> Vec<TokenStream> {
+    let mut defaults: Vec<TokenStream> = object
+        .fields
+        .iter()
+        .map(|field| {
+            let field_ident = format_ident!("{}", field.rust_name);
+            let mut field_path = path.to_vec();
+            field_path.push(field.name.to_pascal_case());
+            let value = default_value_tokens(&field.field_type, None, &field_path);
+            quote! { #field_ident: #value }
+        })
+        .collect();
+
+    if object.additional.is_some() {
+        defaults.push(quote! { additional: std::collections::HashMap::new() });
+    }
+
+    defaults
 }
 
 fn generate_default_impl(schema: &ComponentSchema, defaults: &ComponentDefaults) -> TokenStream {
     let struct_ident = format_ident!("{}", schema.rust_name);
 
-    let field_defaults: Vec<TokenStream> = schema
+    let mut field_defaults: Vec<TokenStream> = schema
+        .root
         .fields
         .iter()
-        .map(|f| {
-            let field_ident = format_ident!("{}", f.rust_name);
-
-            // Look up default from KDL: primary value or field property
-            let kdl_default = if f.is_primary {
+        .map(|field| {
+            let field_ident = format_ident!("{}", field.rust_name);
+            let default_value = if field.is_primary {
                 defaults.get_primary_default(&schema.name)
             } else {
-                defaults.get_field_default(&schema.name, &f.name)
+                defaults.get_field_default(&schema.name, &field.name)
             };
-
-            let default_value = field_default_value(&f.field_type, kdl_default);
-            quote! { #field_ident: #default_value }
+            let path = vec![schema.rust_name.clone(), field.name.to_pascal_case()];
+            let value = default_value_tokens(&field.field_type, default_value, &path);
+            quote! { #field_ident: #value }
         })
         .collect();
+
+    if schema.root.additional.is_some() {
+        field_defaults.push(quote! { additional: std::collections::HashMap::new() });
+    }
 
     quote! {
         impl Default for #struct_ident {
@@ -509,60 +688,310 @@ fn generate_default_impl(schema: &ComponentSchema, defaults: &ComponentDefaults)
     }
 }
 
-fn field_type_to_tokens(field_type: &FieldType) -> TokenStream {
-    match field_type {
-        FieldType::Float => quote! { f32 },
-        FieldType::Integer => quote! { i32 },
-        FieldType::Bool => quote! { bool },
-        FieldType::String => quote! { String },
-        FieldType::Option(inner) => {
-            let inner_tokens = field_type_to_tokens(inner);
+fn schema_type_to_tokens(schema_type: &SchemaType, path: &[String]) -> TokenStream {
+    match schema_type {
+        SchemaType::Primitive(PrimitiveType::Float) => quote! { f32 },
+        SchemaType::Primitive(PrimitiveType::Integer) => quote! { i32 },
+        SchemaType::Primitive(PrimitiveType::Bool) => quote! { bool },
+        SchemaType::Primitive(PrimitiveType::String) => quote! { String },
+        SchemaType::Option(inner) => {
+            let inner_tokens = schema_type_to_tokens(inner, path);
             quote! { Option<#inner_tokens> }
         }
+        SchemaType::Vec(inner) => {
+            let inner_tokens = schema_type_to_tokens(inner, path);
+            quote! { Vec<#inner_tokens> }
+        }
+        SchemaType::Map(inner) => {
+            let inner_tokens = schema_type_to_tokens(inner, path);
+            quote! { std::collections::HashMap<String, #inner_tokens> }
+        }
+        SchemaType::Object(_) => {
+            let ident = format_ident!("{}", type_name_from_path(path));
+            quote! { #ident }
+        }
+        SchemaType::RangeOrVal(inner) => {
+            let inner_tokens = schema_type_to_tokens(inner, path);
+            quote! { crate::types::RangeOrVal<#inner_tokens> }
+        }
+        SchemaType::MolangOr(inner) => {
+            let inner_tokens = schema_type_to_tokens(inner, path);
+            quote! { crate::types::MolangOr<#inner_tokens> }
+        }
+        SchemaType::BoolOrString => quote! { crate::types::BoolOrString },
+        SchemaType::DynamicValue => quote! { crate::types::BedrockValue },
     }
 }
 
-fn field_default_value(field_type: &FieldType, default: Option<&str>) -> TokenStream {
-    match field_type {
-        FieldType::Float => {
-            if let Some(d) = default
-                && let Ok(v) = d.parse::<f32>()
-            {
-                return quote! { #v };
-            }
-            quote! { 0.0 }
+fn default_value_tokens(
+    schema_type: &SchemaType,
+    value: Option<&Value>,
+    path: &[String],
+) -> TokenStream {
+    match schema_type {
+        SchemaType::Primitive(PrimitiveType::Float) => {
+            let parsed = value.and_then(value_as_f32).unwrap_or(0.0f32);
+            quote! { #parsed }
         }
-        FieldType::Integer => {
-            if let Some(d) = default
-                && let Ok(v) = d.parse::<i32>()
-            {
-                return quote! { #v };
-            }
-            quote! { 0 }
+        SchemaType::Primitive(PrimitiveType::Integer) => {
+            let parsed = value.and_then(value_as_i32).unwrap_or(0i32);
+            quote! { #parsed }
         }
-        FieldType::Bool => {
-            if let Some(d) = default
-                && d == "true"
-            {
-                return quote! { true };
-            }
-            quote! { false }
+        SchemaType::Primitive(PrimitiveType::Bool) => {
+            let parsed = value.and_then(Value::as_bool).unwrap_or(false);
+            quote! { #parsed }
         }
-        FieldType::String => {
-            if let Some(d) = default {
-                return quote! { #d.to_string() };
-            }
-            quote! { String::new() }
+        SchemaType::Primitive(PrimitiveType::String) => {
+            let parsed = value.and_then(value_as_string).unwrap_or_default();
+            quote! { #parsed.to_string() }
         }
-        FieldType::Option(inner) => {
-            if let Some(d) = default {
-                let inner_value = field_default_value(inner, Some(d));
-                quote! { Some(#inner_value) }
+        SchemaType::Option(inner) => {
+            if let Some(value) = value {
+                if value.is_null() {
+                    quote! { None }
+                } else {
+                    let inner_tokens = default_value_tokens(inner, Some(value), path);
+                    quote! { Some(#inner_tokens) }
+                }
             } else {
                 quote! { None }
             }
         }
+        SchemaType::Vec(inner) => {
+            if let Some(Value::Array(values)) = value {
+                let items: Vec<_> = values
+                    .iter()
+                    .map(|item| default_value_tokens(inner, Some(item), path))
+                    .collect();
+                quote! { vec![#(#items),*] }
+            } else if let Some(value) = value {
+                let single = default_value_tokens(inner, Some(value), path);
+                quote! { vec![#single] }
+            } else {
+                quote! { Vec::new() }
+            }
+        }
+        SchemaType::Map(inner) => {
+            if let Some(Value::Object(values)) = value {
+                let entries: Vec<_> = values
+                    .iter()
+                    .map(|(key, value)| {
+                        let value_tokens = default_value_tokens(inner, Some(value), path);
+                        quote! { (#key.to_string(), #value_tokens) }
+                    })
+                    .collect();
+                quote! { std::collections::HashMap::from([#(#entries),*]) }
+            } else {
+                quote! { std::collections::HashMap::new() }
+            }
+        }
+        SchemaType::Object(object) => object_value_tokens(object, value, path),
+        SchemaType::RangeOrVal(inner) => range_value_tokens(inner, value, path),
+        SchemaType::MolangOr(inner) => {
+            if let Some(Value::String(expr)) = value {
+                quote! { crate::types::MolangOr::Expr(#expr.to_string()) }
+            } else {
+                let inner_tokens = default_value_tokens(inner, value, path);
+                quote! { crate::types::MolangOr::Value(#inner_tokens) }
+            }
+        }
+        SchemaType::BoolOrString => match value {
+            Some(Value::Bool(value)) => quote! { crate::types::BoolOrString::Bool(#value) },
+            Some(Value::String(value)) => {
+                quote! { crate::types::BoolOrString::String(#value.to_string()) }
+            }
+            _ => quote! { crate::types::BoolOrString::Bool(false) },
+        },
+        SchemaType::DynamicValue => dynamic_value_tokens(value.unwrap_or(&Value::Null)),
     }
+}
+
+fn object_value_tokens(
+    object: &ObjectSchema,
+    value: Option<&Value>,
+    path: &[String],
+) -> TokenStream {
+    let ident = format_ident!("{}", type_name_from_path(path));
+    let object_value = value.and_then(Value::as_object);
+
+    let mut fields: Vec<TokenStream> = object
+        .fields
+        .iter()
+        .map(|field| {
+            let field_ident = format_ident!("{}", field.rust_name);
+            let field_value = object_value.and_then(|map| lookup_object_value(map, &field.name));
+            let mut field_path = path.to_vec();
+            field_path.push(field.name.to_pascal_case());
+            let value_tokens = default_value_tokens(&field.field_type, field_value, &field_path);
+            quote! { #field_ident: #value_tokens }
+        })
+        .collect();
+
+    if let Some(additional_schema) = &object.additional {
+        let mut additional_entries = Vec::new();
+        if let Some(map) = object_value {
+            for (key, entry) in map {
+                if object
+                    .fields
+                    .iter()
+                    .any(|field| field_matches_lookup(key, &field.name))
+                {
+                    continue;
+                }
+                let value_tokens = default_value_tokens(additional_schema, Some(entry), path);
+                additional_entries.push(quote! { (#key.to_string(), #value_tokens) });
+            }
+        }
+
+        if additional_entries.is_empty() {
+            fields.push(quote! { additional: std::collections::HashMap::new() });
+        } else {
+            fields.push(quote! {
+                additional: std::collections::HashMap::from([#(#additional_entries),*])
+            });
+        }
+    }
+
+    quote! {
+        #ident {
+            #(#fields),*
+        }
+    }
+}
+
+fn range_value_tokens(inner: &SchemaType, value: Option<&Value>, path: &[String]) -> TokenStream {
+    if let Some(value) = value {
+        match value {
+            Value::Array(values) if values.len() >= 2 => {
+                let min = default_value_tokens(inner, Some(&values[0]), path);
+                let max = default_value_tokens(inner, Some(&values[1]), path);
+                return quote! { crate::types::RangeOrVal::Range { min: #min, max: #max } };
+            }
+            Value::Object(map) => {
+                let min = map.get("min").or_else(|| map.get("range_min"));
+                let max = map.get("max").or_else(|| map.get("range_max"));
+                if let (Some(min), Some(max)) = (min, max) {
+                    let min_tokens = default_value_tokens(inner, Some(min), path);
+                    let max_tokens = default_value_tokens(inner, Some(max), path);
+                    return quote! { crate::types::RangeOrVal::Range { min: #min_tokens, max: #max_tokens } };
+                }
+            }
+            _ => {
+                let fixed = default_value_tokens(inner, Some(value), path);
+                return quote! { crate::types::RangeOrVal::Fixed(#fixed) };
+            }
+        }
+    }
+
+    let fixed = default_value_tokens(inner, None, path);
+    quote! { crate::types::RangeOrVal::Fixed(#fixed) }
+}
+
+fn dynamic_value_tokens(value: &Value) -> TokenStream {
+    match value {
+        Value::Null => quote! { crate::types::BedrockValue::Null },
+        Value::Bool(value) => quote! { crate::types::BedrockValue::Bool(#value) },
+        Value::Number(value) => {
+            if let Some(integer) = value.as_i64() {
+                quote! { crate::types::BedrockValue::Integer(#integer) }
+            } else if let Some(float) = value.as_f64() {
+                quote! { crate::types::BedrockValue::Float(#float) }
+            } else {
+                quote! { crate::types::BedrockValue::Null }
+            }
+        }
+        Value::String(value) => quote! { crate::types::BedrockValue::String(#value.to_string()) },
+        Value::Array(values) => {
+            let entries: Vec<_> = values.iter().map(dynamic_value_tokens).collect();
+            quote! { crate::types::BedrockValue::Array(vec![#(#entries),*]) }
+        }
+        Value::Object(values) => {
+            let entries: Vec<_> = values
+                .iter()
+                .map(|(key, value)| {
+                    let value_tokens = dynamic_value_tokens(value);
+                    quote! { (#key.to_string(), #value_tokens) }
+                })
+                .collect();
+            quote! { crate::types::BedrockValue::Object(std::collections::HashMap::from([#(#entries),*])) }
+        }
+    }
+}
+
+fn value_as_f32(value: &Value) -> Option<f32> {
+    match value {
+        Value::Number(number) => number.as_f64().map(|value| value as f32),
+        Value::String(text) => text.parse::<f32>().ok(),
+        _ => None,
+    }
+}
+
+fn value_as_i32(value: &Value) -> Option<i32> {
+    match value {
+        Value::Number(number) => number.as_i64().map(|value| value as i32),
+        Value::String(text) => text.parse::<i32>().ok(),
+        _ => None,
+    }
+}
+
+fn value_as_string(value: &Value) -> Option<String> {
+    match value {
+        Value::String(text) => Some(text.clone()),
+        Value::Bool(value) => Some(value.to_string()),
+        Value::Number(value) => Some(value.to_string()),
+        Value::Null => Some("null".to_string()),
+        _ => None,
+    }
+}
+
+fn type_name_from_path(path: &[String]) -> String {
+    path.iter()
+        .map(|segment| segment.to_pascal_case())
+        .collect::<String>()
+}
+
+fn normalize_lookup_key(value: &str) -> String {
+    value
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric())
+        .flat_map(|ch| ch.to_lowercase())
+        .collect()
+}
+
+fn candidate_lookup_keys(field_name: &str) -> Vec<String> {
+    let mut keys = vec![field_name.to_string()];
+    match field_name {
+        "triggers" => keys.push("trigger".to_string()),
+        "interactions" => keys.push("interaction".to_string()),
+        "entries" => keys.push("entry".to_string()),
+        "conditions" => keys.push("condition".to_string()),
+        "event_names" => keys.push("event".to_string()),
+        "items" => keys.push("item".to_string()),
+        "functions" => keys.push("function".to_string()),
+        _ => {
+            if field_name.ends_with('s') && field_name.len() > 1 {
+                keys.push(field_name[..field_name.len() - 1].to_string());
+            }
+        }
+    }
+    keys
+}
+
+fn field_matches_lookup(actual: &str, field_name: &str) -> bool {
+    let normalized_actual = normalize_lookup_key(actual);
+    candidate_lookup_keys(field_name)
+        .into_iter()
+        .any(|candidate| normalize_lookup_key(&candidate) == normalized_actual)
+}
+
+fn lookup_object_value<'a>(map: &'a Map<String, Value>, field_name: &str) -> Option<&'a Value> {
+    if let Some(value) = map.get(field_name) {
+        return Some(value);
+    }
+
+    map.iter()
+        .find(|(name, _)| field_matches_lookup(name, field_name))
+        .map(|(_, value)| value)
 }
 
 fn generate_generic_component(name: &str, struct_name: &str, is_sparse: bool) -> TokenStream {
@@ -582,8 +1011,8 @@ fn generate_generic_component(name: &str, struct_name: &str, is_sparse: bool) ->
         #[derive(Component, Debug, Clone, Default, PartialEq)]
         #storage_attr
         pub struct #struct_ident {
-            /// Raw data - schema not yet defined
-            pub data: Option<serde_json::Value>,
+            /// Dynamic Bedrock payload for components that are not yet covered by the vendored schema.
+            pub data: Option<crate::types::BedrockValue>,
         }
     }
 }
@@ -614,6 +1043,11 @@ fn generate_entity_definition(
 
     let spawn_fn = generate_spawn_function(entity, &struct_name, schemas, defaults);
     let bundle_struct = generate_bundle_struct(entity, &struct_name, schemas);
+    let components_import = if entity.components.is_empty() {
+        quote! {}
+    } else {
+        quote! { #[allow(unused_imports)] use super::super::components::*; }
+    };
 
     let doc = format!(" Entity definition for `{}`", identifier);
 
@@ -629,8 +1063,8 @@ fn generate_entity_definition(
     let code = quote! {
         //! Generated definition for entity.
 
-        use bevy_ecs::prelude::*;
-        use super::super::components::*;
+        use bevy_ecs::prelude::{Bundle, Commands, Entity};
+        #components_import
 
         #[doc = #doc]
         pub struct #struct_ident;
@@ -782,11 +1216,17 @@ fn generate_bundle_struct(
     let bundle_fields: Vec<TokenStream> = entity
         .components
         .iter()
-        .filter_map(|c| {
-            let schema = schemas.get(&c.name)?;
-            let field_name = format_ident!("{}", c.name.to_snake_case());
-            let type_name = format_ident!("{}", schema.rust_name);
-            Some(quote! { pub #field_name: #type_name })
+        .filter_map(|component| {
+            let field_name = format_ident!("{}", component.name.to_snake_case());
+            let type_name = schemas
+                .get(&component.name)
+                .map(|schema| schema.rust_name.clone())
+                .unwrap_or_else(|| component.name.to_pascal_case());
+            if type_name.is_empty() {
+                return None;
+            }
+            let type_ident = format_ident!("{}", type_name);
+            Some(quote! { pub #field_name: super::super::components::#type_ident })
         })
         .collect();
 
@@ -817,16 +1257,14 @@ fn generate_spawn_function(
     let component_inits: Vec<TokenStream> = entity
         .components
         .iter()
-        .filter_map(|c| {
-            let schema = schemas.get(&c.name)?;
-            let field_name = format_ident!("{}", c.name.to_snake_case());
-            let init = generate_component_init(c, schema, defaults);
-            Some(quote! { #field_name: #init })
+        .map(|component| {
+            let field_name = format_ident!("{}", component.name.to_snake_case());
+            let init = generate_component_init(component, schemas.get(&component.name), defaults);
+            quote! { #field_name: #init }
         })
         .collect();
 
     if component_inits.is_empty() {
-        // No typed components, return empty
         return quote! {};
     }
 
@@ -847,79 +1285,89 @@ fn generate_spawn_function(
 
 fn generate_component_init(
     comp: &ParsedComponent,
-    schema: &ComponentSchema,
+    schema: Option<&ComponentSchema>,
     defaults: &ComponentDefaults,
 ) -> TokenStream {
-    let type_name = format_ident!("{}", schema.rust_name);
+    if let Some(schema) = schema {
+        let type_name = format_ident!("{}", schema.rust_name);
 
-    if schema.is_marker {
-        return quote! { #type_name };
+        if schema.is_marker {
+            return quote! { super::super::components::#type_name };
+        }
+
+        let component_value = comp.data.as_ref();
+        let object_value = component_value.and_then(Value::as_object);
+        let mut field_values: Vec<TokenStream> = schema
+            .root
+            .fields
+            .iter()
+            .map(|field| {
+                let field_ident = format_ident!("{}", field.rust_name);
+                let value = if field.is_primary {
+                    match component_value {
+                        Some(Value::Object(map)) => lookup_object_value(map, &field.name)
+                            .or_else(|| defaults.get_primary_default(&schema.name)),
+                        Some(value) => Some(value),
+                        None => defaults.get_primary_default(&schema.name),
+                    }
+                } else {
+                    object_value
+                        .and_then(|map| lookup_object_value(map, &field.name))
+                        .or_else(|| defaults.get_field_default(&schema.name, &field.name))
+                };
+                let path = vec![schema.rust_name.clone(), field.name.to_pascal_case()];
+                let value_tokens = default_value_tokens(&field.field_type, value, &path);
+                quote! { #field_ident: #value_tokens }
+            })
+            .collect();
+
+        if let Some(additional_schema) = &schema.root.additional {
+            let mut entries = Vec::new();
+            if let Some(map) = object_value {
+                for (key, value) in map {
+                    if schema
+                        .root
+                        .fields
+                        .iter()
+                        .any(|field| field_matches_lookup(key, &field.name))
+                    {
+                        continue;
+                    }
+                    let value_tokens = default_value_tokens(
+                        additional_schema,
+                        Some(value),
+                        &[schema.rust_name.clone(), "Additional".to_string()],
+                    );
+                    entries.push(quote! { (#key.to_string(), #value_tokens) });
+                }
+            }
+
+            if entries.is_empty() {
+                field_values.push(quote! { additional: std::collections::HashMap::new() });
+            } else {
+                field_values
+                    .push(quote! { additional: std::collections::HashMap::from([#(#entries),*]) });
+            }
+        }
+
+        return quote! {
+            super::super::components::#type_name {
+                #(#field_values),*
+            }
+        };
     }
 
-    // Generate field values from parsed data
-    let field_values: Vec<TokenStream> = schema
-        .fields
-        .iter()
-        .map(|f| {
-            let field_ident = format_ident!("{}", f.rust_name);
-
-            let value = if f.is_primary {
-                comp.primary_value
-                    .as_deref()
-                    .or_else(|| defaults.get_primary_default(&schema.name))
-            } else {
-                comp.properties
-                    .get(&f.name)
-                    .map(|s| s.as_str())
-                    .or_else(|| defaults.get_field_default(&schema.name, &f.name))
-            };
-
-            let value_tokens = if let Some(v) = value {
-                parse_field_value(&f.field_type, v)
-            } else {
-                field_default_value(&f.field_type, None)
-            };
-
-            quote! { #field_ident: #value_tokens }
-        })
-        .collect();
+    let type_name = format_ident!("{}", comp.name.to_pascal_case());
+    let data_tokens = if let Some(value) = comp.data.as_ref() {
+        let value_tokens = dynamic_value_tokens(value);
+        quote! { Some(#value_tokens) }
+    } else {
+        quote! { None }
+    };
 
     quote! {
-        #type_name {
-            #(#field_values),*
-        }
-    }
-}
-
-fn parse_field_value(field_type: &FieldType, value: &str) -> TokenStream {
-    match field_type {
-        FieldType::Float => {
-            if let Ok(v) = value.parse::<f32>() {
-                quote! { #v }
-            } else {
-                quote! { 0.0 }
-            }
-        }
-        FieldType::Integer => {
-            if let Ok(v) = value.parse::<i32>() {
-                quote! { #v }
-            } else {
-                quote! { 0 }
-            }
-        }
-        FieldType::Bool => {
-            if value == "true" {
-                quote! { true }
-            } else {
-                quote! { false }
-            }
-        }
-        FieldType::String => {
-            quote! { #value.to_string() }
-        }
-        FieldType::Option(inner) => {
-            let inner_value = parse_field_value(inner, value);
-            quote! { Some(#inner_value) }
+        super::super::components::#type_name {
+            data: #data_tokens,
         }
     }
 }
@@ -927,7 +1375,7 @@ fn parse_field_value(field_type: &FieldType, value: &str) -> TokenStream {
 fn generate_entities_mod(
     entities: &[ParsedEntity],
     output_dir: &Path,
-    schemas: &HashMap<String, ComponentSchema>,
+    _schemas: &HashMap<String, ComponentSchema>,
 ) -> miette::Result<()> {
     // Sort entities for deterministic output
     let mut sorted_entities: Vec<_> = entities.iter().collect();
@@ -945,7 +1393,7 @@ fn generate_entities_mod(
     // Re-export spawn functions
     let spawn_uses: Vec<TokenStream> = sorted_entities
         .iter()
-        .filter(|e| e.components.iter().any(|c| schemas.contains_key(&c.name)))
+        .filter(|e| !e.components.is_empty())
         .map(|e| {
             let mod_ident = format_ident!("{}", e.name.to_snake_case());
             let fn_name = format_ident!("spawn_{}", e.name.to_snake_case());

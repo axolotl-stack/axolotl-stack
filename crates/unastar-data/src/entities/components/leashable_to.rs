@@ -3,7 +3,7 @@ use bevy_ecs::prelude::*;
 #[derive(Component, Debug, Clone, PartialEq)]
 #[component(storage = "SparseSet")]
 pub struct LeashableTo {
-    /// can_retrieve_from
+    ///Allows players to retrieve entities that are leashed to this entity.
     pub can_retrieve_from: Option<bool>,
 }
 impl Default for LeashableTo {
