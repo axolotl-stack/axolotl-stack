@@ -671,10 +671,7 @@ fn detect_range_or_val(variants: &[&Value]) -> Option<PrimitiveType> {
             } else {
                 PrimitiveType::Float
             }
-        } else if is_number_range_array_schema(variant) {
-            saw_range = true;
-            PrimitiveType::Float
-        } else if is_number_range_object_schema(variant) {
+        } else if is_number_range_array_schema(variant) || is_number_range_object_schema(variant) {
             saw_range = true;
             PrimitiveType::Float
         } else if is_integer_range_object_schema(variant) {
@@ -793,7 +790,7 @@ fn merge_scalar_like_types(variants: Vec<SchemaType>) -> Option<SchemaType> {
     let mut base = if saw_bool && saw_string && !saw_float && !saw_integer {
         SchemaType::BoolOrString
     } else if saw_string && (saw_float || saw_integer) && !saw_bool {
-        let inner = if saw_float || (saw_float && saw_integer) {
+        let inner = if saw_float {
             SchemaType::Primitive(PrimitiveType::Float)
         } else {
             SchemaType::Primitive(PrimitiveType::Integer)
@@ -801,7 +798,7 @@ fn merge_scalar_like_types(variants: Vec<SchemaType>) -> Option<SchemaType> {
         SchemaType::MolangOr(Box::new(inner))
     } else if saw_string && !saw_float && !saw_integer && !saw_bool {
         SchemaType::Primitive(PrimitiveType::String)
-    } else if saw_float || (saw_float && saw_integer) {
+    } else if saw_float {
         SchemaType::Primitive(PrimitiveType::Float)
     } else if saw_integer {
         SchemaType::Primitive(PrimitiveType::Integer)
@@ -924,7 +921,7 @@ fn kdl_value_to_json(value: &KdlValue) -> Value {
 }
 
 fn sanitize_rust_ident(name: &str, pascal: bool) -> String {
-    let mut candidate = name.replace('.', "_").replace('-', "_");
+    let mut candidate = name.replace(['.', '-'], "_");
     if !pascal {
         candidate = candidate.to_snake_case();
     }
