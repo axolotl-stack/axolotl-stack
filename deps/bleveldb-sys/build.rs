@@ -92,7 +92,20 @@ fn main() {
         println!("cargo:rustc-link-lib=static=zlib");
         println!("cargo:rustc-link-lib=static=snappy");
     } else if cfg!(target_os = "linux") {
-        println!("cargo:rustc-link-search=native={}", "/usr/lib");
+        // Add multiarch lib path (e.g. /usr/lib/x86_64-linux-gnu) where
+        // static libs actually live on modern Debian/Ubuntu.
+        if let Ok(output) = std::process::Command::new("dpkg-architecture")
+            .arg("-qDEB_HOST_MULTIARCH")
+            .output()
+        {
+            if let Ok(arch) = String::from_utf8(output.stdout) {
+                let arch = arch.trim();
+                if !arch.is_empty() {
+                    println!("cargo:rustc-link-search=native=/usr/lib/{arch}");
+                }
+            }
+        }
+        println!("cargo:rustc-link-search=native=/usr/lib");
         println!("cargo:rustc-link-lib=static=z");
         println!("cargo:rustc-link-lib=pthread");
         println!("cargo:rustc-link-lib=rt");
