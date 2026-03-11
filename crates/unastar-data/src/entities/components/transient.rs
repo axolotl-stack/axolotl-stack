@@ -1,7 +1,5 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:transient`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
-pub struct Transient {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
-}
+/// Bedrock component `minecraft:transient`. An entity with this component will NEVER persist, and forever disappear when unloaded.
+#[derive(Component, Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[component(storage = "SparseSet")]
+pub struct Transient;

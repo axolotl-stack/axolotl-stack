@@ -1,7 +1,15 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:leashable_to`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+/// Bedrock component `minecraft:leashable_to`. Allows players to leash entities to this entity, retrieve those already leashed to it, or free them using shears.
+#[derive(Component, Debug, Clone, PartialEq)]
+#[component(storage = "SparseSet")]
 pub struct LeashableTo {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    ///Allows players to retrieve entities that are leashed to this entity.
+    pub can_retrieve_from: Option<bool>,
+}
+impl Default for LeashableTo {
+    fn default() -> Self {
+        Self {
+            can_retrieve_from: Some(false),
+        }
+    }
 }

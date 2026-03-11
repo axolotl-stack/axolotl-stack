@@ -1,7 +1,20 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:behavior.squid_out_of_water`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
+pub struct BehaviorSquidOutOfWaterPriority {}
+impl Default for BehaviorSquidOutOfWaterPriority {
+    fn default() -> Self {
+        Self {}
+    }
+}
+/// Bedrock component `minecraft:behavior.squid_out_of_water`. Allows the squid to stick to the ground when outside water. Can only be used by the Squid.
+#[derive(Component, Debug, Clone, PartialEq)]
+#[component(storage = "SparseSet")]
 pub struct BehaviorSquidOutOfWater {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    ///priority
+    pub priority: Option<BehaviorSquidOutOfWaterPriority>,
+}
+impl Default for BehaviorSquidOutOfWater {
+    fn default() -> Self {
+        Self { priority: None }
+    }
 }

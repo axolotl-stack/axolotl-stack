@@ -1,7 +1,15 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:on_hurt_by_player`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+/// Bedrock component `minecraft:on_hurt_by_player`. Trigger to fire.
+#[derive(Component, Debug, Clone, PartialEq)]
+#[component(storage = "SparseSet")]
 pub struct OnHurtByPlayer {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    ///value
+    pub value: crate::types::BedrockValue,
+}
+impl Default for OnHurtByPlayer {
+    fn default() -> Self {
+        Self {
+            value: crate::types::BedrockValue::Null,
+        }
+    }
 }

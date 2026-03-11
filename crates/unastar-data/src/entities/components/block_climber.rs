@@ -1,7 +1,5 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:block_climber`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
-pub struct BlockClimber {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
-}
+/// Bedrock component `minecraft:block_climber`. Allows the player to detect and manuever on the scaffolding block.
+#[derive(Component, Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[component(storage = "SparseSet")]
+pub struct BlockClimber;

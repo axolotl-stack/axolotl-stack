@@ -1,6 +1,63 @@
 //! Core polymorphic types for handling Bedrock's inconsistent JSON.
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+/// Generic Bedrock data value for schema branches that stay open-ended.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[serde(untagged)]
+pub enum BedrockValue {
+    #[default]
+    Null,
+    Bool(bool),
+    Integer(i64),
+    Float(f64),
+    String(String),
+    Array(Vec<BedrockValue>),
+    Object(HashMap<String, BedrockValue>),
+}
+
+impl From<bool> for BedrockValue {
+    fn from(value: bool) -> Self {
+        Self::Bool(value)
+    }
+}
+
+impl From<i32> for BedrockValue {
+    fn from(value: i32) -> Self {
+        Self::Integer(value as i64)
+    }
+}
+
+impl From<i64> for BedrockValue {
+    fn from(value: i64) -> Self {
+        Self::Integer(value)
+    }
+}
+
+impl From<f32> for BedrockValue {
+    fn from(value: f32) -> Self {
+        Self::Float(value as f64)
+    }
+}
+
+impl From<f64> for BedrockValue {
+    fn from(value: f64) -> Self {
+        Self::Float(value)
+    }
+}
+
+impl From<String> for BedrockValue {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
+}
+
+impl From<&str> for BedrockValue {
+    fn from(value: &str) -> Self {
+        Self::String(value.to_string())
+    }
+}
 
 /// Handles fields that can be a single value OR a min/max range.
 /// Examples: `fuse_length`, `damage`, `cooldown`

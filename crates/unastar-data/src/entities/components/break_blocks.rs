@@ -1,7 +1,15 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:break_blocks`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+/// Bedrock component `minecraft:break_blocks`. Specifies the blocks that this entity can break as it moves around.
+#[derive(Component, Debug, Clone, PartialEq)]
+#[component(storage = "SparseSet")]
 pub struct BreakBlocks {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    ///A list of the blocks that can be broken as this entity moves around.
+    pub breakable_blocks: Option<Vec<String>>,
+}
+impl Default for BreakBlocks {
+    fn default() -> Self {
+        Self {
+            breakable_blocks: None,
+        }
+    }
 }

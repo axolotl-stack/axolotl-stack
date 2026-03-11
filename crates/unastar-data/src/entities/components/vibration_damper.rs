@@ -1,7 +1,5 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:vibration_damper`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
-pub struct VibrationDamper {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
-}
+/// Bedrock component `minecraft:vibration_damper`. Vibrations emitted by this entity will be ignored.
+#[derive(Component, Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[component(storage = "SparseSet")]
+pub struct VibrationDamper;

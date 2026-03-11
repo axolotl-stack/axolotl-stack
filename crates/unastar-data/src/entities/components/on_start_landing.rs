@@ -1,7 +1,15 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:on_start_landing`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+/// Bedrock component `minecraft:on_start_landing`. Trigger to fire.
+#[derive(Component, Debug, Clone, PartialEq)]
+#[component(storage = "SparseSet")]
 pub struct OnStartLanding {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    ///value
+    pub value: crate::types::BedrockValue,
+}
+impl Default for OnStartLanding {
+    fn default() -> Self {
+        Self {
+            value: crate::types::BedrockValue::Null,
+        }
+    }
 }

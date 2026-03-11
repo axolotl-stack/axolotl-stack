@@ -1,7 +1,13 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:mark_variant`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+/// Bedrock component `minecraft:mark_variant`. Additional variant value. Can be used to further differentiate variants.
+#[derive(Component, Debug, Clone, PartialEq)]
+#[component(storage = "SparseSet")]
 pub struct MarkVariant {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    ///The ID of the variant. By convention, 0 is the ID of the base entity
+    pub value: i32,
+}
+impl Default for MarkVariant {
+    fn default() -> Self {
+        Self { value: 0i32 }
+    }
 }

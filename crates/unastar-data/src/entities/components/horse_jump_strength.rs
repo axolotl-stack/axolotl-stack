@@ -1,7 +1,15 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:horse.jump_strength`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+/// Bedrock component `minecraft:horse.jump_strength`. Allows this mob to jump higher when being ridden by a player.
+#[derive(Component, Debug, Clone, PartialEq)]
+#[component(storage = "SparseSet")]
 pub struct HorseJumpStrength {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    ///The multiplier to apply to the jumping height.
+    pub value: crate::types::RangeOrVal<f32>,
+}
+impl Default for HorseJumpStrength {
+    fn default() -> Self {
+        Self {
+            value: crate::types::RangeOrVal::Fixed(0f32),
+        }
+    }
 }

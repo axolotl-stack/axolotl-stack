@@ -1,6 +1,7 @@
 //! Generated definition for entity.
+#[allow(unused_imports)]
 use super::super::components::*;
-use bevy_ecs::prelude::*;
+use bevy_ecs::prelude::{Bundle, Commands, Entity};
 /// Entity definition for `minecraft:thrown_trident`
 pub struct ThrownTrident;
 impl ThrownTrident {
@@ -14,25 +15,114 @@ impl ThrownTrident {
 /// Component bundle for spawning a `minecraft:thrown_trident`
 #[derive(Bundle, Clone)]
 pub struct ThrownTridentBundle {
-    pub collision_box: CollisionBox,
-    pub physics: Physics,
-    pub pushable: Pushable,
+    pub collision_box: super::super::components::CollisionBox,
+    pub conditional_bandwidth_optimization:
+        super::super::components::ConditionalBandwidthOptimization,
+    pub dimension_bound: super::super::components::DimensionBound,
+    pub physics: super::super::components::Physics,
+    pub projectile: super::super::components::Projectile,
+    pub pushable: super::super::components::Pushable,
 }
 /// Spawn a new `minecraft:thrown_trident` entity with default Bedrock components
 pub fn spawn_thrown_trident(commands: &mut Commands) -> Entity {
     commands
         .spawn(ThrownTridentBundle {
-            collision_box: CollisionBox {
-                width: 0.25f32,
-                height: 0.35f32,
+            collision_box: super::super::components::CollisionBox {
+                height: Some(0.35f32),
+                width: Some(0.25f32),
             },
-            physics: Physics {
-                has_gravity: false,
-                has_collision: false,
+            conditional_bandwidth_optimization:
+                super::super::components::ConditionalBandwidthOptimization {
+                    conditional_values: None,
+                    default_values: Some(ConditionalBandwidthOptimizationDefaultValues {
+                        max_dropped_ticks: Some(7i32),
+                        max_optimized_distance: Some(80f32),
+                        use_motion_prediction_hints: Some(true),
+                    }),
+                },
+            dimension_bound: super::super::components::DimensionBound,
+            physics: super::super::components::Physics {
+                has_collision: Some(true),
+                has_gravity: Some(true),
+                push_towards_closest_space: Some(false),
             },
-            pushable: Pushable {
-                is_pushable: true,
-                is_pushable_by_piston: true,
+            projectile: super::super::components::Projectile {
+                anchor: Some(1i32),
+                angle_offset: Some(0f32),
+                catch_fire: Some(false),
+                crit_particle_on_hurt: Some(false),
+                destroy_on_hurt: Some(false),
+                filter: None,
+                fire_affected_by_griefing: Some(false),
+                gravity: Some(0.1f32),
+                hit_ground_sound: Some("item.trident.hit_ground".to_string()),
+                hit_nearest_passenger: Some(false),
+                hit_sound: Some("item.trident.hit".to_string()),
+                homing: Some(false),
+                ignored_entities: None,
+                inertia: Some(0.99f32),
+                is_dangerous: Some(false),
+                knockback: Some(true),
+                lightning: Some(false),
+                liquid_inertia: Some(0.99f32),
+                mob_effect: None,
+                multiple_targets: Some(false),
+                offset: Some(vec![0f32, 0f32, 0f32]),
+                on_fire_time: Some(5f32),
+                on_hit: Some(ProjectileOnHit {
+                    arrow_effect: None,
+                    catch_fire: None,
+                    definition_event: None,
+                    douse_fire: None,
+                    freeze_on_hit: None,
+                    grant_xp: None,
+                    hurt_owner: None,
+                    ignite: None,
+                    impact_damage: Some(ProjectileOnHitImpactDamage {
+                        apply_knockback_to_blocking_targets: None,
+                        catch_fire: None,
+                        channeling: None,
+                        damage: Some(crate::types::RangeOrVal::Fixed(8f32)),
+                        destroy_on_hit: Some(false),
+                        destroy_on_hit_requires_damage: None,
+                        filter: None,
+                        knockback: Some(true),
+                        max_critical_damage: None,
+                        min_critical_damage: None,
+                        power_multiplier: None,
+                        semi_random_diff_damage: Some(false),
+                        set_last_hurt_requires_damage: None,
+                        should_bounce: None,
+                    }),
+                    mob_effect: None,
+                    on_fire_time: None,
+                    particle_on_hit: None,
+                    potion_effect: None,
+                    remove_on_hit: None,
+                    spawn_aoe_cloud: None,
+                    spawn_chance: None,
+                    stick_in_ground: Some(ProjectileOnHitStickInGround {}),
+                    teleport_owner: None,
+                    thrown_potion_effect: None,
+                }),
+                particle: Some("iconcrack".to_string()),
+                potion_effect: Some(-1i32),
+                power: Some(4f32),
+                reflect_immunity: Some(0f32),
+                reflect_on_hurt: Some(false),
+                semi_random_diff_damage: Some(false),
+                shoot_sound: None,
+                shoot_target: Some(true),
+                should_bounce: Some(true),
+                splash_potion: Some(false),
+                splash_range: Some(4f32),
+                stop_on_hurt: Some(true),
+                uncertainty_base: Some(1f32),
+                uncertainty_multiplier: Some(0f32),
+            },
+            pushable: super::super::components::Pushable {
+                is_pushable: Some(true),
+                is_pushable_by_piston: Some(true),
             },
         })
         .id()

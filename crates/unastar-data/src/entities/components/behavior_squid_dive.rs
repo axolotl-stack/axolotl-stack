@@ -1,7 +1,20 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:behavior.squid_dive`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
+pub struct BehaviorSquidDivePriority {}
+impl Default for BehaviorSquidDivePriority {
+    fn default() -> Self {
+        Self {}
+    }
+}
+/// Bedrock component `minecraft:behavior.squid_dive`. Allows an entity to dive underwater.
+#[derive(Component, Debug, Clone, PartialEq)]
+#[component(storage = "SparseSet")]
 pub struct BehaviorSquidDive {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    ///priority
+    pub priority: Option<BehaviorSquidDivePriority>,
+}
+impl Default for BehaviorSquidDive {
+    fn default() -> Self {
+        Self { priority: None }
+    }
 }

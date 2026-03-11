@@ -1,7 +1,14 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:jump.static`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
+/// Bedrock component `minecraft:jump.static`. Gives the entity the ability to jump.
+#[derive(Component, Debug, Clone, PartialEq)]
 pub struct JumpStatic {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
+    ///The initial vertical velocity for the jump.
+    pub jump_power: Option<f32>,
+}
+impl Default for JumpStatic {
+    fn default() -> Self {
+        Self {
+            jump_power: Some(0.42f32),
+        }
+    }
 }

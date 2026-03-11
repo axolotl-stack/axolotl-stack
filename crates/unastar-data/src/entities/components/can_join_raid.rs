@@ -1,7 +1,5 @@
 use bevy_ecs::prelude::*;
-/// Component DTO for `minecraft:can_join_raid`
-#[derive(Component, Debug, Clone, Default, PartialEq)]
-pub struct CanJoinRaid {
-    /// Raw data - schema not yet defined
-    pub data: Option<serde_json::Value>,
-}
+/// Bedrock component `minecraft:can_join_raid`. Sets that this entity can join a raid.
+#[derive(Component, Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[component(storage = "SparseSet")]
+pub struct CanJoinRaid;
