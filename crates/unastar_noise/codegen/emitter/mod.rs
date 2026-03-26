@@ -1,5 +1,6 @@
 pub mod biome_features;
 pub mod emitter_quote;
+pub mod go;
 pub mod noise;
 pub mod surface_rule;
 
@@ -75,6 +76,47 @@ pub use overworld_compiled::*;
 pub use surface_rules::*;
 "#;
     std::fs::write(output_dir.join("mod.rs"), mod_content)?;
+
+    Ok(())
+}
+
+pub fn emit_all_go(
+    output_dir: &Path,
+    package: &str,
+    noises: &HashMap<String, parser::noise::NoiseParams>,
+    density_functions: &HashMap<String, parser::density_function::DensityFunctionArg>,
+    noise_settings: &HashMap<String, parser::noise_settings::NoiseSettings>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    std::fs::create_dir_all(output_dir)?;
+
+    go::emit_noise_params(output_dir, package, noises)?;
+
+    if let Some(overworld) = noise_settings.get("minecraft:overworld") {
+        let router = &overworld.noise_router;
+        let router_fields: Vec<(&str, &parser::density_function::DensityFunctionArg)> = vec![
+            ("barrier", &router.barrier),
+            ("continents", &router.continents),
+            ("depth", &router.depth),
+            ("erosion", &router.erosion),
+            ("final_density", &router.final_density),
+            ("fluid_level_floodedness", &router.fluid_level_floodedness),
+            ("fluid_level_spread", &router.fluid_level_spread),
+            ("lava", &router.lava),
+            (
+                "preliminary_surface_level",
+                &router.preliminary_surface_level,
+            ),
+            ("ridges", &router.ridges),
+            ("temperature", &router.temperature),
+            ("vegetation", &router.vegetation),
+            ("vein_gap", &router.vein_gap),
+            ("vein_ridged", &router.vein_ridged),
+            ("vein_toggle", &router.vein_toggle),
+        ];
+
+        let graph = DependencyGraph::build(&router_fields, density_functions);
+        go::emit_overworld_graph(output_dir, package, &graph)?;
+    }
 
     Ok(())
 }

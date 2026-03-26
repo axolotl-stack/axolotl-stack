@@ -60,5 +60,19 @@ fn main() {
     )
     .expect("Failed to emit generated code");
 
+    if let Ok(go_out_dir) = std::env::var("UNASTAR_NOISE_GO_OUT") {
+        let go_package =
+            std::env::var("UNASTAR_NOISE_GO_PACKAGE").unwrap_or_else(|_| "gen".to_string());
+        codegen::emitter::emit_all_go(
+            &PathBuf::from(go_out_dir),
+            &go_package,
+            &noises,
+            &density_functions,
+            &noise_settings,
+        )
+        .expect("Failed to emit Go worldgen code");
+        println!("cargo:warning=Generated Go worldgen code");
+    }
+
     println!("cargo:warning=Generated worldgen code in {:?}", output_dir);
 }
