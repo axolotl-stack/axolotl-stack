@@ -15,6 +15,7 @@ pub fn emit_all(
     density_functions: &HashMap<String, parser::density_function::DensityFunctionArg>,
     noise_settings: &HashMap<String, parser::noise_settings::NoiseSettings>,
     biomes: &HashMap<String, parser::biome::BiomeJson>,
+    _configured_carvers: &HashMap<String, parser::configured_carver::ConfiguredCarverJson>,
     _configured_features: &HashMap<String, parser::configured_feature::ConfiguredFeatureJson>,
     _placed_features: &HashMap<String, parser::placed_feature::PlacedFeatureJson>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -89,6 +90,7 @@ pub fn emit_all_go(
     density_functions: &HashMap<String, parser::density_function::DensityFunctionArg>,
     noise_settings: &HashMap<String, parser::noise_settings::NoiseSettings>,
     biomes: &HashMap<String, parser::biome::BiomeJson>,
+    configured_carvers: &HashMap<String, parser::configured_carver::ConfiguredCarverJson>,
     configured_features: &HashMap<String, parser::configured_feature::ConfiguredFeatureJson>,
     placed_features: &HashMap<String, parser::placed_feature::PlacedFeatureJson>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -96,7 +98,13 @@ pub fn emit_all_go(
 
     go::emit_noise_params(output_dir, package, noises)?;
     go::emit_biome_features(output_dir, package, biomes)?;
-    go::emit_feature_data(output_dir, package, configured_features, placed_features)?;
+    go::emit_feature_data(
+        output_dir,
+        package,
+        configured_carvers,
+        configured_features,
+        placed_features,
+    )?;
 
     if let Some(overworld) = noise_settings.get("minecraft:overworld") {
         let router = &overworld.noise_router;

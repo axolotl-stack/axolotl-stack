@@ -38,6 +38,9 @@ fn main() {
             .expect("Failed to parse noise settings");
     let biomes = codegen::parser::biome::parse_all(&json_root.join("biome"))
         .expect("Failed to parse biome definitions");
+    let configured_carvers =
+        codegen::parser::configured_carver::parse_all(&json_root.join("configured_carver"))
+            .expect("Failed to parse configured carvers");
     let configured_features =
         codegen::parser::configured_feature::parse_all(&json_root.join("configured_feature"))
             .expect("Failed to parse configured features");
@@ -56,6 +59,10 @@ fn main() {
     );
     println!("cargo:warning=Parsed {} biome definitions", biomes.len());
     println!(
+        "cargo:warning=Parsed {} configured carvers",
+        configured_carvers.len()
+    );
+    println!(
         "cargo:warning=Parsed {} configured features",
         configured_features.len()
     );
@@ -71,6 +78,7 @@ fn main() {
         &density_functions,
         &noise_settings,
         &biomes,
+        &configured_carvers,
         &configured_features,
         &placed_features,
     )
@@ -86,6 +94,7 @@ fn main() {
             &density_functions,
             &noise_settings,
             &biomes,
+            &configured_carvers,
             &configured_features,
             &placed_features,
         )
