@@ -116,6 +116,7 @@ pub fn emit_all_go(
 
         let graph = DependencyGraph::build(&router_fields, density_functions);
         go::emit_overworld_graph(output_dir, package, &graph)?;
+        go::emit_overworld_compiled(output_dir, package, &graph)?;
     }
 
     Ok(())
