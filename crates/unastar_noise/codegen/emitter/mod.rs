@@ -117,6 +117,15 @@ pub fn emit_all_go(
     configured_carvers: &HashMap<String, parser::configured_carver::ConfiguredCarverJson>,
     configured_features: &HashMap<String, parser::configured_feature::ConfiguredFeatureJson>,
     placed_features: &HashMap<String, parser::placed_feature::PlacedFeatureJson>,
+    biome_source_parameter_lists: &HashMap<
+        String,
+        parser::multi_noise_biome_source_parameter_list::MultiNoiseBiomeSourceParameterListJson,
+    >,
+    processor_lists: &HashMap<String, parser::processor_list::ProcessorListJson>,
+    structures: &HashMap<String, parser::structure::StructureJson>,
+    structure_sets: &HashMap<String, parser::structure_set::StructureSetJson>,
+    template_pools: &HashMap<String, parser::template_pool::TemplatePoolJson>,
+    structure_templates: &HashMap<String, parser::structure_template::StructureTemplateAsset>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     std::fs::create_dir_all(output_dir)?;
 
@@ -128,6 +137,16 @@ pub fn emit_all_go(
         configured_carvers,
         configured_features,
         placed_features,
+    )?;
+    go::emit_registry_data(
+        output_dir,
+        package,
+        biome_source_parameter_lists,
+        processor_lists,
+        structures,
+        structure_sets,
+        template_pools,
+        structure_templates,
     )?;
 
     if let Some(overworld) = noise_settings.get("minecraft:overworld") {

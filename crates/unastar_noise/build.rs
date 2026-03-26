@@ -149,6 +149,12 @@ fn main() {
             &configured_carvers,
             &configured_features,
             &placed_features,
+            &biome_source_parameter_lists,
+            &processor_lists,
+            &structures,
+            &structure_sets,
+            &template_pools,
+            &structure_templates,
         )
         .expect("Failed to emit Go worldgen code");
         println!("cargo:warning=Generated Go worldgen code");
