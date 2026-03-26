@@ -15,6 +15,8 @@ pub fn emit_all(
     density_functions: &HashMap<String, parser::density_function::DensityFunctionArg>,
     noise_settings: &HashMap<String, parser::noise_settings::NoiseSettings>,
     biomes: &HashMap<String, parser::biome::BiomeJson>,
+    _configured_features: &HashMap<String, parser::configured_feature::ConfiguredFeatureJson>,
+    _placed_features: &HashMap<String, parser::placed_feature::PlacedFeatureJson>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Generate noise_params.rs (dynamic - from JSON)
     noise::emit_noise_params(output_dir, noises)?;
@@ -86,10 +88,15 @@ pub fn emit_all_go(
     noises: &HashMap<String, parser::noise::NoiseParams>,
     density_functions: &HashMap<String, parser::density_function::DensityFunctionArg>,
     noise_settings: &HashMap<String, parser::noise_settings::NoiseSettings>,
+    biomes: &HashMap<String, parser::biome::BiomeJson>,
+    configured_features: &HashMap<String, parser::configured_feature::ConfiguredFeatureJson>,
+    placed_features: &HashMap<String, parser::placed_feature::PlacedFeatureJson>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     std::fs::create_dir_all(output_dir)?;
 
     go::emit_noise_params(output_dir, package, noises)?;
+    go::emit_biome_features(output_dir, package, biomes)?;
+    go::emit_feature_data(output_dir, package, configured_features, placed_features)?;
 
     if let Some(overworld) = noise_settings.get("minecraft:overworld") {
         let router = &overworld.noise_router;
@@ -117,6 +124,7 @@ pub fn emit_all_go(
         let graph = DependencyGraph::build(&router_fields, density_functions);
         go::emit_overworld_graph(output_dir, package, &graph)?;
         go::emit_overworld_compiled(output_dir, package, &graph)?;
+        go::emit_surface_rules(output_dir, package, &overworld.surface_rule)?;
     }
 
     Ok(())

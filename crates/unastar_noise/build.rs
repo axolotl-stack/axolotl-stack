@@ -38,6 +38,12 @@ fn main() {
             .expect("Failed to parse noise settings");
     let biomes = codegen::parser::biome::parse_all(&json_root.join("biome"))
         .expect("Failed to parse biome definitions");
+    let configured_features =
+        codegen::parser::configured_feature::parse_all(&json_root.join("configured_feature"))
+            .expect("Failed to parse configured features");
+    let placed_features =
+        codegen::parser::placed_feature::parse_all(&json_root.join("placed_feature"))
+            .expect("Failed to parse placed features");
 
     println!("cargo:warning=Parsed {} noise definitions", noises.len());
     println!(
@@ -49,6 +55,14 @@ fn main() {
         noise_settings.len()
     );
     println!("cargo:warning=Parsed {} biome definitions", biomes.len());
+    println!(
+        "cargo:warning=Parsed {} configured features",
+        configured_features.len()
+    );
+    println!(
+        "cargo:warning=Parsed {} placed features",
+        placed_features.len()
+    );
 
     // Generate Rust code
     codegen::emitter::emit_all(
@@ -57,6 +71,8 @@ fn main() {
         &density_functions,
         &noise_settings,
         &biomes,
+        &configured_features,
+        &placed_features,
     )
     .expect("Failed to emit generated code");
 
@@ -69,6 +85,9 @@ fn main() {
             &noises,
             &density_functions,
             &noise_settings,
+            &biomes,
+            &configured_features,
+            &placed_features,
         )
         .expect("Failed to emit Go worldgen code");
         println!("cargo:warning=Generated Go worldgen code");
