@@ -1,0 +1,11 @@
+use super::common::{RawJsonAsset, parse_raw_json_registry};
+use std::collections::HashMap;
+use std::path::Path;
+
+pub type StructureSetJson = RawJsonAsset;
+
+pub fn parse_all(
+    dir: &Path,
+) -> Result<HashMap<String, StructureSetJson>, Box<dyn std::error::Error>> {
+    parse_raw_json_registry(dir)
+}

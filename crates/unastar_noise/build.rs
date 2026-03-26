@@ -12,14 +12,21 @@ fn main() {
     let out_dir = std::env::var("OUT_DIR").unwrap();
 
     let json_root = PathBuf::from(&manifest_dir).join("worldgen_data");
+    let structure_root = PathBuf::from(&manifest_dir).join("structure_data");
     let output_dir = PathBuf::from(&out_dir);
 
     // Emit rerun-if-changed for the worldgen_data directory
     println!("cargo:rerun-if-changed=worldgen_data");
+    println!("cargo:rerun-if-changed=structure_data");
 
     // Also emit rerun-if-changed for individual JSON files
     for e in walkdir::WalkDir::new(&json_root).into_iter().flatten() {
         if e.path().extension().is_some_and(|ext| ext == "json") {
+            println!("cargo:rerun-if-changed={}", e.path().display());
+        }
+    }
+    for e in walkdir::WalkDir::new(&structure_root).into_iter().flatten() {
+        if e.path().extension().is_some_and(|ext| ext == "nbt") {
             println!("cargo:rerun-if-changed={}", e.path().display());
         }
     }
@@ -47,6 +54,24 @@ fn main() {
     let placed_features =
         codegen::parser::placed_feature::parse_all(&json_root.join("placed_feature"))
             .expect("Failed to parse placed features");
+    let biome_source_parameter_lists =
+        codegen::parser::multi_noise_biome_source_parameter_list::parse_all(
+            &json_root.join("multi_noise_biome_source_parameter_list"),
+        )
+        .expect("Failed to parse multi-noise biome source parameter lists");
+    let processor_lists =
+        codegen::parser::processor_list::parse_all(&json_root.join("processor_list"))
+            .expect("Failed to parse processor lists");
+    let structures = codegen::parser::structure::parse_all(&json_root.join("structure"))
+        .expect("Failed to parse structure definitions");
+    let structure_sets =
+        codegen::parser::structure_set::parse_all(&json_root.join("structure_set"))
+            .expect("Failed to parse structure sets");
+    let template_pools =
+        codegen::parser::template_pool::parse_all(&json_root.join("template_pool"))
+            .expect("Failed to parse template pools");
+    let structure_templates = codegen::parser::structure_template::parse_all(&structure_root)
+        .expect("Failed to collect structure templates");
 
     println!("cargo:warning=Parsed {} noise definitions", noises.len());
     println!(
@@ -70,6 +95,27 @@ fn main() {
         "cargo:warning=Parsed {} placed features",
         placed_features.len()
     );
+    println!(
+        "cargo:warning=Parsed {} biome source parameter lists",
+        biome_source_parameter_lists.len()
+    );
+    println!(
+        "cargo:warning=Parsed {} processor lists",
+        processor_lists.len()
+    );
+    println!("cargo:warning=Parsed {} structures", structures.len());
+    println!(
+        "cargo:warning=Parsed {} structure sets",
+        structure_sets.len()
+    );
+    println!(
+        "cargo:warning=Parsed {} template pools",
+        template_pools.len()
+    );
+    println!(
+        "cargo:warning=Collected {} structure templates",
+        structure_templates.len()
+    );
 
     // Generate Rust code
     codegen::emitter::emit_all(
@@ -81,6 +127,12 @@ fn main() {
         &configured_carvers,
         &configured_features,
         &placed_features,
+        &biome_source_parameter_lists,
+        &processor_lists,
+        &structures,
+        &structure_sets,
+        &template_pools,
+        &structure_templates,
     )
     .expect("Failed to emit generated code");
 

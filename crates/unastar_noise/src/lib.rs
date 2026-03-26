@@ -75,3 +75,30 @@ pub use surface::{
 
 // Include generated code from OUT_DIR
 include!(concat!(env!("OUT_DIR"), "/mod.rs"));
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn exposes_biome_source_parameter_list_json() {
+        let overworld = multi_noise_biome_source_parameter_list_json("overworld")
+            .expect("missing overworld biome source preset");
+        assert!(overworld.contains("\"preset\""));
+        assert!(overworld.contains("minecraft:overworld"));
+    }
+
+    #[test]
+    fn exposes_template_pool_json() {
+        let plains_town_centers = template_pool_json("village/plains/town_centers")
+            .expect("missing village/plains/town_centers template pool");
+        assert!(plains_town_centers.contains("\"elements\""));
+    }
+
+    #[test]
+    fn exposes_structure_template_bytes() {
+        let watchtower = structure_template_nbt("pillager_outpost/watchtower")
+            .expect("missing pillager outpost watchtower template");
+        assert!(!watchtower.is_empty());
+    }
+}

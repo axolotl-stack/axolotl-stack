@@ -2,6 +2,7 @@ pub mod biome_features;
 pub mod emitter_quote;
 pub mod go;
 pub mod noise;
+pub mod registries;
 pub mod surface_rule;
 
 use super::analyzer::DependencyGraph;
@@ -18,6 +19,15 @@ pub fn emit_all(
     _configured_carvers: &HashMap<String, parser::configured_carver::ConfiguredCarverJson>,
     _configured_features: &HashMap<String, parser::configured_feature::ConfiguredFeatureJson>,
     _placed_features: &HashMap<String, parser::placed_feature::PlacedFeatureJson>,
+    biome_source_parameter_lists: &HashMap<
+        String,
+        parser::multi_noise_biome_source_parameter_list::MultiNoiseBiomeSourceParameterListJson,
+    >,
+    processor_lists: &HashMap<String, parser::processor_list::ProcessorListJson>,
+    structures: &HashMap<String, parser::structure::StructureJson>,
+    structure_sets: &HashMap<String, parser::structure_set::StructureSetJson>,
+    template_pools: &HashMap<String, parser::template_pool::TemplatePoolJson>,
+    structure_templates: &HashMap<String, parser::structure_template::StructureTemplateAsset>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Generate noise_params.rs (dynamic - from JSON)
     noise::emit_noise_params(output_dir, noises)?;
@@ -64,6 +74,18 @@ pub fn emit_all(
         surface_rule::emit_surface_rules(output_dir, &overworld.surface_rule)?;
     }
 
+    registries::emit_worldgen_registries(
+        output_dir,
+        registries::RegistryAssets {
+            biome_source_parameter_lists,
+            processor_lists,
+            structures,
+            structure_sets,
+            template_pools,
+            structure_templates,
+        },
+    )?;
+
     // Generate mod.rs - use regular comments instead of doc comments for include!() compatibility
     let mod_content = r#"// Generated worldgen code.
 // Do not edit manually - regenerated at build time from worldgen JSON.
@@ -72,11 +94,13 @@ mod biome_features;
 mod noise_params;
 mod overworld_compiled;
 mod surface_rules;
+mod worldgen_registries;
 
 pub use biome_features::*;
 pub use noise_params::*;
 pub use overworld_compiled::*;
 pub use surface_rules::*;
+pub use worldgen_registries::*;
 "#;
     std::fs::write(output_dir.join("mod.rs"), mod_content)?;
 

@@ -1,8 +1,15 @@
 pub mod biome;
+pub mod common;
 pub mod configured_carver;
 pub mod configured_feature;
 pub mod density_function;
+pub mod multi_noise_biome_source_parameter_list;
 pub mod noise;
 pub mod noise_settings;
 pub mod placed_feature;
+pub mod processor_list;
+pub mod structure;
+pub mod structure_set;
+pub mod structure_template;
 pub mod surface_rule;
+pub mod template_pool;
