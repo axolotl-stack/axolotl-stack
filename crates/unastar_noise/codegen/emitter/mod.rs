@@ -148,9 +148,19 @@ pub fn emit_all_go(
         template_pools,
         structure_templates,
     )?;
+    go::emit_dimension_metadata(output_dir, package, noise_settings)?;
 
-    if let Some(overworld) = noise_settings.get("minecraft:overworld") {
-        let router = &overworld.noise_router;
+    let mut surface_rules = Vec::new();
+    for (dimension, settings) in [
+        ("overworld", noise_settings.get("minecraft:overworld")),
+        ("nether", noise_settings.get("minecraft:nether")),
+        ("end", noise_settings.get("minecraft:end")),
+    ] {
+        let Some(settings) = settings else {
+            continue;
+        };
+
+        let router = &settings.noise_router;
         let router_fields: Vec<(&str, &parser::density_function::DensityFunctionArg)> = vec![
             ("barrier", &router.barrier),
             ("continents", &router.continents),
@@ -173,10 +183,14 @@ pub fn emit_all_go(
         ];
 
         let graph = DependencyGraph::build(&router_fields, density_functions);
-        go::emit_overworld_graph(output_dir, package, &graph)?;
-        go::emit_overworld_compiled(output_dir, package, &graph)?;
-        go::emit_surface_rules(output_dir, package, &overworld.surface_rule)?;
+        go::emit_dimension_graph(output_dir, package, dimension, &graph)?;
+        if dimension == "overworld" {
+            go::emit_overworld_compiled(output_dir, package, &graph)?;
+        }
+        surface_rules.push((dimension, &settings.surface_rule));
     }
+
+    go::emit_surface_rules(output_dir, package, &surface_rules)?;
 
     Ok(())
 }
