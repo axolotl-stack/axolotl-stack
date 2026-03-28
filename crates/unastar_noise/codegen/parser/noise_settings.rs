@@ -1,20 +1,28 @@
 use super::density_function::DensityFunctionArg;
-use super::surface_rule::RuleSource;
+use super::surface_rule::{BlockState, RuleSource};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::Path;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct NoiseSettings {
-    #[allow(dead_code)]
     pub aquifers_enabled: bool,
-    #[allow(dead_code)]
     pub ore_veins_enabled: bool,
-    #[allow(dead_code)]
     pub sea_level: i32,
+    pub default_block: BlockState,
+    pub default_fluid: BlockState,
+    pub noise: NoiseHeightSettings,
     pub noise_router: NoiseRouter,
     /// Surface rules parsed from JSON.
     pub surface_rule: RuleSource,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct NoiseHeightSettings {
+    pub height: i32,
+    pub min_y: i32,
+    pub size_horizontal: i32,
+    pub size_vertical: i32,
 }
 
 /// Noise router containing all density function fields.

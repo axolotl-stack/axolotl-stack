@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 /// A density function argument - can be constant, reference, or inline
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum DensityFunctionArg {
     Constant(f64),
@@ -12,7 +12,7 @@ pub enum DensityFunctionArg {
 }
 
 /// All density function types from Minecraft
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(tag = "type")]
 pub enum DensityFunctionDef {
     #[serde(rename = "minecraft:constant")]
@@ -176,20 +176,20 @@ pub enum DensityFunctionDef {
     },
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct SplineDef {
     pub coordinate: DensityFunctionArg,
     pub points: Vec<SplinePoint>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct SplinePoint {
     pub location: f64,
     pub value: SplineValue,
     pub derivative: f64,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum SplineValue {
     Constant(f64),

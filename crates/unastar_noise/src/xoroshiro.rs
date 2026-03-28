@@ -141,6 +141,11 @@ impl JavaRandom {
         }
     }
 
+    /// Generate a random 32-bit integer.
+    pub fn next_i32(&mut self) -> i32 {
+        self.next(32)
+    }
+
     /// Generate random float in [0.0, 1.0).
     pub fn next_float(&mut self) -> f32 {
         self.next(24) as f32 / (1 << 24) as f32

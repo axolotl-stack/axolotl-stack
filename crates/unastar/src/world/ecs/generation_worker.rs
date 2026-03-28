@@ -12,6 +12,8 @@ use tokio::sync::{mpsc, oneshot};
 use crate::world::Chunk;
 use crate::world::generator::VanillaGenerator;
 
+const WORLDGEN_THREAD_STACK_SIZE: usize = 16 * 1024 * 1024;
+
 /// Request to generate a chunk at the given coordinates.
 pub struct ChunkGenRequest {
     pub x: i32,
@@ -72,27 +74,37 @@ impl ChunkGenerationWorker {
             let gen_clone = generator.clone();
             let x = req.x;
             let z = req.z;
+            let response_tx = req.response_tx;
 
-            // Spawn without awaiting - allows parallel generation!
-            // Each task runs on tokio's blocking thread pool.
-            tokio::spawn(async move {
-                let result =
-                    tokio::task::spawn_blocking(move || gen_clone.generate_chunk(x, z)).await;
+            match std::thread::Builder::new()
+                .name(format!("chunk-gen-{x}-{z}"))
+                .stack_size(WORLDGEN_THREAD_STACK_SIZE)
+                .spawn(move || {
+                    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        gen_clone.generate_chunk(x, z)
+                    }));
 
-                match result {
-                    Ok(chunk) => {
-                        // Send result back; ignore error if receiver was dropped
-                        let _ = req.response_tx.send(chunk);
+                    match result {
+                        Ok(chunk) => {
+                            let _ = response_tx.send(chunk);
+                        }
+                        Err(_) => {
+                            tracing::warn!(
+                                chunk = ?(x, z),
+                                "Chunk generation thread panicked"
+                            );
+                        }
                     }
-                    Err(e) => {
-                        tracing::warn!(
-                            chunk = ?(x, z),
-                            error = %e,
-                            "Chunk generation task panicked or was cancelled"
-                        );
-                    }
+                }) {
+                Ok(_) => {}
+                Err(error) => {
+                    tracing::warn!(
+                        chunk = ?(x, z),
+                        error = %error,
+                        "Failed to spawn chunk generation thread"
+                    );
                 }
-            });
+            }
         }
 
         tracing::debug!("Chunk generation worker shutting down");
