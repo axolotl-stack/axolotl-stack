@@ -4540,6 +4540,7 @@ dependencies = [
  "bytes",
  "crc32fast",
  "criterion",
+ "flate2",
  "glam",
  "jolyne",
  "lru",

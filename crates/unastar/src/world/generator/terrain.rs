@@ -7,17 +7,22 @@
 //! - Surface rules for biome-based block placement
 
 use super::aquifer::NoiseBasedAquifer;
+use super::beardifier::StructureBeardifier;
 use super::constants::Biome;
 use super::density::{
     CachingNoiseChunk, ColumnContext, ColumnContextGrid, FlatCacheGrid, FunctionContext,
     NoiseRegistry, compute_final_density,
 };
+use super::features::apply_overworld_biome_decoration;
+use super::jigsaw::{
+    build_overworld_jigsaw_beardifier, place_overworld_direct_structure_starts,
+    place_overworld_jigsaw_structure_starts,
+};
 use super::ore_veinifier::OreVeinifier;
 use super::surface::SurfaceSystem;
 use super::xoroshiro::{JavaRandom, PositionalRandomFactory};
-use crate::world::chunk::{Chunk, blocks};
+use crate::world::chunk::{Chunk, MIN_Y, blocks};
 use crate::world::generator::BiomeNoise;
-use std::simd::prelude::*;
 use unastar_noise::build_vanilla_surface_rule;
 
 /// Vanilla terrain generator using 3D density functions.
@@ -144,6 +149,18 @@ impl VanillaGenerator {
 
     /// Generate a chunk using 3D density functions with cell-based caching.
     ///
+    /// This is the public worldgen entry point. It intentionally runs in two phases:
+    /// base terrain generation followed by post-terrain population hooks.
+    /// Java Edition performs structures and biome decoration after terrain/surface
+    /// shaping, so later parity work attaches to `run_post_terrain_generation`.
+    pub fn generate_chunk(&self, chunk_x: i32, chunk_z: i32) -> Chunk {
+        let mut chunk = self.generate_base_chunk(chunk_x, chunk_z);
+        self.run_post_terrain_generation(&mut chunk, chunk_x, chunk_z);
+        chunk
+    }
+
+    /// Generate the terrain/surface/base-biome portion of a chunk.
+    ///
     /// This is the Java Edition-style terrain generation using density functions
     /// and cell-based interpolation. It produces 3D features like overhangs and caves.
     ///
@@ -156,7 +173,39 @@ impl VanillaGenerator {
     /// 6. Use trilinear interpolation for density (compute at 8 corners, interpolate interior)
     /// 7. Use aquifer system to determine fluid placement when density <= 0
     /// 8. Apply surface rules for biome-specific blocks
-    pub fn generate_chunk(&self, chunk_x: i32, chunk_z: i32) -> Chunk {
+    fn generate_base_chunk(&self, chunk_x: i32, chunk_z: i32) -> Chunk {
+        let mut terrain_cache = std::collections::HashMap::new();
+        let mut first_free_height = |block_x: i32, block_z: i32| -> i32 {
+            self.first_free_height_without_structure_adaptation(
+                block_x,
+                block_z,
+                &mut terrain_cache,
+            )
+        };
+        let beardifier = build_overworld_jigsaw_beardifier(
+            self.seed,
+            chunk_x,
+            chunk_z,
+            &self.biome_noise,
+            &mut first_free_height,
+        );
+        self.generate_base_chunk_with_beardifier(chunk_x, chunk_z, &beardifier)
+    }
+
+    fn generate_base_chunk_without_structure_adaptation(
+        &self,
+        chunk_x: i32,
+        chunk_z: i32,
+    ) -> Chunk {
+        self.generate_base_chunk_with_beardifier(chunk_x, chunk_z, &StructureBeardifier::empty())
+    }
+
+    fn generate_base_chunk_with_beardifier(
+        &self,
+        chunk_x: i32,
+        chunk_z: i32,
+        beardifier: &StructureBeardifier,
+    ) -> Chunk {
         use super::aquifer::{NoiseBasedAquifer, OverworldFluidPicker};
 
         let mut chunk = Chunk::new(chunk_x, chunk_z);
@@ -239,11 +288,19 @@ impl VanillaGenerator {
 
                             // Update X interpolation and get densities
                             noise_chunk.update_for_x(block_x);
-                            let densities = noise_chunk.get_densities_4z();
-                            let densities_arr = densities.to_array();
+                            let mut densities_arr = noise_chunk.get_densities_4z().to_array();
+                            if !beardifier.is_empty() {
+                                for z_in_cell in 0..4i32 {
+                                    densities_arr[z_in_cell as usize] += beardifier.compute(
+                                        block_x,
+                                        block_y,
+                                        base_block_z + z_in_cell,
+                                    );
+                                }
+                            }
 
                             // Check if all positive (all solid) - fast path
-                            let all_positive = densities.simd_gt(f64x4::splat(0.0)).all();
+                            let all_positive = densities_arr.iter().all(|density| *density > 0.0);
 
                             let local_x = ((cell_x as i32) * cell_width + x_in_cell) as u8;
 
@@ -342,6 +399,124 @@ impl VanillaGenerator {
         chunk.set_biome(Self::to_bedrock_biome_id(center_biome));
 
         chunk
+    }
+
+    fn run_post_terrain_generation(&self, chunk: &mut Chunk, chunk_x: i32, chunk_z: i32) {
+        self.place_structure_starts(chunk, chunk_x, chunk_z);
+        self.apply_biome_decoration(chunk, chunk_x, chunk_z);
+    }
+
+    fn place_structure_starts(&self, chunk: &mut Chunk, chunk_x: i32, chunk_z: i32) {
+        let mut terrain_cache = std::collections::HashMap::new();
+        {
+            let mut first_free_height = |block_x: i32, block_z: i32| -> i32 {
+                self.first_free_height_without_structure_adaptation(
+                    block_x,
+                    block_z,
+                    &mut terrain_cache,
+                )
+            };
+            place_overworld_jigsaw_structure_starts(
+                chunk,
+                self.seed,
+                chunk_x,
+                chunk_z,
+                &self.biome_noise,
+                &mut first_free_height,
+            );
+        }
+        let mut solid_first_free_height = |block_x: i32, block_z: i32| -> i32 {
+            self.solid_first_free_height_without_structure_adaptation(
+                block_x,
+                block_z,
+                &mut terrain_cache,
+            )
+        };
+        place_overworld_direct_structure_starts(
+            chunk,
+            self.seed,
+            chunk_x,
+            chunk_z,
+            &self.biome_noise,
+            &mut solid_first_free_height,
+        );
+    }
+
+    fn apply_biome_decoration(&self, chunk: &mut Chunk, chunk_x: i32, chunk_z: i32) {
+        let mut pre_decoration_cache = std::collections::HashMap::new();
+        let mut sample_neighbor_block = |block_x: i32, block_y: i32, block_z: i32| -> u32 {
+            let sample_chunk_x = block_x.div_euclid(16);
+            let sample_chunk_z = block_z.div_euclid(16);
+            let local_x = block_x.rem_euclid(16) as u8;
+            let local_z = block_z.rem_euclid(16) as u8;
+            let cached_chunk = pre_decoration_cache
+                .entry((sample_chunk_x, sample_chunk_z))
+                .or_insert_with(|| {
+                    let mut cached = self.generate_base_chunk(sample_chunk_x, sample_chunk_z);
+                    self.place_structure_starts(&mut cached, sample_chunk_x, sample_chunk_z);
+                    cached
+                });
+            cached_chunk.get_block(local_x, block_y as i16, local_z)
+        };
+        apply_overworld_biome_decoration(
+            chunk,
+            self.seed,
+            chunk_x,
+            chunk_z,
+            &self.biome_noise,
+            &mut sample_neighbor_block,
+        );
+    }
+
+    fn first_free_height_without_structure_adaptation(
+        &self,
+        block_x: i32,
+        block_z: i32,
+        terrain_cache: &mut std::collections::HashMap<(i32, i32), Chunk>,
+    ) -> i32 {
+        let column_chunk_x = block_x.div_euclid(16);
+        let column_chunk_z = block_z.div_euclid(16);
+        let local_x = block_x.rem_euclid(16) as u8;
+        let local_z = block_z.rem_euclid(16) as u8;
+        let base_chunk = terrain_cache
+            .entry((column_chunk_x, column_chunk_z))
+            .or_insert_with(|| {
+                self.generate_base_chunk_without_structure_adaptation(
+                    column_chunk_x,
+                    column_chunk_z,
+                )
+            });
+        base_chunk.height_map().at(local_x, local_z) as i32
+    }
+
+    fn solid_first_free_height_without_structure_adaptation(
+        &self,
+        block_x: i32,
+        block_z: i32,
+        terrain_cache: &mut std::collections::HashMap<(i32, i32), Chunk>,
+    ) -> i32 {
+        let column_chunk_x = block_x.div_euclid(16);
+        let column_chunk_z = block_z.div_euclid(16);
+        let local_x = block_x.rem_euclid(16) as u8;
+        let local_z = block_z.rem_euclid(16) as u8;
+        let base_chunk = terrain_cache
+            .entry((column_chunk_x, column_chunk_z))
+            .or_insert_with(|| {
+                self.generate_base_chunk_without_structure_adaptation(
+                    column_chunk_x,
+                    column_chunk_z,
+                )
+            });
+
+        let mut block_y = base_chunk.height_map().at(local_x, local_z) as i32 - 1;
+        while block_y >= MIN_Y {
+            let block_id = base_chunk.get_block(local_x, block_y as i16, local_z);
+            if block_id != *blocks::WATER && block_id != *blocks::LAVA {
+                return block_y + 1;
+            }
+            block_y -= 1;
+        }
+        MIN_Y
     }
 
     /// Carve caves into the chunk using vanilla worm algorithm.

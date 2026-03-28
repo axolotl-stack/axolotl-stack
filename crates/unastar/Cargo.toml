@@ -26,6 +26,7 @@ async-trait.workspace = true
 bleveldb.workspace = true
 serde_json.workspace = true
 anyhow = "1.0"
+flate2.workspace = true
 
 # BlazeDB dependencies
 lru = "0.12"

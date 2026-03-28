@@ -27,6 +27,13 @@ pub fn emit_biome_features(
         code.push_str(&format!("    {} = {},\n", step.as_str(), step as u8));
     }
     code.push_str("}\n\n");
+    code.push_str("impl GenerationStep {\n");
+    code.push_str("    pub const ALL: [GenerationStep; 11] = [\n");
+    for step in GenerationStep::ALL {
+        code.push_str(&format!("        GenerationStep::{},\n", step.as_str()));
+    }
+    code.push_str("    ];\n");
+    code.push_str("}\n\n");
 
     // Collect all unique feature references
     let mut all_features: HashSet<String> = HashSet::new();
@@ -81,9 +88,26 @@ pub fn emit_biome_features(
         code.push_str(&format!("    {},\n", pascal_name));
     }
     code.push_str("}\n\n");
+    code.push_str("pub const ALL_BIOME_FEATURES: &[BiomeFeatures] = &[\n");
+    for biome_name in &biome_names {
+        let pascal_name = biome::to_pascal_case(biome_name);
+        code.push_str(&format!("    BiomeFeatures::{},\n", pascal_name));
+    }
+    code.push_str("];\n\n");
 
     // Generate lookup function
     code.push_str("impl BiomeFeatures {\n");
+    code.push_str("    pub fn name(&self) -> &'static str {\n");
+    code.push_str("        match self {\n");
+    for biome_name in &biome_names {
+        let pascal_name = biome::to_pascal_case(biome_name);
+        code.push_str(&format!(
+            "            BiomeFeatures::{} => \"{}\",\n",
+            pascal_name, biome_name
+        ));
+    }
+    code.push_str("        }\n");
+    code.push_str("    }\n\n");
     code.push_str("    /// Get the placed feature list for a biome and generation step.\n");
     code.push_str("    /// Returns an empty slice if no features are defined for that step.\n");
     code.push_str(

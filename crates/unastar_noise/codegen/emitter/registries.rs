@@ -1,10 +1,16 @@
 use super::super::parser::common::RawJsonAsset;
 use super::super::parser::structure_template::StructureTemplateAsset;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::fmt::Write;
 use std::path::Path;
 
 pub struct RegistryAssets<'a> {
+    pub configured_carvers:
+        &'a HashMap<String, super::super::parser::configured_carver::ConfiguredCarverJson>,
+    pub configured_features:
+        &'a HashMap<String, super::super::parser::configured_feature::ConfiguredFeatureJson>,
+    pub placed_features: &'a HashMap<String, super::super::parser::placed_feature::PlacedFeatureJson>,
     pub biome_source_parameter_lists:
         &'a HashMap<String, super::super::parser::multi_noise_biome_source_parameter_list::MultiNoiseBiomeSourceParameterListJson>,
     pub processor_lists: &'a HashMap<String, super::super::parser::processor_list::ProcessorListJson>,
@@ -27,6 +33,24 @@ pub fn emit_worldgen_registries(
     )?;
     writeln!(&mut out)?;
 
+    emit_serialized_json_registry(
+        &mut out,
+        "CONFIGURED_CARVER_NAMES",
+        "configured_carver_json",
+        assets.configured_carvers,
+    )?;
+    emit_serialized_json_registry(
+        &mut out,
+        "CONFIGURED_FEATURE_NAMES",
+        "configured_feature_json",
+        assets.configured_features,
+    )?;
+    emit_serialized_json_registry(
+        &mut out,
+        "PLACED_FEATURE_NAMES",
+        "placed_feature_json",
+        assets.placed_features,
+    )?;
     emit_json_registry(
         &mut out,
         "MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST_NAMES",
@@ -105,6 +129,45 @@ fn emit_json_registry(
             rust_string_literal(name),
             root,
             relative_path
+        )?;
+    }
+    writeln!(out, "        _ => None,")?;
+    writeln!(out, "    }}")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+
+    Ok(())
+}
+
+fn emit_serialized_json_registry<T: Serialize>(
+    out: &mut String,
+    names_const: &str,
+    fn_name: &str,
+    assets: &HashMap<String, T>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut names: Vec<_> = assets.keys().cloned().collect();
+    names.sort();
+
+    writeln!(out, "pub const {}: &[&str] = &[", names_const)?;
+    for name in &names {
+        writeln!(out, "    {},", rust_string_literal(name))?;
+    }
+    writeln!(out, "];")?;
+    writeln!(out)?;
+
+    writeln!(
+        out,
+        "pub fn {}(name: &str) -> Option<&'static str> {{",
+        fn_name
+    )?;
+    writeln!(out, "    match name {{")?;
+    for name in &names {
+        let raw = serde_json::to_string(&assets[name])?;
+        writeln!(
+            out,
+            "        {} => Some({}),",
+            rust_string_literal(name),
+            rust_string_literal(&raw)
         )?;
     }
     writeln!(out, "        _ => None,")?;

@@ -16,9 +16,9 @@ pub fn emit_all(
     density_functions: &HashMap<String, parser::density_function::DensityFunctionArg>,
     noise_settings: &HashMap<String, parser::noise_settings::NoiseSettings>,
     biomes: &HashMap<String, parser::biome::BiomeJson>,
-    _configured_carvers: &HashMap<String, parser::configured_carver::ConfiguredCarverJson>,
-    _configured_features: &HashMap<String, parser::configured_feature::ConfiguredFeatureJson>,
-    _placed_features: &HashMap<String, parser::placed_feature::PlacedFeatureJson>,
+    configured_carvers: &HashMap<String, parser::configured_carver::ConfiguredCarverJson>,
+    configured_features: &HashMap<String, parser::configured_feature::ConfiguredFeatureJson>,
+    placed_features: &HashMap<String, parser::placed_feature::PlacedFeatureJson>,
     biome_source_parameter_lists: &HashMap<
         String,
         parser::multi_noise_biome_source_parameter_list::MultiNoiseBiomeSourceParameterListJson,
@@ -77,6 +77,9 @@ pub fn emit_all(
     registries::emit_worldgen_registries(
         output_dir,
         registries::RegistryAssets {
+            configured_carvers,
+            configured_features,
+            placed_features,
             biome_source_parameter_lists,
             processor_lists,
             structures,
@@ -148,9 +151,19 @@ pub fn emit_all_go(
         template_pools,
         structure_templates,
     )?;
+    go::emit_dimension_metadata(output_dir, package, noise_settings)?;
 
-    if let Some(overworld) = noise_settings.get("minecraft:overworld") {
-        let router = &overworld.noise_router;
+    let mut surface_rules = Vec::new();
+    for (dimension, settings) in [
+        ("overworld", noise_settings.get("minecraft:overworld")),
+        ("nether", noise_settings.get("minecraft:nether")),
+        ("end", noise_settings.get("minecraft:end")),
+    ] {
+        let Some(settings) = settings else {
+            continue;
+        };
+
+        let router = &settings.noise_router;
         let router_fields: Vec<(&str, &parser::density_function::DensityFunctionArg)> = vec![
             ("barrier", &router.barrier),
             ("continents", &router.continents),
@@ -173,10 +186,14 @@ pub fn emit_all_go(
         ];
 
         let graph = DependencyGraph::build(&router_fields, density_functions);
-        go::emit_overworld_graph(output_dir, package, &graph)?;
-        go::emit_overworld_compiled(output_dir, package, &graph)?;
-        go::emit_surface_rules(output_dir, package, &overworld.surface_rule)?;
+        go::emit_dimension_graph(output_dir, package, dimension, &graph)?;
+        if dimension == "overworld" {
+            go::emit_overworld_compiled(output_dir, package, &graph)?;
+        }
+        surface_rules.push((dimension, &settings.surface_rule));
     }
+
+    go::emit_surface_rules(output_dir, package, &surface_rules)?;
 
     Ok(())
 }
