@@ -192,6 +192,22 @@ fn generate_items_module(items: &[ParsedItem], output_dir: &Path) -> miette::Res
             quote! { #const_name }
         })
         .collect();
+    let identifier_match_arms: Vec<TokenStream> = items
+        .iter()
+        .map(|item| {
+            let identifier = &item.identifier;
+            let const_name = item_const_ident(identifier);
+            quote! { #identifier => Some(&#const_name) }
+        })
+        .collect();
+    let network_id_match_arms: Vec<TokenStream> = items
+        .iter()
+        .map(|item| {
+            let network_id = item.network_id;
+            let const_name = item_const_ident(&item.identifier);
+            quote! { #network_id => Some(&#const_name) }
+        })
+        .collect();
     let count = all_refs.len();
 
     let code = quote! {
@@ -236,12 +252,18 @@ fn generate_items_module(items: &[ParsedItem], output_dir: &Path) -> miette::Res
 
         /// Look up an item by namespaced identifier.
         pub fn get(identifier: &str) -> Option<&'static ItemData> {
-            ALL_ITEMS.iter().find(|item| item.identifier == identifier)
+            match identifier {
+                #(#identifier_match_arms,)*
+                _ => None,
+            }
         }
 
         /// Look up an item by signed protocol network ID.
         pub fn by_network_id(network_id: i32) -> Option<&'static ItemData> {
-            ALL_ITEMS.iter().find(|item| item.network_id == network_id)
+            match network_id {
+                #(#network_id_match_arms,)*
+                _ => None,
+            }
         }
     };
 
@@ -300,6 +322,33 @@ mod tests {
     }
 
     #[test]
+    fn generated_lookups_use_direct_matches() {
+        let items = vec![ParsedItem {
+            identifier: "minecraft:honey_bottle".to_string(),
+            network_id: 737,
+            component_based: false,
+            version: 2,
+            max_stack_size: 16,
+            max_stack_size_source: "vanilla_behavior_pack".to_string(),
+        }];
+        let temp_dir = std::env::temp_dir().join(format!(
+            "unastar-items-codegen-test-{}-{}",
+            std::process::id(),
+            unique_suffix()
+        ));
+        std::fs::create_dir_all(&temp_dir).expect("create temp dir");
+
+        generate_items_module(&items, &temp_dir).expect("generate items module");
+
+        let generated = std::fs::read_to_string(temp_dir.join("items.rs"))
+            .expect("generated items.rs should exist");
+        assert!(generated.contains("\"minecraft:honey_bottle\" => Some(&HONEY_BOTTLE)"));
+        assert!(generated.contains("737i32 => Some(&HONEY_BOTTLE)"));
+        assert!(!generated.contains("ALL_ITEMS.iter().find"));
+        let _ = std::fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
     fn rejects_duplicate_network_ids() {
         let items = vec![
             ParsedItem {
@@ -339,5 +388,12 @@ mod tests {
         let error = validate_items(&items).expect_err("out-of-range network ID is invalid");
 
         assert!(error.to_string().contains("out of i16 packet range"));
+    }
+
+    fn unique_suffix() -> u128 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos()
     }
 }

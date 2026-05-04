@@ -101,9 +101,18 @@ impl ItemStack {
 
     /// Get the maximum stack size for this item.
     ///
-    /// TODO: Look up from item registry for tools (max 1), eggs (max 16), etc.
+    /// Source-attributed generated item data wins when present. Older or
+    /// incomplete vanilla data still falls back to conservative legacy
+    /// heuristics so tools/armor do not accidentally become 64-stack items
+    /// until their limits are sourced.
     #[inline]
     pub fn max_stack_size(&self) -> u8 {
+        if let Some(item) = unastar_data::items::get(&self.item_id)
+            && item.max_stack_size_source != "unsourced_default"
+        {
+            return item.max_stack_size;
+        }
+
         // Tools, weapons, armor typically stack to 1
         if self.is_tool() || self.is_armor() {
             1
@@ -364,5 +373,23 @@ mod tests {
 
         let pearl = ItemStack::new("minecraft:ender_pearl", 16);
         assert_eq!(pearl.max_stack_size(), 16);
+    }
+
+    #[test]
+    fn sourced_stack_limits_override_heuristics() {
+        let honey_bottle = ItemStack::new("minecraft:honey_bottle", 16);
+        assert_eq!(honey_bottle.max_stack_size(), 16);
+
+        let beetroot_soup = ItemStack::new("minecraft:beetroot_soup", 1);
+        assert_eq!(beetroot_soup.max_stack_size(), 1);
+    }
+
+    #[test]
+    fn unsourced_stack_limits_keep_legacy_heuristics() {
+        let sword = ItemStack::new("minecraft:diamond_sword", 1);
+        let source = unastar_data::items::get("minecraft:diamond_sword")
+            .expect("generated diamond sword item");
+        assert_eq!(source.max_stack_size_source, "unsourced_default");
+        assert_eq!(sword.max_stack_size(), 1);
     }
 }
