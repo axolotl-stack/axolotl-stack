@@ -13,7 +13,7 @@ use crate::protocol::{
     types::{EncapsulatedPacketHeader, Sequence24},
 };
 
-use super::{QueuedEncap, Session, TrackedDatagram};
+use super::{QueuePacketError, QueuedEncap, Session, TrackedDatagram};
 
 impl Session {
     pub fn queue_packet(
@@ -22,22 +22,23 @@ impl Session {
         reliability: Reliability,
         channel: u8,
         priority: RakPriority,
-    ) -> usize {
+    ) -> Result<usize, QueuePacketError> {
         if channel as usize >= self.ordering.max_channels() {
-            return 0;
+            return Err(QueuePacketError::InvalidOrderingChannel {
+                channel,
+                max_channels: self.ordering.max_channels(),
+            });
         }
         let mut payload_buf = BytesMut::new();
-        if pkt.encode(&mut payload_buf).is_err() {
-            return 0;
-        }
+        pkt.encode(&mut payload_buf)?;
         let payload = payload_buf.freeze();
 
         let max_len = self.max_encapsulated_payload_len(reliability, false).max(1);
 
         if payload.len() <= max_len {
-            self.enqueue_single_encap(payload, reliability, channel, priority)
+            Ok(self.enqueue_single_encap(payload, reliability, channel, priority))
         } else {
-            self.enqueue_fragmented_encaps(payload, reliability, channel, priority)
+            Ok(self.enqueue_fragmented_encaps(payload, reliability, channel, priority))
         }
     }
 
@@ -119,7 +120,7 @@ impl Session {
     }
 
     pub(crate) fn build_ack_datagram(&mut self, _now: Instant) -> Option<Datagram> {
-        let mut ranges = Vec::new(); // TODO: Cache this in Session if allocation is still hot
+        let mut ranges = Vec::new();
         self.outgoing_acks.pop_for_mtu(
             self.mtu,
             constants::IPV4_HEADER_SIZE + constants::UDP_HEADER_SIZE + 2 + 1,
@@ -148,7 +149,7 @@ impl Session {
     }
 
     pub(crate) fn build_nak_datagram(&mut self) -> Option<Datagram> {
-        let mut ranges = Vec::new(); // TODO: Cache this in Session if allocation is still hot
+        let mut ranges = Vec::new();
         self.outgoing_naks.pop_for_mtu(
             self.mtu,
             constants::IPV4_HEADER_SIZE + constants::UDP_HEADER_SIZE + 2 + 1,
@@ -399,38 +400,26 @@ impl Session {
         next
     }
 
-    pub(crate) fn collect_resendable_datagrams(
-        &self,
+    pub(crate) fn resend_due_datagrams(
+        &mut self,
         now: Instant,
         bw: &mut usize,
-    ) -> Vec<Sequence24> {
-        let mut to_resend = Vec::new();
-        for (seq, tracked) in self.sent_datagrams.iter() {
-            let dgram_size = tracked.datagram.size();
-            if tracked.next_send <= now && *bw >= dgram_size {
-                *bw -= dgram_size;
-                to_resend.push(*seq);
-            }
-        }
-        to_resend
-    }
-
-    pub(crate) fn resend_datagrams(
-        &mut self,
-        to_resend: Vec<Sequence24>,
-        now: Instant,
         out: &mut Vec<Datagram>,
     ) {
         let mut resent_any = false;
 
-        for seq in to_resend {
-            if let Some(tracked) = self.sent_datagrams.get_mut(&seq) {
-                let rto = self.sliding.get_rto_for_retransmission();
-                tracked.send_time = now;
-                tracked.next_send = now + rto;
-                resent_any = true;
-                out.push(tracked.datagram.clone());
+        for tracked in self.sent_datagrams.values_mut() {
+            let dgram_size = tracked.datagram.size();
+            if tracked.next_send > now || *bw < dgram_size {
+                continue;
             }
+
+            let rto = self.sliding.get_rto_for_retransmission();
+            tracked.send_time = now;
+            tracked.next_send = now + rto;
+            *bw -= dgram_size;
+            resent_any = true;
+            out.push(tracked.datagram.clone());
         }
 
         if resent_any {
@@ -453,33 +442,39 @@ mod tests {
         let now = Instant::now();
 
         // enqueue in reverse priority order to ensure heap ordering is respected
-        session.queue_packet(
-            RaknetPacket::UserData {
-                id: 0x81,
-                payload: Bytes::from_static(b"low"),
-            },
-            Reliability::Reliable,
-            0,
-            RakPriority::Low,
-        );
-        session.queue_packet(
-            RaknetPacket::UserData {
-                id: 0x82,
-                payload: Bytes::from_static(b"high"),
-            },
-            Reliability::Reliable,
-            0,
-            RakPriority::High,
-        );
-        session.queue_packet(
-            RaknetPacket::UserData {
-                id: 0x83,
-                payload: Bytes::from_static(b"imm"),
-            },
-            Reliability::Reliable,
-            0,
-            RakPriority::Immediate,
-        );
+        session
+            .queue_packet(
+                RaknetPacket::UserData {
+                    id: 0x81,
+                    payload: Bytes::from_static(b"low"),
+                },
+                Reliability::Reliable,
+                0,
+                RakPriority::Low,
+            )
+            .unwrap();
+        session
+            .queue_packet(
+                RaknetPacket::UserData {
+                    id: 0x82,
+                    payload: Bytes::from_static(b"high"),
+                },
+                Reliability::Reliable,
+                0,
+                RakPriority::High,
+            )
+            .unwrap();
+        session
+            .queue_packet(
+                RaknetPacket::UserData {
+                    id: 0x83,
+                    payload: Bytes::from_static(b"imm"),
+                },
+                Reliability::Reliable,
+                0,
+                RakPriority::Immediate,
+            )
+            .unwrap();
 
         let dgram = session
             .build_data_datagram(now)
@@ -508,15 +503,17 @@ mod tests {
         let mut session = Session::new(1200);
         let now = Instant::now();
 
-        session.queue_packet(
-            RaknetPacket::UserData {
-                id: 0x90,
-                payload: Bytes::from_static(b"a"),
-            },
-            Reliability::Reliable,
-            0,
-            RakPriority::Normal,
-        );
+        session
+            .queue_packet(
+                RaknetPacket::UserData {
+                    id: 0x90,
+                    payload: Bytes::from_static(b"a"),
+                },
+                Reliability::Reliable,
+                0,
+                RakPriority::Normal,
+            )
+            .unwrap();
 
         let _ = session.build_data_datagram(now).unwrap();
 
@@ -534,15 +531,17 @@ mod tests {
         let mut session = Session::new(1500);
         let now = Instant::now();
 
-        session.queue_packet(
-            RaknetPacket::UserData {
-                id: 0x80,
-                payload: Bytes::from_static(b"\x01"),
-            },
-            Reliability::Reliable,
-            0,
-            RakPriority::Normal,
-        );
+        session
+            .queue_packet(
+                RaknetPacket::UserData {
+                    id: 0x80,
+                    payload: Bytes::from_static(b"\x01"),
+                },
+                Reliability::Reliable,
+                0,
+                RakPriority::Normal,
+            )
+            .unwrap();
 
         let dgram = session.build_data_datagram(now).expect("datagram");
         let mut buf = BytesMut::new();
@@ -567,15 +566,17 @@ mod tests {
         let mut session = Session::new(1500);
         let now = Instant::now();
 
-        session.queue_packet(
-            RaknetPacket::UserData {
-                id: 0x90,
-                payload: Bytes::from_static(b"\xAA\xBB"),
-            },
-            Reliability::UnreliableSequenced,
-            0,
-            RakPriority::Normal,
-        );
+        session
+            .queue_packet(
+                RaknetPacket::UserData {
+                    id: 0x90,
+                    payload: Bytes::from_static(b"\xAA\xBB"),
+                },
+                Reliability::UnreliableSequenced,
+                0,
+                RakPriority::Normal,
+            )
+            .unwrap();
 
         let dgram = session.build_data_datagram(now).expect("datagram");
         let DatagramPayload::EncapsulatedPackets(pkts) = dgram.payload else {

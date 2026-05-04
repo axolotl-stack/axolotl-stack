@@ -13,8 +13,8 @@ use super::{ConnectionState, ManagedSession};
 impl ManagedSession {
     /// Run periodic maintenance and return any datagrams that should be sent.
     pub fn on_tick(&mut self, now: Instant) -> Vec<Datagram> {
+        let idle = now.saturating_duration_since(self.last_activity);
         if self.is_connected() {
-            let idle = now.saturating_duration_since(self.last_activity);
             if idle >= self.config.session_timeout {
                 let _ = self.send_disconnect(DisconnectReason::TimedOut);
                 self.state = ConnectionState::Closed;
@@ -22,6 +22,13 @@ impl ManagedSession {
             } else if idle >= self.config.session_stale {
                 self.state = ConnectionState::Stale;
             }
+        } else if matches!(
+            self.state,
+            ConnectionState::Unconnected | ConnectionState::OnlineHandshake
+        ) && idle >= self.config.session_stale
+        {
+            self.state = ConnectionState::Closed;
+            self.last_disconnect_reason = Some(DisconnectReason::TimedOut);
         }
 
         if self.should_send_ping(now) {
@@ -53,9 +60,13 @@ impl ManagedSession {
             ping_time: timestamp,
         });
 
-        self.queue_control_packet(pkt, Reliability::Unreliable, 0, RakPriority::Immediate);
-        self.last_ping_sent = Some(now);
-        self.current_ping_nonce = Some(timestamp.0);
+        if self
+            .queue_control_packet(pkt, Reliability::Unreliable, 0, RakPriority::Immediate)
+            .is_ok()
+        {
+            self.last_ping_sent = Some(now);
+            self.current_ping_nonce = Some(timestamp.0);
+        }
     }
 
     pub(crate) fn enforce_queue_limit(&mut self) {

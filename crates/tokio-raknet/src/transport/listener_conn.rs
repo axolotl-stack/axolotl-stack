@@ -9,4 +9,5 @@ pub struct SessionState {
     pub pending_rx:
         Option<mpsc::Receiver<Result<crate::transport::ReceivedMessage, crate::RaknetError>>>,
     pub announced: bool,
+    pub handshake_confirmed: bool,
 }

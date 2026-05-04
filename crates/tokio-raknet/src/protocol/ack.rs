@@ -34,11 +34,34 @@ impl RaknetEncodable for SequenceRange {
         } else {
             Sequence24::decode_raknet(src)?
         };
-        Ok(SequenceRange { start, end })
+        let range = SequenceRange { start, end };
+
+        // Local wrapping ranges are split before encoding. Reject wrapped or
+        // over-wide inbound ranges so a tiny ACK/NACK record cannot expand into
+        // millions of per-sequence operations during session processing.
+        if !singleton && range.wraps() {
+            return Err(DecodeError::InvalidAckPacket);
+        }
+        if range.len() > MAX_ACK_SEQUENCES as u32 {
+            return Err(DecodeError::InvalidAckPacket);
+        }
+
+        Ok(range)
     }
 }
 
 impl SequenceRange {
+    /// Returns the number of inclusive sequence IDs covered by this range.
+    pub fn len(&self) -> u32 {
+        self.start.distance_to(self.end).saturating_add(1)
+    }
+
+    /// Sequence ranges are inclusive and validation rejects wrapped ranges, so
+    /// decoded ranges always contain at least one sequence.
+    pub fn is_empty(&self) -> bool {
+        false
+    }
+
     pub fn size(&self) -> usize {
         let mut size = 4;
         if self.start != self.end {
@@ -112,11 +135,18 @@ impl RaknetEncodable for AckNackPayload {
             return Err(DecodeError::InvalidAckPacket);
         }
 
-        Ok(Self {
-            ranges: std::iter::repeat_with(|| SequenceRange::decode_raknet(src))
-                .take(len as usize)
-                .collect::<Result<Vec<SequenceRange>, DecodeError>>()?,
-        })
+        let mut ranges = Vec::with_capacity(len as usize);
+        let mut total_sequences = 0u32;
+        for _ in 0..len {
+            let range = SequenceRange::decode_raknet(src)?;
+            total_sequences = total_sequences.saturating_add(range.len());
+            if total_sequences > MAX_ACK_SEQUENCES as u32 {
+                return Err(DecodeError::InvalidAckPacket);
+            }
+            ranges.push(range);
+        }
+
+        Ok(Self { ranges })
     }
 }
 
@@ -185,5 +215,52 @@ mod tests {
 
         assert_eq!(buf.as_ref(), expected);
         Ok(())
+    }
+
+    #[test]
+    fn rejects_wrapping_inbound_range() {
+        let mut buf = BytesMut::new();
+        buf.extend_from_slice(&[
+            0x00, 0x01, // one record
+            0x00, // range, not singleton
+            0x64, 0x00, 0x00, // start = 100
+            0x32, 0x00, 0x00, // end = 50
+        ]);
+
+        let mut slice = buf.freeze();
+        let err = AckNackPayload::decode_raknet(&mut slice).unwrap_err();
+        assert!(matches!(err, DecodeError::InvalidAckPacket));
+    }
+
+    #[test]
+    fn rejects_overwide_inbound_range() {
+        let mut buf = BytesMut::new();
+        buf.extend_from_slice(&[
+            0x00, 0x01, // one record
+            0x00, // range, not singleton
+            0x00, 0x00, 0x00, // start = 0
+            0x00, 0x20, 0x00, // end = 8192, len = 8193
+        ]);
+
+        let mut slice = buf.freeze();
+        let err = AckNackPayload::decode_raknet(&mut slice).unwrap_err();
+        assert!(matches!(err, DecodeError::InvalidAckPacket));
+    }
+
+    #[test]
+    fn rejects_payload_with_too_many_total_sequences() {
+        let mut buf = BytesMut::new();
+        buf.extend_from_slice(&[
+            0x00, 0x02, // two records
+            0x00, // range, not singleton
+            0x00, 0x00, 0x00, // start = 0
+            0xff, 0x1f, 0x00, // end = 8191, len = 8192
+            0x01, // singleton
+            0x00, 0x20, 0x00, // sequence = 8192, total = 8193
+        ]);
+
+        let mut slice = buf.freeze();
+        let err = AckNackPayload::decode_raknet(&mut slice).unwrap_err();
+        assert!(matches!(err, DecodeError::InvalidAckPacket));
     }
 }

@@ -32,12 +32,6 @@ impl ManagedSession {
             });
         }
 
-        self.remote_guid = Some(server_guid);
-        self.state = ConnectionState::OnlineHandshake;
-
-        self.last_activity = now;
-        self.last_pong_received = now;
-
         let timestamp = Self::current_raknet_time(now);
 
         let pkt = RaknetPacket::ConnectionRequest(ConnectionRequest {
@@ -47,7 +41,12 @@ impl ManagedSession {
             secure,
         });
 
-        self.queue_control_packet(pkt, Reliability::Reliable, 0, RakPriority::Immediate);
+        self.queue_control_packet(pkt, Reliability::Reliable, 0, RakPriority::Immediate)?;
+
+        self.remote_guid = Some(server_guid);
+        self.state = ConnectionState::OnlineHandshake;
+        self.last_activity = now;
+        self.last_pong_received = now;
 
         Ok(())
     }
@@ -60,7 +59,7 @@ impl ManagedSession {
 
         let pkt = RaknetPacket::DisconnectionNotification(DisconnectionNotification { reason });
 
-        self.queue_control_packet(pkt, Reliability::Reliable, 0, RakPriority::Immediate);
+        self.queue_control_packet(pkt, Reliability::Reliable, 0, RakPriority::Immediate)?;
         self.state = ConnectionState::Closing;
         self.last_disconnect_reason = Some(reason);
 
@@ -93,10 +92,6 @@ impl ManagedSession {
 
         self.remote_guid = Some(req.client_guid);
 
-        self.state = ConnectionState::OnlineHandshake;
-        self.last_activity = now;
-        self.last_pong_received = now;
-
         tracing::debug!(
             server_guid = ?self.remote_guid,
             peer = %self.peer,
@@ -115,8 +110,18 @@ impl ManagedSession {
             accepted_timestamp: accepted_ts,
         });
 
-        self.queue_control_packet(packet, Reliability::Unreliable, 0, RakPriority::Immediate);
-        self.trace_control("send_conn_request_accepted");
+        match self.queue_control_packet(packet, Reliability::Unreliable, 0, RakPriority::Immediate)
+        {
+            Ok(()) => {
+                self.state = ConnectionState::OnlineHandshake;
+                self.last_activity = now;
+                self.last_pong_received = now;
+                self.trace_control("send_conn_request_accepted");
+            }
+            Err(error) => {
+                tracing::debug!(?error, "failed_to_queue_connection_request_accepted");
+            }
+        }
     }
 
     fn handle_connection_request_accepted(
@@ -129,11 +134,6 @@ impl ManagedSession {
             return;
         }
 
-        self.state = ConnectionState::OnlineHandshake;
-
-        self.last_activity = now;
-        self.last_pong_received = now;
-
         let packet = RaknetPacket::NewIncomingConnection(NewIncomingConnection {
             server_address: self.peer,
             system_addresses: Self::default_system_addresses(self.peer),
@@ -142,13 +142,21 @@ impl ManagedSession {
             accepted_timestamp: pkt.request_timestamp,
         });
 
-        self.queue_control_packet(
+        match self.queue_control_packet(
             packet,
             Reliability::ReliableOrdered,
             0,
             RakPriority::Immediate,
-        );
-        self.state = ConnectionState::Connected;
+        ) {
+            Ok(()) => {
+                self.state = ConnectionState::Connected;
+                self.last_activity = now;
+                self.last_pong_received = now;
+            }
+            Err(error) => {
+                tracing::debug!(?error, "failed_to_queue_new_incoming_connection");
+            }
+        }
     }
 
     fn handle_connection_request_failed(&mut self) {
@@ -158,6 +166,24 @@ impl ManagedSession {
     }
 
     fn handle_new_incoming_connection(&mut self, _pkt: &NewIncomingConnection, now: Instant) {
+        if self.config.role != SessionRole::Server {
+            return;
+        }
+
+        match self.state {
+            ConnectionState::OnlineHandshake => {}
+            ConnectionState::Connected | ConnectionState::Stale => {
+                self.last_activity = now;
+                self.last_pong_received = now;
+                return;
+            }
+            _ => {
+                self.state = ConnectionState::Closed;
+                self.last_disconnect_reason = Some(DisconnectReason::BadPacket);
+                return;
+            }
+        }
+
         self.state = ConnectionState::Connected;
         self.last_activity = now;
         self.last_pong_received = now;
@@ -170,8 +196,13 @@ impl ManagedSession {
             ping_time: pkt.ping_time,
             pong_time: Self::current_raknet_time(now),
         });
-        self.queue_control_packet(pong, Reliability::Unreliable, 0, RakPriority::Immediate);
-        self.trace_control("send_connected_pong");
+        if let Err(error) =
+            self.queue_control_packet(pong, Reliability::Unreliable, 0, RakPriority::Immediate)
+        {
+            tracing::debug!(?error, "failed_to_queue_connected_pong");
+        } else {
+            self.trace_control("send_connected_pong");
+        }
     }
 
     fn handle_connected_pong(&mut self, pkt: &ConnectedPong, now: Instant) {
@@ -215,12 +246,11 @@ impl ManagedSession {
         channel: u8,
 
         priority: RakPriority,
-    ) {
-        if channel as usize >= self.config.session.max_ordering_channels {
-            return;
-        }
-        let added = self.inner.queue_packet(pkt, rel, channel, priority);
+    ) -> Result<(), SessionError> {
+        let added = self.inner.queue_packet(pkt, rel, channel, priority)?;
         self.queued_reliable_bytes = self.queued_reliable_bytes.saturating_add(added);
+        self.last_activity = Instant::now();
+        Ok(())
     }
 
     #[allow(dead_code)]
@@ -229,7 +259,7 @@ impl ManagedSession {
             magic: DEFAULT_UNCONNECTED_MAGIC,
             server_guid: self.config.guid,
         });
-        self.queue_control_packet(
+        let _ = self.queue_control_packet(
             packet,
             Reliability::ReliableOrdered,
             0,

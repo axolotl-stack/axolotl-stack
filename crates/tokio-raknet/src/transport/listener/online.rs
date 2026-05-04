@@ -5,10 +5,12 @@ use std::time::Instant;
 use tokio::net::UdpSocket;
 use tokio::sync::mpsc;
 
+use crate::protocol::state::DisconnectReason;
 use crate::protocol::{datagram::Datagram, packet::RaknetPacket};
 use crate::session::manager::{ConnectionState, ManagedSession};
 use crate::transport::listener_conn::SessionState;
 use crate::transport::mux::flush_managed;
+use bytes::Bytes;
 use bytes::BytesMut;
 
 use super::offline::{
@@ -32,10 +34,14 @@ pub(super) async fn dispatch_datagram(
         SocketAddr,
         mpsc::Receiver<Result<crate::transport::ReceivedMessage, crate::RaknetError>>,
     )>,
-    advertisement: &Arc<RwLock<Vec<u8>>>,
+    advertisement: &Arc<RwLock<Bytes>>,
     rate_limiter: &mut PingRateLimiter,
     send_buf: &mut BytesMut,
 ) {
+    if bytes.is_empty() {
+        return;
+    }
+
     if sessions.contains_key(&peer) {
         if !handle_incoming_udp(
             socket,
@@ -86,10 +92,6 @@ pub(super) async fn dispatch_datagram(
         return;
     }
 
-    if bytes.is_empty() {
-        return;
-    }
-
     if is_offline_packet_id(bytes[0]) {
         handle_offline(
             socket,
@@ -127,12 +129,18 @@ pub(super) async fn handle_outgoing_msg(
             to_app: tx,
             pending_rx: Some(rx),
             announced: false,
+            handshake_confirmed: false,
         }
     });
 
-    let _ = state
-        .managed
-        .queue_app_packet(msg.packet, msg.reliability, msg.channel, msg.priority);
+    if let Err(error) =
+        state
+            .managed
+            .queue_app_packet(msg.packet, msg.reliability, msg.channel, msg.priority)
+    {
+        let _ = state.to_app.send(Err(error.into())).await;
+        return;
+    }
 
     tracing::trace!("outbound queued");
     flush_managed(&mut state.managed, socket, msg.peer, now, false, send_buf).await;
@@ -142,13 +150,23 @@ pub(super) async fn handle_outgoing_msg(
 pub(super) async fn tick_sessions(
     socket: &UdpSocket,
     sessions: &mut HashMap<SocketAddr, SessionState>,
+    new_conn_tx: &mpsc::Sender<(
+        SocketAddr,
+        mpsc::Receiver<Result<crate::transport::ReceivedMessage, crate::RaknetError>>,
+    )>,
     send_buf: &mut BytesMut,
 ) {
     let now = Instant::now();
     let mut dead = Vec::new();
 
     for (&peer, state) in sessions.iter_mut() {
+        maybe_announce_connection(peer, state, new_conn_tx).await;
         flush_managed(&mut state.managed, socket, peer, now, true, send_buf).await;
+        let pending = state.managed.drain_pending_incoming(now);
+        update_handshake_confirmation(&pending, state);
+        if state.handshake_confirmed {
+            deliver_packets_to_app(pending, state);
+        }
 
         if matches!(state.managed.state(), ConnectionState::Closed) {
             // Inform app of disconnection if it was connected/announced
@@ -208,6 +226,7 @@ async fn handle_incoming_udp(
             to_app: tx,
             pending_rx: Some(rx),
             announced: false,
+            handshake_confirmed: false,
         }
     });
 
@@ -218,16 +237,9 @@ async fn handle_incoming_udp(
                 tracing::trace!("pkt");
             }
         }
-        for pkt in ManagedSession::filter_app_packets(pkts) {
-            if let RaknetPacket::UserData { id, payload } = pkt.packet {
-                let msg = crate::transport::ReceivedMessage {
-                    id,
-                    payload,
-                    reliability: pkt.reliability,
-                    channel: pkt.ordering_channel.unwrap_or(0),
-                };
-                let _ = state.to_app.send(Ok(msg)).await;
-            }
+        update_handshake_confirmation(&pkts, state);
+        if state.handshake_confirmed {
+            deliver_packets_to_app(pkts, state);
         }
         false
     } else {
@@ -265,16 +277,64 @@ pub(super) async fn maybe_announce_connection(
         mpsc::Receiver<Result<crate::transport::ReceivedMessage, crate::RaknetError>>,
     )>,
 ) {
-    if state.announced || !state.managed.is_connected() {
-        tracing::trace!("maybe_announce");
+    if state.announced || !state.handshake_confirmed || !state.managed.is_connected() {
         return;
     }
 
     if let Some(rx) = state.pending_rx.take() {
-        state.announced = true;
         tracing::info!("announce_connection");
-        if new_conn_tx.send((peer, rx)).await.is_err() {
-            state.announced = false;
+        match new_conn_tx.try_send((peer, rx)) {
+            Ok(()) => {
+                state.announced = true;
+            }
+            Err(mpsc::error::TrySendError::Full((_, rx))) => {
+                state.pending_rx = Some(rx);
+                state.announced = false;
+            }
+            Err(mpsc::error::TrySendError::Closed((_, rx))) => {
+                state.pending_rx = Some(rx);
+                state.announced = false;
+            }
+        }
+    }
+}
+
+fn update_handshake_confirmation(
+    pkts: &[crate::session::IncomingPacket],
+    state: &mut SessionState,
+) {
+    if pkts
+        .iter()
+        .any(|pkt| matches!(pkt.packet, RaknetPacket::NewIncomingConnection(_)))
+    {
+        state.handshake_confirmed = true;
+    }
+}
+
+fn deliver_packets_to_app(pkts: Vec<crate::session::IncomingPacket>, state: &mut SessionState) {
+    for pkt in ManagedSession::filter_app_packets(pkts) {
+        if let RaknetPacket::UserData { id, payload } = pkt.packet {
+            let msg = crate::transport::ReceivedMessage {
+                id,
+                payload,
+                reliability: pkt.reliability,
+                channel: pkt.ordering_channel.unwrap_or(0),
+            };
+            match state.to_app.try_send(Ok(msg)) {
+                Ok(()) => {}
+                Err(mpsc::error::TrySendError::Full(_)) => {
+                    let _ = state
+                        .managed
+                        .send_disconnect(DisconnectReason::QueueTooLong);
+                    break;
+                }
+                Err(mpsc::error::TrySendError::Closed(_)) => {
+                    let _ = state
+                        .managed
+                        .send_disconnect(DisconnectReason::Disconnected);
+                    break;
+                }
+            }
         }
     }
 }

@@ -26,6 +26,7 @@ use crate::protocol::{
 use crate::session::manager::{ManagedSession, SessionConfig};
 use crate::transport::listener_conn::SessionState;
 
+#[derive(Clone, Copy)]
 pub(super) struct PendingConnection {
     pub mtu: u16,
     pub expires_at: Instant,
@@ -71,7 +72,7 @@ pub(super) async fn handle_offline(
         SocketAddr,
         mpsc::Receiver<Result<crate::transport::ReceivedMessage, crate::RaknetError>>,
     )>,
-    advertisement: &Arc<RwLock<Vec<u8>>>,
+    advertisement: &Arc<RwLock<Bytes>>,
     rate_limiter: &mut PingRateLimiter,
     send_buf: &mut BytesMut,
 ) {
@@ -99,7 +100,7 @@ pub(super) async fn handle_offline(
             let ad_bytes = if ad_data.is_empty() {
                 None
             } else {
-                Some(Bytes::from(ad_data))
+                Some(ad_data)
             };
 
             let reply = RaknetPacket::UnconnectedPong(UnconnectedPong {
@@ -125,7 +126,7 @@ pub(super) async fn handle_offline(
             let ad_bytes = if ad_data.is_empty() {
                 None
             } else {
-                Some(Bytes::from(ad_data))
+                Some(ad_data)
             };
 
             let reply = RaknetPacket::UnconnectedPong(UnconnectedPong {
@@ -150,6 +151,10 @@ pub(super) async fn handle_offline(
                         server_guid: server_guid(),
                     });
                 send_unconnected_packet(socket, peer, reply, send_buf).await;
+                return;
+            }
+
+            if !rate_limiter.allow_request1(peer.ip(), now) {
                 return;
             }
 
@@ -195,7 +200,7 @@ pub(super) async fn handle_offline(
                 return;
             }
 
-            let pc = match pending.remove(&peer) {
+            let pc = match pending.get(&peer).copied() {
                 Some(pc) => pc,
                 None => {
                     // If the peer is not pending but we have a session, it means the client
@@ -225,7 +230,16 @@ pub(super) async fn handle_offline(
                 return;
             }
 
+            if sessions.len() >= config.max_connections {
+                let reply = RaknetPacket::NoFreeIncomingConnections(
+                    crate::protocol::packet::NoFreeIncomingConnections,
+                );
+                send_unconnected_packet(socket, peer, reply, send_buf).await;
+                return;
+            }
+
             let mtu_final = pc.mtu.min(req.mtu);
+            pending.remove(&peer);
 
             let (tx, rx) =
                 mpsc::channel::<Result<crate::transport::ReceivedMessage, crate::RaknetError>>(128);
@@ -238,6 +252,7 @@ pub(super) async fn handle_offline(
                     to_app: tx,
                     pending_rx: Some(rx),
                     announced: false,
+                    handshake_confirmed: false,
                 },
             );
             if let Some(state) = sessions.get_mut(&peer) {

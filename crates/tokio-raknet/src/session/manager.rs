@@ -14,7 +14,7 @@ use crate::protocol::{
     state::{DisconnectReason, RakPriority},
 };
 
-use super::{Session, SessionTunables};
+use super::{QueuePacketError, Session, SessionTunables};
 
 /// High-level connection state for a managed RakNet session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -41,6 +41,9 @@ pub enum SessionError {
 
     #[error(transparent)]
     Protocol(#[from] DecodeError),
+
+    #[error(transparent)]
+    Queue(#[from] QueuePacketError),
 }
 
 /// Role the managed session is acting in.
@@ -184,7 +187,7 @@ impl ManagedSession {
             });
         }
 
-        let added = self.inner.queue_packet(pkt, rel, channel, priority);
+        let added = self.inner.queue_packet(pkt, rel, channel, priority)?;
         self.queued_reliable_bytes = self.queued_reliable_bytes.saturating_add(added);
         // Treat an outbound enqueue as activity to avoid stale self timeouts
         self.last_activity = Instant::now();
@@ -210,12 +213,13 @@ impl ManagedSession {
 
         match dgram.payload {
             DatagramPayload::EncapsulatedPackets(packets) => {
-                let pkts = self.inner.handle_data_payload(packets, now)?;
+                let mut pkts = self.inner.handle_data_payload(packets, now)?;
 
                 // Only DATA datagrams participate in sequence/NACK tracking.
                 // We process sequence AFTER handling payload so that if handling fails
                 // (e.g. split buffer full), we don't ACK the datagram, forcing a resend.
                 self.inner.process_datagram_sequence(dgram.header.sequence);
+                pkts.extend(self.inner.drain_pending_incoming());
 
                 for pkt in &pkts {
                     self.handle_control_packet(&pkt.packet, now);
@@ -243,6 +247,14 @@ impl ManagedSession {
         }
 
         Some(dgram)
+    }
+
+    pub fn drain_pending_incoming(&mut self, now: Instant) -> Vec<crate::session::IncomingPacket> {
+        let pkts = self.inner.drain_pending_incoming();
+        for pkt in &pkts {
+            self.handle_control_packet(&pkt.packet, now);
+        }
+        pkts
     }
 
     /// Filter a batch of decoded packets down to game-level packets that
@@ -404,6 +416,87 @@ mod tests {
 
         let res = ms.queue_app_packet(pkt, Reliability::Reliable, 99, RakPriority::High);
         assert!(matches!(res, Err(SessionError::InvalidState { .. })));
+    }
+
+    #[test]
+    fn handshake_send_failure_is_reported_without_state_transition() {
+        let peer: SocketAddr = "127.0.0.1:19138".parse().unwrap();
+        let now = Instant::now();
+        let config = SessionConfig {
+            role: SessionRole::Client,
+            session: SessionTunables {
+                max_ordering_channels: 0,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let mut ms = ManagedSession::with_config(peer, 1200, now, config);
+
+        let err = ms.start_client_handshake(0x1234, now, false).unwrap_err();
+        assert!(matches!(err, SessionError::Queue(_)));
+        assert_eq!(ms.state(), ConnectionState::Unconnected);
+    }
+
+    #[test]
+    fn disconnect_send_failure_does_not_close_session_early() {
+        let peer: SocketAddr = "127.0.0.1:19139".parse().unwrap();
+        let now = Instant::now();
+        let config = SessionConfig {
+            session: SessionTunables {
+                max_ordering_channels: 0,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let mut ms = ManagedSession::with_config(peer, 1200, now, config);
+        ms.state = ConnectionState::Connected;
+
+        let err = ms
+            .send_disconnect(DisconnectReason::Disconnected)
+            .unwrap_err();
+        assert!(matches!(err, SessionError::Queue(_)));
+        assert_eq!(ms.state(), ConnectionState::Connected);
+        assert!(ms.last_disconnect_reason().is_none());
+    }
+
+    #[test]
+    fn ping_state_is_not_updated_when_ping_cannot_be_queued() {
+        let peer: SocketAddr = "127.0.0.1:19140".parse().unwrap();
+        let now = Instant::now();
+        let config = SessionConfig {
+            session: SessionTunables {
+                max_ordering_channels: 0,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let mut ms = ManagedSession::with_config(peer, 1200, now, config);
+        ms.state = ConnectionState::Connected;
+
+        ms.send_connected_ping(now);
+
+        assert!(ms.last_ping_sent.is_none());
+        assert!(ms.current_ping_nonce.is_none());
+    }
+
+    #[test]
+    fn half_open_sessions_time_out() {
+        let peer: SocketAddr = "127.0.0.1:19141".parse().unwrap();
+        let now = Instant::now();
+        let config = SessionConfig {
+            session_stale: Duration::from_millis(10),
+            session_timeout: Duration::from_secs(10),
+            ..Default::default()
+        };
+        let mut ms = ManagedSession::with_config(peer, 1200, now, config);
+
+        let _ = ms.on_tick(now + Duration::from_millis(10));
+
+        assert_eq!(ms.state(), ConnectionState::Closed);
+        assert!(matches!(
+            ms.last_disconnect_reason(),
+            Some(DisconnectReason::TimedOut)
+        ));
     }
 
     fn decode_first_packet(dgram: &crate::protocol::datagram::Datagram) -> RaknetPacket {

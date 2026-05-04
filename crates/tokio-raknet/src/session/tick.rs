@@ -13,15 +13,22 @@ impl Session {
 
         let dropped = self.split_assembler.prune(now);
         for (ch, idx) in dropped {
-            if let (Some(ch), Some(idx)) = (ch, idx) {
-                self.ordering.skip_index(ch, idx);
+            if let (Some(ch), Some(idx)) = (ch, idx)
+                && let Some(released) = self.ordering.skip_index(ch, idx)
+            {
+                let mut ready = Vec::new();
+                for pkt in released {
+                    if let Err(error) = self.decode_and_push(pkt, &mut ready) {
+                        tracing::debug!(?error, "failed_to_decode_released_ordered_packet");
+                    }
+                }
+                self.pending_incoming.extend(ready);
             }
         }
 
         let mut bw = self.sliding.get_retransmission_bandwidth();
         if bw > 0 {
-            let to_resend = self.collect_resendable_datagrams(now, &mut bw);
-            self.resend_datagrams(to_resend, now, &mut out);
+            self.resend_due_datagrams(now, &mut bw, &mut out);
         }
 
         if let Some(d) = self.build_ack_datagram(now) {
@@ -37,10 +44,18 @@ impl Session {
 
 #[cfg(test)]
 mod tests {
-    use crate::protocol::{constants::DatagramFlags, datagram::DatagramPayload, types::Sequence24};
+    use crate::protocol::{
+        constants::DatagramFlags,
+        datagram::DatagramPayload,
+        encapsulated_packet::{EncapsulatedPacket, SplitInfo},
+        packet::RaknetPacket,
+        reliability::Reliability,
+        types::{EncapsulatedPacketHeader, Sequence24},
+    };
 
     use super::*;
-    use std::time::Instant;
+    use bytes::Bytes;
+    use std::time::{Duration, Instant};
 
     #[test]
     fn ack_and_nak_tick_match_expected_ranges() {
@@ -84,6 +99,57 @@ mod tests {
             assert_eq!(payload.ranges[0].end.value(), 1);
         } else {
             panic!("expected nak payload");
+        }
+    }
+
+    #[test]
+    fn split_timeout_releases_buffered_ordered_packet() {
+        let now = Instant::now();
+        let mut session = Session::with_tunables(
+            1200,
+            crate::session::SessionTunables {
+                split_timeout: Duration::from_millis(1),
+                ..Default::default()
+            },
+        );
+
+        let first_split_part = ordered_packet(0, Some((7, 2, 0)), b"\xfepartial");
+        let ready = session
+            .handle_data_payload(vec![first_split_part], now)
+            .expect("partial split should buffer");
+        assert!(ready.is_empty());
+
+        let next_ordered = ordered_packet(1, None, b"\xfenext");
+        let ready = session
+            .handle_data_payload(vec![next_ordered], now)
+            .expect("later ordered packet should buffer behind missing index");
+        assert!(ready.is_empty());
+
+        let _ = session.on_tick(now + Duration::from_millis(2));
+        let released = session.drain_pending_incoming();
+
+        assert_eq!(released.len(), 1);
+        assert!(matches!(
+            released[0].packet,
+            RaknetPacket::UserData { id: 0xfe, .. }
+        ));
+    }
+
+    fn ordered_packet(
+        ordering_index: u32,
+        split: Option<(u16, u32, u32)>,
+        payload: &'static [u8],
+    ) -> EncapsulatedPacket {
+        let is_split = split.is_some();
+        EncapsulatedPacket {
+            header: EncapsulatedPacketHeader::new(Reliability::ReliableOrdered, is_split, false),
+            bit_length: (payload.len() as u16) << 3,
+            reliable_index: Some(Sequence24::new(ordering_index)),
+            sequence_index: None,
+            ordering_index: Some(Sequence24::new(ordering_index)),
+            ordering_channel: Some(0),
+            split: split.map(|(id, count, index)| SplitInfo { count, id, index }),
+            payload: Bytes::from_static(payload),
         }
     }
 }

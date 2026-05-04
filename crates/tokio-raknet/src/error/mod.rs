@@ -10,6 +10,8 @@ pub enum RaknetError {
     Decode(#[from] crate::protocol::packet::DecodeError),
     #[error("packet encode error: {0}")]
     Encode(#[from] crate::protocol::packet::EncodeError),
+    #[error("session error: {0}")]
+    Session(#[from] crate::session::manager::SessionError),
     #[error("connection request failed")]
     ConnectionRequestFailed,
     #[error("already connected")]

@@ -105,7 +105,9 @@ fn benchmark_session_tick(c: &mut Criterion) {
                 let mut session = Session::new(1400);
                 for _ in 0..50 {
                     let pkt = make_user_data_packet(100);
-                    session.queue_packet(pkt, Reliability::ReliableOrdered, 0, RakPriority::Normal);
+                    session
+                        .queue_packet(pkt, Reliability::ReliableOrdered, 0, RakPriority::Normal)
+                        .expect("benchmark packet should queue");
                 }
                 session
             },
@@ -133,12 +135,14 @@ fn benchmark_queue_packet(c: &mut Criterion) {
                 let mut session = Session::new(1400);
                 b.iter(|| {
                     let pkt = make_user_data_packet(size);
-                    session.queue_packet(
-                        black_box(pkt),
-                        Reliability::Unreliable,
-                        0,
-                        RakPriority::Normal,
-                    );
+                    session
+                        .queue_packet(
+                            black_box(pkt),
+                            Reliability::Unreliable,
+                            0,
+                            RakPriority::Normal,
+                        )
+                        .expect("benchmark packet should queue");
                 })
             },
         );
@@ -150,12 +154,14 @@ fn benchmark_queue_packet(c: &mut Criterion) {
                 let mut session = Session::new(1400);
                 b.iter(|| {
                     let pkt = make_user_data_packet(size);
-                    session.queue_packet(
-                        black_box(pkt),
-                        Reliability::Reliable,
-                        0,
-                        RakPriority::Normal,
-                    );
+                    session
+                        .queue_packet(
+                            black_box(pkt),
+                            Reliability::Reliable,
+                            0,
+                            RakPriority::Normal,
+                        )
+                        .expect("benchmark packet should queue");
                 })
             },
         );
@@ -167,12 +173,14 @@ fn benchmark_queue_packet(c: &mut Criterion) {
                 let mut session = Session::new(1400);
                 b.iter(|| {
                     let pkt = make_user_data_packet(size);
-                    session.queue_packet(
-                        black_box(pkt),
-                        Reliability::ReliableOrdered,
-                        0,
-                        RakPriority::Normal,
-                    );
+                    session
+                        .queue_packet(
+                            black_box(pkt),
+                            Reliability::ReliableOrdered,
+                            0,
+                            RakPriority::Normal,
+                        )
+                        .expect("benchmark packet should queue");
                 })
             },
         );

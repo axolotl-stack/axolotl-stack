@@ -5,14 +5,11 @@ mod rate_limiter;
 pub use rate_limiter::PingRateLimiter;
 
 use std::collections::HashMap;
-use std::future::poll_fn;
 use std::net::SocketAddr;
 use std::sync::{Arc, RwLock};
-use std::task::Poll;
 use std::time::Duration;
 
-use bytes::BytesMut;
-use tokio::io::ReadBuf;
+use bytes::{Bytes, BytesMut};
 use tokio::net::UdpSocket;
 use tokio::sync::mpsc;
 
@@ -81,6 +78,9 @@ pub struct RaknetListenerConfig {
     /// Maximum pings per second per IP address for rate limiting.
     /// Set to 0 to disable rate limiting.
     pub ping_rate_limit_per_ip: u32,
+
+    /// Maximum number of source IPs tracked by the ping/handshake rate limiter.
+    pub ping_rate_limit_max_entries: usize,
 }
 
 impl Default for RaknetListenerConfig {
@@ -100,9 +100,10 @@ impl Default for RaknetListenerConfig {
             split_timeout: Duration::from_secs(30),
             reliable_window: constants::MAX_ACK_SEQUENCES as u32,
             max_split_parts: 8192,
-            max_concurrent_splits: 32, // Reduced from 4096 to prevent OOM DOS
+            max_concurrent_splits: 32, // Bound per-session split reassembly memory
             max_incoming_ack_queue: 4096,
             ping_rate_limit_per_ip: 10, // 10 pings per second per IP
+            ping_rate_limit_max_entries: 16_384,
         }
     }
 }
@@ -129,7 +130,7 @@ pub struct RaknetListener {
         mpsc::Receiver<Result<super::ReceivedMessage, crate::RaknetError>>,
     )>,
     outbound_tx: mpsc::Sender<super::OutboundMsg>,
-    advertisement: Arc<RwLock<Vec<u8>>>,
+    advertisement: Arc<RwLock<Bytes>>,
 }
 
 impl RaknetListener {
@@ -145,19 +146,16 @@ impl RaknetListener {
     ) -> std::io::Result<Self> {
         let socket = std::net::UdpSocket::bind(addr)?;
         socket.set_nonblocking(true)?;
-
-        // if let Some(size) = config.socket_recv_buffer_size {
-        //     let _ = socket.set_recv_buffer_size(size);
-        // }
-        // if let Some(size) = config.socket_send_buffer_size {
-        //     let _ = socket.set_send_buffer_size(size);
-        // }
+        report_socket_buffer_config(
+            config.socket_recv_buffer_size,
+            config.socket_send_buffer_size,
+        );
 
         let socket = UdpSocket::from_std(socket)?;
         let local_addr = socket.local_addr()?;
         let (new_conn_tx, new_conn_rx) = mpsc::channel(32);
         let (outbound_tx, outbound_rx) = mpsc::channel(1024);
-        let advertisement = Arc::new(RwLock::new(config.advertisement.clone()));
+        let advertisement = Arc::new(RwLock::new(Bytes::from(config.advertisement.clone())));
 
         tokio::spawn(run_listener_muxer(
             socket,
@@ -210,7 +208,7 @@ impl RaknetListener {
     /// Sets the advertisement data (Pong payload) sent in response to UnconnectedPing (0x01) and OpenConnections (0x02).
     pub fn set_advertisement(&self, data: Vec<u8>) {
         if let Ok(mut guard) = self.advertisement.write() {
-            *guard = data;
+            *guard = Bytes::from(data);
         }
     }
 
@@ -219,7 +217,7 @@ impl RaknetListener {
         self.advertisement
             .read()
             .unwrap_or_else(|e| e.into_inner())
-            .clone()
+            .to_vec()
     }
 }
 
@@ -227,6 +225,16 @@ enum LoopEvent<Msg> {
     Inbound(std::io::Result<(usize, std::net::SocketAddr)>),
     Outbound(Msg),
     Tick,
+}
+
+fn report_socket_buffer_config(recv_size: Option<usize>, send_size: Option<usize>) {
+    if recv_size.is_some() || send_size.is_some() {
+        tracing::debug!(
+            recv_size,
+            send_size,
+            "socket buffer tuning is unavailable on the std-only listener path; using OS defaults"
+        );
+    }
 }
 
 async fn run_listener_muxer(
@@ -241,7 +249,7 @@ async fn run_listener_muxer(
 
     mut outbound_rx: mpsc::Receiver<super::OutboundMsg>,
 
-    advertisement: Arc<RwLock<Vec<u8>>>,
+    advertisement: Arc<RwLock<Bytes>>,
 ) {
     // Allocate a receive buffer large enough to avoid OS "message too long" errors even if a peer
     // sends a slightly larger probe than our configured MTU.
@@ -250,36 +258,18 @@ async fn run_listener_muxer(
     let mut sessions: HashMap<SocketAddr, SessionState> = HashMap::new();
     let mut pending: HashMap<SocketAddr, PendingConnection> = HashMap::new();
     let mut tick = new_tick_interval();
-    let mut rate_limiter = rate_limiter::PingRateLimiter::new(config.ping_rate_limit_per_ip);
+    let mut rate_limiter = rate_limiter::PingRateLimiter::with_max_entries(
+        config.ping_rate_limit_per_ip,
+        config.ping_rate_limit_max_entries,
+    );
 
     loop {
-        // 2. The Polling Block (Replaces select!)
-        let event = poll_fn(|cx| {
-            // A. Poll Outbound (Channel)
-            // prioritize outbound or inbound? select! is random, this is ordered.
-            // Putting outbound first gives it priority.
-            if let Poll::Ready(Some(msg)) = outbound_rx.poll_recv(cx) {
-                return Poll::Ready(LoopEvent::Outbound(msg));
-            }
+        let event = tokio::select! {
+            res = socket.recv_from(&mut buf) => LoopEvent::Inbound(res),
+            Some(msg) = outbound_rx.recv() => LoopEvent::Outbound(msg),
+            _ = tick.tick() => LoopEvent::Tick,
+        };
 
-            // B. Poll Inbound (UDP)
-            // We need a ReadBuf for poll_recv_from
-            let mut read_buf = ReadBuf::new(&mut buf);
-            if let Poll::Ready(res) = socket.poll_recv_from(cx, &mut read_buf) {
-                let len = read_buf.filled().len();
-                return Poll::Ready(LoopEvent::Inbound(res.map(|addr| (len, addr))));
-            }
-
-            // C. Poll Tick (Timer)
-            if tick.poll_tick(cx).is_ready() {
-                return Poll::Ready(LoopEvent::Tick);
-            }
-
-            Poll::Pending
-        })
-        .await;
-
-        // 3. The Logic Block (Now just a simple match)
         match event {
             LoopEvent::Inbound(res) => match res {
                 Ok((len, peer)) => {
@@ -316,7 +306,7 @@ async fn run_listener_muxer(
                 .await;
             }
             LoopEvent::Tick => {
-                tick_sessions(&socket, &mut sessions, &mut send_buf).await;
+                tick_sessions(&socket, &mut sessions, &new_conn_tx, &mut send_buf).await;
             }
         }
     }

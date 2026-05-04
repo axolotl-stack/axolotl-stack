@@ -24,12 +24,13 @@ use std::{
     collections::{BTreeMap, BinaryHeap, VecDeque},
     time::{Duration, Instant},
 };
+use thiserror::Error;
 
 use crate::protocol::{
     constants::{self, MAX_ACK_SEQUENCES},
     datagram::Datagram,
     encapsulated_packet::EncapsulatedPacket,
-    packet::{DecodeError, RaknetPacket},
+    packet::{DecodeError, EncodeError, RaknetPacket},
     reliability::Reliability,
     types::Sequence24,
 };
@@ -46,6 +47,14 @@ pub struct IncomingPacket {
     pub packet: RaknetPacket,
     pub reliability: Reliability,
     pub ordering_channel: Option<u8>,
+}
+
+#[derive(Error, Debug)]
+pub enum QueuePacketError {
+    #[error("ordering channel {channel} out of range (max channels: {max_channels})")]
+    InvalidOrderingChannel { channel: u8, max_channels: usize },
+    #[error(transparent)]
+    Encode(#[from] EncodeError),
 }
 
 /// Tunable low-level session parameters to mirror Cloudburst configurability.
@@ -71,7 +80,7 @@ impl Default for SessionTunables {
             split_timeout: Duration::from_secs(30),
             reliable_window: constants::MAX_ACK_SEQUENCES as u32,
             max_split_parts: 8192,
-            max_concurrent_splits: 4096,
+            max_concurrent_splits: 32,
             max_incoming_ack_queue: 4096,
         }
     }
@@ -122,6 +131,7 @@ pub struct Session {
     sent_datagrams: BTreeMap<Sequence24, TrackedDatagram>,
     incoming_acks: VecDeque<SequenceRange>,
     incoming_naks: VecDeque<SequenceRange>,
+    pending_incoming: VecDeque<IncomingPacket>,
     outgoing_acks: AckQueue,
     outgoing_naks: AckQueue,
     /// Maximum number of incoming ACK/NACK ranges to queue.
@@ -163,6 +173,7 @@ impl Session {
             sent_datagrams: BTreeMap::new(),
             incoming_acks: VecDeque::new(),
             incoming_naks: VecDeque::new(),
+            pending_incoming: VecDeque::new(),
             outgoing_acks: AckQueue::new(tunables.ack_queue_capacity),
             outgoing_naks: AckQueue::new(tunables.ack_queue_capacity),
             max_incoming_ack_queue: tunables.max_incoming_ack_queue,
@@ -258,6 +269,10 @@ impl Session {
         }
         Ok(())
     }
+
+    pub fn drain_pending_incoming(&mut self) -> Vec<IncomingPacket> {
+        self.pending_incoming.drain(..).collect()
+    }
 }
 
 #[cfg(test)]
@@ -339,6 +354,20 @@ mod tests {
     }
 
     #[test]
+    fn incoming_ack_queue_drops_overwide_ranges() {
+        let mut session = Session::with_tunables(1200, SessionTunables::default());
+
+        session.handle_ack_payload(AckNackPayload {
+            ranges: vec![SequenceRange {
+                start: Sequence24::new(0),
+                end: Sequence24::new(constants::MAX_ACK_SEQUENCES as u32),
+            }],
+        });
+
+        assert!(session.incoming_acks.is_empty());
+    }
+
+    #[test]
     fn incoming_nack_queue_respects_limit() {
         let tunables = SessionTunables {
             max_incoming_ack_queue: 2,
@@ -393,7 +422,7 @@ mod tests {
             constants::MAX_ACK_SEQUENCES as u32
         );
         assert_eq!(tunables.max_split_parts, 8192);
-        assert_eq!(tunables.max_concurrent_splits, 4096);
+        assert_eq!(tunables.max_concurrent_splits, 32);
         assert_eq!(tunables.max_incoming_ack_queue, 4096);
     }
 

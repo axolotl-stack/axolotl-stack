@@ -8,6 +8,8 @@ use crate::protocol::packet::DecodeError;
 use crate::protocol::reliability::Reliability;
 use crate::protocol::types::Sequence24;
 
+const DEFAULT_MAX_TOTAL_SPLIT_PARTS: usize = 8192 * 32;
+
 struct SplitEntry {
     reliability: Reliability,
     reliable_index: Option<Sequence24>,
@@ -26,6 +28,8 @@ pub struct SplitAssembler {
     ttl: Duration,
     max_parts: u32,
     max_concurrent: usize,
+    max_total_parts: usize,
+    allocated_part_slots: usize,
 }
 
 impl SplitAssembler {
@@ -40,6 +44,10 @@ impl SplitAssembler {
             ttl,
             max_parts,
             max_concurrent,
+            max_total_parts: (max_parts as usize)
+                .saturating_mul(max_concurrent)
+                .min(DEFAULT_MAX_TOTAL_SPLIT_PARTS),
+            allocated_part_slots: 0,
         }
     }
 
@@ -64,17 +72,33 @@ impl SplitAssembler {
             return Err(DecodeError::SplitBufferFull);
         }
 
-        let entry = self.entries.entry(split.id).or_insert_with(|| SplitEntry {
-            reliability: pkt.header.reliability,
-            reliable_index: pkt.reliable_index,
-            sequence_index: pkt.sequence_index,
-            ordering_index: pkt.ordering_index,
-            ordering_channel: pkt.ordering_channel,
-            needs_bas: pkt.header.needs_bas,
-            parts: vec![None; split.count as usize],
-            received: 0,
-            last_update: now,
-        });
+        if !self.entries.contains_key(&split.id) {
+            let requested_slots = split.count as usize;
+            if self.allocated_part_slots.saturating_add(requested_slots) > self.max_total_parts {
+                return Err(DecodeError::SplitBufferFull);
+            }
+
+            self.entries.insert(
+                split.id,
+                SplitEntry {
+                    reliability: pkt.header.reliability,
+                    reliable_index: pkt.reliable_index,
+                    sequence_index: pkt.sequence_index,
+                    ordering_index: pkt.ordering_index,
+                    ordering_channel: pkt.ordering_channel,
+                    needs_bas: pkt.header.needs_bas,
+                    parts: vec![None; requested_slots],
+                    received: 0,
+                    last_update: now,
+                },
+            );
+            self.allocated_part_slots = self.allocated_part_slots.saturating_add(requested_slots);
+        }
+
+        let entry = self
+            .entries
+            .get_mut(&split.id)
+            .ok_or(DecodeError::SplitBufferFull)?;
 
         if entry.parts.len() != split.count as usize {
             return Err(DecodeError::SplitCountMismatch);
@@ -132,12 +156,15 @@ impl SplitAssembler {
             payload,
         };
 
-        self.entries.remove(&split.id);
+        if let Some(entry) = self.entries.remove(&split.id) {
+            self.allocated_part_slots = self.allocated_part_slots.saturating_sub(entry.parts.len());
+        }
         Ok(Some(assembled))
     }
 
     pub fn prune(&mut self, now: Instant) -> Vec<(Option<u8>, Option<Sequence24>)> {
         let mut dropped = Vec::new();
+        let mut freed_slots = 0usize;
         self.entries.retain(|id, entry| {
             if now.duration_since(entry.last_update) >= self.ttl {
                 tracing::warn!(
@@ -146,11 +173,13 @@ impl SplitAssembler {
                     "dropping_expired_split_packet"
                 );
                 dropped.push((entry.ordering_channel, entry.ordering_index));
+                freed_slots = freed_slots.saturating_add(entry.parts.len());
                 false
             } else {
                 true
             }
         });
+        self.allocated_part_slots = self.allocated_part_slots.saturating_sub(freed_slots);
         dropped
     }
 }
@@ -206,6 +235,27 @@ mod tests {
         }
 
         let mut overflow = make_split_encap(2, 0);
+        if let Some(split) = overflow.split.as_mut() {
+            split.id = 999;
+        }
+        let res = assembler.add(overflow, now);
+        assert!(matches!(res, Err(DecodeError::SplitBufferFull)));
+    }
+
+    #[test]
+    fn rejects_when_total_split_part_budget_is_full() {
+        let mut assembler = SplitAssembler::new(Duration::from_secs(30), 8192, 33);
+        let now = Instant::now();
+
+        for id in 0..32 {
+            let mut pkt = make_split_encap(8192, 0);
+            if let Some(split) = pkt.split.as_mut() {
+                split.id = id as u16;
+            }
+            assembler.add(pkt, now).unwrap();
+        }
+
+        let mut overflow = make_split_encap(1, 0);
         if let Some(split) = overflow.split.as_mut() {
             split.id = 999;
         }

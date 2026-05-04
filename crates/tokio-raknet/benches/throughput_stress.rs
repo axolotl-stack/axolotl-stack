@@ -171,7 +171,9 @@ fn benchmark_high_packet_rate(c: &mut Criterion) {
             |mut session| {
                 for _ in 0..100 {
                     let pkt = make_user_data_packet(128);
-                    session.queue_packet(pkt, Reliability::ReliableOrdered, 0, RakPriority::Normal);
+                    session
+                        .queue_packet(pkt, Reliability::ReliableOrdered, 0, RakPriority::Normal)
+                        .expect("benchmark packet should queue");
                 }
             },
             criterion::BatchSize::SmallInput,
@@ -188,7 +190,9 @@ fn benchmark_high_packet_rate(c: &mut Criterion) {
                 // Queue outgoing packets
                 for _ in 0..50 {
                     let pkt = make_user_data_packet(128);
-                    session.queue_packet(pkt, Reliability::ReliableOrdered, 0, RakPriority::Normal);
+                    session
+                        .queue_packet(pkt, Reliability::ReliableOrdered, 0, RakPriority::Normal)
+                        .expect("benchmark packet should queue");
                 }
                 // Process some incoming sequences
                 for i in 0..50 {

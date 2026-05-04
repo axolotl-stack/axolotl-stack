@@ -1,6 +1,7 @@
-use std::time::Instant;
+use std::{collections::VecDeque, time::Instant};
 
 use crate::protocol::{
+    constants::MAX_ACK_SEQUENCES,
     encapsulated_packet::EncapsulatedPacket,
     packet::{DecodeError, RaknetPacket},
     types::Sequence24,
@@ -32,22 +33,47 @@ impl Session {
     /// Handle an incoming dedicated ACK payload.
     /// Respects `max_incoming_ack_queue` limit, dropping oldest entries if exceeded.
     pub fn handle_ack_payload(&mut self, payload: AckNackPayload) {
-        for range in payload.ranges {
-            if self.incoming_acks.len() >= self.max_incoming_ack_queue {
-                self.incoming_acks.pop_front();
-            }
-            self.incoming_acks.push_back(range);
-        }
+        Self::queue_incoming_ack_ranges(
+            &mut self.incoming_acks,
+            payload.ranges,
+            self.max_incoming_ack_queue,
+        );
     }
 
     /// Handle an incoming dedicated NACK payload.
     /// Respects `max_incoming_ack_queue` limit, dropping oldest entries if exceeded.
     pub fn handle_nack_payload(&mut self, payload: AckNackPayload) {
-        for range in payload.ranges {
-            if self.incoming_naks.len() >= self.max_incoming_ack_queue {
-                self.incoming_naks.pop_front();
+        Self::queue_incoming_ack_ranges(
+            &mut self.incoming_naks,
+            payload.ranges,
+            self.max_incoming_ack_queue,
+        );
+    }
+
+    fn inbound_ack_range_is_safe(range: SequenceRange) -> bool {
+        !range.wraps() && range.len() <= MAX_ACK_SEQUENCES as u32
+    }
+
+    fn queue_incoming_ack_ranges(
+        queue: &mut VecDeque<SequenceRange>,
+        ranges: Vec<SequenceRange>,
+        max_ranges: usize,
+    ) {
+        let mut total_sequences = 0u32;
+        for range in ranges {
+            if !Self::inbound_ack_range_is_safe(range) {
+                continue;
             }
-            self.incoming_naks.push_back(range);
+
+            total_sequences = total_sequences.saturating_add(range.len());
+            if total_sequences > MAX_ACK_SEQUENCES as u32 {
+                break;
+            }
+
+            if queue.len() >= max_ranges {
+                queue.pop_front();
+            }
+            queue.push_back(range);
         }
     }
 
@@ -139,21 +165,19 @@ impl Session {
         };
 
         if let RaknetPacket::EncapsulatedAck(payload) = pkt {
-            for range in payload.0.ranges {
-                if self.incoming_acks.len() >= self.max_incoming_ack_queue {
-                    self.incoming_acks.pop_front();
-                }
-                self.incoming_acks.push_back(range);
-            }
+            Self::queue_incoming_ack_ranges(
+                &mut self.incoming_acks,
+                payload.0.ranges,
+                self.max_incoming_ack_queue,
+            );
             return Ok(());
         }
         if let RaknetPacket::EncapsulatedNak(payload) = pkt {
-            for range in payload.0.ranges {
-                if self.incoming_naks.len() >= self.max_incoming_ack_queue {
-                    self.incoming_naks.pop_front();
-                }
-                self.incoming_naks.push_back(range);
-            }
+            Self::queue_incoming_ack_ranges(
+                &mut self.incoming_naks,
+                payload.0.ranges,
+                self.max_incoming_ack_queue,
+            );
             return Ok(());
         }
 
@@ -211,5 +235,56 @@ impl Session {
             }
             seq = seq.next();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::protocol::{packet::RaknetPacket, reliability::Reliability, state::RakPriority};
+    use bytes::Bytes;
+
+    #[test]
+    fn drops_oversized_ack_ranges_before_queueing() {
+        let mut session = Session::new(1200);
+        session.handle_ack_payload(AckNackPayload {
+            ranges: vec![SequenceRange {
+                start: Sequence24::new(0),
+                end: Sequence24::new(MAX_ACK_SEQUENCES as u32),
+            }],
+        });
+
+        assert!(session.incoming_acks.is_empty());
+    }
+
+    #[test]
+    fn large_ack_range_only_touches_tracked_datagrams() {
+        let mut session = Session::new(1500);
+        let now = Instant::now();
+
+        session
+            .queue_packet(
+                RaknetPacket::UserData {
+                    id: 0x80,
+                    payload: Bytes::from_static(b"one"),
+                },
+                Reliability::Reliable,
+                0,
+                RakPriority::High,
+            )
+            .unwrap();
+        session.build_data_datagram(now).expect("tracked datagram");
+        assert_eq!(session.sent_datagrams.len(), 1);
+
+        let tracked_seq = *session.sent_datagrams.keys().next().unwrap();
+        session.handle_ack_payload(AckNackPayload {
+            ranges: vec![SequenceRange {
+                start: tracked_seq,
+                end: tracked_seq,
+            }],
+        });
+        session.process_incoming_acks_naks(now);
+
+        assert!(session.sent_datagrams.is_empty());
     }
 }
