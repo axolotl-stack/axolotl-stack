@@ -196,6 +196,39 @@ impl ExtractedData {
             decode_base64(&entities.identifiers_nbt_base64)
                 .map_err(|e| format!("entity identifiers NBT is invalid: {e}"))?;
         }
+        if let Some(biomes) = &self.biomes {
+            if biomes.definitions.is_empty() {
+                return Err("biome definitions must not be empty when present".to_string());
+            }
+            if biomes.string_list.is_empty() {
+                return Err(
+                    "biome string_list must not be empty when definitions are present".to_string(),
+                );
+            }
+            for name in &biomes.string_list {
+                if name.trim().is_empty() {
+                    return Err("biome string_list entries must be non-empty".to_string());
+                }
+            }
+            for biome in &biomes.definitions {
+                let name_index = usize::try_from(biome.name_index)
+                    .map_err(|_| format!("biome {} has negative name_index", biome.biome_id))?;
+                if name_index >= biomes.string_list.len() {
+                    return Err(format!(
+                        "biome {} name_index {} is out of range for string_list length {}",
+                        biome.biome_id,
+                        biome.name_index,
+                        biomes.string_list.len()
+                    ));
+                }
+                if !biome.temperature.is_finite() || !biome.downfall.is_finite() {
+                    return Err(format!(
+                        "biome {} has non-finite climate values",
+                        biome.biome_id
+                    ));
+                }
+            }
+        }
 
         Ok(())
     }
@@ -373,7 +406,15 @@ mod tests {
                 }],
             },
             creative: None,
-            biomes: None,
+            biomes: Some(BiomeData {
+                definitions: vec![BiomeEntry {
+                    name_index: 0,
+                    biome_id: 1,
+                    temperature: 0.8,
+                    downfall: 0.4,
+                }],
+                string_list: vec!["minecraft:plains".to_string()],
+            }),
             entities: None,
         }
     }
@@ -397,6 +438,17 @@ mod tests {
         data.blocks.properties[0].state_nbt_base64 = "not base64".to_string();
         let error = data.validate().unwrap_err();
         assert!(error.contains("invalid state NBT"));
+    }
+
+    #[test]
+    fn validate_rejects_invalid_biome_name_index() {
+        let mut data = minimal_extracted_data();
+        let biome_data = data.biomes.as_mut().expect("biome fixture");
+        biome_data.definitions[0].name_index = 3;
+
+        let error = data.validate().unwrap_err();
+
+        assert!(error.contains("out of range"));
     }
 
     #[test]

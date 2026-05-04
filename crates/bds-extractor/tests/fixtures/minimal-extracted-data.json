@@ -21,5 +21,18 @@
         "state_nbt_base64": "CgA="
       }
     ]
+  },
+  "biomes": {
+    "definitions": [
+      {
+        "name_index": 0,
+        "biome_id": 1,
+        "temperature": 0.8,
+        "downfall": 0.4
+      }
+    ],
+    "string_list": [
+      "minecraft:plains"
+    ]
   }
 }

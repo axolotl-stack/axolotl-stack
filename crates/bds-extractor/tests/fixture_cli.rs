@@ -30,6 +30,14 @@ fn fixture_cli_validates_and_writes_roundtrip_json() {
         data["blocks"]["properties"][0]["name"].as_str(),
         Some("minecraft:stone")
     );
+    assert_eq!(
+        data["biomes"]["definitions"][0]["biome_id"].as_u64(),
+        Some(1)
+    );
+    assert_eq!(
+        data["biomes"]["string_list"][0].as_str(),
+        Some("minecraft:plains")
+    );
 
     let _ = std::fs::remove_file(output);
 }
