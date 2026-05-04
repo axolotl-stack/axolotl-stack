@@ -7,4 +7,6 @@ manifest schema_version="1" generated_at="unknown" {
     source "upstream_metadata" kind="schema_metadata" path="crates/unastar-data/data/upstream" confidence="medium" version="mojang-creator-tools:f7708729466c78b9689af9b1a6498220ed397a16;blockception-schema:main" hash="52e4ee97775460cb653afacb1075e25202cc1d57dfec950e2a4167839cfa3f21"
     source "pmmp_bedrock_data" kind="external_json" path="crates/unastar-data/data/upstream/pmmp" confidence="medium" version="pmmp-bedrockdata-embedded-v1" hash="1cb3960966b031466c44bbbe3abc3b02310fc64fb9eb116a11dddc1b748e003d"
     artifact "entities" path="entities.kdl" hash="530fb8cd715b08c988c9ebdad72a5ea58374389dcc71ebf5f7bb9bd97d22be25"
+    artifact "items" path="items.kdl" hash="77898a3bbf122b6d96d9039df10106a569d9986e1fb1762f6f12ac3ef80e8ed8"
+    artifact "creative" path="creative.kdl" hash="35112ee9b3d22de086b43f8b828386dd3c06145b3e557d043de22291457a3d55"
 }

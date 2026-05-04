@@ -138,14 +138,15 @@ fn source_from_path(
 fn collect_artifacts(output_dir: &Path) -> miette::Result<Vec<ManifestArtifact>> {
     let mut artifacts = Vec::new();
 
-    let name = "entities.kdl";
-    let path = output_dir.join(name);
-    if path.exists() {
-        artifacts.push(ManifestArtifact {
-            name: name.strip_suffix(".kdl").unwrap_or(name).to_string(),
-            path: name.to_string(),
-            hash: hash_path(&path)?,
-        });
+    for name in ["entities.kdl", "items.kdl", "creative.kdl"] {
+        let path = output_dir.join(name);
+        if path.exists() {
+            artifacts.push(ManifestArtifact {
+                name: name.strip_suffix(".kdl").unwrap_or(name).to_string(),
+                path: name.to_string(),
+                hash: hash_path(&path)?,
+            });
+        }
     }
 
     Ok(artifacts)
