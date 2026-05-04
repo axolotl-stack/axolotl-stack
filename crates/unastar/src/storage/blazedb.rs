@@ -25,6 +25,9 @@ use crate::world::{Chunk, ChunkPos};
 
 /// Magic bytes at start of each chunk entry.
 const MAGIC: &[u8; 4] = b"BLAZ";
+const ENTRY_HEADER_LEN: usize = 24;
+const ENTRY_DATA_PREFIX_LEN: usize = 4;
+const MIN_ENTRY_SIZE: u32 = (ENTRY_HEADER_LEN + ENTRY_DATA_PREFIX_LEN) as u32;
 
 /// Current format version.
 const FORMAT_VERSION: u8 = 1;
@@ -122,7 +125,7 @@ impl BlazeDBProvider {
         let write_offset = data_file.metadata().map(|m| m.len()).unwrap_or(0);
 
         // Try to load index from file, or rebuild from data
-        let index = if index_path.exists() {
+        let mut index = if index_path.exists() {
             Self::load_index(&index_path).unwrap_or_else(|e| {
                 warn!("Failed to load index, rebuilding: {}", e);
                 Self::rebuild_index(&data_file).unwrap_or_default()
@@ -130,6 +133,9 @@ impl BlazeDBProvider {
         } else {
             Self::rebuild_index(&data_file).unwrap_or_default()
         };
+        if let Err(e) = Self::repair_legacy_index_sizes(&data_file, &mut index) {
+            warn!("Failed to repair legacy BlazeDB index sizes: {}", e);
+        }
 
         info!(
             "BlazeDB opened: {} chunks in index, {} bytes on disk",
@@ -212,6 +218,13 @@ impl BlazeDBProvider {
             let mut size_buf = [0u8; 4];
             file.read_exact(&mut size_buf).map_err(StorageError::Io)?;
             let size = u32::from_le_bytes(size_buf);
+            if size < MIN_ENTRY_SIZE {
+                warn!(
+                    "Invalid entry size {} at offset {}, stopping index rebuild",
+                    size, offset
+                );
+                break;
+            }
 
             // Skip CRC
             file.seek(SeekFrom::Current(4)).map_err(StorageError::Io)?;
@@ -228,15 +241,53 @@ impl BlazeDBProvider {
             let z = i32::from_le_bytes(z_buf);
             let dim = i32::from_le_bytes(dim_buf);
 
-            let morton = morton::encode(x, z, dim);
-            index.insert(morton, IndexEntry { offset, size });
-
-            // Skip to next entry (size includes header, so subtract what we read)
-            let remaining = size as i64 - 20; // 4 + 4 + 4 + 4 + 4 + 4 - 4 (magic already counted)
-            if remaining > 0 {
-                file.seek(SeekFrom::Current(remaining))
-                    .map_err(StorageError::Io)?;
+            let mut entry_size = size as u64;
+            let file_len = file.metadata().map_err(StorageError::Io)?.len();
+            let Some(declared_end) = offset.checked_add(entry_size) else {
+                warn!("BlazeDB entry at offset {} overflows file offsets", offset);
+                break;
+            };
+            let legacy_end = declared_end.checked_add(ENTRY_DATA_PREFIX_LEN as u64);
+            if let Some(legacy_end) = legacy_end
+                && declared_end < file_len
+                && legacy_end <= file_len
+                && !Self::file_has_magic_at(&mut file, declared_end, file_len)?
+                && Self::entry_boundary_is_valid(&mut file, legacy_end, file_len)?
+            {
+                warn!(
+                    "Repairing legacy short BlazeDB entry size at offset {} from {} to {}",
+                    offset,
+                    entry_size,
+                    entry_size + ENTRY_DATA_PREFIX_LEN as u64
+                );
+                entry_size += ENTRY_DATA_PREFIX_LEN as u64;
             }
+            let Some(entry_end) = offset.checked_add(entry_size) else {
+                warn!("BlazeDB entry at offset {} overflows file offsets", offset);
+                break;
+            };
+            if entry_end > file_len {
+                warn!(
+                    "BlazeDB entry at offset {} declares end {} beyond file length {}, stopping index rebuild",
+                    offset, entry_end, file_len
+                );
+                break;
+            }
+
+            let entry_size = u32::try_from(entry_size)
+                .map_err(|_| StorageError::Database("BlazeDB entry too large".to_string()))?;
+            let morton = morton::encode(x, z, dim);
+            index.insert(
+                morton,
+                IndexEntry {
+                    offset,
+                    size: entry_size,
+                },
+            );
+
+            // Skip to next entry (size includes the full fixed header).
+            file.seek(SeekFrom::Start(offset + entry_size as u64))
+                .map_err(StorageError::Io)?;
         }
 
         Ok(index)
@@ -256,6 +307,114 @@ impl BlazeDBProvider {
 
         std::fs::write(&index_path, &data).map_err(StorageError::Io)?;
         Ok(())
+    }
+
+    /// Repair indexes written by the initial BlazeDB format bug.
+    ///
+    /// Older entries stored `size = 24 + payload_len` but still wrote the
+    /// 4-byte compression/version/reserved prefix between the fixed header and
+    /// payload. When the next indexed offset or EOF is exactly 4 bytes after
+    /// the declared end, the entry is unambiguously an old short-size entry.
+    fn repair_legacy_index_sizes(
+        file: &File,
+        index: &mut HashMap<u64, IndexEntry>,
+    ) -> StorageResult<()> {
+        let file_len = file.metadata().map_err(StorageError::Io)?.len();
+        let mut entries: Vec<(u64, u64)> = index
+            .iter()
+            .map(|(&morton, entry)| (morton, entry.offset))
+            .collect();
+        entries.sort_by_key(|&(_, offset)| offset);
+
+        let mut repairs = Vec::new();
+        let mut removals = Vec::new();
+        for (idx, &(morton, _offset)) in entries.iter().enumerate() {
+            let Some(entry) = index.get(&morton) else {
+                continue;
+            };
+            if entry.size < MIN_ENTRY_SIZE {
+                warn!(
+                    "Dropping too-small BlazeDB index entry at offset {} with size {}",
+                    entry.offset, entry.size
+                );
+                removals.push(morton);
+                continue;
+            }
+            if entry.offset >= file_len {
+                warn!(
+                    "Dropping BlazeDB index entry at offset {} beyond file length {}",
+                    entry.offset, file_len
+                );
+                removals.push(morton);
+                continue;
+            }
+
+            let Some(declared_end) = entry.offset.checked_add(entry.size as u64) else {
+                warn!(
+                    "Dropping BlazeDB index entry at offset {} with overflowing size {}",
+                    entry.offset, entry.size
+                );
+                removals.push(morton);
+                continue;
+            };
+            let boundary = entries
+                .get(idx + 1)
+                .map(|&(_, next_offset)| next_offset)
+                .unwrap_or(file_len);
+
+            if declared_end == boundary {
+                continue;
+            }
+
+            if declared_end
+                .checked_add(ENTRY_DATA_PREFIX_LEN as u64)
+                .is_some_and(|legacy_end| legacy_end == boundary)
+            {
+                repairs.push(morton);
+            } else {
+                warn!(
+                    "Dropping BlazeDB index entry at offset {} with declared end {} beyond boundary {}",
+                    entry.offset, declared_end, boundary
+                );
+                removals.push(morton);
+            }
+        }
+
+        for morton in repairs {
+            if let Some(entry) = index.get_mut(&morton) {
+                entry.size += ENTRY_DATA_PREFIX_LEN as u32;
+                warn!(
+                    "Repaired legacy short BlazeDB index entry at offset {} to size {}",
+                    entry.offset, entry.size
+                );
+            }
+        }
+        for morton in removals {
+            index.remove(&morton);
+        }
+
+        Ok(())
+    }
+
+    fn entry_boundary_is_valid(file: &mut File, offset: u64, file_len: u64) -> StorageResult<bool> {
+        if offset == file_len {
+            return Ok(true);
+        }
+        Self::file_has_magic_at(file, offset, file_len)
+    }
+
+    fn file_has_magic_at(file: &mut File, offset: u64, file_len: u64) -> StorageResult<bool> {
+        if offset + MAGIC.len() as u64 > file_len {
+            return Ok(false);
+        }
+        let current = file.stream_position().map_err(StorageError::Io)?;
+        file.seek(SeekFrom::Start(offset))
+            .map_err(StorageError::Io)?;
+        let mut magic = [0u8; 4];
+        let result = file.read_exact(&mut magic).map(|_| &magic == MAGIC);
+        file.seek(SeekFrom::Start(current))
+            .map_err(StorageError::Io)?;
+        result.map_err(StorageError::Io)
     }
 
     /// Background write worker.
@@ -321,10 +480,15 @@ impl BlazeDBProvider {
             let offset = self.write_offset.load(Ordering::Relaxed);
 
             // Build entry
-            let mut entry = Vec::with_capacity(24 + req.data.len());
-            entry.extend_from_slice(MAGIC);
+            let total_size_usize = ENTRY_HEADER_LEN
+                .checked_add(ENTRY_DATA_PREFIX_LEN)
+                .and_then(|len| len.checked_add(req.data.len()))
+                .ok_or_else(|| StorageError::Database("BlazeDB entry too large".to_string()))?;
+            let total_size = u32::try_from(total_size_usize)
+                .map_err(|_| StorageError::Database("BlazeDB entry too large".to_string()))?;
 
-            let total_size = 24 + req.data.len() as u32; // Header + data
+            let mut entry = Vec::with_capacity(total_size_usize);
+            entry.extend_from_slice(MAGIC);
             entry.extend_from_slice(&total_size.to_le_bytes());
 
             // CRC32 (placeholder - compute over data)
@@ -387,14 +551,32 @@ impl BlazeDBProvider {
             return Err(StorageError::Database("Invalid magic bytes".to_string()));
         }
 
-        let size = u32::from_le_bytes(header[4..8].try_into().unwrap());
+        let header_size = u32::from_le_bytes(header[4..8].try_into().unwrap());
+        let effective_size = entry.size.max(header_size);
+        if effective_size < MIN_ENTRY_SIZE {
+            return Err(StorageError::Database(format!(
+                "Invalid chunk entry size {}",
+                effective_size
+            )));
+        }
+        let file_len = file.metadata().map_err(StorageError::Io)?.len();
+        let entry_end = entry
+            .offset
+            .checked_add(effective_size as u64)
+            .ok_or_else(|| StorageError::Database("Chunk entry size overflow".to_string()))?;
+        if entry_end > file_len {
+            return Err(StorageError::Database(format!(
+                "Chunk entry end {} exceeds file length {}",
+                entry_end, file_len
+            )));
+        }
         let stored_crc = u32::from_le_bytes(header[8..12].try_into().unwrap());
         let x = i32::from_le_bytes(header[12..16].try_into().unwrap());
         let z = i32::from_le_bytes(header[16..20].try_into().unwrap());
         let _dim = i32::from_le_bytes(header[20..24].try_into().unwrap());
 
         // Read data
-        let data_size = size as usize - 24;
+        let data_size = effective_size as usize - ENTRY_HEADER_LEN;
         let mut data = vec![0u8; data_size];
         file.read_exact(&mut data).map_err(StorageError::Io)?;
 
@@ -557,13 +739,39 @@ impl WorldProvider for BlazeDBProvider {
                 ));
             }
 
-            let size = u32::from_le_bytes(header[4..8].try_into().unwrap());
+            let header_size = u32::from_le_bytes(header[4..8].try_into().unwrap());
+            let effective_size = this_entry.size.max(header_size);
+            if effective_size < MIN_ENTRY_SIZE {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("Invalid chunk entry size {}", effective_size),
+                ));
+            }
+            let file_len = file.metadata()?.len();
+            let entry_end = this_entry
+                .offset
+                .checked_add(effective_size as u64)
+                .ok_or_else(|| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "Chunk entry size overflow",
+                    )
+                })?;
+            if entry_end > file_len {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!(
+                        "Chunk entry end {} exceeds file length {}",
+                        entry_end, file_len
+                    ),
+                ));
+            }
             let _stored_crc = u32::from_le_bytes(header[8..12].try_into().unwrap());
             let x = i32::from_le_bytes(header[12..16].try_into().unwrap());
             let z = i32::from_le_bytes(header[16..20].try_into().unwrap());
 
             // Read rest
-            let data_size = size as usize - 24;
+            let data_size = effective_size as usize - ENTRY_HEADER_LEN;
             let mut data = vec![0u8; data_size];
             file.read_exact(&mut data)?;
 
@@ -651,5 +859,283 @@ impl Drop for BlazeDBProvider {
         if let Err(e) = self.save_index() {
             error!("Failed to save index on drop: {}", e);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_db_dir(test_name: &str) -> PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock after unix epoch")
+            .as_nanos();
+        std::env::temp_dir().join(format!(
+            "unastar-blazedb-{}-{}-{}",
+            test_name,
+            std::process::id(),
+            unique
+        ))
+    }
+
+    fn test_config() -> BlazeConfig {
+        BlazeConfig {
+            cache_capacity: 16,
+            compression: Compression::None,
+            flush_interval_ms: 1,
+        }
+    }
+
+    fn test_column(pos: ChunkPos) -> ChunkColumn {
+        let mut chunk = Chunk::new(pos.x, pos.z);
+        chunk
+            .set_block(1, 0, 2, 42)
+            .expect("test block position is in bounds");
+        ChunkColumn::new(chunk)
+    }
+
+    fn write_legacy_short_entry(dir: &Path, pos: ChunkPos, dim: i32) -> Vec<u8> {
+        std::fs::create_dir_all(dir).expect("create legacy db dir");
+        let raw_data = BlazeDBProvider::serialize_chunk(&test_column(pos));
+        let morton = morton::encode(pos.x, pos.z, dim);
+        let legacy_size = (ENTRY_HEADER_LEN + raw_data.len()) as u32;
+
+        let mut entry =
+            Vec::with_capacity(ENTRY_HEADER_LEN + ENTRY_DATA_PREFIX_LEN + raw_data.len());
+        entry.extend_from_slice(MAGIC);
+        entry.extend_from_slice(&legacy_size.to_le_bytes());
+        entry.extend_from_slice(&crc32fast::hash(&raw_data).to_le_bytes());
+        entry.extend_from_slice(&pos.x.to_le_bytes());
+        entry.extend_from_slice(&pos.z.to_le_bytes());
+        entry.extend_from_slice(&dim.to_le_bytes());
+        entry.push(Compression::None as u8);
+        entry.push(FORMAT_VERSION);
+        entry.extend_from_slice(&[0u8; 2]);
+        entry.extend_from_slice(&raw_data);
+        std::fs::write(dir.join("chunks.dat"), entry).expect("write legacy chunks.dat");
+
+        let mut index = Vec::new();
+        index.extend_from_slice(&morton.to_le_bytes());
+        index.extend_from_slice(&0u64.to_le_bytes());
+        index.extend_from_slice(&legacy_size.to_le_bytes());
+        std::fs::write(dir.join("index.dat"), index).expect("write legacy index.dat");
+
+        raw_data
+    }
+
+    #[tokio::test]
+    async fn entry_size_includes_compression_prefix() {
+        let dir = temp_db_dir("entry-size");
+        let provider = BlazeDBProvider::open(&dir, Some(test_config())).expect("open blazedb");
+        let pos = ChunkPos { x: 3, z: -7 };
+        let dim = 0;
+        let raw_data = BlazeDBProvider::serialize_chunk(&test_column(pos));
+        let morton = morton::encode(pos.x, pos.z, dim);
+        let mut writes = vec![WriteRequest {
+            morton,
+            data: raw_data.clone(),
+            x: pos.x,
+            z: pos.z,
+            dim,
+        }];
+
+        provider.flush_writes(&mut writes).expect("flush write");
+
+        let data = std::fs::read(dir.join("chunks.dat")).expect("read chunks.dat");
+        let stored_size = u32::from_le_bytes(data[4..8].try_into().expect("size bytes")) as usize;
+
+        assert_eq!(stored_size, data.len());
+        assert_eq!(
+            stored_size,
+            ENTRY_HEADER_LEN + ENTRY_DATA_PREFIX_LEN + raw_data.len()
+        );
+        assert_eq!(
+            provider
+                .index
+                .read()
+                .get(&morton)
+                .expect("index entry")
+                .size as usize,
+            data.len()
+        );
+
+        drop(provider);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn saved_column_loads_after_reopen() {
+        let dir = temp_db_dir("reopen-load");
+        let pos = ChunkPos { x: -2, z: 5 };
+        let dim = 0;
+        {
+            let provider = BlazeDBProvider::open(&dir, Some(test_config())).expect("open blazedb");
+            let raw_data = BlazeDBProvider::serialize_chunk(&test_column(pos));
+            let mut writes = vec![WriteRequest {
+                morton: morton::encode(pos.x, pos.z, dim),
+                data: raw_data,
+                x: pos.x,
+                z: pos.z,
+                dim,
+            }];
+            provider.flush_writes(&mut writes).expect("flush write");
+            provider.save_index().expect("save index");
+        }
+
+        let provider = BlazeDBProvider::open(&dir, Some(test_config())).expect("reopen blazedb");
+        let loaded = provider
+            .load_column(pos, dim)
+            .await
+            .expect("load column")
+            .expect("saved column exists");
+
+        assert_eq!(loaded.chunk.x, pos.x);
+        assert_eq!(loaded.chunk.z, pos.z);
+        assert_eq!(loaded.chunk.get_block(1, 0, 2), 42);
+
+        drop(provider);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn legacy_short_size_index_is_repaired_on_open() {
+        let dir = temp_db_dir("legacy-short-index");
+        let pos = ChunkPos { x: 8, z: -3 };
+        let dim = 0;
+        let raw_data = write_legacy_short_entry(&dir, pos, dim);
+
+        let provider = BlazeDBProvider::open(&dir, Some(test_config())).expect("open blazedb");
+        let morton = morton::encode(pos.x, pos.z, dim);
+        assert_eq!(
+            provider
+                .index
+                .read()
+                .get(&morton)
+                .expect("index entry")
+                .size as usize,
+            ENTRY_HEADER_LEN + ENTRY_DATA_PREFIX_LEN + raw_data.len()
+        );
+        let loaded = provider
+            .load_column(pos, dim)
+            .await
+            .expect("load legacy column")
+            .expect("legacy column exists");
+
+        assert_eq!(loaded.chunk.x, pos.x);
+        assert_eq!(loaded.chunk.z, pos.z);
+        assert_eq!(loaded.chunk.get_block(1, 0, 2), 42);
+
+        drop(provider);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn legacy_short_size_entry_is_repaired_during_index_rebuild() {
+        let dir = temp_db_dir("legacy-short-rebuild");
+        let pos = ChunkPos { x: -9, z: 4 };
+        let dim = 0;
+        let raw_data = write_legacy_short_entry(&dir, pos, dim);
+        std::fs::remove_file(dir.join("index.dat")).expect("remove stale index");
+
+        let provider = BlazeDBProvider::open(&dir, Some(test_config())).expect("open blazedb");
+        let morton = morton::encode(pos.x, pos.z, dim);
+        assert_eq!(
+            provider
+                .index
+                .read()
+                .get(&morton)
+                .expect("rebuilt index entry")
+                .size as usize,
+            ENTRY_HEADER_LEN + ENTRY_DATA_PREFIX_LEN + raw_data.len()
+        );
+        let loaded = provider
+            .load_column(pos, dim)
+            .await
+            .expect("load rebuilt legacy column")
+            .expect("legacy column exists");
+
+        assert_eq!(loaded.chunk.x, pos.x);
+        assert_eq!(loaded.chunk.z, pos.z);
+        assert_eq!(loaded.chunk.get_block(1, 0, 2), 42);
+
+        drop(provider);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn oversized_index_entry_is_dropped_before_read_allocation() {
+        let dir = temp_db_dir("oversized-index");
+        let pos = ChunkPos { x: 6, z: 6 };
+        let dim = 0;
+        write_legacy_short_entry(&dir, pos, dim);
+
+        let morton = morton::encode(pos.x, pos.z, dim);
+        let mut index = Vec::new();
+        index.extend_from_slice(&morton.to_le_bytes());
+        index.extend_from_slice(&0u64.to_le_bytes());
+        index.extend_from_slice(&u32::MAX.to_le_bytes());
+        std::fs::write(dir.join("index.dat"), index).expect("write poisoned index.dat");
+
+        let provider = BlazeDBProvider::open(&dir, Some(test_config())).expect("open blazedb");
+
+        assert!(!provider.index.read().contains_key(&morton));
+        assert!(
+            provider
+                .load_column(pos, dim)
+                .await
+                .expect("oversized entry should be dropped")
+                .is_none()
+        );
+
+        drop(provider);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn public_lz4_save_column_loads_after_reopen() {
+        let dir = temp_db_dir("public-lz4-roundtrip");
+        let pos = ChunkPos { x: 11, z: 12 };
+        let dim = 0;
+        let config = BlazeConfig {
+            cache_capacity: 16,
+            compression: Compression::Lz4,
+            flush_interval_ms: 1,
+        };
+        {
+            let provider = BlazeDBProvider::open(&dir, Some(config.clone())).expect("open blazedb");
+            provider
+                .save_column(pos, dim, &test_column(pos))
+                .await
+                .expect("save column");
+
+            let morton = morton::encode(pos.x, pos.z, dim);
+            for _ in 0..50 {
+                if provider.index.read().contains_key(&morton) {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            }
+            assert!(
+                provider.index.read().contains_key(&morton),
+                "background writer should flush saved column"
+            );
+            provider.flush().await.expect("flush provider");
+        }
+
+        let provider = BlazeDBProvider::open(&dir, Some(config)).expect("reopen blazedb");
+        let loaded = provider
+            .load_column(pos, dim)
+            .await
+            .expect("load lz4 column")
+            .expect("saved lz4 column exists");
+
+        assert_eq!(loaded.chunk.x, pos.x);
+        assert_eq!(loaded.chunk.z, pos.z);
+        assert_eq!(loaded.chunk.get_block(1, 0, 2), 42);
+
+        drop(provider);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
