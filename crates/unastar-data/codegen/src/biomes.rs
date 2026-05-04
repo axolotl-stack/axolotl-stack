@@ -208,6 +208,7 @@ fn property_string(node: &KdlNode, name: &str) -> Option<String> {
 fn generate_biomes_module(biomes: &[ParsedBiome], output_dir: &Path) -> miette::Result<()> {
     let mut biome_consts = Vec::new();
     let mut biome_idents = Vec::new();
+    let mut lookup_arms = Vec::new();
 
     for biome in biomes {
         let const_name = biome_const_ident(&biome.identifier)?;
@@ -230,6 +231,7 @@ fn generate_biomes_module(biomes: &[ParsedBiome], output_dir: &Path) -> miette::
             };
         });
         biome_idents.push(quote! { #const_name });
+        lookup_arms.push(quote! { #identifier => Some(&#const_name) });
     }
 
     let count = biomes.len();
@@ -281,7 +283,10 @@ fn generate_biomes_module(biomes: &[ParsedBiome], output_dir: &Path) -> miette::
 
         /// Look up a biome by namespaced identifier.
         pub fn get(identifier: &str) -> Option<&'static BiomeData> {
-            ALL_BIOMES.iter().find(|biome| biome.identifier == identifier)
+            match identifier {
+                #(#lookup_arms,)*
+                _ => None,
+            }
         }
 
         /// Iterate all behavior-pack biome definitions.
@@ -423,5 +428,30 @@ mod tests {
         let error = parse_biome_node(&doc.nodes()[0]).expect_err("missing downfall is invalid");
 
         assert!(error.to_string().contains("missing downfall"));
+    }
+
+    #[test]
+    fn generated_biome_lookup_uses_direct_match() {
+        let output_dir =
+            std::env::temp_dir().join(format!("unastar-biomes-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&output_dir);
+        std::fs::create_dir_all(&output_dir).expect("create temp output dir");
+
+        let biomes = vec![ParsedBiome {
+            identifier: "minecraft:plains".to_string(),
+            format_version: "1.21.110".to_string(),
+            source_file: "plains.biome.json".to_string(),
+            climate: None,
+            tags: Vec::new(),
+            component_names: Vec::new(),
+        }];
+
+        generate_biomes_module(&biomes, &output_dir).expect("generate biomes module");
+        let generated =
+            std::fs::read_to_string(output_dir.join("biomes.rs")).expect("read generated module");
+        let _ = std::fs::remove_dir_all(&output_dir);
+
+        assert!(generated.contains("\"minecraft:plains\" => Some(&PLAINS)"));
+        assert!(!generated.contains("ALL_BIOMES.iter().find"));
     }
 }
