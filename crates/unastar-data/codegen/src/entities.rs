@@ -1635,25 +1635,39 @@ mod tests {
     }
 
     #[test]
-    fn generated_entity_lookup_uses_direct_match() {
+    fn generated_entity_lookup_covers_each_entity_with_direct_match() {
         let output_dir =
             std::env::temp_dir().join(format!("unastar-entities-test-{}", std::process::id()));
         let definitions_dir = output_dir.join("definitions");
         let _ = std::fs::remove_dir_all(&output_dir);
         std::fs::create_dir_all(&definitions_dir).expect("create temp definitions dir");
 
-        let entities = vec![ParsedEntity {
-            identifier: "minecraft:zombie".to_string(),
-            name: "zombie".to_string(),
-            spawn_category: Some("monster".to_string()),
-            is_spawnable: true,
-            is_summonable: true,
-            runtime_id: Some(32),
-            components: Vec::new(),
-            component_groups: Vec::new(),
-            events: Vec::new(),
-            properties: Vec::new(),
-        }];
+        let entities = vec![
+            ParsedEntity {
+                identifier: "minecraft:zombie".to_string(),
+                name: "zombie".to_string(),
+                spawn_category: Some("monster".to_string()),
+                is_spawnable: true,
+                is_summonable: true,
+                runtime_id: Some(32),
+                components: Vec::new(),
+                component_groups: Vec::new(),
+                events: Vec::new(),
+                properties: Vec::new(),
+            },
+            ParsedEntity {
+                identifier: "minecraft:allay".to_string(),
+                name: "allay".to_string(),
+                spawn_category: Some("creature".to_string()),
+                is_spawnable: true,
+                is_summonable: true,
+                runtime_id: Some(134),
+                components: Vec::new(),
+                component_groups: Vec::new(),
+                events: Vec::new(),
+                properties: Vec::new(),
+            },
+        ];
         let schemas = HashMap::new();
 
         generate_entities_mod(&entities, &output_dir, &schemas).expect("generate entities module");
@@ -1661,7 +1675,12 @@ mod tests {
             std::fs::read_to_string(definitions_dir.join("mod.rs")).expect("read definitions mod");
         let _ = std::fs::remove_dir_all(&output_dir);
 
-        assert!(generated.contains("\"minecraft:zombie\" => Some(&ALL_ENTITIES[0])"));
+        assert_eq!(
+            generated.matches("=> Some(&ALL_ENTITIES[").count(),
+            entities.len()
+        );
+        assert!(generated.contains("\"minecraft:allay\" => Some(&ALL_ENTITIES[0])"));
+        assert!(generated.contains("\"minecraft:zombie\" => Some(&ALL_ENTITIES[1])"));
         assert!(!generated.contains("ALL_ENTITIES.iter().find"));
     }
 }

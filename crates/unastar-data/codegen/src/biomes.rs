@@ -431,27 +431,39 @@ mod tests {
     }
 
     #[test]
-    fn generated_biome_lookup_uses_direct_match() {
+    fn generated_biome_lookup_covers_each_biome_with_direct_match() {
         let output_dir =
             std::env::temp_dir().join(format!("unastar-biomes-test-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&output_dir);
         std::fs::create_dir_all(&output_dir).expect("create temp output dir");
 
-        let biomes = vec![ParsedBiome {
-            identifier: "minecraft:plains".to_string(),
-            format_version: "1.21.110".to_string(),
-            source_file: "plains.biome.json".to_string(),
-            climate: None,
-            tags: Vec::new(),
-            component_names: Vec::new(),
-        }];
+        let biomes = vec![
+            ParsedBiome {
+                identifier: "minecraft:plains".to_string(),
+                format_version: "1.21.110".to_string(),
+                source_file: "plains.biome.json".to_string(),
+                climate: None,
+                tags: Vec::new(),
+                component_names: Vec::new(),
+            },
+            ParsedBiome {
+                identifier: "minecraft:cherry_grove".to_string(),
+                format_version: "1.21.110".to_string(),
+                source_file: "cherry_grove.biome.json".to_string(),
+                climate: None,
+                tags: Vec::new(),
+                component_names: Vec::new(),
+            },
+        ];
 
         generate_biomes_module(&biomes, &output_dir).expect("generate biomes module");
         let generated =
             std::fs::read_to_string(output_dir.join("biomes.rs")).expect("read generated module");
         let _ = std::fs::remove_dir_all(&output_dir);
 
+        assert_eq!(generated.matches("=> Some(&").count(), biomes.len());
         assert!(generated.contains("\"minecraft:plains\" => Some(&PLAINS)"));
+        assert!(generated.contains("\"minecraft:cherry_grove\" => Some(&CHERRY_GROVE)"));
         assert!(!generated.contains("ALL_BIOMES.iter().find"));
     }
 }
