@@ -5,7 +5,7 @@ edition.workspace = true
 
 [features]
 default = ["full", "raknet"]
-client = ["dep:jsonwebtoken"]
+client = ["dep:jsonwebtoken", "dep:reqwest"]
 server = ["dep:reqwest", "dep:jsonwebtoken"]
 full = ["client", "server"]
 raknet = ["dep:tokio-raknet"]

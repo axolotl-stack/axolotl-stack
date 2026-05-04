@@ -10,6 +10,7 @@ path = "src/main.rs"
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
+sha2 = { workspace = true }
 kdl = "6.5"
 walkdir = "2.5"
 clap = { version = "4.5", features = ["derive"] }

@@ -4,10 +4,10 @@
 
 use base64::Engine;
 use jolyne::GameData;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// Root structure for all extracted BDS data.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExtractedData {
     /// Extraction metadata
     pub metadata: Metadata,
@@ -26,7 +26,7 @@ pub struct ExtractedData {
     pub entities: Option<EntityData>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Metadata {
     /// When the data was extracted
     pub extraction_date: String,
@@ -40,13 +40,13 @@ pub struct Metadata {
 // Items
 // ============================================================================
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ItemData {
     /// All items from the item registry
     pub registry: Vec<ItemEntry>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ItemEntry {
     /// Item string identifier (e.g., "minecraft:diamond_pickaxe")
     pub name: String,
@@ -65,13 +65,13 @@ pub struct ItemEntry {
 // Blocks
 // ============================================================================
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockData {
     /// Block properties from StartGame
     pub properties: Vec<BlockEntry>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockEntry {
     /// Block string identifier (e.g., "minecraft:stone")
     pub name: String,
@@ -83,7 +83,7 @@ pub struct BlockEntry {
 // Creative Content
 // ============================================================================
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreativeData {
     /// Creative inventory groups (tabs)
     pub groups: Vec<CreativeGroup>,
@@ -91,7 +91,7 @@ pub struct CreativeData {
     pub items: Vec<CreativeItem>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreativeGroup {
     /// Category enum value
     pub category: i32,
@@ -101,7 +101,7 @@ pub struct CreativeGroup {
     pub icon_item_id: i32,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreativeItem {
     /// Entry ID
     pub entry_id: i32,
@@ -121,7 +121,7 @@ pub struct CreativeItem {
 // Biomes
 // ============================================================================
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BiomeData {
     /// Biome definitions with structured data
     pub definitions: Vec<BiomeEntry>,
@@ -129,7 +129,7 @@ pub struct BiomeData {
     pub string_list: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BiomeEntry {
     /// Index into string_list for the name
     pub name_index: i16,
@@ -145,7 +145,7 @@ pub struct BiomeEntry {
 // Entities
 // ============================================================================
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EntityData {
     /// Raw entity identifiers NBT (base64 encoded)
     pub identifiers_nbt_base64: String,
@@ -156,6 +156,50 @@ pub struct EntityData {
 // ============================================================================
 
 impl ExtractedData {
+    /// Validate the minimum shape needed for downstream normalization.
+    pub fn validate(&self) -> Result<(), String> {
+        if self.metadata.game_version.trim().is_empty() {
+            return Err("metadata.game_version is required".to_string());
+        }
+        if self.metadata.engine.trim().is_empty() {
+            return Err("metadata.engine is required".to_string());
+        }
+        if self.items.registry.is_empty() {
+            return Err("items.registry must contain at least one item".to_string());
+        }
+        if self.blocks.properties.is_empty() {
+            return Err("blocks.properties must contain at least one block".to_string());
+        }
+
+        for item in &self.items.registry {
+            if item.name.trim().is_empty() {
+                return Err("item entries must have non-empty names".to_string());
+            }
+            if let Some(nbt) = &item.nbt_base64 {
+                decode_base64(nbt)
+                    .map_err(|e| format!("item {} has invalid NBT: {e}", item.name))?;
+            }
+        }
+
+        for block in &self.blocks.properties {
+            if block.name.trim().is_empty() {
+                return Err("block entries must have non-empty names".to_string());
+            }
+            if block.state_nbt_base64.trim().is_empty() {
+                return Err(format!("block {} is missing state NBT", block.name));
+            }
+            decode_base64(&block.state_nbt_base64)
+                .map_err(|e| format!("block {} has invalid state NBT: {e}", block.name))?;
+        }
+
+        if let Some(entities) = &self.entities {
+            decode_base64(&entities.identifiers_nbt_base64)
+                .map_err(|e| format!("entity identifiers NBT is invalid: {e}"))?;
+        }
+
+        Ok(())
+    }
+
     pub fn from_game_data(data: GameData) -> Self {
         let b64 = base64::engine::general_purpose::STANDARD;
 
@@ -296,4 +340,71 @@ fn chrono_lite_now() -> String {
         .unwrap_or_default();
     // Just use seconds since epoch for simplicity
     format!("unix:{}", now.as_secs())
+}
+
+fn decode_base64(value: &str) -> Result<Vec<u8>, base64::DecodeError> {
+    base64::engine::general_purpose::STANDARD.decode(value)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn minimal_extracted_data() -> ExtractedData {
+        ExtractedData {
+            metadata: Metadata {
+                extraction_date: "fixture".to_string(),
+                game_version: "1.26.0".to_string(),
+                engine: "BDS".to_string(),
+            },
+            items: ItemData {
+                registry: vec![ItemEntry {
+                    name: "minecraft:stone".to_string(),
+                    runtime_id: 1,
+                    component_based: false,
+                    version: "legacy".to_string(),
+                    nbt_base64: None,
+                }],
+            },
+            blocks: BlockData {
+                properties: vec![BlockEntry {
+                    name: "minecraft:stone".to_string(),
+                    state_nbt_base64: "CgA=".to_string(),
+                }],
+            },
+            creative: None,
+            biomes: None,
+            entities: None,
+        }
+    }
+
+    #[test]
+    fn validate_accepts_minimal_fixture() {
+        minimal_extracted_data().validate().unwrap();
+    }
+
+    #[test]
+    fn validate_rejects_missing_required_data() {
+        let mut data = minimal_extracted_data();
+        data.blocks.properties.clear();
+        let error = data.validate().unwrap_err();
+        assert!(error.contains("blocks.properties"));
+    }
+
+    #[test]
+    fn validate_rejects_invalid_base64() {
+        let mut data = minimal_extracted_data();
+        data.blocks.properties[0].state_nbt_base64 = "not base64".to_string();
+        let error = data.validate().unwrap_err();
+        assert!(error.contains("invalid state NBT"));
+    }
+
+    #[test]
+    fn extracted_data_json_roundtrip() {
+        let data = minimal_extracted_data();
+        let json = serde_json::to_string(&data).unwrap();
+        let decoded: ExtractedData = serde_json::from_str(&json).unwrap();
+        decoded.validate().unwrap();
+        assert_eq!(decoded.items.registry[0].name, "minecraft:stone");
+    }
 }

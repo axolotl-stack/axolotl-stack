@@ -10,7 +10,7 @@ use clap::Parser;
 use jolyne::BedrockStream;
 use jolyne::stream::client::ClientHandshakeConfig;
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tracing::info;
 
@@ -34,6 +34,10 @@ struct Args {
     #[arg(short, long, default_value = "BDSExtractor")]
     name: String,
 
+    /// Read and validate an existing extractor JSON fixture instead of connecting to BDS
+    #[arg(long)]
+    fixture: Option<PathBuf>,
+
     /// Log level filter
     #[arg(long, default_value = "info")]
     log: String,
@@ -50,6 +54,13 @@ async fn main() -> Result<()> {
                 .unwrap_or_else(|_| args.log.parse().unwrap_or_else(|_| "info".parse().unwrap())),
         )
         .init();
+
+    if let Some(fixture) = args.fixture.as_ref() {
+        info!("Loading extraction fixture from {}...", fixture.display());
+        let data = load_fixture(fixture)?;
+        write_extracted_data(&args.output, &data)?;
+        return Ok(());
+    }
 
     let addr: SocketAddr = args.addr.parse().context("Invalid server address format")?;
 
@@ -76,11 +87,7 @@ async fn main() -> Result<()> {
                 data.creative.as_ref().map_or(0, |c| c.items.len())
             );
 
-            // Write to file
-            let json = serde_json::to_string_pretty(&data).context("Failed to serialize data")?;
-            std::fs::write(&args.output, json).context("Failed to write output file")?;
-
-            info!("Data written to: {}", args.output.display());
+            write_extracted_data(&args.output, &data)?;
             Ok(())
         }
         Ok(Err(e)) => {
@@ -90,6 +97,24 @@ async fn main() -> Result<()> {
             anyhow::bail!("Connection timed out after {} seconds", args.timeout);
         }
     }
+}
+
+fn load_fixture(path: &Path) -> Result<output::ExtractedData> {
+    let json = std::fs::read_to_string(path).context("Failed to read fixture")?;
+    let data: output::ExtractedData =
+        serde_json::from_str(&json).context("Failed to parse fixture JSON")?;
+    data.validate()
+        .map_err(|e| anyhow::anyhow!("Fixture validation failed: {e}"))?;
+    Ok(data)
+}
+
+fn write_extracted_data(output: &Path, data: &output::ExtractedData) -> Result<()> {
+    data.validate()
+        .map_err(|e| anyhow::anyhow!("Extracted data validation failed: {e}"))?;
+    let json = serde_json::to_string_pretty(data).context("Failed to serialize data")?;
+    std::fs::write(output, json).context("Failed to write output file")?;
+    info!("Data written to: {}", output.display());
+    Ok(())
 }
 
 async fn extract_data(addr: SocketAddr, player_name: &str) -> Result<output::ExtractedData> {

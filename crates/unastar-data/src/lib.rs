@@ -13,7 +13,14 @@
 //! The KDL output is the "golden artifact" - human-readable, versionable,
 //! and consumable by non-Rust tooling.
 
+// Most entity component modules are generated from schemas that currently emit
+// explicit `Default` impls. Keep this scoped lint allowance here until the
+// generator learns to derive equivalent defaults safely.
+#![allow(clippy::derivable_impls)]
+
 pub mod entities;
+pub mod source;
 pub mod types;
 
+pub use source::*;
 pub use types::*;

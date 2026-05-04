@@ -1,0 +1,25 @@
+{
+  "metadata": {
+    "extraction_date": "fixture",
+    "game_version": "1.26.0",
+    "engine": "BDS"
+  },
+  "items": {
+    "registry": [
+      {
+        "name": "minecraft:stone",
+        "runtime_id": 1,
+        "component_based": false,
+        "version": "legacy"
+      }
+    ]
+  },
+  "blocks": {
+    "properties": [
+      {
+        "name": "minecraft:stone",
+        "state_nbt_base64": "CgA="
+      }
+    ]
+  }
+}

@@ -5,6 +5,7 @@ use tracing::info;
 mod emit;
 mod ingest;
 mod ir;
+mod manifest;
 mod merge;
 mod normalize;
 mod validate;
@@ -33,6 +34,10 @@ struct Args {
     #[arg(long)]
     list: bool,
 
+    /// Only refresh output/manifest.kdl from existing output artifacts
+    #[arg(long)]
+    manifest_only: bool,
+
     /// Tracing filter
     #[arg(long, default_value = "info")]
     log: String,
@@ -56,6 +61,16 @@ fn main() -> miette::Result<()> {
     let vanilla_path = manifest_dir.join(&args.vanilla);
     let overrides_path = manifest_dir.join(&args.overrides);
     let output_path = manifest_dir.join(&args.output);
+
+    if args.manifest_only {
+        manifest::write_manifest(
+            &output_path,
+            &vanilla_path,
+            &overrides_path,
+            &manifest_dir.join("../data/upstream"),
+        )?;
+        return Ok(());
+    }
 
     // Step 1: Parse vanilla entities
     info!("Parsing vanilla entities...");
@@ -87,6 +102,12 @@ fn main() -> miette::Result<()> {
     // Step 4: Emit KDL
     info!("Writing KDL output...");
     emit::write_entities_kdl(&merged, &output_path)?;
+    manifest::write_manifest(
+        &output_path,
+        &vanilla_path,
+        &overrides_path,
+        &manifest_dir.join("../data/upstream"),
+    )?;
 
     info!("Done!");
     Ok(())
