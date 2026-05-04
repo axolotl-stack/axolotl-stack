@@ -14,14 +14,30 @@ pub struct BlockEntry {
     pub string_id: String,
     /// Display name.
     pub name: String,
-    /// Number of states this block has.
+    /// Number of generated typed state variants.
+    ///
+    /// Some generated Valentine block definitions currently under-report this
+    /// for shared state families. Use `state_id_count` for canonical runtime
+    /// palette coverage.
     pub state_count: u32,
+    /// Number of canonical runtime state IDs in this block's range.
+    pub state_id_count: u32,
     /// Minimum runtime state ID (from canonical block states).
     pub min_state_id: u32,
     /// Maximum runtime state ID (from canonical block states).
     pub max_state_id: u32,
     /// Default state ID for this block.
     pub default_state_id: u32,
+    /// Block hardness from generated Bedrock data.
+    pub hardness: f32,
+    /// Explosion resistance from generated Bedrock data.
+    pub resistance: f32,
+    /// Whether this block is transparent for lighting/render semantics.
+    pub is_transparent: bool,
+    /// Light emitted by this block.
+    pub emit_light: u8,
+    /// Light filtered by this block.
+    pub filter_light: u8,
 }
 
 impl RegistryEntry for BlockEntry {
@@ -64,9 +80,15 @@ impl BlockRegistry {
                 string_id: block.string_id().to_string(),
                 name: block.name().to_string(),
                 state_count: block.state_count(),
+                state_id_count: block.max_state_id() - block.min_state_id() + 1,
                 min_state_id: block.min_state_id(),
                 max_state_id: block.max_state_id(),
                 default_state_id: block.default_state_id(),
+                hardness: block.hardness(),
+                resistance: block.resistance(),
+                is_transparent: block.is_transparent(),
+                emit_light: block.emit_light(),
+                filter_light: block.filter_light(),
             };
 
             // Fill the runtime_id → block_id mapping for every state
@@ -156,6 +178,43 @@ impl BlockRegistry {
         }
 
         properties
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn vanilla_registry_preserves_block_properties() {
+        let mut registry = BlockRegistry::new();
+        registry.load_vanilla();
+
+        let stone = registry
+            .get_by_name("minecraft:stone")
+            .expect("stone should be registered");
+        assert_eq!(stone.hardness, 1.5);
+        assert_eq!(stone.resistance, 6.0);
+        assert!(!stone.is_transparent);
+        assert_eq!(stone.filter_light, 15);
+    }
+
+    #[test]
+    fn state_id_count_uses_canonical_range() {
+        let mut registry = BlockRegistry::new();
+        registry.load_vanilla();
+
+        let fence_gate = registry
+            .get_by_name("minecraft:fence_gate")
+            .expect("fence gate should be registered");
+        assert_eq!(fence_gate.state_id_count, 16);
+        assert_eq!(
+            registry
+                .get_by_runtime_id(fence_gate.max_state_id)
+                .expect("runtime ID should map to fence gate")
+                .string_id,
+            "minecraft:fence_gate"
+        );
     }
 }
 

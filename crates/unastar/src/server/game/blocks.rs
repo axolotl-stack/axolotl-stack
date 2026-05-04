@@ -14,7 +14,6 @@ use crate::entity::components::{BreakingState, PlayerSession, PlayerUuid};
 use crate::world::chunk::blocks;
 use crate::world::ecs::{BlockBroadcastEvent, BlockChanged, ChunkManager, ChunkViewers};
 use crate::world::ecs::{world_to_chunk_coords, world_to_local_coords};
-use jolyne::valentine::blocks::BLOCKS;
 use jolyne::valentine::types::{Action, BlockCoordinates, Vec3F};
 use jolyne::valentine::{LevelEventPacket, LevelEventPacketEvent, McpePacket};
 
@@ -518,19 +517,16 @@ fn get_block_break_time(world: &World, x: i32, y: i32, z: i32) -> u32 {
         chunk_data.inner.get_block(local_x, local_y, local_z)
     };
 
-    for block_def in BLOCKS.iter() {
-        let min = block_def.min_state_id();
-        let max = block_def.max_state_id();
-        if block_runtime_id >= min && block_runtime_id <= max {
-            let hardness = block_def.hardness();
-            if hardness < 0.0 {
-                return u32::MAX;
-            }
-            if hardness <= 0.0 {
-                return 1;
-            }
-            return (hardness * 5.0 * 20.0).ceil() as u32;
+    if let Some(blocks) = world.get_resource::<super::types::BlockRegistryResource>()
+        && let Some(block) = blocks.0.get_by_runtime_id(block_runtime_id)
+    {
+        if block.hardness < 0.0 {
+            return u32::MAX;
         }
+        if block.hardness <= 0.0 {
+            return 1;
+        }
+        return (block.hardness * 5.0 * 20.0).ceil() as u32;
     }
 
     20
