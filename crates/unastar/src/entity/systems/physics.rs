@@ -49,11 +49,12 @@ pub fn clamp_velocity(mut query: Query<&mut Velocity>) {
 }
 
 /// System: Check ground collision (placeholder).
-pub fn check_ground_collision(mut query: Query<(&Position, &mut OnGround, &mut Velocity)>) {
+pub fn check_ground_collision(mut query: Query<(&mut Position, &mut OnGround, &mut Velocity)>) {
     // Simple Y=0 ground check for now
     // TODO: Real block collision detection
-    for (position, mut on_ground, mut velocity) in query.iter_mut() {
+    for (mut position, mut on_ground, mut velocity) in query.iter_mut() {
         if position.0.y <= 0.0 && velocity.0.y <= 0.0 {
+            position.0.y = 0.0;
             on_ground.0 = true;
             velocity.0.y = 0.0;
         } else if position.0.y > 0.0 {
@@ -181,5 +182,28 @@ mod tests {
 
         assert_eq!(world.get::<Velocity>(arrow).expect("arrow").0.x, 9.9);
         assert_eq!(world.get::<Velocity>(item).expect("item").0.x, 9.8);
+    }
+
+    #[test]
+    fn fallback_ground_collision_clamps_position_to_plane() {
+        let mut world = World::new();
+        let entity = world
+            .spawn((
+                Position(DVec3::new(0.0, -0.25, 0.0)),
+                Velocity(DVec3::new(0.0, -0.5, 0.0)),
+                OnGround(false),
+            ))
+            .id();
+        let mut schedule = Schedule::default();
+        schedule.add_systems(check_ground_collision);
+
+        schedule.run(&mut world);
+
+        let position = world.get::<Position>(entity).expect("position");
+        let velocity = world.get::<Velocity>(entity).expect("velocity");
+        let on_ground = world.get::<OnGround>(entity).expect("on ground");
+        assert_eq!(position.0.y, 0.0);
+        assert_eq!(velocity.0.y, 0.0);
+        assert!(on_ground.0);
     }
 }
