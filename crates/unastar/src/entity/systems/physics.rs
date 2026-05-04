@@ -6,10 +6,13 @@ use glam::DVec3;
 use crate::entity::components::*;
 
 /// System: Apply gravity to entities with velocity.
-pub fn apply_gravity(mut query: Query<&mut Velocity, (With<Living>, Without<OnGround>)>) {
+pub fn apply_gravity(mut query: Query<(&mut Velocity, Option<&OnGround>), With<Living>>) {
     const GRAVITY: f64 = 0.08;
 
-    for mut velocity in query.iter_mut() {
+    for (mut velocity, on_ground) in query.iter_mut() {
+        if on_ground.is_some_and(|on_ground| on_ground.0) {
+            continue;
+        }
         velocity.0.y -= GRAVITY;
     }
 }
@@ -61,4 +64,54 @@ pub fn apply_knockback(
     // TODO: Read knockback events
 ) {
     // Placeholder - would read knockback events and apply to velocity
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy_ecs::schedule::Schedule;
+    use bevy_ecs::world::World;
+
+    #[test]
+    fn gravity_applies_to_living_entities_that_are_not_grounded() {
+        let mut world = World::new();
+        let entity = world
+            .spawn((Living, Velocity(DVec3::ZERO), OnGround(false)))
+            .id();
+        let mut schedule = Schedule::default();
+        schedule.add_systems(apply_gravity);
+
+        schedule.run(&mut world);
+
+        let velocity = world.get::<Velocity>(entity).expect("velocity");
+        assert_eq!(velocity.0.y, -0.08);
+    }
+
+    #[test]
+    fn gravity_skips_grounded_living_entities() {
+        let mut world = World::new();
+        let entity = world
+            .spawn((Living, Velocity(DVec3::ZERO), OnGround(true)))
+            .id();
+        let mut schedule = Schedule::default();
+        schedule.add_systems(apply_gravity);
+
+        schedule.run(&mut world);
+
+        let velocity = world.get::<Velocity>(entity).expect("velocity");
+        assert_eq!(velocity.0.y, 0.0);
+    }
+
+    #[test]
+    fn gravity_applies_to_living_entities_without_ground_state() {
+        let mut world = World::new();
+        let entity = world.spawn((Living, Velocity(DVec3::ZERO))).id();
+        let mut schedule = Schedule::default();
+        schedule.add_systems(apply_gravity);
+
+        schedule.run(&mut world);
+
+        let velocity = world.get::<Velocity>(entity).expect("velocity");
+        assert_eq!(velocity.0.y, -0.08);
+    }
 }
