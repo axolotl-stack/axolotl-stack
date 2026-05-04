@@ -4562,6 +4562,7 @@ dependencies = [
  "toml_edit 0.22.27",
  "tracing",
  "tracing-subscriber",
+ "unastar-data",
  "unastar_noise",
  "uuid",
  "valentine",

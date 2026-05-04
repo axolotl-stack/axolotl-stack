@@ -19,8 +19,10 @@
 #![allow(clippy::derivable_impls)]
 
 pub mod entities;
+pub mod pmmp;
 pub mod source;
 pub mod types;
 
+pub use pmmp::*;
 pub use source::*;
 pub use types::*;

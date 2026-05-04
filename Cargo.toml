@@ -133,6 +133,7 @@ tokio-raknet = { path = "crates/tokio-raknet", version = "0.3" }
 tokio-nethernet = { path = "crates/tokio-nethernet", default-features = false }
 axolotl-xbl = { path = "crates/axolotl-xbl" }
 unastar_noise = { path = "crates/unastar_noise" }
+unastar-data = { path = "crates/unastar-data" }
 
 # use our patched version that statically links in zlib and snappy.
 [patch.crates-io]

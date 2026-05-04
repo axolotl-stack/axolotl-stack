@@ -68,6 +68,7 @@ fn main() -> miette::Result<()> {
             &vanilla_path,
             &overrides_path,
             &manifest_dir.join("../data/upstream"),
+            &manifest_dir.join("../data/upstream/pmmp"),
         )?;
         return Ok(());
     }
@@ -107,6 +108,7 @@ fn main() -> miette::Result<()> {
         &vanilla_path,
         &overrides_path,
         &manifest_dir.join("../data/upstream"),
+        &manifest_dir.join("../data/upstream/pmmp"),
     )?;
 
     info!("Done!");

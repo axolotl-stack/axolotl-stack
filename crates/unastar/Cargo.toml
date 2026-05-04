@@ -7,6 +7,7 @@ edition.workspace = true
 bytes.workspace = true
 jolyne = { workspace = true, features = ["server", "raknet"] }
 unastar_noise.workspace = true
+unastar-data.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tokio-raknet.workspace = true
 tracing.workspace = true

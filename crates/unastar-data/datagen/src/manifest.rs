@@ -54,6 +54,7 @@ pub fn write_manifest(
     vanilla_path: &Path,
     overrides_path: &Path,
     upstream_path: &Path,
+    pmmp_path: &Path,
 ) -> miette::Result<()> {
     let sources = vec![
         source_from_path(
@@ -77,6 +78,14 @@ pub fn write_manifest(
             "schema_metadata",
             upstream_path,
             upstream_version(upstream_path)?,
+            "medium",
+            false,
+        )?,
+        source_from_path(
+            "pmmp_bedrock_data",
+            "external_json",
+            pmmp_path,
+            Some("pmmp-bedrockdata-embedded-v1".to_string()),
             "medium",
             false,
         )?,

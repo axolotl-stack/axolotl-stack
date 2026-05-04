@@ -23,6 +23,8 @@ Gameplay facts should be merged in this order:
 ## Manifest
 
 `output/manifest.kdl` records source paths, commits/hashes, confidence, and artifact hashes.
+The currently vendored PMMP/BedrockData JSON inputs live under `data/upstream/pmmp/`
+and are exposed through `unastar_data::pmmp` constants for legacy Unastar registries.
 Refresh only the manifest without regenerating entities:
 
 ```powershell

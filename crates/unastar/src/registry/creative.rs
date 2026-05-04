@@ -89,16 +89,11 @@ pub struct CreativeInventoryData {
 impl CreativeInventoryData {
     /// Load creative inventory data from embedded JSON files.
     pub fn load() -> Result<Self, Box<dyn std::error::Error>> {
-        const CONSTRUCTION_JSON: &str = include_str!("../data/creative_construction.json");
-        const EQUIPMENT_JSON: &str = include_str!("../data/creative_equipment.json");
-        const ITEMS_JSON: &str = include_str!("../data/creative_items.json");
-        const NATURE_JSON: &str = include_str!("../data/creative_nature.json");
-
         Ok(Self {
-            construction: serde_json::from_str(CONSTRUCTION_JSON)?,
-            equipment: serde_json::from_str(EQUIPMENT_JSON)?,
-            items: serde_json::from_str(ITEMS_JSON)?,
-            nature: serde_json::from_str(NATURE_JSON)?,
+            construction: serde_json::from_str(unastar_data::CREATIVE_CONSTRUCTION_JSON)?,
+            equipment: serde_json::from_str(unastar_data::CREATIVE_EQUIPMENT_JSON)?,
+            items: serde_json::from_str(unastar_data::CREATIVE_ITEMS_JSON)?,
+            nature: serde_json::from_str(unastar_data::CREATIVE_NATURE_JSON)?,
         })
     }
 

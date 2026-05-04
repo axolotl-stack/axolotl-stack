@@ -52,7 +52,7 @@ impl ItemRegistry {
 
         // Parse required_item_list.json for correct network IDs
         let required: HashMap<String, RequiredItem> =
-            match serde_json::from_str(include_str!("../data/required_item_list.json")) {
+            match serde_json::from_str(unastar_data::REQUIRED_ITEM_LIST_JSON) {
                 Ok(map) => map,
                 Err(e) => {
                     warn!(
