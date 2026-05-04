@@ -20,6 +20,11 @@ Gameplay facts should be merged in this order:
 6. Local KDL overrides with version/source notes.
 7. Optional native extractor output, normalized through this crate before runtime use.
 
+See [`source-gap-audit.md`](source-gap-audit.md) before adding new artifact
+families. In particular, do not derive canonical biome gameplay data from
+Valentine/Prismarine biome tables alone; use vanilla behavior-pack biome JSON
+first, then enrich with BDS packet/native facts.
+
 ## Manifest
 
 `output/manifest.kdl` records source paths, commits/hashes, confidence, and artifact hashes.
@@ -31,6 +36,11 @@ Current golden artifacts include:
 - `blocks.kdl` from Valentine's generated Bedrock block definitions and canonical state ID ranges.
 - `items.kdl` from PMMP/BedrockData `required_item_list.json`.
 - `creative.kdl` from PMMP/BedrockData creative inventory JSON.
+
+`biomes.kdl` is intentionally not listed yet. The repository contains vanilla
+behavior-pack biome JSON, but the biome artifact should wait for a parser that
+preserves those components and records missing BDS/native facts instead of
+silently accepting weaker generated fallback data.
 
 Refresh only the manifest without regenerating artifacts:
 
