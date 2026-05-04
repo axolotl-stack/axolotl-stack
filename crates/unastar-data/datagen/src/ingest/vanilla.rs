@@ -5,6 +5,8 @@ use std::path::Path;
 use tracing::{debug, warn};
 use walkdir::WalkDir;
 
+use crate::json::remove_json_comments;
+
 /// Raw JSON structure matching behavior pack format
 #[derive(Deserialize)]
 struct RawEntityFile {
@@ -114,48 +116,6 @@ fn parse_entity_file(path: &Path) -> miette::Result<EntityDef> {
         events: parse_events(raw.entity.events),
         attribution,
     })
-}
-
-fn remove_json_comments(content: &str) -> String {
-    let mut result = String::with_capacity(content.len());
-    let mut in_string = false;
-    let mut escape_next = false;
-    let mut chars = content.chars().peekable();
-
-    while let Some(c) = chars.next() {
-        if escape_next {
-            result.push(c);
-            escape_next = false;
-            continue;
-        }
-
-        match c {
-            '\\' if in_string => {
-                result.push(c);
-                escape_next = true;
-            }
-            '"' => {
-                in_string = !in_string;
-                result.push(c);
-            }
-            '/' if !in_string => {
-                if chars.peek() == Some(&'/') {
-                    // Skip to end of line
-                    for c in chars.by_ref() {
-                        if c == '\n' {
-                            result.push('\n');
-                            break;
-                        }
-                    }
-                } else {
-                    result.push(c);
-                }
-            }
-            _ => result.push(c),
-        }
-    }
-
-    result
 }
 
 fn parse_properties(raw: HashMap<String, serde_json::Value>) -> HashMap<String, PropertyDef> {

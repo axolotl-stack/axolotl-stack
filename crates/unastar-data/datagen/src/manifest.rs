@@ -52,6 +52,7 @@ struct ManifestArtifact {
 pub fn write_manifest(
     output_dir: &Path,
     vanilla_path: &Path,
+    vanilla_biomes_path: &Path,
     overrides_path: &Path,
     upstream_path: &Path,
     pmmp_path: &Path,
@@ -71,6 +72,14 @@ pub fn write_manifest(
             "behavior_pack",
             vanilla_path,
             vanilla_version(vanilla_path)?,
+            "high",
+            true,
+        )?,
+        source_from_path(
+            "vanilla_behavior_pack_biomes",
+            "behavior_pack_biomes",
+            vanilla_biomes_path,
+            vanilla_version(vanilla_biomes_path)?,
             "high",
             true,
         )?,
@@ -147,7 +156,13 @@ fn source_from_path(
 fn collect_artifacts(output_dir: &Path) -> miette::Result<Vec<ManifestArtifact>> {
     let mut artifacts = Vec::new();
 
-    for name in ["entities.kdl", "blocks.kdl", "items.kdl", "creative.kdl"] {
+    for name in [
+        "entities.kdl",
+        "blocks.kdl",
+        "biomes.kdl",
+        "items.kdl",
+        "creative.kdl",
+    ] {
         let path = output_dir.join(name);
         if path.exists() {
             artifacts.push(ManifestArtifact {

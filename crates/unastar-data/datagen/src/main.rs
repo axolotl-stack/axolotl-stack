@@ -2,10 +2,12 @@ use clap::Parser;
 use std::path::PathBuf;
 use tracing::info;
 
+mod biomes;
 mod blocks;
 mod emit;
 mod ingest;
 mod ir;
+mod json;
 mod manifest;
 mod merge;
 mod normalize;
@@ -19,6 +21,10 @@ struct Args {
     /// Path to vanilla behavior pack entities directory
     #[arg(long, default_value = "../data/vanilla_bp/behavior_pack/entities")]
     vanilla: PathBuf,
+
+    /// Path to vanilla behavior pack biomes directory
+    #[arg(long, default_value = "../data/vanilla_bp/behavior_pack/biomes")]
+    vanilla_biomes: PathBuf,
 
     /// Path to overrides directory
     #[arg(long, default_value = "../data/overrides")]
@@ -37,16 +43,20 @@ struct Args {
     list: bool,
 
     /// Only refresh output/manifest.kdl from existing output artifacts
-    #[arg(long, conflicts_with_all = ["pmmp_only", "blocks_only"])]
+    #[arg(long, conflicts_with_all = ["pmmp_only", "blocks_only", "biomes_only"])]
     manifest_only: bool,
 
     /// Only refresh PMMP-derived output artifacts and the manifest
-    #[arg(long, conflicts_with_all = ["manifest_only", "blocks_only"])]
+    #[arg(long, conflicts_with_all = ["manifest_only", "blocks_only", "biomes_only"])]
     pmmp_only: bool,
 
     /// Only refresh Valentine-derived block output artifacts and the manifest
-    #[arg(long, conflicts_with_all = ["manifest_only", "pmmp_only"])]
+    #[arg(long, conflicts_with_all = ["manifest_only", "pmmp_only", "biomes_only"])]
     blocks_only: bool,
+
+    /// Only refresh vanilla behavior-pack biome output artifacts and the manifest
+    #[arg(long, conflicts_with_all = ["manifest_only", "pmmp_only", "blocks_only"])]
+    biomes_only: bool,
 
     /// Tracing filter
     #[arg(long, default_value = "info")]
@@ -63,12 +73,17 @@ fn main() -> miette::Result<()> {
     info!("unastar-data-gen starting...");
     info!("Vanilla BP: {}", manifest_dir.join(&args.vanilla).display());
     info!(
+        "Vanilla biomes: {}",
+        manifest_dir.join(&args.vanilla_biomes).display()
+    );
+    info!(
         "Overrides: {}",
         manifest_dir.join(&args.overrides).display()
     );
     info!("Output: {}", manifest_dir.join(&args.output).display());
 
     let vanilla_path = manifest_dir.join(&args.vanilla);
+    let vanilla_biomes_path = manifest_dir.join(&args.vanilla_biomes);
     let overrides_path = manifest_dir.join(&args.overrides);
     let output_path = manifest_dir.join(&args.output);
     let upstream_path = manifest_dir.join("../data/upstream");
@@ -79,6 +94,7 @@ fn main() -> miette::Result<()> {
         manifest::write_manifest(
             &output_path,
             &vanilla_path,
+            &vanilla_biomes_path,
             &overrides_path,
             &upstream_path,
             &pmmp_path,
@@ -92,6 +108,7 @@ fn main() -> miette::Result<()> {
         manifest::write_manifest(
             &output_path,
             &vanilla_path,
+            &vanilla_biomes_path,
             &overrides_path,
             &upstream_path,
             &pmmp_path,
@@ -105,6 +122,21 @@ fn main() -> miette::Result<()> {
         manifest::write_manifest(
             &output_path,
             &vanilla_path,
+            &vanilla_biomes_path,
+            &overrides_path,
+            &upstream_path,
+            &pmmp_path,
+            &valentine_version_path,
+        )?;
+        return Ok(());
+    }
+
+    if args.biomes_only {
+        biomes::write_biomes_kdl(&vanilla_biomes_path, &output_path)?;
+        manifest::write_manifest(
+            &output_path,
+            &vanilla_path,
+            &vanilla_biomes_path,
             &overrides_path,
             &upstream_path,
             &pmmp_path,
@@ -144,10 +176,12 @@ fn main() -> miette::Result<()> {
     info!("Writing KDL output...");
     emit::write_entities_kdl(&merged, &output_path)?;
     blocks::write_blocks_kdl(&output_path)?;
+    biomes::write_biomes_kdl(&vanilla_biomes_path, &output_path)?;
     pmmp::write_pmmp_artifacts(&pmmp_path, &output_path)?;
     manifest::write_manifest(
         &output_path,
         &vanilla_path,
+        &vanilla_biomes_path,
         &overrides_path,
         &upstream_path,
         &pmmp_path,

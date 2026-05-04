@@ -29,7 +29,8 @@ artifact or generated Rust table is added.
 ## Current local evidence
 
 - The repo has 87 vanilla behavior-pack biome definitions at
-  `data/vanilla_bp/behavior_pack/biomes/*.biome.json`.
+  `data/vanilla_bp/behavior_pack/biomes/*.biome.json`, normalized into
+  `output/biomes.kdl`.
 - The checked-in PMMP subset currently includes required item and creative
   inventory data, but does **not** include `biome_definitions.json`,
   `biome_id_map.json`, `block_properties_table.json`, or `item_tags.json`.
@@ -40,7 +41,7 @@ artifact or generated Rust table is added.
 
 | Domain | Field class | Preferred source | Current status | Next action |
 | --- | --- | --- | --- | --- |
-| Biomes | Identifier, exposed components, tags, surface materials, climate component, generation-rule JSON | Vanilla behavior-pack biome JSON | Present locally | Parse into `biomes.kdl` before using Valentine fallback |
+| Biomes | Identifier, exposed components, tags, surface materials, climate component, generation-rule JSON | Vanilla behavior-pack biome JSON | Present locally and normalized in `biomes.kdl` | Preserve source attribution while adding generated Rust consumers |
 | Biomes | Legacy numeric IDs for chunk serialization | BDS mod / PMMP `biome_id_map.json`, cross-checked with BDS extraction | Missing locally | Import or generate from BDS-mod/native extractor output |
 | Biomes | Packet payload shape for client biome definition lists | BDS live packet extraction / PMMP `biome_definitions.json` | Missing locally | Extend fixture extraction before runtime packet generation |
 | Biomes | Client-side chunk generation internals not exposed in packets | Native client/BDS analysis output normalized through `unastar-data` | Missing | Defer until gap list proves pack JSON is insufficient |
@@ -70,8 +71,8 @@ not become the runtime architecture.
 
 ## Immediate rule for biomes
 
-Do not generate `biomes.kdl` from Valentine/Prismarine data alone. The first
-biome artifact should be based on behavior-pack biome JSON, then enriched with
+Do not generate `biomes.kdl` from Valentine/Prismarine data alone. The biome
+artifact is based on behavior-pack biome JSON and should be enriched only with
 BDS/packet/native facts for legacy IDs and packet definitions.
 
 ## References

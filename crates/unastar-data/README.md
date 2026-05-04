@@ -34,12 +34,12 @@ Current golden artifacts include:
 
 - `entities.kdl` from vanilla behavior-pack entities plus local overrides.
 - `blocks.kdl` from Valentine's generated Bedrock block definitions and canonical state ID ranges.
+- `biomes.kdl` from vanilla behavior-pack biome JSON.
 - `items.kdl` from PMMP/BedrockData `required_item_list.json`.
 - `creative.kdl` from PMMP/BedrockData creative inventory JSON.
 
-`biomes.kdl` is intentionally not listed yet. The repository contains vanilla
-behavior-pack biome JSON, but the biome artifact should wait for a parser that
-preserves those components and records missing BDS/native facts instead of
+`biomes.kdl` intentionally contains only behavior-pack facts today. Enrich it
+with BDS packet/native facts for legacy IDs and packet definitions instead of
 silently accepting weaker generated fallback data.
 
 Refresh only the manifest without regenerating artifacts:
@@ -52,6 +52,12 @@ Refresh only Valentine-derived block data plus the manifest:
 
 ```powershell
 cargo run -p unastar-data-gen -- --blocks-only
+```
+
+Refresh only behavior-pack biome data plus the manifest:
+
+```powershell
+cargo run -p unastar-data-gen -- --biomes-only
 ```
 
 Refresh only PMMP-derived item/creative data plus the manifest:
