@@ -60,6 +60,14 @@ impl ItemRegistry {
         let id = entry.id;
         let network_id = entry.network_id;
         let string_id = entry.string_id.clone();
+
+        if self.name_map.contains_key(&string_id) {
+            return Err(RegistryError::StringIdConflict(string_id));
+        }
+        if self.network_id_map.contains_key(&network_id) {
+            return Err(RegistryError::NetworkIdConflict(network_id));
+        }
+
         self.inner.register(entry)?;
         self.name_map.insert(string_id, id);
         self.network_id_map.insert(network_id, id);
@@ -72,19 +80,46 @@ impl ItemRegistry {
     }
 
     /// Mutate an entry by internal item ID while keeping exact lookup indexes in sync.
-    pub fn update(&mut self, id: u32, update: impl FnOnce(&mut ItemEntry)) -> Option<()> {
-        let entry = self.inner.get_mut(id)?;
-        let old_string_id = entry.string_id.clone();
-        let old_network_id = entry.network_id;
+    pub fn update(
+        &mut self,
+        id: u32,
+        update: impl FnOnce(&mut ItemEntry),
+    ) -> Result<(), RegistryError> {
+        let old_entry = self.inner.get(id).ok_or(RegistryError::MissingId(id))?;
+        let old_string_id = old_entry.string_id.clone();
+        let old_network_id = old_entry.network_id;
+        let mut new_entry = old_entry.clone();
 
-        update(entry);
-        entry.id = id;
+        update(&mut new_entry);
+        new_entry.id = id;
+
+        if self
+            .name_map
+            .get(&new_entry.string_id)
+            .is_some_and(|existing_id| *existing_id != id)
+        {
+            return Err(RegistryError::StringIdConflict(new_entry.string_id));
+        }
+        if self
+            .network_id_map
+            .get(&new_entry.network_id)
+            .is_some_and(|existing_id| *existing_id != id)
+        {
+            return Err(RegistryError::NetworkIdConflict(new_entry.network_id));
+        }
+
+        *self
+            .inner
+            .get_mut(id)
+            .expect("item exists after immutable get") = new_entry;
 
         self.name_map.remove(&old_string_id);
         self.network_id_map.remove(&old_network_id);
-        self.name_map.insert(entry.string_id.clone(), id);
-        self.network_id_map.insert(entry.network_id, id);
-        Some(())
+        if let Some(entry) = self.inner.get(id) {
+            self.name_map.insert(entry.string_id.clone(), id);
+            self.network_id_map.insert(entry.network_id, id);
+        }
+        Ok(())
     }
 
     /// Unregister an entry by internal item ID.
@@ -149,7 +184,8 @@ impl ItemRegistry {
                 name: item_display_name(item.identifier),
                 stack_size: item.max_stack_size,
             };
-            let _ = self.register(entry);
+            self.register(entry)
+                .expect("generated item data should have unique registry keys");
         }
     }
 
@@ -310,6 +346,131 @@ mod tests {
         let removed = registry.unregister(7).expect("unregister item");
         assert_eq!(removed.string_id, "minecraft:new_name");
         assert!(registry.get_by_network_id(-8).is_none());
+    }
+
+    #[test]
+    fn item_registry_rejects_duplicate_string_and_network_ids() {
+        let mut registry = ItemRegistry::new();
+        registry
+            .register(ItemEntry {
+                id: 1,
+                network_id: 10,
+                component_based: false,
+                version: 0,
+                string_id: "minecraft:unique".to_string(),
+                name: "unique".to_string(),
+                stack_size: 64,
+            })
+            .expect("register item");
+
+        let duplicate_name = registry
+            .register(ItemEntry {
+                id: 2,
+                network_id: 11,
+                component_based: false,
+                version: 0,
+                string_id: "minecraft:unique".to_string(),
+                name: "duplicate name".to_string(),
+                stack_size: 64,
+            })
+            .expect_err("duplicate string IDs must be rejected");
+        assert!(matches!(duplicate_name, RegistryError::StringIdConflict(_)));
+
+        let duplicate_network = registry
+            .register(ItemEntry {
+                id: 3,
+                network_id: 10,
+                component_based: false,
+                version: 0,
+                string_id: "minecraft:other".to_string(),
+                name: "duplicate network".to_string(),
+                stack_size: 64,
+            })
+            .expect_err("duplicate network IDs must be rejected");
+        assert!(matches!(
+            duplicate_network,
+            RegistryError::NetworkIdConflict(10)
+        ));
+    }
+
+    #[test]
+    fn item_registry_update_rejects_duplicate_keys_without_mutating() {
+        let mut registry = ItemRegistry::new();
+        registry
+            .register(ItemEntry {
+                id: 1,
+                network_id: 10,
+                component_based: false,
+                version: 0,
+                string_id: "minecraft:first".to_string(),
+                name: "first".to_string(),
+                stack_size: 64,
+            })
+            .expect("register first");
+        registry
+            .register(ItemEntry {
+                id: 2,
+                network_id: 20,
+                component_based: false,
+                version: 0,
+                string_id: "minecraft:second".to_string(),
+                name: "second".to_string(),
+                stack_size: 64,
+            })
+            .expect("register second");
+
+        let err = registry
+            .update(1, |item| {
+                item.string_id = "minecraft:second".to_string();
+                item.network_id = 20;
+            })
+            .expect_err("duplicate update keys must be rejected");
+
+        assert!(matches!(err, RegistryError::StringIdConflict(_)));
+        assert_eq!(
+            registry.get(1).expect("first item").string_id,
+            "minecraft:first"
+        );
+        assert_eq!(
+            registry
+                .get_by_network_id(10)
+                .expect("old network lookup")
+                .id,
+            1
+        );
+        assert_eq!(
+            registry
+                .get_by_name("minecraft:second")
+                .expect("second name lookup")
+                .id,
+            2
+        );
+    }
+
+    #[test]
+    fn item_registry_update_reports_missing_sparse_ids() {
+        let mut registry = ItemRegistry::new();
+        registry
+            .register(ItemEntry {
+                id: 4,
+                network_id: 40,
+                component_based: false,
+                version: 0,
+                string_id: "minecraft:removed".to_string(),
+                name: "removed".to_string(),
+                stack_size: 64,
+            })
+            .expect("register item");
+        let removed = registry.unregister(4).expect("remove sparse entry");
+        assert_eq!(removed.string_id, "minecraft:removed");
+
+        let err = registry
+            .update(4, |item| item.network_id = 41)
+            .expect_err("missing sparse ID should be reported precisely");
+
+        assert!(matches!(err, RegistryError::MissingId(4)));
+        assert!(registry.get_by_name("minecraft:removed").is_none());
+        assert!(registry.get_by_network_id(40).is_none());
     }
 
     #[test]

@@ -19,8 +19,14 @@ use std::fmt::Debug;
 /// Error type for registry operations.
 #[derive(Debug, Clone)]
 pub enum RegistryError {
+    /// ID is not registered.
+    MissingId(u32),
     /// ID already exists in registry.
     IdConflict(u32),
+    /// String identifier already exists in registry.
+    StringIdConflict(String),
+    /// Protocol/network ID already exists in registry.
+    NetworkIdConflict(i32),
     /// ID exceeds maximum capacity.
     IdOverflow(u32),
 }
@@ -28,7 +34,10 @@ pub enum RegistryError {
 impl std::fmt::Display for RegistryError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::MissingId(id) => write!(f, "registry ID {id} is not registered"),
             Self::IdConflict(id) => write!(f, "registry ID {} already exists", id),
+            Self::StringIdConflict(id) => write!(f, "registry string ID {id} already exists"),
+            Self::NetworkIdConflict(id) => write!(f, "registry network ID {id} already exists"),
             Self::IdOverflow(id) => write!(f, "registry ID {} exceeds capacity", id),
         }
     }
