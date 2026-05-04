@@ -1,5 +1,6 @@
 //! Creative inventory code generation from normalized KDL artifacts.
 
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use kdl::{KdlDocument, KdlNode};
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -275,15 +276,50 @@ fn validate_entry(entry: &ParsedCreativeEntry, tab: &str, group: &str) -> miette
             group
         ));
     }
-    if !entry.name.contains(':') {
+    if !is_valid_namespaced_identifier(&entry.name) {
         return Err(miette::miette!(
-            "creative tab {} group {} item {} is not namespaced",
+            "creative tab {} group {} item {} is not a valid namespaced identifier",
             tab,
             group,
             entry.name
         ));
     }
+    validate_optional_base64(entry.block_states.as_deref(), "block_states", &entry.name)?;
+    validate_optional_base64(entry.nbt.as_deref(), "nbt", &entry.name)?;
     Ok(())
+}
+
+fn is_valid_namespaced_identifier(identifier: &str) -> bool {
+    let Some((namespace, path)) = identifier.split_once(':') else {
+        return false;
+    };
+    !namespace.is_empty()
+        && !path.is_empty()
+        && !path.contains(':')
+        && namespace
+            .bytes()
+            .all(|byte| matches!(byte, b'a'..=b'z' | b'0'..=b'9' | b'_' | b'-' | b'.'))
+        && path
+            .bytes()
+            .all(|byte| matches!(byte, b'a'..=b'z' | b'0'..=b'9' | b'_' | b'-' | b'.' | b'/'))
+}
+
+fn validate_optional_base64(
+    value: Option<&str>,
+    property: &str,
+    identifier: &str,
+) -> miette::Result<()> {
+    let Some(value) = value else {
+        return Ok(());
+    };
+    STANDARD.decode(value).map(|_| ()).map_err(|error| {
+        miette::miette!(
+            "creative item {} property {} is not valid base64: {}",
+            identifier,
+            property,
+            error
+        )
+    })
 }
 
 fn generate_creative_module(tabs: &[ParsedCreativeTab], output_dir: &Path) -> miette::Result<()> {
@@ -509,6 +545,37 @@ mod tests {
     #[test]
     fn accepts_complete_tabs() {
         validate_tabs(&complete_tabs()).expect("complete tabs validate");
+    }
+
+    #[test]
+    fn rejects_invalid_namespaced_identifiers() {
+        for invalid in [
+            "minecraft:BadItem",
+            "minecraft:stone:extra",
+            ":stone",
+            "minecraft:",
+            "minecraft:stone?",
+        ] {
+            let mut tabs = complete_tabs();
+            tabs[0].groups[0].items[0].name = invalid.to_string();
+
+            let error = validate_tabs(&tabs).expect_err("invalid identifier rejects");
+
+            assert!(
+                error.to_string().contains("valid namespaced identifier"),
+                "{invalid} should fail namespaced identifier validation"
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_invalid_base64_payloads() {
+        let mut tabs = complete_tabs();
+        tabs[0].groups[0].items[0].block_states = Some("not valid base64!!".to_string());
+
+        let error = validate_tabs(&tabs).expect_err("invalid base64 rejects");
+
+        assert!(error.to_string().contains("not valid base64"));
     }
 
     fn complete_tabs() -> Vec<ParsedCreativeTab> {
