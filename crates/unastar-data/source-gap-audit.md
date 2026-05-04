@@ -35,9 +35,9 @@ artifact or generated Rust table is added.
   inventory data, but does **not** include `biome_definitions.json`,
   `biome_id_map.json`, `block_properties_table.json`, or `item_tags.json`.
 - `bds-extractor` builds and validates fixture JSON, and `unastar-data-gen`
-  can normalize a validated capture into `biome_packets.kdl`, so it is the
-  right local entry point for packet/lifecycle extraction before adding a
-  native extractor.
+  can normalize a validated capture into `biome_packets.kdl` and
+  `entity_identifiers.kdl`, so it is the right local entry point for
+  packet/lifecycle extraction before adding a native extractor.
 
 ## Domain gap table
 
@@ -53,7 +53,7 @@ artifact or generated Rust table is added.
 | Items | Network IDs, component-based flags, versions | BDS packet trace / PMMP `required_item_list.json` | Present locally and normalized | Keep generated artifact as authoritative for item registry packets |
 | Items | Tags and component NBT semantics | PMMP `item_tags.json`, required-item component NBT, native extractor | Tags missing locally | Import tags before recipe/crafting semantics |
 | Entities | Behavior-pack components, component groups, events | Vanilla behavior-pack JSON + local overrides | Present and generated | Continue runtime integration through generic interpreters |
-| Entities | Available actor identifiers packet | BDS packet extraction / PMMP `entity_identifiers.nbt` | Extractor fixture mode exists; specific entity identifier source is not normalized | Add extractor artifact lane mirroring `biome_packets.kdl` |
+| Entities | Available actor identifiers packet | BDS packet extraction / PMMP `entity_identifiers.nbt` | Ingestion lane present; real capture artifact not checked in | Capture from a real BDS target, generate `entity_identifiers.kdl`, then decode/generate a typed consumer |
 | Recipes/Loot | Recipe and loot tables | Vanilla packs plus PMMP packet traces for network recipe format | Not normalized | Add artifacts after item tags are sourced |
 
 ## Native/internals exploration lane

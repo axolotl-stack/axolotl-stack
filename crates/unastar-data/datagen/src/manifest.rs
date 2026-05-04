@@ -129,7 +129,11 @@ pub fn write_manifest(output_dir: &Path, inputs: &ManifestInputs<'_>) -> miette:
             .map_err(|e| miette::miette!("Invalid source manifest: {}", e))?;
     }
 
-    let artifacts = collect_artifacts(output_dir, inputs.bds_extraction_path.is_some())?;
+    let bds_artifact_names = inputs
+        .bds_extraction_path
+        .map(bds::capture_artifact_names)
+        .transpose()?;
+    let artifacts = collect_artifacts(output_dir, bds_artifact_names.as_deref())?;
     let manifest = render_manifest(&sources, &artifacts);
     let path = output_dir.join("manifest.kdl");
     std::fs::write(&path, manifest)
@@ -169,15 +173,23 @@ fn source_from_path(
 
 fn collect_artifacts(
     output_dir: &Path,
-    include_bds_artifacts: bool,
+    bds_artifact_names: Option<&[&str]>,
 ) -> miette::Result<Vec<ManifestArtifact>> {
     let mut artifacts = Vec::new();
-    let bds_artifact = output_dir.join("biome_packets.kdl");
-    if bds_artifact.exists() && !include_bds_artifacts {
-        return Err(miette::miette!(
-            "{} exists but no --bds-extraction source was supplied for manifest provenance",
-            bds_artifact.display()
-        ));
+    for name in bds::BDS_ARTIFACT_NAMES {
+        let path = output_dir.join(name);
+        if path.exists() && !bds_artifact_names.is_some_and(|names| names.contains(&name)) {
+            let reason = if bds_artifact_names.is_some() {
+                "not produced by the supplied --bds-extraction capture"
+            } else {
+                "no --bds-extraction source was supplied"
+            };
+            return Err(miette::miette!(
+                "{} exists but {} for manifest provenance",
+                path.display(),
+                reason
+            ));
+        }
     }
 
     for name in [
@@ -196,12 +208,17 @@ fn collect_artifacts(
             });
         }
     }
-    if include_bds_artifacts && bds_artifact.exists() {
-        artifacts.push(ManifestArtifact {
-            name: "biome_packets".to_string(),
-            path: "biome_packets.kdl".to_string(),
-            hash: hash_path(&bds_artifact)?,
-        });
+    if let Some(bds_artifact_names) = bds_artifact_names {
+        for name in bds_artifact_names {
+            let path = output_dir.join(name);
+            if path.exists() {
+                artifacts.push(ManifestArtifact {
+                    name: name.strip_suffix(".kdl").unwrap_or(name).to_string(),
+                    path: name.to_string(),
+                    hash: hash_path(&path)?,
+                });
+            }
+        }
     }
 
     Ok(artifacts)
@@ -463,9 +480,30 @@ mod tests {
         )
         .expect("write stale artifact");
 
-        let err = collect_artifacts(&temp_dir, false).expect_err("missing BDS source is invalid");
+        let err = collect_artifacts(&temp_dir, None).expect_err("missing BDS source is invalid");
 
         assert!(err.to_string().contains("no --bds-extraction source"));
+        let _ = std::fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn collect_artifacts_rejects_bds_artifact_not_present_in_capture() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "unastar-manifest-bds-stale-test-{}-{}",
+            std::process::id(),
+            unique_suffix()
+        ));
+        std::fs::create_dir_all(&temp_dir).expect("create temp dir");
+        std::fs::write(
+            temp_dir.join("biome_packets.kdl"),
+            "biome_packet minecraft:plains\n",
+        )
+        .expect("write stale artifact");
+
+        let err = collect_artifacts(&temp_dir, Some(&["entity_identifiers.kdl"]))
+            .expect_err("stale biome packet artifact is invalid");
+
+        assert!(err.to_string().contains("not produced by the supplied"));
         let _ = std::fs::remove_dir_all(temp_dir);
     }
 

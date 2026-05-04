@@ -38,6 +38,7 @@ Current golden artifacts include:
 - `items.kdl` from PMMP/BedrockData `required_item_list.json`.
 - `creative.kdl` from PMMP/BedrockData creative inventory JSON.
 - Optional `biome_packets.kdl` from a validated `bds-extractor` JSON capture.
+- Optional `entity_identifiers.kdl` from a validated `bds-extractor` JSON capture.
 
 `biomes.kdl` intentionally contains only behavior-pack facts today. Enrich it
 with BDS packet/native facts for legacy IDs and packet definitions instead of
