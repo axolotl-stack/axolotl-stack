@@ -38,6 +38,12 @@ pub struct ItemStack {
     /// Stored as raw bytes; parsed lazily when needed.
     /// NBT parsing is deferred to protocol layer (uses zuri_nbt).
     pub nbt: Option<Vec<u8>>,
+
+    /// Cached maximum stack size from the runtime item registry.
+    ///
+    /// `None` means this stack was created without registry context and must
+    /// use conservative local heuristics.
+    pub max_stack_size_override: Option<u8>,
 }
 
 impl ItemStack {
@@ -57,6 +63,7 @@ impl ItemStack {
             count,
             damage: 0,
             nbt: None,
+            max_stack_size_override: None,
         }
     }
 
@@ -87,6 +94,15 @@ impl ItemStack {
         self
     }
 
+    /// Attach a registry-sourced maximum stack size to this stack.
+    #[inline]
+    pub fn with_max_stack_size(mut self, max_stack_size: u8) -> Self {
+        let max_stack_size = max_stack_size.max(1);
+        self.count = self.count.min(max_stack_size);
+        self.max_stack_size_override = Some(max_stack_size);
+        self
+    }
+
     /// Check if the stack is empty (count is 0 or item is air).
     #[inline]
     pub fn is_empty(&self) -> bool {
@@ -101,16 +117,13 @@ impl ItemStack {
 
     /// Get the maximum stack size for this item.
     ///
-    /// Source-attributed generated item data wins when present. Older or
-    /// incomplete vanilla data still falls back to conservative legacy
-    /// heuristics so tools/armor do not accidentally become 64-stack items
-    /// until their limits are sourced.
+    /// Registry-cached item data wins when present. Stacks created without
+    /// registry context fall back to conservative legacy heuristics so
+    /// tools/armor do not accidentally become 64-stack items.
     #[inline]
     pub fn max_stack_size(&self) -> u8 {
-        if let Some(item) = unastar_data::items::get(&self.item_id)
-            && item.max_stack_size_source != "unsourced_default"
-        {
-            return item.max_stack_size;
+        if let Some(max_stack_size) = self.max_stack_size_override {
+            return max_stack_size;
         }
 
         // Tools, weapons, armor typically stack to 1
@@ -377,19 +390,18 @@ mod tests {
 
     #[test]
     fn sourced_stack_limits_override_heuristics() {
-        let honey_bottle = ItemStack::new("minecraft:honey_bottle", 16);
+        let honey_bottle = ItemStack::new("minecraft:honey_bottle", 64).with_max_stack_size(16);
+        assert_eq!(honey_bottle.count, 16);
         assert_eq!(honey_bottle.max_stack_size(), 16);
 
-        let beetroot_soup = ItemStack::new("minecraft:beetroot_soup", 1);
+        let beetroot_soup = ItemStack::new("minecraft:beetroot_soup", 64).with_max_stack_size(1);
+        assert_eq!(beetroot_soup.count, 1);
         assert_eq!(beetroot_soup.max_stack_size(), 1);
     }
 
     #[test]
-    fn unsourced_stack_limits_keep_legacy_heuristics() {
+    fn stacks_without_registry_limits_keep_legacy_heuristics() {
         let sword = ItemStack::new("minecraft:diamond_sword", 1);
-        let source = unastar_data::items::get("minecraft:diamond_sword")
-            .expect("generated diamond sword item");
-        assert_eq!(source.max_stack_size_source, "unsourced_default");
         assert_eq!(sword.max_stack_size(), 1);
     }
 }

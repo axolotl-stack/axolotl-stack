@@ -101,13 +101,11 @@ fn handle_item_stack_request(
                     );
 
                     if let Some(entry) = world_template.0.creative_content.items.get(index) {
-                        let item_id = item_id_from_network_id(&items.0, entry.item.network_id);
-
-                        let item = ItemStack::new(item_id.clone(), 64);
+                        let item = item_stack_from_network_id(&items.0, entry.item.network_id, 64);
                         info!(
                             item_id = craft.item_id,
                             network_id = entry.item.network_id,
-                            string_id = %item_id,
+                            string_id = %item.item_id,
                             "Creative craft request"
                         );
                         pending_item = Some(item);
@@ -385,10 +383,11 @@ fn handle_normal_transaction(
                                 .map(|c| c.count as u8)
                                 .unwrap_or(1);
 
-                            let item_id =
-                                item_id_from_network_id(&items.0, action.new_item.network_id);
-
-                            let item = ItemStack::new(item_id.clone(), count);
+                            let item = item_stack_from_network_id(
+                                &items.0,
+                                action.new_item.network_id,
+                                count,
+                            );
 
                             if let Ok((mut inv, _, _, _, _)) = players.get_mut(entity) {
                                 let _ = inv.0.set_item(slot, item);
@@ -419,6 +418,16 @@ fn item_id_from_network_id(items: &ItemRegistry, network_id: i32) -> String {
             warn!("Item network_id {} not found in registry", network_id);
             format!("minecraft:network_{network_id}")
         })
+}
+
+fn item_stack_from_network_id(items: &ItemRegistry, network_id: i32, count: u8) -> ItemStack {
+    if let Some(entry) = items.get_by_network_id(network_id) {
+        return ItemStack::new(entry.string_id.clone(), count)
+            .with_max_stack_size(entry.stack_size);
+    }
+
+    let item_id = item_id_from_network_id(items, network_id);
+    ItemStack::new(item_id, count)
 }
 
 #[cfg(test)]
@@ -455,5 +464,26 @@ mod tests {
             item_id_from_network_id(&items, -12),
             "minecraft:network_-12"
         );
+    }
+
+    #[test]
+    fn item_stack_lookup_caches_registry_stack_size() {
+        let mut items = ItemRegistry::new();
+        items
+            .register(ItemEntry {
+                id: 5,
+                network_id: 77,
+                component_based: false,
+                version: 0,
+                string_id: "minecraft:honey_bottle".to_string(),
+                name: "honey bottle".to_string(),
+                stack_size: 16,
+            })
+            .expect("register item");
+
+        let stack = item_stack_from_network_id(&items, 77, 64);
+        assert_eq!(stack.item_id, "minecraft:honey_bottle");
+        assert_eq!(stack.count, 16);
+        assert_eq!(stack.max_stack_size(), 16);
     }
 }

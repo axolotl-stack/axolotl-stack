@@ -71,14 +71,20 @@ impl ItemRegistry {
         self.inner.get(id)
     }
 
-    /// Get mutable entry by internal item ID.
-    ///
-    /// This preserves the former `Registry<ItemEntry>` API. The indexed lookup
-    /// methods validate cached identities and fall back to a scan, so callers
-    /// that mutate `string_id` or `network_id` through this handle do not get
-    /// stale lookup results.
-    pub fn get_mut(&mut self, id: u32) -> Option<&mut ItemEntry> {
-        self.inner.get_mut(id)
+    /// Mutate an entry by internal item ID while keeping exact lookup indexes in sync.
+    pub fn update(&mut self, id: u32, update: impl FnOnce(&mut ItemEntry)) -> Option<()> {
+        let entry = self.inner.get_mut(id)?;
+        let old_string_id = entry.string_id.clone();
+        let old_network_id = entry.network_id;
+
+        update(entry);
+        entry.id = id;
+
+        self.name_map.remove(&old_string_id);
+        self.network_id_map.remove(&old_network_id);
+        self.name_map.insert(entry.string_id.clone(), id);
+        self.network_id_map.insert(entry.network_id, id);
+        Some(())
     }
 
     /// Unregister an entry by internal item ID.
@@ -95,7 +101,6 @@ impl ItemRegistry {
             .get(name)
             .and_then(|id| self.inner.get(*id))
             .filter(|entry| entry.string_id == name)
-            .or_else(|| self.inner.get_by_name(name))
     }
 
     /// Iterate over all entries.
@@ -154,7 +159,6 @@ impl ItemRegistry {
             .get(&network_id)
             .and_then(|id| self.inner.get(*id))
             .filter(|entry| entry.network_id == network_id)
-            .or_else(|| self.iter().find(|entry| entry.network_id == network_id))
     }
 
     /// Convert registry to protocol packet.
@@ -260,7 +264,7 @@ mod tests {
     }
 
     #[test]
-    fn item_registry_preserves_mutation_and_unregister_api() {
+    fn item_registry_update_keeps_indexes_coherent() {
         let mut registry = ItemRegistry::new();
         registry
             .register(ItemEntry {
@@ -277,9 +281,13 @@ mod tests {
         let (_, entry) = registry.iter_with_id().next().expect("iter with id");
         assert_eq!(entry.id, 7);
 
-        let item = registry.get_mut(7).expect("mutable lookup");
-        item.string_id = "minecraft:new_name".to_string();
-        item.network_id = -8;
+        registry
+            .update(7, |item| {
+                item.id = 999;
+                item.string_id = "minecraft:new_name".to_string();
+                item.network_id = -8;
+            })
+            .expect("update item");
 
         assert!(registry.get_by_name("minecraft:old_name").is_none());
         assert_eq!(
@@ -296,6 +304,8 @@ mod tests {
                 .id,
             7
         );
+        assert!(registry.get_by_network_id(-7).is_none());
+        assert_eq!(registry.get(7).expect("updated item").id, 7);
 
         let removed = registry.unregister(7).expect("unregister item");
         assert_eq!(removed.string_id, "minecraft:new_name");

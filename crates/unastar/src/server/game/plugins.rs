@@ -87,13 +87,18 @@ pub fn process_plugin_actions(
                 use jolyne::valentine::{InventorySlotPacket, WindowIdVarint};
 
                 if let Ok((_, _, _, session, mut inv)) = players.get_mut(entity) {
-                    let item_stack = ItemStack::new(item_id.clone(), count);
+                    let item_stack = if let Some(entry) = item_registry.0.get_by_name(&item_id) {
+                        ItemStack::new(item_id.clone(), count).with_max_stack_size(entry.stack_size)
+                    } else {
+                        ItemStack::new(item_id.clone(), count)
+                    };
 
                     if let Some(empty_slot) =
                         (0..36).find(|&i| inv.0.item(i).is_none_or(|item| item.is_empty()))
                     {
                         let _ = inv.0.set_item(empty_slot, item_stack.clone());
-                        info!(entity=?entity, item=%item_id, count, slot=empty_slot, "Plugin gave item");
+                        let effective_count = item_stack.count;
+                        info!(entity=?entity, item=%item_id, count = effective_count, requested_count = count, slot=empty_slot, "Plugin gave item");
 
                         let network_id = item_registry
                             .0
@@ -114,7 +119,7 @@ pub fn process_plugin_actions(
                         let protocol_item = Item {
                             network_id,
                             content: Some(Box::new(ItemContent {
-                                count: count as u16,
+                                count: effective_count as u16,
                                 metadata: 0,
                                 has_stack_id: 0,
                                 stack_id: None,
@@ -135,7 +140,7 @@ pub fn process_plugin_actions(
                         };
                         let _ = session.send(McpePacket::from(slot_packet));
 
-                        let msg = format!("§aReceived {} x{}", item_id, count);
+                        let msg = format!("§aReceived {} x{}", item_id, effective_count);
                         let packet = system_text(&msg);
                         let _ = session.send(McpePacket::from(packet));
                     } else {
@@ -183,5 +188,84 @@ pub fn process_plugin_actions(
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ecs::events::PluginAction;
+    use crate::entity::components::{MainInventory, PlayerSession, Rotation, RuntimeEntityId};
+    use crate::registry::block::BlockRegistry;
+    use crate::registry::item::{ItemEntry, ItemRegistry};
+    use crate::server::game::types::{BlockRegistryResource, ItemRegistryResource};
+    use crate::world::{WorldConfig, ecs::ChunkManager};
+    use jolyne::valentine::McpePacketData;
+    use std::sync::Arc;
+    use tokio::sync::mpsc;
+
+    #[test]
+    fn give_item_uses_effective_clamped_count_in_inventory_and_packet() {
+        let mut world = World::new();
+        world.insert_resource(ActionQueue::default());
+        world.insert_resource(ItemRegistryResource(Arc::new(limited_item_registry())));
+        world.insert_resource(BlockRegistryResource(Arc::new(BlockRegistry::new())));
+        world.insert_resource(ChunkManager::new(WorldConfig::default()));
+        world.insert_resource(bevy_ecs::message::Messages::<BlockBroadcastEvent>::default());
+
+        let (outbound_tx, mut outbound_rx) = mpsc::channel(8);
+        let player = world
+            .spawn((
+                Position(DVec3::ZERO),
+                Rotation::default(),
+                RuntimeEntityId(1),
+                PlayerSession::new(1, "test".to_string(), None, None, outbound_tx),
+                MainInventory::default(),
+            ))
+            .id();
+        world
+            .resource_mut::<ActionQueue>()
+            .push(PluginAction::GiveItem {
+                entity: player,
+                item_id: "minecraft:honey_bottle".to_string(),
+                count: 64,
+            });
+
+        let mut schedule = Schedule::default();
+        schedule.add_systems(process_plugin_actions);
+        schedule.run(&mut world);
+
+        let inventory = world.get::<MainInventory>(player).expect("main inventory");
+        let stack = inventory.0.item(0).expect("slot 0 stack");
+        assert_eq!(stack.item_id, "minecraft:honey_bottle");
+        assert_eq!(stack.count, 16);
+        assert_eq!(stack.max_stack_size(), 16);
+
+        let packet = outbound_rx.try_recv().expect("inventory slot packet");
+        let McpePacketData::PacketInventorySlot(slot_packet) = packet.data else {
+            panic!("expected inventory slot packet");
+        };
+        let content = slot_packet
+            .item
+            .content
+            .as_ref()
+            .expect("packet item content");
+        assert_eq!(content.count, 16);
+    }
+
+    fn limited_item_registry() -> ItemRegistry {
+        let mut registry = ItemRegistry::new();
+        registry
+            .register(ItemEntry {
+                id: 1,
+                network_id: 77,
+                component_based: false,
+                version: 0,
+                string_id: "minecraft:honey_bottle".to_string(),
+                name: "honey bottle".to_string(),
+                stack_size: 16,
+            })
+            .expect("register limited item");
+        registry
     }
 }

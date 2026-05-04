@@ -24,11 +24,28 @@ fn source_boundaries_reject_direct_valentine_block_registry_loads() {
     );
 }
 
+#[test]
+fn source_boundaries_reject_runtime_generated_item_lookups_outside_registry() {
+    assert_no_forbidden_runtime_source_outside(
+        &["unastar_data::items::get("],
+        &["registry\\item.rs", "registry/item.rs"],
+        "runtime item-stack code should use ItemRegistry-cached metadata, not direct generated item lookups",
+    );
+}
+
 fn assert_no_forbidden_runtime_source(forbidden: &[&str], reason: &str) {
+    assert_no_forbidden_runtime_source_outside(forbidden, &[], reason);
+}
+
+fn assert_no_forbidden_runtime_source_outside(
+    forbidden: &[&str],
+    allowed_suffixes: &[&str],
+    reason: &str,
+) {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let source_root = manifest_dir.join("src");
     let mut violations = Vec::new();
-    collect_violations(&source_root, forbidden, &mut violations);
+    collect_violations_outside(&source_root, forbidden, allowed_suffixes, &mut violations);
 
     assert!(
         violations.is_empty(),
@@ -37,18 +54,31 @@ fn assert_no_forbidden_runtime_source(forbidden: &[&str], reason: &str) {
     );
 }
 
-fn collect_violations(path: &Path, forbidden: &[&str], violations: &mut Vec<String>) {
+fn collect_violations_outside(
+    path: &Path,
+    forbidden: &[&str],
+    allowed_suffixes: &[&str],
+    violations: &mut Vec<String>,
+) {
     if path.is_dir() {
         let entries = std::fs::read_dir(path)
             .unwrap_or_else(|error| panic!("failed to read {}: {error}", path.display()));
         for entry in entries {
             let entry = entry.expect("failed to read source directory entry");
-            collect_violations(&entry.path(), forbidden, violations);
+            collect_violations_outside(&entry.path(), forbidden, allowed_suffixes, violations);
         }
         return;
     }
 
     if path.extension().and_then(|extension| extension.to_str()) != Some("rs") {
+        return;
+    }
+
+    let path_text = path.to_string_lossy();
+    if allowed_suffixes
+        .iter()
+        .any(|suffix| path_text.ends_with(suffix))
+    {
         return;
     }
 

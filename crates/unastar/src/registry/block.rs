@@ -241,94 +241,6 @@ impl BlockRegistry {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn vanilla_registry_preserves_block_properties() {
-        let mut registry = BlockRegistry::new();
-        registry.load_vanilla();
-        assert_eq!(registry.len(), unastar_data::blocks::ALL_BLOCKS.len());
-
-        let stone = registry
-            .get_by_name("minecraft:stone")
-            .expect("stone should be registered");
-        assert_eq!(
-            stone.default_state_id,
-            unastar_data::blocks::get("minecraft:stone")
-                .expect("generated stone data exists")
-                .default_state_id
-        );
-        assert_eq!(stone.hardness, 1.5);
-        assert_eq!(stone.resistance, 6.0);
-        assert!(!stone.is_transparent);
-        assert_eq!(stone.filter_light, 15);
-    }
-
-    #[test]
-    fn state_id_count_uses_canonical_range() {
-        let mut registry = BlockRegistry::new();
-        registry.load_vanilla();
-
-        let fence_gate = registry
-            .get_by_name("minecraft:fence_gate")
-            .expect("fence gate should be registered");
-        assert_eq!(fence_gate.state_id_count, 16);
-        assert_eq!(
-            registry
-                .get_by_runtime_id(fence_gate.max_state_id)
-                .expect("runtime ID should map to fence gate")
-                .string_id,
-            "minecraft:fence_gate"
-        );
-    }
-
-    #[test]
-    fn duplicate_numeric_ids_do_not_hide_string_or_runtime_lookup() {
-        let mut registry = BlockRegistry::new();
-        registry.load_vanilla();
-
-        assert_eq!(
-            registry
-                .get(8)
-                .expect("legacy numeric ID 8 should resolve to first generated entry")
-                .string_id,
-            "minecraft:flowing_water",
-            "numeric ID lookup is first-match legacy behavior"
-        );
-
-        let grass = registry
-            .get_by_name("minecraft:grass_block")
-            .expect("grass block should be registered by string ID");
-        assert_eq!(grass.id, 8);
-        assert_eq!(
-            registry
-                .get_by_runtime_id(grass.default_state_id)
-                .expect("grass default runtime ID should map back to grass")
-                .string_id,
-            "minecraft:grass_block"
-        );
-    }
-
-    #[test]
-    fn shared_vanilla_registry_resolves_default_state_ids() {
-        let registry = BlockRegistry::vanilla();
-
-        assert_eq!(
-            registry.default_state_id_by_name("minecraft:stone"),
-            registry
-                .get_by_name("minecraft:stone")
-                .map(|block| block.default_state_id)
-        );
-        assert!(
-            registry
-                .default_state_id_by_name("minecraft:not_a_real_block")
-                .is_none()
-        );
-    }
-}
-
 /// Read a VarInt from a byte slice, returning (value, bytes_consumed).
 fn read_varint(data: &[u8]) -> (u32, usize) {
     let mut result = 0u32;
@@ -480,5 +392,93 @@ fn skip_nbt_payload(data: &[u8], mut pos: usize, tag_id: u8) -> usize {
             pos
         }
         _ => pos, // Unknown tag, can't skip
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn vanilla_registry_preserves_block_properties() {
+        let mut registry = BlockRegistry::new();
+        registry.load_vanilla();
+        assert_eq!(registry.len(), unastar_data::blocks::ALL_BLOCKS.len());
+
+        let stone = registry
+            .get_by_name("minecraft:stone")
+            .expect("stone should be registered");
+        assert_eq!(
+            stone.default_state_id,
+            unastar_data::blocks::get("minecraft:stone")
+                .expect("generated stone data exists")
+                .default_state_id
+        );
+        assert_eq!(stone.hardness, 1.5);
+        assert_eq!(stone.resistance, 6.0);
+        assert!(!stone.is_transparent);
+        assert_eq!(stone.filter_light, 15);
+    }
+
+    #[test]
+    fn state_id_count_uses_canonical_range() {
+        let mut registry = BlockRegistry::new();
+        registry.load_vanilla();
+
+        let fence_gate = registry
+            .get_by_name("minecraft:fence_gate")
+            .expect("fence gate should be registered");
+        assert_eq!(fence_gate.state_id_count, 16);
+        assert_eq!(
+            registry
+                .get_by_runtime_id(fence_gate.max_state_id)
+                .expect("runtime ID should map to fence gate")
+                .string_id,
+            "minecraft:fence_gate"
+        );
+    }
+
+    #[test]
+    fn duplicate_numeric_ids_do_not_hide_string_or_runtime_lookup() {
+        let mut registry = BlockRegistry::new();
+        registry.load_vanilla();
+
+        assert_eq!(
+            registry
+                .get(8)
+                .expect("legacy numeric ID 8 should resolve to first generated entry")
+                .string_id,
+            "minecraft:flowing_water",
+            "numeric ID lookup is first-match legacy behavior"
+        );
+
+        let grass = registry
+            .get_by_name("minecraft:grass_block")
+            .expect("grass block should be registered by string ID");
+        assert_eq!(grass.id, 8);
+        assert_eq!(
+            registry
+                .get_by_runtime_id(grass.default_state_id)
+                .expect("grass default runtime ID should map back to grass")
+                .string_id,
+            "minecraft:grass_block"
+        );
+    }
+
+    #[test]
+    fn shared_vanilla_registry_resolves_default_state_ids() {
+        let registry = BlockRegistry::vanilla();
+
+        assert_eq!(
+            registry.default_state_id_by_name("minecraft:stone"),
+            registry
+                .get_by_name("minecraft:stone")
+                .map(|block| block.default_state_id)
+        );
+        assert!(
+            registry
+                .default_state_id_by_name("minecraft:not_a_real_block")
+                .is_none()
+        );
     }
 }
