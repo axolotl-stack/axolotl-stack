@@ -12,13 +12,19 @@ The crate is the boundary between raw Bedrock data sources and the server runtim
 
 Gameplay facts should be merged in this order:
 
-1. Valentine/generated protocol data for packet-facing IDs and canonical palette blobs.
-2. BDS handshake extraction from `bds-extractor`.
-3. Vanilla behavior/resource pack data in `data/vanilla_bp`.
-4. PMMP/BedrockData or PMMP BDS-mapping outputs for packet-trace/native facts.
-5. PrismarineJS `minecraft-data` where Bedrock coverage is usable.
-6. Local KDL overrides with version/source notes.
-7. Optional native extractor output, normalized through this crate before runtime use.
+1. Vanilla behavior/resource pack data in `data/vanilla_bp` for exposed
+   data-driven definitions.
+2. BDS handshake extraction from `bds-extractor` for packet/runtime facts
+   already sent during login.
+3. Native/BDS extractor output, normalized through this crate, for internals
+   that packs and packets do not expose.
+4. PMMP/BedrockData or PMMP BDS-mapping outputs when their upstream source is
+   known and recorded.
+5. Valentine/generated protocol data only for packet-facing IDs, canonical
+   palette blobs, and temporary bootstrap facts with explicit weak provenance.
+6. PrismarineJS `minecraft-data` only as a cross-check or last-resort bootstrap
+   where Bedrock coverage is proven usable.
+7. Local KDL overrides with version/source notes.
 
 See [`source-gap-audit.md`](source-gap-audit.md) before adding new artifact
 families. In particular, do not derive canonical biome gameplay data from
@@ -43,6 +49,11 @@ Current golden artifacts include:
 `biomes.kdl` intentionally contains only behavior-pack facts today. Enrich it
 with BDS packet/native facts for legacy IDs and packet definitions instead of
 silently accepting weaker generated fallback data.
+
+`blocks.kdl` is a normalized artifact boundary even though its current source
+is Valentine. `unastar` consumes generated `unastar_data::blocks` tables, not
+Valentine constants directly, so BDS/native block hardness, material, light,
+tag, or collision data can replace weak fields in one place.
 
 Refresh only the manifest without regenerating artifacts:
 
@@ -78,6 +89,12 @@ Generate or refresh the Rust consumer surface for BDS packet artifacts:
 
 ```powershell
 cargo run -p unastar-data-codegen -- --bds-packets-only
+```
+
+Generate or refresh the Rust consumer surface for block artifacts:
+
+```powershell
+cargo run -p unastar-data-codegen -- --blocks-only
 ```
 
 Run full artifact generation and include BDS packet/runtime facts:

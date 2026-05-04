@@ -38,6 +38,10 @@ artifact or generated Rust table is added.
   can normalize a validated capture into `biome_packets.kdl` and
   `entity_identifiers.kdl`, so it is the right local entry point for
   packet/lifecycle extraction before adding a native extractor.
+- `blocks.kdl` now carries canonical runtime ranges, `default_state_id`, and
+  weak physical/light fields behind an explicit Valentine source boundary.
+  `unastar` consumes generated `unastar_data::blocks` rather than direct
+  Valentine constants.
 
 ## Domain gap table
 
@@ -47,8 +51,8 @@ artifact or generated Rust table is added.
 | Biomes | Legacy numeric IDs for chunk serialization | BDS mod / PMMP `biome_id_map.json`, cross-checked with BDS extraction | Missing locally | Import or generate from BDS-mod/native extractor output |
 | Biomes | Packet payload shape for client biome definition lists | BDS live packet extraction / PMMP `biome_definitions.json` | Ingestion lane present; real capture artifact not checked in | Capture from a real BDS target, generate `biome_packets.kdl`, then cross-link with behavior-pack biomes |
 | Biomes | Client-side chunk generation internals not exposed in packets | Native client/BDS analysis output normalized through `unastar-data` | Missing | Defer until gap list proves pack JSON is insufficient |
-| Blocks | String IDs, canonical state ID ranges, basic generated protocol palette | Valentine generated block data | Present | Already normalized in `blocks.kdl`; keep as protocol/canonical palette source |
-| Blocks | Hardness, opacity/light, resistance, material traits, item mapping, tags | BDS mod/native extractor; PMMP `block_properties_table.json`, `item_tags.json` where available | Partially bootstrapped from Valentine; PMMP tables missing locally | Add explicit source confidence per field; replace weak fields with BDS-derived facts |
+| Blocks | String IDs, canonical state ID ranges, default runtime state IDs, basic generated protocol palette | Valentine generated block data | Present in `blocks.kdl` and generated `unastar_data::blocks` | Keep as protocol/canonical palette source; validate ranges and defaults before runtime consumption |
+| Blocks | Hardness, opacity/light, resistance, material traits, item mapping, tags | BDS mod/native extractor; PMMP `block_properties_table.json`, `item_tags.json` where available | Partially bootstrapped from Valentine behind weak source docs; PMMP tables missing locally | Add field-level source confidence; replace weak fields with BDS-derived facts |
 | Blocks | Exact collision/shape and behavior families | Native extractor or verified pack component data when exposed | Missing | Add `unknown`/family placeholders only when logged and source-attributed |
 | Items | Network IDs, component-based flags, versions | BDS packet trace / PMMP `required_item_list.json` | Present locally and normalized | Keep generated artifact as authoritative for item registry packets |
 | Items | Tags and component NBT semantics | PMMP `item_tags.json`, required-item component NBT, native extractor | Tags missing locally | Import tags before recipe/crafting semantics |
@@ -93,6 +97,14 @@ truth and must not be committed as packet/runtime artifacts.
 Do not generate `biomes.kdl` from Valentine/Prismarine data alone. The biome
 artifact is based on behavior-pack biome JSON and should be enriched only with
 BDS/packet/native facts for legacy IDs and packet definitions.
+
+## Immediate rule for blocks
+
+Do not read Valentine block constants directly from runtime code. Route block
+facts through `output/blocks.kdl` and generated `unastar_data::blocks`, where
+source provenance and validation live. Treat current hardness, resistance,
+transparency, and light values as bootstrap facts until a BDS/native extractor
+or source-attributed PMMP table replaces them.
 
 ## References
 
