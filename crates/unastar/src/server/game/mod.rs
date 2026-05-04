@@ -23,13 +23,18 @@ use std::sync::Arc;
 use tracing::{info, warn};
 
 use crate::command::CommandRegistry;
-use crate::ecs::{CleanupSet, EntityLogicSet, NetworkSendSet, PacketApplySet, UnastarEcs};
+use crate::ecs::{
+    CleanupSet, EntityLogicSet, NetworkSendSet, PacketApplySet, PhysicsSet, UnastarEcs,
+};
 use crate::entity::bundles::PlayerBundle;
 use crate::entity::components::transform::{Position, Rotation};
 use crate::entity::components::{
     ArmourInventory, BreakingState, ChunkRadius, CursorItem, GameMode, HeldSlot, InventoryOpened,
     ItemStackRequestState, LastBroadcastPosition, MainInventory, OffhandSlot, Player, PlayerInput,
     PlayerName, PlayerSession, PlayerState, PlayerUuid, RuntimeEntityId, SpatialChunk,
+};
+use crate::entity::systems::{
+    apply_drag, apply_gravity, apply_velocity, check_ground_collision, clamp_velocity,
 };
 use crate::network::SessionId;
 use crate::registry::{BiomeRegistry, BlockRegistry, EntityRegistry, ItemRegistry};
@@ -174,6 +179,18 @@ impl GameServer {
                 .after(inventory::apply_inventory)
                 .after(chunks::apply_chunk_requests)
                 .after(commands::apply_chat_and_commands),
+        );
+
+        ecs.schedule_mut().add_systems(
+            (
+                apply_gravity,
+                clamp_velocity,
+                apply_velocity,
+                check_ground_collision,
+                apply_drag,
+            )
+                .chain()
+                .in_set(PhysicsSet),
         );
 
         ecs.schedule_mut().add_systems(
@@ -523,5 +540,41 @@ impl GameServer {
 impl Default for GameServer {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::entity::components::{Living, OnGround, Velocity};
+    use glam::DVec3;
+
+    #[test]
+    fn game_tick_runs_physics_set_for_living_entities() {
+        let mut server = GameServer::new();
+        let entity = server
+            .ecs
+            .world_mut()
+            .spawn((
+                Living,
+                Position(DVec3::new(0.0, 10.0, 0.0)),
+                Velocity(DVec3::ZERO),
+                OnGround(false),
+            ))
+            .id();
+
+        server.tick();
+
+        let world = server.ecs.world();
+        let position = world.get::<Position>(entity).expect("position");
+        let velocity = world.get::<Velocity>(entity).expect("velocity");
+        assert!(
+            position.0.y < 10.0,
+            "scheduled physics should move airborne living entities downward"
+        );
+        assert!(
+            velocity.0.y < 0.0,
+            "scheduled physics should leave falling velocity after drag"
+        );
     }
 }
