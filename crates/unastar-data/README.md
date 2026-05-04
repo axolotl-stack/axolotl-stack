@@ -37,6 +37,7 @@ Current golden artifacts include:
 - `biomes.kdl` from vanilla behavior-pack biome JSON.
 - `items.kdl` from PMMP/BedrockData `required_item_list.json`.
 - `creative.kdl` from PMMP/BedrockData creative inventory JSON.
+- Optional `biome_packets.kdl` from a validated `bds-extractor` JSON capture.
 
 `biomes.kdl` intentionally contains only behavior-pack facts today. Enrich it
 with BDS packet/native facts for legacy IDs and packet definitions instead of
@@ -64,6 +65,18 @@ Refresh only PMMP-derived item/creative data plus the manifest:
 
 ```powershell
 cargo run -p unastar-data-gen -- --pmmp-only
+```
+
+Refresh only BDS-extractor packet/runtime facts plus the manifest:
+
+```powershell
+cargo run -p unastar-data-gen -- --bds-only --bds-extraction <path-to-bds-extractor-json>
+```
+
+Run full artifact generation and include BDS packet/runtime facts:
+
+```powershell
+cargo run -p unastar-data-gen -- --bds-extraction <path-to-bds-extractor-json>
 ```
 
 List parsed vanilla entities without writing artifacts:

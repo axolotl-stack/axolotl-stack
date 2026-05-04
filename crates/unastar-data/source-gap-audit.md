@@ -34,8 +34,10 @@ artifact or generated Rust table is added.
 - The checked-in PMMP subset currently includes required item and creative
   inventory data, but does **not** include `biome_definitions.json`,
   `biome_id_map.json`, `block_properties_table.json`, or `item_tags.json`.
-- `bds-extractor` builds and validates fixture JSON, so it is the right local
-  entry point for packet/lifecycle extraction before adding a native extractor.
+- `bds-extractor` builds and validates fixture JSON, and `unastar-data-gen`
+  can normalize a validated capture into `biome_packets.kdl`, so it is the
+  right local entry point for packet/lifecycle extraction before adding a
+  native extractor.
 
 ## Domain gap table
 
@@ -43,7 +45,7 @@ artifact or generated Rust table is added.
 | --- | --- | --- | --- | --- |
 | Biomes | Identifier, exposed components, tags, surface materials, climate component, generation-rule JSON | Vanilla behavior-pack biome JSON | Present locally and normalized in `biomes.kdl` | Preserve source attribution while adding generated Rust consumers |
 | Biomes | Legacy numeric IDs for chunk serialization | BDS mod / PMMP `biome_id_map.json`, cross-checked with BDS extraction | Missing locally | Import or generate from BDS-mod/native extractor output |
-| Biomes | Packet payload shape for client biome definition lists | BDS live packet extraction / PMMP `biome_definitions.json` | Missing locally | Extend fixture extraction before runtime packet generation |
+| Biomes | Packet payload shape for client biome definition lists | BDS live packet extraction / PMMP `biome_definitions.json` | Ingestion lane present; real capture artifact not checked in | Capture from a real BDS target, generate `biome_packets.kdl`, then cross-link with behavior-pack biomes |
 | Biomes | Client-side chunk generation internals not exposed in packets | Native client/BDS analysis output normalized through `unastar-data` | Missing | Defer until gap list proves pack JSON is insufficient |
 | Blocks | String IDs, canonical state ID ranges, basic generated protocol palette | Valentine generated block data | Present | Already normalized in `blocks.kdl`; keep as protocol/canonical palette source |
 | Blocks | Hardness, opacity/light, resistance, material traits, item mapping, tags | BDS mod/native extractor; PMMP `block_properties_table.json`, `item_tags.json` where available | Partially bootstrapped from Valentine; PMMP tables missing locally | Add explicit source confidence per field; replace weak fields with BDS-derived facts |
@@ -51,7 +53,7 @@ artifact or generated Rust table is added.
 | Items | Network IDs, component-based flags, versions | BDS packet trace / PMMP `required_item_list.json` | Present locally and normalized | Keep generated artifact as authoritative for item registry packets |
 | Items | Tags and component NBT semantics | PMMP `item_tags.json`, required-item component NBT, native extractor | Tags missing locally | Import tags before recipe/crafting semantics |
 | Entities | Behavior-pack components, component groups, events | Vanilla behavior-pack JSON + local overrides | Present and generated | Continue runtime integration through generic interpreters |
-| Entities | Available actor identifiers packet | BDS packet extraction / PMMP `entity_identifiers.nbt` | Extractor fixture mode exists; specific entity identifier source is not normalized | Add extractor fixture and artifact lane |
+| Entities | Available actor identifiers packet | BDS packet extraction / PMMP `entity_identifiers.nbt` | Extractor fixture mode exists; specific entity identifier source is not normalized | Add extractor artifact lane mirroring `biome_packets.kdl` |
 | Recipes/Loot | Recipe and loot tables | Vanilla packs plus PMMP packet traces for network recipe format | Not normalized | Add artifacts after item tags are sourced |
 
 ## Native/internals exploration lane

@@ -2,6 +2,7 @@ use clap::Parser;
 use std::path::PathBuf;
 use tracing::info;
 
+mod bds;
 mod biomes;
 mod blocks;
 mod emit;
@@ -43,20 +44,28 @@ struct Args {
     list: bool,
 
     /// Only refresh output/manifest.kdl from existing output artifacts
-    #[arg(long, conflicts_with_all = ["pmmp_only", "blocks_only", "biomes_only"])]
+    #[arg(long, conflicts_with_all = ["pmmp_only", "blocks_only", "biomes_only", "bds_only"])]
     manifest_only: bool,
 
     /// Only refresh PMMP-derived output artifacts and the manifest
-    #[arg(long, conflicts_with_all = ["manifest_only", "blocks_only", "biomes_only"])]
+    #[arg(long, conflicts_with_all = ["manifest_only", "blocks_only", "biomes_only", "bds_only"])]
     pmmp_only: bool,
 
     /// Only refresh Valentine-derived block output artifacts and the manifest
-    #[arg(long, conflicts_with_all = ["manifest_only", "pmmp_only", "biomes_only"])]
+    #[arg(long, conflicts_with_all = ["manifest_only", "pmmp_only", "biomes_only", "bds_only"])]
     blocks_only: bool,
 
     /// Only refresh vanilla behavior-pack biome output artifacts and the manifest
-    #[arg(long, conflicts_with_all = ["manifest_only", "pmmp_only", "blocks_only"])]
+    #[arg(long, conflicts_with_all = ["manifest_only", "pmmp_only", "blocks_only", "bds_only"])]
     biomes_only: bool,
+
+    /// Only refresh BDS extractor-derived packet/runtime artifacts and the manifest
+    #[arg(long, conflicts_with_all = ["manifest_only", "pmmp_only", "blocks_only", "biomes_only"])]
+    bds_only: bool,
+
+    /// Path to a validated bds-extractor JSON capture for packet/runtime facts
+    #[arg(long)]
+    bds_extraction: Option<PathBuf>,
 
     /// Tracing filter
     #[arg(long, default_value = "info")]
@@ -89,59 +98,56 @@ fn main() -> miette::Result<()> {
     let upstream_path = manifest_dir.join("../data/upstream");
     let pmmp_path = upstream_path.join("pmmp");
     let valentine_version_path = manifest_dir.join("../../valentine/bedrock_versions/v1_26_0");
-
-    if args.manifest_only {
+    let bds_extraction_path = args
+        .bds_extraction
+        .as_ref()
+        .map(|path| resolve_cli_path(&manifest_dir, path));
+    let write_manifest = |bds_extraction_path: Option<&std::path::Path>| {
         manifest::write_manifest(
             &output_path,
-            &vanilla_path,
-            &vanilla_biomes_path,
-            &overrides_path,
-            &upstream_path,
-            &pmmp_path,
-            &valentine_version_path,
-        )?;
+            &manifest::ManifestInputs {
+                vanilla_path: &vanilla_path,
+                vanilla_biomes_path: &vanilla_biomes_path,
+                overrides_path: &overrides_path,
+                upstream_path: &upstream_path,
+                pmmp_path: &pmmp_path,
+                valentine_version_path: &valentine_version_path,
+                bds_extraction_path,
+            },
+        )
+    };
+
+    if args.manifest_only {
+        write_manifest(bds_extraction_path.as_deref())?;
         return Ok(());
     }
 
     if args.pmmp_only {
         pmmp::write_pmmp_artifacts(&pmmp_path, &output_path)?;
-        manifest::write_manifest(
-            &output_path,
-            &vanilla_path,
-            &vanilla_biomes_path,
-            &overrides_path,
-            &upstream_path,
-            &pmmp_path,
-            &valentine_version_path,
-        )?;
+        write_manifest(None)?;
         return Ok(());
     }
 
     if args.blocks_only {
         blocks::write_blocks_kdl(&output_path)?;
-        manifest::write_manifest(
-            &output_path,
-            &vanilla_path,
-            &vanilla_biomes_path,
-            &overrides_path,
-            &upstream_path,
-            &pmmp_path,
-            &valentine_version_path,
-        )?;
+        write_manifest(None)?;
         return Ok(());
     }
 
     if args.biomes_only {
         biomes::write_biomes_kdl(&vanilla_biomes_path, &output_path)?;
-        manifest::write_manifest(
-            &output_path,
-            &vanilla_path,
-            &vanilla_biomes_path,
-            &overrides_path,
-            &upstream_path,
-            &pmmp_path,
-            &valentine_version_path,
-        )?;
+        write_manifest(None)?;
+        return Ok(());
+    }
+
+    if args.bds_only {
+        let Some(bds_extraction_path) = bds_extraction_path.as_ref() else {
+            return Err(miette::miette!(
+                "--bds-only requires --bds-extraction <bds-extractor-json>"
+            ));
+        };
+        bds::write_bds_artifacts(bds_extraction_path, &output_path)?;
+        write_manifest(Some(bds_extraction_path))?;
         return Ok(());
     }
 
@@ -178,16 +184,26 @@ fn main() -> miette::Result<()> {
     blocks::write_blocks_kdl(&output_path)?;
     biomes::write_biomes_kdl(&vanilla_biomes_path, &output_path)?;
     pmmp::write_pmmp_artifacts(&pmmp_path, &output_path)?;
-    manifest::write_manifest(
-        &output_path,
-        &vanilla_path,
-        &vanilla_biomes_path,
-        &overrides_path,
-        &upstream_path,
-        &pmmp_path,
-        &valentine_version_path,
-    )?;
+    if let Some(bds_extraction_path) = bds_extraction_path.as_ref() {
+        bds::write_bds_artifacts(bds_extraction_path, &output_path)?;
+    }
+    write_manifest(bds_extraction_path.as_deref())?;
 
     info!("Done!");
     Ok(())
+}
+
+fn resolve_cli_path(manifest_dir: &std::path::Path, path: &std::path::Path) -> PathBuf {
+    if path.is_absolute() {
+        return path.to_path_buf();
+    }
+
+    let cwd_path = std::env::current_dir()
+        .map(|cwd| cwd.join(path))
+        .unwrap_or_else(|_| path.to_path_buf());
+    if cwd_path.exists() {
+        cwd_path
+    } else {
+        manifest_dir.join(path)
+    }
 }

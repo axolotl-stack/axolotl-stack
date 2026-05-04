@@ -10,6 +10,8 @@ use std::process::Command;
 use tracing::info;
 use walkdir::WalkDir;
 
+use crate::bds;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ManifestSource {
     pub name: String,
@@ -49,20 +51,22 @@ struct ManifestArtifact {
     hash: String,
 }
 
-pub fn write_manifest(
-    output_dir: &Path,
-    vanilla_path: &Path,
-    vanilla_biomes_path: &Path,
-    overrides_path: &Path,
-    upstream_path: &Path,
-    pmmp_path: &Path,
-    valentine_version_path: &Path,
-) -> miette::Result<()> {
-    let sources = vec![
+pub struct ManifestInputs<'a> {
+    pub vanilla_path: &'a Path,
+    pub vanilla_biomes_path: &'a Path,
+    pub overrides_path: &'a Path,
+    pub upstream_path: &'a Path,
+    pub pmmp_path: &'a Path,
+    pub valentine_version_path: &'a Path,
+    pub bds_extraction_path: Option<&'a Path>,
+}
+
+pub fn write_manifest(output_dir: &Path, inputs: &ManifestInputs<'_>) -> miette::Result<()> {
+    let mut sources = vec![
         source_from_path(
             "valentine_bedrock_1_26_0",
             "generated_protocol_data",
-            valentine_version_path,
+            inputs.valentine_version_path,
             Some("bedrock_1_26_0".to_string()),
             "high",
             false,
@@ -70,23 +74,23 @@ pub fn write_manifest(
         source_from_path(
             "vanilla_behavior_pack",
             "behavior_pack",
-            vanilla_path,
-            vanilla_version(vanilla_path)?,
+            inputs.vanilla_path,
+            vanilla_version(inputs.vanilla_path)?,
             "high",
             true,
         )?,
         source_from_path(
             "vanilla_behavior_pack_biomes",
             "behavior_pack_biomes",
-            vanilla_biomes_path,
-            vanilla_version(vanilla_biomes_path)?,
+            inputs.vanilla_biomes_path,
+            vanilla_version(inputs.vanilla_biomes_path)?,
             "high",
             true,
         )?,
         source_from_path(
             "project_overrides",
             "kdl_overrides",
-            overrides_path,
+            inputs.overrides_path,
             Some("local-kdl-overrides-v1".to_string()),
             "high",
             false,
@@ -94,20 +98,30 @@ pub fn write_manifest(
         source_from_path(
             "upstream_metadata",
             "schema_metadata",
-            upstream_path,
-            upstream_version(upstream_path)?,
+            inputs.upstream_path,
+            upstream_version(inputs.upstream_path)?,
             "medium",
             false,
         )?,
         source_from_path(
             "pmmp_bedrock_data",
             "external_json",
-            pmmp_path,
+            inputs.pmmp_path,
             Some("pmmp-bedrockdata-embedded-v1".to_string()),
             "medium",
             false,
         )?,
     ];
+    if let Some(path) = inputs.bds_extraction_path {
+        sources.push(source_from_path(
+            "bds_extractor_capture",
+            "bds_extractor_json",
+            path,
+            bds::extraction_version(path)?,
+            "high",
+            false,
+        )?);
+    }
 
     for source in &sources {
         source
@@ -115,7 +129,7 @@ pub fn write_manifest(
             .map_err(|e| miette::miette!("Invalid source manifest: {}", e))?;
     }
 
-    let artifacts = collect_artifacts(output_dir)?;
+    let artifacts = collect_artifacts(output_dir, inputs.bds_extraction_path.is_some())?;
     let manifest = render_manifest(&sources, &artifacts);
     let path = output_dir.join("manifest.kdl");
     std::fs::write(&path, manifest)
@@ -153,8 +167,18 @@ fn source_from_path(
     })
 }
 
-fn collect_artifacts(output_dir: &Path) -> miette::Result<Vec<ManifestArtifact>> {
+fn collect_artifacts(
+    output_dir: &Path,
+    include_bds_artifacts: bool,
+) -> miette::Result<Vec<ManifestArtifact>> {
     let mut artifacts = Vec::new();
+    let bds_artifact = output_dir.join("biome_packets.kdl");
+    if bds_artifact.exists() && !include_bds_artifacts {
+        return Err(miette::miette!(
+            "{} exists but no --bds-extraction source was supplied for manifest provenance",
+            bds_artifact.display()
+        ));
+    }
 
     for name in [
         "entities.kdl",
@@ -171,6 +195,13 @@ fn collect_artifacts(output_dir: &Path) -> miette::Result<Vec<ManifestArtifact>>
                 hash: hash_path(&path)?,
             });
         }
+    }
+    if include_bds_artifacts && bds_artifact.exists() {
+        artifacts.push(ManifestArtifact {
+            name: "biome_packets".to_string(),
+            path: "biome_packets.kdl".to_string(),
+            hash: hash_path(&bds_artifact)?,
+        });
     }
 
     Ok(artifacts)
@@ -416,5 +447,32 @@ mod tests {
         assert!(manifest.contains("source \"vanilla\""));
         assert!(manifest.contains("artifact \"entities\""));
         assert!(manifest.contains("schema_version=\"1\""));
+    }
+
+    #[test]
+    fn collect_artifacts_rejects_bds_artifact_without_capture_source() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "unastar-manifest-bds-test-{}-{}",
+            std::process::id(),
+            unique_suffix()
+        ));
+        std::fs::create_dir_all(&temp_dir).expect("create temp dir");
+        std::fs::write(
+            temp_dir.join("biome_packets.kdl"),
+            "biome_packet minecraft:plains\n",
+        )
+        .expect("write stale artifact");
+
+        let err = collect_artifacts(&temp_dir, false).expect_err("missing BDS source is invalid");
+
+        assert!(err.to_string().contains("no --bds-extraction source"));
+        let _ = std::fs::remove_dir_all(temp_dir);
+    }
+
+    fn unique_suffix() -> u128 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos()
     }
 }
