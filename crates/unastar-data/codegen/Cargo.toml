@@ -9,6 +9,7 @@ path = "src/main.rs"
 
 [dependencies]
 serde_json = { workspace = true }
+base64 = { workspace = true }
 kdl = "6.5"
 quote = { workspace = true }
 proc-macro2 = { workspace = true }
