@@ -55,8 +55,17 @@ pub fn write_manifest(
     overrides_path: &Path,
     upstream_path: &Path,
     pmmp_path: &Path,
+    valentine_version_path: &Path,
 ) -> miette::Result<()> {
     let sources = vec![
+        source_from_path(
+            "valentine_bedrock_1_26_0",
+            "generated_protocol_data",
+            valentine_version_path,
+            Some("bedrock_1_26_0".to_string()),
+            "high",
+            false,
+        )?,
         source_from_path(
             "vanilla_behavior_pack",
             "behavior_pack",
@@ -138,7 +147,7 @@ fn source_from_path(
 fn collect_artifacts(output_dir: &Path) -> miette::Result<Vec<ManifestArtifact>> {
     let mut artifacts = Vec::new();
 
-    for name in ["entities.kdl", "items.kdl", "creative.kdl"] {
+    for name in ["entities.kdl", "blocks.kdl", "items.kdl", "creative.kdl"] {
         let path = output_dir.join(name);
         if path.exists() {
             artifacts.push(ManifestArtifact {

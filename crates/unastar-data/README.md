@@ -4,7 +4,7 @@ Generated, source-attributed gameplay data for Unastar.
 
 The crate is the boundary between raw Bedrock data sources and the server runtime:
 
-1. `datagen` reads vanilla behavior-pack JSON plus local KDL overrides and writes reviewable artifacts in `output/`.
+1. `datagen` reads Valentine block/protocol data, vanilla behavior-pack JSON, PMMP/BedrockData JSON, and local KDL overrides, then writes reviewable artifacts in `output/`.
 2. `codegen` reads those golden artifacts and generates Rust types/tables under `src/`.
 3. `unastar` consumes generated APIs; it should not parse PMMP, Prismarine, BDS, or behavior-pack data directly in hot runtime paths.
 
@@ -25,10 +25,29 @@ Gameplay facts should be merged in this order:
 `output/manifest.kdl` records source paths, commits/hashes, confidence, and artifact hashes.
 The currently vendored PMMP/BedrockData JSON inputs live under `data/upstream/pmmp/`
 and are exposed through `unastar_data::pmmp` constants for legacy Unastar registries.
-Refresh only the manifest without regenerating entities:
+Current golden artifacts include:
+
+- `entities.kdl` from vanilla behavior-pack entities plus local overrides.
+- `blocks.kdl` from Valentine's generated Bedrock block definitions and canonical state ID ranges.
+- `items.kdl` from PMMP/BedrockData `required_item_list.json`.
+- `creative.kdl` from PMMP/BedrockData creative inventory JSON.
+
+Refresh only the manifest without regenerating artifacts:
 
 ```powershell
 cargo run -p unastar-data-gen -- --manifest-only
+```
+
+Refresh only Valentine-derived block data plus the manifest:
+
+```powershell
+cargo run -p unastar-data-gen -- --blocks-only
+```
+
+Refresh only PMMP-derived item/creative data plus the manifest:
+
+```powershell
+cargo run -p unastar-data-gen -- --pmmp-only
 ```
 
 List parsed vanilla entities without writing artifacts:
@@ -37,7 +56,7 @@ List parsed vanilla entities without writing artifacts:
 cargo run -p unastar-data-gen -- --list
 ```
 
-Run full entity artifact generation:
+Run full artifact generation:
 
 ```powershell
 cargo run -p unastar-data-gen --

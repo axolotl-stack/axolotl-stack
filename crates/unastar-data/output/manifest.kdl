@@ -2,11 +2,13 @@
 // Records source versions and artifact hashes for generated gameplay data.
 
 manifest schema_version="1" generated_at="unknown" {
+    source "valentine_bedrock_1_26_0" kind="generated_protocol_data" path="crates/valentine/bedrock_versions/v1_26_0" confidence="high" version="bedrock_1_26_0" hash="f59516e158aba9a2921e8a372a64f6bea0a98d10fd73fd343fd6c9db4fe61456"
     source "vanilla_behavior_pack" kind="behavior_pack" path="crates/unastar-data/data/vanilla_bp/behavior_pack/entities" confidence="high" version="1.21.130.3" git_commit="84aa19df535fcf6d044f28bf76f236029bd8407a" hash="df5b2d02b1df6bd1f9ab2f42f5669b5c0c63971156d442e44cb964193155e10d"
     source "project_overrides" kind="kdl_overrides" path="crates/unastar-data/data/overrides" confidence="high" version="local-kdl-overrides-v1" hash="6a7946b299042b85359b2ec99f10dfdbd49f47bd3a66c53a139a0035e4af0ed5"
     source "upstream_metadata" kind="schema_metadata" path="crates/unastar-data/data/upstream" confidence="medium" version="mojang-creator-tools:f7708729466c78b9689af9b1a6498220ed397a16;blockception-schema:main" hash="52e4ee97775460cb653afacb1075e25202cc1d57dfec950e2a4167839cfa3f21"
     source "pmmp_bedrock_data" kind="external_json" path="crates/unastar-data/data/upstream/pmmp" confidence="medium" version="pmmp-bedrockdata-embedded-v1" hash="1cb3960966b031466c44bbbe3abc3b02310fc64fb9eb116a11dddc1b748e003d"
     artifact "entities" path="entities.kdl" hash="530fb8cd715b08c988c9ebdad72a5ea58374389dcc71ebf5f7bb9bd97d22be25"
+    artifact "blocks" path="blocks.kdl" hash="fb0ca3e9f572b29014a1af35564fb2b4a4c73e58705599d762bee11bc0a098d0"
     artifact "items" path="items.kdl" hash="77898a3bbf122b6d96d9039df10106a569d9986e1fb1762f6f12ac3ef80e8ed8"
     artifact "creative" path="creative.kdl" hash="35112ee9b3d22de086b43f8b828386dd3c06145b3e557d043de22291457a3d55"
 }

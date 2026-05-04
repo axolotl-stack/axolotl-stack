@@ -2,6 +2,7 @@ use clap::Parser;
 use std::path::PathBuf;
 use tracing::info;
 
+mod blocks;
 mod emit;
 mod ingest;
 mod ir;
@@ -36,12 +37,16 @@ struct Args {
     list: bool,
 
     /// Only refresh output/manifest.kdl from existing output artifacts
-    #[arg(long, conflicts_with = "pmmp_only")]
+    #[arg(long, conflicts_with_all = ["pmmp_only", "blocks_only"])]
     manifest_only: bool,
 
     /// Only refresh PMMP-derived output artifacts and the manifest
-    #[arg(long, conflicts_with = "manifest_only")]
+    #[arg(long, conflicts_with_all = ["manifest_only", "blocks_only"])]
     pmmp_only: bool,
+
+    /// Only refresh Valentine-derived block output artifacts and the manifest
+    #[arg(long, conflicts_with_all = ["manifest_only", "pmmp_only"])]
+    blocks_only: bool,
 
     /// Tracing filter
     #[arg(long, default_value = "info")]
@@ -66,26 +71,44 @@ fn main() -> miette::Result<()> {
     let vanilla_path = manifest_dir.join(&args.vanilla);
     let overrides_path = manifest_dir.join(&args.overrides);
     let output_path = manifest_dir.join(&args.output);
+    let upstream_path = manifest_dir.join("../data/upstream");
+    let pmmp_path = upstream_path.join("pmmp");
+    let valentine_version_path = manifest_dir.join("../../valentine/bedrock_versions/v1_26_0");
 
     if args.manifest_only {
         manifest::write_manifest(
             &output_path,
             &vanilla_path,
             &overrides_path,
-            &manifest_dir.join("../data/upstream"),
-            &manifest_dir.join("../data/upstream/pmmp"),
+            &upstream_path,
+            &pmmp_path,
+            &valentine_version_path,
         )?;
         return Ok(());
     }
 
     if args.pmmp_only {
-        pmmp::write_pmmp_artifacts(&manifest_dir.join("../data/upstream/pmmp"), &output_path)?;
+        pmmp::write_pmmp_artifacts(&pmmp_path, &output_path)?;
         manifest::write_manifest(
             &output_path,
             &vanilla_path,
             &overrides_path,
-            &manifest_dir.join("../data/upstream"),
-            &manifest_dir.join("../data/upstream/pmmp"),
+            &upstream_path,
+            &pmmp_path,
+            &valentine_version_path,
+        )?;
+        return Ok(());
+    }
+
+    if args.blocks_only {
+        blocks::write_blocks_kdl(&output_path)?;
+        manifest::write_manifest(
+            &output_path,
+            &vanilla_path,
+            &overrides_path,
+            &upstream_path,
+            &pmmp_path,
+            &valentine_version_path,
         )?;
         return Ok(());
     }
@@ -120,13 +143,15 @@ fn main() -> miette::Result<()> {
     // Step 4: Emit KDL
     info!("Writing KDL output...");
     emit::write_entities_kdl(&merged, &output_path)?;
-    pmmp::write_pmmp_artifacts(&manifest_dir.join("../data/upstream/pmmp"), &output_path)?;
+    blocks::write_blocks_kdl(&output_path)?;
+    pmmp::write_pmmp_artifacts(&pmmp_path, &output_path)?;
     manifest::write_manifest(
         &output_path,
         &vanilla_path,
         &overrides_path,
-        &manifest_dir.join("../data/upstream"),
-        &manifest_dir.join("../data/upstream/pmmp"),
+        &upstream_path,
+        &pmmp_path,
+        &valentine_version_path,
     )?;
 
     info!("Done!");

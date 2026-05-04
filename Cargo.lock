@@ -4613,6 +4613,8 @@ dependencies = [
  "thiserror 2.0.17",
  "tracing",
  "tracing-subscriber",
+ "valentine_bedrock_1_26_0",
+ "valentine_bedrock_core",
  "walkdir",
 ]
 
