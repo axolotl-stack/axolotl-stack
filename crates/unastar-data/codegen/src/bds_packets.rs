@@ -8,6 +8,7 @@ use base64::Engine as _;
 use kdl::{KdlDocument, KdlNode};
 use proc_macro2::TokenStream;
 use quote::quote;
+use std::collections::HashSet;
 use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -58,12 +59,33 @@ fn parse_biome_packets(input_dir: &Path) -> miette::Result<Vec<ParsedBdsBiome>> 
             biomes.push(parse_biome_packet_node(node)?);
         }
     }
+    validate_unique_biome_packets(&biomes)?;
     biomes.sort_by(|a, b| {
         a.biome_id
             .cmp(&b.biome_id)
             .then_with(|| a.identifier.cmp(&b.identifier))
     });
     Ok(biomes)
+}
+
+fn validate_unique_biome_packets(biomes: &[ParsedBdsBiome]) -> miette::Result<()> {
+    let mut seen_ids = HashSet::new();
+    let mut seen_identifiers = HashSet::new();
+    for biome in biomes {
+        if !seen_ids.insert(biome.biome_id) {
+            return Err(miette::miette!(
+                "duplicate BDS biome_id {} in biome_packets.kdl",
+                biome.biome_id
+            ));
+        }
+        if !seen_identifiers.insert(biome.identifier.as_str()) {
+            return Err(miette::miette!(
+                "duplicate BDS biome identifier {} in biome_packets.kdl",
+                biome.identifier
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn parse_biome_packet_node(node: &KdlNode) -> miette::Result<ParsedBdsBiome> {
@@ -370,6 +392,42 @@ mod tests {
         let err = parse_biome_packet_node(&doc.nodes()[0]).expect_err("wrong source is invalid");
 
         assert!(err.to_string().contains("bds_extractor"));
+    }
+
+    #[test]
+    fn rejects_duplicate_biome_packet_ids() {
+        let temp_dir = temp_dir("unastar-codegen-bds-duplicate-id");
+        std::fs::write(
+            temp_dir.join("biome_packets.kdl"),
+            r#"
+                biome_packet "minecraft:plains" source="bds_extractor" biome_id=1 name_index=0 temperature=0.8 downfall=0.4
+                biome_packet "minecraft:forest" source="bds_extractor" biome_id=1 name_index=1 temperature=0.5 downfall=0.6
+            "#,
+        )
+        .expect("write biome_packets");
+
+        let err = parse_biome_packets(&temp_dir).expect_err("duplicate ID is invalid");
+
+        assert!(err.to_string().contains("duplicate BDS biome_id"));
+        let _ = std::fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn rejects_duplicate_biome_packet_identifiers() {
+        let temp_dir = temp_dir("unastar-codegen-bds-duplicate-identifier");
+        std::fs::write(
+            temp_dir.join("biome_packets.kdl"),
+            r#"
+                biome_packet "minecraft:plains" source="bds_extractor" biome_id=1 name_index=0 temperature=0.8 downfall=0.4
+                biome_packet "minecraft:plains" source="bds_extractor" biome_id=2 name_index=1 temperature=0.5 downfall=0.6
+            "#,
+        )
+        .expect("write biome_packets");
+
+        let err = parse_biome_packets(&temp_dir).expect_err("duplicate identifier is invalid");
+
+        assert!(err.to_string().contains("duplicate BDS biome identifier"));
+        let _ = std::fs::remove_dir_all(temp_dir);
     }
 
     #[test]

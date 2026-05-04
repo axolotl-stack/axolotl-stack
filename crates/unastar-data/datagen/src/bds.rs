@@ -7,6 +7,7 @@
 use base64::Engine as _;
 use kdl::{KdlDocument, KdlEntry, KdlNode, KdlValue};
 use serde::Deserialize;
+use std::collections::HashSet;
 use std::path::Path;
 use tracing::info;
 
@@ -284,6 +285,8 @@ fn normalize_biome_definitions(
     }
 
     let mut definitions = Vec::with_capacity(biomes.definitions.len());
+    let mut seen_ids = HashSet::new();
+    let mut seen_identifiers = HashSet::new();
     for definition in &biomes.definitions {
         let name_index = usize::try_from(definition.name_index).map_err(|_| {
             miette::miette!(
@@ -310,6 +313,18 @@ fn normalize_biome_definitions(
             return Err(miette::miette!(
                 "BDS biome {} has non-finite climate values",
                 definition.biome_id
+            ));
+        }
+        if !seen_ids.insert(definition.biome_id) {
+            return Err(miette::miette!(
+                "duplicate BDS biome_id {} in captured biome definitions",
+                definition.biome_id
+            ));
+        }
+        if !seen_identifiers.insert(identifier.clone()) {
+            return Err(miette::miette!(
+                "duplicate BDS biome identifier {} in captured biome definitions",
+                identifier
             ));
         }
 
@@ -396,6 +411,57 @@ mod tests {
         .unwrap_err();
 
         assert!(err.to_string().contains("out of range"));
+    }
+
+    #[test]
+    fn rejects_duplicate_biome_packet_ids() {
+        let err = normalize_biome_definitions(&BiomeData {
+            definitions: vec![
+                BiomeDefinition {
+                    name_index: 0,
+                    biome_id: 1,
+                    temperature: 0.8,
+                    downfall: 0.4,
+                },
+                BiomeDefinition {
+                    name_index: 1,
+                    biome_id: 1,
+                    temperature: 0.5,
+                    downfall: 0.6,
+                },
+            ],
+            string_list: vec![
+                "minecraft:plains".to_string(),
+                "minecraft:forest".to_string(),
+            ],
+        })
+        .unwrap_err();
+
+        assert!(err.to_string().contains("duplicate BDS biome_id"));
+    }
+
+    #[test]
+    fn rejects_duplicate_biome_packet_identifiers() {
+        let err = normalize_biome_definitions(&BiomeData {
+            definitions: vec![
+                BiomeDefinition {
+                    name_index: 0,
+                    biome_id: 1,
+                    temperature: 0.8,
+                    downfall: 0.4,
+                },
+                BiomeDefinition {
+                    name_index: 0,
+                    biome_id: 2,
+                    temperature: 0.5,
+                    downfall: 0.6,
+                },
+            ],
+            string_list: vec!["minecraft:plains".to_string()],
+        })
+        .unwrap_err();
+
+        assert!(err.to_string().contains("duplicate BDS biome identifier"));
     }
 
     #[test]
