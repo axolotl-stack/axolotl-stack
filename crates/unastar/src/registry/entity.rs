@@ -4,23 +4,28 @@ use super::{Registry, RegistryEntry};
 use bytes::BytesMut;
 use jolyne::valentine::AvailableEntityIdentifiersPacket;
 use jolyne::valentine::bedrock::codec::Nbt;
-use jolyne::valentine::entities::EntityType;
 
 /// Runtime entity entry in the registry.
 #[derive(Debug, Clone)]
 pub struct EntityEntry {
-    /// Numeric entity ID.
+    /// Internal registry ID.
+    ///
+    /// This is not a Bedrock packet/runtime entity ID.
     pub id: u32,
-    /// Internal entity ID.
-    pub internal_id: u32,
+    /// Sourced Bedrock runtime entity ID, when present.
+    pub runtime_id: Option<u32>,
     /// String identifier (e.g., "minecraft:zombie").
     pub string_id: String,
     /// Display name.
     pub name: String,
-    /// Entity behavior type.
-    pub entity_type: EntityType,
+    /// Vanilla spawn category, when present in behavior-pack data.
+    pub spawn_category: Option<String>,
+    /// Whether this entity can spawn naturally.
+    pub is_spawnable: bool,
+    /// Whether this entity can be summoned by commands.
+    pub is_summonable: bool,
     /// Hitbox dimensions.
-    pub height: f32,
+    pub height: Option<f32>,
     pub width: Option<f32>,
 }
 
@@ -38,17 +43,23 @@ impl RegistryEntry for EntityEntry {
 pub type EntityRegistry = Registry<EntityEntry>;
 
 impl EntityRegistry {
-    /// Load vanilla entities from valentine's generated data.
+    /// Load vanilla entities from behavior-pack sourced generated data.
+    ///
+    /// Entity metadata comes from `unastar-data` behavior-pack extraction. Exact
+    /// packet payloads and runtime IDs should come from BDS packet/native
+    /// captures when present rather than Valentine/Prismarine generated data.
     pub fn load_vanilla(&mut self) {
-        use jolyne::valentine::entities::ALL_ENTITIES;
+        use unastar_data::entities::definitions::ALL_ENTITIES;
 
         for entity in ALL_ENTITIES.iter() {
             let entry = EntityEntry {
                 id: entity.id,
-                internal_id: entity.internal_id,
-                string_id: entity.string_id.to_string(),
-                name: entity.name.to_string(),
-                entity_type: entity.entity_type,
+                runtime_id: entity.runtime_id,
+                string_id: entity.identifier.to_string(),
+                name: entity_display_name(entity.identifier),
+                spawn_category: entity.spawn_category.map(ToString::to_string),
+                is_spawnable: entity.is_spawnable,
+                is_summonable: entity.is_summonable,
                 height: entity.height,
                 width: entity.width,
             };
@@ -107,5 +118,56 @@ impl EntityRegistry {
         AvailableEntityIdentifiersPacket {
             nbt: Nbt(buf.freeze()),
         }
+    }
+}
+
+fn entity_display_name(identifier: &str) -> String {
+    identifier
+        .strip_prefix("minecraft:")
+        .unwrap_or(identifier)
+        .replace('_', " ")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn vanilla_entities_are_loaded_from_unastar_data() {
+        let mut registry = EntityRegistry::new();
+
+        registry.load_vanilla();
+
+        assert_eq!(
+            registry.len(),
+            unastar_data::entities::definitions::ALL_ENTITIES.len()
+        );
+        let zombie = registry
+            .get_by_name("minecraft:zombie")
+            .expect("zombie entity");
+        let source =
+            unastar_data::entities::definitions::get("minecraft:zombie").expect("source zombie");
+        assert_eq!(zombie.id, source.id);
+        assert_eq!(zombie.runtime_id, source.runtime_id);
+        assert_eq!(zombie.string_id, source.identifier);
+        assert_eq!(zombie.spawn_category.as_deref(), source.spawn_category);
+        assert_eq!(zombie.is_spawnable, source.is_spawnable);
+        assert_eq!(zombie.is_summonable, source.is_summonable);
+        assert_eq!(zombie.height, source.height);
+        assert_eq!(zombie.width, source.width);
+    }
+
+    #[test]
+    fn available_entity_packet_uses_behavior_pack_identifiers() {
+        let mut registry = EntityRegistry::new();
+        registry.load_vanilla();
+
+        let packet = registry.to_available_entity_identifiers_packet();
+
+        assert!(!packet.nbt.0.is_empty());
+        assert_eq!(
+            registry.len(),
+            unastar_data::entities::definitions::ALL_ENTITIES.len()
+        );
     }
 }

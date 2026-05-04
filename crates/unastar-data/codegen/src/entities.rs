@@ -16,6 +16,7 @@ use tracing::info;
 struct ParsedEntity {
     identifier: String,
     name: String, // without minecraft: prefix
+    spawn_category: Option<String>,
     is_spawnable: bool,
     is_summonable: bool,
     runtime_id: Option<u32>,
@@ -137,6 +138,7 @@ fn parse_entity_node(node: &KdlNode) -> miette::Result<ParsedEntity> {
     let mut entity = ParsedEntity {
         identifier,
         name,
+        spawn_category: None,
         is_spawnable: false,
         is_summonable: false,
         runtime_id: None,
@@ -168,7 +170,23 @@ fn parse_entity_node(node: &KdlNode) -> miette::Result<ParsedEntity> {
                         .entries()
                         .first()
                         .and_then(|e| e.value().as_integer())
-                        .map(|i| i as u32);
+                        .map(|value| {
+                            u32::try_from(value).map_err(|_| {
+                                miette::miette!(
+                                    "entity {} runtime_id {} is out of u32 range",
+                                    entity.identifier,
+                                    value
+                                )
+                            })
+                        })
+                        .transpose()?;
+                }
+                "spawn_category" => {
+                    entity.spawn_category = child
+                        .entries()
+                        .first()
+                        .and_then(|e| e.value().as_string())
+                        .map(ToString::to_string);
                 }
                 "components" => {
                     if let Some(comp_children) = child.children() {
@@ -1401,10 +1419,72 @@ fn generate_entities_mod(
         })
         .collect();
 
+    let entity_definitions: Vec<TokenStream> = sorted_entities
+        .iter()
+        .enumerate()
+        .map(|(id, entity)| {
+            let id = id as u32;
+            let identifier = &entity.identifier;
+            let spawn_category = option_str_tokens(entity.spawn_category.as_deref());
+            let runtime_id = option_u32_tokens(entity.runtime_id);
+            let is_spawnable = entity.is_spawnable;
+            let is_summonable = entity.is_summonable;
+            let (height, width) = entity_collision_box(entity);
+            let height = option_f32_tokens(height);
+            let width = option_f32_tokens(width);
+            quote! {
+                EntityDefinitionData {
+                    id: #id,
+                    identifier: #identifier,
+                    spawn_category: #spawn_category,
+                    is_spawnable: #is_spawnable,
+                    is_summonable: #is_summonable,
+                    runtime_id: #runtime_id,
+                    height: #height,
+                    width: #width,
+                }
+            }
+        })
+        .collect();
+    let entity_count = entity_definitions.len();
+
     let def_code = quote! {
         //! Generated entity definitions.
 
         #(#def_mods)*
+
+        /// Generated behavior-pack entity metadata.
+        #[derive(Debug, Clone, Copy, PartialEq)]
+        pub struct EntityDefinitionData {
+            /// Internal registry ID assigned by deterministic codegen order.
+            ///
+            /// This is not a Bedrock packet/runtime entity ID.
+            pub id: u32,
+            /// Namespaced entity identifier.
+            pub identifier: &'static str,
+            /// Vanilla spawn category, when present.
+            pub spawn_category: Option<&'static str>,
+            /// Whether this entity can spawn naturally.
+            pub is_spawnable: bool,
+            /// Whether this entity can be summoned by commands.
+            pub is_summonable: bool,
+            /// Sourced Bedrock runtime entity ID, when present in the input data.
+            pub runtime_id: Option<u32>,
+            /// Collision box height from `minecraft:collision_box`, when present.
+            pub height: Option<f32>,
+            /// Collision box width from `minecraft:collision_box`, when present.
+            pub width: Option<f32>,
+        }
+
+        /// All generated entity metadata, sorted by identifier-derived module name.
+        pub const ALL_ENTITIES: [EntityDefinitionData; #entity_count] = [
+            #(#entity_definitions),*
+        ];
+
+        /// Look up generated entity metadata by namespaced identifier.
+        pub fn get(identifier: &str) -> Option<&'static EntityDefinitionData> {
+            ALL_ENTITIES.iter().find(|entity| entity.identifier == identifier)
+        }
 
         // Re-export spawn functions
         #(#spawn_uses)*
@@ -1443,8 +1523,102 @@ fn generate_entities_mod(
     Ok(())
 }
 
+fn option_str_tokens(value: Option<&str>) -> TokenStream {
+    match value {
+        Some(value) => quote! { Some(#value) },
+        None => quote! { None },
+    }
+}
+
+fn option_u32_tokens(value: Option<u32>) -> TokenStream {
+    match value {
+        Some(value) => quote! { Some(#value) },
+        None => quote! { None },
+    }
+}
+
+fn option_f32_tokens(value: Option<f32>) -> TokenStream {
+    match value {
+        Some(value) => quote! { Some(#value) },
+        None => quote! { None },
+    }
+}
+
+fn entity_collision_box(entity: &ParsedEntity) -> (Option<f32>, Option<f32>) {
+    let Some(component) = entity
+        .components
+        .iter()
+        .find(|component| component.name == "collision_box")
+    else {
+        return (None, None);
+    };
+
+    let Some(Value::Object(data)) = component.data.as_ref() else {
+        return (None, None);
+    };
+
+    (
+        data.get("height")
+            .and_then(Value::as_f64)
+            .map(|value| value as f32),
+        data.get("width")
+            .and_then(Value::as_f64)
+            .map(|value| value as f32),
+    )
+}
+
 fn format_code(code: TokenStream) -> miette::Result<String> {
     let file =
         syn::parse2(code).map_err(|e| miette::miette!("Failed to parse generated code: {}", e))?;
     Ok(prettyplease::unparse(&file))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn entity_index_metadata_extracts_spawn_and_collision_data() {
+        let doc: KdlDocument = r#"
+            entity "minecraft:test_mob" {
+                spawn_category "monster"
+                is_spawnable #true
+                is_summonable #false
+                components {
+                    collision_box height=1.8 width=0.6
+                }
+            }
+        "#
+        .parse()
+        .expect("parse entity kdl");
+
+        let entity = parse_entity_node(&doc.nodes()[0]).expect("parse entity");
+
+        assert_eq!(entity.spawn_category.as_deref(), Some("monster"));
+        assert!(entity.is_spawnable);
+        assert!(!entity.is_summonable);
+        assert_eq!(entity_collision_box(&entity), (Some(1.8), Some(0.6)));
+    }
+
+    #[test]
+    fn entity_runtime_id_rejects_negative_values() {
+        let doc: KdlDocument = r#"
+            entity "minecraft:test_mob" {
+                runtime_id -1
+            }
+        "#
+        .parse()
+        .expect("parse entity kdl");
+
+        let error = match parse_entity_node(&doc.nodes()[0]) {
+            Ok(_) => panic!("negative runtime_id is invalid"),
+            Err(error) => error,
+        };
+
+        assert!(
+            error
+                .to_string()
+                .contains("runtime_id -1 is out of u32 range")
+        );
+    }
 }
