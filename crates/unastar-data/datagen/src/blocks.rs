@@ -55,6 +55,10 @@ pub fn write_blocks_kdl(output_dir: &Path) -> miette::Result<()> {
             KdlValue::Integer(block.max_state_id() as i128),
         ));
         node.push(KdlEntry::new_prop(
+            "default_state_id",
+            KdlValue::Integer(block.default_state_id() as i128),
+        ));
+        node.push(KdlEntry::new_prop(
             "state_id_count",
             KdlValue::Integer(block_state_id_count(*block) as i128),
         ));
@@ -149,5 +153,28 @@ mod tests {
             .expect("fence_gate block exists");
 
         assert_eq!(block_state_id_count(fence_gate), 16);
+    }
+
+    #[test]
+    fn checked_in_blocks_artifact_preserves_default_state_ids() {
+        let doc: KdlDocument = include_str!("../../output/blocks.kdl")
+            .parse()
+            .expect("generated blocks.kdl should parse");
+
+        let stone = doc
+            .nodes()
+            .iter()
+            .find(|node| {
+                node.entries()
+                    .first()
+                    .and_then(|entry| entry.value().as_string())
+                    == Some("minecraft:stone")
+            })
+            .expect("stone entry exists");
+
+        assert!(
+            stone.get("default_state_id").is_some(),
+            "blocks.kdl should expose default_state_id for registry consumers"
+        );
     }
 }

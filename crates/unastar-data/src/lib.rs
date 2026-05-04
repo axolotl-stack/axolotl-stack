@@ -20,6 +20,7 @@
 
 pub mod bds_packets;
 pub mod biomes;
+pub mod blocks;
 pub mod entities;
 pub mod items;
 pub mod pmmp;

@@ -18,17 +18,20 @@ static VANILLA_BLOCK_REGISTRY: LazyLock<BlockRegistry> = LazyLock::new(|| {
 /// Runtime block entry in the registry.
 #[derive(Debug, Clone)]
 pub struct BlockEntry {
-    /// Numeric block ID.
+    /// Legacy numeric block ID.
+    ///
+    /// Bedrock has duplicate legacy IDs; use string ID or runtime state ID for
+    /// exact identity.
     pub id: u32,
     /// String identifier (e.g., "minecraft:stone").
     pub string_id: String,
     /// Display name.
     pub name: String,
-    /// Number of generated typed state variants.
+    /// Number of known canonical state variants.
     ///
-    /// Some generated Valentine block definitions currently under-report this
-    /// for shared state families. Use `state_id_count` for canonical runtime
-    /// palette coverage.
+    /// This currently mirrors `state_id_count` because the normalized block
+    /// artifact intentionally treats canonical runtime ranges as the source of
+    /// truth until richer native state metadata exists.
     pub state_count: u32,
     /// Number of canonical runtime state IDs in this block's range.
     pub state_id_count: u32,
@@ -38,15 +41,15 @@ pub struct BlockEntry {
     pub max_state_id: u32,
     /// Default state ID for this block.
     pub default_state_id: u32,
-    /// Block hardness from generated Bedrock data.
+    /// Bootstrap hardness value from the normalized block artifact.
     pub hardness: f32,
-    /// Explosion resistance from generated Bedrock data.
+    /// Bootstrap explosion resistance value from the normalized block artifact.
     pub resistance: f32,
-    /// Whether this block is transparent for lighting/render semantics.
+    /// Bootstrap lighting/render transparency from the normalized block artifact.
     pub is_transparent: bool,
-    /// Light emitted by this block.
+    /// Bootstrap emitted light level from the normalized block artifact.
     pub emit_light: u8,
-    /// Light filtered by this block.
+    /// Bootstrap filtered light level from the normalized block artifact.
     pub filter_light: u8,
 }
 
@@ -89,35 +92,42 @@ impl BlockRegistry {
         &VANILLA_BLOCK_REGISTRY
     }
 
-    /// Load vanilla blocks from valentine's generated data.
-    /// Uses MIN_STATE_ID and MAX_STATE_ID from valentine which are the canonical
-    /// runtime IDs that match client expectations.
+    /// Load vanilla blocks from the normalized block artifact.
+    ///
+    /// The artifact currently bootstraps canonical runtime ranges and physical
+    /// fields from Valentine, but keeps that weak source boundary in
+    /// `unastar-data` so BDS/native facts can replace it without touching
+    /// registry consumers.
     pub fn load_vanilla(&mut self) {
-        use jolyne::valentine::blocks::BLOCKS;
+        use unastar_data::blocks::ALL_BLOCKS;
 
         self.entries.clear();
         self.id_map.clear();
         self.name_map.clear();
 
         // Find max runtime_id to size the lookup table.
-        let max_rid = BLOCKS.iter().map(|b| b.max_state_id()).max().unwrap_or(0);
+        let max_rid = ALL_BLOCKS
+            .iter()
+            .map(|block| block.max_state_id)
+            .max()
+            .unwrap_or(0);
         self.runtime_id_map = vec![MISSING_INDEX; (max_rid + 1) as usize];
 
-        for block in BLOCKS.iter() {
+        for block in ALL_BLOCKS.iter() {
             let entry = BlockEntry {
-                id: block.id(),
-                string_id: block.string_id().to_string(),
-                name: block.name().to_string(),
-                state_count: block.state_count(),
-                state_id_count: block.max_state_id() - block.min_state_id() + 1,
-                min_state_id: block.min_state_id(),
-                max_state_id: block.max_state_id(),
-                default_state_id: block.default_state_id(),
-                hardness: block.hardness(),
-                resistance: block.resistance(),
-                is_transparent: block.is_transparent(),
-                emit_light: block.emit_light(),
-                filter_light: block.filter_light(),
+                id: block.legacy_id,
+                string_id: block.identifier.to_string(),
+                name: block.name.to_string(),
+                state_count: block.state_id_count,
+                state_id_count: block.state_id_count,
+                min_state_id: block.min_state_id,
+                max_state_id: block.max_state_id,
+                default_state_id: block.default_state_id,
+                hardness: block.hardness,
+                resistance: block.resistance,
+                is_transparent: block.is_transparent,
+                emit_light: block.emit_light,
+                filter_light: block.filter_light,
             };
 
             let entry_index = self.entries.len();
@@ -187,6 +197,9 @@ impl BlockRegistry {
     ///
     /// Each entry is one canonical block state (name + full NBT compound).
     /// The index in this list = block runtime ID, matching canonical_block_states.nbt.
+    ///
+    /// This remains a protocol palette NBT surface backed by Valentine until a
+    /// native/BDS capture provides an equivalent verified packet artifact.
     pub fn to_block_properties(&self) -> Vec<jolyne::valentine::BlockPropertiesItem> {
         use jolyne::valentine::BlockPropertiesItem;
         use jolyne::valentine::block_palette::BLOCK_PALETTE_NBT;
@@ -236,10 +249,17 @@ mod tests {
     fn vanilla_registry_preserves_block_properties() {
         let mut registry = BlockRegistry::new();
         registry.load_vanilla();
+        assert_eq!(registry.len(), unastar_data::blocks::ALL_BLOCKS.len());
 
         let stone = registry
             .get_by_name("minecraft:stone")
             .expect("stone should be registered");
+        assert_eq!(
+            stone.default_state_id,
+            unastar_data::blocks::get("minecraft:stone")
+                .expect("generated stone data exists")
+                .default_state_id
+        );
         assert_eq!(stone.hardness, 1.5);
         assert_eq!(stone.resistance, 6.0);
         assert!(!stone.is_transparent);
