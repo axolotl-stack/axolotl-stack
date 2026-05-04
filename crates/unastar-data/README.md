@@ -36,13 +36,15 @@ first, then enrich with BDS packet/native facts.
 `output/manifest.kdl` records source paths, commits/hashes, confidence, and artifact hashes.
 The currently vendored PMMP/BedrockData JSON inputs live under `data/upstream/pmmp/`
 and are normalized into `items.kdl` and `creative.kdl` before Unastar runtime
-consumption.
+consumption. Item stack limits are enriched from vanilla behavior-pack item
+components when present; missing values stay explicit `unsourced_default`
+fields so they can be replaced by BDS/native facts later.
 Current golden artifacts include:
 
 - `entities.kdl` from vanilla behavior-pack entities plus local overrides.
 - `blocks.kdl` from Valentine's generated Bedrock block definitions and canonical state ID ranges.
 - `biomes.kdl` from vanilla behavior-pack biome JSON.
-- `items.kdl` from PMMP/BedrockData `required_item_list.json`.
+- `items.kdl` from PMMP/BedrockData `required_item_list.json`, enriched with behavior-pack `minecraft:max_stack_size` components where present.
 - `creative.kdl` from PMMP/BedrockData creative inventory JSON.
 - Optional `biome_packets.kdl` from a validated `bds-extractor` JSON capture.
 - Optional `entity_identifiers.kdl` from a validated `bds-extractor` JSON capture.

@@ -25,10 +25,13 @@ fn items_only_cli_generates_static_consumer_from_artifact() {
 
     let generated =
         std::fs::read_to_string(output.join("items.rs")).expect("generated items.rs should exist");
-    assert!(generated.contains("pub static ALL_ITEMS: [ItemData; 2usize]"));
+    assert!(generated.contains("pub static ALL_ITEMS: [ItemData; 3usize]"));
     assert!(generated.contains("identifier: \"minecraft:apple\""));
     assert!(generated.contains("network_id: 285i32"));
     assert!(generated.contains("component_based: true"));
+    assert!(generated.contains("identifier: \"minecraft:honey_bottle\""));
+    assert!(generated.contains("max_stack_size: 16u8"));
+    assert!(generated.contains("max_stack_size_source: \"vanilla_behavior_pack\""));
     assert!(generated.contains("identifier: \"minecraft:stick\""));
     assert!(generated.contains("version: 2i32"));
 
@@ -79,6 +82,7 @@ fn write_items_artifact(input: &Path, apple_id: i32, stick_id: i32) {
         input.join("items.kdl"),
         format!(
             r#"item "minecraft:apple" runtime_id={apple_id} component_based=#true version=1
+item "minecraft:honey_bottle" runtime_id=737 component_based=#false version=2 max_stack_size=16 max_stack_size_source="vanilla_behavior_pack"
 item "minecraft:stick" runtime_id={stick_id} component_based=#false version=2
 "#
         ),

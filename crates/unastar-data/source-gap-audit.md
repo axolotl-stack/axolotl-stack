@@ -35,6 +35,9 @@ artifact or generated Rust table is added.
   inventory data, both normalized into generated Rust consumers, but does
   **not** include `biome_definitions.json`,
   `biome_id_map.json`, `block_properties_table.json`, or `item_tags.json`.
+- Item registry data is now enriched with behavior-pack
+  `minecraft:max_stack_size` components where vanilla exposes them; entries
+  without that component remain explicit `unsourced_default` stack limits.
 - `bds-extractor` builds and validates fixture JSON, and `unastar-data-gen`
   can normalize a validated capture into `biome_packets.kdl` and
   `entity_identifiers.kdl`, so it is the right local entry point for
@@ -56,6 +59,7 @@ artifact or generated Rust table is added.
 | Blocks | Hardness, opacity/light, resistance, material traits, item mapping, tags | BDS mod/native extractor; PMMP `block_properties_table.json`, `item_tags.json` where available | Partially bootstrapped from Valentine behind weak source docs; PMMP tables missing locally | Add field-level source confidence; replace weak fields with BDS-derived facts |
 | Blocks | Exact collision/shape and behavior families | Native extractor or verified pack component data when exposed | Missing | Add `unknown`/family placeholders only when logged and source-attributed |
 | Items | Network IDs, component-based flags, versions | BDS packet trace / PMMP `required_item_list.json` | Present locally and normalized | Keep generated artifact as authoritative for item registry packets |
+| Items | Stack limits exposed by data-driven item components | Vanilla behavior-pack item JSON, then BDS/native for legacy gaps | Partially present in `items.kdl` with field-level source/default markers | Replace `unsourced_default` stack limits when a stronger source is added |
 | Items | Tags and component NBT semantics | PMMP `item_tags.json`, required-item component NBT, native extractor | Tags missing locally | Import tags before recipe/crafting semantics |
 | Creative inventory | Group/tab layout, item order, block-state variants, damage/meta variants | BDS packet trace / PMMP creative inventory JSON | Present locally in `creative.kdl` and generated `unastar_data::creative` | Keep runtime consumers on generated artifact, not raw PMMP JSON |
 | Entities | Behavior-pack components, component groups, events | Vanilla behavior-pack JSON + local overrides | Present and generated | Continue runtime integration through generic interpreters |

@@ -54,6 +54,7 @@ struct ManifestArtifact {
 pub struct ManifestInputs<'a> {
     pub vanilla_path: &'a Path,
     pub vanilla_biomes_path: &'a Path,
+    pub vanilla_items_path: &'a Path,
     pub overrides_path: &'a Path,
     pub upstream_path: &'a Path,
     pub pmmp_path: &'a Path,
@@ -84,6 +85,14 @@ pub fn write_manifest(output_dir: &Path, inputs: &ManifestInputs<'_>) -> miette:
             "behavior_pack_biomes",
             inputs.vanilla_biomes_path,
             vanilla_version(inputs.vanilla_biomes_path)?,
+            "high",
+            true,
+        )?,
+        source_from_path(
+            "vanilla_behavior_pack_items",
+            "behavior_pack_items",
+            inputs.vanilla_items_path,
+            vanilla_version(inputs.vanilla_items_path)?,
             "high",
             true,
         )?,

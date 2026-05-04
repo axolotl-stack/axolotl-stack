@@ -26,8 +26,8 @@ pub struct ItemEntry {
     pub name: String,
     /// Maximum stack size.
     ///
-    /// This defaults to 64 until stack limits are sourced from behavior-pack
-    /// item components or BDS/native data.
+    /// This is generated from behavior-pack item components where available,
+    /// otherwise it remains an explicit unsourced default in `unastar-data`.
     pub stack_size: u8,
 }
 
@@ -121,8 +121,7 @@ impl ItemRegistry {
     /// Load vanilla item registry rows from normalized PMMP/BedrockData artifacts.
     ///
     /// The generated item table is authoritative for the protocol network ID,
-    /// component flag, and version. Stack sizes are intentionally defaulted
-    /// until sourced from behavior-pack item components or BDS/native data.
+    /// component flag, version, and the best available stack limit source.
     pub fn load_vanilla(&mut self) {
         use unastar_data::items::ALL_ITEMS;
 
@@ -143,7 +142,7 @@ impl ItemRegistry {
                 version: item.version,
                 string_id: item.identifier.to_string(),
                 name: item_display_name(item.identifier),
-                stack_size: ItemStackLimits::UNSOURCED_DEFAULT,
+                stack_size: item.max_stack_size,
             };
             let _ = self.register(entry);
         }
@@ -187,13 +186,6 @@ fn itemstate_version(version: i32) -> jolyne::valentine::types::ItemstatesItemVe
         2 => ItemstatesItemVersion::None,
         other => ItemstatesItemVersion::Unknown(other),
     }
-}
-
-struct ItemStackLimits;
-
-impl ItemStackLimits {
-    /// Default only; not a sourced Bedrock item stack limit.
-    const UNSOURCED_DEFAULT: u8 = 64;
 }
 
 fn item_display_name(identifier: &str) -> String {
@@ -322,12 +314,28 @@ mod tests {
         assert_eq!(apple.network_id, source.network_id);
         assert_eq!(apple.component_based, source.component_based);
         assert_eq!(apple.version, source.version);
-        assert_eq!(apple.stack_size, ItemStackLimits::UNSOURCED_DEFAULT);
+        assert_eq!(apple.stack_size, source.max_stack_size);
 
         let mut ids: Vec<_> = registry.iter().map(|item| item.id).collect();
         ids.sort_unstable();
         ids.dedup();
 
         assert_eq!(ids.len(), registry.len());
+    }
+
+    #[test]
+    fn load_vanilla_uses_generated_stack_limits() {
+        let mut registry = ItemRegistry::new();
+        registry.load_vanilla();
+
+        let honey_bottle = registry
+            .get_by_name("minecraft:honey_bottle")
+            .expect("honey bottle item");
+        let source = unastar_data::items::get("minecraft:honey_bottle")
+            .expect("generated honey bottle item");
+
+        assert_eq!(source.max_stack_size_source, "vanilla_behavior_pack");
+        assert_eq!(honey_bottle.stack_size, source.max_stack_size);
+        assert_eq!(honey_bottle.stack_size, 16);
     }
 }
