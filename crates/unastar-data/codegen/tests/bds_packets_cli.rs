@@ -30,6 +30,19 @@ fn bds_packets_only_cli_generates_packet_consumer_from_artifacts() {
     assert!(generated.contains("biome_id: 1u16"));
     assert!(generated.contains("ENTITY_IDENTIFIERS: Option<BdsEntityIdentifiers> = Some"));
     assert!(generated.contains("nbt_base64: \"CgA=\""));
+
+    for unexpected in [
+        "biomes.rs",
+        "blocks.rs",
+        "creative.rs",
+        "entities",
+        "items.rs",
+    ] {
+        assert!(
+            !output.join(unexpected).exists(),
+            "--bds-packets-only should not generate {unexpected}"
+        );
+    }
 }
 
 fn write_bds_artifacts(input: &Path) {
