@@ -6,7 +6,7 @@
 
 use bevy_ecs::prelude::*;
 use glam::IVec3;
-use tracing::{debug, info, trace};
+use tracing::{debug, info, trace, warn};
 
 use super::packet_queues::{BlockAction, BlockPacketQueue};
 use crate::ecs::events::{EventBuffer, ServerEvent};
@@ -146,20 +146,32 @@ fn process_auth_input_block_actions(
             }
             Action::StopBreak => {
                 trace!("StopBreak received");
+                let instant_break = world
+                    .get::<crate::entity::components::GameMode>(player_entity)
+                    .map(|gm| gm.instant_break())
+                    .unwrap_or(false);
                 let break_result = world
                     .get::<BreakingState>(player_entity)
                     .and_then(|breaking| {
                         if let Some((x, y, z)) = breaking.position {
                             let elapsed = current_tick.saturating_sub(breaking.start_tick);
                             trace!(pos = ?(x, y, z), elapsed, expected = breaking.expected_ticks, "StopBreak");
-                            Some((x, y, z))
+                            Some((x, y, z, instant_break || breaking.validate_break(current_tick)))
                         } else {
                             None
                         }
                     });
 
-                if let Some((x, y, z)) = break_result {
-                    break_block(world, player_entity, x, y, z);
+                if let Some((x, y, z, valid_break)) = break_result {
+                    if valid_break {
+                        break_block(world, player_entity, x, y, z);
+                    } else {
+                        warn!(
+                            player = ?player_entity,
+                            pos = ?(x, y, z),
+                            "Rejected early block break"
+                        );
+                    }
 
                     if let Some(mut breaking) = world.get_mut::<BreakingState>(player_entity) {
                         breaking.stop();
@@ -511,11 +523,11 @@ fn get_block_break_time(world: &World, x: i32, y: i32, z: i32) -> u32 {
         let max = block_def.max_state_id();
         if block_runtime_id >= min && block_runtime_id <= max {
             let hardness = block_def.hardness();
-            if hardness <= 0.0 {
-                return 1;
-            }
             if hardness < 0.0 {
                 return u32::MAX;
+            }
+            if hardness <= 0.0 {
+                return 1;
             }
             return (hardness * 5.0 * 20.0).ceil() as u32;
         }

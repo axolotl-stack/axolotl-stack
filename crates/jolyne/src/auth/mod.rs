@@ -57,8 +57,12 @@ pub async fn authenticate_login(
             Ok(identity)
         }
         AuthenticationType::SelfSigned | AuthenticationType::Guest => {
-            if !allow_legacy {
-                tracing::warn!("Client attempted legacy auth but it is disabled");
+            if online_mode || !allow_legacy {
+                tracing::warn!(
+                    online_mode,
+                    allow_legacy,
+                    "Client attempted legacy/self-signed auth but it is not allowed"
+                );
                 return Err(AuthError::LegacyAuthDisabled.into());
             }
 
@@ -123,6 +127,18 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn authenticate_login_rejects_legacy_in_online_mode_even_when_legacy_allowed() {
+        let auth_info = r#"{"AuthenticationType":2,"Certificate":{"chain":["token"]}}"#;
+        let err = authenticate_login(auth_info, "ignored", true, true)
+            .await
+            .expect_err("online mode must not accept self-signed auth");
+        assert!(matches!(
+            err,
+            JolyneError::Auth(AuthError::LegacyAuthDisabled)
+        ));
+    }
+
+    #[tokio::test]
     async fn authenticate_login_rejects_legacy_when_disabled() {
         let auth_info = r#"{"AuthenticationType":2,"Certificate":{"chain":["token"]}}"#;
         let err = authenticate_login(auth_info, "ignored", true, false)
@@ -146,7 +162,7 @@ mod tests {
     #[tokio::test]
     async fn authenticate_login_requires_certificate_for_self_signed() {
         let auth_info = r#"{"AuthenticationType":2}"#;
-        let err = authenticate_login(auth_info, "ignored", true, true)
+        let err = authenticate_login(auth_info, "ignored", false, true)
             .await
             .expect_err("should require cert");
         assert!(matches!(
@@ -164,6 +180,30 @@ mod tests {
         assert!(matches!(
             err,
             JolyneError::Auth(AuthError::UnsupportedAuthType(99))
+        ));
+    }
+
+    #[tokio::test]
+    async fn validate_open_id_rejects_keyless_token_in_online_mode() {
+        let token = make_jwt(
+            json!({"alg":"ES256"}),
+            json!({
+                "extraData": {
+                    "displayName": "TokenName",
+                    "identity": "uuid-token",
+                    "XUID": "12345"
+                },
+                "identityPublicKey": "CLIENT_KEY",
+                "aud": "0000000048183522"
+            }),
+        );
+
+        let err = openid::validate_open_id(&token, "", true)
+            .await
+            .expect_err("online mode must require a verification key");
+        assert!(matches!(
+            err,
+            JolyneError::Auth(AuthError::MissingIdentityKey)
         ));
     }
 

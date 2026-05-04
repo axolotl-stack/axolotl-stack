@@ -199,23 +199,6 @@ fn decode_chain_token(
     })
 }
 
-fn header_key_from_token(token: &str) -> Option<DecodingKey> {
-    decode_header(token)
-        .ok()
-        .and_then(|h| h.x5u)
-        .and_then(|b64| key_from_base64(&b64).ok())
-}
-
-fn header_keys_from_chain(chain: &[String]) -> Vec<DecodingKey> {
-    let mut keys = Vec::new();
-    for token in chain {
-        if let Some(k) = header_key_from_token(token) {
-            keys.push(k);
-        }
-    }
-    keys
-}
-
 fn verify_chain_with_key(
     chain: &[String],
     mut current_key: DecodingKey,
@@ -275,12 +258,7 @@ pub fn validate_chain(
     if online_mode {
         let root_key: DecodingKey = key_from_base64(MOJANG_PUBLIC_KEY_BASE64)
             .expect("Shouldn't occur mojang pub key invalid, hard coded const.");
-        let header_keys = header_keys_from_chain(&chain);
-        debug!(
-            chain_len = chain.len(),
-            header_keys = header_keys.len(),
-            "validate_chain starting"
-        );
+        debug!(chain_len = chain.len(), "validate_chain starting");
 
         let mut reversed = chain.clone();
         reversed.reverse();
@@ -296,26 +274,6 @@ pub fn validate_chain(
         {
             debug!("validated login chain after reversing order (mojang root)");
             return Ok(id);
-        }
-
-        // Fallback: allow any presented header x5u key as an anchor (common self-signed or reordered chains).
-        for (idx, k) in header_keys.iter().enumerate() {
-            if let Ok(id) = verify_chain_with_key(&chain, k.clone()) {
-                debug!(
-                    header_key_index = idx,
-                    "validated login chain using header x5u key (presented order)"
-                );
-                return Ok(id);
-            }
-            if reversed != chain
-                && let Ok(id) = verify_chain_with_key(&reversed, k.clone())
-            {
-                debug!(
-                    header_key_index = idx,
-                    "validated login chain after reversing order (header x5u key)"
-                );
-                return Ok(id);
-            }
         }
 
         debug!(

@@ -156,10 +156,12 @@ impl ChunkLoader {
         let (cx, cz) = self.position;
         let r = self.radius;
 
-        // Evict chunks outside the new view
+        // Evict chunks outside the new full-view square. Bedrock view
+        // distance is a chunk radius per axis; simulation distance can still
+        // use circular checks elsewhere if desired.
         let mut evicted = Vec::new();
         self.loaded.retain(|&(lx, lz)| {
-            let in_range = Self::is_in_range_circular(cx, cz, lx, lz, r);
+            let in_range = Self::is_in_view_range(cx, cz, lx, lz, r);
             if !in_range {
                 evicted.push((lx, lz));
             }
@@ -171,15 +173,11 @@ impl ChunkLoader {
         for dx in -r..=r {
             for dz in -r..=r {
                 let dist_sq = dx * dx + dz * dz;
-                let radius_sq = r * r;
 
-                // Only load chunks within circular radius
-                if dist_sq <= radius_sq {
-                    let chunk_x = cx + dx;
-                    let chunk_z = cz + dz;
-                    if !self.loaded.contains(&(chunk_x, chunk_z)) {
-                        to_load.push((dist_sq, chunk_x, chunk_z));
-                    }
+                let chunk_x = cx + dx;
+                let chunk_z = cz + dz;
+                if !self.loaded.contains(&(chunk_x, chunk_z)) {
+                    to_load.push((dist_sq, chunk_x, chunk_z));
                 }
             }
         }
@@ -193,20 +191,9 @@ impl ChunkLoader {
         evicted
     }
 
-    /// Check if a chunk position is within circular range of the center.
+    /// Check if a chunk position is within the square client view range.
     #[inline]
-    fn is_in_range_circular(cx: i32, cz: i32, x: i32, z: i32, radius: i32) -> bool {
-        let dx = x - cx;
-        let dz = z - cz;
-        let dist_sq = dx * dx + dz * dz;
-        let radius_sq = radius * radius;
-        dist_sq <= radius_sq
-    }
-
-    /// Check if a chunk position is within range of the center.
-    #[inline]
-    #[allow(dead_code)]
-    fn is_in_range(cx: i32, cz: i32, x: i32, z: i32, radius: i32) -> bool {
+    fn is_in_view_range(cx: i32, cz: i32, x: i32, z: i32, radius: i32) -> bool {
         let dx = x - cx;
         let dz = z - cz;
         dx.abs() <= radius && dz.abs() <= radius
@@ -391,5 +378,13 @@ mod tests {
         // Should evict outer ring
         assert!(!evicted.is_empty());
         assert_eq!(loader.loaded_count(), 9); // 3x3
+    }
+
+    #[test]
+    fn test_chunk_loader_view_range_includes_corners() {
+        assert!(ChunkLoader::is_in_view_range(0, 0, 2, 2, 2));
+        assert!(ChunkLoader::is_in_view_range(0, 0, -2, -2, 2));
+        assert!(!ChunkLoader::is_in_view_range(0, 0, 3, 0, 2));
+        assert!(!ChunkLoader::is_in_view_range(0, 0, 0, -3, 2));
     }
 }

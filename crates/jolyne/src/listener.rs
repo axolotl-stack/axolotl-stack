@@ -117,8 +117,11 @@ impl<L: RawListener> BedrockListener<L> {
             .await
             .ok_or(JolyneError::ConnectionClosed)?;
 
+        let mut transport = BedrockTransport::new(transport);
+        transport.apply_listener_config(&self.config);
+
         Ok(BedrockStream {
-            transport: BedrockTransport::new(transport),
+            transport,
             state: Handshake {
                 config: Some(self.config.clone()),
             },

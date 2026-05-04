@@ -21,6 +21,7 @@ tokio-raknet = { workspace = true, optional = true }
 tokio-nethernet = { workspace = true, optional = true }
 valentine = { workspace = true, features = ["bedrock_1_26_0"] }
 flate2.workspace = true
+snap.workspace = true
 futures.workspace = true
 jsonwebtoken = { workspace = true, optional = true }
 reqwest = { workspace = true, features = ["json", "rustls-tls"], optional = true }

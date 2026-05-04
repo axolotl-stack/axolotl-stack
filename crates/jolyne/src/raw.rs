@@ -129,10 +129,14 @@ pub fn decode_packet_raw(cursor: &mut Bytes) -> Result<RawPacket, JolyneError> {
     let mut payload = cursor.slice(..declared_len);
     let header_raw = wire::read_var_u32(&mut payload)?;
 
-    // Decode packet ID directly using BedrockCodec
-    // The header is: [10-bit packet_id][2-bit from_subclient][2-bit to_subclient]
+    // Decode the packet ID from the same varint representation used by generated
+    // BedrockCodec impls. Feeding little-endian bytes breaks IDs >= 128 because
+    // packet IDs are encoded as VarUInts on the wire.
     let id_raw = header_raw & 0x3FF;
-    let id = McpePacketName::decode(&mut &id_raw.to_le_bytes()[..], ()).map_err(|e| {
+    let mut id_buf = BytesMut::new();
+    wire::write_var_u32(&mut id_buf, id_raw);
+    let mut id_cursor = id_buf.freeze();
+    let id = McpePacketName::decode(&mut id_cursor, ()).map_err(|e| {
         JolyneError::Protocol(ProtocolError::UnexpectedHandshake(format!(
             "unknown packet ID {}: {}",
             id_raw, e
@@ -323,6 +327,16 @@ mod tests {
         assert_eq!(raw.id, McpePacketName::PacketPlayStatus);
         assert_eq!(raw.header.from_subclient, 1);
         assert_eq!(raw.header.to_subclient, 2);
+    }
+
+    #[test]
+    fn decode_packet_raw_parses_multibyte_packet_id() {
+        let frame = create_test_frame(193, 0, 0, &[]);
+        let mut cursor = frame;
+
+        let raw = decode_packet_raw(&mut cursor).expect("decode");
+
+        assert_eq!(raw.id, McpePacketName::PacketRequestNetworkSettings);
     }
 
     #[test]

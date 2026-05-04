@@ -1,11 +1,13 @@
 use std::marker::PhantomData;
 use std::sync::Arc;
+use std::time::Duration;
 
 use crate::config::BedrockListenerConfig;
 
 use crate::valentine::{
-    ChunkRadiusUpdatePacket, PlayStatusPacket, PlayStatusPacketStatus, ResourcePackStackPacket,
-    ResourcePacksInfoPacket, ServerToClientHandshakePacket,
+    ChunkRadiusUpdatePacket, NetworkChunkPublisherUpdatePacket, PlayStatusPacket,
+    PlayStatusPacketStatus, ResourcePackStackPacket, ResourcePacksInfoPacket,
+    ServerToClientHandshakePacket,
 };
 use aes_gcm::Aes256Gcm;
 use base64::Engine;
@@ -33,6 +35,8 @@ use crate::valentine::{McpePacket, McpePacketData};
 use crate::valentine::{NetworkSettingsPacket, NetworkSettingsPacketCompressionAlgorithm};
 use crate::world::{WorldJoinParams, WorldTemplate};
 
+const START_GAME_STEP_TIMEOUT: Duration = Duration::from_secs(60);
+
 /// Configuration for the Server Handshake.
 #[derive(Debug, Clone)]
 pub struct ServerHandshakeConfig {
@@ -47,9 +51,10 @@ impl<T: Transport> BedrockStream<Handshake, Server, T> {
     /// Used for NetherNet and other non-listener transports where you have
     /// the raw stream and want to start the Bedrock handshake.
     pub fn from_transport(
-        transport: BedrockTransport<T>,
+        mut transport: BedrockTransport<T>,
         config: Arc<BedrockListenerConfig>,
     ) -> Self {
+        transport.apply_listener_config(&config);
         Self {
             transport,
             state: Handshake {
@@ -143,6 +148,13 @@ impl<T: Transport> BedrockStream<Handshake, Server, T> {
         // 1. Network Settings
         let login = self.accept_network_settings().await?;
 
+        let require_resource_packs = login
+            .state
+            .config
+            .as_ref()
+            .map(|config| config.require_resource_packs)
+            .unwrap_or(false);
+
         // 2. Auth
         let (secure, identity) = login.authenticate().await?;
 
@@ -157,7 +169,7 @@ impl<T: Transport> BedrockStream<Handshake, Server, T> {
             .await?;
 
         // 4. Resource Packs (None/Default)
-        let start_game_state = packs.negotiate_packs(false).await?;
+        let start_game_state = packs.negotiate_packs(require_resource_packs).await?;
 
         // 5. Personalize Template
         let join_params = template.to_join_params(rand::random());
@@ -362,47 +374,53 @@ impl<T: Transport> BedrockStream<ResourcePacks, Server, T> {
             .send_batch(&[McpePacket::from(info), McpePacket::from(stack)])
             .await?;
 
-        loop {
-            let packets = self.transport.recv_batch().await?;
-            for pkt in packets {
-                if let McpePacketData::PacketResourcePackClientResponse(resp) = pkt.data {
-                    use crate::valentine::ResourcePackClientResponsePacketResponseStatus as Status;
-                    match resp.response_status {
-                        Status::Refused if required => {
-                            tracing::warn!("Client refused required resource packs");
-                            return Err(ProtocolError::UnexpectedHandshake(
-                                "Client refused required packs".into(),
-                            )
-                            .into());
+        tokio::time::timeout(START_GAME_STEP_TIMEOUT, async {
+            loop {
+                let packets = self.transport.recv_batch().await?;
+                for pkt in packets {
+                    if let McpePacketData::PacketResourcePackClientResponse(resp) = pkt.data {
+                        use crate::valentine::ResourcePackClientResponsePacketResponseStatus as Status;
+                        match resp.response_status {
+                            Status::Refused if required => {
+                                tracing::warn!("Client refused required resource packs");
+                                return Err(ProtocolError::UnexpectedHandshake(
+                                    "Client refused required packs".into(),
+                                )
+                                .into());
+                            }
+
+                            Status::Refused => {
+                                tracing::debug!("Client refused optional resource packs");
+
+                                return Ok(BedrockStream {
+                                    transport: self.transport,
+                                    state: StartGame,
+                                    _role: PhantomData,
+                                });
+                            }
+
+                            Status::SendPacks => {}
+
+                            Status::HaveAllPacks => {
+                                tracing::debug!("Client has all resource packs");
+
+                                return Ok(BedrockStream {
+                                    transport: self.transport,
+                                    state: StartGame,
+                                    _role: PhantomData,
+                                });
+                            }
+                            Status::Completed => {}
+                            _ => {}
                         }
-
-                        Status::Refused => {
-                            tracing::debug!("Client refused optional resource packs");
-
-                            return Ok(BedrockStream {
-                                transport: self.transport,
-                                state: StartGame,
-                                _role: PhantomData,
-                            });
-                        }
-
-                        Status::SendPacks => {}
-
-                        Status::HaveAllPacks => {
-                            tracing::debug!("Client has all resource packs");
-
-                            return Ok(BedrockStream {
-                                transport: self.transport,
-                                state: StartGame,
-                                _role: PhantomData,
-                            });
-                        }
-                        Status::Completed => {}
-                        _ => {}
                     }
                 }
             }
-        }
+        })
+        .await
+        .map_err(|_| {
+            ProtocolError::UnexpectedHandshake("Timeout waiting for resource pack response".into())
+        })?
     }
 }
 
@@ -416,6 +434,7 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
         params: WorldJoinParams,
     ) -> Result<BedrockStream<Play, Server, T>, JolyneError> {
         // 1. Send StartGame Packet & ItemRegistry
+        let publisher_position = params.start_game.spawn_position.clone();
         self.transport
             .send_batch(&[
                 McpePacket::from(params.start_game),
@@ -426,14 +445,20 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
         tracing::debug!("StartGame packet sent");
 
         // 2. Wait for RequestChunkRadius
-        let requested_radius = loop {
-            let pkt = self.transport.recv_packet().await?;
+        let requested_radius = tokio::time::timeout(START_GAME_STEP_TIMEOUT, async {
+            loop {
+                let pkt = self.transport.recv_packet().await?;
 
-            if let McpePacketData::PacketRequestChunkRadius(req) = pkt.data {
-                break req.chunk_radius;
+                if let McpePacketData::PacketRequestChunkRadius(req) = pkt.data {
+                    return Ok::<_, JolyneError>(req.chunk_radius);
+                }
+                // ignore all other packets. Maybe add a configable logging here?
             }
-            // ignore all other packets. Maybe add a configable logging here?
-        };
+        })
+        .await
+        .map_err(|_| {
+            ProtocolError::UnexpectedHandshake("Timeout waiting for RequestChunkRadius".into())
+        })??;
 
         let radius = requested_radius.clamp(2, 32);
 
@@ -446,8 +471,13 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
                 McpePacket::from(ChunkRadiusUpdatePacket {
                     chunk_radius: radius,
                 }),
+                McpePacket::from(NetworkChunkPublisherUpdatePacket {
+                    coordinates: publisher_position,
+                    radius,
+                    saved_chunks: vec![],
+                }),
                 McpePacket::from(params.biome_definitions.as_ref().clone()),
-                // McpePacket::from(params.available_entities.as_ref().clone()),
+                McpePacket::from(params.available_entities.as_ref().clone()),
                 McpePacket::from(params.creative_content.as_ref().clone()),
                 McpePacket::from(PlayStatusPacket {
                     status: PlayStatusPacketStatus::PlayerSpawn,
@@ -458,24 +488,30 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
         tracing::debug!("Batch sent, waiting for ServerboundLoadingScreen...");
 
         // 4. Loading Screen Handshake (Types 1 & 2)
-        loop {
-            let pkt = self.transport.recv_packet().await?;
+        tokio::time::timeout(START_GAME_STEP_TIMEOUT, async {
+            loop {
+                let pkt = self.transport.recv_packet().await?;
 
-            if let McpePacketData::PacketServerboundLoadingScreen(pk) = pkt.data
-                && pk.type_ == 1
-            {
-                break;
+                if let McpePacketData::PacketServerboundLoadingScreen(pk) = pkt.data
+                    && pk.type_ == 1
+                {
+                    return Ok::<_, JolyneError>(());
+                }
             }
-        }
+        })
+        .await
+        .map_err(|_| {
+            ProtocolError::UnexpectedHandshake("Timeout waiting for StartLoadingScreen".into())
+        })??;
 
-        let end_loading = tokio::time::timeout(std::time::Duration::from_secs(60), async {
+        let end_loading = tokio::time::timeout(START_GAME_STEP_TIMEOUT, async {
             loop {
                 let pkt = self.transport.recv_packet().await?;
 
                 if let McpePacketData::PacketServerboundLoadingScreen(pk) = pkt.data
                     && pk.type_ == 2
                 {
-                    return Ok(());
+                    return Ok::<_, JolyneError>(());
                 }
             }
         })
@@ -494,18 +530,26 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
 
         tracing::debug!("Client finished loading");
         // 5. Wait for SetLocalPlayerAsInitialized
-        loop {
-            let pkt = self.transport.recv_packet().await?;
+        tokio::time::timeout(START_GAME_STEP_TIMEOUT, async {
+            loop {
+                let pkt = self.transport.recv_packet().await?;
 
-            if matches!(
-                pkt.data,
-                McpePacketData::PacketSetLocalPlayerAsInitialized(_)
-            ) {
-                break;
-            } else {
-                tracing::debug!("Waiting for init, got: {:?}", pkt.data.packet_id());
+                if matches!(
+                    pkt.data,
+                    McpePacketData::PacketSetLocalPlayerAsInitialized(_)
+                ) {
+                    return Ok::<_, JolyneError>(());
+                } else {
+                    tracing::debug!("Waiting for init, got: {:?}", pkt.data.packet_id());
+                }
             }
-        }
+        })
+        .await
+        .map_err(|_| {
+            ProtocolError::UnexpectedHandshake(
+                "Timeout waiting for SetLocalPlayerAsInitialized".into(),
+            )
+        })??;
 
         tracing::debug!("Client initialized, entering Play state");
         Ok(BedrockStream {

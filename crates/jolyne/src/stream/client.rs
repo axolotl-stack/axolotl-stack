@@ -27,7 +27,7 @@ use crate::valentine::{
     ResourcePackClientResponsePacket, ResourcePackClientResponsePacketResponseStatus,
     ServerboundLoadingScreenPacket, SetLocalPlayerAsInitializedPacket, StartGamePacket,
 };
-use crate::valentine::{McpePacket, McpePacketData};
+use crate::valentine::{McpePacket, McpePacketData, NetworkSettingsPacketCompressionAlgorithm};
 
 // --- Config ---
 
@@ -143,8 +143,25 @@ impl<T: Transport> BedrockStream<Handshake, Client, T> {
 
         match settings_pkt.data {
             BorrowedMcpePacketData::PacketNetworkSettings(settings) => {
-                self.transport
-                    .set_compression(true, 7, settings.compression_threshold);
+                match settings.compression_algorithm {
+                    NetworkSettingsPacketCompressionAlgorithm::Deflate => {
+                        self.transport
+                            .set_compression(true, 7, settings.compression_threshold);
+                    }
+                    NetworkSettingsPacketCompressionAlgorithm::Snappy => {
+                        return Err(ProtocolError::UnexpectedHandshake(
+                            "Snappy compression is not supported".into(),
+                        )
+                        .into());
+                    }
+                    NetworkSettingsPacketCompressionAlgorithm::Unknown(value) => {
+                        return Err(ProtocolError::UnexpectedHandshake(format!(
+                            "Unknown compression algorithm {}",
+                            value
+                        ))
+                        .into());
+                    }
+                }
 
                 tracing::debug!("Network settings received, enabled compression");
 
@@ -558,6 +575,13 @@ impl<T: Transport> BedrockStream<ResourcePacks, Client, T> {
             for pack in &info.texture_packs {
                 tracing::debug!("  Pack: {} v{}", pack.uuid, pack.version);
             }
+
+            if info.must_accept && !info.texture_packs.is_empty() {
+                return Err(ProtocolError::UnexpectedHandshake(
+                    "Required resource pack downloads are not implemented".into(),
+                )
+                .into());
+            }
         }
 
         // For now, claim we have all packs (don't download any)
@@ -571,7 +595,14 @@ impl<T: Transport> BedrockStream<ResourcePacks, Client, T> {
 
         // Wait for ResourcePackStack
         tracing::debug!("Waiting for ResourcePackStack...");
-        let stack_pkt = self.transport.recv_packet().await?;
+        let stack_pkt = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            self.transport.recv_packet(),
+        )
+        .await
+        .map_err(|_| {
+            ProtocolError::UnexpectedHandshake("Timeout waiting for ResourcePackStack".into())
+        })??;
 
         if let McpePacketData::PacketResourcePackStack(ref stack) = stack_pkt.data {
             tracing::debug!(
@@ -646,7 +677,14 @@ impl<T: Transport> BedrockStream<StartGame, Client, T> {
                 );
             }
 
-            // Use timeout to prevent infinite blocking
+            if start_time.elapsed() > std::time::Duration::from_secs(120) {
+                return Err(ProtocolError::UnexpectedHandshake(
+                    "Timeout waiting for PlayerSpawn during StartGame".into(),
+                )
+                .into());
+            }
+
+            // Use timeout to prevent individual receives from blocking forever
             let recv_result = tokio::time::timeout(
                 std::time::Duration::from_secs(5),
                 self.transport.recv_packet_raw(),

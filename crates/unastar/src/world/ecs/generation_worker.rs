@@ -12,6 +12,8 @@ use tokio::sync::{mpsc, oneshot};
 use crate::world::Chunk;
 use crate::world::generator::VanillaGenerator;
 
+const CHUNK_GENERATION_STACK_SIZE: usize = 16 * 1024 * 1024;
+
 /// Request to generate a chunk at the given coordinates.
 pub struct ChunkGenRequest {
     pub x: i32,
@@ -73,26 +75,23 @@ impl ChunkGenerationWorker {
             let x = req.x;
             let z = req.z;
 
-            // Spawn without awaiting - allows parallel generation!
-            // Each task runs on tokio's blocking thread pool.
-            tokio::spawn(async move {
-                let result =
-                    tokio::task::spawn_blocking(move || gen_clone.generate_chunk(x, z)).await;
-
-                match result {
-                    Ok(chunk) => {
-                        // Send result back; ignore error if receiver was dropped
-                        let _ = req.response_tx.send(chunk);
-                    }
-                    Err(e) => {
-                        tracing::warn!(
-                            chunk = ?(x, z),
-                            error = %e,
-                            "Chunk generation task panicked or was cancelled"
-                        );
-                    }
-                }
-            });
+            // Vanilla generation is stack-heavy on Windows. Use an explicit
+            // stack size instead of tokio's blocking-pool default so terrain
+            // tests and real generation do not overflow worker stacks.
+            if let Err(e) = std::thread::Builder::new()
+                .name(format!("unastar-chunk-gen-{x}-{z}"))
+                .stack_size(CHUNK_GENERATION_STACK_SIZE)
+                .spawn(move || {
+                    let chunk = gen_clone.generate_chunk(x, z);
+                    let _ = req.response_tx.send(chunk);
+                })
+            {
+                tracing::warn!(
+                    chunk = ?(x, z),
+                    error = %e,
+                    "Failed to spawn chunk generation thread"
+                );
+            }
         }
 
         tracing::debug!("Chunk generation worker shutting down");

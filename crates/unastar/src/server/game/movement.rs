@@ -8,6 +8,8 @@ use bevy_ecs::prelude::*;
 use glam::DVec3;
 use tracing::trace;
 
+const MAX_AUTH_INPUT_MOVE_DELTA_PER_TICK: f64 = 64.0;
+
 use super::packet_queues::{
     BlockAction, BlockPacketQueue, MovementEvents, MovementInput, MovementPacketQueue,
 };
@@ -76,6 +78,15 @@ fn process_auth_input(
         pk.position.z as f64,
     );
     let old_pos = pos.0;
+    if old_pos.distance(new_pos) > MAX_AUTH_INPUT_MOVE_DELTA_PER_TICK {
+        tracing::warn!(
+            entity = ?entity,
+            from = ?old_pos,
+            to = ?new_pos,
+            "Rejected implausible PlayerAuthInput movement delta"
+        );
+        return;
+    }
     pos.0 = new_pos;
 
     // Update rotation

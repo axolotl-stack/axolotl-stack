@@ -1,10 +1,15 @@
 use crate::ecs::events::{ActionQueue, PluginAction};
 use crate::entity::components::{PlayerSession, Position, Rotation, RuntimeEntityId};
 use crate::server::game::types::system_text;
+use crate::world::ecs::{
+    BlockBroadcastEvent, ChunkData, ChunkManager, ChunkStateFlags, world_to_chunk_coords,
+    world_to_local_coords,
+};
 use bevy_ecs::prelude::*;
 use glam::DVec3;
 use jolyne::valentine::{
-    LegacyEntityType, McpePacket, MovePlayerPacket, MovePlayerPacketMode, MovePlayerPacketTeleport,
+    DisconnectFailReason, DisconnectPacket, DisconnectPacketContent, LegacyEntityType, McpePacket,
+    MovePlayerPacket, MovePlayerPacketMode, MovePlayerPacketTeleport,
     MovePlayerPacketTeleportCause, Vec3F,
 };
 use tracing::{info, warn};
@@ -16,6 +21,9 @@ pub fn process_plugin_actions(
     mut action_queue: ResMut<ActionQueue>,
     item_registry: Res<super::types::ItemRegistryResource>,
     block_registry: Res<super::types::BlockRegistryResource>,
+    chunk_manager: Res<ChunkManager>,
+    mut chunks: Query<(&mut ChunkData, &mut ChunkStateFlags)>,
+    mut block_events: ResMut<bevy_ecs::message::Messages<BlockBroadcastEvent>>,
     mut players: Query<(
         &mut Position,
         &Rotation,
@@ -136,10 +144,43 @@ pub fn process_plugin_actions(
                 }
             }
             PluginAction::Kick { entity, reason } => {
-                warn!(entity=?entity, reason=%reason, "Plugin kick requested (not impl)");
+                if let Ok((_, _, _, session, _)) = players.get(entity) {
+                    let packet = DisconnectPacket {
+                        reason: DisconnectFailReason::Disconnected,
+                        hide_disconnect_reason: false,
+                        content: Some(DisconnectPacketContent {
+                            message: reason.clone(),
+                            filtered_message: reason.clone(),
+                        }),
+                    };
+                    let _ = session.send(McpePacket::from(packet));
+                    info!(entity=?entity, reason=%reason, "Plugin kicked player");
+                } else {
+                    warn!(entity=?entity, reason=%reason, "Plugin kick target not found");
+                }
             }
             PluginAction::SetBlock { position, block_id } => {
-                info!(pos=?position, block_id, "Plugin set block (not yet impl)");
+                let (x, y, z) = position;
+                let (cx, cz) = world_to_chunk_coords(x, z);
+                let Some(chunk_entity) = chunk_manager.get_by_coords(cx, cz) else {
+                    warn!(pos=?position, block_id, "Plugin set_block target chunk is not loaded");
+                    continue;
+                };
+
+                let (local_x, local_y, local_z) = world_to_local_coords(x, y, z);
+                if let Ok((mut chunk_data, mut state_flags)) = chunks.get_mut(chunk_entity) {
+                    chunk_data
+                        .inner
+                        .set_block(local_x, local_y, local_z, block_id);
+                    state_flags.mark_dirty();
+                    state_flags.mark_needs_rebroadcast();
+                    block_events.write(BlockBroadcastEvent {
+                        chunk_entity,
+                        block_pos: glam::IVec3::new(x, y, z),
+                        new_block: block_id,
+                    });
+                    info!(pos=?position, block_id, "Plugin set block");
+                }
             }
         }
     }

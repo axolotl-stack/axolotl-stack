@@ -71,6 +71,25 @@ fn decompress_with_guard<R: Read>(
     Ok(out)
 }
 
+fn decompress_snappy_with_guard(
+    input: &[u8],
+    max_decompressed_size: Option<usize>,
+) -> Result<Vec<u8>, ProtocolError> {
+    let len = snap::raw::decompress_len(input)
+        .map_err(|e| ProtocolError::DecompressionFailed(e.to_string()))?;
+    if let Some(max) = max_decompressed_size
+        && len > max
+    {
+        return Err(ProtocolError::DecompressionFailed(format!(
+            "decompressed data exceeds max size of {max} bytes"
+        )));
+    }
+
+    snap::raw::Decoder::new()
+        .decompress_vec(input)
+        .map_err(|e| ProtocolError::DecompressionFailed(e.to_string()))
+}
+
 fn log_payload_probe(compressed_len: Option<usize>, payload: &Bytes) {
     let preview_len = payload.len().min(16);
     let preview: Vec<u8> = payload.iter().take(preview_len).copied().collect();
@@ -165,10 +184,13 @@ pub fn decode_batch(
                 log_payload_probe(Some(compressed.len()), &compressed);
                 decode_payload(compressed, session)
             }
-            BatchCompression::Snappy => Err(ProtocolError::UnexpectedHandshake(
-                "Snappy compression not implemented".into(),
-            )
-            .into()),
+            BatchCompression::Snappy => {
+                let decompressed =
+                    decompress_snappy_with_guard(compressed.as_ref(), max_decompressed_size)?;
+                let payload = Bytes::from(decompressed);
+                log_payload_probe(Some(compressed.len()), &payload);
+                decode_payload(payload, session)
+            }
         }
     } else {
         // raw packets (before NetworkSettings) are just [0xFE] [Payload].
@@ -237,10 +259,13 @@ pub fn decode_batch_no_prefix(
             log_payload_probe(Some(compressed.len()), &compressed);
             decode_payload(compressed, session)
         }
-        BatchCompression::Snappy => Err(ProtocolError::UnexpectedHandshake(
-            "Snappy compression not implemented".into(),
-        )
-        .into()),
+        BatchCompression::Snappy => {
+            let decompressed =
+                decompress_snappy_with_guard(compressed.as_ref(), max_decompressed_size)?;
+            let payload = Bytes::from(decompressed);
+            log_payload_probe(Some(compressed.len()), &payload);
+            decode_payload(payload, session)
+        }
     }
 }
 
@@ -440,10 +465,11 @@ pub fn decode_batch_raw_split(
                 decode_packets_raw(Bytes::from(decompressed))
             }
             BatchCompression::None => decode_packets_raw(compressed),
-            BatchCompression::Snappy => Err(ProtocolError::UnexpectedHandshake(
-                "Snappy compression not implemented".into(),
-            )
-            .into()),
+            BatchCompression::Snappy => {
+                let decompressed =
+                    decompress_snappy_with_guard(compressed.as_ref(), max_decompressed_size)?;
+                decode_packets_raw(Bytes::from(decompressed))
+            }
         }
     } else {
         if let Some(max) = max_decompressed_size
@@ -509,10 +535,11 @@ fn decode_batch_payload_raw(
                 decode_packets_raw(Bytes::from(decompressed))
             }
             BatchCompression::None => decode_packets_raw(compressed),
-            BatchCompression::Snappy => Err(ProtocolError::UnexpectedHandshake(
-                "Snappy compression not implemented".into(),
-            )
-            .into()),
+            BatchCompression::Snappy => {
+                let decompressed =
+                    decompress_snappy_with_guard(compressed.as_ref(), max_decompressed_size)?;
+                decode_packets_raw(Bytes::from(decompressed))
+            }
         }
     } else {
         decode_packets_raw(payload_raw)
@@ -846,18 +873,30 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // ========== Snappy Rejection Test ==========
+    // ========== Snappy Tests ==========
 
     #[test]
-    fn decode_batch_rejects_snappy() {
+    fn decode_batch_accepts_snappy() {
         let session = test_session();
-        // Snappy compression byte followed by some data
-        let mut buf = Bytes::from_static(&[BATCH_PACKET_ID, 0x01, 0x00, 0x00]);
+        let packet = McpePacket::from(PlayStatusPacket {
+            status: PlayStatusPacketStatus::LoginSuccess,
+        });
+        let raw_batch = encode_batch(&packet, false, 0, 0).expect("encode raw");
+        let compressed = snap::raw::Encoder::new()
+            .compress_vec(&raw_batch[1..])
+            .expect("snappy compress");
 
-        let err = decode_batch(&mut buf, &session, true, None).expect_err("snappy should fail");
+        let mut framed = BytesMut::with_capacity(2 + compressed.len());
+        framed.put_u8(BATCH_PACKET_ID);
+        framed.put_u8(BatchCompression::Snappy as u8);
+        framed.extend_from_slice(&compressed);
+
+        let mut framed = framed.freeze();
+        let decoded = decode_batch(&mut framed, &session, true, Some(1024)).expect("decode snappy");
+        assert_eq!(decoded.len(), 1);
         assert!(matches!(
-            err,
-            JolyneError::Protocol(ProtocolError::UnexpectedHandshake(_))
+            decoded[0].data,
+            McpePacketData::PacketPlayStatus(ref s) if s.status == PlayStatusPacketStatus::LoginSuccess
         ));
     }
 

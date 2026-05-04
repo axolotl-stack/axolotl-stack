@@ -64,6 +64,7 @@ pub struct BedrockTransport<T: Transport> {
     pub(crate) compression_level: u32,
     pub(crate) compression_threshold: u16,
     max_decompressed_batch_size: Option<usize>,
+    encryption_header_len: usize,
 
     // Reusable outbound buffers to avoid per-send allocation churn.
     send_batch_buffer: BytesMut,
@@ -90,6 +91,7 @@ impl<T: Transport> BedrockTransport<T> {
             compression_level: 7,
             compression_threshold: 0,
             max_decompressed_batch_size: Some(1024 * 1024 * 4),
+            encryption_header_len: 1,
             send_batch_buffer: BytesMut::new(),
             send_raw_buffer: BytesMut::new(),
             recv_decrypt_buffer: BytesMut::new(),
@@ -121,6 +123,22 @@ impl<T: Transport> BedrockTransport<T> {
         self.compression_enabled = enabled;
         self.compression_level = level;
         self.compression_threshold = threshold;
+    }
+
+    /// Configures the maximum accepted decompressed batch payload size.
+    pub fn set_max_decompressed_batch_size(&mut self, max: Option<usize>) {
+        self.max_decompressed_batch_size = max;
+    }
+
+    /// Configures how many leading bytes remain unencrypted in encrypted frames.
+    pub fn set_encryption_header_len(&mut self, len: usize) {
+        self.encryption_header_len = len;
+    }
+
+    /// Applies listener-level protocol safety limits to this transport.
+    pub fn apply_listener_config(&mut self, config: &crate::config::BedrockListenerConfig) {
+        self.set_max_decompressed_batch_size(config.max_decompressed_batch_size);
+        self.set_encryption_header_len(config.encryption_header_len);
     }
 
     /// Configures the flushing strategy.
@@ -206,6 +224,7 @@ impl<T: Transport> BedrockTransport<T> {
                 cipher,
                 key_bytes,
                 &mut self.send_counter,
+                self.encryption_header_len,
             )?;
             tracing::trace!("Encrypted batch is {} bytes", self.send_batch_buffer.len());
             TransportMessage::reliable(self.send_batch_buffer.split().freeze())
@@ -266,6 +285,7 @@ impl<T: Transport> BedrockTransport<T> {
                 cipher,
                 key_bytes,
                 &mut self.send_counter,
+                self.encryption_header_len,
             )?;
         }
 
@@ -381,6 +401,7 @@ impl<T: Transport> BedrockTransport<T> {
                 cipher,
                 key_bytes,
                 &mut self.recv_counter,
+                self.encryption_header_len,
             )?;
             let mut buf = self.recv_decrypt_buffer.split().freeze();
             if buf.is_empty() {
@@ -483,6 +504,7 @@ impl<T: Transport> BedrockTransport<T> {
                 cipher,
                 key_bytes,
                 &mut self.send_counter,
+                self.encryption_header_len,
             )?;
             TransportMessage::reliable(self.send_batch_buffer.split().freeze())
         } else if reliable {
@@ -510,9 +532,18 @@ impl<T: Transport> BedrockTransport<T> {
         cipher: &mut Aes256Ctr,
         key_bytes: &[u8],
         counter: &mut u64,
+        header_len: usize,
     ) -> Result<(), JolyneError> {
         if buf.is_empty() {
             return Ok(());
+        }
+        if header_len > buf.len() {
+            return Err(ProtocolError::UnexpectedHandshake(format!(
+                "encryption header length {} exceeds packet length {}",
+                header_len,
+                buf.len()
+            ))
+            .into());
         }
 
         let counter_value = *counter;
@@ -521,12 +552,12 @@ impl<T: Transport> BedrockTransport<T> {
         let counter_bytes = counter_value.to_le_bytes();
         let mut digest = Sha256::new();
         digest.update(counter_bytes);
-        digest.update(&buf[1..]);
+        digest.update(&buf[header_len..]);
         digest.update(key_bytes);
         let checksum = digest.finalize();
 
         buf.extend_from_slice(&checksum[..CHECKSUM_LEN]);
-        cipher.apply_keystream(&mut buf[1..]);
+        cipher.apply_keystream(&mut buf[header_len..]);
 
         Ok(())
     }
@@ -536,17 +567,18 @@ impl<T: Transport> BedrockTransport<T> {
         cipher: &mut Aes256Ctr,
         key_bytes: &[u8],
         counter: &mut u64,
+        header_len: usize,
     ) -> Result<(), JolyneError> {
-        cipher.apply_keystream(&mut buf[1..]);
-
-        if buf.len() < 1 + CHECKSUM_LEN {
+        if buf.len() < header_len + CHECKSUM_LEN {
             return Err(ProtocolError::UnexpectedHandshake(format!(
                 "encrypted packet must be at least {} bytes long, got {}",
-                1 + CHECKSUM_LEN,
+                header_len + CHECKSUM_LEN,
                 buf.len()
             ))
             .into());
         }
+
+        cipher.apply_keystream(&mut buf[header_len..]);
 
         let checksum_start = buf.len() - CHECKSUM_LEN;
         let their_checksum = &buf[checksum_start..];
@@ -557,7 +589,7 @@ impl<T: Transport> BedrockTransport<T> {
         let counter_bytes = counter_value.to_le_bytes();
         let mut digest = Sha256::new();
         digest.update(counter_bytes);
-        digest.update(&buf[1..checksum_start]);
+        digest.update(&buf[header_len..checksum_start]);
         digest.update(key_bytes);
         let our_checksum_full = digest.finalize();
         let our_checksum = &our_checksum_full[..CHECKSUM_LEN];
@@ -584,6 +616,37 @@ impl<T: Transport> BedrockTransport<T> {
 mod tests {
     use super::*;
     use aes_gcm::aead::generic_array::GenericArray;
+    use std::io;
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+    use std::pin::Pin;
+    use std::task::{Context, Poll};
+
+    struct TestTransport;
+
+    impl Transport for TestTransport {
+        type Error = io::Error;
+
+        const USES_BATCH_PREFIX: bool = true;
+
+        fn poll_send(
+            self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+            _msg: TransportMessage,
+        ) -> Poll<Result<(), Self::Error>> {
+            Poll::Pending
+        }
+
+        fn poll_recv(
+            self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+        ) -> Poll<Option<Result<TransportRecvMessage, Self::Error>>> {
+            Poll::Pending
+        }
+
+        fn peer_addr(&self) -> SocketAddr {
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0)
+        }
+    }
 
     // ========== Encryption Checksum Tests ==========
 
@@ -930,6 +993,56 @@ mod tests {
         let encrypted = encrypt_message(&[], &key, &mut cipher, 0);
 
         assert!(encrypted.is_empty());
+    }
+
+    #[test]
+    fn decrypt_rejects_empty_encrypted_frame_without_panicking() {
+        let key: [u8; 32] = [0x42; 32];
+        let iv: [u8; 16] = [0x01; 16];
+
+        let mut cipher = Aes256Ctr::new_from_slices(&key, &iv).unwrap();
+        let mut buf = BytesMut::new();
+        let mut counter = 0;
+
+        let err = BedrockTransport::<TestTransport>::decrypt_buffer(
+            &mut buf,
+            &mut cipher,
+            &key,
+            &mut counter,
+            1,
+        )
+        .expect_err("empty encrypted frame must be rejected");
+
+        assert!(matches!(
+            err,
+            JolyneError::Protocol(ProtocolError::UnexpectedHandshake(_))
+        ));
+        assert_eq!(counter, 0, "counter must not advance for rejected frames");
+    }
+
+    #[test]
+    fn encrypt_rejects_header_longer_than_packet() {
+        let key: [u8; 32] = [0x42; 32];
+        let iv: [u8; 16] = [0x01; 16];
+
+        let mut cipher = Aes256Ctr::new_from_slices(&key, &iv).unwrap();
+        let mut buf = BytesMut::from(&b"x"[..]);
+        let mut counter = 0;
+
+        let err = BedrockTransport::<TestTransport>::encrypt_buffer(
+            &mut buf,
+            &mut cipher,
+            &key,
+            &mut counter,
+            2,
+        )
+        .expect_err("oversized cleartext header must be rejected");
+
+        assert!(matches!(
+            err,
+            JolyneError::Protocol(ProtocolError::UnexpectedHandshake(_))
+        ));
+        assert_eq!(counter, 0, "counter must not advance for rejected frames");
     }
 
     #[test]

@@ -335,10 +335,7 @@ pub async fn validate_open_id(
                 }
             }
         } else {
-            // If the token does not embed a key (kid/x5u/x5c), fall back to unverified parsing.
-            let claims = decode_unverified_claims::<OpenIdClaims>(token)
-                .ok_or(AuthError::MissingIdentityKey)?;
-            jsonwebtoken::TokenData { header, claims }
+            return Err(AuthError::MissingIdentityKey.into());
         }
     } else {
         let claims = decode_unverified_claims::<OpenIdClaims>(token)

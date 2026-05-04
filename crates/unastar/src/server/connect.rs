@@ -47,7 +47,9 @@ pub async fn accept_join_sequence(
         .await?;
 
     // 4. Resource packs (none/default)
-    let start_game_state = packs.negotiate_packs(false).await?;
+    let start_game_state = packs
+        .negotiate_packs(config.server.require_resource_packs)
+        .await?;
 
     // 5. Resolve spawn before StartGame.
     let spawn = resolve_spawn_location(config, &identity, template, player_data_store).await;

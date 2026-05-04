@@ -27,7 +27,7 @@ use crate::ecs::{CleanupSet, EntityLogicSet, NetworkSendSet, PacketApplySet, Una
 use crate::entity::bundles::PlayerBundle;
 use crate::entity::components::transform::{Position, Rotation};
 use crate::entity::components::{
-    ArmourInventory, BreakingState, ChunkRadius, CursorItem, HeldSlot, InventoryOpened,
+    ArmourInventory, BreakingState, ChunkRadius, CursorItem, GameMode, HeldSlot, InventoryOpened,
     ItemStackRequestState, LastBroadcastPosition, MainInventory, OffhandSlot, Player, PlayerInput,
     PlayerName, PlayerSession, PlayerState, PlayerUuid, RuntimeEntityId, SpatialChunk,
 };
@@ -37,11 +37,12 @@ use crate::server::broadcast::{
     EntityGrid, broadcast_block_updates, broadcast_despawn_system, broadcast_movement_system,
     broadcast_spawn_system, cleanup_despawned_entities, sync_spatial_chunks, tick_block_breaking,
 };
+use crate::storage::{ChunkColumn, PlayerData};
 use crate::world::ChunkManager;
 use crate::world::ecs::{
-    BlockBroadcastEvent, ChunkLoadConfig, ChunkLoader, ChunkTickingState, LastPublisherState,
-    PendingChunkGenerations, PlayerDespawnedEvent, PlayerSpawnedEvent, on_block_changed,
-    register_chunk_systems,
+    BlockBroadcastEvent, ChunkData, ChunkLoadConfig, ChunkLoader, ChunkPosition, ChunkStateFlags,
+    ChunkTickingState, LastPublisherState, PendingChunkGenerations, PlayerDespawnedEvent,
+    PlayerSpawnedEvent, on_block_changed, register_chunk_systems,
 };
 
 // Re-export public types
@@ -57,6 +58,15 @@ pub use types::{
 /// All game state lives inside the World as Resources.
 pub struct GameServer {
     pub ecs: UnastarEcs,
+}
+
+fn game_mode_to_storage_id(game_mode: GameMode) -> u8 {
+    match game_mode {
+        GameMode::Survival => 0,
+        GameMode::Creative => 1,
+        GameMode::Adventure => 2,
+        GameMode::Spectator => 6,
+    }
 }
 
 impl GameServer {
@@ -192,14 +202,152 @@ impl GameServer {
         Self { ecs }
     }
 
-    pub async fn save_all_players(&self) -> usize {
-        // TODO: implement persistence
-        0
+    pub async fn save_all_players(&mut self) -> usize {
+        let Some(provider) = self
+            .ecs
+            .world()
+            .get_resource::<types::PlayerProviderResource>()
+            .map(|resource| resource.0.clone())
+        else {
+            return 0;
+        };
+
+        let records = {
+            let world = self.ecs.world_mut();
+            let mut query = world.query::<(&PlayerUuid, &Position, &Rotation, &GameMode)>();
+            query
+                .iter(world)
+                .map(|(uuid, position, rotation, game_mode)| {
+                    (
+                        uuid.0,
+                        PlayerData {
+                            uuid: uuid.0.to_string(),
+                            position: [position.0.x, position.0.y, position.0.z],
+                            rotation: [rotation.yaw, rotation.pitch],
+                            dimension: world
+                                .get_resource::<ServerConfigResource>()
+                                .map(|config| config.0.world.dimension)
+                                .unwrap_or(0),
+                            game_mode: game_mode_to_storage_id(*game_mode),
+                            health: 20.0,
+                            food: 20,
+                            experience: 0,
+                        },
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+
+        let mut saved = 0;
+        for (uuid, data) in records {
+            match provider.save(uuid, &data).await {
+                Ok(()) => saved += 1,
+                Err(e) => warn!(%uuid, error = %e, "Failed to save player data"),
+            }
+        }
+        saved
     }
 
     pub async fn save_all_chunks(&mut self) -> usize {
-        // TODO: implement persistence
-        0
+        let Some((provider, dimension)) =
+            self.ecs
+                .world()
+                .get_resource::<ChunkManager>()
+                .and_then(|manager| {
+                    manager
+                        .provider()
+                        .map(|provider| (provider, manager.dimension()))
+                })
+        else {
+            return 0;
+        };
+
+        let records = {
+            let world = self.ecs.world_mut();
+            let mut query = world.query::<(Entity, &ChunkPosition, &ChunkData, &ChunkStateFlags)>();
+            query
+                .iter(world)
+                .filter(|(_, _, _, flags)| flags.is_dirty())
+                .map(|(entity, position, data, _)| {
+                    (
+                        entity,
+                        position.to_chunk_pos(),
+                        ChunkColumn::new(data.inner.clone()),
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+
+        let mut saved = 0;
+        let mut saved_entities = Vec::new();
+        for (entity, position, column) in records {
+            match provider.save_column(position, dimension, &column).await {
+                Ok(()) => {
+                    saved += 1;
+                    saved_entities.push(entity);
+                }
+                Err(e) => warn!(chunk = ?position, error = %e, "Failed to save chunk"),
+            }
+        }
+
+        for entity in saved_entities {
+            if let Some(mut flags) = self.ecs.world_mut().get_mut::<ChunkStateFlags>(entity) {
+                flags.clear_dirty();
+            }
+        }
+
+        saved
+    }
+
+    pub async fn save_player(&mut self, session_id: SessionId) -> bool {
+        let Some(provider) = self
+            .ecs
+            .world()
+            .get_resource::<types::PlayerProviderResource>()
+            .map(|resource| resource.0.clone())
+        else {
+            return false;
+        };
+
+        let record = {
+            let world = self.ecs.world_mut();
+            let dimension = world
+                .get_resource::<ServerConfigResource>()
+                .map(|config| config.0.world.dimension)
+                .unwrap_or(0);
+            let mut query =
+                world.query::<(&PlayerSession, &PlayerUuid, &Position, &Rotation, &GameMode)>();
+            query
+                .iter(world)
+                .find(|(session, _, _, _, _)| session.session_id == session_id)
+                .map(|(_, uuid, position, rotation, game_mode)| {
+                    (
+                        uuid.0,
+                        PlayerData {
+                            uuid: uuid.0.to_string(),
+                            position: [position.0.x, position.0.y, position.0.z],
+                            rotation: [rotation.yaw, rotation.pitch],
+                            dimension,
+                            game_mode: game_mode_to_storage_id(*game_mode),
+                            health: 20.0,
+                            food: 20,
+                            experience: 0,
+                        },
+                    )
+                })
+        };
+
+        let Some((uuid, data)) = record else {
+            return false;
+        };
+
+        match provider.save(uuid, &data).await {
+            Ok(()) => true,
+            Err(e) => {
+                warn!(%uuid, session_id, error = %e, "Failed to save player data");
+                false
+            }
+        }
     }
 
     pub fn spawn_player(&mut self, data: PlayerSpawnData) -> Entity {

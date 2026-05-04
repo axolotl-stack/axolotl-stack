@@ -6,9 +6,10 @@
 use jolyne::{BedrockListener, BedrockListenerConfig};
 use p384::SecretKey;
 use rand::thread_rng;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::{Semaphore, broadcast, mpsc};
 use tokio_raknet::RaknetListener;
 use tracing::{error, info, trace, warn};
 
@@ -21,6 +22,12 @@ use crate::storage::LevelDBPlayerProvider;
 
 /// Tick rate (20 TPS = 50ms per tick).
 const TICK_DURATION: Duration = Duration::from_millis(50);
+/// Inbound events buffered per configured player before network tasks apply backpressure.
+const NETWORK_EVENTS_PER_PLAYER: usize = 128;
+/// Minimum inbound queue capacity for small servers.
+const MIN_NETWORK_EVENT_CAPACITY: usize = 1024;
+/// Maximum packets from one session applied to domain queues in a single tick.
+const MAX_PACKET_EVENTS_PER_SESSION_PER_TICK: u32 = 64;
 
 /// The main server runtime.
 ///
@@ -51,7 +58,7 @@ impl UnastarServer {
                 Ok(provider) => {
                     info!(path = %player_db_path.display(), "Opened player LevelDB");
                     server.ecs.world_mut().insert_resource(
-                        crate::server::game::types::PlayerProviderResource(provider),
+                        crate::server::game::types::PlayerProviderResource(Arc::new(provider)),
                     );
                 }
                 Err(e) => {
@@ -152,6 +159,7 @@ impl UnastarServer {
             online_mode: self.config.server.online_mode,
             allow_legacy_auth: self.config.server.allow_legacy_auth,
             encryption_enabled: self.config.server.encryption_enabled,
+            require_resource_packs: self.config.server.require_resource_packs,
             ..Default::default()
         };
 
@@ -165,27 +173,40 @@ impl UnastarServer {
         let local_addr = listener.local_addr();
         info!("Listening on {:?}", local_addr);
 
-        // Consolidated event channel
-        let (event_tx, mut event_rx) = mpsc::unbounded_channel::<NetworkEvent>();
+        // Consolidated bounded event channel. This is the main inbound
+        // backpressure point between network tasks and the 20 TPS game loop.
+        let event_channel_capacity = (self.config.server.max_players.max(1) as usize)
+            .saturating_mul(NETWORK_EVENTS_PER_PLAYER)
+            .max(MIN_NETWORK_EVENT_CAPACITY);
+        let (event_tx, mut event_rx) = mpsc::channel::<NetworkEvent>(event_channel_capacity);
 
         // Tick signal channel - signals network tasks to flush their buffers
         let (tick_tx, _) = broadcast::channel::<()>(16);
 
+        // Gate handshaking + joined players before expensive auth/join work.
+        let connection_gate = Arc::new(Semaphore::new(
+            self.config.server.max_players.max(1) as usize
+        ));
+
         // Spawn accept loop
         spawn_accept_loop(
             listener,
-            self.server
-                .ecs
-                .world()
-                .get_resource::<crate::server::game::types::ServerWorldTemplate>()
-                .unwrap()
-                .0
-                .clone(),
-            self.server_key.clone(),
-            self.config.clone(),
-            self.player_data_store.clone(),
-            event_tx,
-            tick_tx.clone(),
+            AcceptLoopState {
+                template: self
+                    .server
+                    .ecs
+                    .world()
+                    .get_resource::<crate::server::game::types::ServerWorldTemplate>()
+                    .unwrap()
+                    .0
+                    .clone(),
+                key: self.server_key.clone(),
+                config: self.config.clone(),
+                player_data_store: self.player_data_store.clone(),
+                event_tx,
+                tick_tx: tick_tx.clone(),
+                connection_gate,
+            },
         );
 
         // Main tick loop
@@ -241,6 +262,7 @@ impl UnastarServer {
 
                     // Drain network events
                     let mut events_processed = 0u32;
+                    let mut per_session_packets: HashMap<_, u32> = HashMap::new();
                     while let Ok(event) = event_rx.try_recv() {
                         events_processed += 1;
                         match event {
@@ -270,9 +292,25 @@ impl UnastarServer {
                                 packet_args,
                                 packet,
                             } => {
+                                let count = per_session_packets.entry(session_id).or_default();
+                                *count += 1;
+                                if *count > MAX_PACKET_EVENTS_PER_SESSION_PER_TICK {
+                                    warn!(
+                                        session_id,
+                                        budget = MAX_PACKET_EVENTS_PER_SESSION_PER_TICK,
+                                        "dropping inbound packet over per-tick session budget"
+                                    );
+                                    continue;
+                                }
                                 self.server.route_packet(session_id, packet_args, packet);
                             }
                             NetworkEvent::Disconnected { session_id } => {
+                                if self.config.players.save_on_disconnect {
+                                    let saved = self.server.save_player(session_id).await;
+                                    if saved {
+                                        info!(session_id, "Player data saved on disconnect");
+                                    }
+                                }
                                 self.server.despawn_player(session_id);
                             }
                         }
@@ -331,24 +369,47 @@ impl UnastarServer {
     }
 }
 
-/// Spawn the accept loop as a background task.
-fn spawn_accept_loop(
-    mut listener: BedrockListener<RaknetListener>,
+struct AcceptLoopState {
     template: Arc<jolyne::WorldTemplate>,
     key: SecretKey,
     config: Arc<UnastarConfig>,
     player_data_store: Arc<PlayerDataStore>,
-    event_tx: mpsc::UnboundedSender<NetworkEvent>,
+    event_tx: mpsc::Sender<NetworkEvent>,
     tick_tx: broadcast::Sender<()>,
-) {
+    connection_gate: Arc<Semaphore>,
+}
+
+/// Spawn the accept loop as a background task.
+fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: AcceptLoopState) {
     tokio::spawn(async move {
         let mut next_session_id: u64 = 1;
+        let AcceptLoopState {
+            template,
+            key,
+            config,
+            player_data_store,
+            event_tx,
+            tick_tx,
+            connection_gate,
+        } = state;
 
         loop {
             match listener.accept().await {
                 Ok(handshake_stream) => {
                     let addr = handshake_stream.peer_addr();
                     info!(%addr, "Connection accepted");
+
+                    let permit = match connection_gate.clone().try_acquire_owned() {
+                        Ok(permit) => permit,
+                        Err(_) => {
+                            warn!(
+                                %addr,
+                                max_players = config.server.max_players,
+                                "Rejecting connection because server is at capacity"
+                            );
+                            continue;
+                        }
+                    };
 
                     let template = template.clone();
                     let key = key.clone();
@@ -360,6 +421,7 @@ fn spawn_accept_loop(
                     next_session_id += 1;
 
                     tokio::spawn(async move {
+                        let _connection_permit = permit;
                         match accept_join_sequence(
                             &template,
                             &key,
@@ -400,6 +462,7 @@ fn spawn_accept_loop(
                                         initial_position: spawn_to_dvec3(&initial_position),
                                         outbound_tx: outbound_tx.clone(),
                                     })
+                                    .await
                                     .is_err()
                                 {
                                     return; // Server shutting down

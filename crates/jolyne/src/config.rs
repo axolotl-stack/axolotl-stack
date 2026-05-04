@@ -38,7 +38,13 @@ pub struct BedrockListenerConfig {
     /// Whether to handle (accept/ignore) ClientCacheStatus packets. Default: true (accept and ignore payload).
     pub handle_client_cache_status: bool,
 
-    /// Whether to send a block palette/update when starting the game. Default: false (minimal empty palette).
+    /// Reserved flag for future explicit block-palette/update packets.
+    ///
+    /// Current generated StartGame data already carries block properties; the server start
+    /// sequence does not send additional palette/update packets until Jolyne has a data source
+    /// for non-empty runtime block data.
+    ///
+    /// Default: `false`
     pub send_block_palette: bool,
 
     /// Number of bytes to skip at the beginning of the packet during encryption/decryption.
@@ -53,6 +59,8 @@ pub struct BedrockListenerConfig {
     ///
     /// If set, any batch whose decompressed size exceeds this limit will be rejected.
     /// This helps avoid zip bombs or malformed packets that expand excessively.
+    ///
+    /// Default: `Some(4 MiB)`
     pub max_decompressed_batch_size: Option<usize>,
 }
 
@@ -68,7 +76,7 @@ impl Default for BedrockListenerConfig {
             handle_client_cache_status: true,
             send_block_palette: false,
             encryption_header_len: 1,
-            max_decompressed_batch_size: None,
+            max_decompressed_batch_size: Some(1024 * 1024 * 4),
         }
     }
 }

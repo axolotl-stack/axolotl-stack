@@ -45,6 +45,8 @@ online_mode = true
 allow_legacy_auth = true
 # Enable encryption handshake. Set to false for debugging.
 encryption_enabled = true
+# Require clients to accept advertised resource packs.
+require_resource_packs = false
 
 [world]
 # Dimension ID: 0 = Overworld, 1 = Nether, 2 = End
@@ -226,6 +228,8 @@ pub struct ServerConfigFile {
     pub allow_legacy_auth: bool,
     /// Enable encryption handshake.
     pub encryption_enabled: bool,
+    /// Require clients to accept advertised resource packs.
+    pub require_resource_packs: bool,
 }
 
 impl Default for ServerConfigFile {
@@ -240,6 +244,7 @@ impl Default for ServerConfigFile {
             online_mode: true,
             allow_legacy_auth: true,
             encryption_enabled: true,
+            require_resource_packs: false,
         }
     }
 }

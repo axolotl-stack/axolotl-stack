@@ -58,8 +58,8 @@ graph TD
 
 #### Layer 0: `BedrockTransport`
 The "pipe" layer. It handles the gritty details of the protocol:
-- **Encryption:** AES-256-GCM (managed transparently).
-- **Compression:** Zlib/Snappy support.
+- **Encryption:** AES-256-CTR with Bedrock SHA-256 checksums (managed transparently).
+- **Compression:** Deflate/Zlib support; Snappy packets are rejected until implemented.
 - **Batching:** Decodes raw frames into batches of packets.
 - **IO:** Implements `Stream` and `Sink` for raw `Batch` objects.
 

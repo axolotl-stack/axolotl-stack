@@ -23,7 +23,7 @@ pub use events::{NetworkEvent, SessionId};
 pub async fn run_network_loop(
     stream: BedrockStream<Play, ServerRole, jolyne::stream::transport::RakNetTransport>,
     session_id: SessionId,
-    event_tx: mpsc::UnboundedSender<NetworkEvent>,
+    event_tx: mpsc::Sender<NetworkEvent>,
     mut outbound_rx: mpsc::Receiver<McpePacket>,
     mut tick_rx: broadcast::Receiver<()>,
 ) {
@@ -65,13 +65,22 @@ pub async fn run_network_loop(
                 match result {
                     Ok(packet) => {
                         let packet_args = stream.packet_args();
-                        if event_tx.send(NetworkEvent::Packet {
+                        if let Err(e) = event_tx.try_send(NetworkEvent::Packet {
                             session_id,
                             packet_args,
                             packet,
-                        }).is_err() {
-                            // Main thread dropped, exit
-                            tracing::error!(session_id, "Main thread dropped event channel");
+                        }) {
+                            match e {
+                                mpsc::error::TrySendError::Full(_) => {
+                                    tracing::warn!(
+                                        session_id,
+                                        "Inbound event channel full; closing noisy connection"
+                                    );
+                                }
+                                mpsc::error::TrySendError::Closed(_) => {
+                                    tracing::error!(session_id, "Main thread dropped event channel");
+                                }
+                            }
                             break;
                         }
                     }
@@ -112,6 +121,8 @@ pub async fn run_network_loop(
 
     // Final flush on disconnect
     let _ = stream.flush().await;
-    let _ = event_tx.send(NetworkEvent::Disconnected { session_id });
+    let _ = event_tx
+        .send(NetworkEvent::Disconnected { session_id })
+        .await;
     info!(session_id, "Network task ended");
 }

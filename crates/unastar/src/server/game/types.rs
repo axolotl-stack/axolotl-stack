@@ -40,7 +40,7 @@ pub struct ItemEntityIdCounter(pub i64);
 
 /// Player data provider as an ECS Resource (for save/load persistence).
 #[derive(Resource)]
-pub struct PlayerProviderResource(pub crate::storage::LevelDBPlayerProvider);
+pub struct PlayerProviderResource(pub Arc<dyn crate::storage::PlayerProvider>);
 
 /// Mapping from session ID to ECS entity.
 #[derive(Resource, Default)]
