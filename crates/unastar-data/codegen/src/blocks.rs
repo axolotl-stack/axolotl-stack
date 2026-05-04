@@ -260,6 +260,23 @@ fn generate_blocks_module(blocks: &[ParsedBlock], output_dir: &Path) -> miette::
             }
         })
         .collect();
+    let identifier_match_arms: Vec<TokenStream> = blocks
+        .iter()
+        .enumerate()
+        .map(|(index, block)| {
+            let identifier = &block.identifier;
+            quote! { #identifier => Some(&ALL_BLOCKS[#index]) }
+        })
+        .collect();
+    let runtime_id_match_arms: Vec<TokenStream> = blocks
+        .iter()
+        .enumerate()
+        .map(|(index, block)| {
+            let min_state_id = block.min_state_id;
+            let max_state_id = block.max_state_id;
+            quote! { #min_state_id..=#max_state_id => Some(&ALL_BLOCKS[#index]) }
+        })
+        .collect();
     let count = entries.len();
 
     let code = quote! {
@@ -316,14 +333,18 @@ fn generate_blocks_module(blocks: &[ParsedBlock], output_dir: &Path) -> miette::
 
         /// Look up a block by namespaced identifier.
         pub fn get(identifier: &str) -> Option<&'static BlockData> {
-            ALL_BLOCKS.iter().find(|block| block.identifier == identifier)
+            match identifier {
+                #(#identifier_match_arms,)*
+                _ => None,
+            }
         }
 
         /// Look up a block by canonical runtime state ID.
         pub fn by_runtime_id(runtime_id: u32) -> Option<&'static BlockData> {
-            ALL_BLOCKS
-                .iter()
-                .find(|block| (block.min_state_id..=block.max_state_id).contains(&runtime_id))
+            match runtime_id {
+                #(#runtime_id_match_arms,)*
+                _ => None,
+            }
         }
     };
 
@@ -404,6 +425,26 @@ mod tests {
         assert!(error.to_string().contains("outside 0..=15"));
     }
 
+    #[test]
+    fn generated_lookups_use_direct_matches() {
+        let blocks = vec![block("minecraft:air", 0, 0), block("minecraft:stone", 1, 4)];
+        let temp_dir = std::env::temp_dir().join(format!(
+            "unastar-blocks-codegen-test-{}-{}",
+            std::process::id(),
+            unique_suffix()
+        ));
+        std::fs::create_dir_all(&temp_dir).expect("create temp dir");
+
+        generate_blocks_module(&blocks, &temp_dir).expect("generate blocks module");
+
+        let generated = std::fs::read_to_string(temp_dir.join("blocks.rs"))
+            .expect("generated blocks.rs should exist");
+        assert!(generated.contains("\"minecraft:stone\" => Some(&ALL_BLOCKS[1usize])"));
+        assert!(generated.contains("1u32..=4u32 => Some(&ALL_BLOCKS[1usize])"));
+        assert!(!generated.contains("ALL_BLOCKS.iter().find"));
+        let _ = std::fs::remove_dir_all(temp_dir);
+    }
+
     fn block(identifier: &str, min_state_id: u32, max_state_id: u32) -> ParsedBlock {
         ParsedBlock {
             identifier: identifier.to_string(),
@@ -419,5 +460,12 @@ mod tests {
             default_state_id: min_state_id,
             state_id_count: max_state_id - min_state_id + 1,
         }
+    }
+
+    fn unique_suffix() -> u128 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos()
     }
 }
