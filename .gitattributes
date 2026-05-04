@@ -1,0 +1,21 @@
+# Normalize repository text files to LF in Git and future checkouts.
+.gitattributes text eol=lf
+.gitignore text eol=lf
+Cargo.lock text eol=lf
+
+*.rs text eol=lf
+*.toml text eol=lf
+*.md text eol=lf
+*.kdl text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Keep generated or binary assets from accidental text normalization.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.zip binary
+*.jar binary
