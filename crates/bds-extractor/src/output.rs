@@ -5,6 +5,7 @@
 use base64::Engine;
 use jolyne::GameData;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 
 /// Root structure for all extracted BDS data.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -210,6 +211,8 @@ impl ExtractedData {
                     return Err("biome string_list entries must be non-empty".to_string());
                 }
             }
+            let mut seen_ids = HashSet::new();
+            let mut seen_identifiers = HashSet::new();
             for biome in &biomes.definitions {
                 let name_index = usize::try_from(biome.name_index)
                     .map_err(|_| format!("biome {} has negative name_index", biome.biome_id))?;
@@ -221,11 +224,18 @@ impl ExtractedData {
                         biomes.string_list.len()
                     ));
                 }
+                let identifier = &biomes.string_list[name_index];
                 if !biome.temperature.is_finite() || !biome.downfall.is_finite() {
                     return Err(format!(
                         "biome {} has non-finite climate values",
                         biome.biome_id
                     ));
+                }
+                if !seen_ids.insert(biome.biome_id) {
+                    return Err(format!("duplicate biome_id {}", biome.biome_id));
+                }
+                if !seen_identifiers.insert(identifier) {
+                    return Err(format!("duplicate biome identifier {identifier}"));
                 }
             }
         }
@@ -415,7 +425,9 @@ mod tests {
                 }],
                 string_list: vec!["minecraft:plains".to_string()],
             }),
-            entities: None,
+            entities: Some(EntityData {
+                identifiers_nbt_base64: "CgA=".to_string(),
+            }),
         }
     }
 
@@ -449,6 +461,38 @@ mod tests {
         let error = data.validate().unwrap_err();
 
         assert!(error.contains("out of range"));
+    }
+
+    #[test]
+    fn validate_rejects_duplicate_biome_id() {
+        let mut data = minimal_extracted_data();
+        let biome_data = data.biomes.as_mut().expect("biome fixture");
+        biome_data.definitions.push(BiomeEntry {
+            name_index: 0,
+            biome_id: 1,
+            temperature: 0.5,
+            downfall: 0.6,
+        });
+
+        let error = data.validate().unwrap_err();
+
+        assert!(error.contains("duplicate biome_id"));
+    }
+
+    #[test]
+    fn validate_rejects_duplicate_biome_identifier() {
+        let mut data = minimal_extracted_data();
+        let biome_data = data.biomes.as_mut().expect("biome fixture");
+        biome_data.definitions.push(BiomeEntry {
+            name_index: 0,
+            biome_id: 2,
+            temperature: 0.5,
+            downfall: 0.6,
+        });
+
+        let error = data.validate().unwrap_err();
+
+        assert!(error.contains("duplicate biome identifier"));
     }
 
     #[test]

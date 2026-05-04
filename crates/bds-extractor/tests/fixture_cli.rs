@@ -38,6 +38,10 @@ fn fixture_cli_validates_and_writes_roundtrip_json() {
         data["biomes"]["string_list"][0].as_str(),
         Some("minecraft:plains")
     );
+    assert_eq!(
+        data["entities"]["identifiers_nbt_base64"].as_str(),
+        Some("CgA=")
+    );
 
     let _ = std::fs::remove_file(output);
 }

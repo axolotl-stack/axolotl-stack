@@ -34,5 +34,8 @@
     "string_list": [
       "minecraft:plains"
     ]
+  },
+  "entities": {
+    "identifiers_nbt_base64": "CgA="
   }
 }
