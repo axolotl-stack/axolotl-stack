@@ -1,9 +1,9 @@
 [submodule "crates/valentine_gen/minecraft-data"]
 	path = crates/valentine_gen/minecraft-data
-	url = https://github.com/PrismarineJS/minecraft-data
+	url = git@github.com:PrismarineJS/minecraft-data.git
 [submodule "crates/unastar-data/data/vanilla_bp"]
 	path = crates/unastar-data/data/vanilla_bp
-	url = https://github.com/Mojang/bedrock-samples.git
+	url = git@github.com:Mojang/bedrock-samples.git
 [submodule "crates/valentine_gen/bedrock-data"]
 	path = crates/valentine_gen/bedrock-data
-	url = https://github.com/pmmp/BedrockData.git
+	url = git@github.com:pmmp/BedrockData.git
