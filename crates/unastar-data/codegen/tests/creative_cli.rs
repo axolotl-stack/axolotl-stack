@@ -33,6 +33,19 @@ fn creative_only_cli_generates_static_consumer_from_artifact() {
     assert!(generated.contains("block_states: Some(\"CgA=\")"));
     assert!(generated.contains("damage: 6i16"));
     assert!(generated.contains("nbt: Some(\"CgA=\")"));
+
+    for unexpected in [
+        "bds_packets.rs",
+        "biomes.rs",
+        "blocks.rs",
+        "entities",
+        "items.rs",
+    ] {
+        assert!(
+            !output.join(unexpected).exists(),
+            "--creative-only should not generate {unexpected}"
+        );
+    }
 }
 
 #[test]

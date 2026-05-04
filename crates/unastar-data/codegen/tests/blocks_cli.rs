@@ -38,7 +38,7 @@ fn blocks_only_cli_generates_static_consumer_from_artifact() {
         "bds_packets.rs",
         "biomes.rs",
         "creative.rs",
-        "entities.rs",
+        "entities",
         "items.rs",
     ] {
         assert!(
