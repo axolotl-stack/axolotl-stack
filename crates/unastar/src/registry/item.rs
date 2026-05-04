@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use serde::Deserialize;
 use tracing::{debug, info, warn};
 
-use super::{Registry, RegistryEntry};
+use super::{Registry, RegistryEntry, RegistryError};
 
 /// Runtime item entry in the registry.
 #[derive(Debug, Clone)]
@@ -46,14 +46,91 @@ struct RequiredItem {
     version: i32,
 }
 
-/// Item registry type alias.
-pub type ItemRegistry = Registry<ItemEntry>;
+/// Item registry with indexed protocol/network lookups.
+#[derive(Debug, Clone, Default)]
+pub struct ItemRegistry {
+    inner: Registry<ItemEntry>,
+    name_map: HashMap<String, u32>,
+    network_id_map: HashMap<i32, u32>,
+}
 
 impl ItemRegistry {
+    /// Create an empty item registry.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Register an item and update exact name/network indexes.
+    pub fn register(&mut self, entry: ItemEntry) -> Result<(), RegistryError> {
+        let id = entry.id;
+        let network_id = entry.network_id;
+        let string_id = entry.string_id.clone();
+        self.inner.register(entry)?;
+        self.name_map.insert(string_id, id);
+        self.network_id_map.insert(network_id, id);
+        Ok(())
+    }
+
+    /// Get entry by internal item ID.
+    pub fn get(&self, id: u32) -> Option<&ItemEntry> {
+        self.inner.get(id)
+    }
+
+    /// Get mutable entry by internal item ID.
+    ///
+    /// This preserves the former `Registry<ItemEntry>` API. The indexed lookup
+    /// methods validate cached identities and fall back to a scan, so callers
+    /// that mutate `string_id` or `network_id` through this handle do not get
+    /// stale lookup results.
+    pub fn get_mut(&mut self, id: u32) -> Option<&mut ItemEntry> {
+        self.inner.get_mut(id)
+    }
+
+    /// Unregister an entry by internal item ID.
+    pub fn unregister(&mut self, id: u32) -> Option<ItemEntry> {
+        let entry = self.inner.unregister(id)?;
+        self.name_map.remove(&entry.string_id);
+        self.network_id_map.remove(&entry.network_id);
+        Some(entry)
+    }
+
+    /// Get entry by string ID. O(1).
+    pub fn get_by_name(&self, name: &str) -> Option<&ItemEntry> {
+        self.name_map
+            .get(name)
+            .and_then(|id| self.inner.get(*id))
+            .filter(|entry| entry.string_id == name)
+            .or_else(|| self.inner.get_by_name(name))
+    }
+
+    /// Iterate over all entries.
+    pub fn iter(&self) -> impl Iterator<Item = &ItemEntry> {
+        self.inner.iter()
+    }
+
+    /// Iterate over all entries with their internal IDs.
+    pub fn iter_with_id(&self) -> impl Iterator<Item = (u32, &ItemEntry)> {
+        self.inner.iter_with_id()
+    }
+
+    /// Number of registered entries.
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
+    /// Check if empty.
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+
     /// Load vanilla items from valentine's generated data, enriched with
     /// network IDs from pmmp/BedrockData's required_item_list.json.
     pub fn load_vanilla(&mut self) {
         use jolyne::valentine::items::ITEMS;
+
+        self.inner = Registry::new();
+        self.name_map.clear();
+        self.network_id_map.clear();
 
         // Parse required_item_list.json for correct network IDs
         let required: HashMap<String, RequiredItem> =
@@ -106,13 +183,16 @@ impl ItemRegistry {
 
         // Register items that exist in required_item_list but NOT in valentine
         // (Bedrock-specific items missing from PrismarineJS minecraft-data)
+        let mut next_extra_id = self.iter().map(|item| item.id).max().unwrap_or(0) + 1;
         let mut extra_count = 0u32;
         for (name, req) in &required {
             if self.get_by_name(name).is_none() {
-                let id = self.len() as u32 + extra_count;
+                while self.get(next_extra_id).is_some() {
+                    next_extra_id += 1;
+                }
                 let display_name = name.strip_prefix("minecraft:").unwrap_or(name).to_string();
                 let entry = ItemEntry {
-                    id,
+                    id: next_extra_id,
                     network_id: req.runtime_id,
                     component_based: req.component_based,
                     version: req.version,
@@ -121,6 +201,7 @@ impl ItemRegistry {
                     stack_size: 64,
                 };
                 let _ = self.register(entry);
+                next_extra_id += 1;
                 extra_count += 1;
             }
         }
@@ -135,7 +216,11 @@ impl ItemRegistry {
 
     /// Look up an item by its protocol network ID.
     pub fn get_by_network_id(&self, network_id: i32) -> Option<&ItemEntry> {
-        self.iter().find(|e| e.network_id == network_id)
+        self.network_id_map
+            .get(&network_id)
+            .and_then(|id| self.inner.get(*id))
+            .filter(|entry| entry.network_id == network_id)
+            .or_else(|| self.iter().find(|entry| entry.network_id == network_id))
     }
 
     /// Convert registry to protocol packet.
@@ -200,5 +285,91 @@ mod tests {
             item.version,
             jolyne::valentine::types::ItemstatesItemVersion::DataDriven
         );
+    }
+
+    #[test]
+    fn item_registry_indexes_name_and_network_id() {
+        let mut registry = ItemRegistry::new();
+        registry
+            .register(ItemEntry {
+                id: 42,
+                network_id: -7,
+                component_based: false,
+                version: 0,
+                string_id: "minecraft:indexed_item".to_string(),
+                name: "indexed_item".to_string(),
+                stack_size: 64,
+            })
+            .expect("register item");
+
+        assert_eq!(
+            registry
+                .get_by_name("minecraft:indexed_item")
+                .expect("name lookup")
+                .id,
+            42
+        );
+        assert_eq!(
+            registry
+                .get_by_network_id(-7)
+                .expect("network lookup")
+                .string_id,
+            "minecraft:indexed_item"
+        );
+    }
+
+    #[test]
+    fn item_registry_preserves_mutation_and_unregister_api() {
+        let mut registry = ItemRegistry::new();
+        registry
+            .register(ItemEntry {
+                id: 7,
+                network_id: -7,
+                component_based: false,
+                version: 0,
+                string_id: "minecraft:old_name".to_string(),
+                name: "old_name".to_string(),
+                stack_size: 64,
+            })
+            .expect("register item");
+
+        let (_, entry) = registry.iter_with_id().next().expect("iter with id");
+        assert_eq!(entry.id, 7);
+
+        let item = registry.get_mut(7).expect("mutable lookup");
+        item.string_id = "minecraft:new_name".to_string();
+        item.network_id = -8;
+
+        assert!(registry.get_by_name("minecraft:old_name").is_none());
+        assert_eq!(
+            registry
+                .get_by_name("minecraft:new_name")
+                .expect("renamed item lookup")
+                .id,
+            7
+        );
+        assert_eq!(
+            registry
+                .get_by_network_id(-8)
+                .expect("renumbered network lookup")
+                .id,
+            7
+        );
+
+        let removed = registry.unregister(7).expect("unregister item");
+        assert_eq!(removed.string_id, "minecraft:new_name");
+        assert!(registry.get_by_network_id(-8).is_none());
+    }
+
+    #[test]
+    fn load_vanilla_assigns_unique_extra_ids() {
+        let mut registry = ItemRegistry::new();
+        registry.load_vanilla();
+
+        let mut ids: Vec<_> = registry.iter().map(|item| item.id).collect();
+        ids.sort_unstable();
+        ids.dedup();
+
+        assert_eq!(ids.len(), registry.len());
     }
 }

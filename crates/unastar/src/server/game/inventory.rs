@@ -12,6 +12,7 @@ use crate::entity::components::{
     HeldSlot, InventoryOpened, ItemStackRequestState, MainInventory, PlayerSession,
 };
 use crate::item::ItemStack;
+use crate::registry::ItemRegistry;
 use jolyne::valentine::types::{BlockCoordinates, ContainerSlotType, WindowId, WindowType};
 use jolyne::valentine::{
     ContainerClosePacket, ContainerOpenPacket, InteractPacket, InteractPacketActionId, McpePacket,
@@ -100,17 +101,7 @@ fn handle_item_stack_request(
                     );
 
                     if let Some(entry) = world_template.0.creative_content.items.get(index) {
-                        let item_id = items
-                            .0
-                            .get_by_network_id(entry.item.network_id)
-                            .map(|e| e.string_id.clone())
-                            .unwrap_or_else(|| {
-                                warn!(
-                                    "Creative item network_id {} not found in registry",
-                                    entry.item.network_id
-                                );
-                                format!("minecraft:network_{}", entry.item.network_id)
-                            });
+                        let item_id = item_id_from_network_id(&items.0, entry.item.network_id);
 
                         let item = ItemStack::new(item_id.clone(), 64);
                         info!(
@@ -394,13 +385,8 @@ fn handle_normal_transaction(
                                 .map(|c| c.count as u8)
                                 .unwrap_or(1);
 
-                            let item_id = items
-                                .0
-                                .get(action.new_item.network_id as u32)
-                                .map(|e| e.string_id.clone())
-                                .unwrap_or_else(|| {
-                                    format!("minecraft:network_{}", action.new_item.network_id)
-                                });
+                            let item_id =
+                                item_id_from_network_id(&items.0, action.new_item.network_id);
 
                             let item = ItemStack::new(item_id.clone(), count);
 
@@ -422,5 +408,52 @@ fn handle_normal_transaction(
                 debug!(source_type = ?other, slot = action.slot, "Unhandled action source type");
             }
         }
+    }
+}
+
+fn item_id_from_network_id(items: &ItemRegistry, network_id: i32) -> String {
+    items
+        .get_by_network_id(network_id)
+        .map(|entry| entry.string_id.clone())
+        .unwrap_or_else(|| {
+            warn!("Item network_id {} not found in registry", network_id);
+            format!("minecraft:network_{network_id}")
+        })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::registry::item::ItemEntry;
+
+    #[test]
+    fn item_id_lookup_uses_protocol_network_id_not_internal_id() {
+        let mut items = ItemRegistry::new();
+        items
+            .register(ItemEntry {
+                id: 99,
+                network_id: -12,
+                component_based: false,
+                version: 0,
+                string_id: "minecraft:negative_network_item".to_string(),
+                name: "negative_network_item".to_string(),
+                stack_size: 64,
+            })
+            .expect("register item");
+
+        assert_eq!(
+            item_id_from_network_id(&items, -12),
+            "minecraft:negative_network_item"
+        );
+    }
+
+    #[test]
+    fn item_id_lookup_falls_back_with_signed_network_id() {
+        let items = ItemRegistry::new();
+
+        assert_eq!(
+            item_id_from_network_id(&items, -12),
+            "minecraft:network_-12"
+        );
     }
 }
