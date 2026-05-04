@@ -31,30 +31,28 @@ pub const BLOCKS_PER_SUBCHUNK: usize = SUBCHUNK_SIZE * SUBCHUNK_SIZE * SUBCHUNK_
 /// Sub-chunk version for network encoding.
 const SUBCHUNK_VERSION: u8 = 9;
 
-/// Block runtime IDs fetched from jolyne's protocol blocks.
-/// Uses default_state_id() from valentine-generated block definitions.
+/// Block runtime IDs fetched from the shared vanilla block registry.
+/// Uses default runtime state IDs from normalized generated block data.
 pub mod blocks {
-    use jolyne::valentine::blocks::BLOCKS;
+    use crate::registry::BlockRegistry;
     use std::collections::HashMap;
     use std::sync::LazyLock;
 
     /// Lookup a block's default state ID by string ID.
     fn lookup(name: &str) -> u32 {
-        for block in BLOCKS.iter() {
-            if block.string_id() == name {
-                return block.default_state_id();
-            }
-        }
-        // Fallback to air if not found
-        lookup("minecraft:air")
+        let registry = BlockRegistry::vanilla();
+        registry
+            .default_state_id_by_name(name)
+            .or_else(|| registry.default_state_id_by_name("minecraft:air"))
+            .unwrap_or(0)
     }
 
     /// Pre-built block name -> ID lookup map for surface rules.
     /// This provides O(1) lookup for generated surface rules.
     static BLOCK_LOOKUP: LazyLock<HashMap<String, u32>> = LazyLock::new(|| {
         let mut map = HashMap::new();
-        for block in BLOCKS.iter() {
-            map.insert(block.string_id().to_string(), block.default_state_id());
+        for block in BlockRegistry::vanilla().iter() {
+            map.insert(block.string_id.clone(), block.default_state_id);
         }
         map
     });

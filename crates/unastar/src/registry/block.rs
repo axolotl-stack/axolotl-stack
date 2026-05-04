@@ -3,7 +3,17 @@
 //! Blocks are more complex than items/entities because of block states.
 //! Each block type has multiple runtime IDs (one per state combination).
 
-use super::{Registry, RegistryEntry};
+use super::RegistryEntry;
+use std::collections::HashMap;
+use std::sync::LazyLock;
+
+const MISSING_INDEX: usize = usize::MAX;
+
+static VANILLA_BLOCK_REGISTRY: LazyLock<BlockRegistry> = LazyLock::new(|| {
+    let mut registry = BlockRegistry::new();
+    registry.load_vanilla();
+    registry
+});
 
 /// Runtime block entry in the registry.
 #[derive(Debug, Clone)]
@@ -50,17 +60,33 @@ impl RegistryEntry for BlockEntry {
     }
 }
 
-/// Block registry with O(1) runtime_id → block lookup.
+/// Block registry with O(1) runtime_id -> block lookup.
 #[derive(Debug, Clone, Default)]
 pub struct BlockRegistry {
-    inner: Registry<BlockEntry>,
-    /// Maps runtime state ID → block entry ID. Index = runtime_id, value = block id.
-    runtime_id_map: Vec<u32>,
+    entries: Vec<BlockEntry>,
+    /// Maps legacy numeric block ID to the first matching entry.
+    ///
+    /// Bedrock has duplicate numeric IDs in generated data, so string ID or
+    /// runtime state ID lookups are preferred for precise block identity.
+    id_map: HashMap<u32, usize>,
+    /// Maps string ID to entry index.
+    name_map: HashMap<String, usize>,
+    /// Maps runtime state ID to entry index. Index = runtime_id.
+    runtime_id_map: Vec<usize>,
 }
 
 impl BlockRegistry {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Shared vanilla-only, read-only registry snapshot for systems that need
+    /// protocol block IDs outside ECS resource access.
+    ///
+    /// Runtime-mutated or plugin-provided block registries should flow through
+    /// explicit `BlockRegistry` resources instead of this global snapshot.
+    pub fn vanilla() -> &'static Self {
+        &VANILLA_BLOCK_REGISTRY
     }
 
     /// Load vanilla blocks from valentine's generated data.
@@ -69,10 +95,13 @@ impl BlockRegistry {
     pub fn load_vanilla(&mut self) {
         use jolyne::valentine::blocks::BLOCKS;
 
-        // Find max runtime_id to size the lookup table
-        let max_rid = BLOCKS.iter().map(|b| b.max_state_id()).max().unwrap_or(0);
+        self.entries.clear();
+        self.id_map.clear();
+        self.name_map.clear();
 
-        self.runtime_id_map = vec![u32::MAX; (max_rid + 1) as usize];
+        // Find max runtime_id to size the lookup table.
+        let max_rid = BLOCKS.iter().map(|b| b.max_state_id()).max().unwrap_or(0);
+        self.runtime_id_map = vec![MISSING_INDEX; (max_rid + 1) as usize];
 
         for block in BLOCKS.iter() {
             let entry = BlockEntry {
@@ -91,49 +120,67 @@ impl BlockRegistry {
                 filter_light: block.filter_light(),
             };
 
-            // Fill the runtime_id → block_id mapping for every state
+            let entry_index = self.entries.len();
+
+            // Fill the runtime_id -> entry mapping for every state.
             for rid in entry.min_state_id..=entry.max_state_id {
-                self.runtime_id_map[rid as usize] = entry.id;
+                self.runtime_id_map[rid as usize] = entry_index;
             }
 
-            let _ = self.inner.register(entry);
+            // Keep the first block for legacy numeric-ID lookup, but always
+            // preserve every block by string ID and runtime state ID.
+            self.id_map.entry(entry.id).or_insert(entry_index);
+            self.name_map.insert(entry.string_id.clone(), entry_index);
+            self.entries.push(entry);
         }
     }
 
     /// Get block entry by runtime ID (state ID). O(1).
     #[inline]
     pub fn get_by_runtime_id(&self, runtime_id: u32) -> Option<&BlockEntry> {
-        let block_id = *self.runtime_id_map.get(runtime_id as usize)?;
-        if block_id == u32::MAX {
+        let entry_index = *self.runtime_id_map.get(runtime_id as usize)?;
+        if entry_index == MISSING_INDEX {
             return None;
         }
-        self.inner.get(block_id)
+        self.entries.get(entry_index)
     }
 
     /// Get entry by block ID. O(1).
+    ///
+    /// Prefer `get_by_name` or `get_by_runtime_id` when exact identity matters,
+    /// because Bedrock block numeric IDs are not globally unique.
     #[inline]
     pub fn get(&self, id: u32) -> Option<&BlockEntry> {
-        self.inner.get(id)
+        self.id_map
+            .get(&id)
+            .and_then(|index| self.entries.get(*index))
     }
 
-    /// Get entry by string ID (linear scan).
+    /// Get entry by string ID. O(1).
     pub fn get_by_name(&self, name: &str) -> Option<&BlockEntry> {
-        self.inner.get_by_name(name)
+        self.name_map
+            .get(name)
+            .and_then(|index| self.entries.get(*index))
+    }
+
+    /// Get a block's default runtime state ID by string ID.
+    pub fn default_state_id_by_name(&self, name: &str) -> Option<u32> {
+        self.get_by_name(name).map(|block| block.default_state_id)
     }
 
     /// Iterate over all entries.
     pub fn iter(&self) -> impl Iterator<Item = &BlockEntry> {
-        self.inner.iter()
+        self.entries.iter()
     }
 
     /// Number of registered entries.
     pub fn len(&self) -> usize {
-        self.inner.len()
+        self.entries.len()
     }
 
     /// Check if empty.
     pub fn is_empty(&self) -> bool {
-        self.inner.is_empty()
+        self.entries.is_empty()
     }
 
     /// Generate BlockPropertyData for PacketStartGame using canonical block palette.
@@ -214,6 +261,50 @@ mod tests {
                 .expect("runtime ID should map to fence gate")
                 .string_id,
             "minecraft:fence_gate"
+        );
+    }
+
+    #[test]
+    fn duplicate_numeric_ids_do_not_hide_string_or_runtime_lookup() {
+        let mut registry = BlockRegistry::new();
+        registry.load_vanilla();
+
+        assert_eq!(
+            registry
+                .get(8)
+                .expect("legacy numeric ID 8 should resolve to first generated entry")
+                .string_id,
+            "minecraft:flowing_water",
+            "numeric ID lookup is first-match legacy behavior"
+        );
+
+        let grass = registry
+            .get_by_name("minecraft:grass_block")
+            .expect("grass block should be registered by string ID");
+        assert_eq!(grass.id, 8);
+        assert_eq!(
+            registry
+                .get_by_runtime_id(grass.default_state_id)
+                .expect("grass default runtime ID should map back to grass")
+                .string_id,
+            "minecraft:grass_block"
+        );
+    }
+
+    #[test]
+    fn shared_vanilla_registry_resolves_default_state_ids() {
+        let registry = BlockRegistry::vanilla();
+
+        assert_eq!(
+            registry.default_state_id_by_name("minecraft:stone"),
+            registry
+                .get_by_name("minecraft:stone")
+                .map(|block| block.default_state_id)
+        );
+        assert!(
+            registry
+                .default_state_id_by_name("minecraft:not_a_real_block")
+                .is_none()
         );
     }
 }
