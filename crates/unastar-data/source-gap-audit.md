@@ -32,7 +32,8 @@ artifact or generated Rust table is added.
   `data/vanilla_bp/behavior_pack/biomes/*.biome.json`, normalized into
   `output/biomes.kdl`.
 - The checked-in PMMP subset currently includes required item and creative
-  inventory data, but does **not** include `biome_definitions.json`,
+  inventory data, both normalized into generated Rust consumers, but does
+  **not** include `biome_definitions.json`,
   `biome_id_map.json`, `block_properties_table.json`, or `item_tags.json`.
 - `bds-extractor` builds and validates fixture JSON, and `unastar-data-gen`
   can normalize a validated capture into `biome_packets.kdl` and
@@ -56,6 +57,7 @@ artifact or generated Rust table is added.
 | Blocks | Exact collision/shape and behavior families | Native extractor or verified pack component data when exposed | Missing | Add `unknown`/family placeholders only when logged and source-attributed |
 | Items | Network IDs, component-based flags, versions | BDS packet trace / PMMP `required_item_list.json` | Present locally and normalized | Keep generated artifact as authoritative for item registry packets |
 | Items | Tags and component NBT semantics | PMMP `item_tags.json`, required-item component NBT, native extractor | Tags missing locally | Import tags before recipe/crafting semantics |
+| Creative inventory | Group/tab layout, item order, block-state variants, damage/meta variants | BDS packet trace / PMMP creative inventory JSON | Present locally in `creative.kdl` and generated `unastar_data::creative` | Keep runtime consumers on generated artifact, not raw PMMP JSON |
 | Entities | Behavior-pack components, component groups, events | Vanilla behavior-pack JSON + local overrides | Present and generated | Continue runtime integration through generic interpreters |
 | Entities | Available actor identifiers packet | BDS packet extraction / PMMP `entity_identifiers.nbt` | Ingestion lane present; real capture artifact not checked in | Capture from a real BDS target, generate `entity_identifiers.kdl`, then decode/generate a typed consumer |
 | Recipes/Loot | Recipe and loot tables | Vanilla packs plus PMMP packet traces for network recipe format | Not normalized | Add artifacts after item tags are sourced |

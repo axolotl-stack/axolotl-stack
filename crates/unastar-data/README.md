@@ -35,7 +35,8 @@ first, then enrich with BDS packet/native facts.
 
 `output/manifest.kdl` records source paths, commits/hashes, confidence, and artifact hashes.
 The currently vendored PMMP/BedrockData JSON inputs live under `data/upstream/pmmp/`
-and are exposed through `unastar_data::pmmp` constants for legacy Unastar registries.
+and are normalized into `items.kdl` and `creative.kdl` before Unastar runtime
+consumption.
 Current golden artifacts include:
 
 - `entities.kdl` from vanilla behavior-pack entities plus local overrides.
@@ -95,6 +96,12 @@ Generate or refresh the Rust consumer surface for block artifacts:
 
 ```powershell
 cargo run -p unastar-data-codegen -- --blocks-only
+```
+
+Generate or refresh the Rust consumer surface for creative inventory artifacts:
+
+```powershell
+cargo run -p unastar-data-codegen -- --creative-only
 ```
 
 Run full artifact generation and include BDS packet/runtime facts:

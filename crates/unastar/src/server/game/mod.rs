@@ -461,16 +461,7 @@ impl GameServer {
             ItemLegacyContent, ItemLegacyContentExtra,
         };
 
-        let creative_data = match CreativeInventoryData::load() {
-            Ok(data) => data,
-            Err(e) => {
-                warn!(
-                    "Failed to load creative inventory data: {}. Using empty creative content.",
-                    e
-                );
-                return CreativeContentPacket::default();
-            }
-        };
+        let creative_data = CreativeInventoryData::load();
 
         let mut protocol_groups = Vec::new();
         let mut items_list = Vec::new();
@@ -489,11 +480,11 @@ impl GameServer {
             for group in tab_groups {
                 protocol_groups.push(CreativeContentPacketGroupsItem {
                     category,
-                    name: group.group_name.clone(),
+                    name: group.group_name.to_string(),
                     icon_item: ItemLegacy::default(),
                 });
 
-                for creative_item in &group.items {
+                for creative_item in group.items {
                     let Some(item_entry) = items.get_by_name(creative_item.item_id()) else {
                         // Skip items not in the registry (internal state blocks, etc.)
                         continue;
