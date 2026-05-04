@@ -2,6 +2,7 @@ use clap::Parser;
 use std::path::PathBuf;
 use tracing::info;
 
+mod biomes;
 mod component_schemas;
 mod entities;
 mod utils;
@@ -21,6 +22,14 @@ struct Args {
     /// Tracing filter
     #[arg(long, default_value = "info")]
     log: String,
+
+    /// Only generate biome Rust data from biomes.kdl
+    #[arg(long, conflicts_with = "entities_only")]
+    biomes_only: bool,
+
+    /// Only generate entity Rust data from entities.kdl
+    #[arg(long, conflicts_with = "biomes_only")]
+    entities_only: bool,
 }
 
 fn main() -> miette::Result<()> {
@@ -37,9 +46,15 @@ fn main() -> miette::Result<()> {
     let input_path = manifest_dir.join(&args.input);
     let output_path = manifest_dir.join(&args.output);
 
-    // Generate entities
-    info!("Generating entity code...");
-    entities::generate_entities(&input_path, &output_path)?;
+    if !args.biomes_only {
+        info!("Generating entity code...");
+        entities::generate_entities(&input_path, &output_path)?;
+    }
+
+    if !args.entities_only {
+        info!("Generating biome code...");
+        biomes::generate_biomes(&input_path, &output_path)?;
+    }
 
     info!("Done!");
     Ok(())

@@ -18,6 +18,7 @@
 // generator learns to derive equivalent defaults safely.
 #![allow(clippy::derivable_impls)]
 
+pub mod biomes;
 pub mod entities;
 pub mod pmmp;
 pub mod source;
