@@ -2,17 +2,18 @@
 
 use std::collections::HashMap;
 
-use serde::Deserialize;
-use tracing::{debug, info, warn};
+use tracing::info;
 
 use super::{Registry, RegistryEntry, RegistryError};
 
 /// Runtime item entry in the registry.
 #[derive(Debug, Clone)]
 pub struct ItemEntry {
-    /// Numeric item ID (ordinal, internal use).
+    /// Internal registry ID.
+    ///
+    /// This is not a Bedrock packet/network item ID.
     pub id: u32,
-    /// Signed protocol network ID from required_item_list.json.
+    /// Signed protocol network ID from normalized required item data.
     /// This is the ID the client expects in packets.
     pub network_id: i32,
     /// Whether the item is component-based in Bedrock's item registry.
@@ -24,6 +25,9 @@ pub struct ItemEntry {
     /// Display name.
     pub name: String,
     /// Maximum stack size.
+    ///
+    /// This defaults to 64 until stack limits are sourced from behavior-pack
+    /// item components or BDS/native data.
     pub stack_size: u8,
 }
 
@@ -35,15 +39,6 @@ impl RegistryEntry for ItemEntry {
     fn string_id(&self) -> &str {
         &self.string_id
     }
-}
-
-/// Entry from required_item_list.json.
-#[derive(Debug, Deserialize)]
-struct RequiredItem {
-    runtime_id: i32,
-    component_based: bool,
-    #[serde(default)]
-    version: i32,
 }
 
 /// Item registry with indexed protocol/network lookups.
@@ -123,94 +118,34 @@ impl ItemRegistry {
         self.inner.is_empty()
     }
 
-    /// Load vanilla items from valentine's generated data, enriched with
-    /// network IDs from pmmp/BedrockData's required_item_list.json.
+    /// Load vanilla item registry rows from normalized PMMP/BedrockData artifacts.
+    ///
+    /// The generated item table is authoritative for the protocol network ID,
+    /// component flag, and version. Stack sizes are intentionally defaulted
+    /// until sourced from behavior-pack item components or BDS/native data.
     pub fn load_vanilla(&mut self) {
-        use jolyne::valentine::items::ITEMS;
+        use unastar_data::items::ALL_ITEMS;
 
         self.inner = Registry::new();
         self.name_map.clear();
         self.network_id_map.clear();
 
-        // Parse required_item_list.json for correct network IDs
-        let required: HashMap<String, RequiredItem> =
-            match serde_json::from_str(unastar_data::REQUIRED_ITEM_LIST_JSON) {
-                Ok(map) => map,
-                Err(e) => {
-                    warn!(
-                        "Failed to parse required_item_list.json: {}. Using fallback IDs.",
-                        e
-                    );
-                    HashMap::new()
-                }
-            };
-
         info!(
-            required_items = required.len(),
-            valentine_items = ITEMS.len(),
-            "Loading item registry with network IDs"
+            item_registry_rows = ALL_ITEMS.len(),
+            "Loading item registry from generated item data"
         );
 
-        // Load items from valentine, overriding IDs with required_item_list
-        for item in ITEMS.iter() {
-            let network_id = required
-                .get(item.string_id())
-                .map(|r| r.runtime_id)
-                .unwrap_or_else(|| {
-                    debug!(
-                        string_id = %item.string_id(),
-                        "Item not found in required_item_list.json, using ordinal ID"
-                    );
-                    item.id() as i32
-                });
-            let (component_based, version) = required
-                .get(item.string_id())
-                .map(|r| (r.component_based, r.version))
-                .unwrap_or((false, 0));
-
+        for item in ALL_ITEMS {
             let entry = ItemEntry {
-                id: item.id(),
-                network_id,
-                component_based,
-                version,
-                string_id: item.string_id().to_string(),
-                name: item.name().to_string(),
-                stack_size: item.stack_size(),
+                id: item.id,
+                network_id: item.network_id,
+                component_based: item.component_based,
+                version: item.version,
+                string_id: item.identifier.to_string(),
+                name: item_display_name(item.identifier),
+                stack_size: ItemStackLimits::UNSOURCED_DEFAULT,
             };
-            // Ignore conflicts for vanilla loading
             let _ = self.register(entry);
-        }
-
-        // Register items that exist in required_item_list but NOT in valentine
-        // (Bedrock-specific items missing from PrismarineJS minecraft-data)
-        let mut next_extra_id = self.iter().map(|item| item.id).max().unwrap_or(0) + 1;
-        let mut extra_count = 0u32;
-        for (name, req) in &required {
-            if self.get_by_name(name).is_none() {
-                while self.get(next_extra_id).is_some() {
-                    next_extra_id += 1;
-                }
-                let display_name = name.strip_prefix("minecraft:").unwrap_or(name).to_string();
-                let entry = ItemEntry {
-                    id: next_extra_id,
-                    network_id: req.runtime_id,
-                    component_based: req.component_based,
-                    version: req.version,
-                    string_id: name.clone(),
-                    name: display_name,
-                    stack_size: 64,
-                };
-                let _ = self.register(entry);
-                next_extra_id += 1;
-                extra_count += 1;
-            }
-        }
-
-        if extra_count > 0 {
-            info!(
-                extra_items = extra_count,
-                "Registered extra items from required_item_list.json"
-            );
         }
     }
 
@@ -252,6 +187,20 @@ fn itemstate_version(version: i32) -> jolyne::valentine::types::ItemstatesItemVe
         2 => ItemstatesItemVersion::None,
         other => ItemstatesItemVersion::Unknown(other),
     }
+}
+
+struct ItemStackLimits;
+
+impl ItemStackLimits {
+    /// Default only; not a sourced Bedrock item stack limit.
+    const UNSOURCED_DEFAULT: u8 = 64;
+}
+
+fn item_display_name(identifier: &str) -> String {
+    identifier
+        .strip_prefix("minecraft:")
+        .unwrap_or(identifier)
+        .replace('_', " ")
 }
 
 #[cfg(test)]
@@ -362,9 +311,18 @@ mod tests {
     }
 
     #[test]
-    fn load_vanilla_assigns_unique_extra_ids() {
+    fn load_vanilla_uses_generated_item_data() {
         let mut registry = ItemRegistry::new();
         registry.load_vanilla();
+
+        assert_eq!(registry.len(), unastar_data::items::ALL_ITEMS.len());
+        let apple = registry.get_by_name("minecraft:apple").expect("apple item");
+        let source = unastar_data::items::get("minecraft:apple").expect("source apple");
+        assert_eq!(apple.id, source.id);
+        assert_eq!(apple.network_id, source.network_id);
+        assert_eq!(apple.component_based, source.component_based);
+        assert_eq!(apple.version, source.version);
+        assert_eq!(apple.stack_size, ItemStackLimits::UNSOURCED_DEFAULT);
 
         let mut ids: Vec<_> = registry.iter().map(|item| item.id).collect();
         ids.sort_unstable();

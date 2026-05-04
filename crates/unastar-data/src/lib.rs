@@ -21,6 +21,7 @@
 pub mod bds_packets;
 pub mod biomes;
 pub mod entities;
+pub mod items;
 pub mod pmmp;
 pub mod source;
 pub mod types;

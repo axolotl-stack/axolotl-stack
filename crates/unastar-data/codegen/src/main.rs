@@ -6,6 +6,7 @@ mod bds_packets;
 mod biomes;
 mod component_schemas;
 mod entities;
+mod items;
 mod utils;
 
 #[derive(Parser, Debug)]
@@ -25,16 +26,20 @@ struct Args {
     log: String,
 
     /// Only generate biome Rust data from biomes.kdl
-    #[arg(long, conflicts_with_all = ["entities_only", "bds_packets_only"])]
+    #[arg(long, conflicts_with_all = ["entities_only", "bds_packets_only", "items_only"])]
     biomes_only: bool,
 
     /// Only generate entity Rust data from entities.kdl
-    #[arg(long, conflicts_with_all = ["biomes_only", "bds_packets_only"])]
+    #[arg(long, conflicts_with_all = ["biomes_only", "bds_packets_only", "items_only"])]
     entities_only: bool,
 
     /// Only generate BDS packet/runtime Rust data from optional BDS KDL artifacts
-    #[arg(long, conflicts_with_all = ["entities_only", "biomes_only"])]
+    #[arg(long, conflicts_with_all = ["entities_only", "biomes_only", "items_only"])]
     bds_packets_only: bool,
+
+    /// Only generate item registry Rust data from items.kdl
+    #[arg(long, conflicts_with_all = ["entities_only", "biomes_only", "bds_packets_only"])]
+    items_only: bool,
 }
 
 fn main() -> miette::Result<()> {
@@ -51,19 +56,24 @@ fn main() -> miette::Result<()> {
     let input_path = manifest_dir.join(&args.input);
     let output_path = manifest_dir.join(&args.output);
 
-    if !args.biomes_only && !args.bds_packets_only {
+    if !args.biomes_only && !args.bds_packets_only && !args.items_only {
         info!("Generating entity code...");
         entities::generate_entities(&input_path, &output_path)?;
     }
 
-    if !args.entities_only && !args.bds_packets_only {
+    if !args.entities_only && !args.bds_packets_only && !args.items_only {
         info!("Generating biome code...");
         biomes::generate_biomes(&input_path, &output_path)?;
     }
 
-    if !args.entities_only && !args.biomes_only {
+    if !args.entities_only && !args.biomes_only && !args.items_only {
         info!("Generating BDS packet code...");
         bds_packets::generate_bds_packets(&input_path, &output_path)?;
+    }
+
+    if !args.entities_only && !args.biomes_only && !args.bds_packets_only {
+        info!("Generating item code...");
+        items::generate_items(&input_path, &output_path)?;
     }
 
     info!("Done!");
