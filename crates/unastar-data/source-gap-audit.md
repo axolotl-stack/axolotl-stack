@@ -71,6 +71,23 @@ not become the runtime architecture.
 6. Keep Unastar runtime consuming generated tables and behavior kernels, never
    native offsets or decompiler-shaped structs directly.
 
+## Live BDS packet-capture lane
+
+Use this lane for facts already exposed by BDS during login, before reaching for
+native/BDS binary analysis:
+
+1. Capture with `bds-extractor` into an untracked JSON file.
+2. Normalize the capture with `unastar-data-gen --bds-only --bds-extraction`.
+3. Review `biome_packets.kdl`, `entity_identifiers.kdl`, and manifest
+   provenance. BDS packet artifacts must have `source "bds_extractor_capture"`.
+4. Generate `unastar_data::bds_packets` with
+   `unastar-data-codegen --bds-packets-only`.
+5. Add typed joins to behavior-pack data only after the packet artifact and
+   behavior-pack artifact both exist and duplicate guards pass.
+
+Synthetic fixtures may exercise the pipeline in tests, but they are not source
+truth and must not be committed as packet/runtime artifacts.
+
 ## Immediate rule for biomes
 
 Do not generate `biomes.kdl` from Valentine/Prismarine data alone. The biome

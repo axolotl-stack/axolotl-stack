@@ -74,6 +74,12 @@ Refresh only BDS-extractor packet/runtime facts plus the manifest:
 cargo run -p unastar-data-gen -- --bds-only --bds-extraction <path-to-bds-extractor-json>
 ```
 
+Generate or refresh the Rust consumer surface for BDS packet artifacts:
+
+```powershell
+cargo run -p unastar-data-codegen -- --bds-packets-only
+```
+
 Run full artifact generation and include BDS packet/runtime facts:
 
 ```powershell
@@ -93,3 +99,29 @@ cargo run -p unastar-data-gen --
 ```
 
 If generated artifacts change, run `unastar-data-codegen` and review the generated Rust diff before committing.
+
+## BDS capture workflow
+
+Use `bds-extractor` for packet/runtime facts that are sent by BDS during login:
+
+```powershell
+cargo run -p bds-extractor -- `
+  --addr 127.0.0.1:19132 `
+  --name BDSExtractor `
+  --output .tmp/bds-capture.json
+```
+
+Then normalize and generate:
+
+```powershell
+cargo run -p unastar-data-gen -- `
+  --bds-only `
+  --bds-extraction .tmp/bds-capture.json `
+  --output crates/unastar-data/output
+
+cargo run -p unastar-data-codegen -- --bds-packets-only
+```
+
+Commit BDS-derived artifacts only when the capture came from a real validated
+BDS source. Synthetic fixtures are for tests only and must not be checked in as
+runtime facts.
