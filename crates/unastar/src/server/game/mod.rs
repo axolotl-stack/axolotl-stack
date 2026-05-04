@@ -34,7 +34,10 @@ use crate::entity::components::{
     PlayerName, PlayerSession, PlayerState, PlayerUuid, RuntimeEntityId, SpatialChunk,
 };
 use crate::entity::systems::{
-    apply_drag, apply_gravity, apply_velocity, check_ground_collision, clamp_velocity,
+    apply_drag, apply_gravity, apply_poison, apply_regeneration, apply_velocity, apply_wither,
+    check_ground_collision, clamp_velocity, despawn_dead, tick_age, tick_air_supply,
+    tick_damage_immunity, tick_effects, tick_fire, tick_item_despawn, tick_item_pickup_delay,
+    tick_mob_age, tick_projectile_lifetime,
 };
 use crate::network::SessionId;
 use crate::registry::{BiomeRegistry, BlockRegistry, EntityRegistry, ItemRegistry};
@@ -195,6 +198,27 @@ impl GameServer {
 
         ecs.schedule_mut().add_systems(
             (tick_block_breaking, plugins::process_plugin_actions).in_set(EntityLogicSet),
+        );
+        ecs.schedule_mut().add_systems(
+            (
+                tick_age,
+                tick_mob_age,
+                apply_regeneration,
+                apply_poison,
+                apply_wither,
+                tick_air_supply,
+                tick_fire,
+                tick_damage_immunity,
+                tick_effects,
+                tick_item_pickup_delay,
+                tick_item_despawn,
+                tick_projectile_lifetime,
+                despawn_dead,
+            )
+                .chain()
+                .in_set(EntityLogicSet)
+                .before(tick_block_breaking)
+                .before(plugins::process_plugin_actions),
         );
         ecs.schedule_mut().add_systems(
             (
@@ -546,7 +570,7 @@ impl Default for GameServer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::entity::components::{Living, OnGround, Velocity};
+    use crate::entity::components::{Age, DroppedItem, Living, OnGround, PickupDelay, Velocity};
     use glam::DVec3;
 
     #[test]
@@ -576,5 +600,23 @@ mod tests {
             velocity.0.y < 0.0,
             "scheduled physics should leave falling velocity after drag"
         );
+    }
+
+    #[test]
+    fn game_tick_runs_entity_lifecycle_systems() {
+        let mut server = GameServer::new();
+        let entity = server
+            .ecs
+            .world_mut()
+            .spawn((Age(0), DroppedItem, PickupDelay(2)))
+            .id();
+
+        server.tick();
+
+        let world = server.ecs.world();
+        let age = world.get::<Age>(entity).expect("age");
+        let pickup_delay = world.get::<PickupDelay>(entity).expect("pickup delay");
+        assert_eq!(age.0, 1);
+        assert_eq!(pickup_delay.0, 1);
     }
 }
