@@ -34,8 +34,11 @@ pub enum CreativeItemEntry {
         #[serde(default)]
         block_states: Option<String>,
 
-        /// Damage value (for legacy item variants).
-        #[serde(default)]
+        /// Damage value for legacy item variants.
+        ///
+        /// PMMP/BedrockData names this field `meta`; accept both spellings so
+        /// creative variants like beds and tipped arrows do not collapse.
+        #[serde(default, alias = "meta")]
         damage: Option<i16>,
 
         /// NBT data (base64-encoded).
@@ -127,5 +130,27 @@ mod tests {
         let first_group = &data.construction[0];
         assert_eq!(first_group.group_name, "itemGroup.name.planks");
         assert!(!first_group.items.is_empty());
+    }
+
+    #[test]
+    fn test_pmmp_meta_variants_are_preserved() {
+        let data = CreativeInventoryData::load().expect("Failed to load creative inventory");
+        let (_, equipment) = data
+            .all_groups_ordered()
+            .into_iter()
+            .find(|(tab, _)| *tab == "Equipment")
+            .expect("equipment tab exists");
+        let arrow_group = equipment
+            .iter()
+            .find(|group| group.group_name == "itemGroup.name.arrow")
+            .expect("arrow creative group exists");
+
+        assert!(
+            arrow_group
+                .items
+                .iter()
+                .any(|item| item.item_id() == "minecraft:arrow" && item.damage() == 6),
+            "PMMP `meta` values must survive creative JSON loading"
+        );
     }
 }
