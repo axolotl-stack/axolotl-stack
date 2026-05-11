@@ -1,0 +1,44 @@
+thread 'coordinator' panicked at /rustc-dev/b90dc1e597db0bbc0cab0eccb39747b1a9d7e607/compiler\rustc_codegen_ssa\src\back\write.rs:1918:6:
+failed to spawn work thread: Os { code: 1455, kind: Uncategorized, message: "The paging file is too small for this operation to complete." }
+stack backtrace:
+   0:     0x7ffe313be6ce - <unknown>
+   1:     0x7ffe313be60a - <unknown>
+   2:     0x7ffe32b9cd27 - <unknown>
+   3:     0x7ffe313d2634 - <unknown>
+   4:     0x7ffe313b7e14 - <unknown>
+   5:     0x7ffe313b52ff - <unknown>
+   6:     0x7ffe313b89ce - <unknown>
+   7:     0x7ffe3566d3ad - <unknown>
+   8:     0x7ffe3566d047 - <unknown>
+   9:     0x7ffe2e77a38c - <unknown>
+  10:     0x7ffe314a04d8 - <unknown>
+  11:     0x7ffe2e78081e - <unknown>
+  12:     0x7ffe2e78bc1e - <unknown>
+  13:     0x7ffe313dc23c - <unknown>
+  14:     0x7fff94d3e8d7 - <unknown>
+  15:     0x7fff96f2c3fc - <unknown>
+
+
+rustc version: 1.96.0-nightly (b90dc1e59 2026-03-04)
+platform: x86_64-pc-windows-msvcthread 'rustc' panicked at /rustc-dev/b90dc1e597db0bbc0cab0eccb39747b1a9d7e607/compiler\rustc_codegen_ssa\src\back\write.rs:2151:17:
+/rustc-dev/b90dc1e597db0bbc0cab0eccb39747b1a9d7e607/compiler\rustc_codegen_ssa\src\back\write.rs:2151:17: panic during codegen/LLVM phase
+stack backtrace:
+   0:     0x7ffe313be6ce - <unknown>
+   1:     0x7ffe313be60a - <unknown>
+   2:     0x7ffe32b9cd27 - <unknown>
+   3:     0x7ffe313d2634 - <unknown>
+   4:     0x7ffe3524395f - <unknown>
+   5:     0x7ffe35230899 - <unknown>
+   6:     0x7ffe352203f4 - <unknown>
+   7:     0x7ffe35243f12 - <unknown>
+   8:     0x7ffe35243f95 - <unknown>
+   9:     0x7ffe35230e46 - <unknown>
+  10:     0x7ffe3527e336 - <unknown>
+  11:     0x7ffe2e7d71ad - <unknown>
+  12:     0x7ffe2e735a26 - <unknown>
+  13:     0x7ffe2e6dae7f - <unknown>
+  14:     0x7ffe2e6d6b21 - <unknown>
+  15:     0x7ffe2e6dfb0a - <unknown>
+  16:     0x7ffe313dc23c - <unknown>
+  17:     0x7fff94d3e8d7 - <unknown>
+  18:     0x7fff96f2c3fc - <unknown>
