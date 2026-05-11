@@ -586,3 +586,123 @@ impl<T: Transport> BedrockStream<Play, Server, T> {
         self.transport.send(packet).await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::batch::{decode_batch, encode_batch_multi};
+    use crate::stream::transport::{BedrockTransport, TransportMessage, TransportRecvMessage};
+    use crate::valentine::{
+        ClientCacheStatusPacket, ResourcePackClientResponsePacket,
+        ResourcePackClientResponsePacketResponseStatus,
+    };
+    use bytes::Bytes;
+    use std::collections::VecDeque;
+    use std::io;
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+    use std::pin::Pin;
+    use std::sync::{Arc, Mutex};
+    use std::task::{Context, Poll};
+
+    struct ScriptedTransport {
+        inbound: VecDeque<TransportRecvMessage>,
+        sent: Arc<Mutex<Vec<TransportMessage>>>,
+    }
+
+    impl ScriptedTransport {
+        fn new(inbound: Vec<Bytes>, sent: Arc<Mutex<Vec<TransportMessage>>>) -> Self {
+            Self {
+                inbound: inbound
+                    .into_iter()
+                    .map(TransportRecvMessage::Contiguous)
+                    .collect(),
+                sent,
+            }
+        }
+    }
+
+    impl Transport for ScriptedTransport {
+        type Error = io::Error;
+
+        const USES_BATCH_PREFIX: bool = true;
+
+        fn poll_send(
+            self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+            msg: TransportMessage,
+        ) -> Poll<Result<(), Self::Error>> {
+            self.sent.lock().expect("sent lock").push(msg);
+            Poll::Ready(Ok(()))
+        }
+
+        fn poll_recv(
+            self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+        ) -> Poll<Option<Result<TransportRecvMessage, Self::Error>>> {
+            Poll::Ready(self.get_mut().inbound.pop_front().map(Ok))
+        }
+
+        fn peer_addr(&self) -> SocketAddr {
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0)
+        }
+    }
+
+    fn compressed_frame(packet: McpePacket) -> Bytes {
+        encode_batch_multi(&[packet], true, 0, 0, true).expect("encode packet")
+    }
+
+    #[tokio::test]
+    async fn resource_pack_negotiation_ignores_client_cache_status_before_pack_response() {
+        let sent = Arc::new(Mutex::new(Vec::new()));
+        let inbound = vec![
+            compressed_frame(McpePacket::from(ClientCacheStatusPacket { enabled: false })),
+            compressed_frame(McpePacket::from(ResourcePackClientResponsePacket {
+                response_status: ResourcePackClientResponsePacketResponseStatus::HaveAllPacks,
+                resourcepackids: vec![],
+            })),
+        ];
+
+        let mut transport = BedrockTransport::new(ScriptedTransport::new(inbound, sent.clone()));
+        transport.set_compression(true, 0, 0);
+        let stream = BedrockStream {
+            transport,
+            state: ResourcePacks { early_packet: None },
+            _role: PhantomData,
+        };
+
+        let _start = stream
+            .negotiate_packs(false)
+            .await
+            .expect("ClientCacheStatus should not block pack negotiation");
+
+        let sent = sent.lock().expect("sent lock");
+        assert_eq!(
+            sent.len(),
+            1,
+            "server should send ResourcePacksInfo and ResourcePackStack in one batch"
+        );
+
+        let mut frame = sent[0].buffer.clone();
+        let decoded = decode_batch(
+            &mut frame,
+            &valentine::bedrock::context::BedrockSession { shield_item_id: 0 },
+            true,
+            None,
+        )
+        .expect("decode resource pack negotiation batch");
+
+        assert!(matches!(
+            decoded.as_slice(),
+            [
+                McpePacket {
+                    data: McpePacketData::PacketResourcePacksInfo(_),
+                    ..
+                },
+                McpePacket {
+                    data: McpePacketData::PacketResourcePackStack(_),
+                    ..
+                }
+            ]
+        ));
+    }
+}
