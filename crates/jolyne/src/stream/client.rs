@@ -463,6 +463,11 @@ impl<T: Transport> BedrockStream<SecurePending, Client, T> {
                     ))
                     .into());
                 }
+                self.transport
+                    .send_batch(&[McpePacket::from(ClientCacheStatusPacket {
+                        enabled: false,
+                    })])
+                    .await?;
             }
             _ => {
                 return Err(ProtocolError::UnexpectedHandshake(
@@ -477,6 +482,108 @@ impl<T: Transport> BedrockStream<SecurePending, Client, T> {
             state: ResourcePacks { early_packet: None },
             _role: PhantomData,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::batch::{decode_batch, encode_batch_multi};
+    use crate::stream::transport::{BedrockTransport, TransportMessage, TransportRecvMessage};
+    use bytes::Bytes;
+    use std::collections::VecDeque;
+    use std::io;
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+    use std::pin::Pin;
+    use std::sync::{Arc, Mutex};
+    use std::task::{Context, Poll};
+
+    struct ScriptedTransport {
+        inbound: VecDeque<TransportRecvMessage>,
+        sent: Arc<Mutex<Vec<TransportMessage>>>,
+    }
+
+    impl ScriptedTransport {
+        fn new(inbound: Vec<Bytes>, sent: Arc<Mutex<Vec<TransportMessage>>>) -> Self {
+            Self {
+                inbound: inbound
+                    .into_iter()
+                    .map(TransportRecvMessage::Contiguous)
+                    .collect(),
+                sent,
+            }
+        }
+    }
+
+    impl Transport for ScriptedTransport {
+        type Error = io::Error;
+
+        const USES_BATCH_PREFIX: bool = true;
+
+        fn poll_send(
+            self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+            msg: TransportMessage,
+        ) -> Poll<Result<(), Self::Error>> {
+            self.sent.lock().expect("sent lock").push(msg);
+            Poll::Ready(Ok(()))
+        }
+
+        fn poll_recv(
+            self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+        ) -> Poll<Option<Result<TransportRecvMessage, Self::Error>>> {
+            Poll::Ready(self.get_mut().inbound.pop_front().map(Ok))
+        }
+
+        fn peer_addr(&self) -> SocketAddr {
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0)
+        }
+    }
+
+    fn compressed_frame(packet: McpePacket) -> Bytes {
+        encode_batch_multi(&[packet], true, 0, 0, true).expect("encode packet")
+    }
+
+    #[tokio::test]
+    async fn unencrypted_login_success_sends_client_cache_status_before_resource_packs() {
+        let sent = Arc::new(Mutex::new(Vec::new()));
+        let inbound = vec![compressed_frame(McpePacket::from(crate::valentine::PlayStatusPacket {
+            status: PlayStatusPacketStatus::LoginSuccess,
+        }))];
+
+        let mut transport = BedrockTransport::new(ScriptedTransport::new(inbound, sent.clone()));
+        transport.set_compression(true, 0, 0);
+        let stream = BedrockStream {
+            transport,
+            state: SecurePending { config: None },
+            _role: PhantomData,
+        };
+
+        let _packs = stream
+            .await_handshake(&SecretKey::random(&mut rand::thread_rng()))
+            .await
+            .expect("unencrypted LoginSuccess should advance to resource packs");
+
+        let sent = sent.lock().expect("sent lock");
+        assert_eq!(sent.len(), 1, "client must send ClientCacheStatus");
+
+        let mut frame = sent[0].buffer.clone();
+        let decoded = decode_batch(
+            &mut frame,
+            &valentine::bedrock::context::BedrockSession { shield_item_id: 0 },
+            true,
+            None,
+        )
+        .expect("decode ClientCacheStatus frame");
+
+        assert!(matches!(
+            decoded.as_slice(),
+            [McpePacket {
+                data: McpePacketData::PacketClientCacheStatus(status),
+                ..
+            }] if !status.enabled
+        ));
     }
 }
 
