@@ -464,9 +464,7 @@ impl<T: Transport> BedrockStream<SecurePending, Client, T> {
                     .into());
                 }
                 self.transport
-                    .send_batch(&[McpePacket::from(ClientCacheStatusPacket {
-                        enabled: false,
-                    })])
+                    .send_batch(&[McpePacket::from(ClientCacheStatusPacket { enabled: false })])
                     .await?;
             }
             _ => {
@@ -548,9 +546,11 @@ mod tests {
     #[tokio::test]
     async fn unencrypted_login_success_sends_client_cache_status_before_resource_packs() {
         let sent = Arc::new(Mutex::new(Vec::new()));
-        let inbound = vec![compressed_frame(McpePacket::from(crate::valentine::PlayStatusPacket {
-            status: PlayStatusPacketStatus::LoginSuccess,
-        }))];
+        let inbound = vec![compressed_frame(McpePacket::from(
+            crate::valentine::PlayStatusPacket {
+                status: PlayStatusPacketStatus::LoginSuccess,
+            },
+        ))];
 
         let mut transport = BedrockTransport::new(ScriptedTransport::new(inbound, sent.clone()));
         transport.set_compression(true, 0, 0);
