@@ -47,6 +47,8 @@ jobs:
           cargo test -p jolyne --lib --tests
           cargo test -p tokio-nethernet
           cargo test -p axolotl-xbl
+          cargo check -p unastar --all-targets
+          cargo test -p unastar --lib --tests
 
   test-windows:
     runs-on: windows-latest
@@ -77,6 +79,8 @@ jobs:
           cargo test -p jolyne --lib --tests
           cargo test -p tokio-nethernet
           cargo test -p axolotl-xbl
+          cargo check -p unastar --all-targets
+          cargo test -p unastar --lib --tests
 
   mutation-test:
     runs-on: ubuntu-latest

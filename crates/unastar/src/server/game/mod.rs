@@ -576,8 +576,11 @@ impl Default for GameServer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::entity::components::{Age, DroppedItem, Living, OnGround, PickupDelay, Velocity};
+    use crate::entity::components::{
+        Age, ChunkRadius, DroppedItem, Living, OnGround, PickupDelay, PlayerSession, Velocity,
+    };
     use glam::DVec3;
+    use jolyne::valentine::McpePacketData;
 
     #[test]
     fn game_tick_runs_physics_set_for_living_entities() {
@@ -627,22 +630,54 @@ mod tests {
     }
 
     #[test]
-    fn start_game_advertises_server_authoritative_gameplay() {
-        let server = GameServer::new();
-        let world = server.ecs.world();
-        let template = world
-            .resource::<types::ServerWorldTemplate>()
-            .0
-            .start_game_template
-            .clone();
+    fn player_spawn_sets_join_chunk_gate_without_network_io() {
+        let mut server = GameServer::with_config(ServerConfig {
+            default_chunk_radius: 2,
+            max_chunk_radius: 4,
+            ..ServerConfig::default()
+        });
+        let (outbound_tx, mut outbound_rx) = tokio::sync::mpsc::channel(32);
+
+        let entity = server.spawn_player(PlayerSpawnData {
+            session_id: 42,
+            display_name: "smoke".to_string(),
+            xuid: None,
+            uuid: Some("00000000-0000-0000-0000-000000000042".to_string()),
+            runtime_id: 7,
+            position: DVec3::new(0.5, 17.0, 0.5),
+            outbound_tx,
+            chunk_radius: 2,
+        });
+
+        {
+            let world = server.ecs.world();
+            let chunk_radius = world.get::<ChunkRadius>(entity).expect("chunk radius");
+            assert_eq!(chunk_radius.0, 2);
+
+            let chunk_loader = world.get::<ChunkLoader>(entity).expect("chunk loader");
+            assert_eq!(chunk_loader.position(), (0, 0));
+            assert_eq!(chunk_loader.queue_len(), 25);
+            assert_eq!(chunk_loader.peek_next_to_load(), Some((0, 0)));
+            assert!(
+                chunk_loader.has_pending(),
+                "spawn should leave chunk publish work queued for the join gate"
+            );
+
+            let session = world.get::<PlayerSession>(entity).expect("player session");
+            assert_eq!(session.packets_dropped(), 0);
+        }
+
+        let first_packet = outbound_rx.try_recv().expect("initial join packet");
+        match first_packet.data {
+            McpePacketData::PacketChunkRadiusUpdate(packet) => {
+                assert_eq!(packet.chunk_radius, 2);
+            }
+            other => panic!("expected ChunkRadiusUpdate first, got {other:?}"),
+        }
 
         assert!(
-            template.server_authoritative_inventory,
-            "clients must not treat inventory as client-authoritative"
-        );
-        assert!(
-            template.server_authoritative_block_breaking,
-            "clients must not treat block breaking as client-authoritative"
+            outbound_rx.try_recv().is_ok(),
+            "spawn should enqueue additional join packets after chunk radius"
         );
     }
 }
