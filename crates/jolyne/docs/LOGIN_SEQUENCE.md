@@ -90,3 +90,14 @@ sequenceDiagram
 - `CreativeContent`: Populates the creative inventory.
 - `PlayStatus(Spawned)`: Sent by the **Server** after `RequestChunkRadius` to remove the loading screen.
 - `SetLocalPlayerAsInitialized`: Sent by the **Client** to confirm they are ready.
+
+
+## Acceptance Gates
+
+This sequence is the contract for compatibility smoke tests, not just documentation.
+
+- A Jolyne integration test should assert the server-side packet order through `PlayStatus(Spawned)`.
+- An Unastar smoke test should boot the server, complete this sequence with real registry data, request a chunk radius, and remain connected.
+- Resource-pack negotiation must wait for the correct completed client response before `StartGame`.
+- `ClientCacheStatus` must be accepted without blocking the flow, even when blob-cache support is disabled.
+- Each handshake stage should have a timeout and deterministic disconnect reason.

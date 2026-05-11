@@ -4,9 +4,39 @@ This document outlines the development path from current state to a fully-featur
 
 See `LONGTERM.md` for the architectural vision (WASM plugins, tick phases, API design).
 
+
+---
+
+## Vanilla Compatibility Definition & Evidence Gates
+
+Unastar should not claim broad vanilla compatibility until the gates below pass on the pinned Bedrock protocol version exposed through `jolyne::valentine` (`bedrock_1_26_0` today). The near-term target is **vanilla-compatible join, spawn, and basic creative interaction**, not full survival parity.
+
+### Evidence Matrix
+
+| Gate | Required evidence | Primary owners |
+| --- | --- | --- |
+| JOLYNE-M1 handshake smoke | Offline and online-mode login harness reaches `Play` without panics, with bounded timeouts and expected disconnect reasons. | `jolyne` |
+| JOLYNE-M2 resource-pack negotiation | `ResourcePacksInfo -> ResourcePackStack -> Completed` is gated correctly; non-empty packs exercise `DataInfo`, `ChunkRequest`, and `ChunkData`; `ClientCacheStatus` is accepted/ignored safely. | `jolyne` |
+| JOLYNE-M3 start-game order | Integration test asserts the documented `LOGIN_SEQUENCE.md` order: `StartGame`, `ItemRegistry`, `BiomeDefinitionList`, `AvailableEntityIdentifiers`, `CreativeContent`, `PlayStatus(Spawned)`, then `SetLocalPlayerAsInitialized`. | `jolyne`, `unastar` |
+| UNASTAR-M1 boot/join/spawn | Launch a local Unastar server and one harness client; client joins, receives registries/start-game packets, requests radius, and remains connected. | `unastar` |
+| UNASTAR-M2 first chunks | `RequestChunkRadius` yields `ChunkRadiusUpdated`, `NetworkChunkPublisherUpdate`, and first chunk/subchunk data without silent all-air fallback for load/encode errors. | `unastar` |
+| UNASTAR-M3 creative loop | Creative inventory can place/break a block through server-authoritative validation; rejected actions resync client inventory/world state. | `unastar` |
+| UNASTAR-M4 persistence smoke | Disconnect/restart/rejoin preserves player position and loaded chunk edits; later expands to inventory, effects, entities, and block entities. | `unastar` |
+| DATA-M1 provenance | Blocks, items, biomes, entities, creative content, and worldgen tables map to a source artifact, generated table, protocol packet, and at least one runtime assertion. | `unastar-data`, `valentine`, `unastar` |
+| CI-M1 compatibility gate | Linux and Windows CI run `cargo check/test -p unastar`, JOLYNE-M1..M3, and UNASTAR-M1..M2 before public docs use stronger compatibility wording. | workspace |
+
+### Current Review Findings Driving The Gates
+
+- `jolyne` has the typestate protocol foundation, RakNet/NetherNet transports, compression/encryption batching, and online/offline auth paths, but online-mode key trust, resource-pack sequencing, cache-status handling, and handshake timeouts need hardening before compatibility claims.
+- `unastar` has the tick runtime, ECS packet queues, chunk radius/subchunk responses, async chunk generation, player spawn/movement/despawn broadcast, basic creative inventory/container handling, block break/place broadcasts, and LevelDB persistence scaffolding.
+- `unastar` is not yet vanilla-authoritative: inventory requests, movement, and block interactions still trust too much client input; chunk streaming can hide errors; entity replication is player-centric; persistence omits several vanilla state domains.
+- Existing tests are mostly unit/source-boundary level. Add scripted protocol smoke tests before marking any gate complete.
+
 ---
 
 ## Current State ✓
+
+These are implemented foundations, not proof of the compatibility gates above. Keep each checked item paired with a smoke/integration test before using it as compatibility evidence.
 
 - [x] Basic networking (RakNet via `jolyne`)
 - [x] Player join/leave and authentication (Xbox Live + offline)
@@ -16,6 +46,34 @@ See `LONGTERM.md` for the architectural vision (WASM plugins, tick phases, API d
 - [x] Basic block breaking/placing with animations
 - [x] Entity spawn/despawn broadcasting
 - [x] Registry loading (blocks, items, biomes, entities)
+
+
+---
+
+## Phase -1: Compatibility Hardening Gates
+
+Work this phase before broad feature expansion. It turns the current server foundation into a measured vanilla-client baseline.
+
+### Jolyne Protocol Gates
+- [ ] Fix online-mode trust chain validation so JWT `x5u`/`x5c` headers cannot select untrusted keys.
+- [ ] Gate resource-pack progression on the correct `ResourcePackClientResponse` states and support non-empty pack `DataInfo`/`ChunkData` transfer.
+- [ ] Handle `ClientCacheStatus` explicitly, even when blob cache support is disabled.
+- [ ] Add deadlines and deterministic disconnect reasons for network-settings, login/auth, resource-pack, and start-game stages.
+- [ ] Add `crates/jolyne/tests/login_sequence.rs` for the documented packet ordering in `docs/LOGIN_SEQUENCE.md`.
+
+### Unastar Gameplay Authority Gates
+- [ ] Replace client-authoritative inventory writes with a server-side transaction engine and mismatch resync packets.
+- [ ] Validate movement against server collision/abilities/game mode and send corrections for invalid movement.
+- [ ] Route block break/place through an authoritative action pipeline with reach, gamemode, tool, collision, permission, and rollback checks.
+- [ ] Make chunk delivery explicit about loading/not-found/encode-error states; remove silent empty-payload/all-air fallbacks for unexpected errors.
+- [ ] Expand replication from player-only broadcasts to generic actor/item entity lifecycle packets tied to chunk viewers.
+- [ ] Persist vanilla player/world state beyond position: inventory, effects, abilities, block entities, entities, and biome data.
+
+### Compatibility Test Gates
+- [ ] Add `crates/unastar/tests/smoke_join.rs` to boot a server, join one harness client, request chunks, and assert no disconnect.
+- [ ] Add chunk-streaming regression tests for duplicate viewer registration, disconnect cleanup, send failure retry, and max subchunk-request behavior.
+- [ ] Add inventory/block/movement rejection tests that verify corrective packet output and no server-state mutation.
+- [ ] Add CI jobs for `cargo check -p unastar --all-targets`, `cargo test -p unastar --lib`, source-boundary tests, and the smoke gates above.
 
 ---
 

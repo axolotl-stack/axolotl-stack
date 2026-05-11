@@ -138,6 +138,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## 🔮 Future Roadmap
 
+See [`ROADMAP.md`](ROADMAP.md) for vanilla compatibility gates and acceptance evidence.
+
 ### Transport Decoupling (Completed)
 `BedrockTransport` is now agnostic. `jolyne` supports `NetherNet` (via `tokio-nethernet`), and `Raknet` (via `tokio-raknet`).
 - **Status**: ✅ Done. Users can bring their own transport implementation.
@@ -145,3 +147,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### API Stabilization
 - **Goal**: stabilize the `BedrockStream` API to minimize breaking changes.
 - **Goal**: Improve ergonomics for custom packet handling and batching strategies.
+
+
+### Vanilla Compatibility Hardening
+- Harden online-mode auth trust-chain validation.
+- Complete resource-pack negotiation, including non-empty pack transfer and `ClientCacheStatus` handling.
+- Add login/start-game packet-order integration tests from `docs/LOGIN_SEQUENCE.md`.
+- Treat `DefaultWorldTemplate` as a minimal scaffold; vanilla-compatible sessions should inject real registry data from Unastar/data generation.
