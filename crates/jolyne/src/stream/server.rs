@@ -403,6 +403,9 @@ impl<T: Transport> BedrockStream<ResourcePacks, Server, T> {
 
                             Status::HaveAllPacks => {
                                 tracing::debug!("Client has all resource packs");
+                            }
+                            Status::Completed => {
+                                tracing::debug!("Client completed resource pack negotiation");
 
                                 return Ok(BedrockStream {
                                     transport: self.transport,
@@ -410,7 +413,6 @@ impl<T: Transport> BedrockStream<ResourcePacks, Server, T> {
                                     _role: PhantomData,
                                 });
                             }
-                            Status::Completed => {}
                             _ => {}
                         }
                     }
@@ -607,16 +609,22 @@ mod tests {
     struct ScriptedTransport {
         inbound: VecDeque<TransportRecvMessage>,
         sent: Arc<Mutex<Vec<TransportMessage>>>,
+        received: Arc<Mutex<usize>>,
     }
 
     impl ScriptedTransport {
-        fn new(inbound: Vec<Bytes>, sent: Arc<Mutex<Vec<TransportMessage>>>) -> Self {
+        fn new(
+            inbound: Vec<Bytes>,
+            sent: Arc<Mutex<Vec<TransportMessage>>>,
+            received: Arc<Mutex<usize>>,
+        ) -> Self {
             Self {
                 inbound: inbound
                     .into_iter()
                     .map(TransportRecvMessage::Contiguous)
                     .collect(),
                 sent,
+                received,
             }
         }
     }
@@ -639,7 +647,12 @@ mod tests {
             self: Pin<&mut Self>,
             _cx: &mut Context<'_>,
         ) -> Poll<Option<Result<TransportRecvMessage, Self::Error>>> {
-            Poll::Ready(self.get_mut().inbound.pop_front().map(Ok))
+            let this = self.get_mut();
+            let msg = this.inbound.pop_front();
+            if msg.is_some() {
+                *this.received.lock().expect("received lock") += 1;
+            }
+            Poll::Ready(msg.map(Ok))
         }
 
         fn peer_addr(&self) -> SocketAddr {
@@ -654,15 +667,24 @@ mod tests {
     #[tokio::test]
     async fn resource_pack_negotiation_ignores_client_cache_status_before_pack_response() {
         let sent = Arc::new(Mutex::new(Vec::new()));
+        let received = Arc::new(Mutex::new(0usize));
         let inbound = vec![
             compressed_frame(McpePacket::from(ClientCacheStatusPacket { enabled: false })),
             compressed_frame(McpePacket::from(ResourcePackClientResponsePacket {
                 response_status: ResourcePackClientResponsePacketResponseStatus::HaveAllPacks,
                 resourcepackids: vec![],
             })),
+            compressed_frame(McpePacket::from(ResourcePackClientResponsePacket {
+                response_status: ResourcePackClientResponsePacketResponseStatus::Completed,
+                resourcepackids: vec![],
+            })),
         ];
 
-        let mut transport = BedrockTransport::new(ScriptedTransport::new(inbound, sent.clone()));
+        let mut transport = BedrockTransport::new(ScriptedTransport::new(
+            inbound,
+            sent.clone(),
+            received.clone(),
+        ));
         transport.set_compression(true, 0, 0);
         let stream = BedrockStream {
             transport,
@@ -704,5 +726,10 @@ mod tests {
                 }
             ]
         ));
+        assert_eq!(
+            *received.lock().expect("received lock"),
+            3,
+            "server must wait for Completed before entering StartGame"
+        );
     }
 }
