@@ -104,6 +104,12 @@ impl GameServer {
             2 => StartGamePacketDimension::End,
             _ => StartGamePacketDimension::Overworld,
         };
+        world_template
+            .start_game_template
+            .server_authoritative_inventory = true;
+        world_template
+            .start_game_template
+            .server_authoritative_block_breaking = true;
         world_template.item_registry = Arc::new(items.to_packet());
         world_template.biome_definitions = Arc::new(biomes.to_packet());
         world_template.available_entities =
@@ -618,5 +624,25 @@ mod tests {
         let pickup_delay = world.get::<PickupDelay>(entity).expect("pickup delay");
         assert_eq!(age.0, 1);
         assert_eq!(pickup_delay.0, 1);
+    }
+
+    #[test]
+    fn start_game_advertises_server_authoritative_gameplay() {
+        let server = GameServer::new();
+        let world = server.ecs.world();
+        let template = world
+            .resource::<types::ServerWorldTemplate>()
+            .0
+            .start_game_template
+            .clone();
+
+        assert!(
+            template.server_authoritative_inventory,
+            "clients must not treat inventory as client-authoritative"
+        );
+        assert!(
+            template.server_authoritative_block_breaking,
+            "clients must not treat block breaking as client-authoritative"
+        );
     }
 }
