@@ -11,12 +11,12 @@ pub mod mcpe;
 pub use mcpe::*;
 pub mod common;
 pub use common::*;
-pub mod items;
-pub mod blocks;
-pub mod block_palette;
-pub mod states;
-pub mod entities;
 pub mod biomes;
+pub mod block_palette;
+pub mod blocks;
+pub mod entities;
+pub mod items;
+pub mod states;
 pub mod bedrock {
     pub use valentine_bedrock_core::bedrock::borrowed;
     pub use valentine_bedrock_core::bedrock::codec;

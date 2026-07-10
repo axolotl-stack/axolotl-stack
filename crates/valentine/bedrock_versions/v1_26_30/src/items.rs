@@ -1,7 +1,10 @@
 //! Generated vanilla item definitions.
 //! Do not edit: regenerate with valentine_gen.
 
-use valentine_bedrock_core::item::{ItemDef, ItemDefDyn, DurableItem, RepairableItem, EnchantableItem, VariantItem, EnchantmentCategory, ItemVariant};
+use valentine_bedrock_core::item::{
+    DurableItem, EnchantableItem, EnchantmentCategory, ItemDef, ItemDefDyn, ItemVariant,
+    RepairableItem, VariantItem,
+};
 
 /// Sulfur Spike
 pub struct SulfurSpike;
@@ -1565,7 +1568,10 @@ impl ItemDef for PiglinHead {
 
 impl EnchantableItem for PiglinHead {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -1581,7 +1587,10 @@ impl ItemDef for DragonHead {
 
 impl EnchantableItem for DragonHead {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -1597,7 +1606,10 @@ impl ItemDef for CreeperHead {
 
 impl EnchantableItem for CreeperHead {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -1613,7 +1625,10 @@ impl ItemDef for PlayerHead {
 
 impl EnchantableItem for PlayerHead {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -1629,7 +1644,10 @@ impl ItemDef for ZombieHead {
 
 impl EnchantableItem for ZombieHead {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -1645,7 +1663,10 @@ impl ItemDef for WitherSkeletonSkull {
 
 impl EnchantableItem for WitherSkeletonSkull {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -8061,15 +8082,13 @@ impl ItemDef for Unknown {
 
 impl VariantItem for Unknown {
     fn variants() -> &'static [ItemVariant] {
-        &[
-            ItemVariant {
-                id: 914,
-                metadata: 0,
-                name: "test_instance_block",
-                display_name: "Test Instance Block",
-                stack_size: 64,
-            },
-        ]
+        &[ItemVariant {
+            id: 914,
+            metadata: 0,
+            name: "test_instance_block",
+            display_name: "Test Instance Block",
+            stack_size: 64,
+        }]
     }
 }
 
@@ -9515,7 +9534,10 @@ impl ItemDef for CarvedPumpkin {
 
 impl EnchantableItem for CarvedPumpkin {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -12471,7 +12493,10 @@ impl ItemDef for SkeletonSkull {
 
 impl EnchantableItem for SkeletonSkull {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -13547,7 +13572,11 @@ impl RepairableItem for CopperSpear {
 
 impl EnchantableItem for CopperSpear {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Weapon, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Weapon,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -13573,7 +13602,11 @@ impl RepairableItem for DiamondSpear {
 
 impl EnchantableItem for DiamondSpear {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Weapon, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Weapon,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -13599,7 +13632,11 @@ impl RepairableItem for GoldenSpear {
 
 impl EnchantableItem for GoldenSpear {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Weapon, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Weapon,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -13625,7 +13662,11 @@ impl RepairableItem for IronSpear {
 
 impl EnchantableItem for IronSpear {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Weapon, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Weapon,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -13651,7 +13692,11 @@ impl RepairableItem for NetheriteSpear {
 
 impl EnchantableItem for NetheriteSpear {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Weapon, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Weapon,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -13677,7 +13722,11 @@ impl RepairableItem for StoneSpear {
 
 impl EnchantableItem for StoneSpear {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Weapon, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Weapon,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -13697,13 +13746,19 @@ impl DurableItem for WoodenSpear {
 
 impl RepairableItem for WoodenSpear {
     fn repair_items() -> &'static [i32] {
-        &[5, -739, -740, -741, -742, -537, -743, -996, -486, -510, -242, -243]
+        &[
+            5, -739, -740, -741, -742, -537, -743, -996, -486, -510, -242, -243,
+        ]
     }
 }
 
 impl EnchantableItem for WoodenSpear {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Weapon, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Weapon,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -14349,7 +14404,10 @@ impl RepairableItem for IronShovel {
 
 impl EnchantableItem for IronShovel {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -14375,7 +14433,10 @@ impl RepairableItem for IronPickaxe {
 
 impl EnchantableItem for IronPickaxe {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -14401,7 +14462,11 @@ impl RepairableItem for IronAxe {
 
 impl EnchantableItem for IronAxe {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Weapon, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Weapon,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -14421,7 +14486,10 @@ impl DurableItem for FlintAndSteel {
 
 impl EnchantableItem for FlintAndSteel {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -14441,7 +14509,11 @@ impl DurableItem for Bow {
 
 impl EnchantableItem for Bow {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Bow, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Bow,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -14548,7 +14620,11 @@ impl RepairableItem for IronSword {
 
 impl EnchantableItem for IronSword {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Weapon, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Weapon,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -14568,13 +14644,19 @@ impl DurableItem for WoodenSword {
 
 impl RepairableItem for WoodenSword {
     fn repair_items() -> &'static [i32] {
-        &[5, -739, -740, -741, -742, -537, -743, -996, -486, -510, -242, -243]
+        &[
+            5, -739, -740, -741, -742, -537, -743, -996, -486, -510, -242, -243,
+        ]
     }
 }
 
 impl EnchantableItem for WoodenSword {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Weapon, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Weapon,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -14594,13 +14676,18 @@ impl DurableItem for WoodenShovel {
 
 impl RepairableItem for WoodenShovel {
     fn repair_items() -> &'static [i32] {
-        &[5, -739, -740, -741, -742, -537, -743, -996, -486, -510, -242, -243]
+        &[
+            5, -739, -740, -741, -742, -537, -743, -996, -486, -510, -242, -243,
+        ]
     }
 }
 
 impl EnchantableItem for WoodenShovel {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -14620,13 +14707,18 @@ impl DurableItem for WoodenPickaxe {
 
 impl RepairableItem for WoodenPickaxe {
     fn repair_items() -> &'static [i32] {
-        &[5, -739, -740, -741, -742, -537, -743, -996, -486, -510, -242, -243]
+        &[
+            5, -739, -740, -741, -742, -537, -743, -996, -486, -510, -242, -243,
+        ]
     }
 }
 
 impl EnchantableItem for WoodenPickaxe {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -14646,13 +14738,19 @@ impl DurableItem for WoodenAxe {
 
 impl RepairableItem for WoodenAxe {
     fn repair_items() -> &'static [i32] {
-        &[5, -739, -740, -741, -742, -537, -743, -996, -486, -510, -242, -243]
+        &[
+            5, -739, -740, -741, -742, -537, -743, -996, -486, -510, -242, -243,
+        ]
     }
 }
 
 impl EnchantableItem for WoodenAxe {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Weapon, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Weapon,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -14678,7 +14776,11 @@ impl RepairableItem for StoneSword {
 
 impl EnchantableItem for StoneSword {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Weapon, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Weapon,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -14704,7 +14806,10 @@ impl RepairableItem for StoneShovel {
 
 impl EnchantableItem for StoneShovel {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -14730,7 +14835,10 @@ impl RepairableItem for StonePickaxe {
 
 impl EnchantableItem for StonePickaxe {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -14756,7 +14864,11 @@ impl RepairableItem for StoneAxe {
 
 impl EnchantableItem for StoneAxe {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Weapon, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Weapon,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -14782,7 +14894,11 @@ impl RepairableItem for DiamondSword {
 
 impl EnchantableItem for DiamondSword {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Weapon, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Weapon,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -14808,7 +14924,10 @@ impl RepairableItem for DiamondShovel {
 
 impl EnchantableItem for DiamondShovel {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -14834,7 +14953,10 @@ impl RepairableItem for DiamondPickaxe {
 
 impl EnchantableItem for DiamondPickaxe {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -14860,7 +14982,11 @@ impl RepairableItem for DiamondAxe {
 
 impl EnchantableItem for DiamondAxe {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Weapon, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Weapon,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -14886,7 +15012,11 @@ impl RepairableItem for Mace {
 
 impl EnchantableItem for Mace {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Weapon, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Weapon,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -14902,15 +15032,13 @@ impl ItemDef for Stick {
 
 impl VariantItem for Stick {
     fn variants() -> &'static [ItemVariant] {
-        &[
-            ItemVariant {
-                id: 1338,
-                metadata: 0,
-                name: "debug_stick",
-                display_name: "Debug Stick",
-                stack_size: 1,
-            },
-        ]
+        &[ItemVariant {
+            id: 1338,
+            metadata: 0,
+            name: "debug_stick",
+            display_name: "Debug Stick",
+            stack_size: 1,
+        }]
     }
 }
 
@@ -14946,7 +15074,11 @@ impl RepairableItem for GoldenSword {
 
 impl EnchantableItem for GoldenSword {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Weapon, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Weapon,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -14972,7 +15104,10 @@ impl RepairableItem for GoldenShovel {
 
 impl EnchantableItem for GoldenShovel {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -14998,7 +15133,10 @@ impl RepairableItem for GoldenPickaxe {
 
 impl EnchantableItem for GoldenPickaxe {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15024,7 +15162,11 @@ impl RepairableItem for GoldenAxe {
 
 impl EnchantableItem for GoldenAxe {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Weapon, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Weapon,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15074,13 +15216,18 @@ impl DurableItem for WoodenHoe {
 
 impl RepairableItem for WoodenHoe {
     fn repair_items() -> &'static [i32] {
-        &[5, -739, -740, -741, -742, -537, -743, -996, -486, -510, -242, -243]
+        &[
+            5, -739, -740, -741, -742, -537, -743, -996, -486, -510, -242, -243,
+        ]
     }
 }
 
 impl EnchantableItem for WoodenHoe {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15106,7 +15253,10 @@ impl RepairableItem for StoneHoe {
 
 impl EnchantableItem for StoneHoe {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15132,7 +15282,10 @@ impl RepairableItem for IronHoe {
 
 impl EnchantableItem for IronHoe {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15158,7 +15311,10 @@ impl RepairableItem for DiamondHoe {
 
 impl EnchantableItem for DiamondHoe {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15184,7 +15340,10 @@ impl RepairableItem for GoldenHoe {
 
 impl EnchantableItem for GoldenHoe {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15220,7 +15379,13 @@ impl RepairableItem for LeatherHelmet {
 
 impl EnchantableItem for LeatherHelmet {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::HeadArmor, EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::HeadArmor,
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15246,7 +15411,12 @@ impl RepairableItem for LeatherChestplate {
 
 impl EnchantableItem for LeatherChestplate {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15272,7 +15442,12 @@ impl RepairableItem for LeatherLeggings {
 
 impl EnchantableItem for LeatherLeggings {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15298,7 +15473,12 @@ impl RepairableItem for LeatherBoots {
 
 impl EnchantableItem for LeatherBoots {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15324,7 +15504,13 @@ impl RepairableItem for ChainmailHelmet {
 
 impl EnchantableItem for ChainmailHelmet {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::HeadArmor, EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::HeadArmor,
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15350,7 +15536,12 @@ impl RepairableItem for ChainmailChestplate {
 
 impl EnchantableItem for ChainmailChestplate {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15376,7 +15567,12 @@ impl RepairableItem for ChainmailLeggings {
 
 impl EnchantableItem for ChainmailLeggings {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15402,7 +15598,12 @@ impl RepairableItem for ChainmailBoots {
 
 impl EnchantableItem for ChainmailBoots {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15428,7 +15629,13 @@ impl RepairableItem for IronHelmet {
 
 impl EnchantableItem for IronHelmet {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::HeadArmor, EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::HeadArmor,
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15454,7 +15661,12 @@ impl RepairableItem for IronChestplate {
 
 impl EnchantableItem for IronChestplate {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15480,7 +15692,12 @@ impl RepairableItem for IronLeggings {
 
 impl EnchantableItem for IronLeggings {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15506,7 +15723,12 @@ impl RepairableItem for IronBoots {
 
 impl EnchantableItem for IronBoots {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15532,7 +15754,13 @@ impl RepairableItem for DiamondHelmet {
 
 impl EnchantableItem for DiamondHelmet {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::HeadArmor, EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::HeadArmor,
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15558,7 +15786,12 @@ impl RepairableItem for DiamondChestplate {
 
 impl EnchantableItem for DiamondChestplate {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15584,7 +15817,12 @@ impl RepairableItem for DiamondLeggings {
 
 impl EnchantableItem for DiamondLeggings {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15610,7 +15848,12 @@ impl RepairableItem for DiamondBoots {
 
 impl EnchantableItem for DiamondBoots {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15636,7 +15879,13 @@ impl RepairableItem for GoldenHelmet {
 
 impl EnchantableItem for GoldenHelmet {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::HeadArmor, EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::HeadArmor,
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15662,7 +15911,12 @@ impl RepairableItem for GoldenChestplate {
 
 impl EnchantableItem for GoldenChestplate {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15688,7 +15942,12 @@ impl RepairableItem for GoldenLeggings {
 
 impl EnchantableItem for GoldenLeggings {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15714,7 +15973,12 @@ impl RepairableItem for GoldenBoots {
 
 impl EnchantableItem for GoldenBoots {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -15734,13 +15998,18 @@ impl DurableItem for Shield {
 
 impl RepairableItem for Shield {
     fn repair_items() -> &'static [i32] {
-        &[5, -739, -740, -741, -742, -537, -743, -996, -486, -510, -242, -243]
+        &[
+            5, -739, -740, -741, -742, -537, -743, -996, -486, -510, -242, -243,
+        ]
     }
 }
 
 impl EnchantableItem for Shield {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -16066,15 +16335,13 @@ impl ItemDef for Book {
 
 impl VariantItem for Book {
     fn variants() -> &'static [ItemVariant] {
-        &[
-            ItemVariant {
-                id: 1337,
-                metadata: 0,
-                name: "knowledge_book",
-                display_name: "Knowledge Book",
-                stack_size: 1,
-            },
-        ]
+        &[ItemVariant {
+            id: 1337,
+            metadata: 0,
+            name: "knowledge_book",
+            display_name: "Knowledge Book",
+            stack_size: 1,
+        }]
     }
 }
 
@@ -16140,7 +16407,10 @@ impl DurableItem for FishingRod {
 
 impl EnchantableItem for FishingRod {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -16552,7 +16822,10 @@ impl DurableItem for Shears {
 
 impl EnchantableItem for Shears {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -17582,7 +17855,10 @@ impl DurableItem for CarrotOnAStick {
 
 impl EnchantableItem for CarrotOnAStick {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -17678,15 +17954,13 @@ impl ItemDef for HopperMinecart {
 
 impl VariantItem for HopperMinecart {
     fn variants() -> &'static [ItemVariant] {
-        &[
-            ItemVariant {
-                id: 886,
-                metadata: 0,
-                name: "hopper_minecart",
-                display_name: "Minecart with Hopper",
-                stack_size: 1,
-            },
-        ]
+        &[ItemVariant {
+            id: 886,
+            metadata: 0,
+            name: "hopper_minecart",
+            display_name: "Minecart with Hopper",
+            stack_size: 1,
+        }]
     }
 }
 
@@ -17896,7 +18170,11 @@ impl DurableItem for Trident {
 
 impl EnchantableItem for Trident {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Trident, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Trident,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -18092,7 +18370,11 @@ impl RepairableItem for Elytra {
 
 impl EnchantableItem for Elytra {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -18310,7 +18592,13 @@ impl RepairableItem for TurtleHelmet {
 
 impl EnchantableItem for TurtleHelmet {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::HeadArmor, EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::HeadArmor,
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -18340,7 +18628,11 @@ impl DurableItem for Crossbow {
 
 impl EnchantableItem for Crossbow {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Crossbow, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Crossbow,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -18676,7 +18968,11 @@ impl RepairableItem for NetheriteSword {
 
 impl EnchantableItem for NetheriteSword {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Weapon, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Weapon,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -18702,7 +18998,10 @@ impl RepairableItem for NetheriteShovel {
 
 impl EnchantableItem for NetheriteShovel {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -18728,7 +19027,10 @@ impl RepairableItem for NetheritePickaxe {
 
 impl EnchantableItem for NetheritePickaxe {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -18754,7 +19056,11 @@ impl RepairableItem for NetheriteAxe {
 
 impl EnchantableItem for NetheriteAxe {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Weapon, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Weapon,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -18780,7 +19086,10 @@ impl RepairableItem for NetheriteHoe {
 
 impl EnchantableItem for NetheriteHoe {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -18816,7 +19125,13 @@ impl RepairableItem for NetheriteHelmet {
 
 impl EnchantableItem for NetheriteHelmet {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::HeadArmor, EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::HeadArmor,
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -18842,7 +19157,12 @@ impl RepairableItem for NetheriteChestplate {
 
 impl EnchantableItem for NetheriteChestplate {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -18868,7 +19188,12 @@ impl RepairableItem for NetheriteLeggings {
 
 impl EnchantableItem for NetheriteLeggings {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -18894,7 +19219,12 @@ impl RepairableItem for NetheriteBoots {
 
 impl EnchantableItem for NetheriteBoots {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -18964,7 +19294,10 @@ impl DurableItem for WarpedFungusOnAStick {
 
 impl EnchantableItem for WarpedFungusOnAStick {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -19584,7 +19917,10 @@ impl DurableItem for Brush {
 
 impl EnchantableItem for Brush {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -20120,7 +20456,11 @@ impl RepairableItem for CopperSword {
 
 impl EnchantableItem for CopperSword {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Weapon, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Weapon,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -20146,7 +20486,10 @@ impl RepairableItem for CopperShovel {
 
 impl EnchantableItem for CopperShovel {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -20172,7 +20515,10 @@ impl RepairableItem for CopperPickaxe {
 
 impl EnchantableItem for CopperPickaxe {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -20198,7 +20544,11 @@ impl RepairableItem for CopperAxe {
 
 impl EnchantableItem for CopperAxe {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Weapon, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Weapon,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -20224,7 +20574,10 @@ impl RepairableItem for CopperHoe {
 
 impl EnchantableItem for CopperHoe {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -20250,7 +20603,13 @@ impl RepairableItem for CopperHelmet {
 
 impl EnchantableItem for CopperHelmet {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::HeadArmor, EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::HeadArmor,
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -20276,7 +20635,12 @@ impl RepairableItem for CopperChestplate {
 
 impl EnchantableItem for CopperChestplate {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -20302,7 +20666,12 @@ impl RepairableItem for CopperLeggings {
 
 impl EnchantableItem for CopperLeggings {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
@@ -20328,7 +20697,12 @@ impl RepairableItem for CopperBoots {
 
 impl EnchantableItem for CopperBoots {
     fn enchant_categories() -> &'static [EnchantmentCategory] {
-        &[EnchantmentCategory::Equippable, EnchantmentCategory::Armor, EnchantmentCategory::Durability, EnchantmentCategory::Vanishing]
+        &[
+            EnchantmentCategory::Equippable,
+            EnchantmentCategory::Armor,
+            EnchantmentCategory::Durability,
+            EnchantmentCategory::Vanishing,
+        ]
     }
 }
 
