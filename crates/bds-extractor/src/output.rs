@@ -397,7 +397,7 @@ mod tests {
         ExtractedData {
             metadata: Metadata {
                 extraction_date: "fixture".to_string(),
-                game_version: "1.26.0".to_string(),
+                game_version: "1.26.30".to_string(),
                 engine: "BDS".to_string(),
             },
             items: ItemData {

@@ -41,7 +41,7 @@ Generate specific versions:
 
 ```bash
 cargo run -p valentine_gen -- --versions 1.21.120
-cargo run -p valentine_gen -- --versions 1.21.120,1.21.124,1.26.0
+cargo run -p valentine_gen -- --versions 1.21.120,1.21.124,1.26.30
 ```
 
 Generate only protocol code:

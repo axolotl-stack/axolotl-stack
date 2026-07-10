@@ -479,7 +479,7 @@ mod tests {
             r#"{
                 "metadata": {
                     "extraction_date": "fixture",
-                    "game_version": "1.26.0",
+                    "game_version": "1.26.30",
                     "engine": "BDS"
                 },
                 "biomes": {
@@ -525,7 +525,7 @@ mod tests {
             r#"{
                 "metadata": {
                     "extraction_date": "fixture",
-                    "game_version": "1.26.0",
+                    "game_version": "1.26.30",
                     "engine": "BDS"
                 },
                 "entities": {
@@ -562,7 +562,7 @@ mod tests {
             r#"{
                 "metadata": {
                     "extraction_date": "fixture",
-                    "game_version": "1.26.0",
+                    "game_version": "1.26.30",
                     "engine": "BDS"
                 },
                 "entities": {
@@ -595,7 +595,7 @@ mod tests {
             r#"{
                 "metadata": {
                     "extraction_date": "fixture",
-                    "game_version": "1.26.0",
+                    "game_version": "1.26.30",
                     "engine": "BDS"
                 },
                 "entities": {
@@ -627,7 +627,7 @@ mod tests {
             r#"{
                 "metadata": {
                     "extraction_date": "fixture",
-                    "game_version": "1.26.0",
+                    "game_version": "1.26.30",
                     "engine": "BDS"
                 }
             }"#,

@@ -106,7 +106,7 @@ fn main() -> miette::Result<()> {
     let output_path = manifest_dir.join(&args.output);
     let upstream_path = manifest_dir.join("../data/upstream");
     let pmmp_path = upstream_path.join("pmmp");
-    let valentine_version_path = manifest_dir.join("../../valentine/bedrock_versions/v1_26_0");
+    let valentine_version_path = manifest_dir.join("../../valentine/bedrock_versions/v1_26_30");
     let bds_extraction_path = args
         .bds_extraction
         .as_ref()

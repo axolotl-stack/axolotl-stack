@@ -25,7 +25,7 @@ fn blocks_only_cli_generates_static_consumer_from_artifact() {
 
     let generated = std::fs::read_to_string(output.join("blocks.rs"))
         .expect("generated blocks.rs should exist");
-    assert!(generated.contains("pub const SOURCE: &str = \"valentine_bedrock_1_26_0\""));
+    assert!(generated.contains("pub const SOURCE: &str = \"valentine_bedrock_1_26_30\""));
     assert!(generated.contains("pub static ALL_BLOCKS: [BlockData; 2usize]"));
     assert!(generated.contains("identifier: \"minecraft:stone\""));
     assert!(generated.contains("state_id_count: 2u32"));

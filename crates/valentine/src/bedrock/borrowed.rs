@@ -6,24 +6,24 @@ pub use valentine_bedrock_core::bedrock::borrowed::{
 };
 use valentine_bedrock_core::bedrock::codec::{BedrockCodec, BedrockSized, U32LE, VarInt};
 
-#[cfg(feature = "bedrock_1_26_0")]
-use crate::bedrock::version::v1_26_0::{
+#[cfg(feature = "bedrock_1_26_30")]
+use crate::bedrock::version::v1_26_30::{
     DisconnectFailReason, DisconnectPacket, DisconnectPacketContent, LoginPacket, LoginTokens,
     TextPacket, TextPacketCategory, TextPacketContent, TextPacketContentAnnouncement,
     TextPacketContentJson, TextPacketContentJukeboxPopup, TextPacketType,
 };
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 fn varint_prefixed_len(bytes: &[u8]) -> usize {
     VarInt(bytes.len() as i32).encoded_size() + bytes.len()
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 fn u32le_prefixed_len(bytes: &[u8]) -> usize {
     U32LE(bytes.len() as u32).encoded_size() + bytes.len()
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 fn encode_varint_prefixed_bytes<B: BufMut>(
     bytes: &[u8],
     buf: &mut B,
@@ -33,28 +33,28 @@ fn encode_varint_prefixed_bytes<B: BufMut>(
     Ok(())
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 fn encode_u32le_prefixed_bytes<B: BufMut>(bytes: &[u8], buf: &mut B) -> Result<(), std::io::Error> {
     U32LE(bytes.len() as u32).encode(buf)?;
     buf.put_slice(bytes);
     Ok(())
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LoginTokensView {
     pub identity: BorrowedStr,
     pub client: BorrowedStr,
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl BedrockSized for LoginTokensView {
     fn encoded_size(&self) -> usize {
         u32le_prefixed_len(self.identity.as_bytes()) + u32le_prefixed_len(self.client.as_bytes())
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl BedrockBorrowDecode for LoginTokensView {
     type Args = ();
 
@@ -69,7 +69,7 @@ impl BedrockBorrowDecode for LoginTokensView {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl LoginTokensView {
     pub fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         encode_u32le_prefixed_bytes(self.identity.as_bytes(), buf)?;
@@ -78,7 +78,7 @@ impl LoginTokensView {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl From<LoginTokensView> for LoginTokens {
     fn from(value: LoginTokensView) -> Self {
         Self {
@@ -88,21 +88,21 @@ impl From<LoginTokensView> for LoginTokens {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LoginPacketView {
     pub protocol_version: i32,
     pub tokens: LoginTokensView,
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl BedrockSized for LoginPacketView {
     fn encoded_size(&self) -> usize {
         4 + varint_prefixed_len_for_size(self.tokens.encoded_size())
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl BedrockBorrowDecode for LoginPacketView {
     type Args = ();
 
@@ -120,7 +120,7 @@ impl BedrockBorrowDecode for LoginPacketView {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl LoginPacketView {
     pub fn decode(buf: &mut Bytes) -> Result<Self, crate::bedrock::error::DecodeError> {
         Self::borrow_decode(buf, ())
@@ -134,7 +134,7 @@ impl LoginPacketView {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl From<LoginPacketView> for LoginPacket {
     fn from(value: LoginPacketView) -> Self {
         Self {
@@ -144,14 +144,14 @@ impl From<LoginPacketView> for LoginPacket {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DisconnectPacketContentView {
     pub message: BorrowedStr,
     pub filtered_message: BorrowedStr,
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl BedrockSized for DisconnectPacketContentView {
     fn encoded_size(&self) -> usize {
         varint_prefixed_len(self.message.as_bytes())
@@ -159,7 +159,7 @@ impl BedrockSized for DisconnectPacketContentView {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl BedrockBorrowDecode for DisconnectPacketContentView {
     type Args = ();
 
@@ -174,7 +174,7 @@ impl BedrockBorrowDecode for DisconnectPacketContentView {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl DisconnectPacketContentView {
     pub fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         encode_varint_prefixed_bytes(self.message.as_bytes(), buf)?;
@@ -183,7 +183,7 @@ impl DisconnectPacketContentView {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl From<DisconnectPacketContentView> for DisconnectPacketContent {
     fn from(value: DisconnectPacketContentView) -> Self {
         Self {
@@ -193,7 +193,7 @@ impl From<DisconnectPacketContentView> for DisconnectPacketContent {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DisconnectPacketView {
     pub reason: DisconnectFailReason,
@@ -201,14 +201,14 @@ pub struct DisconnectPacketView {
     pub content: Option<DisconnectPacketContentView>,
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl BedrockSized for DisconnectPacketView {
     fn encoded_size(&self) -> usize {
         self.reason.encoded_size() + 1 + self.content.as_ref().map_or(0, BedrockSized::encoded_size)
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl BedrockBorrowDecode for DisconnectPacketView {
     type Args = ();
 
@@ -232,7 +232,7 @@ impl BedrockBorrowDecode for DisconnectPacketView {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl DisconnectPacketView {
     pub fn decode(buf: &mut Bytes) -> Result<Self, crate::bedrock::error::DecodeError> {
         Self::borrow_decode(buf, ())
@@ -248,7 +248,7 @@ impl DisconnectPacketView {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl From<DisconnectPacketView> for DisconnectPacket {
     fn from(value: DisconnectPacketView) -> Self {
         Self {
@@ -259,14 +259,14 @@ impl From<DisconnectPacketView> for DisconnectPacket {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TextPacketContentAnnouncementView {
     pub source_name: BorrowedStr,
     pub message: BorrowedStr,
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl BedrockSized for TextPacketContentAnnouncementView {
     fn encoded_size(&self) -> usize {
         varint_prefixed_len(self.source_name.as_bytes())
@@ -274,7 +274,7 @@ impl BedrockSized for TextPacketContentAnnouncementView {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl BedrockBorrowDecode for TextPacketContentAnnouncementView {
     type Args = ();
 
@@ -289,7 +289,7 @@ impl BedrockBorrowDecode for TextPacketContentAnnouncementView {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl TextPacketContentAnnouncementView {
     pub fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         encode_varint_prefixed_bytes(self.source_name.as_bytes(), buf)?;
@@ -298,7 +298,7 @@ impl TextPacketContentAnnouncementView {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl From<TextPacketContentAnnouncementView> for TextPacketContentAnnouncement {
     fn from(value: TextPacketContentAnnouncementView) -> Self {
         Self {
@@ -308,20 +308,20 @@ impl From<TextPacketContentAnnouncementView> for TextPacketContentAnnouncement {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TextPacketContentJsonView {
     pub message: BorrowedStr,
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl BedrockSized for TextPacketContentJsonView {
     fn encoded_size(&self) -> usize {
         varint_prefixed_len(self.message.as_bytes())
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl BedrockBorrowDecode for TextPacketContentJsonView {
     type Args = ();
 
@@ -335,14 +335,14 @@ impl BedrockBorrowDecode for TextPacketContentJsonView {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl TextPacketContentJsonView {
     pub fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         encode_varint_prefixed_bytes(self.message.as_bytes(), buf)
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl From<TextPacketContentJsonView> for TextPacketContentJson {
     fn from(value: TextPacketContentJsonView) -> Self {
         Self {
@@ -351,14 +351,14 @@ impl From<TextPacketContentJsonView> for TextPacketContentJson {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TextPacketContentJukeboxPopupView {
     pub message: BorrowedStr,
     pub parameters: Vec<BorrowedStr>,
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl BedrockSized for TextPacketContentJukeboxPopupView {
     fn encoded_size(&self) -> usize {
         varint_prefixed_len(self.message.as_bytes())
@@ -371,7 +371,7 @@ impl BedrockSized for TextPacketContentJukeboxPopupView {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl BedrockBorrowDecode for TextPacketContentJukeboxPopupView {
     type Args = ();
 
@@ -396,7 +396,7 @@ impl BedrockBorrowDecode for TextPacketContentJukeboxPopupView {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl TextPacketContentJukeboxPopupView {
     pub fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         encode_varint_prefixed_bytes(self.message.as_bytes(), buf)?;
@@ -408,7 +408,7 @@ impl TextPacketContentJukeboxPopupView {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl From<TextPacketContentJukeboxPopupView> for TextPacketContentJukeboxPopup {
     fn from(value: TextPacketContentJukeboxPopupView) -> Self {
         Self {
@@ -422,7 +422,7 @@ impl From<TextPacketContentJukeboxPopupView> for TextPacketContentJukeboxPopup {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TextPacketContentView {
     Announcement(TextPacketContentAnnouncementView),
@@ -439,7 +439,7 @@ pub enum TextPacketContentView {
     Whisper(TextPacketContentAnnouncementView),
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl BedrockSized for TextPacketContentView {
     fn encoded_size(&self) -> usize {
         match self {
@@ -455,7 +455,7 @@ impl BedrockSized for TextPacketContentView {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl TextPacketContentView {
     pub fn decode_for_type(
         buf: &mut Bytes,
@@ -521,7 +521,7 @@ impl TextPacketContentView {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl From<TextPacketContentView> for TextPacketContent {
     fn from(value: TextPacketContentView) -> Self {
         match value {
@@ -541,7 +541,7 @@ impl From<TextPacketContentView> for TextPacketContent {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TextPacketView {
     pub needs_translation: bool,
@@ -553,7 +553,7 @@ pub struct TextPacketView {
     pub filtered_message: Option<BorrowedStr>,
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl BedrockSized for TextPacketView {
     fn encoded_size(&self) -> usize {
         1 + self.category.encoded_size()
@@ -569,7 +569,7 @@ impl BedrockSized for TextPacketView {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl BedrockBorrowDecode for TextPacketView {
     type Args = ();
 
@@ -602,7 +602,7 @@ impl BedrockBorrowDecode for TextPacketView {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl TextPacketView {
     pub fn decode(buf: &mut Bytes) -> Result<Self, crate::bedrock::error::DecodeError> {
         Self::borrow_decode(buf, ())
@@ -625,7 +625,7 @@ impl TextPacketView {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 impl From<TextPacketView> for TextPacket {
     fn from(value: TextPacketView) -> Self {
         Self {
@@ -642,14 +642,14 @@ impl From<TextPacketView> for TextPacket {
     }
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 fn varint_prefixed_len_for_size(inner: usize) -> usize {
     VarInt(inner as i32).encoded_size() + inner
 }
 
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 pub type BorrowedLoginPacket = LoginPacketView;
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 pub type BorrowedDisconnectPacket = DisconnectPacketView;
-#[cfg(feature = "bedrock_1_26_0")]
+#[cfg(feature = "bedrock_1_26_30")]
 pub type BorrowedTextPacket = TextPacketView;

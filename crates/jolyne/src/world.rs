@@ -116,6 +116,8 @@ impl Default for WorldTemplate {
             experimental_gameplay_override: false,
             chat_restriction_level: StartGamePacketChatRestrictionLevel::None,
             disable_player_interactions: false,
+            server_editor_connection_policy: 0,
+            allow_anonymous_block_drops_in_editor_worlds: false,
             server_identifier: "".into(),
             scenario_identifier: "".into(),
             owner_identifier: "".into(),
@@ -131,6 +133,7 @@ impl Default for WorldTemplate {
             world_template_id: Uuid::nil(),
             client_side_generation: false,
             server_controlled_sound: false,
+            is_chat_logging: false,
             server_join_info: None,
         };
 

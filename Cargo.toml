@@ -4,6 +4,7 @@ members = [
     "crates/valentine",
     "crates/valentine/bedrock_core",
     "crates/valentine/bedrock_versions/v1_26_0",
+    "crates/valentine/bedrock_versions/v1_26_30",
     "crates/jolyne",
     "crates/unastar",
     "crates/unastar_noise",
@@ -128,6 +129,7 @@ hex = "0.4"
 valentine = { path = "crates/valentine", default-features = false }
 valentine_bedrock_core = { path = "crates/valentine/bedrock_core" }
 valentine_bedrock_1_26_0 = { path = "crates/valentine/bedrock_versions/v1_26_0" }
+valentine_bedrock_1_26_30 = { path = "crates/valentine/bedrock_versions/v1_26_30" }
 jolyne = { path = "crates/jolyne", default-features = false }
 tokio-raknet = { path = "crates/tokio-raknet", version = "0.3" }
 tokio-nethernet = { path = "crates/tokio-nethernet", default-features = false }

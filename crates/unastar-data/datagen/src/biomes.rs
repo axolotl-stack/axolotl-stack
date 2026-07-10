@@ -274,6 +274,6 @@ mod tests {
 
         assert!(artifact.contains("Source: vanilla behavior-pack biome JSON"));
         assert!(artifact.contains("source=vanilla_behavior_pack"));
-        assert!(!artifact.contains("valentine_bedrock_1_26_0"));
+        assert!(!artifact.contains("valentine_bedrock_1_26_30"));
     }
 }

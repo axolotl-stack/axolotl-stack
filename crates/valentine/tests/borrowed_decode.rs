@@ -5,7 +5,7 @@ use valentine::bedrock::borrowed::{
 };
 use valentine::bedrock::codec::BedrockCodec;
 use valentine::bedrock::context::BedrockSession;
-use valentine::bedrock::version::v1_26_0::*;
+use valentine::bedrock::version::v1_26_30::*;
 
 fn sample_login_packet() -> LoginPacket {
     LoginPacket {
