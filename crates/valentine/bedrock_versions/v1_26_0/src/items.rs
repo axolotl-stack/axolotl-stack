@@ -10,7 +10,7 @@ use valentine_bedrock_core::item::{
 pub struct Air;
 
 impl ItemDef for Air {
-    const ID: u32 = 0;
+    const ID: i32 = 0;
     const STRING_ID: &'static str = "minecraft:air";
     const NAME: &'static str = "Air";
     const STACK_SIZE: u8 = 64;
@@ -20,7 +20,7 @@ impl ItemDef for Air {
 pub struct Stone;
 
 impl ItemDef for Stone {
-    const ID: u32 = 1;
+    const ID: i32 = 1;
     const STRING_ID: &'static str = "minecraft:stone";
     const NAME: &'static str = "Stone";
     const STACK_SIZE: u8 = 64;
@@ -30,7 +30,7 @@ impl ItemDef for Stone {
 pub struct Granite;
 
 impl ItemDef for Granite {
-    const ID: u32 = 2;
+    const ID: i32 = 2;
     const STRING_ID: &'static str = "minecraft:granite";
     const NAME: &'static str = "Granite";
     const STACK_SIZE: u8 = 64;
@@ -40,7 +40,7 @@ impl ItemDef for Granite {
 pub struct PolishedGranite;
 
 impl ItemDef for PolishedGranite {
-    const ID: u32 = 3;
+    const ID: i32 = 3;
     const STRING_ID: &'static str = "minecraft:polished_granite";
     const NAME: &'static str = "Polished Granite";
     const STACK_SIZE: u8 = 64;
@@ -50,7 +50,7 @@ impl ItemDef for PolishedGranite {
 pub struct Diorite;
 
 impl ItemDef for Diorite {
-    const ID: u32 = 4;
+    const ID: i32 = 4;
     const STRING_ID: &'static str = "minecraft:diorite";
     const NAME: &'static str = "Diorite";
     const STACK_SIZE: u8 = 64;
@@ -60,7 +60,7 @@ impl ItemDef for Diorite {
 pub struct PolishedDiorite;
 
 impl ItemDef for PolishedDiorite {
-    const ID: u32 = 5;
+    const ID: i32 = 5;
     const STRING_ID: &'static str = "minecraft:polished_diorite";
     const NAME: &'static str = "Polished Diorite";
     const STACK_SIZE: u8 = 64;
@@ -70,7 +70,7 @@ impl ItemDef for PolishedDiorite {
 pub struct Andesite;
 
 impl ItemDef for Andesite {
-    const ID: u32 = 6;
+    const ID: i32 = 6;
     const STRING_ID: &'static str = "minecraft:andesite";
     const NAME: &'static str = "Andesite";
     const STACK_SIZE: u8 = 64;
@@ -80,7 +80,7 @@ impl ItemDef for Andesite {
 pub struct PolishedAndesite;
 
 impl ItemDef for PolishedAndesite {
-    const ID: u32 = 7;
+    const ID: i32 = 7;
     const STRING_ID: &'static str = "minecraft:polished_andesite";
     const NAME: &'static str = "Polished Andesite";
     const STACK_SIZE: u8 = 64;
@@ -90,7 +90,7 @@ impl ItemDef for PolishedAndesite {
 pub struct Deepslate;
 
 impl ItemDef for Deepslate {
-    const ID: u32 = 8;
+    const ID: i32 = 8;
     const STRING_ID: &'static str = "minecraft:deepslate";
     const NAME: &'static str = "Deepslate";
     const STACK_SIZE: u8 = 64;
@@ -100,7 +100,7 @@ impl ItemDef for Deepslate {
 pub struct CobbledDeepslate;
 
 impl ItemDef for CobbledDeepslate {
-    const ID: u32 = 9;
+    const ID: i32 = 9;
     const STRING_ID: &'static str = "minecraft:cobbled_deepslate";
     const NAME: &'static str = "Cobbled Deepslate";
     const STACK_SIZE: u8 = 64;
@@ -110,7 +110,7 @@ impl ItemDef for CobbledDeepslate {
 pub struct PolishedDeepslate;
 
 impl ItemDef for PolishedDeepslate {
-    const ID: u32 = 10;
+    const ID: i32 = 10;
     const STRING_ID: &'static str = "minecraft:polished_deepslate";
     const NAME: &'static str = "Polished Deepslate";
     const STACK_SIZE: u8 = 64;
@@ -120,7 +120,7 @@ impl ItemDef for PolishedDeepslate {
 pub struct Calcite;
 
 impl ItemDef for Calcite {
-    const ID: u32 = 11;
+    const ID: i32 = 11;
     const STRING_ID: &'static str = "minecraft:calcite";
     const NAME: &'static str = "Calcite";
     const STACK_SIZE: u8 = 64;
@@ -130,7 +130,7 @@ impl ItemDef for Calcite {
 pub struct Tuff;
 
 impl ItemDef for Tuff {
-    const ID: u32 = 12;
+    const ID: i32 = 12;
     const STRING_ID: &'static str = "minecraft:tuff";
     const NAME: &'static str = "Tuff";
     const STACK_SIZE: u8 = 64;
@@ -140,7 +140,7 @@ impl ItemDef for Tuff {
 pub struct TuffSlab;
 
 impl ItemDef for TuffSlab {
-    const ID: u32 = 13;
+    const ID: i32 = 13;
     const STRING_ID: &'static str = "minecraft:tuff_slab";
     const NAME: &'static str = "Tuff Slab";
     const STACK_SIZE: u8 = 64;
@@ -150,7 +150,7 @@ impl ItemDef for TuffSlab {
 pub struct TuffStairs;
 
 impl ItemDef for TuffStairs {
-    const ID: u32 = 14;
+    const ID: i32 = 14;
     const STRING_ID: &'static str = "minecraft:tuff_stairs";
     const NAME: &'static str = "Tuff Stairs";
     const STACK_SIZE: u8 = 64;
@@ -160,7 +160,7 @@ impl ItemDef for TuffStairs {
 pub struct TuffWall;
 
 impl ItemDef for TuffWall {
-    const ID: u32 = 15;
+    const ID: i32 = 15;
     const STRING_ID: &'static str = "minecraft:tuff_wall";
     const NAME: &'static str = "Tuff Wall";
     const STACK_SIZE: u8 = 64;
@@ -170,7 +170,7 @@ impl ItemDef for TuffWall {
 pub struct ChiseledTuff;
 
 impl ItemDef for ChiseledTuff {
-    const ID: u32 = 16;
+    const ID: i32 = 16;
     const STRING_ID: &'static str = "minecraft:chiseled_tuff";
     const NAME: &'static str = "Chiseled Tuff";
     const STACK_SIZE: u8 = 64;
@@ -180,7 +180,7 @@ impl ItemDef for ChiseledTuff {
 pub struct PolishedTuff;
 
 impl ItemDef for PolishedTuff {
-    const ID: u32 = 17;
+    const ID: i32 = 17;
     const STRING_ID: &'static str = "minecraft:polished_tuff";
     const NAME: &'static str = "Polished Tuff";
     const STACK_SIZE: u8 = 64;
@@ -190,7 +190,7 @@ impl ItemDef for PolishedTuff {
 pub struct PolishedTuffSlab;
 
 impl ItemDef for PolishedTuffSlab {
-    const ID: u32 = 18;
+    const ID: i32 = 18;
     const STRING_ID: &'static str = "minecraft:polished_tuff_slab";
     const NAME: &'static str = "Polished Tuff Slab";
     const STACK_SIZE: u8 = 64;
@@ -200,7 +200,7 @@ impl ItemDef for PolishedTuffSlab {
 pub struct PolishedTuffStairs;
 
 impl ItemDef for PolishedTuffStairs {
-    const ID: u32 = 19;
+    const ID: i32 = 19;
     const STRING_ID: &'static str = "minecraft:polished_tuff_stairs";
     const NAME: &'static str = "Polished Tuff Stairs";
     const STACK_SIZE: u8 = 64;
@@ -210,7 +210,7 @@ impl ItemDef for PolishedTuffStairs {
 pub struct PolishedTuffWall;
 
 impl ItemDef for PolishedTuffWall {
-    const ID: u32 = 20;
+    const ID: i32 = 20;
     const STRING_ID: &'static str = "minecraft:polished_tuff_wall";
     const NAME: &'static str = "Polished Tuff Wall";
     const STACK_SIZE: u8 = 64;
@@ -220,7 +220,7 @@ impl ItemDef for PolishedTuffWall {
 pub struct TuffBricks;
 
 impl ItemDef for TuffBricks {
-    const ID: u32 = 21;
+    const ID: i32 = 21;
     const STRING_ID: &'static str = "minecraft:tuff_bricks";
     const NAME: &'static str = "Tuff Bricks";
     const STACK_SIZE: u8 = 64;
@@ -230,7 +230,7 @@ impl ItemDef for TuffBricks {
 pub struct TuffBrickSlab;
 
 impl ItemDef for TuffBrickSlab {
-    const ID: u32 = 22;
+    const ID: i32 = 22;
     const STRING_ID: &'static str = "minecraft:tuff_brick_slab";
     const NAME: &'static str = "Tuff Brick Slab";
     const STACK_SIZE: u8 = 64;
@@ -240,7 +240,7 @@ impl ItemDef for TuffBrickSlab {
 pub struct TuffBrickStairs;
 
 impl ItemDef for TuffBrickStairs {
-    const ID: u32 = 23;
+    const ID: i32 = 23;
     const STRING_ID: &'static str = "minecraft:tuff_brick_stairs";
     const NAME: &'static str = "Tuff Brick Stairs";
     const STACK_SIZE: u8 = 64;
@@ -250,7 +250,7 @@ impl ItemDef for TuffBrickStairs {
 pub struct TuffBrickWall;
 
 impl ItemDef for TuffBrickWall {
-    const ID: u32 = 24;
+    const ID: i32 = 24;
     const STRING_ID: &'static str = "minecraft:tuff_brick_wall";
     const NAME: &'static str = "Tuff Brick Wall";
     const STACK_SIZE: u8 = 64;
@@ -260,7 +260,7 @@ impl ItemDef for TuffBrickWall {
 pub struct ChiseledTuffBricks;
 
 impl ItemDef for ChiseledTuffBricks {
-    const ID: u32 = 25;
+    const ID: i32 = 25;
     const STRING_ID: &'static str = "minecraft:chiseled_tuff_bricks";
     const NAME: &'static str = "Chiseled Tuff Bricks";
     const STACK_SIZE: u8 = 64;
@@ -270,7 +270,7 @@ impl ItemDef for ChiseledTuffBricks {
 pub struct DripstoneBlock;
 
 impl ItemDef for DripstoneBlock {
-    const ID: u32 = 26;
+    const ID: i32 = 26;
     const STRING_ID: &'static str = "minecraft:dripstone_block";
     const NAME: &'static str = "Dripstone Block";
     const STACK_SIZE: u8 = 64;
@@ -280,7 +280,7 @@ impl ItemDef for DripstoneBlock {
 pub struct GrassBlock;
 
 impl ItemDef for GrassBlock {
-    const ID: u32 = 27;
+    const ID: i32 = 27;
     const STRING_ID: &'static str = "minecraft:grass_block";
     const NAME: &'static str = "Grass Block";
     const STACK_SIZE: u8 = 64;
@@ -290,7 +290,7 @@ impl ItemDef for GrassBlock {
 pub struct Dirt;
 
 impl ItemDef for Dirt {
-    const ID: u32 = 28;
+    const ID: i32 = 28;
     const STRING_ID: &'static str = "minecraft:dirt";
     const NAME: &'static str = "Dirt";
     const STACK_SIZE: u8 = 64;
@@ -300,7 +300,7 @@ impl ItemDef for Dirt {
 pub struct CoarseDirt;
 
 impl ItemDef for CoarseDirt {
-    const ID: u32 = 29;
+    const ID: i32 = 29;
     const STRING_ID: &'static str = "minecraft:coarse_dirt";
     const NAME: &'static str = "Coarse Dirt";
     const STACK_SIZE: u8 = 64;
@@ -310,7 +310,7 @@ impl ItemDef for CoarseDirt {
 pub struct Podzol;
 
 impl ItemDef for Podzol {
-    const ID: u32 = 30;
+    const ID: i32 = 30;
     const STRING_ID: &'static str = "minecraft:podzol";
     const NAME: &'static str = "Podzol";
     const STACK_SIZE: u8 = 64;
@@ -320,7 +320,7 @@ impl ItemDef for Podzol {
 pub struct DirtWithRoots;
 
 impl ItemDef for DirtWithRoots {
-    const ID: u32 = 31;
+    const ID: i32 = 31;
     const STRING_ID: &'static str = "minecraft:dirt_with_roots";
     const NAME: &'static str = "Rooted Dirt";
     const STACK_SIZE: u8 = 64;
@@ -330,7 +330,7 @@ impl ItemDef for DirtWithRoots {
 pub struct Mud;
 
 impl ItemDef for Mud {
-    const ID: u32 = 32;
+    const ID: i32 = 32;
     const STRING_ID: &'static str = "minecraft:mud";
     const NAME: &'static str = "Mud";
     const STACK_SIZE: u8 = 64;
@@ -340,7 +340,7 @@ impl ItemDef for Mud {
 pub struct CrimsonNylium;
 
 impl ItemDef for CrimsonNylium {
-    const ID: u32 = 33;
+    const ID: i32 = 33;
     const STRING_ID: &'static str = "minecraft:crimson_nylium";
     const NAME: &'static str = "Crimson Nylium";
     const STACK_SIZE: u8 = 64;
@@ -350,7 +350,7 @@ impl ItemDef for CrimsonNylium {
 pub struct WarpedNylium;
 
 impl ItemDef for WarpedNylium {
-    const ID: u32 = 34;
+    const ID: i32 = 34;
     const STRING_ID: &'static str = "minecraft:warped_nylium";
     const NAME: &'static str = "Warped Nylium";
     const STACK_SIZE: u8 = 64;
@@ -360,7 +360,7 @@ impl ItemDef for WarpedNylium {
 pub struct Cobblestone;
 
 impl ItemDef for Cobblestone {
-    const ID: u32 = 35;
+    const ID: i32 = 35;
     const STRING_ID: &'static str = "minecraft:cobblestone";
     const NAME: &'static str = "Cobblestone";
     const STACK_SIZE: u8 = 64;
@@ -370,7 +370,7 @@ impl ItemDef for Cobblestone {
 pub struct OakPlanks;
 
 impl ItemDef for OakPlanks {
-    const ID: u32 = 36;
+    const ID: i32 = 36;
     const STRING_ID: &'static str = "minecraft:oak_planks";
     const NAME: &'static str = "Oak Planks";
     const STACK_SIZE: u8 = 64;
@@ -380,7 +380,7 @@ impl ItemDef for OakPlanks {
 pub struct SprucePlanks;
 
 impl ItemDef for SprucePlanks {
-    const ID: u32 = 37;
+    const ID: i32 = 37;
     const STRING_ID: &'static str = "minecraft:spruce_planks";
     const NAME: &'static str = "Spruce Planks";
     const STACK_SIZE: u8 = 64;
@@ -390,7 +390,7 @@ impl ItemDef for SprucePlanks {
 pub struct BirchPlanks;
 
 impl ItemDef for BirchPlanks {
-    const ID: u32 = 38;
+    const ID: i32 = 38;
     const STRING_ID: &'static str = "minecraft:birch_planks";
     const NAME: &'static str = "Birch Planks";
     const STACK_SIZE: u8 = 64;
@@ -400,7 +400,7 @@ impl ItemDef for BirchPlanks {
 pub struct JunglePlanks;
 
 impl ItemDef for JunglePlanks {
-    const ID: u32 = 39;
+    const ID: i32 = 39;
     const STRING_ID: &'static str = "minecraft:jungle_planks";
     const NAME: &'static str = "Jungle Planks";
     const STACK_SIZE: u8 = 64;
@@ -410,7 +410,7 @@ impl ItemDef for JunglePlanks {
 pub struct AcaciaPlanks;
 
 impl ItemDef for AcaciaPlanks {
-    const ID: u32 = 40;
+    const ID: i32 = 40;
     const STRING_ID: &'static str = "minecraft:acacia_planks";
     const NAME: &'static str = "Acacia Planks";
     const STACK_SIZE: u8 = 64;
@@ -420,7 +420,7 @@ impl ItemDef for AcaciaPlanks {
 pub struct CherryPlanks;
 
 impl ItemDef for CherryPlanks {
-    const ID: u32 = 41;
+    const ID: i32 = 41;
     const STRING_ID: &'static str = "minecraft:cherry_planks";
     const NAME: &'static str = "Cherry Planks";
     const STACK_SIZE: u8 = 64;
@@ -430,7 +430,7 @@ impl ItemDef for CherryPlanks {
 pub struct DarkOakPlanks;
 
 impl ItemDef for DarkOakPlanks {
-    const ID: u32 = 42;
+    const ID: i32 = 42;
     const STRING_ID: &'static str = "minecraft:dark_oak_planks";
     const NAME: &'static str = "Dark Oak Planks";
     const STACK_SIZE: u8 = 64;
@@ -440,7 +440,7 @@ impl ItemDef for DarkOakPlanks {
 pub struct PaleOakPlanks;
 
 impl ItemDef for PaleOakPlanks {
-    const ID: u32 = 43;
+    const ID: i32 = 43;
     const STRING_ID: &'static str = "minecraft:pale_oak_planks";
     const NAME: &'static str = "Pale Oak Planks";
     const STACK_SIZE: u8 = 64;
@@ -450,7 +450,7 @@ impl ItemDef for PaleOakPlanks {
 pub struct MangrovePlanks;
 
 impl ItemDef for MangrovePlanks {
-    const ID: u32 = 44;
+    const ID: i32 = 44;
     const STRING_ID: &'static str = "minecraft:mangrove_planks";
     const NAME: &'static str = "Mangrove Planks";
     const STACK_SIZE: u8 = 64;
@@ -460,7 +460,7 @@ impl ItemDef for MangrovePlanks {
 pub struct BambooPlanks;
 
 impl ItemDef for BambooPlanks {
-    const ID: u32 = 45;
+    const ID: i32 = 45;
     const STRING_ID: &'static str = "minecraft:bamboo_planks";
     const NAME: &'static str = "Bamboo Planks";
     const STACK_SIZE: u8 = 64;
@@ -470,7 +470,7 @@ impl ItemDef for BambooPlanks {
 pub struct CrimsonPlanks;
 
 impl ItemDef for CrimsonPlanks {
-    const ID: u32 = 46;
+    const ID: i32 = 46;
     const STRING_ID: &'static str = "minecraft:crimson_planks";
     const NAME: &'static str = "Crimson Planks";
     const STACK_SIZE: u8 = 64;
@@ -480,7 +480,7 @@ impl ItemDef for CrimsonPlanks {
 pub struct WarpedPlanks;
 
 impl ItemDef for WarpedPlanks {
-    const ID: u32 = 47;
+    const ID: i32 = 47;
     const STRING_ID: &'static str = "minecraft:warped_planks";
     const NAME: &'static str = "Warped Planks";
     const STACK_SIZE: u8 = 64;
@@ -490,7 +490,7 @@ impl ItemDef for WarpedPlanks {
 pub struct BambooMosaic;
 
 impl ItemDef for BambooMosaic {
-    const ID: u32 = 48;
+    const ID: i32 = 48;
     const STRING_ID: &'static str = "minecraft:bamboo_mosaic";
     const NAME: &'static str = "Bamboo Mosaic";
     const STACK_SIZE: u8 = 64;
@@ -500,7 +500,7 @@ impl ItemDef for BambooMosaic {
 pub struct OakSapling;
 
 impl ItemDef for OakSapling {
-    const ID: u32 = 49;
+    const ID: i32 = 49;
     const STRING_ID: &'static str = "minecraft:oak_sapling";
     const NAME: &'static str = "Oak Sapling";
     const STACK_SIZE: u8 = 64;
@@ -510,7 +510,7 @@ impl ItemDef for OakSapling {
 pub struct SpruceSapling;
 
 impl ItemDef for SpruceSapling {
-    const ID: u32 = 50;
+    const ID: i32 = 50;
     const STRING_ID: &'static str = "minecraft:spruce_sapling";
     const NAME: &'static str = "Spruce Sapling";
     const STACK_SIZE: u8 = 64;
@@ -520,7 +520,7 @@ impl ItemDef for SpruceSapling {
 pub struct BirchSapling;
 
 impl ItemDef for BirchSapling {
-    const ID: u32 = 51;
+    const ID: i32 = 51;
     const STRING_ID: &'static str = "minecraft:birch_sapling";
     const NAME: &'static str = "Birch Sapling";
     const STACK_SIZE: u8 = 64;
@@ -530,7 +530,7 @@ impl ItemDef for BirchSapling {
 pub struct JungleSapling;
 
 impl ItemDef for JungleSapling {
-    const ID: u32 = 52;
+    const ID: i32 = 52;
     const STRING_ID: &'static str = "minecraft:jungle_sapling";
     const NAME: &'static str = "Jungle Sapling";
     const STACK_SIZE: u8 = 64;
@@ -540,7 +540,7 @@ impl ItemDef for JungleSapling {
 pub struct AcaciaSapling;
 
 impl ItemDef for AcaciaSapling {
-    const ID: u32 = 53;
+    const ID: i32 = 53;
     const STRING_ID: &'static str = "minecraft:acacia_sapling";
     const NAME: &'static str = "Acacia Sapling";
     const STACK_SIZE: u8 = 64;
@@ -550,7 +550,7 @@ impl ItemDef for AcaciaSapling {
 pub struct CherrySapling;
 
 impl ItemDef for CherrySapling {
-    const ID: u32 = 54;
+    const ID: i32 = 54;
     const STRING_ID: &'static str = "minecraft:cherry_sapling";
     const NAME: &'static str = "Cherry Sapling";
     const STACK_SIZE: u8 = 64;
@@ -560,7 +560,7 @@ impl ItemDef for CherrySapling {
 pub struct DarkOakSapling;
 
 impl ItemDef for DarkOakSapling {
-    const ID: u32 = 55;
+    const ID: i32 = 55;
     const STRING_ID: &'static str = "minecraft:dark_oak_sapling";
     const NAME: &'static str = "Dark Oak Sapling";
     const STACK_SIZE: u8 = 64;
@@ -570,7 +570,7 @@ impl ItemDef for DarkOakSapling {
 pub struct PaleOakSapling;
 
 impl ItemDef for PaleOakSapling {
-    const ID: u32 = 56;
+    const ID: i32 = 56;
     const STRING_ID: &'static str = "minecraft:pale_oak_sapling";
     const NAME: &'static str = "Pale Oak Sapling";
     const STACK_SIZE: u8 = 64;
@@ -580,7 +580,7 @@ impl ItemDef for PaleOakSapling {
 pub struct MangrovePropagule;
 
 impl ItemDef for MangrovePropagule {
-    const ID: u32 = 57;
+    const ID: i32 = 57;
     const STRING_ID: &'static str = "minecraft:mangrove_propagule";
     const NAME: &'static str = "Mangrove Propagule";
     const STACK_SIZE: u8 = 64;
@@ -590,7 +590,7 @@ impl ItemDef for MangrovePropagule {
 pub struct Bedrock;
 
 impl ItemDef for Bedrock {
-    const ID: u32 = 58;
+    const ID: i32 = 58;
     const STRING_ID: &'static str = "minecraft:bedrock";
     const NAME: &'static str = "Bedrock";
     const STACK_SIZE: u8 = 64;
@@ -600,7 +600,7 @@ impl ItemDef for Bedrock {
 pub struct Sand;
 
 impl ItemDef for Sand {
-    const ID: u32 = 59;
+    const ID: i32 = 59;
     const STRING_ID: &'static str = "minecraft:sand";
     const NAME: &'static str = "Sand";
     const STACK_SIZE: u8 = 64;
@@ -610,7 +610,7 @@ impl ItemDef for Sand {
 pub struct SuspiciousSand;
 
 impl ItemDef for SuspiciousSand {
-    const ID: u32 = 60;
+    const ID: i32 = 60;
     const STRING_ID: &'static str = "minecraft:suspicious_sand";
     const NAME: &'static str = "Suspicious Sand";
     const STACK_SIZE: u8 = 64;
@@ -620,7 +620,7 @@ impl ItemDef for SuspiciousSand {
 pub struct SuspiciousGravel;
 
 impl ItemDef for SuspiciousGravel {
-    const ID: u32 = 61;
+    const ID: i32 = 61;
     const STRING_ID: &'static str = "minecraft:suspicious_gravel";
     const NAME: &'static str = "Suspicious Gravel";
     const STACK_SIZE: u8 = 64;
@@ -630,7 +630,7 @@ impl ItemDef for SuspiciousGravel {
 pub struct RedSand;
 
 impl ItemDef for RedSand {
-    const ID: u32 = 62;
+    const ID: i32 = 62;
     const STRING_ID: &'static str = "minecraft:red_sand";
     const NAME: &'static str = "Red Sand";
     const STACK_SIZE: u8 = 64;
@@ -640,7 +640,7 @@ impl ItemDef for RedSand {
 pub struct Gravel;
 
 impl ItemDef for Gravel {
-    const ID: u32 = 63;
+    const ID: i32 = 63;
     const STRING_ID: &'static str = "minecraft:gravel";
     const NAME: &'static str = "Gravel";
     const STACK_SIZE: u8 = 64;
@@ -650,7 +650,7 @@ impl ItemDef for Gravel {
 pub struct CoalOre;
 
 impl ItemDef for CoalOre {
-    const ID: u32 = 64;
+    const ID: i32 = 64;
     const STRING_ID: &'static str = "minecraft:coal_ore";
     const NAME: &'static str = "Coal Ore";
     const STACK_SIZE: u8 = 64;
@@ -660,7 +660,7 @@ impl ItemDef for CoalOre {
 pub struct DeepslateCoalOre;
 
 impl ItemDef for DeepslateCoalOre {
-    const ID: u32 = 65;
+    const ID: i32 = 65;
     const STRING_ID: &'static str = "minecraft:deepslate_coal_ore";
     const NAME: &'static str = "Deepslate Coal Ore";
     const STACK_SIZE: u8 = 64;
@@ -670,7 +670,7 @@ impl ItemDef for DeepslateCoalOre {
 pub struct IronOre;
 
 impl ItemDef for IronOre {
-    const ID: u32 = 66;
+    const ID: i32 = 66;
     const STRING_ID: &'static str = "minecraft:iron_ore";
     const NAME: &'static str = "Iron Ore";
     const STACK_SIZE: u8 = 64;
@@ -680,7 +680,7 @@ impl ItemDef for IronOre {
 pub struct DeepslateIronOre;
 
 impl ItemDef for DeepslateIronOre {
-    const ID: u32 = 67;
+    const ID: i32 = 67;
     const STRING_ID: &'static str = "minecraft:deepslate_iron_ore";
     const NAME: &'static str = "Deepslate Iron Ore";
     const STACK_SIZE: u8 = 64;
@@ -690,7 +690,7 @@ impl ItemDef for DeepslateIronOre {
 pub struct CopperOre;
 
 impl ItemDef for CopperOre {
-    const ID: u32 = 68;
+    const ID: i32 = 68;
     const STRING_ID: &'static str = "minecraft:copper_ore";
     const NAME: &'static str = "Copper Ore";
     const STACK_SIZE: u8 = 64;
@@ -700,7 +700,7 @@ impl ItemDef for CopperOre {
 pub struct DeepslateCopperOre;
 
 impl ItemDef for DeepslateCopperOre {
-    const ID: u32 = 69;
+    const ID: i32 = 69;
     const STRING_ID: &'static str = "minecraft:deepslate_copper_ore";
     const NAME: &'static str = "Deepslate Copper Ore";
     const STACK_SIZE: u8 = 64;
@@ -710,7 +710,7 @@ impl ItemDef for DeepslateCopperOre {
 pub struct GoldOre;
 
 impl ItemDef for GoldOre {
-    const ID: u32 = 70;
+    const ID: i32 = 70;
     const STRING_ID: &'static str = "minecraft:gold_ore";
     const NAME: &'static str = "Gold Ore";
     const STACK_SIZE: u8 = 64;
@@ -720,7 +720,7 @@ impl ItemDef for GoldOre {
 pub struct DeepslateGoldOre;
 
 impl ItemDef for DeepslateGoldOre {
-    const ID: u32 = 71;
+    const ID: i32 = 71;
     const STRING_ID: &'static str = "minecraft:deepslate_gold_ore";
     const NAME: &'static str = "Deepslate Gold Ore";
     const STACK_SIZE: u8 = 64;
@@ -730,7 +730,7 @@ impl ItemDef for DeepslateGoldOre {
 pub struct RedstoneOre;
 
 impl ItemDef for RedstoneOre {
-    const ID: u32 = 72;
+    const ID: i32 = 72;
     const STRING_ID: &'static str = "minecraft:redstone_ore";
     const NAME: &'static str = "Redstone Ore";
     const STACK_SIZE: u8 = 64;
@@ -740,7 +740,7 @@ impl ItemDef for RedstoneOre {
 pub struct DeepslateRedstoneOre;
 
 impl ItemDef for DeepslateRedstoneOre {
-    const ID: u32 = 73;
+    const ID: i32 = 73;
     const STRING_ID: &'static str = "minecraft:deepslate_redstone_ore";
     const NAME: &'static str = "Deepslate Redstone Ore";
     const STACK_SIZE: u8 = 64;
@@ -750,7 +750,7 @@ impl ItemDef for DeepslateRedstoneOre {
 pub struct EmeraldOre;
 
 impl ItemDef for EmeraldOre {
-    const ID: u32 = 74;
+    const ID: i32 = 74;
     const STRING_ID: &'static str = "minecraft:emerald_ore";
     const NAME: &'static str = "Emerald Ore";
     const STACK_SIZE: u8 = 64;
@@ -760,7 +760,7 @@ impl ItemDef for EmeraldOre {
 pub struct DeepslateEmeraldOre;
 
 impl ItemDef for DeepslateEmeraldOre {
-    const ID: u32 = 75;
+    const ID: i32 = 75;
     const STRING_ID: &'static str = "minecraft:deepslate_emerald_ore";
     const NAME: &'static str = "Deepslate Emerald Ore";
     const STACK_SIZE: u8 = 64;
@@ -770,7 +770,7 @@ impl ItemDef for DeepslateEmeraldOre {
 pub struct LapisOre;
 
 impl ItemDef for LapisOre {
-    const ID: u32 = 76;
+    const ID: i32 = 76;
     const STRING_ID: &'static str = "minecraft:lapis_ore";
     const NAME: &'static str = "Lapis Lazuli Ore";
     const STACK_SIZE: u8 = 64;
@@ -780,7 +780,7 @@ impl ItemDef for LapisOre {
 pub struct DeepslateLapisOre;
 
 impl ItemDef for DeepslateLapisOre {
-    const ID: u32 = 77;
+    const ID: i32 = 77;
     const STRING_ID: &'static str = "minecraft:deepslate_lapis_ore";
     const NAME: &'static str = "Deepslate Lapis Lazuli Ore";
     const STACK_SIZE: u8 = 64;
@@ -790,7 +790,7 @@ impl ItemDef for DeepslateLapisOre {
 pub struct DiamondOre;
 
 impl ItemDef for DiamondOre {
-    const ID: u32 = 78;
+    const ID: i32 = 78;
     const STRING_ID: &'static str = "minecraft:diamond_ore";
     const NAME: &'static str = "Diamond Ore";
     const STACK_SIZE: u8 = 64;
@@ -800,7 +800,7 @@ impl ItemDef for DiamondOre {
 pub struct DeepslateDiamondOre;
 
 impl ItemDef for DeepslateDiamondOre {
-    const ID: u32 = 79;
+    const ID: i32 = 79;
     const STRING_ID: &'static str = "minecraft:deepslate_diamond_ore";
     const NAME: &'static str = "Deepslate Diamond Ore";
     const STACK_SIZE: u8 = 64;
@@ -810,7 +810,7 @@ impl ItemDef for DeepslateDiamondOre {
 pub struct NetherGoldOre;
 
 impl ItemDef for NetherGoldOre {
-    const ID: u32 = 80;
+    const ID: i32 = 80;
     const STRING_ID: &'static str = "minecraft:nether_gold_ore";
     const NAME: &'static str = "Nether Gold Ore";
     const STACK_SIZE: u8 = 64;
@@ -820,7 +820,7 @@ impl ItemDef for NetherGoldOre {
 pub struct QuartzOre;
 
 impl ItemDef for QuartzOre {
-    const ID: u32 = 81;
+    const ID: i32 = 81;
     const STRING_ID: &'static str = "minecraft:quartz_ore";
     const NAME: &'static str = "Nether Quartz Ore";
     const STACK_SIZE: u8 = 64;
@@ -830,7 +830,7 @@ impl ItemDef for QuartzOre {
 pub struct AncientDebris;
 
 impl ItemDef for AncientDebris {
-    const ID: u32 = 82;
+    const ID: i32 = 82;
     const STRING_ID: &'static str = "minecraft:ancient_debris";
     const NAME: &'static str = "Ancient Debris";
     const STACK_SIZE: u8 = 64;
@@ -840,7 +840,7 @@ impl ItemDef for AncientDebris {
 pub struct CoalBlock;
 
 impl ItemDef for CoalBlock {
-    const ID: u32 = 83;
+    const ID: i32 = 83;
     const STRING_ID: &'static str = "minecraft:coal_block";
     const NAME: &'static str = "Block of Coal";
     const STACK_SIZE: u8 = 64;
@@ -850,7 +850,7 @@ impl ItemDef for CoalBlock {
 pub struct RawIronBlock;
 
 impl ItemDef for RawIronBlock {
-    const ID: u32 = 84;
+    const ID: i32 = 84;
     const STRING_ID: &'static str = "minecraft:raw_iron_block";
     const NAME: &'static str = "Block of Raw Iron";
     const STACK_SIZE: u8 = 64;
@@ -860,7 +860,7 @@ impl ItemDef for RawIronBlock {
 pub struct RawCopperBlock;
 
 impl ItemDef for RawCopperBlock {
-    const ID: u32 = 85;
+    const ID: i32 = 85;
     const STRING_ID: &'static str = "minecraft:raw_copper_block";
     const NAME: &'static str = "Block of Raw Copper";
     const STACK_SIZE: u8 = 64;
@@ -870,7 +870,7 @@ impl ItemDef for RawCopperBlock {
 pub struct RawGoldBlock;
 
 impl ItemDef for RawGoldBlock {
-    const ID: u32 = 86;
+    const ID: i32 = 86;
     const STRING_ID: &'static str = "minecraft:raw_gold_block";
     const NAME: &'static str = "Block of Raw Gold";
     const STACK_SIZE: u8 = 64;
@@ -880,7 +880,7 @@ impl ItemDef for RawGoldBlock {
 pub struct HeavyCore;
 
 impl ItemDef for HeavyCore {
-    const ID: u32 = 87;
+    const ID: i32 = 87;
     const STRING_ID: &'static str = "minecraft:heavy_core";
     const NAME: &'static str = "Heavy Core";
     const STACK_SIZE: u8 = 64;
@@ -890,7 +890,7 @@ impl ItemDef for HeavyCore {
 pub struct AmethystBlock;
 
 impl ItemDef for AmethystBlock {
-    const ID: u32 = 88;
+    const ID: i32 = 88;
     const STRING_ID: &'static str = "minecraft:amethyst_block";
     const NAME: &'static str = "Block of Amethyst";
     const STACK_SIZE: u8 = 64;
@@ -900,7 +900,7 @@ impl ItemDef for AmethystBlock {
 pub struct BuddingAmethyst;
 
 impl ItemDef for BuddingAmethyst {
-    const ID: u32 = 89;
+    const ID: i32 = 89;
     const STRING_ID: &'static str = "minecraft:budding_amethyst";
     const NAME: &'static str = "Budding Amethyst";
     const STACK_SIZE: u8 = 64;
@@ -910,7 +910,7 @@ impl ItemDef for BuddingAmethyst {
 pub struct IronBlock;
 
 impl ItemDef for IronBlock {
-    const ID: u32 = 90;
+    const ID: i32 = 90;
     const STRING_ID: &'static str = "minecraft:iron_block";
     const NAME: &'static str = "Block of Iron";
     const STACK_SIZE: u8 = 64;
@@ -920,7 +920,7 @@ impl ItemDef for IronBlock {
 pub struct CopperBlock;
 
 impl ItemDef for CopperBlock {
-    const ID: u32 = 91;
+    const ID: i32 = 91;
     const STRING_ID: &'static str = "minecraft:copper_block";
     const NAME: &'static str = "Block of Copper";
     const STACK_SIZE: u8 = 64;
@@ -930,7 +930,7 @@ impl ItemDef for CopperBlock {
 pub struct GoldBlock;
 
 impl ItemDef for GoldBlock {
-    const ID: u32 = 92;
+    const ID: i32 = 92;
     const STRING_ID: &'static str = "minecraft:gold_block";
     const NAME: &'static str = "Block of Gold";
     const STACK_SIZE: u8 = 64;
@@ -940,7 +940,7 @@ impl ItemDef for GoldBlock {
 pub struct DiamondBlock;
 
 impl ItemDef for DiamondBlock {
-    const ID: u32 = 93;
+    const ID: i32 = 93;
     const STRING_ID: &'static str = "minecraft:diamond_block";
     const NAME: &'static str = "Block of Diamond";
     const STACK_SIZE: u8 = 64;
@@ -950,7 +950,7 @@ impl ItemDef for DiamondBlock {
 pub struct NetheriteBlock;
 
 impl ItemDef for NetheriteBlock {
-    const ID: u32 = 94;
+    const ID: i32 = 94;
     const STRING_ID: &'static str = "minecraft:netherite_block";
     const NAME: &'static str = "Block of Netherite";
     const STACK_SIZE: u8 = 64;
@@ -960,7 +960,7 @@ impl ItemDef for NetheriteBlock {
 pub struct ExposedCopper;
 
 impl ItemDef for ExposedCopper {
-    const ID: u32 = 95;
+    const ID: i32 = 95;
     const STRING_ID: &'static str = "minecraft:exposed_copper";
     const NAME: &'static str = "Exposed Copper";
     const STACK_SIZE: u8 = 64;
@@ -970,7 +970,7 @@ impl ItemDef for ExposedCopper {
 pub struct WeatheredCopper;
 
 impl ItemDef for WeatheredCopper {
-    const ID: u32 = 96;
+    const ID: i32 = 96;
     const STRING_ID: &'static str = "minecraft:weathered_copper";
     const NAME: &'static str = "Weathered Copper";
     const STACK_SIZE: u8 = 64;
@@ -980,7 +980,7 @@ impl ItemDef for WeatheredCopper {
 pub struct OxidizedCopper;
 
 impl ItemDef for OxidizedCopper {
-    const ID: u32 = 97;
+    const ID: i32 = 97;
     const STRING_ID: &'static str = "minecraft:oxidized_copper";
     const NAME: &'static str = "Oxidized Copper";
     const STACK_SIZE: u8 = 64;
@@ -990,7 +990,7 @@ impl ItemDef for OxidizedCopper {
 pub struct ChiseledCopper;
 
 impl ItemDef for ChiseledCopper {
-    const ID: u32 = 98;
+    const ID: i32 = 98;
     const STRING_ID: &'static str = "minecraft:chiseled_copper";
     const NAME: &'static str = "Chiseled Copper";
     const STACK_SIZE: u8 = 64;
@@ -1000,7 +1000,7 @@ impl ItemDef for ChiseledCopper {
 pub struct ExposedChiseledCopper;
 
 impl ItemDef for ExposedChiseledCopper {
-    const ID: u32 = 99;
+    const ID: i32 = 99;
     const STRING_ID: &'static str = "minecraft:exposed_chiseled_copper";
     const NAME: &'static str = "Exposed Chiseled Copper";
     const STACK_SIZE: u8 = 64;
@@ -1010,7 +1010,7 @@ impl ItemDef for ExposedChiseledCopper {
 pub struct WeatheredChiseledCopper;
 
 impl ItemDef for WeatheredChiseledCopper {
-    const ID: u32 = 100;
+    const ID: i32 = 100;
     const STRING_ID: &'static str = "minecraft:weathered_chiseled_copper";
     const NAME: &'static str = "Weathered Chiseled Copper";
     const STACK_SIZE: u8 = 64;
@@ -1020,7 +1020,7 @@ impl ItemDef for WeatheredChiseledCopper {
 pub struct OxidizedChiseledCopper;
 
 impl ItemDef for OxidizedChiseledCopper {
-    const ID: u32 = 101;
+    const ID: i32 = 101;
     const STRING_ID: &'static str = "minecraft:oxidized_chiseled_copper";
     const NAME: &'static str = "Oxidized Chiseled Copper";
     const STACK_SIZE: u8 = 64;
@@ -1030,7 +1030,7 @@ impl ItemDef for OxidizedChiseledCopper {
 pub struct CutCopper;
 
 impl ItemDef for CutCopper {
-    const ID: u32 = 102;
+    const ID: i32 = 102;
     const STRING_ID: &'static str = "minecraft:cut_copper";
     const NAME: &'static str = "Cut Copper";
     const STACK_SIZE: u8 = 64;
@@ -1040,7 +1040,7 @@ impl ItemDef for CutCopper {
 pub struct ExposedCutCopper;
 
 impl ItemDef for ExposedCutCopper {
-    const ID: u32 = 103;
+    const ID: i32 = 103;
     const STRING_ID: &'static str = "minecraft:exposed_cut_copper";
     const NAME: &'static str = "Exposed Cut Copper";
     const STACK_SIZE: u8 = 64;
@@ -1050,7 +1050,7 @@ impl ItemDef for ExposedCutCopper {
 pub struct WeatheredCutCopper;
 
 impl ItemDef for WeatheredCutCopper {
-    const ID: u32 = 104;
+    const ID: i32 = 104;
     const STRING_ID: &'static str = "minecraft:weathered_cut_copper";
     const NAME: &'static str = "Weathered Cut Copper";
     const STACK_SIZE: u8 = 64;
@@ -1060,7 +1060,7 @@ impl ItemDef for WeatheredCutCopper {
 pub struct OxidizedCutCopper;
 
 impl ItemDef for OxidizedCutCopper {
-    const ID: u32 = 105;
+    const ID: i32 = 105;
     const STRING_ID: &'static str = "minecraft:oxidized_cut_copper";
     const NAME: &'static str = "Oxidized Cut Copper";
     const STACK_SIZE: u8 = 64;
@@ -1070,7 +1070,7 @@ impl ItemDef for OxidizedCutCopper {
 pub struct CutCopperStairs;
 
 impl ItemDef for CutCopperStairs {
-    const ID: u32 = 106;
+    const ID: i32 = 106;
     const STRING_ID: &'static str = "minecraft:cut_copper_stairs";
     const NAME: &'static str = "Cut Copper Stairs";
     const STACK_SIZE: u8 = 64;
@@ -1080,7 +1080,7 @@ impl ItemDef for CutCopperStairs {
 pub struct ExposedCutCopperStairs;
 
 impl ItemDef for ExposedCutCopperStairs {
-    const ID: u32 = 107;
+    const ID: i32 = 107;
     const STRING_ID: &'static str = "minecraft:exposed_cut_copper_stairs";
     const NAME: &'static str = "Exposed Cut Copper Stairs";
     const STACK_SIZE: u8 = 64;
@@ -1090,7 +1090,7 @@ impl ItemDef for ExposedCutCopperStairs {
 pub struct WeatheredCutCopperStairs;
 
 impl ItemDef for WeatheredCutCopperStairs {
-    const ID: u32 = 108;
+    const ID: i32 = 108;
     const STRING_ID: &'static str = "minecraft:weathered_cut_copper_stairs";
     const NAME: &'static str = "Weathered Cut Copper Stairs";
     const STACK_SIZE: u8 = 64;
@@ -1100,7 +1100,7 @@ impl ItemDef for WeatheredCutCopperStairs {
 pub struct OxidizedCutCopperStairs;
 
 impl ItemDef for OxidizedCutCopperStairs {
-    const ID: u32 = 109;
+    const ID: i32 = 109;
     const STRING_ID: &'static str = "minecraft:oxidized_cut_copper_stairs";
     const NAME: &'static str = "Oxidized Cut Copper Stairs";
     const STACK_SIZE: u8 = 64;
@@ -1110,7 +1110,7 @@ impl ItemDef for OxidizedCutCopperStairs {
 pub struct CutCopperSlab;
 
 impl ItemDef for CutCopperSlab {
-    const ID: u32 = 110;
+    const ID: i32 = 110;
     const STRING_ID: &'static str = "minecraft:cut_copper_slab";
     const NAME: &'static str = "Cut Copper Slab";
     const STACK_SIZE: u8 = 64;
@@ -1120,7 +1120,7 @@ impl ItemDef for CutCopperSlab {
 pub struct ExposedCutCopperSlab;
 
 impl ItemDef for ExposedCutCopperSlab {
-    const ID: u32 = 111;
+    const ID: i32 = 111;
     const STRING_ID: &'static str = "minecraft:exposed_cut_copper_slab";
     const NAME: &'static str = "Exposed Cut Copper Slab";
     const STACK_SIZE: u8 = 64;
@@ -1130,7 +1130,7 @@ impl ItemDef for ExposedCutCopperSlab {
 pub struct WeatheredCutCopperSlab;
 
 impl ItemDef for WeatheredCutCopperSlab {
-    const ID: u32 = 112;
+    const ID: i32 = 112;
     const STRING_ID: &'static str = "minecraft:weathered_cut_copper_slab";
     const NAME: &'static str = "Weathered Cut Copper Slab";
     const STACK_SIZE: u8 = 64;
@@ -1140,7 +1140,7 @@ impl ItemDef for WeatheredCutCopperSlab {
 pub struct OxidizedCutCopperSlab;
 
 impl ItemDef for OxidizedCutCopperSlab {
-    const ID: u32 = 113;
+    const ID: i32 = 113;
     const STRING_ID: &'static str = "minecraft:oxidized_cut_copper_slab";
     const NAME: &'static str = "Oxidized Cut Copper Slab";
     const STACK_SIZE: u8 = 64;
@@ -1150,7 +1150,7 @@ impl ItemDef for OxidizedCutCopperSlab {
 pub struct WaxedCopper;
 
 impl ItemDef for WaxedCopper {
-    const ID: u32 = 114;
+    const ID: i32 = 114;
     const STRING_ID: &'static str = "minecraft:waxed_copper";
     const NAME: &'static str = "Waxed Block of Copper";
     const STACK_SIZE: u8 = 64;
@@ -1160,7 +1160,7 @@ impl ItemDef for WaxedCopper {
 pub struct WaxedExposedCopper;
 
 impl ItemDef for WaxedExposedCopper {
-    const ID: u32 = 115;
+    const ID: i32 = 115;
     const STRING_ID: &'static str = "minecraft:waxed_exposed_copper";
     const NAME: &'static str = "Waxed Exposed Copper";
     const STACK_SIZE: u8 = 64;
@@ -1170,7 +1170,7 @@ impl ItemDef for WaxedExposedCopper {
 pub struct WaxedWeatheredCopper;
 
 impl ItemDef for WaxedWeatheredCopper {
-    const ID: u32 = 116;
+    const ID: i32 = 116;
     const STRING_ID: &'static str = "minecraft:waxed_weathered_copper";
     const NAME: &'static str = "Waxed Weathered Copper";
     const STACK_SIZE: u8 = 64;
@@ -1180,7 +1180,7 @@ impl ItemDef for WaxedWeatheredCopper {
 pub struct WaxedOxidizedCopper;
 
 impl ItemDef for WaxedOxidizedCopper {
-    const ID: u32 = 117;
+    const ID: i32 = 117;
     const STRING_ID: &'static str = "minecraft:waxed_oxidized_copper";
     const NAME: &'static str = "Waxed Oxidized Copper";
     const STACK_SIZE: u8 = 64;
@@ -1190,7 +1190,7 @@ impl ItemDef for WaxedOxidizedCopper {
 pub struct WaxedChiseledCopper;
 
 impl ItemDef for WaxedChiseledCopper {
-    const ID: u32 = 118;
+    const ID: i32 = 118;
     const STRING_ID: &'static str = "minecraft:waxed_chiseled_copper";
     const NAME: &'static str = "Waxed Chiseled Copper";
     const STACK_SIZE: u8 = 64;
@@ -1200,7 +1200,7 @@ impl ItemDef for WaxedChiseledCopper {
 pub struct WaxedExposedChiseledCopper;
 
 impl ItemDef for WaxedExposedChiseledCopper {
-    const ID: u32 = 119;
+    const ID: i32 = 119;
     const STRING_ID: &'static str = "minecraft:waxed_exposed_chiseled_copper";
     const NAME: &'static str = "Waxed Exposed Chiseled Copper";
     const STACK_SIZE: u8 = 64;
@@ -1210,7 +1210,7 @@ impl ItemDef for WaxedExposedChiseledCopper {
 pub struct WaxedWeatheredChiseledCopper;
 
 impl ItemDef for WaxedWeatheredChiseledCopper {
-    const ID: u32 = 120;
+    const ID: i32 = 120;
     const STRING_ID: &'static str = "minecraft:waxed_weathered_chiseled_copper";
     const NAME: &'static str = "Waxed Weathered Chiseled Copper";
     const STACK_SIZE: u8 = 64;
@@ -1220,7 +1220,7 @@ impl ItemDef for WaxedWeatheredChiseledCopper {
 pub struct WaxedOxidizedChiseledCopper;
 
 impl ItemDef for WaxedOxidizedChiseledCopper {
-    const ID: u32 = 121;
+    const ID: i32 = 121;
     const STRING_ID: &'static str = "minecraft:waxed_oxidized_chiseled_copper";
     const NAME: &'static str = "Waxed Oxidized Chiseled Copper";
     const STACK_SIZE: u8 = 64;
@@ -1230,7 +1230,7 @@ impl ItemDef for WaxedOxidizedChiseledCopper {
 pub struct WaxedCutCopper;
 
 impl ItemDef for WaxedCutCopper {
-    const ID: u32 = 122;
+    const ID: i32 = 122;
     const STRING_ID: &'static str = "minecraft:waxed_cut_copper";
     const NAME: &'static str = "Waxed Cut Copper";
     const STACK_SIZE: u8 = 64;
@@ -1240,7 +1240,7 @@ impl ItemDef for WaxedCutCopper {
 pub struct WaxedExposedCutCopper;
 
 impl ItemDef for WaxedExposedCutCopper {
-    const ID: u32 = 123;
+    const ID: i32 = 123;
     const STRING_ID: &'static str = "minecraft:waxed_exposed_cut_copper";
     const NAME: &'static str = "Waxed Exposed Cut Copper";
     const STACK_SIZE: u8 = 64;
@@ -1250,7 +1250,7 @@ impl ItemDef for WaxedExposedCutCopper {
 pub struct WaxedWeatheredCutCopper;
 
 impl ItemDef for WaxedWeatheredCutCopper {
-    const ID: u32 = 124;
+    const ID: i32 = 124;
     const STRING_ID: &'static str = "minecraft:waxed_weathered_cut_copper";
     const NAME: &'static str = "Waxed Weathered Cut Copper";
     const STACK_SIZE: u8 = 64;
@@ -1260,7 +1260,7 @@ impl ItemDef for WaxedWeatheredCutCopper {
 pub struct WaxedOxidizedCutCopper;
 
 impl ItemDef for WaxedOxidizedCutCopper {
-    const ID: u32 = 125;
+    const ID: i32 = 125;
     const STRING_ID: &'static str = "minecraft:waxed_oxidized_cut_copper";
     const NAME: &'static str = "Waxed Oxidized Cut Copper";
     const STACK_SIZE: u8 = 64;
@@ -1270,7 +1270,7 @@ impl ItemDef for WaxedOxidizedCutCopper {
 pub struct WaxedCutCopperStairs;
 
 impl ItemDef for WaxedCutCopperStairs {
-    const ID: u32 = 126;
+    const ID: i32 = 126;
     const STRING_ID: &'static str = "minecraft:waxed_cut_copper_stairs";
     const NAME: &'static str = "Waxed Cut Copper Stairs";
     const STACK_SIZE: u8 = 64;
@@ -1280,7 +1280,7 @@ impl ItemDef for WaxedCutCopperStairs {
 pub struct WaxedExposedCutCopperStairs;
 
 impl ItemDef for WaxedExposedCutCopperStairs {
-    const ID: u32 = 127;
+    const ID: i32 = 127;
     const STRING_ID: &'static str = "minecraft:waxed_exposed_cut_copper_stairs";
     const NAME: &'static str = "Waxed Exposed Cut Copper Stairs";
     const STACK_SIZE: u8 = 64;
@@ -1290,7 +1290,7 @@ impl ItemDef for WaxedExposedCutCopperStairs {
 pub struct WaxedWeatheredCutCopperStairs;
 
 impl ItemDef for WaxedWeatheredCutCopperStairs {
-    const ID: u32 = 128;
+    const ID: i32 = 128;
     const STRING_ID: &'static str = "minecraft:waxed_weathered_cut_copper_stairs";
     const NAME: &'static str = "Waxed Weathered Cut Copper Stairs";
     const STACK_SIZE: u8 = 64;
@@ -1300,7 +1300,7 @@ impl ItemDef for WaxedWeatheredCutCopperStairs {
 pub struct WaxedOxidizedCutCopperStairs;
 
 impl ItemDef for WaxedOxidizedCutCopperStairs {
-    const ID: u32 = 129;
+    const ID: i32 = 129;
     const STRING_ID: &'static str = "minecraft:waxed_oxidized_cut_copper_stairs";
     const NAME: &'static str = "Waxed Oxidized Cut Copper Stairs";
     const STACK_SIZE: u8 = 64;
@@ -1310,7 +1310,7 @@ impl ItemDef for WaxedOxidizedCutCopperStairs {
 pub struct WaxedCutCopperSlab;
 
 impl ItemDef for WaxedCutCopperSlab {
-    const ID: u32 = 130;
+    const ID: i32 = 130;
     const STRING_ID: &'static str = "minecraft:waxed_cut_copper_slab";
     const NAME: &'static str = "Waxed Cut Copper Slab";
     const STACK_SIZE: u8 = 64;
@@ -1320,7 +1320,7 @@ impl ItemDef for WaxedCutCopperSlab {
 pub struct WaxedExposedCutCopperSlab;
 
 impl ItemDef for WaxedExposedCutCopperSlab {
-    const ID: u32 = 131;
+    const ID: i32 = 131;
     const STRING_ID: &'static str = "minecraft:waxed_exposed_cut_copper_slab";
     const NAME: &'static str = "Waxed Exposed Cut Copper Slab";
     const STACK_SIZE: u8 = 64;
@@ -1330,7 +1330,7 @@ impl ItemDef for WaxedExposedCutCopperSlab {
 pub struct WaxedWeatheredCutCopperSlab;
 
 impl ItemDef for WaxedWeatheredCutCopperSlab {
-    const ID: u32 = 132;
+    const ID: i32 = 132;
     const STRING_ID: &'static str = "minecraft:waxed_weathered_cut_copper_slab";
     const NAME: &'static str = "Waxed Weathered Cut Copper Slab";
     const STACK_SIZE: u8 = 64;
@@ -1340,7 +1340,7 @@ impl ItemDef for WaxedWeatheredCutCopperSlab {
 pub struct WaxedOxidizedCutCopperSlab;
 
 impl ItemDef for WaxedOxidizedCutCopperSlab {
-    const ID: u32 = 133;
+    const ID: i32 = 133;
     const STRING_ID: &'static str = "minecraft:waxed_oxidized_cut_copper_slab";
     const NAME: &'static str = "Waxed Oxidized Cut Copper Slab";
     const STACK_SIZE: u8 = 64;
@@ -1350,7 +1350,7 @@ impl ItemDef for WaxedOxidizedCutCopperSlab {
 pub struct OakLog;
 
 impl ItemDef for OakLog {
-    const ID: u32 = 134;
+    const ID: i32 = 134;
     const STRING_ID: &'static str = "minecraft:oak_log";
     const NAME: &'static str = "Oak Log";
     const STACK_SIZE: u8 = 64;
@@ -1360,7 +1360,7 @@ impl ItemDef for OakLog {
 pub struct SpruceLog;
 
 impl ItemDef for SpruceLog {
-    const ID: u32 = 135;
+    const ID: i32 = 135;
     const STRING_ID: &'static str = "minecraft:spruce_log";
     const NAME: &'static str = "Spruce Log";
     const STACK_SIZE: u8 = 64;
@@ -1370,7 +1370,7 @@ impl ItemDef for SpruceLog {
 pub struct BirchLog;
 
 impl ItemDef for BirchLog {
-    const ID: u32 = 136;
+    const ID: i32 = 136;
     const STRING_ID: &'static str = "minecraft:birch_log";
     const NAME: &'static str = "Birch Log";
     const STACK_SIZE: u8 = 64;
@@ -1380,7 +1380,7 @@ impl ItemDef for BirchLog {
 pub struct JungleLog;
 
 impl ItemDef for JungleLog {
-    const ID: u32 = 137;
+    const ID: i32 = 137;
     const STRING_ID: &'static str = "minecraft:jungle_log";
     const NAME: &'static str = "Jungle Log";
     const STACK_SIZE: u8 = 64;
@@ -1390,7 +1390,7 @@ impl ItemDef for JungleLog {
 pub struct AcaciaLog;
 
 impl ItemDef for AcaciaLog {
-    const ID: u32 = 138;
+    const ID: i32 = 138;
     const STRING_ID: &'static str = "minecraft:acacia_log";
     const NAME: &'static str = "Acacia Log";
     const STACK_SIZE: u8 = 64;
@@ -1400,7 +1400,7 @@ impl ItemDef for AcaciaLog {
 pub struct CherryLog;
 
 impl ItemDef for CherryLog {
-    const ID: u32 = 139;
+    const ID: i32 = 139;
     const STRING_ID: &'static str = "minecraft:cherry_log";
     const NAME: &'static str = "Cherry Log";
     const STACK_SIZE: u8 = 64;
@@ -1410,7 +1410,7 @@ impl ItemDef for CherryLog {
 pub struct PaleOakLog;
 
 impl ItemDef for PaleOakLog {
-    const ID: u32 = 140;
+    const ID: i32 = 140;
     const STRING_ID: &'static str = "minecraft:pale_oak_log";
     const NAME: &'static str = "Pale Oak Log";
     const STACK_SIZE: u8 = 64;
@@ -1420,7 +1420,7 @@ impl ItemDef for PaleOakLog {
 pub struct DarkOakLog;
 
 impl ItemDef for DarkOakLog {
-    const ID: u32 = 141;
+    const ID: i32 = 141;
     const STRING_ID: &'static str = "minecraft:dark_oak_log";
     const NAME: &'static str = "Dark Oak Log";
     const STACK_SIZE: u8 = 64;
@@ -1430,7 +1430,7 @@ impl ItemDef for DarkOakLog {
 pub struct MangroveLog;
 
 impl ItemDef for MangroveLog {
-    const ID: u32 = 142;
+    const ID: i32 = 142;
     const STRING_ID: &'static str = "minecraft:mangrove_log";
     const NAME: &'static str = "Mangrove Log";
     const STACK_SIZE: u8 = 64;
@@ -1440,7 +1440,7 @@ impl ItemDef for MangroveLog {
 pub struct MangroveRoots;
 
 impl ItemDef for MangroveRoots {
-    const ID: u32 = 143;
+    const ID: i32 = 143;
     const STRING_ID: &'static str = "minecraft:mangrove_roots";
     const NAME: &'static str = "Mangrove Roots";
     const STACK_SIZE: u8 = 64;
@@ -1450,7 +1450,7 @@ impl ItemDef for MangroveRoots {
 pub struct MuddyMangroveRoots;
 
 impl ItemDef for MuddyMangroveRoots {
-    const ID: u32 = 144;
+    const ID: i32 = 144;
     const STRING_ID: &'static str = "minecraft:muddy_mangrove_roots";
     const NAME: &'static str = "Muddy Mangrove Roots";
     const STACK_SIZE: u8 = 64;
@@ -1460,7 +1460,7 @@ impl ItemDef for MuddyMangroveRoots {
 pub struct CrimsonStem;
 
 impl ItemDef for CrimsonStem {
-    const ID: u32 = 145;
+    const ID: i32 = 145;
     const STRING_ID: &'static str = "minecraft:crimson_stem";
     const NAME: &'static str = "Crimson Stem";
     const STACK_SIZE: u8 = 64;
@@ -1470,7 +1470,7 @@ impl ItemDef for CrimsonStem {
 pub struct WarpedStem;
 
 impl ItemDef for WarpedStem {
-    const ID: u32 = 146;
+    const ID: i32 = 146;
     const STRING_ID: &'static str = "minecraft:warped_stem";
     const NAME: &'static str = "Warped Stem";
     const STACK_SIZE: u8 = 64;
@@ -1480,7 +1480,7 @@ impl ItemDef for WarpedStem {
 pub struct BambooBlock;
 
 impl ItemDef for BambooBlock {
-    const ID: u32 = 147;
+    const ID: i32 = 147;
     const STRING_ID: &'static str = "minecraft:bamboo_block";
     const NAME: &'static str = "Block of Bamboo";
     const STACK_SIZE: u8 = 64;
@@ -1490,7 +1490,7 @@ impl ItemDef for BambooBlock {
 pub struct StrippedOakLog;
 
 impl ItemDef for StrippedOakLog {
-    const ID: u32 = 148;
+    const ID: i32 = 148;
     const STRING_ID: &'static str = "minecraft:stripped_oak_log";
     const NAME: &'static str = "Stripped Oak Log";
     const STACK_SIZE: u8 = 64;
@@ -1500,7 +1500,7 @@ impl ItemDef for StrippedOakLog {
 pub struct StrippedSpruceLog;
 
 impl ItemDef for StrippedSpruceLog {
-    const ID: u32 = 149;
+    const ID: i32 = 149;
     const STRING_ID: &'static str = "minecraft:stripped_spruce_log";
     const NAME: &'static str = "Stripped Spruce Log";
     const STACK_SIZE: u8 = 64;
@@ -1510,7 +1510,7 @@ impl ItemDef for StrippedSpruceLog {
 pub struct StrippedBirchLog;
 
 impl ItemDef for StrippedBirchLog {
-    const ID: u32 = 150;
+    const ID: i32 = 150;
     const STRING_ID: &'static str = "minecraft:stripped_birch_log";
     const NAME: &'static str = "Stripped Birch Log";
     const STACK_SIZE: u8 = 64;
@@ -1520,7 +1520,7 @@ impl ItemDef for StrippedBirchLog {
 pub struct StrippedJungleLog;
 
 impl ItemDef for StrippedJungleLog {
-    const ID: u32 = 151;
+    const ID: i32 = 151;
     const STRING_ID: &'static str = "minecraft:stripped_jungle_log";
     const NAME: &'static str = "Stripped Jungle Log";
     const STACK_SIZE: u8 = 64;
@@ -1530,7 +1530,7 @@ impl ItemDef for StrippedJungleLog {
 pub struct StrippedAcaciaLog;
 
 impl ItemDef for StrippedAcaciaLog {
-    const ID: u32 = 152;
+    const ID: i32 = 152;
     const STRING_ID: &'static str = "minecraft:stripped_acacia_log";
     const NAME: &'static str = "Stripped Acacia Log";
     const STACK_SIZE: u8 = 64;
@@ -1540,7 +1540,7 @@ impl ItemDef for StrippedAcaciaLog {
 pub struct StrippedCherryLog;
 
 impl ItemDef for StrippedCherryLog {
-    const ID: u32 = 153;
+    const ID: i32 = 153;
     const STRING_ID: &'static str = "minecraft:stripped_cherry_log";
     const NAME: &'static str = "Stripped Cherry Log";
     const STACK_SIZE: u8 = 64;
@@ -1550,7 +1550,7 @@ impl ItemDef for StrippedCherryLog {
 pub struct StrippedDarkOakLog;
 
 impl ItemDef for StrippedDarkOakLog {
-    const ID: u32 = 154;
+    const ID: i32 = 154;
     const STRING_ID: &'static str = "minecraft:stripped_dark_oak_log";
     const NAME: &'static str = "Stripped Dark Oak Log";
     const STACK_SIZE: u8 = 64;
@@ -1560,7 +1560,7 @@ impl ItemDef for StrippedDarkOakLog {
 pub struct StrippedPaleOakLog;
 
 impl ItemDef for StrippedPaleOakLog {
-    const ID: u32 = 155;
+    const ID: i32 = 155;
     const STRING_ID: &'static str = "minecraft:stripped_pale_oak_log";
     const NAME: &'static str = "Stripped Pale Oak Log";
     const STACK_SIZE: u8 = 64;
@@ -1570,7 +1570,7 @@ impl ItemDef for StrippedPaleOakLog {
 pub struct StrippedMangroveLog;
 
 impl ItemDef for StrippedMangroveLog {
-    const ID: u32 = 156;
+    const ID: i32 = 156;
     const STRING_ID: &'static str = "minecraft:stripped_mangrove_log";
     const NAME: &'static str = "Stripped Mangrove Log";
     const STACK_SIZE: u8 = 64;
@@ -1580,7 +1580,7 @@ impl ItemDef for StrippedMangroveLog {
 pub struct StrippedCrimsonStem;
 
 impl ItemDef for StrippedCrimsonStem {
-    const ID: u32 = 157;
+    const ID: i32 = 157;
     const STRING_ID: &'static str = "minecraft:stripped_crimson_stem";
     const NAME: &'static str = "Stripped Crimson Stem";
     const STACK_SIZE: u8 = 64;
@@ -1590,7 +1590,7 @@ impl ItemDef for StrippedCrimsonStem {
 pub struct StrippedWarpedStem;
 
 impl ItemDef for StrippedWarpedStem {
-    const ID: u32 = 158;
+    const ID: i32 = 158;
     const STRING_ID: &'static str = "minecraft:stripped_warped_stem";
     const NAME: &'static str = "Stripped Warped Stem";
     const STACK_SIZE: u8 = 64;
@@ -1600,7 +1600,7 @@ impl ItemDef for StrippedWarpedStem {
 pub struct StrippedOakWood;
 
 impl ItemDef for StrippedOakWood {
-    const ID: u32 = 159;
+    const ID: i32 = 159;
     const STRING_ID: &'static str = "minecraft:stripped_oak_wood";
     const NAME: &'static str = "Stripped Oak Wood";
     const STACK_SIZE: u8 = 64;
@@ -1610,7 +1610,7 @@ impl ItemDef for StrippedOakWood {
 pub struct StrippedSpruceWood;
 
 impl ItemDef for StrippedSpruceWood {
-    const ID: u32 = 160;
+    const ID: i32 = 160;
     const STRING_ID: &'static str = "minecraft:stripped_spruce_wood";
     const NAME: &'static str = "Stripped Spruce Wood";
     const STACK_SIZE: u8 = 64;
@@ -1620,7 +1620,7 @@ impl ItemDef for StrippedSpruceWood {
 pub struct StrippedBirchWood;
 
 impl ItemDef for StrippedBirchWood {
-    const ID: u32 = 161;
+    const ID: i32 = 161;
     const STRING_ID: &'static str = "minecraft:stripped_birch_wood";
     const NAME: &'static str = "Stripped Birch Wood";
     const STACK_SIZE: u8 = 64;
@@ -1630,7 +1630,7 @@ impl ItemDef for StrippedBirchWood {
 pub struct StrippedJungleWood;
 
 impl ItemDef for StrippedJungleWood {
-    const ID: u32 = 162;
+    const ID: i32 = 162;
     const STRING_ID: &'static str = "minecraft:stripped_jungle_wood";
     const NAME: &'static str = "Stripped Jungle Wood";
     const STACK_SIZE: u8 = 64;
@@ -1640,7 +1640,7 @@ impl ItemDef for StrippedJungleWood {
 pub struct StrippedAcaciaWood;
 
 impl ItemDef for StrippedAcaciaWood {
-    const ID: u32 = 163;
+    const ID: i32 = 163;
     const STRING_ID: &'static str = "minecraft:stripped_acacia_wood";
     const NAME: &'static str = "Stripped Acacia Wood";
     const STACK_SIZE: u8 = 64;
@@ -1650,7 +1650,7 @@ impl ItemDef for StrippedAcaciaWood {
 pub struct StrippedCherryWood;
 
 impl ItemDef for StrippedCherryWood {
-    const ID: u32 = 164;
+    const ID: i32 = 164;
     const STRING_ID: &'static str = "minecraft:stripped_cherry_wood";
     const NAME: &'static str = "Stripped Cherry Wood";
     const STACK_SIZE: u8 = 64;
@@ -1660,7 +1660,7 @@ impl ItemDef for StrippedCherryWood {
 pub struct StrippedDarkOakWood;
 
 impl ItemDef for StrippedDarkOakWood {
-    const ID: u32 = 165;
+    const ID: i32 = 165;
     const STRING_ID: &'static str = "minecraft:stripped_dark_oak_wood";
     const NAME: &'static str = "Stripped Dark Oak Wood";
     const STACK_SIZE: u8 = 64;
@@ -1670,7 +1670,7 @@ impl ItemDef for StrippedDarkOakWood {
 pub struct StrippedPaleOakWood;
 
 impl ItemDef for StrippedPaleOakWood {
-    const ID: u32 = 166;
+    const ID: i32 = 166;
     const STRING_ID: &'static str = "minecraft:stripped_pale_oak_wood";
     const NAME: &'static str = "Stripped Pale Oak Wood";
     const STACK_SIZE: u8 = 64;
@@ -1680,7 +1680,7 @@ impl ItemDef for StrippedPaleOakWood {
 pub struct StrippedMangroveWood;
 
 impl ItemDef for StrippedMangroveWood {
-    const ID: u32 = 167;
+    const ID: i32 = 167;
     const STRING_ID: &'static str = "minecraft:stripped_mangrove_wood";
     const NAME: &'static str = "Stripped Mangrove Wood";
     const STACK_SIZE: u8 = 64;
@@ -1690,7 +1690,7 @@ impl ItemDef for StrippedMangroveWood {
 pub struct StrippedCrimsonHyphae;
 
 impl ItemDef for StrippedCrimsonHyphae {
-    const ID: u32 = 168;
+    const ID: i32 = 168;
     const STRING_ID: &'static str = "minecraft:stripped_crimson_hyphae";
     const NAME: &'static str = "Stripped Crimson Hyphae";
     const STACK_SIZE: u8 = 64;
@@ -1700,7 +1700,7 @@ impl ItemDef for StrippedCrimsonHyphae {
 pub struct StrippedWarpedHyphae;
 
 impl ItemDef for StrippedWarpedHyphae {
-    const ID: u32 = 169;
+    const ID: i32 = 169;
     const STRING_ID: &'static str = "minecraft:stripped_warped_hyphae";
     const NAME: &'static str = "Stripped Warped Hyphae";
     const STACK_SIZE: u8 = 64;
@@ -1710,7 +1710,7 @@ impl ItemDef for StrippedWarpedHyphae {
 pub struct StrippedBambooBlock;
 
 impl ItemDef for StrippedBambooBlock {
-    const ID: u32 = 170;
+    const ID: i32 = 170;
     const STRING_ID: &'static str = "minecraft:stripped_bamboo_block";
     const NAME: &'static str = "Block of Stripped Bamboo";
     const STACK_SIZE: u8 = 64;
@@ -1720,7 +1720,7 @@ impl ItemDef for StrippedBambooBlock {
 pub struct OakWood;
 
 impl ItemDef for OakWood {
-    const ID: u32 = 171;
+    const ID: i32 = 171;
     const STRING_ID: &'static str = "minecraft:oak_wood";
     const NAME: &'static str = "Oak Wood";
     const STACK_SIZE: u8 = 64;
@@ -1730,7 +1730,7 @@ impl ItemDef for OakWood {
 pub struct SpruceWood;
 
 impl ItemDef for SpruceWood {
-    const ID: u32 = 172;
+    const ID: i32 = 172;
     const STRING_ID: &'static str = "minecraft:spruce_wood";
     const NAME: &'static str = "Spruce Wood";
     const STACK_SIZE: u8 = 64;
@@ -1740,7 +1740,7 @@ impl ItemDef for SpruceWood {
 pub struct BirchWood;
 
 impl ItemDef for BirchWood {
-    const ID: u32 = 173;
+    const ID: i32 = 173;
     const STRING_ID: &'static str = "minecraft:birch_wood";
     const NAME: &'static str = "Birch Wood";
     const STACK_SIZE: u8 = 64;
@@ -1750,7 +1750,7 @@ impl ItemDef for BirchWood {
 pub struct JungleWood;
 
 impl ItemDef for JungleWood {
-    const ID: u32 = 174;
+    const ID: i32 = 174;
     const STRING_ID: &'static str = "minecraft:jungle_wood";
     const NAME: &'static str = "Jungle Wood";
     const STACK_SIZE: u8 = 64;
@@ -1760,7 +1760,7 @@ impl ItemDef for JungleWood {
 pub struct AcaciaWood;
 
 impl ItemDef for AcaciaWood {
-    const ID: u32 = 175;
+    const ID: i32 = 175;
     const STRING_ID: &'static str = "minecraft:acacia_wood";
     const NAME: &'static str = "Acacia Wood";
     const STACK_SIZE: u8 = 64;
@@ -1770,7 +1770,7 @@ impl ItemDef for AcaciaWood {
 pub struct CherryWood;
 
 impl ItemDef for CherryWood {
-    const ID: u32 = 176;
+    const ID: i32 = 176;
     const STRING_ID: &'static str = "minecraft:cherry_wood";
     const NAME: &'static str = "Cherry Wood";
     const STACK_SIZE: u8 = 64;
@@ -1780,7 +1780,7 @@ impl ItemDef for CherryWood {
 pub struct PaleOakWood;
 
 impl ItemDef for PaleOakWood {
-    const ID: u32 = 177;
+    const ID: i32 = 177;
     const STRING_ID: &'static str = "minecraft:pale_oak_wood";
     const NAME: &'static str = "Pale Oak Wood";
     const STACK_SIZE: u8 = 64;
@@ -1790,7 +1790,7 @@ impl ItemDef for PaleOakWood {
 pub struct DarkOakWood;
 
 impl ItemDef for DarkOakWood {
-    const ID: u32 = 178;
+    const ID: i32 = 178;
     const STRING_ID: &'static str = "minecraft:dark_oak_wood";
     const NAME: &'static str = "Dark Oak Wood";
     const STACK_SIZE: u8 = 64;
@@ -1800,7 +1800,7 @@ impl ItemDef for DarkOakWood {
 pub struct MangroveWood;
 
 impl ItemDef for MangroveWood {
-    const ID: u32 = 179;
+    const ID: i32 = 179;
     const STRING_ID: &'static str = "minecraft:mangrove_wood";
     const NAME: &'static str = "Mangrove Wood";
     const STACK_SIZE: u8 = 64;
@@ -1810,7 +1810,7 @@ impl ItemDef for MangroveWood {
 pub struct CrimsonHyphae;
 
 impl ItemDef for CrimsonHyphae {
-    const ID: u32 = 180;
+    const ID: i32 = 180;
     const STRING_ID: &'static str = "minecraft:crimson_hyphae";
     const NAME: &'static str = "Crimson Hyphae";
     const STACK_SIZE: u8 = 64;
@@ -1820,7 +1820,7 @@ impl ItemDef for CrimsonHyphae {
 pub struct WarpedHyphae;
 
 impl ItemDef for WarpedHyphae {
-    const ID: u32 = 181;
+    const ID: i32 = 181;
     const STRING_ID: &'static str = "minecraft:warped_hyphae";
     const NAME: &'static str = "Warped Hyphae";
     const STACK_SIZE: u8 = 64;
@@ -1830,7 +1830,7 @@ impl ItemDef for WarpedHyphae {
 pub struct OakLeaves;
 
 impl ItemDef for OakLeaves {
-    const ID: u32 = 182;
+    const ID: i32 = 182;
     const STRING_ID: &'static str = "minecraft:oak_leaves";
     const NAME: &'static str = "Oak Leaves";
     const STACK_SIZE: u8 = 64;
@@ -1840,7 +1840,7 @@ impl ItemDef for OakLeaves {
 pub struct SpruceLeaves;
 
 impl ItemDef for SpruceLeaves {
-    const ID: u32 = 183;
+    const ID: i32 = 183;
     const STRING_ID: &'static str = "minecraft:spruce_leaves";
     const NAME: &'static str = "Spruce Leaves";
     const STACK_SIZE: u8 = 64;
@@ -1850,7 +1850,7 @@ impl ItemDef for SpruceLeaves {
 pub struct BirchLeaves;
 
 impl ItemDef for BirchLeaves {
-    const ID: u32 = 184;
+    const ID: i32 = 184;
     const STRING_ID: &'static str = "minecraft:birch_leaves";
     const NAME: &'static str = "Birch Leaves";
     const STACK_SIZE: u8 = 64;
@@ -1860,7 +1860,7 @@ impl ItemDef for BirchLeaves {
 pub struct JungleLeaves;
 
 impl ItemDef for JungleLeaves {
-    const ID: u32 = 185;
+    const ID: i32 = 185;
     const STRING_ID: &'static str = "minecraft:jungle_leaves";
     const NAME: &'static str = "Jungle Leaves";
     const STACK_SIZE: u8 = 64;
@@ -1870,7 +1870,7 @@ impl ItemDef for JungleLeaves {
 pub struct AcaciaLeaves;
 
 impl ItemDef for AcaciaLeaves {
-    const ID: u32 = 186;
+    const ID: i32 = 186;
     const STRING_ID: &'static str = "minecraft:acacia_leaves";
     const NAME: &'static str = "Acacia Leaves";
     const STACK_SIZE: u8 = 64;
@@ -1880,7 +1880,7 @@ impl ItemDef for AcaciaLeaves {
 pub struct CherryLeaves;
 
 impl ItemDef for CherryLeaves {
-    const ID: u32 = 187;
+    const ID: i32 = 187;
     const STRING_ID: &'static str = "minecraft:cherry_leaves";
     const NAME: &'static str = "Cherry Leaves";
     const STACK_SIZE: u8 = 64;
@@ -1890,7 +1890,7 @@ impl ItemDef for CherryLeaves {
 pub struct DarkOakLeaves;
 
 impl ItemDef for DarkOakLeaves {
-    const ID: u32 = 188;
+    const ID: i32 = 188;
     const STRING_ID: &'static str = "minecraft:dark_oak_leaves";
     const NAME: &'static str = "Dark Oak Leaves";
     const STACK_SIZE: u8 = 64;
@@ -1900,7 +1900,7 @@ impl ItemDef for DarkOakLeaves {
 pub struct PaleOakLeaves;
 
 impl ItemDef for PaleOakLeaves {
-    const ID: u32 = 189;
+    const ID: i32 = 189;
     const STRING_ID: &'static str = "minecraft:pale_oak_leaves";
     const NAME: &'static str = "Pale Oak Leaves";
     const STACK_SIZE: u8 = 64;
@@ -1910,7 +1910,7 @@ impl ItemDef for PaleOakLeaves {
 pub struct MangroveLeaves;
 
 impl ItemDef for MangroveLeaves {
-    const ID: u32 = 190;
+    const ID: i32 = 190;
     const STRING_ID: &'static str = "minecraft:mangrove_leaves";
     const NAME: &'static str = "Mangrove Leaves";
     const STACK_SIZE: u8 = 64;
@@ -1920,7 +1920,7 @@ impl ItemDef for MangroveLeaves {
 pub struct AzaleaLeaves;
 
 impl ItemDef for AzaleaLeaves {
-    const ID: u32 = 191;
+    const ID: i32 = 191;
     const STRING_ID: &'static str = "minecraft:azalea_leaves";
     const NAME: &'static str = "Azalea Leaves";
     const STACK_SIZE: u8 = 64;
@@ -1930,7 +1930,7 @@ impl ItemDef for AzaleaLeaves {
 pub struct AzaleaLeavesFlowered;
 
 impl ItemDef for AzaleaLeavesFlowered {
-    const ID: u32 = 192;
+    const ID: i32 = 192;
     const STRING_ID: &'static str = "minecraft:azalea_leaves_flowered";
     const NAME: &'static str = "Flowering Azalea Leaves";
     const STACK_SIZE: u8 = 64;
@@ -1940,7 +1940,7 @@ impl ItemDef for AzaleaLeavesFlowered {
 pub struct Sponge;
 
 impl ItemDef for Sponge {
-    const ID: u32 = 193;
+    const ID: i32 = 193;
     const STRING_ID: &'static str = "minecraft:sponge";
     const NAME: &'static str = "Sponge";
     const STACK_SIZE: u8 = 64;
@@ -1950,7 +1950,7 @@ impl ItemDef for Sponge {
 pub struct WetSponge;
 
 impl ItemDef for WetSponge {
-    const ID: u32 = 194;
+    const ID: i32 = 194;
     const STRING_ID: &'static str = "minecraft:wet_sponge";
     const NAME: &'static str = "Wet Sponge";
     const STACK_SIZE: u8 = 64;
@@ -1960,7 +1960,7 @@ impl ItemDef for WetSponge {
 pub struct Glass;
 
 impl ItemDef for Glass {
-    const ID: u32 = 195;
+    const ID: i32 = 195;
     const STRING_ID: &'static str = "minecraft:glass";
     const NAME: &'static str = "Glass";
     const STACK_SIZE: u8 = 64;
@@ -1970,7 +1970,7 @@ impl ItemDef for Glass {
 pub struct TintedGlass;
 
 impl ItemDef for TintedGlass {
-    const ID: u32 = 196;
+    const ID: i32 = 196;
     const STRING_ID: &'static str = "minecraft:tinted_glass";
     const NAME: &'static str = "Tinted Glass";
     const STACK_SIZE: u8 = 64;
@@ -1980,7 +1980,7 @@ impl ItemDef for TintedGlass {
 pub struct LapisBlock;
 
 impl ItemDef for LapisBlock {
-    const ID: u32 = 197;
+    const ID: i32 = 197;
     const STRING_ID: &'static str = "minecraft:lapis_block";
     const NAME: &'static str = "Block of Lapis Lazuli";
     const STACK_SIZE: u8 = 64;
@@ -1990,7 +1990,7 @@ impl ItemDef for LapisBlock {
 pub struct Sandstone;
 
 impl ItemDef for Sandstone {
-    const ID: u32 = 198;
+    const ID: i32 = 198;
     const STRING_ID: &'static str = "minecraft:sandstone";
     const NAME: &'static str = "Sandstone";
     const STACK_SIZE: u8 = 64;
@@ -2000,7 +2000,7 @@ impl ItemDef for Sandstone {
 pub struct ChiseledSandstone;
 
 impl ItemDef for ChiseledSandstone {
-    const ID: u32 = 199;
+    const ID: i32 = 199;
     const STRING_ID: &'static str = "minecraft:chiseled_sandstone";
     const NAME: &'static str = "Chiseled Sandstone";
     const STACK_SIZE: u8 = 64;
@@ -2010,7 +2010,7 @@ impl ItemDef for ChiseledSandstone {
 pub struct CutSandstone;
 
 impl ItemDef for CutSandstone {
-    const ID: u32 = 200;
+    const ID: i32 = 200;
     const STRING_ID: &'static str = "minecraft:cut_sandstone";
     const NAME: &'static str = "Cut Sandstone";
     const STACK_SIZE: u8 = 64;
@@ -2020,7 +2020,7 @@ impl ItemDef for CutSandstone {
 pub struct Web;
 
 impl ItemDef for Web {
-    const ID: u32 = 201;
+    const ID: i32 = 201;
     const STRING_ID: &'static str = "minecraft:web";
     const NAME: &'static str = "Cobweb";
     const STACK_SIZE: u8 = 64;
@@ -2030,7 +2030,7 @@ impl ItemDef for Web {
 pub struct ShortGrass;
 
 impl ItemDef for ShortGrass {
-    const ID: u32 = 202;
+    const ID: i32 = 202;
     const STRING_ID: &'static str = "minecraft:short_grass";
     const NAME: &'static str = "Short Grass";
     const STACK_SIZE: u8 = 64;
@@ -2040,7 +2040,7 @@ impl ItemDef for ShortGrass {
 pub struct Fern;
 
 impl ItemDef for Fern {
-    const ID: u32 = 203;
+    const ID: i32 = 203;
     const STRING_ID: &'static str = "minecraft:fern";
     const NAME: &'static str = "Fern";
     const STACK_SIZE: u8 = 64;
@@ -2050,7 +2050,7 @@ impl ItemDef for Fern {
 pub struct Bush;
 
 impl ItemDef for Bush {
-    const ID: u32 = 204;
+    const ID: i32 = 204;
     const STRING_ID: &'static str = "minecraft:bush";
     const NAME: &'static str = "Bush";
     const STACK_SIZE: u8 = 64;
@@ -2060,7 +2060,7 @@ impl ItemDef for Bush {
 pub struct Azalea;
 
 impl ItemDef for Azalea {
-    const ID: u32 = 205;
+    const ID: i32 = 205;
     const STRING_ID: &'static str = "minecraft:azalea";
     const NAME: &'static str = "Azalea";
     const STACK_SIZE: u8 = 64;
@@ -2070,7 +2070,7 @@ impl ItemDef for Azalea {
 pub struct FloweringAzalea;
 
 impl ItemDef for FloweringAzalea {
-    const ID: u32 = 206;
+    const ID: i32 = 206;
     const STRING_ID: &'static str = "minecraft:flowering_azalea";
     const NAME: &'static str = "Flowering Azalea";
     const STACK_SIZE: u8 = 64;
@@ -2080,7 +2080,7 @@ impl ItemDef for FloweringAzalea {
 pub struct Deadbush;
 
 impl ItemDef for Deadbush {
-    const ID: u32 = 207;
+    const ID: i32 = 207;
     const STRING_ID: &'static str = "minecraft:deadbush";
     const NAME: &'static str = "Dead Bush";
     const STACK_SIZE: u8 = 64;
@@ -2090,7 +2090,7 @@ impl ItemDef for Deadbush {
 pub struct FireflyBush;
 
 impl ItemDef for FireflyBush {
-    const ID: u32 = 208;
+    const ID: i32 = 208;
     const STRING_ID: &'static str = "minecraft:firefly_bush";
     const NAME: &'static str = "Firefly Bush";
     const STACK_SIZE: u8 = 64;
@@ -2100,7 +2100,7 @@ impl ItemDef for FireflyBush {
 pub struct ShortDryGrass;
 
 impl ItemDef for ShortDryGrass {
-    const ID: u32 = 209;
+    const ID: i32 = 209;
     const STRING_ID: &'static str = "minecraft:short_dry_grass";
     const NAME: &'static str = "Short Dry Grass";
     const STACK_SIZE: u8 = 64;
@@ -2110,7 +2110,7 @@ impl ItemDef for ShortDryGrass {
 pub struct TallDryGrass;
 
 impl ItemDef for TallDryGrass {
-    const ID: u32 = 210;
+    const ID: i32 = 210;
     const STRING_ID: &'static str = "minecraft:tall_dry_grass";
     const NAME: &'static str = "Tall Dry Grass";
     const STACK_SIZE: u8 = 64;
@@ -2120,7 +2120,7 @@ impl ItemDef for TallDryGrass {
 pub struct Seagrass;
 
 impl ItemDef for Seagrass {
-    const ID: u32 = 211;
+    const ID: i32 = 211;
     const STRING_ID: &'static str = "minecraft:seagrass";
     const NAME: &'static str = "Seagrass";
     const STACK_SIZE: u8 = 64;
@@ -2130,7 +2130,7 @@ impl ItemDef for Seagrass {
 pub struct SeaPickle;
 
 impl ItemDef for SeaPickle {
-    const ID: u32 = 212;
+    const ID: i32 = 212;
     const STRING_ID: &'static str = "minecraft:sea_pickle";
     const NAME: &'static str = "Sea Pickle";
     const STACK_SIZE: u8 = 64;
@@ -2140,7 +2140,7 @@ impl ItemDef for SeaPickle {
 pub struct WhiteWool;
 
 impl ItemDef for WhiteWool {
-    const ID: u32 = 213;
+    const ID: i32 = 213;
     const STRING_ID: &'static str = "minecraft:white_wool";
     const NAME: &'static str = "White Wool";
     const STACK_SIZE: u8 = 64;
@@ -2150,7 +2150,7 @@ impl ItemDef for WhiteWool {
 pub struct OrangeWool;
 
 impl ItemDef for OrangeWool {
-    const ID: u32 = 214;
+    const ID: i32 = 214;
     const STRING_ID: &'static str = "minecraft:orange_wool";
     const NAME: &'static str = "Orange Wool";
     const STACK_SIZE: u8 = 64;
@@ -2160,7 +2160,7 @@ impl ItemDef for OrangeWool {
 pub struct MagentaWool;
 
 impl ItemDef for MagentaWool {
-    const ID: u32 = 215;
+    const ID: i32 = 215;
     const STRING_ID: &'static str = "minecraft:magenta_wool";
     const NAME: &'static str = "Magenta Wool";
     const STACK_SIZE: u8 = 64;
@@ -2170,7 +2170,7 @@ impl ItemDef for MagentaWool {
 pub struct LightBlueWool;
 
 impl ItemDef for LightBlueWool {
-    const ID: u32 = 216;
+    const ID: i32 = 216;
     const STRING_ID: &'static str = "minecraft:light_blue_wool";
     const NAME: &'static str = "Light Blue Wool";
     const STACK_SIZE: u8 = 64;
@@ -2180,7 +2180,7 @@ impl ItemDef for LightBlueWool {
 pub struct YellowWool;
 
 impl ItemDef for YellowWool {
-    const ID: u32 = 217;
+    const ID: i32 = 217;
     const STRING_ID: &'static str = "minecraft:yellow_wool";
     const NAME: &'static str = "Yellow Wool";
     const STACK_SIZE: u8 = 64;
@@ -2190,7 +2190,7 @@ impl ItemDef for YellowWool {
 pub struct LimeWool;
 
 impl ItemDef for LimeWool {
-    const ID: u32 = 218;
+    const ID: i32 = 218;
     const STRING_ID: &'static str = "minecraft:lime_wool";
     const NAME: &'static str = "Lime Wool";
     const STACK_SIZE: u8 = 64;
@@ -2200,7 +2200,7 @@ impl ItemDef for LimeWool {
 pub struct PinkWool;
 
 impl ItemDef for PinkWool {
-    const ID: u32 = 219;
+    const ID: i32 = 219;
     const STRING_ID: &'static str = "minecraft:pink_wool";
     const NAME: &'static str = "Pink Wool";
     const STACK_SIZE: u8 = 64;
@@ -2210,7 +2210,7 @@ impl ItemDef for PinkWool {
 pub struct GrayWool;
 
 impl ItemDef for GrayWool {
-    const ID: u32 = 220;
+    const ID: i32 = 220;
     const STRING_ID: &'static str = "minecraft:gray_wool";
     const NAME: &'static str = "Gray Wool";
     const STACK_SIZE: u8 = 64;
@@ -2220,7 +2220,7 @@ impl ItemDef for GrayWool {
 pub struct LightGrayWool;
 
 impl ItemDef for LightGrayWool {
-    const ID: u32 = 221;
+    const ID: i32 = 221;
     const STRING_ID: &'static str = "minecraft:light_gray_wool";
     const NAME: &'static str = "Light Gray Wool";
     const STACK_SIZE: u8 = 64;
@@ -2230,7 +2230,7 @@ impl ItemDef for LightGrayWool {
 pub struct CyanWool;
 
 impl ItemDef for CyanWool {
-    const ID: u32 = 222;
+    const ID: i32 = 222;
     const STRING_ID: &'static str = "minecraft:cyan_wool";
     const NAME: &'static str = "Cyan Wool";
     const STACK_SIZE: u8 = 64;
@@ -2240,7 +2240,7 @@ impl ItemDef for CyanWool {
 pub struct PurpleWool;
 
 impl ItemDef for PurpleWool {
-    const ID: u32 = 223;
+    const ID: i32 = 223;
     const STRING_ID: &'static str = "minecraft:purple_wool";
     const NAME: &'static str = "Purple Wool";
     const STACK_SIZE: u8 = 64;
@@ -2250,7 +2250,7 @@ impl ItemDef for PurpleWool {
 pub struct BlueWool;
 
 impl ItemDef for BlueWool {
-    const ID: u32 = 224;
+    const ID: i32 = 224;
     const STRING_ID: &'static str = "minecraft:blue_wool";
     const NAME: &'static str = "Blue Wool";
     const STACK_SIZE: u8 = 64;
@@ -2260,7 +2260,7 @@ impl ItemDef for BlueWool {
 pub struct BrownWool;
 
 impl ItemDef for BrownWool {
-    const ID: u32 = 225;
+    const ID: i32 = 225;
     const STRING_ID: &'static str = "minecraft:brown_wool";
     const NAME: &'static str = "Brown Wool";
     const STACK_SIZE: u8 = 64;
@@ -2270,7 +2270,7 @@ impl ItemDef for BrownWool {
 pub struct GreenWool;
 
 impl ItemDef for GreenWool {
-    const ID: u32 = 226;
+    const ID: i32 = 226;
     const STRING_ID: &'static str = "minecraft:green_wool";
     const NAME: &'static str = "Green Wool";
     const STACK_SIZE: u8 = 64;
@@ -2280,7 +2280,7 @@ impl ItemDef for GreenWool {
 pub struct RedWool;
 
 impl ItemDef for RedWool {
-    const ID: u32 = 227;
+    const ID: i32 = 227;
     const STRING_ID: &'static str = "minecraft:red_wool";
     const NAME: &'static str = "Red Wool";
     const STACK_SIZE: u8 = 64;
@@ -2290,7 +2290,7 @@ impl ItemDef for RedWool {
 pub struct BlackWool;
 
 impl ItemDef for BlackWool {
-    const ID: u32 = 228;
+    const ID: i32 = 228;
     const STRING_ID: &'static str = "minecraft:black_wool";
     const NAME: &'static str = "Black Wool";
     const STACK_SIZE: u8 = 64;
@@ -2300,7 +2300,7 @@ impl ItemDef for BlackWool {
 pub struct Dandelion;
 
 impl ItemDef for Dandelion {
-    const ID: u32 = 229;
+    const ID: i32 = 229;
     const STRING_ID: &'static str = "minecraft:dandelion";
     const NAME: &'static str = "Dandelion";
     const STACK_SIZE: u8 = 64;
@@ -2310,7 +2310,7 @@ impl ItemDef for Dandelion {
 pub struct OpenEyeblossom;
 
 impl ItemDef for OpenEyeblossom {
-    const ID: u32 = 230;
+    const ID: i32 = 230;
     const STRING_ID: &'static str = "minecraft:open_eyeblossom";
     const NAME: &'static str = "Open Eyeblossom";
     const STACK_SIZE: u8 = 64;
@@ -2320,7 +2320,7 @@ impl ItemDef for OpenEyeblossom {
 pub struct ClosedEyeblossom;
 
 impl ItemDef for ClosedEyeblossom {
-    const ID: u32 = 231;
+    const ID: i32 = 231;
     const STRING_ID: &'static str = "minecraft:closed_eyeblossom";
     const NAME: &'static str = "Closed Eyeblossom";
     const STACK_SIZE: u8 = 64;
@@ -2330,7 +2330,7 @@ impl ItemDef for ClosedEyeblossom {
 pub struct Poppy;
 
 impl ItemDef for Poppy {
-    const ID: u32 = 232;
+    const ID: i32 = 232;
     const STRING_ID: &'static str = "minecraft:poppy";
     const NAME: &'static str = "Poppy";
     const STACK_SIZE: u8 = 64;
@@ -2340,7 +2340,7 @@ impl ItemDef for Poppy {
 pub struct BlueOrchid;
 
 impl ItemDef for BlueOrchid {
-    const ID: u32 = 233;
+    const ID: i32 = 233;
     const STRING_ID: &'static str = "minecraft:blue_orchid";
     const NAME: &'static str = "Blue Orchid";
     const STACK_SIZE: u8 = 64;
@@ -2350,7 +2350,7 @@ impl ItemDef for BlueOrchid {
 pub struct Allium;
 
 impl ItemDef for Allium {
-    const ID: u32 = 234;
+    const ID: i32 = 234;
     const STRING_ID: &'static str = "minecraft:allium";
     const NAME: &'static str = "Allium";
     const STACK_SIZE: u8 = 64;
@@ -2360,7 +2360,7 @@ impl ItemDef for Allium {
 pub struct AzureBluet;
 
 impl ItemDef for AzureBluet {
-    const ID: u32 = 235;
+    const ID: i32 = 235;
     const STRING_ID: &'static str = "minecraft:azure_bluet";
     const NAME: &'static str = "Azure Bluet";
     const STACK_SIZE: u8 = 64;
@@ -2370,7 +2370,7 @@ impl ItemDef for AzureBluet {
 pub struct RedTulip;
 
 impl ItemDef for RedTulip {
-    const ID: u32 = 236;
+    const ID: i32 = 236;
     const STRING_ID: &'static str = "minecraft:red_tulip";
     const NAME: &'static str = "Red Tulip";
     const STACK_SIZE: u8 = 64;
@@ -2380,7 +2380,7 @@ impl ItemDef for RedTulip {
 pub struct OrangeTulip;
 
 impl ItemDef for OrangeTulip {
-    const ID: u32 = 237;
+    const ID: i32 = 237;
     const STRING_ID: &'static str = "minecraft:orange_tulip";
     const NAME: &'static str = "Orange Tulip";
     const STACK_SIZE: u8 = 64;
@@ -2390,7 +2390,7 @@ impl ItemDef for OrangeTulip {
 pub struct WhiteTulip;
 
 impl ItemDef for WhiteTulip {
-    const ID: u32 = 238;
+    const ID: i32 = 238;
     const STRING_ID: &'static str = "minecraft:white_tulip";
     const NAME: &'static str = "White Tulip";
     const STACK_SIZE: u8 = 64;
@@ -2400,7 +2400,7 @@ impl ItemDef for WhiteTulip {
 pub struct PinkTulip;
 
 impl ItemDef for PinkTulip {
-    const ID: u32 = 239;
+    const ID: i32 = 239;
     const STRING_ID: &'static str = "minecraft:pink_tulip";
     const NAME: &'static str = "Pink Tulip";
     const STACK_SIZE: u8 = 64;
@@ -2410,7 +2410,7 @@ impl ItemDef for PinkTulip {
 pub struct OxeyeDaisy;
 
 impl ItemDef for OxeyeDaisy {
-    const ID: u32 = 240;
+    const ID: i32 = 240;
     const STRING_ID: &'static str = "minecraft:oxeye_daisy";
     const NAME: &'static str = "Oxeye Daisy";
     const STACK_SIZE: u8 = 64;
@@ -2420,7 +2420,7 @@ impl ItemDef for OxeyeDaisy {
 pub struct Cornflower;
 
 impl ItemDef for Cornflower {
-    const ID: u32 = 241;
+    const ID: i32 = 241;
     const STRING_ID: &'static str = "minecraft:cornflower";
     const NAME: &'static str = "Cornflower";
     const STACK_SIZE: u8 = 64;
@@ -2430,7 +2430,7 @@ impl ItemDef for Cornflower {
 pub struct LilyOfTheValley;
 
 impl ItemDef for LilyOfTheValley {
-    const ID: u32 = 242;
+    const ID: i32 = 242;
     const STRING_ID: &'static str = "minecraft:lily_of_the_valley";
     const NAME: &'static str = "Lily of the Valley";
     const STACK_SIZE: u8 = 64;
@@ -2440,7 +2440,7 @@ impl ItemDef for LilyOfTheValley {
 pub struct WitherRose;
 
 impl ItemDef for WitherRose {
-    const ID: u32 = 243;
+    const ID: i32 = 243;
     const STRING_ID: &'static str = "minecraft:wither_rose";
     const NAME: &'static str = "Wither Rose";
     const STACK_SIZE: u8 = 64;
@@ -2450,7 +2450,7 @@ impl ItemDef for WitherRose {
 pub struct Torchflower;
 
 impl ItemDef for Torchflower {
-    const ID: u32 = 244;
+    const ID: i32 = 244;
     const STRING_ID: &'static str = "minecraft:torchflower";
     const NAME: &'static str = "Torchflower";
     const STACK_SIZE: u8 = 64;
@@ -2460,7 +2460,7 @@ impl ItemDef for Torchflower {
 pub struct PitcherPlant;
 
 impl ItemDef for PitcherPlant {
-    const ID: u32 = 245;
+    const ID: i32 = 245;
     const STRING_ID: &'static str = "minecraft:pitcher_plant";
     const NAME: &'static str = "Pitcher Plant";
     const STACK_SIZE: u8 = 64;
@@ -2470,7 +2470,7 @@ impl ItemDef for PitcherPlant {
 pub struct SporeBlossom;
 
 impl ItemDef for SporeBlossom {
-    const ID: u32 = 246;
+    const ID: i32 = 246;
     const STRING_ID: &'static str = "minecraft:spore_blossom";
     const NAME: &'static str = "Spore Blossom";
     const STACK_SIZE: u8 = 64;
@@ -2480,7 +2480,7 @@ impl ItemDef for SporeBlossom {
 pub struct BrownMushroom;
 
 impl ItemDef for BrownMushroom {
-    const ID: u32 = 247;
+    const ID: i32 = 247;
     const STRING_ID: &'static str = "minecraft:brown_mushroom";
     const NAME: &'static str = "Brown Mushroom";
     const STACK_SIZE: u8 = 64;
@@ -2490,7 +2490,7 @@ impl ItemDef for BrownMushroom {
 pub struct RedMushroom;
 
 impl ItemDef for RedMushroom {
-    const ID: u32 = 248;
+    const ID: i32 = 248;
     const STRING_ID: &'static str = "minecraft:red_mushroom";
     const NAME: &'static str = "Red Mushroom";
     const STACK_SIZE: u8 = 64;
@@ -2500,7 +2500,7 @@ impl ItemDef for RedMushroom {
 pub struct CrimsonFungus;
 
 impl ItemDef for CrimsonFungus {
-    const ID: u32 = 249;
+    const ID: i32 = 249;
     const STRING_ID: &'static str = "minecraft:crimson_fungus";
     const NAME: &'static str = "Crimson Fungus";
     const STACK_SIZE: u8 = 64;
@@ -2510,7 +2510,7 @@ impl ItemDef for CrimsonFungus {
 pub struct WarpedFungus;
 
 impl ItemDef for WarpedFungus {
-    const ID: u32 = 250;
+    const ID: i32 = 250;
     const STRING_ID: &'static str = "minecraft:warped_fungus";
     const NAME: &'static str = "Warped Fungus";
     const STACK_SIZE: u8 = 64;
@@ -2520,7 +2520,7 @@ impl ItemDef for WarpedFungus {
 pub struct CrimsonRoots;
 
 impl ItemDef for CrimsonRoots {
-    const ID: u32 = 251;
+    const ID: i32 = 251;
     const STRING_ID: &'static str = "minecraft:crimson_roots";
     const NAME: &'static str = "Crimson Roots";
     const STACK_SIZE: u8 = 64;
@@ -2530,7 +2530,7 @@ impl ItemDef for CrimsonRoots {
 pub struct WarpedRoots;
 
 impl ItemDef for WarpedRoots {
-    const ID: u32 = 252;
+    const ID: i32 = 252;
     const STRING_ID: &'static str = "minecraft:warped_roots";
     const NAME: &'static str = "Warped Roots";
     const STACK_SIZE: u8 = 64;
@@ -2540,7 +2540,7 @@ impl ItemDef for WarpedRoots {
 pub struct NetherSprouts;
 
 impl ItemDef for NetherSprouts {
-    const ID: u32 = 253;
+    const ID: i32 = 253;
     const STRING_ID: &'static str = "minecraft:nether_sprouts";
     const NAME: &'static str = "Nether Sprouts";
     const STACK_SIZE: u8 = 64;
@@ -2550,7 +2550,7 @@ impl ItemDef for NetherSprouts {
 pub struct WeepingVines;
 
 impl ItemDef for WeepingVines {
-    const ID: u32 = 254;
+    const ID: i32 = 254;
     const STRING_ID: &'static str = "minecraft:weeping_vines";
     const NAME: &'static str = "Weeping Vines";
     const STACK_SIZE: u8 = 64;
@@ -2560,7 +2560,7 @@ impl ItemDef for WeepingVines {
 pub struct TwistingVines;
 
 impl ItemDef for TwistingVines {
-    const ID: u32 = 255;
+    const ID: i32 = 255;
     const STRING_ID: &'static str = "minecraft:twisting_vines";
     const NAME: &'static str = "Twisting Vines";
     const STACK_SIZE: u8 = 64;
@@ -2570,7 +2570,7 @@ impl ItemDef for TwistingVines {
 pub struct SugarCane;
 
 impl ItemDef for SugarCane {
-    const ID: u32 = 256;
+    const ID: i32 = 256;
     const STRING_ID: &'static str = "minecraft:sugar_cane";
     const NAME: &'static str = "Sugar Cane";
     const STACK_SIZE: u8 = 64;
@@ -2580,7 +2580,7 @@ impl ItemDef for SugarCane {
 pub struct Kelp;
 
 impl ItemDef for Kelp {
-    const ID: u32 = 257;
+    const ID: i32 = 257;
     const STRING_ID: &'static str = "minecraft:kelp";
     const NAME: &'static str = "Kelp";
     const STACK_SIZE: u8 = 64;
@@ -2590,7 +2590,7 @@ impl ItemDef for Kelp {
 pub struct PinkPetals;
 
 impl ItemDef for PinkPetals {
-    const ID: u32 = 258;
+    const ID: i32 = 258;
     const STRING_ID: &'static str = "minecraft:pink_petals";
     const NAME: &'static str = "Pink Petals";
     const STACK_SIZE: u8 = 64;
@@ -2600,7 +2600,7 @@ impl ItemDef for PinkPetals {
 pub struct Wildflowers;
 
 impl ItemDef for Wildflowers {
-    const ID: u32 = 259;
+    const ID: i32 = 259;
     const STRING_ID: &'static str = "minecraft:wildflowers";
     const NAME: &'static str = "Wildflowers";
     const STACK_SIZE: u8 = 64;
@@ -2610,7 +2610,7 @@ impl ItemDef for Wildflowers {
 pub struct LeafLitter;
 
 impl ItemDef for LeafLitter {
-    const ID: u32 = 260;
+    const ID: i32 = 260;
     const STRING_ID: &'static str = "minecraft:leaf_litter";
     const NAME: &'static str = "Leaf Litter";
     const STACK_SIZE: u8 = 64;
@@ -2620,7 +2620,7 @@ impl ItemDef for LeafLitter {
 pub struct MossCarpet;
 
 impl ItemDef for MossCarpet {
-    const ID: u32 = 261;
+    const ID: i32 = 261;
     const STRING_ID: &'static str = "minecraft:moss_carpet";
     const NAME: &'static str = "Moss Carpet";
     const STACK_SIZE: u8 = 64;
@@ -2630,7 +2630,7 @@ impl ItemDef for MossCarpet {
 pub struct MossBlock;
 
 impl ItemDef for MossBlock {
-    const ID: u32 = 262;
+    const ID: i32 = 262;
     const STRING_ID: &'static str = "minecraft:moss_block";
     const NAME: &'static str = "Moss Block";
     const STACK_SIZE: u8 = 64;
@@ -2640,7 +2640,7 @@ impl ItemDef for MossBlock {
 pub struct PaleMossCarpet;
 
 impl ItemDef for PaleMossCarpet {
-    const ID: u32 = 263;
+    const ID: i32 = 263;
     const STRING_ID: &'static str = "minecraft:pale_moss_carpet";
     const NAME: &'static str = "Pale Moss Carpet";
     const STACK_SIZE: u8 = 64;
@@ -2650,7 +2650,7 @@ impl ItemDef for PaleMossCarpet {
 pub struct PaleHangingMoss;
 
 impl ItemDef for PaleHangingMoss {
-    const ID: u32 = 264;
+    const ID: i32 = 264;
     const STRING_ID: &'static str = "minecraft:pale_hanging_moss";
     const NAME: &'static str = "Pale Hanging Moss";
     const STACK_SIZE: u8 = 64;
@@ -2660,7 +2660,7 @@ impl ItemDef for PaleHangingMoss {
 pub struct PaleMossBlock;
 
 impl ItemDef for PaleMossBlock {
-    const ID: u32 = 265;
+    const ID: i32 = 265;
     const STRING_ID: &'static str = "minecraft:pale_moss_block";
     const NAME: &'static str = "Pale Moss Block";
     const STACK_SIZE: u8 = 64;
@@ -2670,7 +2670,7 @@ impl ItemDef for PaleMossBlock {
 pub struct HangingRoots;
 
 impl ItemDef for HangingRoots {
-    const ID: u32 = 266;
+    const ID: i32 = 266;
     const STRING_ID: &'static str = "minecraft:hanging_roots";
     const NAME: &'static str = "Hanging Roots";
     const STACK_SIZE: u8 = 64;
@@ -2680,7 +2680,7 @@ impl ItemDef for HangingRoots {
 pub struct BigDripleaf;
 
 impl ItemDef for BigDripleaf {
-    const ID: u32 = 267;
+    const ID: i32 = 267;
     const STRING_ID: &'static str = "minecraft:big_dripleaf";
     const NAME: &'static str = "Big Dripleaf";
     const STACK_SIZE: u8 = 64;
@@ -2690,7 +2690,7 @@ impl ItemDef for BigDripleaf {
 pub struct SmallDripleafBlock;
 
 impl ItemDef for SmallDripleafBlock {
-    const ID: u32 = 268;
+    const ID: i32 = 268;
     const STRING_ID: &'static str = "minecraft:small_dripleaf_block";
     const NAME: &'static str = "Small Dripleaf";
     const STACK_SIZE: u8 = 64;
@@ -2700,7 +2700,7 @@ impl ItemDef for SmallDripleafBlock {
 pub struct Bamboo;
 
 impl ItemDef for Bamboo {
-    const ID: u32 = 269;
+    const ID: i32 = 269;
     const STRING_ID: &'static str = "minecraft:bamboo";
     const NAME: &'static str = "Bamboo";
     const STACK_SIZE: u8 = 64;
@@ -2710,7 +2710,7 @@ impl ItemDef for Bamboo {
 pub struct OakSlab;
 
 impl ItemDef for OakSlab {
-    const ID: u32 = 270;
+    const ID: i32 = 270;
     const STRING_ID: &'static str = "minecraft:oak_slab";
     const NAME: &'static str = "Oak Slab";
     const STACK_SIZE: u8 = 64;
@@ -2720,7 +2720,7 @@ impl ItemDef for OakSlab {
 pub struct SpruceSlab;
 
 impl ItemDef for SpruceSlab {
-    const ID: u32 = 271;
+    const ID: i32 = 271;
     const STRING_ID: &'static str = "minecraft:spruce_slab";
     const NAME: &'static str = "Spruce Slab";
     const STACK_SIZE: u8 = 64;
@@ -2730,7 +2730,7 @@ impl ItemDef for SpruceSlab {
 pub struct BirchSlab;
 
 impl ItemDef for BirchSlab {
-    const ID: u32 = 272;
+    const ID: i32 = 272;
     const STRING_ID: &'static str = "minecraft:birch_slab";
     const NAME: &'static str = "Birch Slab";
     const STACK_SIZE: u8 = 64;
@@ -2740,7 +2740,7 @@ impl ItemDef for BirchSlab {
 pub struct JungleSlab;
 
 impl ItemDef for JungleSlab {
-    const ID: u32 = 273;
+    const ID: i32 = 273;
     const STRING_ID: &'static str = "minecraft:jungle_slab";
     const NAME: &'static str = "Jungle Slab";
     const STACK_SIZE: u8 = 64;
@@ -2750,7 +2750,7 @@ impl ItemDef for JungleSlab {
 pub struct AcaciaSlab;
 
 impl ItemDef for AcaciaSlab {
-    const ID: u32 = 274;
+    const ID: i32 = 274;
     const STRING_ID: &'static str = "minecraft:acacia_slab";
     const NAME: &'static str = "Acacia Slab";
     const STACK_SIZE: u8 = 64;
@@ -2760,7 +2760,7 @@ impl ItemDef for AcaciaSlab {
 pub struct CherrySlab;
 
 impl ItemDef for CherrySlab {
-    const ID: u32 = 275;
+    const ID: i32 = 275;
     const STRING_ID: &'static str = "minecraft:cherry_slab";
     const NAME: &'static str = "Cherry Slab";
     const STACK_SIZE: u8 = 64;
@@ -2770,7 +2770,7 @@ impl ItemDef for CherrySlab {
 pub struct DarkOakSlab;
 
 impl ItemDef for DarkOakSlab {
-    const ID: u32 = 276;
+    const ID: i32 = 276;
     const STRING_ID: &'static str = "minecraft:dark_oak_slab";
     const NAME: &'static str = "Dark Oak Slab";
     const STACK_SIZE: u8 = 64;
@@ -2780,7 +2780,7 @@ impl ItemDef for DarkOakSlab {
 pub struct PaleOakSlab;
 
 impl ItemDef for PaleOakSlab {
-    const ID: u32 = 277;
+    const ID: i32 = 277;
     const STRING_ID: &'static str = "minecraft:pale_oak_slab";
     const NAME: &'static str = "Pale Oak Slab";
     const STACK_SIZE: u8 = 64;
@@ -2790,7 +2790,7 @@ impl ItemDef for PaleOakSlab {
 pub struct MangroveSlab;
 
 impl ItemDef for MangroveSlab {
-    const ID: u32 = 278;
+    const ID: i32 = 278;
     const STRING_ID: &'static str = "minecraft:mangrove_slab";
     const NAME: &'static str = "Mangrove Slab";
     const STACK_SIZE: u8 = 64;
@@ -2800,7 +2800,7 @@ impl ItemDef for MangroveSlab {
 pub struct BambooSlab;
 
 impl ItemDef for BambooSlab {
-    const ID: u32 = 279;
+    const ID: i32 = 279;
     const STRING_ID: &'static str = "minecraft:bamboo_slab";
     const NAME: &'static str = "Bamboo Slab";
     const STACK_SIZE: u8 = 64;
@@ -2810,7 +2810,7 @@ impl ItemDef for BambooSlab {
 pub struct BambooMosaicSlab;
 
 impl ItemDef for BambooMosaicSlab {
-    const ID: u32 = 280;
+    const ID: i32 = 280;
     const STRING_ID: &'static str = "minecraft:bamboo_mosaic_slab";
     const NAME: &'static str = "Bamboo Mosaic Slab";
     const STACK_SIZE: u8 = 64;
@@ -2820,7 +2820,7 @@ impl ItemDef for BambooMosaicSlab {
 pub struct CrimsonSlab;
 
 impl ItemDef for CrimsonSlab {
-    const ID: u32 = 281;
+    const ID: i32 = 281;
     const STRING_ID: &'static str = "minecraft:crimson_slab";
     const NAME: &'static str = "Crimson Slab";
     const STACK_SIZE: u8 = 64;
@@ -2830,7 +2830,7 @@ impl ItemDef for CrimsonSlab {
 pub struct WarpedSlab;
 
 impl ItemDef for WarpedSlab {
-    const ID: u32 = 282;
+    const ID: i32 = 282;
     const STRING_ID: &'static str = "minecraft:warped_slab";
     const NAME: &'static str = "Warped Slab";
     const STACK_SIZE: u8 = 64;
@@ -2840,7 +2840,7 @@ impl ItemDef for WarpedSlab {
 pub struct NormalStoneSlab;
 
 impl ItemDef for NormalStoneSlab {
-    const ID: u32 = 283;
+    const ID: i32 = 283;
     const STRING_ID: &'static str = "minecraft:normal_stone_slab";
     const NAME: &'static str = "Stone Slab";
     const STACK_SIZE: u8 = 64;
@@ -2850,7 +2850,7 @@ impl ItemDef for NormalStoneSlab {
 pub struct SmoothStoneSlab;
 
 impl ItemDef for SmoothStoneSlab {
-    const ID: u32 = 284;
+    const ID: i32 = 284;
     const STRING_ID: &'static str = "minecraft:smooth_stone_slab";
     const NAME: &'static str = "Smooth Stone Slab";
     const STACK_SIZE: u8 = 64;
@@ -2860,7 +2860,7 @@ impl ItemDef for SmoothStoneSlab {
 pub struct SandstoneSlab;
 
 impl ItemDef for SandstoneSlab {
-    const ID: u32 = 285;
+    const ID: i32 = 285;
     const STRING_ID: &'static str = "minecraft:sandstone_slab";
     const NAME: &'static str = "Sandstone Slab";
     const STACK_SIZE: u8 = 64;
@@ -2870,7 +2870,7 @@ impl ItemDef for SandstoneSlab {
 pub struct CutSandstoneSlab;
 
 impl ItemDef for CutSandstoneSlab {
-    const ID: u32 = 286;
+    const ID: i32 = 286;
     const STRING_ID: &'static str = "minecraft:cut_sandstone_slab";
     const NAME: &'static str = "Cut Sandstone Slab";
     const STACK_SIZE: u8 = 64;
@@ -2880,7 +2880,7 @@ impl ItemDef for CutSandstoneSlab {
 pub struct PetrifiedOakSlab;
 
 impl ItemDef for PetrifiedOakSlab {
-    const ID: u32 = 287;
+    const ID: i32 = 287;
     const STRING_ID: &'static str = "minecraft:petrified_oak_slab";
     const NAME: &'static str = "Petrified Oak Slab";
     const STACK_SIZE: u8 = 64;
@@ -2890,7 +2890,7 @@ impl ItemDef for PetrifiedOakSlab {
 pub struct CobblestoneSlab;
 
 impl ItemDef for CobblestoneSlab {
-    const ID: u32 = 288;
+    const ID: i32 = 288;
     const STRING_ID: &'static str = "minecraft:cobblestone_slab";
     const NAME: &'static str = "Cobblestone Slab";
     const STACK_SIZE: u8 = 64;
@@ -2900,7 +2900,7 @@ impl ItemDef for CobblestoneSlab {
 pub struct BrickSlab;
 
 impl ItemDef for BrickSlab {
-    const ID: u32 = 289;
+    const ID: i32 = 289;
     const STRING_ID: &'static str = "minecraft:brick_slab";
     const NAME: &'static str = "Brick Slab";
     const STACK_SIZE: u8 = 64;
@@ -2910,7 +2910,7 @@ impl ItemDef for BrickSlab {
 pub struct StoneBrickSlab;
 
 impl ItemDef for StoneBrickSlab {
-    const ID: u32 = 290;
+    const ID: i32 = 290;
     const STRING_ID: &'static str = "minecraft:stone_brick_slab";
     const NAME: &'static str = "Stone Brick Slab";
     const STACK_SIZE: u8 = 64;
@@ -2920,7 +2920,7 @@ impl ItemDef for StoneBrickSlab {
 pub struct MudBrickSlab;
 
 impl ItemDef for MudBrickSlab {
-    const ID: u32 = 291;
+    const ID: i32 = 291;
     const STRING_ID: &'static str = "minecraft:mud_brick_slab";
     const NAME: &'static str = "Mud Brick Slab";
     const STACK_SIZE: u8 = 64;
@@ -2930,7 +2930,7 @@ impl ItemDef for MudBrickSlab {
 pub struct NetherBrickSlab;
 
 impl ItemDef for NetherBrickSlab {
-    const ID: u32 = 292;
+    const ID: i32 = 292;
     const STRING_ID: &'static str = "minecraft:nether_brick_slab";
     const NAME: &'static str = "Nether Brick Slab";
     const STACK_SIZE: u8 = 64;
@@ -2940,7 +2940,7 @@ impl ItemDef for NetherBrickSlab {
 pub struct QuartzSlab;
 
 impl ItemDef for QuartzSlab {
-    const ID: u32 = 293;
+    const ID: i32 = 293;
     const STRING_ID: &'static str = "minecraft:quartz_slab";
     const NAME: &'static str = "Quartz Slab";
     const STACK_SIZE: u8 = 64;
@@ -2950,7 +2950,7 @@ impl ItemDef for QuartzSlab {
 pub struct RedSandstoneSlab;
 
 impl ItemDef for RedSandstoneSlab {
-    const ID: u32 = 294;
+    const ID: i32 = 294;
     const STRING_ID: &'static str = "minecraft:red_sandstone_slab";
     const NAME: &'static str = "Red Sandstone Slab";
     const STACK_SIZE: u8 = 64;
@@ -2960,7 +2960,7 @@ impl ItemDef for RedSandstoneSlab {
 pub struct CutRedSandstoneSlab;
 
 impl ItemDef for CutRedSandstoneSlab {
-    const ID: u32 = 295;
+    const ID: i32 = 295;
     const STRING_ID: &'static str = "minecraft:cut_red_sandstone_slab";
     const NAME: &'static str = "Cut Red Sandstone Slab";
     const STACK_SIZE: u8 = 64;
@@ -2970,7 +2970,7 @@ impl ItemDef for CutRedSandstoneSlab {
 pub struct PurpurSlab;
 
 impl ItemDef for PurpurSlab {
-    const ID: u32 = 296;
+    const ID: i32 = 296;
     const STRING_ID: &'static str = "minecraft:purpur_slab";
     const NAME: &'static str = "Purpur Slab";
     const STACK_SIZE: u8 = 64;
@@ -2980,7 +2980,7 @@ impl ItemDef for PurpurSlab {
 pub struct PrismarineSlab;
 
 impl ItemDef for PrismarineSlab {
-    const ID: u32 = 297;
+    const ID: i32 = 297;
     const STRING_ID: &'static str = "minecraft:prismarine_slab";
     const NAME: &'static str = "Prismarine Slab";
     const STACK_SIZE: u8 = 64;
@@ -2990,7 +2990,7 @@ impl ItemDef for PrismarineSlab {
 pub struct PrismarineBrickSlab;
 
 impl ItemDef for PrismarineBrickSlab {
-    const ID: u32 = 298;
+    const ID: i32 = 298;
     const STRING_ID: &'static str = "minecraft:prismarine_brick_slab";
     const NAME: &'static str = "Prismarine Brick Slab";
     const STACK_SIZE: u8 = 64;
@@ -3000,7 +3000,7 @@ impl ItemDef for PrismarineBrickSlab {
 pub struct DarkPrismarineSlab;
 
 impl ItemDef for DarkPrismarineSlab {
-    const ID: u32 = 299;
+    const ID: i32 = 299;
     const STRING_ID: &'static str = "minecraft:dark_prismarine_slab";
     const NAME: &'static str = "Dark Prismarine Slab";
     const STACK_SIZE: u8 = 64;
@@ -3010,7 +3010,7 @@ impl ItemDef for DarkPrismarineSlab {
 pub struct SmoothQuartz;
 
 impl ItemDef for SmoothQuartz {
-    const ID: u32 = 300;
+    const ID: i32 = 300;
     const STRING_ID: &'static str = "minecraft:smooth_quartz";
     const NAME: &'static str = "Smooth Quartz Block";
     const STACK_SIZE: u8 = 64;
@@ -3020,7 +3020,7 @@ impl ItemDef for SmoothQuartz {
 pub struct SmoothRedSandstone;
 
 impl ItemDef for SmoothRedSandstone {
-    const ID: u32 = 301;
+    const ID: i32 = 301;
     const STRING_ID: &'static str = "minecraft:smooth_red_sandstone";
     const NAME: &'static str = "Smooth Red Sandstone";
     const STACK_SIZE: u8 = 64;
@@ -3030,7 +3030,7 @@ impl ItemDef for SmoothRedSandstone {
 pub struct SmoothSandstone;
 
 impl ItemDef for SmoothSandstone {
-    const ID: u32 = 302;
+    const ID: i32 = 302;
     const STRING_ID: &'static str = "minecraft:smooth_sandstone";
     const NAME: &'static str = "Smooth Sandstone";
     const STACK_SIZE: u8 = 64;
@@ -3040,7 +3040,7 @@ impl ItemDef for SmoothSandstone {
 pub struct SmoothStone;
 
 impl ItemDef for SmoothStone {
-    const ID: u32 = 303;
+    const ID: i32 = 303;
     const STRING_ID: &'static str = "minecraft:smooth_stone";
     const NAME: &'static str = "Smooth Stone";
     const STACK_SIZE: u8 = 64;
@@ -3050,7 +3050,7 @@ impl ItemDef for SmoothStone {
 pub struct BrickBlock;
 
 impl ItemDef for BrickBlock {
-    const ID: u32 = 304;
+    const ID: i32 = 304;
     const STRING_ID: &'static str = "minecraft:brick_block";
     const NAME: &'static str = "Bricks";
     const STACK_SIZE: u8 = 64;
@@ -3060,7 +3060,7 @@ impl ItemDef for BrickBlock {
 pub struct Bookshelf;
 
 impl ItemDef for Bookshelf {
-    const ID: u32 = 305;
+    const ID: i32 = 305;
     const STRING_ID: &'static str = "minecraft:bookshelf";
     const NAME: &'static str = "Bookshelf";
     const STACK_SIZE: u8 = 64;
@@ -3070,7 +3070,7 @@ impl ItemDef for Bookshelf {
 pub struct ChiseledBookshelf;
 
 impl ItemDef for ChiseledBookshelf {
-    const ID: u32 = 306;
+    const ID: i32 = 306;
     const STRING_ID: &'static str = "minecraft:chiseled_bookshelf";
     const NAME: &'static str = "Chiseled Bookshelf";
     const STACK_SIZE: u8 = 64;
@@ -3080,7 +3080,7 @@ impl ItemDef for ChiseledBookshelf {
 pub struct DecoratedPot;
 
 impl ItemDef for DecoratedPot {
-    const ID: u32 = 307;
+    const ID: i32 = 307;
     const STRING_ID: &'static str = "minecraft:decorated_pot";
     const NAME: &'static str = "Decorated Pot";
     const STACK_SIZE: u8 = 64;
@@ -3090,7 +3090,7 @@ impl ItemDef for DecoratedPot {
 pub struct MossyCobblestone;
 
 impl ItemDef for MossyCobblestone {
-    const ID: u32 = 308;
+    const ID: i32 = 308;
     const STRING_ID: &'static str = "minecraft:mossy_cobblestone";
     const NAME: &'static str = "Mossy Cobblestone";
     const STACK_SIZE: u8 = 64;
@@ -3100,7 +3100,7 @@ impl ItemDef for MossyCobblestone {
 pub struct Obsidian;
 
 impl ItemDef for Obsidian {
-    const ID: u32 = 309;
+    const ID: i32 = 309;
     const STRING_ID: &'static str = "minecraft:obsidian";
     const NAME: &'static str = "Obsidian";
     const STACK_SIZE: u8 = 64;
@@ -3110,7 +3110,7 @@ impl ItemDef for Obsidian {
 pub struct Torch;
 
 impl ItemDef for Torch {
-    const ID: u32 = 310;
+    const ID: i32 = 310;
     const STRING_ID: &'static str = "minecraft:torch";
     const NAME: &'static str = "Torch";
     const STACK_SIZE: u8 = 64;
@@ -3120,7 +3120,7 @@ impl ItemDef for Torch {
 pub struct EndRod;
 
 impl ItemDef for EndRod {
-    const ID: u32 = 311;
+    const ID: i32 = 311;
     const STRING_ID: &'static str = "minecraft:end_rod";
     const NAME: &'static str = "End Rod";
     const STACK_SIZE: u8 = 64;
@@ -3130,7 +3130,7 @@ impl ItemDef for EndRod {
 pub struct ChorusPlant;
 
 impl ItemDef for ChorusPlant {
-    const ID: u32 = 312;
+    const ID: i32 = 312;
     const STRING_ID: &'static str = "minecraft:chorus_plant";
     const NAME: &'static str = "Chorus Plant";
     const STACK_SIZE: u8 = 64;
@@ -3140,7 +3140,7 @@ impl ItemDef for ChorusPlant {
 pub struct ChorusFlower;
 
 impl ItemDef for ChorusFlower {
-    const ID: u32 = 313;
+    const ID: i32 = 313;
     const STRING_ID: &'static str = "minecraft:chorus_flower";
     const NAME: &'static str = "Chorus Flower";
     const STACK_SIZE: u8 = 64;
@@ -3150,7 +3150,7 @@ impl ItemDef for ChorusFlower {
 pub struct PurpurBlock;
 
 impl ItemDef for PurpurBlock {
-    const ID: u32 = 314;
+    const ID: i32 = 314;
     const STRING_ID: &'static str = "minecraft:purpur_block";
     const NAME: &'static str = "Purpur Block";
     const STACK_SIZE: u8 = 64;
@@ -3160,7 +3160,7 @@ impl ItemDef for PurpurBlock {
 pub struct PurpurPillar;
 
 impl ItemDef for PurpurPillar {
-    const ID: u32 = 315;
+    const ID: i32 = 315;
     const STRING_ID: &'static str = "minecraft:purpur_pillar";
     const NAME: &'static str = "Purpur Pillar";
     const STACK_SIZE: u8 = 64;
@@ -3170,7 +3170,7 @@ impl ItemDef for PurpurPillar {
 pub struct PurpurStairs;
 
 impl ItemDef for PurpurStairs {
-    const ID: u32 = 316;
+    const ID: i32 = 316;
     const STRING_ID: &'static str = "minecraft:purpur_stairs";
     const NAME: &'static str = "Purpur Stairs";
     const STACK_SIZE: u8 = 64;
@@ -3180,7 +3180,7 @@ impl ItemDef for PurpurStairs {
 pub struct MobSpawner;
 
 impl ItemDef for MobSpawner {
-    const ID: u32 = 317;
+    const ID: i32 = 317;
     const STRING_ID: &'static str = "minecraft:mob_spawner";
     const NAME: &'static str = "Monster Spawner";
     const STACK_SIZE: u8 = 64;
@@ -3190,7 +3190,7 @@ impl ItemDef for MobSpawner {
 pub struct CreakingHeart;
 
 impl ItemDef for CreakingHeart {
-    const ID: u32 = 318;
+    const ID: i32 = 318;
     const STRING_ID: &'static str = "minecraft:creaking_heart";
     const NAME: &'static str = "Creaking Heart";
     const STACK_SIZE: u8 = 64;
@@ -3200,7 +3200,7 @@ impl ItemDef for CreakingHeart {
 pub struct Chest;
 
 impl ItemDef for Chest {
-    const ID: u32 = 319;
+    const ID: i32 = 319;
     const STRING_ID: &'static str = "minecraft:chest";
     const NAME: &'static str = "Chest";
     const STACK_SIZE: u8 = 64;
@@ -3210,7 +3210,7 @@ impl ItemDef for Chest {
 pub struct CraftingTable;
 
 impl ItemDef for CraftingTable {
-    const ID: u32 = 320;
+    const ID: i32 = 320;
     const STRING_ID: &'static str = "minecraft:crafting_table";
     const NAME: &'static str = "Crafting Table";
     const STACK_SIZE: u8 = 64;
@@ -3220,7 +3220,7 @@ impl ItemDef for CraftingTable {
 pub struct Farmland;
 
 impl ItemDef for Farmland {
-    const ID: u32 = 321;
+    const ID: i32 = 321;
     const STRING_ID: &'static str = "minecraft:farmland";
     const NAME: &'static str = "Farmland";
     const STACK_SIZE: u8 = 64;
@@ -3230,7 +3230,7 @@ impl ItemDef for Farmland {
 pub struct Furnace;
 
 impl ItemDef for Furnace {
-    const ID: u32 = 322;
+    const ID: i32 = 322;
     const STRING_ID: &'static str = "minecraft:furnace";
     const NAME: &'static str = "Furnace";
     const STACK_SIZE: u8 = 64;
@@ -3240,7 +3240,7 @@ impl ItemDef for Furnace {
 pub struct Ladder;
 
 impl ItemDef for Ladder {
-    const ID: u32 = 323;
+    const ID: i32 = 323;
     const STRING_ID: &'static str = "minecraft:ladder";
     const NAME: &'static str = "Ladder";
     const STACK_SIZE: u8 = 64;
@@ -3250,7 +3250,7 @@ impl ItemDef for Ladder {
 pub struct StoneStairs;
 
 impl ItemDef for StoneStairs {
-    const ID: u32 = 324;
+    const ID: i32 = 324;
     const STRING_ID: &'static str = "minecraft:stone_stairs";
     const NAME: &'static str = "Cobblestone Stairs";
     const STACK_SIZE: u8 = 64;
@@ -3260,7 +3260,7 @@ impl ItemDef for StoneStairs {
 pub struct SnowLayer;
 
 impl ItemDef for SnowLayer {
-    const ID: u32 = 325;
+    const ID: i32 = 325;
     const STRING_ID: &'static str = "minecraft:snow_layer";
     const NAME: &'static str = "Snow";
     const STACK_SIZE: u8 = 64;
@@ -3270,7 +3270,7 @@ impl ItemDef for SnowLayer {
 pub struct Ice;
 
 impl ItemDef for Ice {
-    const ID: u32 = 326;
+    const ID: i32 = 326;
     const STRING_ID: &'static str = "minecraft:ice";
     const NAME: &'static str = "Ice";
     const STACK_SIZE: u8 = 64;
@@ -3280,7 +3280,7 @@ impl ItemDef for Ice {
 pub struct Snow;
 
 impl ItemDef for Snow {
-    const ID: u32 = 327;
+    const ID: i32 = 327;
     const STRING_ID: &'static str = "minecraft:snow";
     const NAME: &'static str = "Snow Block";
     const STACK_SIZE: u8 = 64;
@@ -3290,7 +3290,7 @@ impl ItemDef for Snow {
 pub struct Cactus;
 
 impl ItemDef for Cactus {
-    const ID: u32 = 328;
+    const ID: i32 = 328;
     const STRING_ID: &'static str = "minecraft:cactus";
     const NAME: &'static str = "Cactus";
     const STACK_SIZE: u8 = 64;
@@ -3300,7 +3300,7 @@ impl ItemDef for Cactus {
 pub struct CactusFlower;
 
 impl ItemDef for CactusFlower {
-    const ID: u32 = 329;
+    const ID: i32 = 329;
     const STRING_ID: &'static str = "minecraft:cactus_flower";
     const NAME: &'static str = "Cactus Flower";
     const STACK_SIZE: u8 = 64;
@@ -3310,7 +3310,7 @@ impl ItemDef for CactusFlower {
 pub struct Clay;
 
 impl ItemDef for Clay {
-    const ID: u32 = 330;
+    const ID: i32 = 330;
     const STRING_ID: &'static str = "minecraft:clay";
     const NAME: &'static str = "Clay";
     const STACK_SIZE: u8 = 64;
@@ -3320,7 +3320,7 @@ impl ItemDef for Clay {
 pub struct Jukebox;
 
 impl ItemDef for Jukebox {
-    const ID: u32 = 331;
+    const ID: i32 = 331;
     const STRING_ID: &'static str = "minecraft:jukebox";
     const NAME: &'static str = "Jukebox";
     const STACK_SIZE: u8 = 64;
@@ -3330,7 +3330,7 @@ impl ItemDef for Jukebox {
 pub struct OakFence;
 
 impl ItemDef for OakFence {
-    const ID: u32 = 332;
+    const ID: i32 = 332;
     const STRING_ID: &'static str = "minecraft:oak_fence";
     const NAME: &'static str = "Oak Fence";
     const STACK_SIZE: u8 = 64;
@@ -3340,7 +3340,7 @@ impl ItemDef for OakFence {
 pub struct SpruceFence;
 
 impl ItemDef for SpruceFence {
-    const ID: u32 = 333;
+    const ID: i32 = 333;
     const STRING_ID: &'static str = "minecraft:spruce_fence";
     const NAME: &'static str = "Spruce Fence";
     const STACK_SIZE: u8 = 64;
@@ -3350,7 +3350,7 @@ impl ItemDef for SpruceFence {
 pub struct BirchFence;
 
 impl ItemDef for BirchFence {
-    const ID: u32 = 334;
+    const ID: i32 = 334;
     const STRING_ID: &'static str = "minecraft:birch_fence";
     const NAME: &'static str = "Birch Fence";
     const STACK_SIZE: u8 = 64;
@@ -3360,7 +3360,7 @@ impl ItemDef for BirchFence {
 pub struct JungleFence;
 
 impl ItemDef for JungleFence {
-    const ID: u32 = 335;
+    const ID: i32 = 335;
     const STRING_ID: &'static str = "minecraft:jungle_fence";
     const NAME: &'static str = "Jungle Fence";
     const STACK_SIZE: u8 = 64;
@@ -3370,7 +3370,7 @@ impl ItemDef for JungleFence {
 pub struct AcaciaFence;
 
 impl ItemDef for AcaciaFence {
-    const ID: u32 = 336;
+    const ID: i32 = 336;
     const STRING_ID: &'static str = "minecraft:acacia_fence";
     const NAME: &'static str = "Acacia Fence";
     const STACK_SIZE: u8 = 64;
@@ -3380,7 +3380,7 @@ impl ItemDef for AcaciaFence {
 pub struct CherryFence;
 
 impl ItemDef for CherryFence {
-    const ID: u32 = 337;
+    const ID: i32 = 337;
     const STRING_ID: &'static str = "minecraft:cherry_fence";
     const NAME: &'static str = "Cherry Fence";
     const STACK_SIZE: u8 = 64;
@@ -3390,7 +3390,7 @@ impl ItemDef for CherryFence {
 pub struct DarkOakFence;
 
 impl ItemDef for DarkOakFence {
-    const ID: u32 = 338;
+    const ID: i32 = 338;
     const STRING_ID: &'static str = "minecraft:dark_oak_fence";
     const NAME: &'static str = "Dark Oak Fence";
     const STACK_SIZE: u8 = 64;
@@ -3400,7 +3400,7 @@ impl ItemDef for DarkOakFence {
 pub struct PaleOakFence;
 
 impl ItemDef for PaleOakFence {
-    const ID: u32 = 339;
+    const ID: i32 = 339;
     const STRING_ID: &'static str = "minecraft:pale_oak_fence";
     const NAME: &'static str = "Pale Oak Fence";
     const STACK_SIZE: u8 = 64;
@@ -3410,7 +3410,7 @@ impl ItemDef for PaleOakFence {
 pub struct MangroveFence;
 
 impl ItemDef for MangroveFence {
-    const ID: u32 = 340;
+    const ID: i32 = 340;
     const STRING_ID: &'static str = "minecraft:mangrove_fence";
     const NAME: &'static str = "Mangrove Fence";
     const STACK_SIZE: u8 = 64;
@@ -3420,7 +3420,7 @@ impl ItemDef for MangroveFence {
 pub struct BambooFence;
 
 impl ItemDef for BambooFence {
-    const ID: u32 = 341;
+    const ID: i32 = 341;
     const STRING_ID: &'static str = "minecraft:bamboo_fence";
     const NAME: &'static str = "Bamboo Fence";
     const STACK_SIZE: u8 = 64;
@@ -3430,7 +3430,7 @@ impl ItemDef for BambooFence {
 pub struct CrimsonFence;
 
 impl ItemDef for CrimsonFence {
-    const ID: u32 = 342;
+    const ID: i32 = 342;
     const STRING_ID: &'static str = "minecraft:crimson_fence";
     const NAME: &'static str = "Crimson Fence";
     const STACK_SIZE: u8 = 64;
@@ -3440,7 +3440,7 @@ impl ItemDef for CrimsonFence {
 pub struct WarpedFence;
 
 impl ItemDef for WarpedFence {
-    const ID: u32 = 343;
+    const ID: i32 = 343;
     const STRING_ID: &'static str = "minecraft:warped_fence";
     const NAME: &'static str = "Warped Fence";
     const STACK_SIZE: u8 = 64;
@@ -3450,7 +3450,7 @@ impl ItemDef for WarpedFence {
 pub struct Pumpkin;
 
 impl ItemDef for Pumpkin {
-    const ID: u32 = 344;
+    const ID: i32 = 344;
     const STRING_ID: &'static str = "minecraft:pumpkin";
     const NAME: &'static str = "Pumpkin";
     const STACK_SIZE: u8 = 64;
@@ -3460,7 +3460,7 @@ impl ItemDef for Pumpkin {
 pub struct CarvedPumpkin;
 
 impl ItemDef for CarvedPumpkin {
-    const ID: u32 = 345;
+    const ID: i32 = 345;
     const STRING_ID: &'static str = "minecraft:carved_pumpkin";
     const NAME: &'static str = "Carved Pumpkin";
     const STACK_SIZE: u8 = 64;
@@ -3479,7 +3479,7 @@ impl EnchantableItem for CarvedPumpkin {
 pub struct LitPumpkin;
 
 impl ItemDef for LitPumpkin {
-    const ID: u32 = 346;
+    const ID: i32 = 346;
     const STRING_ID: &'static str = "minecraft:lit_pumpkin";
     const NAME: &'static str = "Jack o'Lantern";
     const STACK_SIZE: u8 = 64;
@@ -3489,7 +3489,7 @@ impl ItemDef for LitPumpkin {
 pub struct Netherrack;
 
 impl ItemDef for Netherrack {
-    const ID: u32 = 347;
+    const ID: i32 = 347;
     const STRING_ID: &'static str = "minecraft:netherrack";
     const NAME: &'static str = "Netherrack";
     const STACK_SIZE: u8 = 64;
@@ -3499,7 +3499,7 @@ impl ItemDef for Netherrack {
 pub struct SoulSand;
 
 impl ItemDef for SoulSand {
-    const ID: u32 = 348;
+    const ID: i32 = 348;
     const STRING_ID: &'static str = "minecraft:soul_sand";
     const NAME: &'static str = "Soul Sand";
     const STACK_SIZE: u8 = 64;
@@ -3509,7 +3509,7 @@ impl ItemDef for SoulSand {
 pub struct SoulSoil;
 
 impl ItemDef for SoulSoil {
-    const ID: u32 = 349;
+    const ID: i32 = 349;
     const STRING_ID: &'static str = "minecraft:soul_soil";
     const NAME: &'static str = "Soul Soil";
     const STACK_SIZE: u8 = 64;
@@ -3519,7 +3519,7 @@ impl ItemDef for SoulSoil {
 pub struct Basalt;
 
 impl ItemDef for Basalt {
-    const ID: u32 = 350;
+    const ID: i32 = 350;
     const STRING_ID: &'static str = "minecraft:basalt";
     const NAME: &'static str = "Basalt";
     const STACK_SIZE: u8 = 64;
@@ -3529,7 +3529,7 @@ impl ItemDef for Basalt {
 pub struct PolishedBasalt;
 
 impl ItemDef for PolishedBasalt {
-    const ID: u32 = 351;
+    const ID: i32 = 351;
     const STRING_ID: &'static str = "minecraft:polished_basalt";
     const NAME: &'static str = "Polished Basalt";
     const STACK_SIZE: u8 = 64;
@@ -3539,7 +3539,7 @@ impl ItemDef for PolishedBasalt {
 pub struct SmoothBasalt;
 
 impl ItemDef for SmoothBasalt {
-    const ID: u32 = 352;
+    const ID: i32 = 352;
     const STRING_ID: &'static str = "minecraft:smooth_basalt";
     const NAME: &'static str = "Smooth Basalt";
     const STACK_SIZE: u8 = 64;
@@ -3549,7 +3549,7 @@ impl ItemDef for SmoothBasalt {
 pub struct SoulTorch;
 
 impl ItemDef for SoulTorch {
-    const ID: u32 = 353;
+    const ID: i32 = 353;
     const STRING_ID: &'static str = "minecraft:soul_torch";
     const NAME: &'static str = "Soul Torch";
     const STACK_SIZE: u8 = 64;
@@ -3559,7 +3559,7 @@ impl ItemDef for SoulTorch {
 pub struct Glowstone;
 
 impl ItemDef for Glowstone {
-    const ID: u32 = 354;
+    const ID: i32 = 354;
     const STRING_ID: &'static str = "minecraft:glowstone";
     const NAME: &'static str = "Glowstone";
     const STACK_SIZE: u8 = 64;
@@ -3569,7 +3569,7 @@ impl ItemDef for Glowstone {
 pub struct InfestedStone;
 
 impl ItemDef for InfestedStone {
-    const ID: u32 = 355;
+    const ID: i32 = 355;
     const STRING_ID: &'static str = "minecraft:infested_stone";
     const NAME: &'static str = "Infested Stone";
     const STACK_SIZE: u8 = 64;
@@ -3579,7 +3579,7 @@ impl ItemDef for InfestedStone {
 pub struct InfestedCobblestone;
 
 impl ItemDef for InfestedCobblestone {
-    const ID: u32 = 356;
+    const ID: i32 = 356;
     const STRING_ID: &'static str = "minecraft:infested_cobblestone";
     const NAME: &'static str = "Infested Cobblestone";
     const STACK_SIZE: u8 = 64;
@@ -3589,7 +3589,7 @@ impl ItemDef for InfestedCobblestone {
 pub struct InfestedStoneBricks;
 
 impl ItemDef for InfestedStoneBricks {
-    const ID: u32 = 357;
+    const ID: i32 = 357;
     const STRING_ID: &'static str = "minecraft:infested_stone_bricks";
     const NAME: &'static str = "Infested Stone Bricks";
     const STACK_SIZE: u8 = 64;
@@ -3599,7 +3599,7 @@ impl ItemDef for InfestedStoneBricks {
 pub struct InfestedMossyStoneBricks;
 
 impl ItemDef for InfestedMossyStoneBricks {
-    const ID: u32 = 358;
+    const ID: i32 = 358;
     const STRING_ID: &'static str = "minecraft:infested_mossy_stone_bricks";
     const NAME: &'static str = "Infested Mossy Stone Bricks";
     const STACK_SIZE: u8 = 64;
@@ -3609,7 +3609,7 @@ impl ItemDef for InfestedMossyStoneBricks {
 pub struct InfestedCrackedStoneBricks;
 
 impl ItemDef for InfestedCrackedStoneBricks {
-    const ID: u32 = 359;
+    const ID: i32 = 359;
     const STRING_ID: &'static str = "minecraft:infested_cracked_stone_bricks";
     const NAME: &'static str = "Infested Cracked Stone Bricks";
     const STACK_SIZE: u8 = 64;
@@ -3619,7 +3619,7 @@ impl ItemDef for InfestedCrackedStoneBricks {
 pub struct InfestedChiseledStoneBricks;
 
 impl ItemDef for InfestedChiseledStoneBricks {
-    const ID: u32 = 360;
+    const ID: i32 = 360;
     const STRING_ID: &'static str = "minecraft:infested_chiseled_stone_bricks";
     const NAME: &'static str = "Infested Chiseled Stone Bricks";
     const STACK_SIZE: u8 = 64;
@@ -3629,7 +3629,7 @@ impl ItemDef for InfestedChiseledStoneBricks {
 pub struct InfestedDeepslate;
 
 impl ItemDef for InfestedDeepslate {
-    const ID: u32 = 361;
+    const ID: i32 = 361;
     const STRING_ID: &'static str = "minecraft:infested_deepslate";
     const NAME: &'static str = "Infested Deepslate";
     const STACK_SIZE: u8 = 64;
@@ -3639,7 +3639,7 @@ impl ItemDef for InfestedDeepslate {
 pub struct StoneBricks;
 
 impl ItemDef for StoneBricks {
-    const ID: u32 = 362;
+    const ID: i32 = 362;
     const STRING_ID: &'static str = "minecraft:stone_bricks";
     const NAME: &'static str = "Stone Bricks";
     const STACK_SIZE: u8 = 64;
@@ -3649,7 +3649,7 @@ impl ItemDef for StoneBricks {
 pub struct MossyStoneBricks;
 
 impl ItemDef for MossyStoneBricks {
-    const ID: u32 = 363;
+    const ID: i32 = 363;
     const STRING_ID: &'static str = "minecraft:mossy_stone_bricks";
     const NAME: &'static str = "Mossy Stone Bricks";
     const STACK_SIZE: u8 = 64;
@@ -3659,7 +3659,7 @@ impl ItemDef for MossyStoneBricks {
 pub struct CrackedStoneBricks;
 
 impl ItemDef for CrackedStoneBricks {
-    const ID: u32 = 364;
+    const ID: i32 = 364;
     const STRING_ID: &'static str = "minecraft:cracked_stone_bricks";
     const NAME: &'static str = "Cracked Stone Bricks";
     const STACK_SIZE: u8 = 64;
@@ -3669,7 +3669,7 @@ impl ItemDef for CrackedStoneBricks {
 pub struct ChiseledStoneBricks;
 
 impl ItemDef for ChiseledStoneBricks {
-    const ID: u32 = 365;
+    const ID: i32 = 365;
     const STRING_ID: &'static str = "minecraft:chiseled_stone_bricks";
     const NAME: &'static str = "Chiseled Stone Bricks";
     const STACK_SIZE: u8 = 64;
@@ -3679,7 +3679,7 @@ impl ItemDef for ChiseledStoneBricks {
 pub struct PackedMud;
 
 impl ItemDef for PackedMud {
-    const ID: u32 = 366;
+    const ID: i32 = 366;
     const STRING_ID: &'static str = "minecraft:packed_mud";
     const NAME: &'static str = "Packed Mud";
     const STACK_SIZE: u8 = 64;
@@ -3689,7 +3689,7 @@ impl ItemDef for PackedMud {
 pub struct MudBricks;
 
 impl ItemDef for MudBricks {
-    const ID: u32 = 367;
+    const ID: i32 = 367;
     const STRING_ID: &'static str = "minecraft:mud_bricks";
     const NAME: &'static str = "Mud Bricks";
     const STACK_SIZE: u8 = 64;
@@ -3699,7 +3699,7 @@ impl ItemDef for MudBricks {
 pub struct DeepslateBricks;
 
 impl ItemDef for DeepslateBricks {
-    const ID: u32 = 368;
+    const ID: i32 = 368;
     const STRING_ID: &'static str = "minecraft:deepslate_bricks";
     const NAME: &'static str = "Deepslate Bricks";
     const STACK_SIZE: u8 = 64;
@@ -3709,7 +3709,7 @@ impl ItemDef for DeepslateBricks {
 pub struct CrackedDeepslateBricks;
 
 impl ItemDef for CrackedDeepslateBricks {
-    const ID: u32 = 369;
+    const ID: i32 = 369;
     const STRING_ID: &'static str = "minecraft:cracked_deepslate_bricks";
     const NAME: &'static str = "Cracked Deepslate Bricks";
     const STACK_SIZE: u8 = 64;
@@ -3719,7 +3719,7 @@ impl ItemDef for CrackedDeepslateBricks {
 pub struct DeepslateTiles;
 
 impl ItemDef for DeepslateTiles {
-    const ID: u32 = 370;
+    const ID: i32 = 370;
     const STRING_ID: &'static str = "minecraft:deepslate_tiles";
     const NAME: &'static str = "Deepslate Tiles";
     const STACK_SIZE: u8 = 64;
@@ -3729,7 +3729,7 @@ impl ItemDef for DeepslateTiles {
 pub struct CrackedDeepslateTiles;
 
 impl ItemDef for CrackedDeepslateTiles {
-    const ID: u32 = 371;
+    const ID: i32 = 371;
     const STRING_ID: &'static str = "minecraft:cracked_deepslate_tiles";
     const NAME: &'static str = "Cracked Deepslate Tiles";
     const STACK_SIZE: u8 = 64;
@@ -3739,7 +3739,7 @@ impl ItemDef for CrackedDeepslateTiles {
 pub struct ChiseledDeepslate;
 
 impl ItemDef for ChiseledDeepslate {
-    const ID: u32 = 372;
+    const ID: i32 = 372;
     const STRING_ID: &'static str = "minecraft:chiseled_deepslate";
     const NAME: &'static str = "Chiseled Deepslate";
     const STACK_SIZE: u8 = 64;
@@ -3749,7 +3749,7 @@ impl ItemDef for ChiseledDeepslate {
 pub struct ReinforcedDeepslate;
 
 impl ItemDef for ReinforcedDeepslate {
-    const ID: u32 = 373;
+    const ID: i32 = 373;
     const STRING_ID: &'static str = "minecraft:reinforced_deepslate";
     const NAME: &'static str = "Reinforced Deepslate";
     const STACK_SIZE: u8 = 64;
@@ -3759,7 +3759,7 @@ impl ItemDef for ReinforcedDeepslate {
 pub struct BrownMushroomBlock;
 
 impl ItemDef for BrownMushroomBlock {
-    const ID: u32 = 374;
+    const ID: i32 = 374;
     const STRING_ID: &'static str = "minecraft:brown_mushroom_block";
     const NAME: &'static str = "Brown Mushroom Block";
     const STACK_SIZE: u8 = 64;
@@ -3769,7 +3769,7 @@ impl ItemDef for BrownMushroomBlock {
 pub struct RedMushroomBlock;
 
 impl ItemDef for RedMushroomBlock {
-    const ID: u32 = 375;
+    const ID: i32 = 375;
     const STRING_ID: &'static str = "minecraft:red_mushroom_block";
     const NAME: &'static str = "Red Mushroom Block";
     const STACK_SIZE: u8 = 64;
@@ -3779,7 +3779,7 @@ impl ItemDef for RedMushroomBlock {
 pub struct MushroomStem;
 
 impl ItemDef for MushroomStem {
-    const ID: u32 = 376;
+    const ID: i32 = 376;
     const STRING_ID: &'static str = "minecraft:mushroom_stem";
     const NAME: &'static str = "Mushroom Stem";
     const STACK_SIZE: u8 = 64;
@@ -3789,7 +3789,7 @@ impl ItemDef for MushroomStem {
 pub struct IronBars;
 
 impl ItemDef for IronBars {
-    const ID: u32 = 377;
+    const ID: i32 = 377;
     const STRING_ID: &'static str = "minecraft:iron_bars";
     const NAME: &'static str = "Iron Bars";
     const STACK_SIZE: u8 = 64;
@@ -3799,7 +3799,7 @@ impl ItemDef for IronBars {
 pub struct IronChain;
 
 impl ItemDef for IronChain {
-    const ID: u32 = 378;
+    const ID: i32 = 378;
     const STRING_ID: &'static str = "minecraft:iron_chain";
     const NAME: &'static str = "Chain";
     const STACK_SIZE: u8 = 64;
@@ -3809,7 +3809,7 @@ impl ItemDef for IronChain {
 pub struct GlassPane;
 
 impl ItemDef for GlassPane {
-    const ID: u32 = 379;
+    const ID: i32 = 379;
     const STRING_ID: &'static str = "minecraft:glass_pane";
     const NAME: &'static str = "Glass Pane";
     const STACK_SIZE: u8 = 64;
@@ -3819,7 +3819,7 @@ impl ItemDef for GlassPane {
 pub struct MelonBlock;
 
 impl ItemDef for MelonBlock {
-    const ID: u32 = 380;
+    const ID: i32 = 380;
     const STRING_ID: &'static str = "minecraft:melon_block";
     const NAME: &'static str = "Melon";
     const STACK_SIZE: u8 = 64;
@@ -3829,7 +3829,7 @@ impl ItemDef for MelonBlock {
 pub struct Vine;
 
 impl ItemDef for Vine {
-    const ID: u32 = 381;
+    const ID: i32 = 381;
     const STRING_ID: &'static str = "minecraft:vine";
     const NAME: &'static str = "Vines";
     const STACK_SIZE: u8 = 64;
@@ -3839,7 +3839,7 @@ impl ItemDef for Vine {
 pub struct GlowLichen;
 
 impl ItemDef for GlowLichen {
-    const ID: u32 = 382;
+    const ID: i32 = 382;
     const STRING_ID: &'static str = "minecraft:glow_lichen";
     const NAME: &'static str = "Glow Lichen";
     const STACK_SIZE: u8 = 64;
@@ -3849,7 +3849,7 @@ impl ItemDef for GlowLichen {
 pub struct ResinClump;
 
 impl ItemDef for ResinClump {
-    const ID: u32 = 383;
+    const ID: i32 = 383;
     const STRING_ID: &'static str = "minecraft:resin_clump";
     const NAME: &'static str = "Resin Clump";
     const STACK_SIZE: u8 = 64;
@@ -3859,7 +3859,7 @@ impl ItemDef for ResinClump {
 pub struct ResinBlock;
 
 impl ItemDef for ResinBlock {
-    const ID: u32 = 384;
+    const ID: i32 = 384;
     const STRING_ID: &'static str = "minecraft:resin_block";
     const NAME: &'static str = "Block of Resin";
     const STACK_SIZE: u8 = 64;
@@ -3869,7 +3869,7 @@ impl ItemDef for ResinBlock {
 pub struct ResinBricks;
 
 impl ItemDef for ResinBricks {
-    const ID: u32 = 385;
+    const ID: i32 = 385;
     const STRING_ID: &'static str = "minecraft:resin_bricks";
     const NAME: &'static str = "Resin Bricks";
     const STACK_SIZE: u8 = 64;
@@ -3879,7 +3879,7 @@ impl ItemDef for ResinBricks {
 pub struct ResinBrickStairs;
 
 impl ItemDef for ResinBrickStairs {
-    const ID: u32 = 386;
+    const ID: i32 = 386;
     const STRING_ID: &'static str = "minecraft:resin_brick_stairs";
     const NAME: &'static str = "Resin Brick Stairs";
     const STACK_SIZE: u8 = 64;
@@ -3889,7 +3889,7 @@ impl ItemDef for ResinBrickStairs {
 pub struct ResinBrickSlab;
 
 impl ItemDef for ResinBrickSlab {
-    const ID: u32 = 387;
+    const ID: i32 = 387;
     const STRING_ID: &'static str = "minecraft:resin_brick_slab";
     const NAME: &'static str = "Resin Brick Slab";
     const STACK_SIZE: u8 = 64;
@@ -3899,7 +3899,7 @@ impl ItemDef for ResinBrickSlab {
 pub struct ResinBrickWall;
 
 impl ItemDef for ResinBrickWall {
-    const ID: u32 = 388;
+    const ID: i32 = 388;
     const STRING_ID: &'static str = "minecraft:resin_brick_wall";
     const NAME: &'static str = "Resin Brick Wall";
     const STACK_SIZE: u8 = 64;
@@ -3909,7 +3909,7 @@ impl ItemDef for ResinBrickWall {
 pub struct ChiseledResinBricks;
 
 impl ItemDef for ChiseledResinBricks {
-    const ID: u32 = 389;
+    const ID: i32 = 389;
     const STRING_ID: &'static str = "minecraft:chiseled_resin_bricks";
     const NAME: &'static str = "Chiseled Resin Bricks";
     const STACK_SIZE: u8 = 64;
@@ -3919,7 +3919,7 @@ impl ItemDef for ChiseledResinBricks {
 pub struct BrickStairs;
 
 impl ItemDef for BrickStairs {
-    const ID: u32 = 390;
+    const ID: i32 = 390;
     const STRING_ID: &'static str = "minecraft:brick_stairs";
     const NAME: &'static str = "Brick Stairs";
     const STACK_SIZE: u8 = 64;
@@ -3929,7 +3929,7 @@ impl ItemDef for BrickStairs {
 pub struct StoneBrickStairs;
 
 impl ItemDef for StoneBrickStairs {
-    const ID: u32 = 391;
+    const ID: i32 = 391;
     const STRING_ID: &'static str = "minecraft:stone_brick_stairs";
     const NAME: &'static str = "Stone Brick Stairs";
     const STACK_SIZE: u8 = 64;
@@ -3939,7 +3939,7 @@ impl ItemDef for StoneBrickStairs {
 pub struct MudBrickStairs;
 
 impl ItemDef for MudBrickStairs {
-    const ID: u32 = 392;
+    const ID: i32 = 392;
     const STRING_ID: &'static str = "minecraft:mud_brick_stairs";
     const NAME: &'static str = "Mud Brick Stairs";
     const STACK_SIZE: u8 = 64;
@@ -3949,7 +3949,7 @@ impl ItemDef for MudBrickStairs {
 pub struct Mycelium;
 
 impl ItemDef for Mycelium {
-    const ID: u32 = 393;
+    const ID: i32 = 393;
     const STRING_ID: &'static str = "minecraft:mycelium";
     const NAME: &'static str = "Mycelium";
     const STACK_SIZE: u8 = 64;
@@ -3959,7 +3959,7 @@ impl ItemDef for Mycelium {
 pub struct Waterlily;
 
 impl ItemDef for Waterlily {
-    const ID: u32 = 394;
+    const ID: i32 = 394;
     const STRING_ID: &'static str = "minecraft:waterlily";
     const NAME: &'static str = "Lily Pad";
     const STACK_SIZE: u8 = 64;
@@ -3969,7 +3969,7 @@ impl ItemDef for Waterlily {
 pub struct NetherBrick;
 
 impl ItemDef for NetherBrick {
-    const ID: u32 = 395;
+    const ID: i32 = 395;
     const STRING_ID: &'static str = "minecraft:nether_brick";
     const NAME: &'static str = "Nether Bricks";
     const STACK_SIZE: u8 = 64;
@@ -3979,7 +3979,7 @@ impl ItemDef for NetherBrick {
 pub struct CrackedNetherBricks;
 
 impl ItemDef for CrackedNetherBricks {
-    const ID: u32 = 396;
+    const ID: i32 = 396;
     const STRING_ID: &'static str = "minecraft:cracked_nether_bricks";
     const NAME: &'static str = "Cracked Nether Bricks";
     const STACK_SIZE: u8 = 64;
@@ -3989,7 +3989,7 @@ impl ItemDef for CrackedNetherBricks {
 pub struct ChiseledNetherBricks;
 
 impl ItemDef for ChiseledNetherBricks {
-    const ID: u32 = 397;
+    const ID: i32 = 397;
     const STRING_ID: &'static str = "minecraft:chiseled_nether_bricks";
     const NAME: &'static str = "Chiseled Nether Bricks";
     const STACK_SIZE: u8 = 64;
@@ -3999,7 +3999,7 @@ impl ItemDef for ChiseledNetherBricks {
 pub struct NetherBrickFence;
 
 impl ItemDef for NetherBrickFence {
-    const ID: u32 = 398;
+    const ID: i32 = 398;
     const STRING_ID: &'static str = "minecraft:nether_brick_fence";
     const NAME: &'static str = "Nether Brick Fence";
     const STACK_SIZE: u8 = 64;
@@ -4009,7 +4009,7 @@ impl ItemDef for NetherBrickFence {
 pub struct NetherBrickStairs;
 
 impl ItemDef for NetherBrickStairs {
-    const ID: u32 = 399;
+    const ID: i32 = 399;
     const STRING_ID: &'static str = "minecraft:nether_brick_stairs";
     const NAME: &'static str = "Nether Brick Stairs";
     const STACK_SIZE: u8 = 64;
@@ -4019,7 +4019,7 @@ impl ItemDef for NetherBrickStairs {
 pub struct Sculk;
 
 impl ItemDef for Sculk {
-    const ID: u32 = 400;
+    const ID: i32 = 400;
     const STRING_ID: &'static str = "minecraft:sculk";
     const NAME: &'static str = "Sculk";
     const STACK_SIZE: u8 = 64;
@@ -4029,7 +4029,7 @@ impl ItemDef for Sculk {
 pub struct SculkVein;
 
 impl ItemDef for SculkVein {
-    const ID: u32 = 401;
+    const ID: i32 = 401;
     const STRING_ID: &'static str = "minecraft:sculk_vein";
     const NAME: &'static str = "Sculk Vein";
     const STACK_SIZE: u8 = 64;
@@ -4039,7 +4039,7 @@ impl ItemDef for SculkVein {
 pub struct SculkCatalyst;
 
 impl ItemDef for SculkCatalyst {
-    const ID: u32 = 402;
+    const ID: i32 = 402;
     const STRING_ID: &'static str = "minecraft:sculk_catalyst";
     const NAME: &'static str = "Sculk Catalyst";
     const STACK_SIZE: u8 = 64;
@@ -4049,7 +4049,7 @@ impl ItemDef for SculkCatalyst {
 pub struct SculkShrieker;
 
 impl ItemDef for SculkShrieker {
-    const ID: u32 = 403;
+    const ID: i32 = 403;
     const STRING_ID: &'static str = "minecraft:sculk_shrieker";
     const NAME: &'static str = "Sculk Shrieker";
     const STACK_SIZE: u8 = 64;
@@ -4059,7 +4059,7 @@ impl ItemDef for SculkShrieker {
 pub struct EnchantingTable;
 
 impl ItemDef for EnchantingTable {
-    const ID: u32 = 404;
+    const ID: i32 = 404;
     const STRING_ID: &'static str = "minecraft:enchanting_table";
     const NAME: &'static str = "Enchanting Table";
     const STACK_SIZE: u8 = 64;
@@ -4069,7 +4069,7 @@ impl ItemDef for EnchantingTable {
 pub struct EndPortalFrame;
 
 impl ItemDef for EndPortalFrame {
-    const ID: u32 = 405;
+    const ID: i32 = 405;
     const STRING_ID: &'static str = "minecraft:end_portal_frame";
     const NAME: &'static str = "End Portal Frame";
     const STACK_SIZE: u8 = 64;
@@ -4079,7 +4079,7 @@ impl ItemDef for EndPortalFrame {
 pub struct EndStone;
 
 impl ItemDef for EndStone {
-    const ID: u32 = 406;
+    const ID: i32 = 406;
     const STRING_ID: &'static str = "minecraft:end_stone";
     const NAME: &'static str = "End Stone";
     const STACK_SIZE: u8 = 64;
@@ -4089,7 +4089,7 @@ impl ItemDef for EndStone {
 pub struct EndBricks;
 
 impl ItemDef for EndBricks {
-    const ID: u32 = 407;
+    const ID: i32 = 407;
     const STRING_ID: &'static str = "minecraft:end_bricks";
     const NAME: &'static str = "End Stone Bricks";
     const STACK_SIZE: u8 = 64;
@@ -4099,7 +4099,7 @@ impl ItemDef for EndBricks {
 pub struct DragonEgg;
 
 impl ItemDef for DragonEgg {
-    const ID: u32 = 408;
+    const ID: i32 = 408;
     const STRING_ID: &'static str = "minecraft:dragon_egg";
     const NAME: &'static str = "Dragon Egg";
     const STACK_SIZE: u8 = 64;
@@ -4109,7 +4109,7 @@ impl ItemDef for DragonEgg {
 pub struct SandstoneStairs;
 
 impl ItemDef for SandstoneStairs {
-    const ID: u32 = 409;
+    const ID: i32 = 409;
     const STRING_ID: &'static str = "minecraft:sandstone_stairs";
     const NAME: &'static str = "Sandstone Stairs";
     const STACK_SIZE: u8 = 64;
@@ -4119,7 +4119,7 @@ impl ItemDef for SandstoneStairs {
 pub struct EnderChest;
 
 impl ItemDef for EnderChest {
-    const ID: u32 = 410;
+    const ID: i32 = 410;
     const STRING_ID: &'static str = "minecraft:ender_chest";
     const NAME: &'static str = "Ender Chest";
     const STACK_SIZE: u8 = 64;
@@ -4129,7 +4129,7 @@ impl ItemDef for EnderChest {
 pub struct EmeraldBlock;
 
 impl ItemDef for EmeraldBlock {
-    const ID: u32 = 411;
+    const ID: i32 = 411;
     const STRING_ID: &'static str = "minecraft:emerald_block";
     const NAME: &'static str = "Block of Emerald";
     const STACK_SIZE: u8 = 64;
@@ -4139,7 +4139,7 @@ impl ItemDef for EmeraldBlock {
 pub struct OakStairs;
 
 impl ItemDef for OakStairs {
-    const ID: u32 = 412;
+    const ID: i32 = 412;
     const STRING_ID: &'static str = "minecraft:oak_stairs";
     const NAME: &'static str = "Oak Stairs";
     const STACK_SIZE: u8 = 64;
@@ -4149,7 +4149,7 @@ impl ItemDef for OakStairs {
 pub struct SpruceStairs;
 
 impl ItemDef for SpruceStairs {
-    const ID: u32 = 413;
+    const ID: i32 = 413;
     const STRING_ID: &'static str = "minecraft:spruce_stairs";
     const NAME: &'static str = "Spruce Stairs";
     const STACK_SIZE: u8 = 64;
@@ -4159,7 +4159,7 @@ impl ItemDef for SpruceStairs {
 pub struct BirchStairs;
 
 impl ItemDef for BirchStairs {
-    const ID: u32 = 414;
+    const ID: i32 = 414;
     const STRING_ID: &'static str = "minecraft:birch_stairs";
     const NAME: &'static str = "Birch Stairs";
     const STACK_SIZE: u8 = 64;
@@ -4169,7 +4169,7 @@ impl ItemDef for BirchStairs {
 pub struct JungleStairs;
 
 impl ItemDef for JungleStairs {
-    const ID: u32 = 415;
+    const ID: i32 = 415;
     const STRING_ID: &'static str = "minecraft:jungle_stairs";
     const NAME: &'static str = "Jungle Stairs";
     const STACK_SIZE: u8 = 64;
@@ -4179,7 +4179,7 @@ impl ItemDef for JungleStairs {
 pub struct AcaciaStairs;
 
 impl ItemDef for AcaciaStairs {
-    const ID: u32 = 416;
+    const ID: i32 = 416;
     const STRING_ID: &'static str = "minecraft:acacia_stairs";
     const NAME: &'static str = "Acacia Stairs";
     const STACK_SIZE: u8 = 64;
@@ -4189,7 +4189,7 @@ impl ItemDef for AcaciaStairs {
 pub struct CherryStairs;
 
 impl ItemDef for CherryStairs {
-    const ID: u32 = 417;
+    const ID: i32 = 417;
     const STRING_ID: &'static str = "minecraft:cherry_stairs";
     const NAME: &'static str = "Cherry Stairs";
     const STACK_SIZE: u8 = 64;
@@ -4199,7 +4199,7 @@ impl ItemDef for CherryStairs {
 pub struct DarkOakStairs;
 
 impl ItemDef for DarkOakStairs {
-    const ID: u32 = 418;
+    const ID: i32 = 418;
     const STRING_ID: &'static str = "minecraft:dark_oak_stairs";
     const NAME: &'static str = "Dark Oak Stairs";
     const STACK_SIZE: u8 = 64;
@@ -4209,7 +4209,7 @@ impl ItemDef for DarkOakStairs {
 pub struct PaleOakStairs;
 
 impl ItemDef for PaleOakStairs {
-    const ID: u32 = 419;
+    const ID: i32 = 419;
     const STRING_ID: &'static str = "minecraft:pale_oak_stairs";
     const NAME: &'static str = "Pale Oak Stairs";
     const STACK_SIZE: u8 = 64;
@@ -4219,7 +4219,7 @@ impl ItemDef for PaleOakStairs {
 pub struct MangroveStairs;
 
 impl ItemDef for MangroveStairs {
-    const ID: u32 = 420;
+    const ID: i32 = 420;
     const STRING_ID: &'static str = "minecraft:mangrove_stairs";
     const NAME: &'static str = "Mangrove Stairs";
     const STACK_SIZE: u8 = 64;
@@ -4229,7 +4229,7 @@ impl ItemDef for MangroveStairs {
 pub struct BambooStairs;
 
 impl ItemDef for BambooStairs {
-    const ID: u32 = 421;
+    const ID: i32 = 421;
     const STRING_ID: &'static str = "minecraft:bamboo_stairs";
     const NAME: &'static str = "Bamboo Stairs";
     const STACK_SIZE: u8 = 64;
@@ -4239,7 +4239,7 @@ impl ItemDef for BambooStairs {
 pub struct BambooMosaicStairs;
 
 impl ItemDef for BambooMosaicStairs {
-    const ID: u32 = 422;
+    const ID: i32 = 422;
     const STRING_ID: &'static str = "minecraft:bamboo_mosaic_stairs";
     const NAME: &'static str = "Bamboo Mosaic Stairs";
     const STACK_SIZE: u8 = 64;
@@ -4249,7 +4249,7 @@ impl ItemDef for BambooMosaicStairs {
 pub struct CrimsonStairs;
 
 impl ItemDef for CrimsonStairs {
-    const ID: u32 = 423;
+    const ID: i32 = 423;
     const STRING_ID: &'static str = "minecraft:crimson_stairs";
     const NAME: &'static str = "Crimson Stairs";
     const STACK_SIZE: u8 = 64;
@@ -4259,7 +4259,7 @@ impl ItemDef for CrimsonStairs {
 pub struct WarpedStairs;
 
 impl ItemDef for WarpedStairs {
-    const ID: u32 = 424;
+    const ID: i32 = 424;
     const STRING_ID: &'static str = "minecraft:warped_stairs";
     const NAME: &'static str = "Warped Stairs";
     const STACK_SIZE: u8 = 64;
@@ -4269,7 +4269,7 @@ impl ItemDef for WarpedStairs {
 pub struct CommandBlock;
 
 impl ItemDef for CommandBlock {
-    const ID: u32 = 425;
+    const ID: i32 = 425;
     const STRING_ID: &'static str = "minecraft:command_block";
     const NAME: &'static str = "Command Block";
     const STACK_SIZE: u8 = 64;
@@ -4279,7 +4279,7 @@ impl ItemDef for CommandBlock {
 pub struct Beacon;
 
 impl ItemDef for Beacon {
-    const ID: u32 = 426;
+    const ID: i32 = 426;
     const STRING_ID: &'static str = "minecraft:beacon";
     const NAME: &'static str = "Beacon";
     const STACK_SIZE: u8 = 64;
@@ -4289,7 +4289,7 @@ impl ItemDef for Beacon {
 pub struct CobblestoneWall;
 
 impl ItemDef for CobblestoneWall {
-    const ID: u32 = 427;
+    const ID: i32 = 427;
     const STRING_ID: &'static str = "minecraft:cobblestone_wall";
     const NAME: &'static str = "Cobblestone Wall";
     const STACK_SIZE: u8 = 64;
@@ -4299,7 +4299,7 @@ impl ItemDef for CobblestoneWall {
 pub struct MossyCobblestoneWall;
 
 impl ItemDef for MossyCobblestoneWall {
-    const ID: u32 = 428;
+    const ID: i32 = 428;
     const STRING_ID: &'static str = "minecraft:mossy_cobblestone_wall";
     const NAME: &'static str = "Mossy Cobblestone Wall";
     const STACK_SIZE: u8 = 64;
@@ -4309,7 +4309,7 @@ impl ItemDef for MossyCobblestoneWall {
 pub struct BrickWall;
 
 impl ItemDef for BrickWall {
-    const ID: u32 = 429;
+    const ID: i32 = 429;
     const STRING_ID: &'static str = "minecraft:brick_wall";
     const NAME: &'static str = "Brick Wall";
     const STACK_SIZE: u8 = 64;
@@ -4319,7 +4319,7 @@ impl ItemDef for BrickWall {
 pub struct PrismarineWall;
 
 impl ItemDef for PrismarineWall {
-    const ID: u32 = 430;
+    const ID: i32 = 430;
     const STRING_ID: &'static str = "minecraft:prismarine_wall";
     const NAME: &'static str = "Prismarine Wall";
     const STACK_SIZE: u8 = 64;
@@ -4329,7 +4329,7 @@ impl ItemDef for PrismarineWall {
 pub struct RedSandstoneWall;
 
 impl ItemDef for RedSandstoneWall {
-    const ID: u32 = 431;
+    const ID: i32 = 431;
     const STRING_ID: &'static str = "minecraft:red_sandstone_wall";
     const NAME: &'static str = "Red Sandstone Wall";
     const STACK_SIZE: u8 = 64;
@@ -4339,7 +4339,7 @@ impl ItemDef for RedSandstoneWall {
 pub struct MossyStoneBrickWall;
 
 impl ItemDef for MossyStoneBrickWall {
-    const ID: u32 = 432;
+    const ID: i32 = 432;
     const STRING_ID: &'static str = "minecraft:mossy_stone_brick_wall";
     const NAME: &'static str = "Mossy Stone Brick Wall";
     const STACK_SIZE: u8 = 64;
@@ -4349,7 +4349,7 @@ impl ItemDef for MossyStoneBrickWall {
 pub struct GraniteWall;
 
 impl ItemDef for GraniteWall {
-    const ID: u32 = 433;
+    const ID: i32 = 433;
     const STRING_ID: &'static str = "minecraft:granite_wall";
     const NAME: &'static str = "Granite Wall";
     const STACK_SIZE: u8 = 64;
@@ -4359,7 +4359,7 @@ impl ItemDef for GraniteWall {
 pub struct StoneBrickWall;
 
 impl ItemDef for StoneBrickWall {
-    const ID: u32 = 434;
+    const ID: i32 = 434;
     const STRING_ID: &'static str = "minecraft:stone_brick_wall";
     const NAME: &'static str = "Stone Brick Wall";
     const STACK_SIZE: u8 = 64;
@@ -4369,7 +4369,7 @@ impl ItemDef for StoneBrickWall {
 pub struct MudBrickWall;
 
 impl ItemDef for MudBrickWall {
-    const ID: u32 = 435;
+    const ID: i32 = 435;
     const STRING_ID: &'static str = "minecraft:mud_brick_wall";
     const NAME: &'static str = "Mud Brick Wall";
     const STACK_SIZE: u8 = 64;
@@ -4379,7 +4379,7 @@ impl ItemDef for MudBrickWall {
 pub struct NetherBrickWall;
 
 impl ItemDef for NetherBrickWall {
-    const ID: u32 = 436;
+    const ID: i32 = 436;
     const STRING_ID: &'static str = "minecraft:nether_brick_wall";
     const NAME: &'static str = "Nether Brick Wall";
     const STACK_SIZE: u8 = 64;
@@ -4389,7 +4389,7 @@ impl ItemDef for NetherBrickWall {
 pub struct AndesiteWall;
 
 impl ItemDef for AndesiteWall {
-    const ID: u32 = 437;
+    const ID: i32 = 437;
     const STRING_ID: &'static str = "minecraft:andesite_wall";
     const NAME: &'static str = "Andesite Wall";
     const STACK_SIZE: u8 = 64;
@@ -4399,7 +4399,7 @@ impl ItemDef for AndesiteWall {
 pub struct RedNetherBrickWall;
 
 impl ItemDef for RedNetherBrickWall {
-    const ID: u32 = 438;
+    const ID: i32 = 438;
     const STRING_ID: &'static str = "minecraft:red_nether_brick_wall";
     const NAME: &'static str = "Red Nether Brick Wall";
     const STACK_SIZE: u8 = 64;
@@ -4409,7 +4409,7 @@ impl ItemDef for RedNetherBrickWall {
 pub struct SandstoneWall;
 
 impl ItemDef for SandstoneWall {
-    const ID: u32 = 439;
+    const ID: i32 = 439;
     const STRING_ID: &'static str = "minecraft:sandstone_wall";
     const NAME: &'static str = "Sandstone Wall";
     const STACK_SIZE: u8 = 64;
@@ -4419,7 +4419,7 @@ impl ItemDef for SandstoneWall {
 pub struct EndStoneBrickWall;
 
 impl ItemDef for EndStoneBrickWall {
-    const ID: u32 = 440;
+    const ID: i32 = 440;
     const STRING_ID: &'static str = "minecraft:end_stone_brick_wall";
     const NAME: &'static str = "End Stone Brick Wall";
     const STACK_SIZE: u8 = 64;
@@ -4429,7 +4429,7 @@ impl ItemDef for EndStoneBrickWall {
 pub struct DioriteWall;
 
 impl ItemDef for DioriteWall {
-    const ID: u32 = 441;
+    const ID: i32 = 441;
     const STRING_ID: &'static str = "minecraft:diorite_wall";
     const NAME: &'static str = "Diorite Wall";
     const STACK_SIZE: u8 = 64;
@@ -4439,7 +4439,7 @@ impl ItemDef for DioriteWall {
 pub struct BlackstoneWall;
 
 impl ItemDef for BlackstoneWall {
-    const ID: u32 = 442;
+    const ID: i32 = 442;
     const STRING_ID: &'static str = "minecraft:blackstone_wall";
     const NAME: &'static str = "Blackstone Wall";
     const STACK_SIZE: u8 = 64;
@@ -4449,7 +4449,7 @@ impl ItemDef for BlackstoneWall {
 pub struct PolishedBlackstoneWall;
 
 impl ItemDef for PolishedBlackstoneWall {
-    const ID: u32 = 443;
+    const ID: i32 = 443;
     const STRING_ID: &'static str = "minecraft:polished_blackstone_wall";
     const NAME: &'static str = "Polished Blackstone Wall";
     const STACK_SIZE: u8 = 64;
@@ -4459,7 +4459,7 @@ impl ItemDef for PolishedBlackstoneWall {
 pub struct PolishedBlackstoneBrickWall;
 
 impl ItemDef for PolishedBlackstoneBrickWall {
-    const ID: u32 = 444;
+    const ID: i32 = 444;
     const STRING_ID: &'static str = "minecraft:polished_blackstone_brick_wall";
     const NAME: &'static str = "Polished Blackstone Brick Wall";
     const STACK_SIZE: u8 = 64;
@@ -4469,7 +4469,7 @@ impl ItemDef for PolishedBlackstoneBrickWall {
 pub struct CobbledDeepslateWall;
 
 impl ItemDef for CobbledDeepslateWall {
-    const ID: u32 = 445;
+    const ID: i32 = 445;
     const STRING_ID: &'static str = "minecraft:cobbled_deepslate_wall";
     const NAME: &'static str = "Cobbled Deepslate Wall";
     const STACK_SIZE: u8 = 64;
@@ -4479,7 +4479,7 @@ impl ItemDef for CobbledDeepslateWall {
 pub struct PolishedDeepslateWall;
 
 impl ItemDef for PolishedDeepslateWall {
-    const ID: u32 = 446;
+    const ID: i32 = 446;
     const STRING_ID: &'static str = "minecraft:polished_deepslate_wall";
     const NAME: &'static str = "Polished Deepslate Wall";
     const STACK_SIZE: u8 = 64;
@@ -4489,7 +4489,7 @@ impl ItemDef for PolishedDeepslateWall {
 pub struct DeepslateBrickWall;
 
 impl ItemDef for DeepslateBrickWall {
-    const ID: u32 = 447;
+    const ID: i32 = 447;
     const STRING_ID: &'static str = "minecraft:deepslate_brick_wall";
     const NAME: &'static str = "Deepslate Brick Wall";
     const STACK_SIZE: u8 = 64;
@@ -4499,7 +4499,7 @@ impl ItemDef for DeepslateBrickWall {
 pub struct DeepslateTileWall;
 
 impl ItemDef for DeepslateTileWall {
-    const ID: u32 = 448;
+    const ID: i32 = 448;
     const STRING_ID: &'static str = "minecraft:deepslate_tile_wall";
     const NAME: &'static str = "Deepslate Tile Wall";
     const STACK_SIZE: u8 = 64;
@@ -4509,7 +4509,7 @@ impl ItemDef for DeepslateTileWall {
 pub struct Anvil;
 
 impl ItemDef for Anvil {
-    const ID: u32 = 449;
+    const ID: i32 = 449;
     const STRING_ID: &'static str = "minecraft:anvil";
     const NAME: &'static str = "Anvil";
     const STACK_SIZE: u8 = 64;
@@ -4519,7 +4519,7 @@ impl ItemDef for Anvil {
 pub struct ChippedAnvil;
 
 impl ItemDef for ChippedAnvil {
-    const ID: u32 = 450;
+    const ID: i32 = 450;
     const STRING_ID: &'static str = "minecraft:chipped_anvil";
     const NAME: &'static str = "Chipped Anvil";
     const STACK_SIZE: u8 = 64;
@@ -4529,7 +4529,7 @@ impl ItemDef for ChippedAnvil {
 pub struct DamagedAnvil;
 
 impl ItemDef for DamagedAnvil {
-    const ID: u32 = 451;
+    const ID: i32 = 451;
     const STRING_ID: &'static str = "minecraft:damaged_anvil";
     const NAME: &'static str = "Damaged Anvil";
     const STACK_SIZE: u8 = 64;
@@ -4539,7 +4539,7 @@ impl ItemDef for DamagedAnvil {
 pub struct ChiseledQuartzBlock;
 
 impl ItemDef for ChiseledQuartzBlock {
-    const ID: u32 = 452;
+    const ID: i32 = 452;
     const STRING_ID: &'static str = "minecraft:chiseled_quartz_block";
     const NAME: &'static str = "Chiseled Quartz Block";
     const STACK_SIZE: u8 = 64;
@@ -4549,7 +4549,7 @@ impl ItemDef for ChiseledQuartzBlock {
 pub struct QuartzBlock;
 
 impl ItemDef for QuartzBlock {
-    const ID: u32 = 453;
+    const ID: i32 = 453;
     const STRING_ID: &'static str = "minecraft:quartz_block";
     const NAME: &'static str = "Block of Quartz";
     const STACK_SIZE: u8 = 64;
@@ -4559,7 +4559,7 @@ impl ItemDef for QuartzBlock {
 pub struct QuartzBricks;
 
 impl ItemDef for QuartzBricks {
-    const ID: u32 = 454;
+    const ID: i32 = 454;
     const STRING_ID: &'static str = "minecraft:quartz_bricks";
     const NAME: &'static str = "Quartz Bricks";
     const STACK_SIZE: u8 = 64;
@@ -4569,7 +4569,7 @@ impl ItemDef for QuartzBricks {
 pub struct QuartzPillar;
 
 impl ItemDef for QuartzPillar {
-    const ID: u32 = 455;
+    const ID: i32 = 455;
     const STRING_ID: &'static str = "minecraft:quartz_pillar";
     const NAME: &'static str = "Quartz Pillar";
     const STACK_SIZE: u8 = 64;
@@ -4579,7 +4579,7 @@ impl ItemDef for QuartzPillar {
 pub struct QuartzStairs;
 
 impl ItemDef for QuartzStairs {
-    const ID: u32 = 456;
+    const ID: i32 = 456;
     const STRING_ID: &'static str = "minecraft:quartz_stairs";
     const NAME: &'static str = "Quartz Stairs";
     const STACK_SIZE: u8 = 64;
@@ -4589,7 +4589,7 @@ impl ItemDef for QuartzStairs {
 pub struct WhiteTerracotta;
 
 impl ItemDef for WhiteTerracotta {
-    const ID: u32 = 457;
+    const ID: i32 = 457;
     const STRING_ID: &'static str = "minecraft:white_terracotta";
     const NAME: &'static str = "White Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -4599,7 +4599,7 @@ impl ItemDef for WhiteTerracotta {
 pub struct OrangeTerracotta;
 
 impl ItemDef for OrangeTerracotta {
-    const ID: u32 = 458;
+    const ID: i32 = 458;
     const STRING_ID: &'static str = "minecraft:orange_terracotta";
     const NAME: &'static str = "Orange Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -4609,7 +4609,7 @@ impl ItemDef for OrangeTerracotta {
 pub struct MagentaTerracotta;
 
 impl ItemDef for MagentaTerracotta {
-    const ID: u32 = 459;
+    const ID: i32 = 459;
     const STRING_ID: &'static str = "minecraft:magenta_terracotta";
     const NAME: &'static str = "Magenta Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -4619,7 +4619,7 @@ impl ItemDef for MagentaTerracotta {
 pub struct LightBlueTerracotta;
 
 impl ItemDef for LightBlueTerracotta {
-    const ID: u32 = 460;
+    const ID: i32 = 460;
     const STRING_ID: &'static str = "minecraft:light_blue_terracotta";
     const NAME: &'static str = "Light Blue Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -4629,7 +4629,7 @@ impl ItemDef for LightBlueTerracotta {
 pub struct YellowTerracotta;
 
 impl ItemDef for YellowTerracotta {
-    const ID: u32 = 461;
+    const ID: i32 = 461;
     const STRING_ID: &'static str = "minecraft:yellow_terracotta";
     const NAME: &'static str = "Yellow Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -4639,7 +4639,7 @@ impl ItemDef for YellowTerracotta {
 pub struct LimeTerracotta;
 
 impl ItemDef for LimeTerracotta {
-    const ID: u32 = 462;
+    const ID: i32 = 462;
     const STRING_ID: &'static str = "minecraft:lime_terracotta";
     const NAME: &'static str = "Lime Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -4649,7 +4649,7 @@ impl ItemDef for LimeTerracotta {
 pub struct PinkTerracotta;
 
 impl ItemDef for PinkTerracotta {
-    const ID: u32 = 463;
+    const ID: i32 = 463;
     const STRING_ID: &'static str = "minecraft:pink_terracotta";
     const NAME: &'static str = "Pink Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -4659,7 +4659,7 @@ impl ItemDef for PinkTerracotta {
 pub struct GrayTerracotta;
 
 impl ItemDef for GrayTerracotta {
-    const ID: u32 = 464;
+    const ID: i32 = 464;
     const STRING_ID: &'static str = "minecraft:gray_terracotta";
     const NAME: &'static str = "Gray Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -4669,7 +4669,7 @@ impl ItemDef for GrayTerracotta {
 pub struct LightGrayTerracotta;
 
 impl ItemDef for LightGrayTerracotta {
-    const ID: u32 = 465;
+    const ID: i32 = 465;
     const STRING_ID: &'static str = "minecraft:light_gray_terracotta";
     const NAME: &'static str = "Light Gray Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -4679,7 +4679,7 @@ impl ItemDef for LightGrayTerracotta {
 pub struct CyanTerracotta;
 
 impl ItemDef for CyanTerracotta {
-    const ID: u32 = 466;
+    const ID: i32 = 466;
     const STRING_ID: &'static str = "minecraft:cyan_terracotta";
     const NAME: &'static str = "Cyan Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -4689,7 +4689,7 @@ impl ItemDef for CyanTerracotta {
 pub struct PurpleTerracotta;
 
 impl ItemDef for PurpleTerracotta {
-    const ID: u32 = 467;
+    const ID: i32 = 467;
     const STRING_ID: &'static str = "minecraft:purple_terracotta";
     const NAME: &'static str = "Purple Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -4699,7 +4699,7 @@ impl ItemDef for PurpleTerracotta {
 pub struct BlueTerracotta;
 
 impl ItemDef for BlueTerracotta {
-    const ID: u32 = 468;
+    const ID: i32 = 468;
     const STRING_ID: &'static str = "minecraft:blue_terracotta";
     const NAME: &'static str = "Blue Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -4709,7 +4709,7 @@ impl ItemDef for BlueTerracotta {
 pub struct BrownTerracotta;
 
 impl ItemDef for BrownTerracotta {
-    const ID: u32 = 469;
+    const ID: i32 = 469;
     const STRING_ID: &'static str = "minecraft:brown_terracotta";
     const NAME: &'static str = "Brown Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -4719,7 +4719,7 @@ impl ItemDef for BrownTerracotta {
 pub struct GreenTerracotta;
 
 impl ItemDef for GreenTerracotta {
-    const ID: u32 = 470;
+    const ID: i32 = 470;
     const STRING_ID: &'static str = "minecraft:green_terracotta";
     const NAME: &'static str = "Green Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -4729,7 +4729,7 @@ impl ItemDef for GreenTerracotta {
 pub struct RedTerracotta;
 
 impl ItemDef for RedTerracotta {
-    const ID: u32 = 471;
+    const ID: i32 = 471;
     const STRING_ID: &'static str = "minecraft:red_terracotta";
     const NAME: &'static str = "Red Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -4739,7 +4739,7 @@ impl ItemDef for RedTerracotta {
 pub struct BlackTerracotta;
 
 impl ItemDef for BlackTerracotta {
-    const ID: u32 = 472;
+    const ID: i32 = 472;
     const STRING_ID: &'static str = "minecraft:black_terracotta";
     const NAME: &'static str = "Black Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -4749,7 +4749,7 @@ impl ItemDef for BlackTerracotta {
 pub struct Barrier;
 
 impl ItemDef for Barrier {
-    const ID: u32 = 473;
+    const ID: i32 = 473;
     const STRING_ID: &'static str = "minecraft:barrier";
     const NAME: &'static str = "Barrier";
     const STACK_SIZE: u8 = 64;
@@ -4759,7 +4759,7 @@ impl ItemDef for Barrier {
 pub struct LightBlock;
 
 impl ItemDef for LightBlock {
-    const ID: u32 = 474;
+    const ID: i32 = 474;
     const STRING_ID: &'static str = "minecraft:light_block";
     const NAME: &'static str = "Light";
     const STACK_SIZE: u8 = 64;
@@ -4769,7 +4769,7 @@ impl ItemDef for LightBlock {
 pub struct HayBlock;
 
 impl ItemDef for HayBlock {
-    const ID: u32 = 475;
+    const ID: i32 = 475;
     const STRING_ID: &'static str = "minecraft:hay_block";
     const NAME: &'static str = "Hay Bale";
     const STACK_SIZE: u8 = 64;
@@ -4779,7 +4779,7 @@ impl ItemDef for HayBlock {
 pub struct WhiteCarpet;
 
 impl ItemDef for WhiteCarpet {
-    const ID: u32 = 476;
+    const ID: i32 = 476;
     const STRING_ID: &'static str = "minecraft:white_carpet";
     const NAME: &'static str = "White Carpet";
     const STACK_SIZE: u8 = 64;
@@ -4789,7 +4789,7 @@ impl ItemDef for WhiteCarpet {
 pub struct OrangeCarpet;
 
 impl ItemDef for OrangeCarpet {
-    const ID: u32 = 477;
+    const ID: i32 = 477;
     const STRING_ID: &'static str = "minecraft:orange_carpet";
     const NAME: &'static str = "Orange Carpet";
     const STACK_SIZE: u8 = 64;
@@ -4799,7 +4799,7 @@ impl ItemDef for OrangeCarpet {
 pub struct MagentaCarpet;
 
 impl ItemDef for MagentaCarpet {
-    const ID: u32 = 478;
+    const ID: i32 = 478;
     const STRING_ID: &'static str = "minecraft:magenta_carpet";
     const NAME: &'static str = "Magenta Carpet";
     const STACK_SIZE: u8 = 64;
@@ -4809,7 +4809,7 @@ impl ItemDef for MagentaCarpet {
 pub struct LightBlueCarpet;
 
 impl ItemDef for LightBlueCarpet {
-    const ID: u32 = 479;
+    const ID: i32 = 479;
     const STRING_ID: &'static str = "minecraft:light_blue_carpet";
     const NAME: &'static str = "Light Blue Carpet";
     const STACK_SIZE: u8 = 64;
@@ -4819,7 +4819,7 @@ impl ItemDef for LightBlueCarpet {
 pub struct YellowCarpet;
 
 impl ItemDef for YellowCarpet {
-    const ID: u32 = 480;
+    const ID: i32 = 480;
     const STRING_ID: &'static str = "minecraft:yellow_carpet";
     const NAME: &'static str = "Yellow Carpet";
     const STACK_SIZE: u8 = 64;
@@ -4829,7 +4829,7 @@ impl ItemDef for YellowCarpet {
 pub struct LimeCarpet;
 
 impl ItemDef for LimeCarpet {
-    const ID: u32 = 481;
+    const ID: i32 = 481;
     const STRING_ID: &'static str = "minecraft:lime_carpet";
     const NAME: &'static str = "Lime Carpet";
     const STACK_SIZE: u8 = 64;
@@ -4839,7 +4839,7 @@ impl ItemDef for LimeCarpet {
 pub struct PinkCarpet;
 
 impl ItemDef for PinkCarpet {
-    const ID: u32 = 482;
+    const ID: i32 = 482;
     const STRING_ID: &'static str = "minecraft:pink_carpet";
     const NAME: &'static str = "Pink Carpet";
     const STACK_SIZE: u8 = 64;
@@ -4849,7 +4849,7 @@ impl ItemDef for PinkCarpet {
 pub struct GrayCarpet;
 
 impl ItemDef for GrayCarpet {
-    const ID: u32 = 483;
+    const ID: i32 = 483;
     const STRING_ID: &'static str = "minecraft:gray_carpet";
     const NAME: &'static str = "Gray Carpet";
     const STACK_SIZE: u8 = 64;
@@ -4859,7 +4859,7 @@ impl ItemDef for GrayCarpet {
 pub struct LightGrayCarpet;
 
 impl ItemDef for LightGrayCarpet {
-    const ID: u32 = 484;
+    const ID: i32 = 484;
     const STRING_ID: &'static str = "minecraft:light_gray_carpet";
     const NAME: &'static str = "Light Gray Carpet";
     const STACK_SIZE: u8 = 64;
@@ -4869,7 +4869,7 @@ impl ItemDef for LightGrayCarpet {
 pub struct CyanCarpet;
 
 impl ItemDef for CyanCarpet {
-    const ID: u32 = 485;
+    const ID: i32 = 485;
     const STRING_ID: &'static str = "minecraft:cyan_carpet";
     const NAME: &'static str = "Cyan Carpet";
     const STACK_SIZE: u8 = 64;
@@ -4879,7 +4879,7 @@ impl ItemDef for CyanCarpet {
 pub struct PurpleCarpet;
 
 impl ItemDef for PurpleCarpet {
-    const ID: u32 = 486;
+    const ID: i32 = 486;
     const STRING_ID: &'static str = "minecraft:purple_carpet";
     const NAME: &'static str = "Purple Carpet";
     const STACK_SIZE: u8 = 64;
@@ -4889,7 +4889,7 @@ impl ItemDef for PurpleCarpet {
 pub struct BlueCarpet;
 
 impl ItemDef for BlueCarpet {
-    const ID: u32 = 487;
+    const ID: i32 = 487;
     const STRING_ID: &'static str = "minecraft:blue_carpet";
     const NAME: &'static str = "Blue Carpet";
     const STACK_SIZE: u8 = 64;
@@ -4899,7 +4899,7 @@ impl ItemDef for BlueCarpet {
 pub struct BrownCarpet;
 
 impl ItemDef for BrownCarpet {
-    const ID: u32 = 488;
+    const ID: i32 = 488;
     const STRING_ID: &'static str = "minecraft:brown_carpet";
     const NAME: &'static str = "Brown Carpet";
     const STACK_SIZE: u8 = 64;
@@ -4909,7 +4909,7 @@ impl ItemDef for BrownCarpet {
 pub struct GreenCarpet;
 
 impl ItemDef for GreenCarpet {
-    const ID: u32 = 489;
+    const ID: i32 = 489;
     const STRING_ID: &'static str = "minecraft:green_carpet";
     const NAME: &'static str = "Green Carpet";
     const STACK_SIZE: u8 = 64;
@@ -4919,7 +4919,7 @@ impl ItemDef for GreenCarpet {
 pub struct RedCarpet;
 
 impl ItemDef for RedCarpet {
-    const ID: u32 = 490;
+    const ID: i32 = 490;
     const STRING_ID: &'static str = "minecraft:red_carpet";
     const NAME: &'static str = "Red Carpet";
     const STACK_SIZE: u8 = 64;
@@ -4929,7 +4929,7 @@ impl ItemDef for RedCarpet {
 pub struct BlackCarpet;
 
 impl ItemDef for BlackCarpet {
-    const ID: u32 = 491;
+    const ID: i32 = 491;
     const STRING_ID: &'static str = "minecraft:black_carpet";
     const NAME: &'static str = "Black Carpet";
     const STACK_SIZE: u8 = 64;
@@ -4939,7 +4939,7 @@ impl ItemDef for BlackCarpet {
 pub struct HardenedClay;
 
 impl ItemDef for HardenedClay {
-    const ID: u32 = 492;
+    const ID: i32 = 492;
     const STRING_ID: &'static str = "minecraft:hardened_clay";
     const NAME: &'static str = "Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -4949,7 +4949,7 @@ impl ItemDef for HardenedClay {
 pub struct PackedIce;
 
 impl ItemDef for PackedIce {
-    const ID: u32 = 493;
+    const ID: i32 = 493;
     const STRING_ID: &'static str = "minecraft:packed_ice";
     const NAME: &'static str = "Packed Ice";
     const STACK_SIZE: u8 = 64;
@@ -4959,7 +4959,7 @@ impl ItemDef for PackedIce {
 pub struct GrassPath;
 
 impl ItemDef for GrassPath {
-    const ID: u32 = 494;
+    const ID: i32 = 494;
     const STRING_ID: &'static str = "minecraft:grass_path";
     const NAME: &'static str = "Dirt Path";
     const STACK_SIZE: u8 = 64;
@@ -4969,7 +4969,7 @@ impl ItemDef for GrassPath {
 pub struct Sunflower;
 
 impl ItemDef for Sunflower {
-    const ID: u32 = 495;
+    const ID: i32 = 495;
     const STRING_ID: &'static str = "minecraft:sunflower";
     const NAME: &'static str = "Sunflower";
     const STACK_SIZE: u8 = 64;
@@ -4979,7 +4979,7 @@ impl ItemDef for Sunflower {
 pub struct Lilac;
 
 impl ItemDef for Lilac {
-    const ID: u32 = 496;
+    const ID: i32 = 496;
     const STRING_ID: &'static str = "minecraft:lilac";
     const NAME: &'static str = "Lilac";
     const STACK_SIZE: u8 = 64;
@@ -4989,7 +4989,7 @@ impl ItemDef for Lilac {
 pub struct RoseBush;
 
 impl ItemDef for RoseBush {
-    const ID: u32 = 497;
+    const ID: i32 = 497;
     const STRING_ID: &'static str = "minecraft:rose_bush";
     const NAME: &'static str = "Rose Bush";
     const STACK_SIZE: u8 = 64;
@@ -4999,7 +4999,7 @@ impl ItemDef for RoseBush {
 pub struct Peony;
 
 impl ItemDef for Peony {
-    const ID: u32 = 498;
+    const ID: i32 = 498;
     const STRING_ID: &'static str = "minecraft:peony";
     const NAME: &'static str = "Peony";
     const STACK_SIZE: u8 = 64;
@@ -5009,7 +5009,7 @@ impl ItemDef for Peony {
 pub struct TallGrass;
 
 impl ItemDef for TallGrass {
-    const ID: u32 = 499;
+    const ID: i32 = 499;
     const STRING_ID: &'static str = "minecraft:tall_grass";
     const NAME: &'static str = "Tall Grass";
     const STACK_SIZE: u8 = 64;
@@ -5019,7 +5019,7 @@ impl ItemDef for TallGrass {
 pub struct LargeFern;
 
 impl ItemDef for LargeFern {
-    const ID: u32 = 500;
+    const ID: i32 = 500;
     const STRING_ID: &'static str = "minecraft:large_fern";
     const NAME: &'static str = "Large Fern";
     const STACK_SIZE: u8 = 64;
@@ -5029,7 +5029,7 @@ impl ItemDef for LargeFern {
 pub struct WhiteStainedGlass;
 
 impl ItemDef for WhiteStainedGlass {
-    const ID: u32 = 501;
+    const ID: i32 = 501;
     const STRING_ID: &'static str = "minecraft:white_stained_glass";
     const NAME: &'static str = "White Stained Glass";
     const STACK_SIZE: u8 = 64;
@@ -5039,7 +5039,7 @@ impl ItemDef for WhiteStainedGlass {
 pub struct OrangeStainedGlass;
 
 impl ItemDef for OrangeStainedGlass {
-    const ID: u32 = 502;
+    const ID: i32 = 502;
     const STRING_ID: &'static str = "minecraft:orange_stained_glass";
     const NAME: &'static str = "Orange Stained Glass";
     const STACK_SIZE: u8 = 64;
@@ -5049,7 +5049,7 @@ impl ItemDef for OrangeStainedGlass {
 pub struct MagentaStainedGlass;
 
 impl ItemDef for MagentaStainedGlass {
-    const ID: u32 = 503;
+    const ID: i32 = 503;
     const STRING_ID: &'static str = "minecraft:magenta_stained_glass";
     const NAME: &'static str = "Magenta Stained Glass";
     const STACK_SIZE: u8 = 64;
@@ -5059,7 +5059,7 @@ impl ItemDef for MagentaStainedGlass {
 pub struct LightBlueStainedGlass;
 
 impl ItemDef for LightBlueStainedGlass {
-    const ID: u32 = 504;
+    const ID: i32 = 504;
     const STRING_ID: &'static str = "minecraft:light_blue_stained_glass";
     const NAME: &'static str = "Light Blue Stained Glass";
     const STACK_SIZE: u8 = 64;
@@ -5069,7 +5069,7 @@ impl ItemDef for LightBlueStainedGlass {
 pub struct YellowStainedGlass;
 
 impl ItemDef for YellowStainedGlass {
-    const ID: u32 = 505;
+    const ID: i32 = 505;
     const STRING_ID: &'static str = "minecraft:yellow_stained_glass";
     const NAME: &'static str = "Yellow Stained Glass";
     const STACK_SIZE: u8 = 64;
@@ -5079,7 +5079,7 @@ impl ItemDef for YellowStainedGlass {
 pub struct LimeStainedGlass;
 
 impl ItemDef for LimeStainedGlass {
-    const ID: u32 = 506;
+    const ID: i32 = 506;
     const STRING_ID: &'static str = "minecraft:lime_stained_glass";
     const NAME: &'static str = "Lime Stained Glass";
     const STACK_SIZE: u8 = 64;
@@ -5089,7 +5089,7 @@ impl ItemDef for LimeStainedGlass {
 pub struct PinkStainedGlass;
 
 impl ItemDef for PinkStainedGlass {
-    const ID: u32 = 507;
+    const ID: i32 = 507;
     const STRING_ID: &'static str = "minecraft:pink_stained_glass";
     const NAME: &'static str = "Pink Stained Glass";
     const STACK_SIZE: u8 = 64;
@@ -5099,7 +5099,7 @@ impl ItemDef for PinkStainedGlass {
 pub struct GrayStainedGlass;
 
 impl ItemDef for GrayStainedGlass {
-    const ID: u32 = 508;
+    const ID: i32 = 508;
     const STRING_ID: &'static str = "minecraft:gray_stained_glass";
     const NAME: &'static str = "Gray Stained Glass";
     const STACK_SIZE: u8 = 64;
@@ -5109,7 +5109,7 @@ impl ItemDef for GrayStainedGlass {
 pub struct LightGrayStainedGlass;
 
 impl ItemDef for LightGrayStainedGlass {
-    const ID: u32 = 509;
+    const ID: i32 = 509;
     const STRING_ID: &'static str = "minecraft:light_gray_stained_glass";
     const NAME: &'static str = "Light Gray Stained Glass";
     const STACK_SIZE: u8 = 64;
@@ -5119,7 +5119,7 @@ impl ItemDef for LightGrayStainedGlass {
 pub struct CyanStainedGlass;
 
 impl ItemDef for CyanStainedGlass {
-    const ID: u32 = 510;
+    const ID: i32 = 510;
     const STRING_ID: &'static str = "minecraft:cyan_stained_glass";
     const NAME: &'static str = "Cyan Stained Glass";
     const STACK_SIZE: u8 = 64;
@@ -5129,7 +5129,7 @@ impl ItemDef for CyanStainedGlass {
 pub struct PurpleStainedGlass;
 
 impl ItemDef for PurpleStainedGlass {
-    const ID: u32 = 511;
+    const ID: i32 = 511;
     const STRING_ID: &'static str = "minecraft:purple_stained_glass";
     const NAME: &'static str = "Purple Stained Glass";
     const STACK_SIZE: u8 = 64;
@@ -5139,7 +5139,7 @@ impl ItemDef for PurpleStainedGlass {
 pub struct BlueStainedGlass;
 
 impl ItemDef for BlueStainedGlass {
-    const ID: u32 = 512;
+    const ID: i32 = 512;
     const STRING_ID: &'static str = "minecraft:blue_stained_glass";
     const NAME: &'static str = "Blue Stained Glass";
     const STACK_SIZE: u8 = 64;
@@ -5149,7 +5149,7 @@ impl ItemDef for BlueStainedGlass {
 pub struct BrownStainedGlass;
 
 impl ItemDef for BrownStainedGlass {
-    const ID: u32 = 513;
+    const ID: i32 = 513;
     const STRING_ID: &'static str = "minecraft:brown_stained_glass";
     const NAME: &'static str = "Brown Stained Glass";
     const STACK_SIZE: u8 = 64;
@@ -5159,7 +5159,7 @@ impl ItemDef for BrownStainedGlass {
 pub struct GreenStainedGlass;
 
 impl ItemDef for GreenStainedGlass {
-    const ID: u32 = 514;
+    const ID: i32 = 514;
     const STRING_ID: &'static str = "minecraft:green_stained_glass";
     const NAME: &'static str = "Green Stained Glass";
     const STACK_SIZE: u8 = 64;
@@ -5169,7 +5169,7 @@ impl ItemDef for GreenStainedGlass {
 pub struct RedStainedGlass;
 
 impl ItemDef for RedStainedGlass {
-    const ID: u32 = 515;
+    const ID: i32 = 515;
     const STRING_ID: &'static str = "minecraft:red_stained_glass";
     const NAME: &'static str = "Red Stained Glass";
     const STACK_SIZE: u8 = 64;
@@ -5179,7 +5179,7 @@ impl ItemDef for RedStainedGlass {
 pub struct BlackStainedGlass;
 
 impl ItemDef for BlackStainedGlass {
-    const ID: u32 = 516;
+    const ID: i32 = 516;
     const STRING_ID: &'static str = "minecraft:black_stained_glass";
     const NAME: &'static str = "Black Stained Glass";
     const STACK_SIZE: u8 = 64;
@@ -5189,7 +5189,7 @@ impl ItemDef for BlackStainedGlass {
 pub struct WhiteStainedGlassPane;
 
 impl ItemDef for WhiteStainedGlassPane {
-    const ID: u32 = 517;
+    const ID: i32 = 517;
     const STRING_ID: &'static str = "minecraft:white_stained_glass_pane";
     const NAME: &'static str = "White Stained Glass Pane";
     const STACK_SIZE: u8 = 64;
@@ -5199,7 +5199,7 @@ impl ItemDef for WhiteStainedGlassPane {
 pub struct OrangeStainedGlassPane;
 
 impl ItemDef for OrangeStainedGlassPane {
-    const ID: u32 = 518;
+    const ID: i32 = 518;
     const STRING_ID: &'static str = "minecraft:orange_stained_glass_pane";
     const NAME: &'static str = "Orange Stained Glass Pane";
     const STACK_SIZE: u8 = 64;
@@ -5209,7 +5209,7 @@ impl ItemDef for OrangeStainedGlassPane {
 pub struct MagentaStainedGlassPane;
 
 impl ItemDef for MagentaStainedGlassPane {
-    const ID: u32 = 519;
+    const ID: i32 = 519;
     const STRING_ID: &'static str = "minecraft:magenta_stained_glass_pane";
     const NAME: &'static str = "Magenta Stained Glass Pane";
     const STACK_SIZE: u8 = 64;
@@ -5219,7 +5219,7 @@ impl ItemDef for MagentaStainedGlassPane {
 pub struct LightBlueStainedGlassPane;
 
 impl ItemDef for LightBlueStainedGlassPane {
-    const ID: u32 = 520;
+    const ID: i32 = 520;
     const STRING_ID: &'static str = "minecraft:light_blue_stained_glass_pane";
     const NAME: &'static str = "Light Blue Stained Glass Pane";
     const STACK_SIZE: u8 = 64;
@@ -5229,7 +5229,7 @@ impl ItemDef for LightBlueStainedGlassPane {
 pub struct YellowStainedGlassPane;
 
 impl ItemDef for YellowStainedGlassPane {
-    const ID: u32 = 521;
+    const ID: i32 = 521;
     const STRING_ID: &'static str = "minecraft:yellow_stained_glass_pane";
     const NAME: &'static str = "Yellow Stained Glass Pane";
     const STACK_SIZE: u8 = 64;
@@ -5239,7 +5239,7 @@ impl ItemDef for YellowStainedGlassPane {
 pub struct LimeStainedGlassPane;
 
 impl ItemDef for LimeStainedGlassPane {
-    const ID: u32 = 522;
+    const ID: i32 = 522;
     const STRING_ID: &'static str = "minecraft:lime_stained_glass_pane";
     const NAME: &'static str = "Lime Stained Glass Pane";
     const STACK_SIZE: u8 = 64;
@@ -5249,7 +5249,7 @@ impl ItemDef for LimeStainedGlassPane {
 pub struct PinkStainedGlassPane;
 
 impl ItemDef for PinkStainedGlassPane {
-    const ID: u32 = 523;
+    const ID: i32 = 523;
     const STRING_ID: &'static str = "minecraft:pink_stained_glass_pane";
     const NAME: &'static str = "Pink Stained Glass Pane";
     const STACK_SIZE: u8 = 64;
@@ -5259,7 +5259,7 @@ impl ItemDef for PinkStainedGlassPane {
 pub struct GrayStainedGlassPane;
 
 impl ItemDef for GrayStainedGlassPane {
-    const ID: u32 = 524;
+    const ID: i32 = 524;
     const STRING_ID: &'static str = "minecraft:gray_stained_glass_pane";
     const NAME: &'static str = "Gray Stained Glass Pane";
     const STACK_SIZE: u8 = 64;
@@ -5269,7 +5269,7 @@ impl ItemDef for GrayStainedGlassPane {
 pub struct LightGrayStainedGlassPane;
 
 impl ItemDef for LightGrayStainedGlassPane {
-    const ID: u32 = 525;
+    const ID: i32 = 525;
     const STRING_ID: &'static str = "minecraft:light_gray_stained_glass_pane";
     const NAME: &'static str = "Light Gray Stained Glass Pane";
     const STACK_SIZE: u8 = 64;
@@ -5279,7 +5279,7 @@ impl ItemDef for LightGrayStainedGlassPane {
 pub struct CyanStainedGlassPane;
 
 impl ItemDef for CyanStainedGlassPane {
-    const ID: u32 = 526;
+    const ID: i32 = 526;
     const STRING_ID: &'static str = "minecraft:cyan_stained_glass_pane";
     const NAME: &'static str = "Cyan Stained Glass Pane";
     const STACK_SIZE: u8 = 64;
@@ -5289,7 +5289,7 @@ impl ItemDef for CyanStainedGlassPane {
 pub struct PurpleStainedGlassPane;
 
 impl ItemDef for PurpleStainedGlassPane {
-    const ID: u32 = 527;
+    const ID: i32 = 527;
     const STRING_ID: &'static str = "minecraft:purple_stained_glass_pane";
     const NAME: &'static str = "Purple Stained Glass Pane";
     const STACK_SIZE: u8 = 64;
@@ -5299,7 +5299,7 @@ impl ItemDef for PurpleStainedGlassPane {
 pub struct BlueStainedGlassPane;
 
 impl ItemDef for BlueStainedGlassPane {
-    const ID: u32 = 528;
+    const ID: i32 = 528;
     const STRING_ID: &'static str = "minecraft:blue_stained_glass_pane";
     const NAME: &'static str = "Blue Stained Glass Pane";
     const STACK_SIZE: u8 = 64;
@@ -5309,7 +5309,7 @@ impl ItemDef for BlueStainedGlassPane {
 pub struct BrownStainedGlassPane;
 
 impl ItemDef for BrownStainedGlassPane {
-    const ID: u32 = 529;
+    const ID: i32 = 529;
     const STRING_ID: &'static str = "minecraft:brown_stained_glass_pane";
     const NAME: &'static str = "Brown Stained Glass Pane";
     const STACK_SIZE: u8 = 64;
@@ -5319,7 +5319,7 @@ impl ItemDef for BrownStainedGlassPane {
 pub struct GreenStainedGlassPane;
 
 impl ItemDef for GreenStainedGlassPane {
-    const ID: u32 = 530;
+    const ID: i32 = 530;
     const STRING_ID: &'static str = "minecraft:green_stained_glass_pane";
     const NAME: &'static str = "Green Stained Glass Pane";
     const STACK_SIZE: u8 = 64;
@@ -5329,7 +5329,7 @@ impl ItemDef for GreenStainedGlassPane {
 pub struct RedStainedGlassPane;
 
 impl ItemDef for RedStainedGlassPane {
-    const ID: u32 = 531;
+    const ID: i32 = 531;
     const STRING_ID: &'static str = "minecraft:red_stained_glass_pane";
     const NAME: &'static str = "Red Stained Glass Pane";
     const STACK_SIZE: u8 = 64;
@@ -5339,7 +5339,7 @@ impl ItemDef for RedStainedGlassPane {
 pub struct BlackStainedGlassPane;
 
 impl ItemDef for BlackStainedGlassPane {
-    const ID: u32 = 532;
+    const ID: i32 = 532;
     const STRING_ID: &'static str = "minecraft:black_stained_glass_pane";
     const NAME: &'static str = "Black Stained Glass Pane";
     const STACK_SIZE: u8 = 64;
@@ -5349,7 +5349,7 @@ impl ItemDef for BlackStainedGlassPane {
 pub struct Prismarine;
 
 impl ItemDef for Prismarine {
-    const ID: u32 = 533;
+    const ID: i32 = 533;
     const STRING_ID: &'static str = "minecraft:prismarine";
     const NAME: &'static str = "Prismarine";
     const STACK_SIZE: u8 = 64;
@@ -5359,7 +5359,7 @@ impl ItemDef for Prismarine {
 pub struct PrismarineBricks;
 
 impl ItemDef for PrismarineBricks {
-    const ID: u32 = 534;
+    const ID: i32 = 534;
     const STRING_ID: &'static str = "minecraft:prismarine_bricks";
     const NAME: &'static str = "Prismarine Bricks";
     const STACK_SIZE: u8 = 64;
@@ -5369,7 +5369,7 @@ impl ItemDef for PrismarineBricks {
 pub struct DarkPrismarine;
 
 impl ItemDef for DarkPrismarine {
-    const ID: u32 = 535;
+    const ID: i32 = 535;
     const STRING_ID: &'static str = "minecraft:dark_prismarine";
     const NAME: &'static str = "Dark Prismarine";
     const STACK_SIZE: u8 = 64;
@@ -5379,7 +5379,7 @@ impl ItemDef for DarkPrismarine {
 pub struct PrismarineStairs;
 
 impl ItemDef for PrismarineStairs {
-    const ID: u32 = 536;
+    const ID: i32 = 536;
     const STRING_ID: &'static str = "minecraft:prismarine_stairs";
     const NAME: &'static str = "Prismarine Stairs";
     const STACK_SIZE: u8 = 64;
@@ -5389,7 +5389,7 @@ impl ItemDef for PrismarineStairs {
 pub struct PrismarineBricksStairs;
 
 impl ItemDef for PrismarineBricksStairs {
-    const ID: u32 = 537;
+    const ID: i32 = 537;
     const STRING_ID: &'static str = "minecraft:prismarine_bricks_stairs";
     const NAME: &'static str = "Prismarine Brick Stairs";
     const STACK_SIZE: u8 = 64;
@@ -5399,7 +5399,7 @@ impl ItemDef for PrismarineBricksStairs {
 pub struct DarkPrismarineStairs;
 
 impl ItemDef for DarkPrismarineStairs {
-    const ID: u32 = 538;
+    const ID: i32 = 538;
     const STRING_ID: &'static str = "minecraft:dark_prismarine_stairs";
     const NAME: &'static str = "Dark Prismarine Stairs";
     const STACK_SIZE: u8 = 64;
@@ -5409,7 +5409,7 @@ impl ItemDef for DarkPrismarineStairs {
 pub struct SeaLantern;
 
 impl ItemDef for SeaLantern {
-    const ID: u32 = 539;
+    const ID: i32 = 539;
     const STRING_ID: &'static str = "minecraft:sea_lantern";
     const NAME: &'static str = "Sea Lantern";
     const STACK_SIZE: u8 = 64;
@@ -5419,7 +5419,7 @@ impl ItemDef for SeaLantern {
 pub struct RedSandstone;
 
 impl ItemDef for RedSandstone {
-    const ID: u32 = 540;
+    const ID: i32 = 540;
     const STRING_ID: &'static str = "minecraft:red_sandstone";
     const NAME: &'static str = "Red Sandstone";
     const STACK_SIZE: u8 = 64;
@@ -5429,7 +5429,7 @@ impl ItemDef for RedSandstone {
 pub struct ChiseledRedSandstone;
 
 impl ItemDef for ChiseledRedSandstone {
-    const ID: u32 = 541;
+    const ID: i32 = 541;
     const STRING_ID: &'static str = "minecraft:chiseled_red_sandstone";
     const NAME: &'static str = "Chiseled Red Sandstone";
     const STACK_SIZE: u8 = 64;
@@ -5439,7 +5439,7 @@ impl ItemDef for ChiseledRedSandstone {
 pub struct CutRedSandstone;
 
 impl ItemDef for CutRedSandstone {
-    const ID: u32 = 542;
+    const ID: i32 = 542;
     const STRING_ID: &'static str = "minecraft:cut_red_sandstone";
     const NAME: &'static str = "Cut Red Sandstone";
     const STACK_SIZE: u8 = 64;
@@ -5449,7 +5449,7 @@ impl ItemDef for CutRedSandstone {
 pub struct RedSandstoneStairs;
 
 impl ItemDef for RedSandstoneStairs {
-    const ID: u32 = 543;
+    const ID: i32 = 543;
     const STRING_ID: &'static str = "minecraft:red_sandstone_stairs";
     const NAME: &'static str = "Red Sandstone Stairs";
     const STACK_SIZE: u8 = 64;
@@ -5459,7 +5459,7 @@ impl ItemDef for RedSandstoneStairs {
 pub struct RepeatingCommandBlock;
 
 impl ItemDef for RepeatingCommandBlock {
-    const ID: u32 = 544;
+    const ID: i32 = 544;
     const STRING_ID: &'static str = "minecraft:repeating_command_block";
     const NAME: &'static str = "Repeating Command Block";
     const STACK_SIZE: u8 = 64;
@@ -5469,7 +5469,7 @@ impl ItemDef for RepeatingCommandBlock {
 pub struct ChainCommandBlock;
 
 impl ItemDef for ChainCommandBlock {
-    const ID: u32 = 545;
+    const ID: i32 = 545;
     const STRING_ID: &'static str = "minecraft:chain_command_block";
     const NAME: &'static str = "Chain Command Block";
     const STACK_SIZE: u8 = 64;
@@ -5479,7 +5479,7 @@ impl ItemDef for ChainCommandBlock {
 pub struct Magma;
 
 impl ItemDef for Magma {
-    const ID: u32 = 546;
+    const ID: i32 = 546;
     const STRING_ID: &'static str = "minecraft:magma";
     const NAME: &'static str = "Magma Block";
     const STACK_SIZE: u8 = 64;
@@ -5489,7 +5489,7 @@ impl ItemDef for Magma {
 pub struct NetherWartBlock;
 
 impl ItemDef for NetherWartBlock {
-    const ID: u32 = 547;
+    const ID: i32 = 547;
     const STRING_ID: &'static str = "minecraft:nether_wart_block";
     const NAME: &'static str = "Nether Wart Block";
     const STACK_SIZE: u8 = 64;
@@ -5499,7 +5499,7 @@ impl ItemDef for NetherWartBlock {
 pub struct WarpedWartBlock;
 
 impl ItemDef for WarpedWartBlock {
-    const ID: u32 = 548;
+    const ID: i32 = 548;
     const STRING_ID: &'static str = "minecraft:warped_wart_block";
     const NAME: &'static str = "Warped Wart Block";
     const STACK_SIZE: u8 = 64;
@@ -5509,7 +5509,7 @@ impl ItemDef for WarpedWartBlock {
 pub struct RedNetherBrick;
 
 impl ItemDef for RedNetherBrick {
-    const ID: u32 = 549;
+    const ID: i32 = 549;
     const STRING_ID: &'static str = "minecraft:red_nether_brick";
     const NAME: &'static str = "Red Nether Bricks";
     const STACK_SIZE: u8 = 64;
@@ -5519,7 +5519,7 @@ impl ItemDef for RedNetherBrick {
 pub struct BoneBlock;
 
 impl ItemDef for BoneBlock {
-    const ID: u32 = 550;
+    const ID: i32 = 550;
     const STRING_ID: &'static str = "minecraft:bone_block";
     const NAME: &'static str = "Bone Block";
     const STACK_SIZE: u8 = 64;
@@ -5529,7 +5529,7 @@ impl ItemDef for BoneBlock {
 pub struct StructureVoid;
 
 impl ItemDef for StructureVoid {
-    const ID: u32 = 551;
+    const ID: i32 = 551;
     const STRING_ID: &'static str = "minecraft:structure_void";
     const NAME: &'static str = "Structure Void";
     const STACK_SIZE: u8 = 64;
@@ -5539,7 +5539,7 @@ impl ItemDef for StructureVoid {
 pub struct UndyedShulkerBox;
 
 impl ItemDef for UndyedShulkerBox {
-    const ID: u32 = 552;
+    const ID: i32 = 552;
     const STRING_ID: &'static str = "minecraft:undyed_shulker_box";
     const NAME: &'static str = "Shulker Box";
     const STACK_SIZE: u8 = 1;
@@ -5549,7 +5549,7 @@ impl ItemDef for UndyedShulkerBox {
 pub struct WhiteShulkerBox;
 
 impl ItemDef for WhiteShulkerBox {
-    const ID: u32 = 553;
+    const ID: i32 = 553;
     const STRING_ID: &'static str = "minecraft:white_shulker_box";
     const NAME: &'static str = "White Shulker Box";
     const STACK_SIZE: u8 = 1;
@@ -5559,7 +5559,7 @@ impl ItemDef for WhiteShulkerBox {
 pub struct OrangeShulkerBox;
 
 impl ItemDef for OrangeShulkerBox {
-    const ID: u32 = 554;
+    const ID: i32 = 554;
     const STRING_ID: &'static str = "minecraft:orange_shulker_box";
     const NAME: &'static str = "Orange Shulker Box";
     const STACK_SIZE: u8 = 1;
@@ -5569,7 +5569,7 @@ impl ItemDef for OrangeShulkerBox {
 pub struct MagentaShulkerBox;
 
 impl ItemDef for MagentaShulkerBox {
-    const ID: u32 = 555;
+    const ID: i32 = 555;
     const STRING_ID: &'static str = "minecraft:magenta_shulker_box";
     const NAME: &'static str = "Magenta Shulker Box";
     const STACK_SIZE: u8 = 1;
@@ -5579,7 +5579,7 @@ impl ItemDef for MagentaShulkerBox {
 pub struct LightBlueShulkerBox;
 
 impl ItemDef for LightBlueShulkerBox {
-    const ID: u32 = 556;
+    const ID: i32 = 556;
     const STRING_ID: &'static str = "minecraft:light_blue_shulker_box";
     const NAME: &'static str = "Light Blue Shulker Box";
     const STACK_SIZE: u8 = 1;
@@ -5589,7 +5589,7 @@ impl ItemDef for LightBlueShulkerBox {
 pub struct YellowShulkerBox;
 
 impl ItemDef for YellowShulkerBox {
-    const ID: u32 = 557;
+    const ID: i32 = 557;
     const STRING_ID: &'static str = "minecraft:yellow_shulker_box";
     const NAME: &'static str = "Yellow Shulker Box";
     const STACK_SIZE: u8 = 1;
@@ -5599,7 +5599,7 @@ impl ItemDef for YellowShulkerBox {
 pub struct LimeShulkerBox;
 
 impl ItemDef for LimeShulkerBox {
-    const ID: u32 = 558;
+    const ID: i32 = 558;
     const STRING_ID: &'static str = "minecraft:lime_shulker_box";
     const NAME: &'static str = "Lime Shulker Box";
     const STACK_SIZE: u8 = 1;
@@ -5609,7 +5609,7 @@ impl ItemDef for LimeShulkerBox {
 pub struct PinkShulkerBox;
 
 impl ItemDef for PinkShulkerBox {
-    const ID: u32 = 559;
+    const ID: i32 = 559;
     const STRING_ID: &'static str = "minecraft:pink_shulker_box";
     const NAME: &'static str = "Pink Shulker Box";
     const STACK_SIZE: u8 = 1;
@@ -5619,7 +5619,7 @@ impl ItemDef for PinkShulkerBox {
 pub struct GrayShulkerBox;
 
 impl ItemDef for GrayShulkerBox {
-    const ID: u32 = 560;
+    const ID: i32 = 560;
     const STRING_ID: &'static str = "minecraft:gray_shulker_box";
     const NAME: &'static str = "Gray Shulker Box";
     const STACK_SIZE: u8 = 1;
@@ -5629,7 +5629,7 @@ impl ItemDef for GrayShulkerBox {
 pub struct LightGrayShulkerBox;
 
 impl ItemDef for LightGrayShulkerBox {
-    const ID: u32 = 561;
+    const ID: i32 = 561;
     const STRING_ID: &'static str = "minecraft:light_gray_shulker_box";
     const NAME: &'static str = "Light Gray Shulker Box";
     const STACK_SIZE: u8 = 1;
@@ -5639,7 +5639,7 @@ impl ItemDef for LightGrayShulkerBox {
 pub struct CyanShulkerBox;
 
 impl ItemDef for CyanShulkerBox {
-    const ID: u32 = 562;
+    const ID: i32 = 562;
     const STRING_ID: &'static str = "minecraft:cyan_shulker_box";
     const NAME: &'static str = "Cyan Shulker Box";
     const STACK_SIZE: u8 = 1;
@@ -5649,7 +5649,7 @@ impl ItemDef for CyanShulkerBox {
 pub struct PurpleShulkerBox;
 
 impl ItemDef for PurpleShulkerBox {
-    const ID: u32 = 563;
+    const ID: i32 = 563;
     const STRING_ID: &'static str = "minecraft:purple_shulker_box";
     const NAME: &'static str = "Purple Shulker Box";
     const STACK_SIZE: u8 = 1;
@@ -5659,7 +5659,7 @@ impl ItemDef for PurpleShulkerBox {
 pub struct BlueShulkerBox;
 
 impl ItemDef for BlueShulkerBox {
-    const ID: u32 = 564;
+    const ID: i32 = 564;
     const STRING_ID: &'static str = "minecraft:blue_shulker_box";
     const NAME: &'static str = "Blue Shulker Box";
     const STACK_SIZE: u8 = 1;
@@ -5669,7 +5669,7 @@ impl ItemDef for BlueShulkerBox {
 pub struct BrownShulkerBox;
 
 impl ItemDef for BrownShulkerBox {
-    const ID: u32 = 565;
+    const ID: i32 = 565;
     const STRING_ID: &'static str = "minecraft:brown_shulker_box";
     const NAME: &'static str = "Brown Shulker Box";
     const STACK_SIZE: u8 = 1;
@@ -5679,7 +5679,7 @@ impl ItemDef for BrownShulkerBox {
 pub struct GreenShulkerBox;
 
 impl ItemDef for GreenShulkerBox {
-    const ID: u32 = 566;
+    const ID: i32 = 566;
     const STRING_ID: &'static str = "minecraft:green_shulker_box";
     const NAME: &'static str = "Green Shulker Box";
     const STACK_SIZE: u8 = 1;
@@ -5689,7 +5689,7 @@ impl ItemDef for GreenShulkerBox {
 pub struct RedShulkerBox;
 
 impl ItemDef for RedShulkerBox {
-    const ID: u32 = 567;
+    const ID: i32 = 567;
     const STRING_ID: &'static str = "minecraft:red_shulker_box";
     const NAME: &'static str = "Red Shulker Box";
     const STACK_SIZE: u8 = 1;
@@ -5699,7 +5699,7 @@ impl ItemDef for RedShulkerBox {
 pub struct BlackShulkerBox;
 
 impl ItemDef for BlackShulkerBox {
-    const ID: u32 = 568;
+    const ID: i32 = 568;
     const STRING_ID: &'static str = "minecraft:black_shulker_box";
     const NAME: &'static str = "Black Shulker Box";
     const STACK_SIZE: u8 = 1;
@@ -5709,7 +5709,7 @@ impl ItemDef for BlackShulkerBox {
 pub struct WhiteGlazedTerracotta;
 
 impl ItemDef for WhiteGlazedTerracotta {
-    const ID: u32 = 569;
+    const ID: i32 = 569;
     const STRING_ID: &'static str = "minecraft:white_glazed_terracotta";
     const NAME: &'static str = "White Glazed Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -5719,7 +5719,7 @@ impl ItemDef for WhiteGlazedTerracotta {
 pub struct OrangeGlazedTerracotta;
 
 impl ItemDef for OrangeGlazedTerracotta {
-    const ID: u32 = 570;
+    const ID: i32 = 570;
     const STRING_ID: &'static str = "minecraft:orange_glazed_terracotta";
     const NAME: &'static str = "Orange Glazed Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -5729,7 +5729,7 @@ impl ItemDef for OrangeGlazedTerracotta {
 pub struct MagentaGlazedTerracotta;
 
 impl ItemDef for MagentaGlazedTerracotta {
-    const ID: u32 = 571;
+    const ID: i32 = 571;
     const STRING_ID: &'static str = "minecraft:magenta_glazed_terracotta";
     const NAME: &'static str = "Magenta Glazed Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -5739,7 +5739,7 @@ impl ItemDef for MagentaGlazedTerracotta {
 pub struct LightBlueGlazedTerracotta;
 
 impl ItemDef for LightBlueGlazedTerracotta {
-    const ID: u32 = 572;
+    const ID: i32 = 572;
     const STRING_ID: &'static str = "minecraft:light_blue_glazed_terracotta";
     const NAME: &'static str = "Light Blue Glazed Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -5749,7 +5749,7 @@ impl ItemDef for LightBlueGlazedTerracotta {
 pub struct YellowGlazedTerracotta;
 
 impl ItemDef for YellowGlazedTerracotta {
-    const ID: u32 = 573;
+    const ID: i32 = 573;
     const STRING_ID: &'static str = "minecraft:yellow_glazed_terracotta";
     const NAME: &'static str = "Yellow Glazed Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -5759,7 +5759,7 @@ impl ItemDef for YellowGlazedTerracotta {
 pub struct LimeGlazedTerracotta;
 
 impl ItemDef for LimeGlazedTerracotta {
-    const ID: u32 = 574;
+    const ID: i32 = 574;
     const STRING_ID: &'static str = "minecraft:lime_glazed_terracotta";
     const NAME: &'static str = "Lime Glazed Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -5769,7 +5769,7 @@ impl ItemDef for LimeGlazedTerracotta {
 pub struct PinkGlazedTerracotta;
 
 impl ItemDef for PinkGlazedTerracotta {
-    const ID: u32 = 575;
+    const ID: i32 = 575;
     const STRING_ID: &'static str = "minecraft:pink_glazed_terracotta";
     const NAME: &'static str = "Pink Glazed Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -5779,7 +5779,7 @@ impl ItemDef for PinkGlazedTerracotta {
 pub struct GrayGlazedTerracotta;
 
 impl ItemDef for GrayGlazedTerracotta {
-    const ID: u32 = 576;
+    const ID: i32 = 576;
     const STRING_ID: &'static str = "minecraft:gray_glazed_terracotta";
     const NAME: &'static str = "Gray Glazed Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -5789,7 +5789,7 @@ impl ItemDef for GrayGlazedTerracotta {
 pub struct SilverGlazedTerracotta;
 
 impl ItemDef for SilverGlazedTerracotta {
-    const ID: u32 = 577;
+    const ID: i32 = 577;
     const STRING_ID: &'static str = "minecraft:silver_glazed_terracotta";
     const NAME: &'static str = "Light Gray Glazed Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -5799,7 +5799,7 @@ impl ItemDef for SilverGlazedTerracotta {
 pub struct CyanGlazedTerracotta;
 
 impl ItemDef for CyanGlazedTerracotta {
-    const ID: u32 = 578;
+    const ID: i32 = 578;
     const STRING_ID: &'static str = "minecraft:cyan_glazed_terracotta";
     const NAME: &'static str = "Cyan Glazed Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -5809,7 +5809,7 @@ impl ItemDef for CyanGlazedTerracotta {
 pub struct PurpleGlazedTerracotta;
 
 impl ItemDef for PurpleGlazedTerracotta {
-    const ID: u32 = 579;
+    const ID: i32 = 579;
     const STRING_ID: &'static str = "minecraft:purple_glazed_terracotta";
     const NAME: &'static str = "Purple Glazed Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -5819,7 +5819,7 @@ impl ItemDef for PurpleGlazedTerracotta {
 pub struct BlueGlazedTerracotta;
 
 impl ItemDef for BlueGlazedTerracotta {
-    const ID: u32 = 580;
+    const ID: i32 = 580;
     const STRING_ID: &'static str = "minecraft:blue_glazed_terracotta";
     const NAME: &'static str = "Blue Glazed Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -5829,7 +5829,7 @@ impl ItemDef for BlueGlazedTerracotta {
 pub struct BrownGlazedTerracotta;
 
 impl ItemDef for BrownGlazedTerracotta {
-    const ID: u32 = 581;
+    const ID: i32 = 581;
     const STRING_ID: &'static str = "minecraft:brown_glazed_terracotta";
     const NAME: &'static str = "Brown Glazed Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -5839,7 +5839,7 @@ impl ItemDef for BrownGlazedTerracotta {
 pub struct GreenGlazedTerracotta;
 
 impl ItemDef for GreenGlazedTerracotta {
-    const ID: u32 = 582;
+    const ID: i32 = 582;
     const STRING_ID: &'static str = "minecraft:green_glazed_terracotta";
     const NAME: &'static str = "Green Glazed Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -5849,7 +5849,7 @@ impl ItemDef for GreenGlazedTerracotta {
 pub struct RedGlazedTerracotta;
 
 impl ItemDef for RedGlazedTerracotta {
-    const ID: u32 = 583;
+    const ID: i32 = 583;
     const STRING_ID: &'static str = "minecraft:red_glazed_terracotta";
     const NAME: &'static str = "Red Glazed Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -5859,7 +5859,7 @@ impl ItemDef for RedGlazedTerracotta {
 pub struct BlackGlazedTerracotta;
 
 impl ItemDef for BlackGlazedTerracotta {
-    const ID: u32 = 584;
+    const ID: i32 = 584;
     const STRING_ID: &'static str = "minecraft:black_glazed_terracotta";
     const NAME: &'static str = "Black Glazed Terracotta";
     const STACK_SIZE: u8 = 64;
@@ -5869,7 +5869,7 @@ impl ItemDef for BlackGlazedTerracotta {
 pub struct WhiteConcrete;
 
 impl ItemDef for WhiteConcrete {
-    const ID: u32 = 585;
+    const ID: i32 = 585;
     const STRING_ID: &'static str = "minecraft:white_concrete";
     const NAME: &'static str = "White Concrete";
     const STACK_SIZE: u8 = 64;
@@ -5879,7 +5879,7 @@ impl ItemDef for WhiteConcrete {
 pub struct OrangeConcrete;
 
 impl ItemDef for OrangeConcrete {
-    const ID: u32 = 586;
+    const ID: i32 = 586;
     const STRING_ID: &'static str = "minecraft:orange_concrete";
     const NAME: &'static str = "Orange Concrete";
     const STACK_SIZE: u8 = 64;
@@ -5889,7 +5889,7 @@ impl ItemDef for OrangeConcrete {
 pub struct MagentaConcrete;
 
 impl ItemDef for MagentaConcrete {
-    const ID: u32 = 587;
+    const ID: i32 = 587;
     const STRING_ID: &'static str = "minecraft:magenta_concrete";
     const NAME: &'static str = "Magenta Concrete";
     const STACK_SIZE: u8 = 64;
@@ -5899,7 +5899,7 @@ impl ItemDef for MagentaConcrete {
 pub struct LightBlueConcrete;
 
 impl ItemDef for LightBlueConcrete {
-    const ID: u32 = 588;
+    const ID: i32 = 588;
     const STRING_ID: &'static str = "minecraft:light_blue_concrete";
     const NAME: &'static str = "Light Blue Concrete";
     const STACK_SIZE: u8 = 64;
@@ -5909,7 +5909,7 @@ impl ItemDef for LightBlueConcrete {
 pub struct YellowConcrete;
 
 impl ItemDef for YellowConcrete {
-    const ID: u32 = 589;
+    const ID: i32 = 589;
     const STRING_ID: &'static str = "minecraft:yellow_concrete";
     const NAME: &'static str = "Yellow Concrete";
     const STACK_SIZE: u8 = 64;
@@ -5919,7 +5919,7 @@ impl ItemDef for YellowConcrete {
 pub struct LimeConcrete;
 
 impl ItemDef for LimeConcrete {
-    const ID: u32 = 590;
+    const ID: i32 = 590;
     const STRING_ID: &'static str = "minecraft:lime_concrete";
     const NAME: &'static str = "Lime Concrete";
     const STACK_SIZE: u8 = 64;
@@ -5929,7 +5929,7 @@ impl ItemDef for LimeConcrete {
 pub struct PinkConcrete;
 
 impl ItemDef for PinkConcrete {
-    const ID: u32 = 591;
+    const ID: i32 = 591;
     const STRING_ID: &'static str = "minecraft:pink_concrete";
     const NAME: &'static str = "Pink Concrete";
     const STACK_SIZE: u8 = 64;
@@ -5939,7 +5939,7 @@ impl ItemDef for PinkConcrete {
 pub struct GrayConcrete;
 
 impl ItemDef for GrayConcrete {
-    const ID: u32 = 592;
+    const ID: i32 = 592;
     const STRING_ID: &'static str = "minecraft:gray_concrete";
     const NAME: &'static str = "Gray Concrete";
     const STACK_SIZE: u8 = 64;
@@ -5949,7 +5949,7 @@ impl ItemDef for GrayConcrete {
 pub struct LightGrayConcrete;
 
 impl ItemDef for LightGrayConcrete {
-    const ID: u32 = 593;
+    const ID: i32 = 593;
     const STRING_ID: &'static str = "minecraft:light_gray_concrete";
     const NAME: &'static str = "Light Gray Concrete";
     const STACK_SIZE: u8 = 64;
@@ -5959,7 +5959,7 @@ impl ItemDef for LightGrayConcrete {
 pub struct CyanConcrete;
 
 impl ItemDef for CyanConcrete {
-    const ID: u32 = 594;
+    const ID: i32 = 594;
     const STRING_ID: &'static str = "minecraft:cyan_concrete";
     const NAME: &'static str = "Cyan Concrete";
     const STACK_SIZE: u8 = 64;
@@ -5969,7 +5969,7 @@ impl ItemDef for CyanConcrete {
 pub struct PurpleConcrete;
 
 impl ItemDef for PurpleConcrete {
-    const ID: u32 = 595;
+    const ID: i32 = 595;
     const STRING_ID: &'static str = "minecraft:purple_concrete";
     const NAME: &'static str = "Purple Concrete";
     const STACK_SIZE: u8 = 64;
@@ -5979,7 +5979,7 @@ impl ItemDef for PurpleConcrete {
 pub struct BlueConcrete;
 
 impl ItemDef for BlueConcrete {
-    const ID: u32 = 596;
+    const ID: i32 = 596;
     const STRING_ID: &'static str = "minecraft:blue_concrete";
     const NAME: &'static str = "Blue Concrete";
     const STACK_SIZE: u8 = 64;
@@ -5989,7 +5989,7 @@ impl ItemDef for BlueConcrete {
 pub struct BrownConcrete;
 
 impl ItemDef for BrownConcrete {
-    const ID: u32 = 597;
+    const ID: i32 = 597;
     const STRING_ID: &'static str = "minecraft:brown_concrete";
     const NAME: &'static str = "Brown Concrete";
     const STACK_SIZE: u8 = 64;
@@ -5999,7 +5999,7 @@ impl ItemDef for BrownConcrete {
 pub struct GreenConcrete;
 
 impl ItemDef for GreenConcrete {
-    const ID: u32 = 598;
+    const ID: i32 = 598;
     const STRING_ID: &'static str = "minecraft:green_concrete";
     const NAME: &'static str = "Green Concrete";
     const STACK_SIZE: u8 = 64;
@@ -6009,7 +6009,7 @@ impl ItemDef for GreenConcrete {
 pub struct RedConcrete;
 
 impl ItemDef for RedConcrete {
-    const ID: u32 = 599;
+    const ID: i32 = 599;
     const STRING_ID: &'static str = "minecraft:red_concrete";
     const NAME: &'static str = "Red Concrete";
     const STACK_SIZE: u8 = 64;
@@ -6019,7 +6019,7 @@ impl ItemDef for RedConcrete {
 pub struct BlackConcrete;
 
 impl ItemDef for BlackConcrete {
-    const ID: u32 = 600;
+    const ID: i32 = 600;
     const STRING_ID: &'static str = "minecraft:black_concrete";
     const NAME: &'static str = "Black Concrete";
     const STACK_SIZE: u8 = 64;
@@ -6029,7 +6029,7 @@ impl ItemDef for BlackConcrete {
 pub struct WhiteConcretePowder;
 
 impl ItemDef for WhiteConcretePowder {
-    const ID: u32 = 601;
+    const ID: i32 = 601;
     const STRING_ID: &'static str = "minecraft:white_concrete_powder";
     const NAME: &'static str = "White Concrete Powder";
     const STACK_SIZE: u8 = 64;
@@ -6039,7 +6039,7 @@ impl ItemDef for WhiteConcretePowder {
 pub struct OrangeConcretePowder;
 
 impl ItemDef for OrangeConcretePowder {
-    const ID: u32 = 602;
+    const ID: i32 = 602;
     const STRING_ID: &'static str = "minecraft:orange_concrete_powder";
     const NAME: &'static str = "Orange Concrete Powder";
     const STACK_SIZE: u8 = 64;
@@ -6049,7 +6049,7 @@ impl ItemDef for OrangeConcretePowder {
 pub struct MagentaConcretePowder;
 
 impl ItemDef for MagentaConcretePowder {
-    const ID: u32 = 603;
+    const ID: i32 = 603;
     const STRING_ID: &'static str = "minecraft:magenta_concrete_powder";
     const NAME: &'static str = "Magenta Concrete Powder";
     const STACK_SIZE: u8 = 64;
@@ -6059,7 +6059,7 @@ impl ItemDef for MagentaConcretePowder {
 pub struct LightBlueConcretePowder;
 
 impl ItemDef for LightBlueConcretePowder {
-    const ID: u32 = 604;
+    const ID: i32 = 604;
     const STRING_ID: &'static str = "minecraft:light_blue_concrete_powder";
     const NAME: &'static str = "Light Blue Concrete Powder";
     const STACK_SIZE: u8 = 64;
@@ -6069,7 +6069,7 @@ impl ItemDef for LightBlueConcretePowder {
 pub struct YellowConcretePowder;
 
 impl ItemDef for YellowConcretePowder {
-    const ID: u32 = 605;
+    const ID: i32 = 605;
     const STRING_ID: &'static str = "minecraft:yellow_concrete_powder";
     const NAME: &'static str = "Yellow Concrete Powder";
     const STACK_SIZE: u8 = 64;
@@ -6079,7 +6079,7 @@ impl ItemDef for YellowConcretePowder {
 pub struct LimeConcretePowder;
 
 impl ItemDef for LimeConcretePowder {
-    const ID: u32 = 606;
+    const ID: i32 = 606;
     const STRING_ID: &'static str = "minecraft:lime_concrete_powder";
     const NAME: &'static str = "Lime Concrete Powder";
     const STACK_SIZE: u8 = 64;
@@ -6089,7 +6089,7 @@ impl ItemDef for LimeConcretePowder {
 pub struct PinkConcretePowder;
 
 impl ItemDef for PinkConcretePowder {
-    const ID: u32 = 607;
+    const ID: i32 = 607;
     const STRING_ID: &'static str = "minecraft:pink_concrete_powder";
     const NAME: &'static str = "Pink Concrete Powder";
     const STACK_SIZE: u8 = 64;
@@ -6099,7 +6099,7 @@ impl ItemDef for PinkConcretePowder {
 pub struct GrayConcretePowder;
 
 impl ItemDef for GrayConcretePowder {
-    const ID: u32 = 608;
+    const ID: i32 = 608;
     const STRING_ID: &'static str = "minecraft:gray_concrete_powder";
     const NAME: &'static str = "Gray Concrete Powder";
     const STACK_SIZE: u8 = 64;
@@ -6109,7 +6109,7 @@ impl ItemDef for GrayConcretePowder {
 pub struct LightGrayConcretePowder;
 
 impl ItemDef for LightGrayConcretePowder {
-    const ID: u32 = 609;
+    const ID: i32 = 609;
     const STRING_ID: &'static str = "minecraft:light_gray_concrete_powder";
     const NAME: &'static str = "Light Gray Concrete Powder";
     const STACK_SIZE: u8 = 64;
@@ -6119,7 +6119,7 @@ impl ItemDef for LightGrayConcretePowder {
 pub struct CyanConcretePowder;
 
 impl ItemDef for CyanConcretePowder {
-    const ID: u32 = 610;
+    const ID: i32 = 610;
     const STRING_ID: &'static str = "minecraft:cyan_concrete_powder";
     const NAME: &'static str = "Cyan Concrete Powder";
     const STACK_SIZE: u8 = 64;
@@ -6129,7 +6129,7 @@ impl ItemDef for CyanConcretePowder {
 pub struct PurpleConcretePowder;
 
 impl ItemDef for PurpleConcretePowder {
-    const ID: u32 = 611;
+    const ID: i32 = 611;
     const STRING_ID: &'static str = "minecraft:purple_concrete_powder";
     const NAME: &'static str = "Purple Concrete Powder";
     const STACK_SIZE: u8 = 64;
@@ -6139,7 +6139,7 @@ impl ItemDef for PurpleConcretePowder {
 pub struct BlueConcretePowder;
 
 impl ItemDef for BlueConcretePowder {
-    const ID: u32 = 612;
+    const ID: i32 = 612;
     const STRING_ID: &'static str = "minecraft:blue_concrete_powder";
     const NAME: &'static str = "Blue Concrete Powder";
     const STACK_SIZE: u8 = 64;
@@ -6149,7 +6149,7 @@ impl ItemDef for BlueConcretePowder {
 pub struct BrownConcretePowder;
 
 impl ItemDef for BrownConcretePowder {
-    const ID: u32 = 613;
+    const ID: i32 = 613;
     const STRING_ID: &'static str = "minecraft:brown_concrete_powder";
     const NAME: &'static str = "Brown Concrete Powder";
     const STACK_SIZE: u8 = 64;
@@ -6159,7 +6159,7 @@ impl ItemDef for BrownConcretePowder {
 pub struct GreenConcretePowder;
 
 impl ItemDef for GreenConcretePowder {
-    const ID: u32 = 614;
+    const ID: i32 = 614;
     const STRING_ID: &'static str = "minecraft:green_concrete_powder";
     const NAME: &'static str = "Green Concrete Powder";
     const STACK_SIZE: u8 = 64;
@@ -6169,7 +6169,7 @@ impl ItemDef for GreenConcretePowder {
 pub struct RedConcretePowder;
 
 impl ItemDef for RedConcretePowder {
-    const ID: u32 = 615;
+    const ID: i32 = 615;
     const STRING_ID: &'static str = "minecraft:red_concrete_powder";
     const NAME: &'static str = "Red Concrete Powder";
     const STACK_SIZE: u8 = 64;
@@ -6179,7 +6179,7 @@ impl ItemDef for RedConcretePowder {
 pub struct BlackConcretePowder;
 
 impl ItemDef for BlackConcretePowder {
-    const ID: u32 = 616;
+    const ID: i32 = 616;
     const STRING_ID: &'static str = "minecraft:black_concrete_powder";
     const NAME: &'static str = "Black Concrete Powder";
     const STACK_SIZE: u8 = 64;
@@ -6189,7 +6189,7 @@ impl ItemDef for BlackConcretePowder {
 pub struct TurtleEgg;
 
 impl ItemDef for TurtleEgg {
-    const ID: u32 = 617;
+    const ID: i32 = 617;
     const STRING_ID: &'static str = "minecraft:turtle_egg";
     const NAME: &'static str = "Turtle Egg";
     const STACK_SIZE: u8 = 64;
@@ -6199,7 +6199,7 @@ impl ItemDef for TurtleEgg {
 pub struct SnifferEgg;
 
 impl ItemDef for SnifferEgg {
-    const ID: u32 = 618;
+    const ID: i32 = 618;
     const STRING_ID: &'static str = "minecraft:sniffer_egg";
     const NAME: &'static str = "Sniffer Egg";
     const STACK_SIZE: u8 = 64;
@@ -6209,7 +6209,7 @@ impl ItemDef for SnifferEgg {
 pub struct DriedGhast;
 
 impl ItemDef for DriedGhast {
-    const ID: u32 = 619;
+    const ID: i32 = 619;
     const STRING_ID: &'static str = "minecraft:dried_ghast";
     const NAME: &'static str = "Dried Ghast";
     const STACK_SIZE: u8 = 64;
@@ -6219,7 +6219,7 @@ impl ItemDef for DriedGhast {
 pub struct DeadTubeCoralBlock;
 
 impl ItemDef for DeadTubeCoralBlock {
-    const ID: u32 = 620;
+    const ID: i32 = 620;
     const STRING_ID: &'static str = "minecraft:dead_tube_coral_block";
     const NAME: &'static str = "Dead Tube Coral Block";
     const STACK_SIZE: u8 = 64;
@@ -6229,7 +6229,7 @@ impl ItemDef for DeadTubeCoralBlock {
 pub struct DeadBrainCoralBlock;
 
 impl ItemDef for DeadBrainCoralBlock {
-    const ID: u32 = 621;
+    const ID: i32 = 621;
     const STRING_ID: &'static str = "minecraft:dead_brain_coral_block";
     const NAME: &'static str = "Dead Brain Coral Block";
     const STACK_SIZE: u8 = 64;
@@ -6239,7 +6239,7 @@ impl ItemDef for DeadBrainCoralBlock {
 pub struct DeadBubbleCoralBlock;
 
 impl ItemDef for DeadBubbleCoralBlock {
-    const ID: u32 = 622;
+    const ID: i32 = 622;
     const STRING_ID: &'static str = "minecraft:dead_bubble_coral_block";
     const NAME: &'static str = "Dead Bubble Coral Block";
     const STACK_SIZE: u8 = 64;
@@ -6249,7 +6249,7 @@ impl ItemDef for DeadBubbleCoralBlock {
 pub struct DeadFireCoralBlock;
 
 impl ItemDef for DeadFireCoralBlock {
-    const ID: u32 = 623;
+    const ID: i32 = 623;
     const STRING_ID: &'static str = "minecraft:dead_fire_coral_block";
     const NAME: &'static str = "Dead Fire Coral Block";
     const STACK_SIZE: u8 = 64;
@@ -6259,7 +6259,7 @@ impl ItemDef for DeadFireCoralBlock {
 pub struct DeadHornCoralBlock;
 
 impl ItemDef for DeadHornCoralBlock {
-    const ID: u32 = 624;
+    const ID: i32 = 624;
     const STRING_ID: &'static str = "minecraft:dead_horn_coral_block";
     const NAME: &'static str = "Dead Horn Coral Block";
     const STACK_SIZE: u8 = 64;
@@ -6269,7 +6269,7 @@ impl ItemDef for DeadHornCoralBlock {
 pub struct TubeCoralBlock;
 
 impl ItemDef for TubeCoralBlock {
-    const ID: u32 = 625;
+    const ID: i32 = 625;
     const STRING_ID: &'static str = "minecraft:tube_coral_block";
     const NAME: &'static str = "Tube Coral Block";
     const STACK_SIZE: u8 = 64;
@@ -6279,7 +6279,7 @@ impl ItemDef for TubeCoralBlock {
 pub struct BrainCoralBlock;
 
 impl ItemDef for BrainCoralBlock {
-    const ID: u32 = 626;
+    const ID: i32 = 626;
     const STRING_ID: &'static str = "minecraft:brain_coral_block";
     const NAME: &'static str = "Brain Coral Block";
     const STACK_SIZE: u8 = 64;
@@ -6289,7 +6289,7 @@ impl ItemDef for BrainCoralBlock {
 pub struct BubbleCoralBlock;
 
 impl ItemDef for BubbleCoralBlock {
-    const ID: u32 = 627;
+    const ID: i32 = 627;
     const STRING_ID: &'static str = "minecraft:bubble_coral_block";
     const NAME: &'static str = "Bubble Coral Block";
     const STACK_SIZE: u8 = 64;
@@ -6299,7 +6299,7 @@ impl ItemDef for BubbleCoralBlock {
 pub struct FireCoralBlock;
 
 impl ItemDef for FireCoralBlock {
-    const ID: u32 = 628;
+    const ID: i32 = 628;
     const STRING_ID: &'static str = "minecraft:fire_coral_block";
     const NAME: &'static str = "Fire Coral Block";
     const STACK_SIZE: u8 = 64;
@@ -6309,7 +6309,7 @@ impl ItemDef for FireCoralBlock {
 pub struct HornCoralBlock;
 
 impl ItemDef for HornCoralBlock {
-    const ID: u32 = 629;
+    const ID: i32 = 629;
     const STRING_ID: &'static str = "minecraft:horn_coral_block";
     const NAME: &'static str = "Horn Coral Block";
     const STACK_SIZE: u8 = 64;
@@ -6319,7 +6319,7 @@ impl ItemDef for HornCoralBlock {
 pub struct TubeCoral;
 
 impl ItemDef for TubeCoral {
-    const ID: u32 = 630;
+    const ID: i32 = 630;
     const STRING_ID: &'static str = "minecraft:tube_coral";
     const NAME: &'static str = "Tube Coral";
     const STACK_SIZE: u8 = 64;
@@ -6329,7 +6329,7 @@ impl ItemDef for TubeCoral {
 pub struct BrainCoral;
 
 impl ItemDef for BrainCoral {
-    const ID: u32 = 631;
+    const ID: i32 = 631;
     const STRING_ID: &'static str = "minecraft:brain_coral";
     const NAME: &'static str = "Brain Coral";
     const STACK_SIZE: u8 = 64;
@@ -6339,7 +6339,7 @@ impl ItemDef for BrainCoral {
 pub struct BubbleCoral;
 
 impl ItemDef for BubbleCoral {
-    const ID: u32 = 632;
+    const ID: i32 = 632;
     const STRING_ID: &'static str = "minecraft:bubble_coral";
     const NAME: &'static str = "Bubble Coral";
     const STACK_SIZE: u8 = 64;
@@ -6349,7 +6349,7 @@ impl ItemDef for BubbleCoral {
 pub struct FireCoral;
 
 impl ItemDef for FireCoral {
-    const ID: u32 = 633;
+    const ID: i32 = 633;
     const STRING_ID: &'static str = "minecraft:fire_coral";
     const NAME: &'static str = "Fire Coral";
     const STACK_SIZE: u8 = 64;
@@ -6359,7 +6359,7 @@ impl ItemDef for FireCoral {
 pub struct HornCoral;
 
 impl ItemDef for HornCoral {
-    const ID: u32 = 634;
+    const ID: i32 = 634;
     const STRING_ID: &'static str = "minecraft:horn_coral";
     const NAME: &'static str = "Horn Coral";
     const STACK_SIZE: u8 = 64;
@@ -6369,7 +6369,7 @@ impl ItemDef for HornCoral {
 pub struct DeadBrainCoral;
 
 impl ItemDef for DeadBrainCoral {
-    const ID: u32 = 635;
+    const ID: i32 = 635;
     const STRING_ID: &'static str = "minecraft:dead_brain_coral";
     const NAME: &'static str = "Dead Brain Coral";
     const STACK_SIZE: u8 = 64;
@@ -6379,7 +6379,7 @@ impl ItemDef for DeadBrainCoral {
 pub struct DeadBubbleCoral;
 
 impl ItemDef for DeadBubbleCoral {
-    const ID: u32 = 636;
+    const ID: i32 = 636;
     const STRING_ID: &'static str = "minecraft:dead_bubble_coral";
     const NAME: &'static str = "Dead Bubble Coral";
     const STACK_SIZE: u8 = 64;
@@ -6389,7 +6389,7 @@ impl ItemDef for DeadBubbleCoral {
 pub struct DeadFireCoral;
 
 impl ItemDef for DeadFireCoral {
-    const ID: u32 = 637;
+    const ID: i32 = 637;
     const STRING_ID: &'static str = "minecraft:dead_fire_coral";
     const NAME: &'static str = "Dead Fire Coral";
     const STACK_SIZE: u8 = 64;
@@ -6399,7 +6399,7 @@ impl ItemDef for DeadFireCoral {
 pub struct DeadHornCoral;
 
 impl ItemDef for DeadHornCoral {
-    const ID: u32 = 638;
+    const ID: i32 = 638;
     const STRING_ID: &'static str = "minecraft:dead_horn_coral";
     const NAME: &'static str = "Dead Horn Coral";
     const STACK_SIZE: u8 = 64;
@@ -6409,7 +6409,7 @@ impl ItemDef for DeadHornCoral {
 pub struct DeadTubeCoral;
 
 impl ItemDef for DeadTubeCoral {
-    const ID: u32 = 639;
+    const ID: i32 = 639;
     const STRING_ID: &'static str = "minecraft:dead_tube_coral";
     const NAME: &'static str = "Dead Tube Coral";
     const STACK_SIZE: u8 = 64;
@@ -6419,7 +6419,7 @@ impl ItemDef for DeadTubeCoral {
 pub struct TubeCoralFan;
 
 impl ItemDef for TubeCoralFan {
-    const ID: u32 = 640;
+    const ID: i32 = 640;
     const STRING_ID: &'static str = "minecraft:tube_coral_fan";
     const NAME: &'static str = "Tube Coral Fan";
     const STACK_SIZE: u8 = 64;
@@ -6429,7 +6429,7 @@ impl ItemDef for TubeCoralFan {
 pub struct BrainCoralFan;
 
 impl ItemDef for BrainCoralFan {
-    const ID: u32 = 641;
+    const ID: i32 = 641;
     const STRING_ID: &'static str = "minecraft:brain_coral_fan";
     const NAME: &'static str = "Brain Coral Fan";
     const STACK_SIZE: u8 = 64;
@@ -6439,7 +6439,7 @@ impl ItemDef for BrainCoralFan {
 pub struct BubbleCoralFan;
 
 impl ItemDef for BubbleCoralFan {
-    const ID: u32 = 642;
+    const ID: i32 = 642;
     const STRING_ID: &'static str = "minecraft:bubble_coral_fan";
     const NAME: &'static str = "Bubble Coral Fan";
     const STACK_SIZE: u8 = 64;
@@ -6449,7 +6449,7 @@ impl ItemDef for BubbleCoralFan {
 pub struct FireCoralFan;
 
 impl ItemDef for FireCoralFan {
-    const ID: u32 = 643;
+    const ID: i32 = 643;
     const STRING_ID: &'static str = "minecraft:fire_coral_fan";
     const NAME: &'static str = "Fire Coral Fan";
     const STACK_SIZE: u8 = 64;
@@ -6459,7 +6459,7 @@ impl ItemDef for FireCoralFan {
 pub struct HornCoralFan;
 
 impl ItemDef for HornCoralFan {
-    const ID: u32 = 644;
+    const ID: i32 = 644;
     const STRING_ID: &'static str = "minecraft:horn_coral_fan";
     const NAME: &'static str = "Horn Coral Fan";
     const STACK_SIZE: u8 = 64;
@@ -6469,7 +6469,7 @@ impl ItemDef for HornCoralFan {
 pub struct DeadTubeCoralFan;
 
 impl ItemDef for DeadTubeCoralFan {
-    const ID: u32 = 645;
+    const ID: i32 = 645;
     const STRING_ID: &'static str = "minecraft:dead_tube_coral_fan";
     const NAME: &'static str = "Dead Tube Coral Fan";
     const STACK_SIZE: u8 = 64;
@@ -6479,7 +6479,7 @@ impl ItemDef for DeadTubeCoralFan {
 pub struct DeadBrainCoralFan;
 
 impl ItemDef for DeadBrainCoralFan {
-    const ID: u32 = 646;
+    const ID: i32 = 646;
     const STRING_ID: &'static str = "minecraft:dead_brain_coral_fan";
     const NAME: &'static str = "Dead Brain Coral Fan";
     const STACK_SIZE: u8 = 64;
@@ -6489,7 +6489,7 @@ impl ItemDef for DeadBrainCoralFan {
 pub struct DeadBubbleCoralFan;
 
 impl ItemDef for DeadBubbleCoralFan {
-    const ID: u32 = 647;
+    const ID: i32 = 647;
     const STRING_ID: &'static str = "minecraft:dead_bubble_coral_fan";
     const NAME: &'static str = "Dead Bubble Coral Fan";
     const STACK_SIZE: u8 = 64;
@@ -6499,7 +6499,7 @@ impl ItemDef for DeadBubbleCoralFan {
 pub struct DeadFireCoralFan;
 
 impl ItemDef for DeadFireCoralFan {
-    const ID: u32 = 648;
+    const ID: i32 = 648;
     const STRING_ID: &'static str = "minecraft:dead_fire_coral_fan";
     const NAME: &'static str = "Dead Fire Coral Fan";
     const STACK_SIZE: u8 = 64;
@@ -6509,7 +6509,7 @@ impl ItemDef for DeadFireCoralFan {
 pub struct DeadHornCoralFan;
 
 impl ItemDef for DeadHornCoralFan {
-    const ID: u32 = 649;
+    const ID: i32 = 649;
     const STRING_ID: &'static str = "minecraft:dead_horn_coral_fan";
     const NAME: &'static str = "Dead Horn Coral Fan";
     const STACK_SIZE: u8 = 64;
@@ -6519,7 +6519,7 @@ impl ItemDef for DeadHornCoralFan {
 pub struct BlueIce;
 
 impl ItemDef for BlueIce {
-    const ID: u32 = 650;
+    const ID: i32 = 650;
     const STRING_ID: &'static str = "minecraft:blue_ice";
     const NAME: &'static str = "Blue Ice";
     const STACK_SIZE: u8 = 64;
@@ -6529,7 +6529,7 @@ impl ItemDef for BlueIce {
 pub struct Conduit;
 
 impl ItemDef for Conduit {
-    const ID: u32 = 651;
+    const ID: i32 = 651;
     const STRING_ID: &'static str = "minecraft:conduit";
     const NAME: &'static str = "Conduit";
     const STACK_SIZE: u8 = 64;
@@ -6539,7 +6539,7 @@ impl ItemDef for Conduit {
 pub struct PolishedGraniteStairs;
 
 impl ItemDef for PolishedGraniteStairs {
-    const ID: u32 = 652;
+    const ID: i32 = 652;
     const STRING_ID: &'static str = "minecraft:polished_granite_stairs";
     const NAME: &'static str = "Polished Granite Stairs";
     const STACK_SIZE: u8 = 64;
@@ -6549,7 +6549,7 @@ impl ItemDef for PolishedGraniteStairs {
 pub struct SmoothRedSandstoneStairs;
 
 impl ItemDef for SmoothRedSandstoneStairs {
-    const ID: u32 = 653;
+    const ID: i32 = 653;
     const STRING_ID: &'static str = "minecraft:smooth_red_sandstone_stairs";
     const NAME: &'static str = "Smooth Red Sandstone Stairs";
     const STACK_SIZE: u8 = 64;
@@ -6559,7 +6559,7 @@ impl ItemDef for SmoothRedSandstoneStairs {
 pub struct MossyStoneBrickStairs;
 
 impl ItemDef for MossyStoneBrickStairs {
-    const ID: u32 = 654;
+    const ID: i32 = 654;
     const STRING_ID: &'static str = "minecraft:mossy_stone_brick_stairs";
     const NAME: &'static str = "Mossy Stone Brick Stairs";
     const STACK_SIZE: u8 = 64;
@@ -6569,7 +6569,7 @@ impl ItemDef for MossyStoneBrickStairs {
 pub struct PolishedDioriteStairs;
 
 impl ItemDef for PolishedDioriteStairs {
-    const ID: u32 = 655;
+    const ID: i32 = 655;
     const STRING_ID: &'static str = "minecraft:polished_diorite_stairs";
     const NAME: &'static str = "Polished Diorite Stairs";
     const STACK_SIZE: u8 = 64;
@@ -6579,7 +6579,7 @@ impl ItemDef for PolishedDioriteStairs {
 pub struct MossyCobblestoneStairs;
 
 impl ItemDef for MossyCobblestoneStairs {
-    const ID: u32 = 656;
+    const ID: i32 = 656;
     const STRING_ID: &'static str = "minecraft:mossy_cobblestone_stairs";
     const NAME: &'static str = "Mossy Cobblestone Stairs";
     const STACK_SIZE: u8 = 64;
@@ -6589,7 +6589,7 @@ impl ItemDef for MossyCobblestoneStairs {
 pub struct EndBrickStairs;
 
 impl ItemDef for EndBrickStairs {
-    const ID: u32 = 657;
+    const ID: i32 = 657;
     const STRING_ID: &'static str = "minecraft:end_brick_stairs";
     const NAME: &'static str = "End Stone Brick Stairs";
     const STACK_SIZE: u8 = 64;
@@ -6599,7 +6599,7 @@ impl ItemDef for EndBrickStairs {
 pub struct NormalStoneStairs;
 
 impl ItemDef for NormalStoneStairs {
-    const ID: u32 = 658;
+    const ID: i32 = 658;
     const STRING_ID: &'static str = "minecraft:normal_stone_stairs";
     const NAME: &'static str = "Stone Stairs";
     const STACK_SIZE: u8 = 64;
@@ -6609,7 +6609,7 @@ impl ItemDef for NormalStoneStairs {
 pub struct SmoothSandstoneStairs;
 
 impl ItemDef for SmoothSandstoneStairs {
-    const ID: u32 = 659;
+    const ID: i32 = 659;
     const STRING_ID: &'static str = "minecraft:smooth_sandstone_stairs";
     const NAME: &'static str = "Smooth Sandstone Stairs";
     const STACK_SIZE: u8 = 64;
@@ -6619,7 +6619,7 @@ impl ItemDef for SmoothSandstoneStairs {
 pub struct SmoothQuartzStairs;
 
 impl ItemDef for SmoothQuartzStairs {
-    const ID: u32 = 660;
+    const ID: i32 = 660;
     const STRING_ID: &'static str = "minecraft:smooth_quartz_stairs";
     const NAME: &'static str = "Smooth Quartz Stairs";
     const STACK_SIZE: u8 = 64;
@@ -6629,7 +6629,7 @@ impl ItemDef for SmoothQuartzStairs {
 pub struct GraniteStairs;
 
 impl ItemDef for GraniteStairs {
-    const ID: u32 = 661;
+    const ID: i32 = 661;
     const STRING_ID: &'static str = "minecraft:granite_stairs";
     const NAME: &'static str = "Granite Stairs";
     const STACK_SIZE: u8 = 64;
@@ -6639,7 +6639,7 @@ impl ItemDef for GraniteStairs {
 pub struct AndesiteStairs;
 
 impl ItemDef for AndesiteStairs {
-    const ID: u32 = 662;
+    const ID: i32 = 662;
     const STRING_ID: &'static str = "minecraft:andesite_stairs";
     const NAME: &'static str = "Andesite Stairs";
     const STACK_SIZE: u8 = 64;
@@ -6649,7 +6649,7 @@ impl ItemDef for AndesiteStairs {
 pub struct RedNetherBrickStairs;
 
 impl ItemDef for RedNetherBrickStairs {
-    const ID: u32 = 663;
+    const ID: i32 = 663;
     const STRING_ID: &'static str = "minecraft:red_nether_brick_stairs";
     const NAME: &'static str = "Red Nether Brick Stairs";
     const STACK_SIZE: u8 = 64;
@@ -6659,7 +6659,7 @@ impl ItemDef for RedNetherBrickStairs {
 pub struct PolishedAndesiteStairs;
 
 impl ItemDef for PolishedAndesiteStairs {
-    const ID: u32 = 664;
+    const ID: i32 = 664;
     const STRING_ID: &'static str = "minecraft:polished_andesite_stairs";
     const NAME: &'static str = "Polished Andesite Stairs";
     const STACK_SIZE: u8 = 64;
@@ -6669,7 +6669,7 @@ impl ItemDef for PolishedAndesiteStairs {
 pub struct DioriteStairs;
 
 impl ItemDef for DioriteStairs {
-    const ID: u32 = 665;
+    const ID: i32 = 665;
     const STRING_ID: &'static str = "minecraft:diorite_stairs";
     const NAME: &'static str = "Diorite Stairs";
     const STACK_SIZE: u8 = 64;
@@ -6679,7 +6679,7 @@ impl ItemDef for DioriteStairs {
 pub struct CobbledDeepslateStairs;
 
 impl ItemDef for CobbledDeepslateStairs {
-    const ID: u32 = 666;
+    const ID: i32 = 666;
     const STRING_ID: &'static str = "minecraft:cobbled_deepslate_stairs";
     const NAME: &'static str = "Cobbled Deepslate Stairs";
     const STACK_SIZE: u8 = 64;
@@ -6689,7 +6689,7 @@ impl ItemDef for CobbledDeepslateStairs {
 pub struct PolishedDeepslateStairs;
 
 impl ItemDef for PolishedDeepslateStairs {
-    const ID: u32 = 667;
+    const ID: i32 = 667;
     const STRING_ID: &'static str = "minecraft:polished_deepslate_stairs";
     const NAME: &'static str = "Polished Deepslate Stairs";
     const STACK_SIZE: u8 = 64;
@@ -6699,7 +6699,7 @@ impl ItemDef for PolishedDeepslateStairs {
 pub struct DeepslateBrickStairs;
 
 impl ItemDef for DeepslateBrickStairs {
-    const ID: u32 = 668;
+    const ID: i32 = 668;
     const STRING_ID: &'static str = "minecraft:deepslate_brick_stairs";
     const NAME: &'static str = "Deepslate Brick Stairs";
     const STACK_SIZE: u8 = 64;
@@ -6709,7 +6709,7 @@ impl ItemDef for DeepslateBrickStairs {
 pub struct DeepslateTileStairs;
 
 impl ItemDef for DeepslateTileStairs {
-    const ID: u32 = 669;
+    const ID: i32 = 669;
     const STRING_ID: &'static str = "minecraft:deepslate_tile_stairs";
     const NAME: &'static str = "Deepslate Tile Stairs";
     const STACK_SIZE: u8 = 64;
@@ -6719,7 +6719,7 @@ impl ItemDef for DeepslateTileStairs {
 pub struct PolishedGraniteSlab;
 
 impl ItemDef for PolishedGraniteSlab {
-    const ID: u32 = 670;
+    const ID: i32 = 670;
     const STRING_ID: &'static str = "minecraft:polished_granite_slab";
     const NAME: &'static str = "Polished Granite Slab";
     const STACK_SIZE: u8 = 64;
@@ -6729,7 +6729,7 @@ impl ItemDef for PolishedGraniteSlab {
 pub struct SmoothRedSandstoneSlab;
 
 impl ItemDef for SmoothRedSandstoneSlab {
-    const ID: u32 = 671;
+    const ID: i32 = 671;
     const STRING_ID: &'static str = "minecraft:smooth_red_sandstone_slab";
     const NAME: &'static str = "Smooth Red Sandstone Slab";
     const STACK_SIZE: u8 = 64;
@@ -6739,7 +6739,7 @@ impl ItemDef for SmoothRedSandstoneSlab {
 pub struct MossyStoneBrickSlab;
 
 impl ItemDef for MossyStoneBrickSlab {
-    const ID: u32 = 672;
+    const ID: i32 = 672;
     const STRING_ID: &'static str = "minecraft:mossy_stone_brick_slab";
     const NAME: &'static str = "Mossy Stone Brick Slab";
     const STACK_SIZE: u8 = 64;
@@ -6749,7 +6749,7 @@ impl ItemDef for MossyStoneBrickSlab {
 pub struct PolishedDioriteSlab;
 
 impl ItemDef for PolishedDioriteSlab {
-    const ID: u32 = 673;
+    const ID: i32 = 673;
     const STRING_ID: &'static str = "minecraft:polished_diorite_slab";
     const NAME: &'static str = "Polished Diorite Slab";
     const STACK_SIZE: u8 = 64;
@@ -6759,7 +6759,7 @@ impl ItemDef for PolishedDioriteSlab {
 pub struct MossyCobblestoneSlab;
 
 impl ItemDef for MossyCobblestoneSlab {
-    const ID: u32 = 674;
+    const ID: i32 = 674;
     const STRING_ID: &'static str = "minecraft:mossy_cobblestone_slab";
     const NAME: &'static str = "Mossy Cobblestone Slab";
     const STACK_SIZE: u8 = 64;
@@ -6769,7 +6769,7 @@ impl ItemDef for MossyCobblestoneSlab {
 pub struct EndStoneBrickSlab;
 
 impl ItemDef for EndStoneBrickSlab {
-    const ID: u32 = 675;
+    const ID: i32 = 675;
     const STRING_ID: &'static str = "minecraft:end_stone_brick_slab";
     const NAME: &'static str = "End Stone Brick Slab";
     const STACK_SIZE: u8 = 64;
@@ -6779,7 +6779,7 @@ impl ItemDef for EndStoneBrickSlab {
 pub struct SmoothSandstoneSlab;
 
 impl ItemDef for SmoothSandstoneSlab {
-    const ID: u32 = 676;
+    const ID: i32 = 676;
     const STRING_ID: &'static str = "minecraft:smooth_sandstone_slab";
     const NAME: &'static str = "Smooth Sandstone Slab";
     const STACK_SIZE: u8 = 64;
@@ -6789,7 +6789,7 @@ impl ItemDef for SmoothSandstoneSlab {
 pub struct SmoothQuartzSlab;
 
 impl ItemDef for SmoothQuartzSlab {
-    const ID: u32 = 677;
+    const ID: i32 = 677;
     const STRING_ID: &'static str = "minecraft:smooth_quartz_slab";
     const NAME: &'static str = "Smooth Quartz Slab";
     const STACK_SIZE: u8 = 64;
@@ -6799,7 +6799,7 @@ impl ItemDef for SmoothQuartzSlab {
 pub struct GraniteSlab;
 
 impl ItemDef for GraniteSlab {
-    const ID: u32 = 678;
+    const ID: i32 = 678;
     const STRING_ID: &'static str = "minecraft:granite_slab";
     const NAME: &'static str = "Granite Slab";
     const STACK_SIZE: u8 = 64;
@@ -6809,7 +6809,7 @@ impl ItemDef for GraniteSlab {
 pub struct AndesiteSlab;
 
 impl ItemDef for AndesiteSlab {
-    const ID: u32 = 679;
+    const ID: i32 = 679;
     const STRING_ID: &'static str = "minecraft:andesite_slab";
     const NAME: &'static str = "Andesite Slab";
     const STACK_SIZE: u8 = 64;
@@ -6819,7 +6819,7 @@ impl ItemDef for AndesiteSlab {
 pub struct RedNetherBrickSlab;
 
 impl ItemDef for RedNetherBrickSlab {
-    const ID: u32 = 680;
+    const ID: i32 = 680;
     const STRING_ID: &'static str = "minecraft:red_nether_brick_slab";
     const NAME: &'static str = "Red Nether Brick Slab";
     const STACK_SIZE: u8 = 64;
@@ -6829,7 +6829,7 @@ impl ItemDef for RedNetherBrickSlab {
 pub struct PolishedAndesiteSlab;
 
 impl ItemDef for PolishedAndesiteSlab {
-    const ID: u32 = 681;
+    const ID: i32 = 681;
     const STRING_ID: &'static str = "minecraft:polished_andesite_slab";
     const NAME: &'static str = "Polished Andesite Slab";
     const STACK_SIZE: u8 = 64;
@@ -6839,7 +6839,7 @@ impl ItemDef for PolishedAndesiteSlab {
 pub struct DioriteSlab;
 
 impl ItemDef for DioriteSlab {
-    const ID: u32 = 682;
+    const ID: i32 = 682;
     const STRING_ID: &'static str = "minecraft:diorite_slab";
     const NAME: &'static str = "Diorite Slab";
     const STACK_SIZE: u8 = 64;
@@ -6849,7 +6849,7 @@ impl ItemDef for DioriteSlab {
 pub struct CobbledDeepslateSlab;
 
 impl ItemDef for CobbledDeepslateSlab {
-    const ID: u32 = 683;
+    const ID: i32 = 683;
     const STRING_ID: &'static str = "minecraft:cobbled_deepslate_slab";
     const NAME: &'static str = "Cobbled Deepslate Slab";
     const STACK_SIZE: u8 = 64;
@@ -6859,7 +6859,7 @@ impl ItemDef for CobbledDeepslateSlab {
 pub struct PolishedDeepslateSlab;
 
 impl ItemDef for PolishedDeepslateSlab {
-    const ID: u32 = 684;
+    const ID: i32 = 684;
     const STRING_ID: &'static str = "minecraft:polished_deepslate_slab";
     const NAME: &'static str = "Polished Deepslate Slab";
     const STACK_SIZE: u8 = 64;
@@ -6869,7 +6869,7 @@ impl ItemDef for PolishedDeepslateSlab {
 pub struct DeepslateBrickSlab;
 
 impl ItemDef for DeepslateBrickSlab {
-    const ID: u32 = 685;
+    const ID: i32 = 685;
     const STRING_ID: &'static str = "minecraft:deepslate_brick_slab";
     const NAME: &'static str = "Deepslate Brick Slab";
     const STACK_SIZE: u8 = 64;
@@ -6879,7 +6879,7 @@ impl ItemDef for DeepslateBrickSlab {
 pub struct DeepslateTileSlab;
 
 impl ItemDef for DeepslateTileSlab {
-    const ID: u32 = 686;
+    const ID: i32 = 686;
     const STRING_ID: &'static str = "minecraft:deepslate_tile_slab";
     const NAME: &'static str = "Deepslate Tile Slab";
     const STACK_SIZE: u8 = 64;
@@ -6889,7 +6889,7 @@ impl ItemDef for DeepslateTileSlab {
 pub struct Scaffolding;
 
 impl ItemDef for Scaffolding {
-    const ID: u32 = 687;
+    const ID: i32 = 687;
     const STRING_ID: &'static str = "minecraft:scaffolding";
     const NAME: &'static str = "Scaffolding";
     const STACK_SIZE: u8 = 64;
@@ -6899,7 +6899,7 @@ impl ItemDef for Scaffolding {
 pub struct Redstone;
 
 impl ItemDef for Redstone {
-    const ID: u32 = 688;
+    const ID: i32 = 688;
     const STRING_ID: &'static str = "minecraft:redstone";
     const NAME: &'static str = "Redstone Dust";
     const STACK_SIZE: u8 = 64;
@@ -6909,7 +6909,7 @@ impl ItemDef for Redstone {
 pub struct RedstoneTorch;
 
 impl ItemDef for RedstoneTorch {
-    const ID: u32 = 689;
+    const ID: i32 = 689;
     const STRING_ID: &'static str = "minecraft:redstone_torch";
     const NAME: &'static str = "Redstone Torch";
     const STACK_SIZE: u8 = 64;
@@ -6919,7 +6919,7 @@ impl ItemDef for RedstoneTorch {
 pub struct RedstoneBlock;
 
 impl ItemDef for RedstoneBlock {
-    const ID: u32 = 690;
+    const ID: i32 = 690;
     const STRING_ID: &'static str = "minecraft:redstone_block";
     const NAME: &'static str = "Block of Redstone";
     const STACK_SIZE: u8 = 64;
@@ -6929,7 +6929,7 @@ impl ItemDef for RedstoneBlock {
 pub struct Repeater;
 
 impl ItemDef for Repeater {
-    const ID: u32 = 691;
+    const ID: i32 = 691;
     const STRING_ID: &'static str = "minecraft:repeater";
     const NAME: &'static str = "Redstone Repeater";
     const STACK_SIZE: u8 = 64;
@@ -6939,7 +6939,7 @@ impl ItemDef for Repeater {
 pub struct Comparator;
 
 impl ItemDef for Comparator {
-    const ID: u32 = 692;
+    const ID: i32 = 692;
     const STRING_ID: &'static str = "minecraft:comparator";
     const NAME: &'static str = "Redstone Comparator";
     const STACK_SIZE: u8 = 64;
@@ -6949,7 +6949,7 @@ impl ItemDef for Comparator {
 pub struct Piston;
 
 impl ItemDef for Piston {
-    const ID: u32 = 693;
+    const ID: i32 = 693;
     const STRING_ID: &'static str = "minecraft:piston";
     const NAME: &'static str = "Piston";
     const STACK_SIZE: u8 = 64;
@@ -6959,7 +6959,7 @@ impl ItemDef for Piston {
 pub struct StickyPiston;
 
 impl ItemDef for StickyPiston {
-    const ID: u32 = 694;
+    const ID: i32 = 694;
     const STRING_ID: &'static str = "minecraft:sticky_piston";
     const NAME: &'static str = "Sticky Piston";
     const STACK_SIZE: u8 = 64;
@@ -6969,7 +6969,7 @@ impl ItemDef for StickyPiston {
 pub struct Slime;
 
 impl ItemDef for Slime {
-    const ID: u32 = 695;
+    const ID: i32 = 695;
     const STRING_ID: &'static str = "minecraft:slime";
     const NAME: &'static str = "Slime Block";
     const STACK_SIZE: u8 = 64;
@@ -6979,7 +6979,7 @@ impl ItemDef for Slime {
 pub struct HoneyBlock;
 
 impl ItemDef for HoneyBlock {
-    const ID: u32 = 696;
+    const ID: i32 = 696;
     const STRING_ID: &'static str = "minecraft:honey_block";
     const NAME: &'static str = "Honey Block";
     const STACK_SIZE: u8 = 64;
@@ -6989,7 +6989,7 @@ impl ItemDef for HoneyBlock {
 pub struct Observer;
 
 impl ItemDef for Observer {
-    const ID: u32 = 697;
+    const ID: i32 = 697;
     const STRING_ID: &'static str = "minecraft:observer";
     const NAME: &'static str = "Observer";
     const STACK_SIZE: u8 = 64;
@@ -6999,7 +6999,7 @@ impl ItemDef for Observer {
 pub struct Hopper;
 
 impl ItemDef for Hopper {
-    const ID: u32 = 698;
+    const ID: i32 = 698;
     const STRING_ID: &'static str = "minecraft:hopper";
     const NAME: &'static str = "Hopper";
     const STACK_SIZE: u8 = 64;
@@ -7009,7 +7009,7 @@ impl ItemDef for Hopper {
 pub struct Dispenser;
 
 impl ItemDef for Dispenser {
-    const ID: u32 = 699;
+    const ID: i32 = 699;
     const STRING_ID: &'static str = "minecraft:dispenser";
     const NAME: &'static str = "Dispenser";
     const STACK_SIZE: u8 = 64;
@@ -7019,7 +7019,7 @@ impl ItemDef for Dispenser {
 pub struct Dropper;
 
 impl ItemDef for Dropper {
-    const ID: u32 = 700;
+    const ID: i32 = 700;
     const STRING_ID: &'static str = "minecraft:dropper";
     const NAME: &'static str = "Dropper";
     const STACK_SIZE: u8 = 64;
@@ -7029,7 +7029,7 @@ impl ItemDef for Dropper {
 pub struct Lectern;
 
 impl ItemDef for Lectern {
-    const ID: u32 = 701;
+    const ID: i32 = 701;
     const STRING_ID: &'static str = "minecraft:lectern";
     const NAME: &'static str = "Lectern";
     const STACK_SIZE: u8 = 64;
@@ -7039,7 +7039,7 @@ impl ItemDef for Lectern {
 pub struct Target;
 
 impl ItemDef for Target {
-    const ID: u32 = 702;
+    const ID: i32 = 702;
     const STRING_ID: &'static str = "minecraft:target";
     const NAME: &'static str = "Target";
     const STACK_SIZE: u8 = 64;
@@ -7049,7 +7049,7 @@ impl ItemDef for Target {
 pub struct Lever;
 
 impl ItemDef for Lever {
-    const ID: u32 = 703;
+    const ID: i32 = 703;
     const STRING_ID: &'static str = "minecraft:lever";
     const NAME: &'static str = "Lever";
     const STACK_SIZE: u8 = 64;
@@ -7059,7 +7059,7 @@ impl ItemDef for Lever {
 pub struct LightningRod;
 
 impl ItemDef for LightningRod {
-    const ID: u32 = 704;
+    const ID: i32 = 704;
     const STRING_ID: &'static str = "minecraft:lightning_rod";
     const NAME: &'static str = "Lightning Rod";
     const STACK_SIZE: u8 = 64;
@@ -7069,7 +7069,7 @@ impl ItemDef for LightningRod {
 pub struct DaylightDetector;
 
 impl ItemDef for DaylightDetector {
-    const ID: u32 = 705;
+    const ID: i32 = 705;
     const STRING_ID: &'static str = "minecraft:daylight_detector";
     const NAME: &'static str = "Daylight Detector";
     const STACK_SIZE: u8 = 64;
@@ -7079,7 +7079,7 @@ impl ItemDef for DaylightDetector {
 pub struct SculkSensor;
 
 impl ItemDef for SculkSensor {
-    const ID: u32 = 706;
+    const ID: i32 = 706;
     const STRING_ID: &'static str = "minecraft:sculk_sensor";
     const NAME: &'static str = "Sculk Sensor";
     const STACK_SIZE: u8 = 64;
@@ -7089,7 +7089,7 @@ impl ItemDef for SculkSensor {
 pub struct CalibratedSculkSensor;
 
 impl ItemDef for CalibratedSculkSensor {
-    const ID: u32 = 707;
+    const ID: i32 = 707;
     const STRING_ID: &'static str = "minecraft:calibrated_sculk_sensor";
     const NAME: &'static str = "Calibrated Sculk Sensor";
     const STACK_SIZE: u8 = 64;
@@ -7099,7 +7099,7 @@ impl ItemDef for CalibratedSculkSensor {
 pub struct TripwireHook;
 
 impl ItemDef for TripwireHook {
-    const ID: u32 = 708;
+    const ID: i32 = 708;
     const STRING_ID: &'static str = "minecraft:tripwire_hook";
     const NAME: &'static str = "Tripwire Hook";
     const STACK_SIZE: u8 = 64;
@@ -7109,7 +7109,7 @@ impl ItemDef for TripwireHook {
 pub struct TrappedChest;
 
 impl ItemDef for TrappedChest {
-    const ID: u32 = 709;
+    const ID: i32 = 709;
     const STRING_ID: &'static str = "minecraft:trapped_chest";
     const NAME: &'static str = "Trapped Chest";
     const STACK_SIZE: u8 = 64;
@@ -7119,7 +7119,7 @@ impl ItemDef for TrappedChest {
 pub struct Tnt;
 
 impl ItemDef for Tnt {
-    const ID: u32 = 710;
+    const ID: i32 = 710;
     const STRING_ID: &'static str = "minecraft:tnt";
     const NAME: &'static str = "TNT";
     const STACK_SIZE: u8 = 64;
@@ -7129,7 +7129,7 @@ impl ItemDef for Tnt {
 pub struct RedstoneLamp;
 
 impl ItemDef for RedstoneLamp {
-    const ID: u32 = 711;
+    const ID: i32 = 711;
     const STRING_ID: &'static str = "minecraft:redstone_lamp";
     const NAME: &'static str = "Redstone Lamp";
     const STACK_SIZE: u8 = 64;
@@ -7139,7 +7139,7 @@ impl ItemDef for RedstoneLamp {
 pub struct Noteblock;
 
 impl ItemDef for Noteblock {
-    const ID: u32 = 712;
+    const ID: i32 = 712;
     const STRING_ID: &'static str = "minecraft:noteblock";
     const NAME: &'static str = "Note Block";
     const STACK_SIZE: u8 = 64;
@@ -7149,7 +7149,7 @@ impl ItemDef for Noteblock {
 pub struct StoneButton;
 
 impl ItemDef for StoneButton {
-    const ID: u32 = 713;
+    const ID: i32 = 713;
     const STRING_ID: &'static str = "minecraft:stone_button";
     const NAME: &'static str = "Stone Button";
     const STACK_SIZE: u8 = 64;
@@ -7159,7 +7159,7 @@ impl ItemDef for StoneButton {
 pub struct PolishedBlackstoneButton;
 
 impl ItemDef for PolishedBlackstoneButton {
-    const ID: u32 = 714;
+    const ID: i32 = 714;
     const STRING_ID: &'static str = "minecraft:polished_blackstone_button";
     const NAME: &'static str = "Polished Blackstone Button";
     const STACK_SIZE: u8 = 64;
@@ -7169,7 +7169,7 @@ impl ItemDef for PolishedBlackstoneButton {
 pub struct WoodenButton;
 
 impl ItemDef for WoodenButton {
-    const ID: u32 = 715;
+    const ID: i32 = 715;
     const STRING_ID: &'static str = "minecraft:wooden_button";
     const NAME: &'static str = "Oak Button";
     const STACK_SIZE: u8 = 64;
@@ -7179,7 +7179,7 @@ impl ItemDef for WoodenButton {
 pub struct SpruceButton;
 
 impl ItemDef for SpruceButton {
-    const ID: u32 = 716;
+    const ID: i32 = 716;
     const STRING_ID: &'static str = "minecraft:spruce_button";
     const NAME: &'static str = "Spruce Button";
     const STACK_SIZE: u8 = 64;
@@ -7189,7 +7189,7 @@ impl ItemDef for SpruceButton {
 pub struct BirchButton;
 
 impl ItemDef for BirchButton {
-    const ID: u32 = 717;
+    const ID: i32 = 717;
     const STRING_ID: &'static str = "minecraft:birch_button";
     const NAME: &'static str = "Birch Button";
     const STACK_SIZE: u8 = 64;
@@ -7199,7 +7199,7 @@ impl ItemDef for BirchButton {
 pub struct JungleButton;
 
 impl ItemDef for JungleButton {
-    const ID: u32 = 718;
+    const ID: i32 = 718;
     const STRING_ID: &'static str = "minecraft:jungle_button";
     const NAME: &'static str = "Jungle Button";
     const STACK_SIZE: u8 = 64;
@@ -7209,7 +7209,7 @@ impl ItemDef for JungleButton {
 pub struct AcaciaButton;
 
 impl ItemDef for AcaciaButton {
-    const ID: u32 = 719;
+    const ID: i32 = 719;
     const STRING_ID: &'static str = "minecraft:acacia_button";
     const NAME: &'static str = "Acacia Button";
     const STACK_SIZE: u8 = 64;
@@ -7219,7 +7219,7 @@ impl ItemDef for AcaciaButton {
 pub struct CherryButton;
 
 impl ItemDef for CherryButton {
-    const ID: u32 = 720;
+    const ID: i32 = 720;
     const STRING_ID: &'static str = "minecraft:cherry_button";
     const NAME: &'static str = "Cherry Button";
     const STACK_SIZE: u8 = 64;
@@ -7229,7 +7229,7 @@ impl ItemDef for CherryButton {
 pub struct DarkOakButton;
 
 impl ItemDef for DarkOakButton {
-    const ID: u32 = 721;
+    const ID: i32 = 721;
     const STRING_ID: &'static str = "minecraft:dark_oak_button";
     const NAME: &'static str = "Dark Oak Button";
     const STACK_SIZE: u8 = 64;
@@ -7239,7 +7239,7 @@ impl ItemDef for DarkOakButton {
 pub struct PaleOakButton;
 
 impl ItemDef for PaleOakButton {
-    const ID: u32 = 722;
+    const ID: i32 = 722;
     const STRING_ID: &'static str = "minecraft:pale_oak_button";
     const NAME: &'static str = "Pale Oak Button";
     const STACK_SIZE: u8 = 64;
@@ -7249,7 +7249,7 @@ impl ItemDef for PaleOakButton {
 pub struct MangroveButton;
 
 impl ItemDef for MangroveButton {
-    const ID: u32 = 723;
+    const ID: i32 = 723;
     const STRING_ID: &'static str = "minecraft:mangrove_button";
     const NAME: &'static str = "Mangrove Button";
     const STACK_SIZE: u8 = 64;
@@ -7259,7 +7259,7 @@ impl ItemDef for MangroveButton {
 pub struct BambooButton;
 
 impl ItemDef for BambooButton {
-    const ID: u32 = 724;
+    const ID: i32 = 724;
     const STRING_ID: &'static str = "minecraft:bamboo_button";
     const NAME: &'static str = "Bamboo Button";
     const STACK_SIZE: u8 = 64;
@@ -7269,7 +7269,7 @@ impl ItemDef for BambooButton {
 pub struct CrimsonButton;
 
 impl ItemDef for CrimsonButton {
-    const ID: u32 = 725;
+    const ID: i32 = 725;
     const STRING_ID: &'static str = "minecraft:crimson_button";
     const NAME: &'static str = "Crimson Button";
     const STACK_SIZE: u8 = 64;
@@ -7279,7 +7279,7 @@ impl ItemDef for CrimsonButton {
 pub struct WarpedButton;
 
 impl ItemDef for WarpedButton {
-    const ID: u32 = 726;
+    const ID: i32 = 726;
     const STRING_ID: &'static str = "minecraft:warped_button";
     const NAME: &'static str = "Warped Button";
     const STACK_SIZE: u8 = 64;
@@ -7289,7 +7289,7 @@ impl ItemDef for WarpedButton {
 pub struct StonePressurePlate;
 
 impl ItemDef for StonePressurePlate {
-    const ID: u32 = 727;
+    const ID: i32 = 727;
     const STRING_ID: &'static str = "minecraft:stone_pressure_plate";
     const NAME: &'static str = "Stone Pressure Plate";
     const STACK_SIZE: u8 = 64;
@@ -7299,7 +7299,7 @@ impl ItemDef for StonePressurePlate {
 pub struct PolishedBlackstonePressurePlate;
 
 impl ItemDef for PolishedBlackstonePressurePlate {
-    const ID: u32 = 728;
+    const ID: i32 = 728;
     const STRING_ID: &'static str = "minecraft:polished_blackstone_pressure_plate";
     const NAME: &'static str = "Polished Blackstone Pressure Plate";
     const STACK_SIZE: u8 = 64;
@@ -7309,7 +7309,7 @@ impl ItemDef for PolishedBlackstonePressurePlate {
 pub struct LightWeightedPressurePlate;
 
 impl ItemDef for LightWeightedPressurePlate {
-    const ID: u32 = 729;
+    const ID: i32 = 729;
     const STRING_ID: &'static str = "minecraft:light_weighted_pressure_plate";
     const NAME: &'static str = "Light Weighted Pressure Plate";
     const STACK_SIZE: u8 = 64;
@@ -7319,7 +7319,7 @@ impl ItemDef for LightWeightedPressurePlate {
 pub struct HeavyWeightedPressurePlate;
 
 impl ItemDef for HeavyWeightedPressurePlate {
-    const ID: u32 = 730;
+    const ID: i32 = 730;
     const STRING_ID: &'static str = "minecraft:heavy_weighted_pressure_plate";
     const NAME: &'static str = "Heavy Weighted Pressure Plate";
     const STACK_SIZE: u8 = 64;
@@ -7329,7 +7329,7 @@ impl ItemDef for HeavyWeightedPressurePlate {
 pub struct WoodenPressurePlate;
 
 impl ItemDef for WoodenPressurePlate {
-    const ID: u32 = 731;
+    const ID: i32 = 731;
     const STRING_ID: &'static str = "minecraft:wooden_pressure_plate";
     const NAME: &'static str = "Oak Pressure Plate";
     const STACK_SIZE: u8 = 64;
@@ -7339,7 +7339,7 @@ impl ItemDef for WoodenPressurePlate {
 pub struct SprucePressurePlate;
 
 impl ItemDef for SprucePressurePlate {
-    const ID: u32 = 732;
+    const ID: i32 = 732;
     const STRING_ID: &'static str = "minecraft:spruce_pressure_plate";
     const NAME: &'static str = "Spruce Pressure Plate";
     const STACK_SIZE: u8 = 64;
@@ -7349,7 +7349,7 @@ impl ItemDef for SprucePressurePlate {
 pub struct BirchPressurePlate;
 
 impl ItemDef for BirchPressurePlate {
-    const ID: u32 = 733;
+    const ID: i32 = 733;
     const STRING_ID: &'static str = "minecraft:birch_pressure_plate";
     const NAME: &'static str = "Birch Pressure Plate";
     const STACK_SIZE: u8 = 64;
@@ -7359,7 +7359,7 @@ impl ItemDef for BirchPressurePlate {
 pub struct JunglePressurePlate;
 
 impl ItemDef for JunglePressurePlate {
-    const ID: u32 = 734;
+    const ID: i32 = 734;
     const STRING_ID: &'static str = "minecraft:jungle_pressure_plate";
     const NAME: &'static str = "Jungle Pressure Plate";
     const STACK_SIZE: u8 = 64;
@@ -7369,7 +7369,7 @@ impl ItemDef for JunglePressurePlate {
 pub struct AcaciaPressurePlate;
 
 impl ItemDef for AcaciaPressurePlate {
-    const ID: u32 = 735;
+    const ID: i32 = 735;
     const STRING_ID: &'static str = "minecraft:acacia_pressure_plate";
     const NAME: &'static str = "Acacia Pressure Plate";
     const STACK_SIZE: u8 = 64;
@@ -7379,7 +7379,7 @@ impl ItemDef for AcaciaPressurePlate {
 pub struct CherryPressurePlate;
 
 impl ItemDef for CherryPressurePlate {
-    const ID: u32 = 736;
+    const ID: i32 = 736;
     const STRING_ID: &'static str = "minecraft:cherry_pressure_plate";
     const NAME: &'static str = "Cherry Pressure Plate";
     const STACK_SIZE: u8 = 64;
@@ -7389,7 +7389,7 @@ impl ItemDef for CherryPressurePlate {
 pub struct DarkOakPressurePlate;
 
 impl ItemDef for DarkOakPressurePlate {
-    const ID: u32 = 737;
+    const ID: i32 = 737;
     const STRING_ID: &'static str = "minecraft:dark_oak_pressure_plate";
     const NAME: &'static str = "Dark Oak Pressure Plate";
     const STACK_SIZE: u8 = 64;
@@ -7399,7 +7399,7 @@ impl ItemDef for DarkOakPressurePlate {
 pub struct PaleOakPressurePlate;
 
 impl ItemDef for PaleOakPressurePlate {
-    const ID: u32 = 738;
+    const ID: i32 = 738;
     const STRING_ID: &'static str = "minecraft:pale_oak_pressure_plate";
     const NAME: &'static str = "Pale Oak Pressure Plate";
     const STACK_SIZE: u8 = 64;
@@ -7409,7 +7409,7 @@ impl ItemDef for PaleOakPressurePlate {
 pub struct MangrovePressurePlate;
 
 impl ItemDef for MangrovePressurePlate {
-    const ID: u32 = 739;
+    const ID: i32 = 739;
     const STRING_ID: &'static str = "minecraft:mangrove_pressure_plate";
     const NAME: &'static str = "Mangrove Pressure Plate";
     const STACK_SIZE: u8 = 64;
@@ -7419,7 +7419,7 @@ impl ItemDef for MangrovePressurePlate {
 pub struct BambooPressurePlate;
 
 impl ItemDef for BambooPressurePlate {
-    const ID: u32 = 740;
+    const ID: i32 = 740;
     const STRING_ID: &'static str = "minecraft:bamboo_pressure_plate";
     const NAME: &'static str = "Bamboo Pressure Plate";
     const STACK_SIZE: u8 = 64;
@@ -7429,7 +7429,7 @@ impl ItemDef for BambooPressurePlate {
 pub struct CrimsonPressurePlate;
 
 impl ItemDef for CrimsonPressurePlate {
-    const ID: u32 = 741;
+    const ID: i32 = 741;
     const STRING_ID: &'static str = "minecraft:crimson_pressure_plate";
     const NAME: &'static str = "Crimson Pressure Plate";
     const STACK_SIZE: u8 = 64;
@@ -7439,7 +7439,7 @@ impl ItemDef for CrimsonPressurePlate {
 pub struct WarpedPressurePlate;
 
 impl ItemDef for WarpedPressurePlate {
-    const ID: u32 = 742;
+    const ID: i32 = 742;
     const STRING_ID: &'static str = "minecraft:warped_pressure_plate";
     const NAME: &'static str = "Warped Pressure Plate";
     const STACK_SIZE: u8 = 64;
@@ -7449,7 +7449,7 @@ impl ItemDef for WarpedPressurePlate {
 pub struct IronDoor;
 
 impl ItemDef for IronDoor {
-    const ID: u32 = 743;
+    const ID: i32 = 743;
     const STRING_ID: &'static str = "minecraft:iron_door";
     const NAME: &'static str = "Iron Door";
     const STACK_SIZE: u8 = 64;
@@ -7459,7 +7459,7 @@ impl ItemDef for IronDoor {
 pub struct WoodenDoor;
 
 impl ItemDef for WoodenDoor {
-    const ID: u32 = 744;
+    const ID: i32 = 744;
     const STRING_ID: &'static str = "minecraft:wooden_door";
     const NAME: &'static str = "Oak Door";
     const STACK_SIZE: u8 = 64;
@@ -7469,7 +7469,7 @@ impl ItemDef for WoodenDoor {
 pub struct SpruceDoor;
 
 impl ItemDef for SpruceDoor {
-    const ID: u32 = 745;
+    const ID: i32 = 745;
     const STRING_ID: &'static str = "minecraft:spruce_door";
     const NAME: &'static str = "Spruce Door";
     const STACK_SIZE: u8 = 64;
@@ -7479,7 +7479,7 @@ impl ItemDef for SpruceDoor {
 pub struct BirchDoor;
 
 impl ItemDef for BirchDoor {
-    const ID: u32 = 746;
+    const ID: i32 = 746;
     const STRING_ID: &'static str = "minecraft:birch_door";
     const NAME: &'static str = "Birch Door";
     const STACK_SIZE: u8 = 64;
@@ -7489,7 +7489,7 @@ impl ItemDef for BirchDoor {
 pub struct JungleDoor;
 
 impl ItemDef for JungleDoor {
-    const ID: u32 = 747;
+    const ID: i32 = 747;
     const STRING_ID: &'static str = "minecraft:jungle_door";
     const NAME: &'static str = "Jungle Door";
     const STACK_SIZE: u8 = 64;
@@ -7499,7 +7499,7 @@ impl ItemDef for JungleDoor {
 pub struct AcaciaDoor;
 
 impl ItemDef for AcaciaDoor {
-    const ID: u32 = 748;
+    const ID: i32 = 748;
     const STRING_ID: &'static str = "minecraft:acacia_door";
     const NAME: &'static str = "Acacia Door";
     const STACK_SIZE: u8 = 64;
@@ -7509,7 +7509,7 @@ impl ItemDef for AcaciaDoor {
 pub struct CherryDoor;
 
 impl ItemDef for CherryDoor {
-    const ID: u32 = 749;
+    const ID: i32 = 749;
     const STRING_ID: &'static str = "minecraft:cherry_door";
     const NAME: &'static str = "Cherry Door";
     const STACK_SIZE: u8 = 64;
@@ -7519,7 +7519,7 @@ impl ItemDef for CherryDoor {
 pub struct DarkOakDoor;
 
 impl ItemDef for DarkOakDoor {
-    const ID: u32 = 750;
+    const ID: i32 = 750;
     const STRING_ID: &'static str = "minecraft:dark_oak_door";
     const NAME: &'static str = "Dark Oak Door";
     const STACK_SIZE: u8 = 64;
@@ -7529,7 +7529,7 @@ impl ItemDef for DarkOakDoor {
 pub struct PaleOakDoor;
 
 impl ItemDef for PaleOakDoor {
-    const ID: u32 = 751;
+    const ID: i32 = 751;
     const STRING_ID: &'static str = "minecraft:pale_oak_door";
     const NAME: &'static str = "Pale Oak Door";
     const STACK_SIZE: u8 = 64;
@@ -7539,7 +7539,7 @@ impl ItemDef for PaleOakDoor {
 pub struct MangroveDoor;
 
 impl ItemDef for MangroveDoor {
-    const ID: u32 = 752;
+    const ID: i32 = 752;
     const STRING_ID: &'static str = "minecraft:mangrove_door";
     const NAME: &'static str = "Mangrove Door";
     const STACK_SIZE: u8 = 64;
@@ -7549,7 +7549,7 @@ impl ItemDef for MangroveDoor {
 pub struct BambooDoor;
 
 impl ItemDef for BambooDoor {
-    const ID: u32 = 753;
+    const ID: i32 = 753;
     const STRING_ID: &'static str = "minecraft:bamboo_door";
     const NAME: &'static str = "Bamboo Door";
     const STACK_SIZE: u8 = 64;
@@ -7559,7 +7559,7 @@ impl ItemDef for BambooDoor {
 pub struct CrimsonDoor;
 
 impl ItemDef for CrimsonDoor {
-    const ID: u32 = 754;
+    const ID: i32 = 754;
     const STRING_ID: &'static str = "minecraft:crimson_door";
     const NAME: &'static str = "Crimson Door";
     const STACK_SIZE: u8 = 64;
@@ -7569,7 +7569,7 @@ impl ItemDef for CrimsonDoor {
 pub struct WarpedDoor;
 
 impl ItemDef for WarpedDoor {
-    const ID: u32 = 755;
+    const ID: i32 = 755;
     const STRING_ID: &'static str = "minecraft:warped_door";
     const NAME: &'static str = "Warped Door";
     const STACK_SIZE: u8 = 64;
@@ -7579,7 +7579,7 @@ impl ItemDef for WarpedDoor {
 pub struct CopperDoor;
 
 impl ItemDef for CopperDoor {
-    const ID: u32 = 756;
+    const ID: i32 = 756;
     const STRING_ID: &'static str = "minecraft:copper_door";
     const NAME: &'static str = "Copper Door";
     const STACK_SIZE: u8 = 64;
@@ -7589,7 +7589,7 @@ impl ItemDef for CopperDoor {
 pub struct ExposedCopperDoor;
 
 impl ItemDef for ExposedCopperDoor {
-    const ID: u32 = 757;
+    const ID: i32 = 757;
     const STRING_ID: &'static str = "minecraft:exposed_copper_door";
     const NAME: &'static str = "Exposed Copper Door";
     const STACK_SIZE: u8 = 64;
@@ -7599,7 +7599,7 @@ impl ItemDef for ExposedCopperDoor {
 pub struct WeatheredCopperDoor;
 
 impl ItemDef for WeatheredCopperDoor {
-    const ID: u32 = 758;
+    const ID: i32 = 758;
     const STRING_ID: &'static str = "minecraft:weathered_copper_door";
     const NAME: &'static str = "Weathered Copper Door";
     const STACK_SIZE: u8 = 64;
@@ -7609,7 +7609,7 @@ impl ItemDef for WeatheredCopperDoor {
 pub struct OxidizedCopperDoor;
 
 impl ItemDef for OxidizedCopperDoor {
-    const ID: u32 = 759;
+    const ID: i32 = 759;
     const STRING_ID: &'static str = "minecraft:oxidized_copper_door";
     const NAME: &'static str = "Oxidized Copper Door";
     const STACK_SIZE: u8 = 64;
@@ -7619,7 +7619,7 @@ impl ItemDef for OxidizedCopperDoor {
 pub struct WaxedCopperDoor;
 
 impl ItemDef for WaxedCopperDoor {
-    const ID: u32 = 760;
+    const ID: i32 = 760;
     const STRING_ID: &'static str = "minecraft:waxed_copper_door";
     const NAME: &'static str = "Waxed Copper Door";
     const STACK_SIZE: u8 = 64;
@@ -7629,7 +7629,7 @@ impl ItemDef for WaxedCopperDoor {
 pub struct WaxedExposedCopperDoor;
 
 impl ItemDef for WaxedExposedCopperDoor {
-    const ID: u32 = 761;
+    const ID: i32 = 761;
     const STRING_ID: &'static str = "minecraft:waxed_exposed_copper_door";
     const NAME: &'static str = "Waxed Exposed Copper Door";
     const STACK_SIZE: u8 = 64;
@@ -7639,7 +7639,7 @@ impl ItemDef for WaxedExposedCopperDoor {
 pub struct WaxedWeatheredCopperDoor;
 
 impl ItemDef for WaxedWeatheredCopperDoor {
-    const ID: u32 = 762;
+    const ID: i32 = 762;
     const STRING_ID: &'static str = "minecraft:waxed_weathered_copper_door";
     const NAME: &'static str = "Waxed Weathered Copper Door";
     const STACK_SIZE: u8 = 64;
@@ -7649,7 +7649,7 @@ impl ItemDef for WaxedWeatheredCopperDoor {
 pub struct WaxedOxidizedCopperDoor;
 
 impl ItemDef for WaxedOxidizedCopperDoor {
-    const ID: u32 = 763;
+    const ID: i32 = 763;
     const STRING_ID: &'static str = "minecraft:waxed_oxidized_copper_door";
     const NAME: &'static str = "Waxed Oxidized Copper Door";
     const STACK_SIZE: u8 = 64;
@@ -7659,7 +7659,7 @@ impl ItemDef for WaxedOxidizedCopperDoor {
 pub struct IronTrapdoor;
 
 impl ItemDef for IronTrapdoor {
-    const ID: u32 = 764;
+    const ID: i32 = 764;
     const STRING_ID: &'static str = "minecraft:iron_trapdoor";
     const NAME: &'static str = "Iron Trapdoor";
     const STACK_SIZE: u8 = 64;
@@ -7669,7 +7669,7 @@ impl ItemDef for IronTrapdoor {
 pub struct Trapdoor;
 
 impl ItemDef for Trapdoor {
-    const ID: u32 = 765;
+    const ID: i32 = 765;
     const STRING_ID: &'static str = "minecraft:trapdoor";
     const NAME: &'static str = "Oak Trapdoor";
     const STACK_SIZE: u8 = 64;
@@ -7679,7 +7679,7 @@ impl ItemDef for Trapdoor {
 pub struct SpruceTrapdoor;
 
 impl ItemDef for SpruceTrapdoor {
-    const ID: u32 = 766;
+    const ID: i32 = 766;
     const STRING_ID: &'static str = "minecraft:spruce_trapdoor";
     const NAME: &'static str = "Spruce Trapdoor";
     const STACK_SIZE: u8 = 64;
@@ -7689,7 +7689,7 @@ impl ItemDef for SpruceTrapdoor {
 pub struct BirchTrapdoor;
 
 impl ItemDef for BirchTrapdoor {
-    const ID: u32 = 767;
+    const ID: i32 = 767;
     const STRING_ID: &'static str = "minecraft:birch_trapdoor";
     const NAME: &'static str = "Birch Trapdoor";
     const STACK_SIZE: u8 = 64;
@@ -7699,7 +7699,7 @@ impl ItemDef for BirchTrapdoor {
 pub struct JungleTrapdoor;
 
 impl ItemDef for JungleTrapdoor {
-    const ID: u32 = 768;
+    const ID: i32 = 768;
     const STRING_ID: &'static str = "minecraft:jungle_trapdoor";
     const NAME: &'static str = "Jungle Trapdoor";
     const STACK_SIZE: u8 = 64;
@@ -7709,7 +7709,7 @@ impl ItemDef for JungleTrapdoor {
 pub struct AcaciaTrapdoor;
 
 impl ItemDef for AcaciaTrapdoor {
-    const ID: u32 = 769;
+    const ID: i32 = 769;
     const STRING_ID: &'static str = "minecraft:acacia_trapdoor";
     const NAME: &'static str = "Acacia Trapdoor";
     const STACK_SIZE: u8 = 64;
@@ -7719,7 +7719,7 @@ impl ItemDef for AcaciaTrapdoor {
 pub struct CherryTrapdoor;
 
 impl ItemDef for CherryTrapdoor {
-    const ID: u32 = 770;
+    const ID: i32 = 770;
     const STRING_ID: &'static str = "minecraft:cherry_trapdoor";
     const NAME: &'static str = "Cherry Trapdoor";
     const STACK_SIZE: u8 = 64;
@@ -7729,7 +7729,7 @@ impl ItemDef for CherryTrapdoor {
 pub struct DarkOakTrapdoor;
 
 impl ItemDef for DarkOakTrapdoor {
-    const ID: u32 = 771;
+    const ID: i32 = 771;
     const STRING_ID: &'static str = "minecraft:dark_oak_trapdoor";
     const NAME: &'static str = "Dark Oak Trapdoor";
     const STACK_SIZE: u8 = 64;
@@ -7739,7 +7739,7 @@ impl ItemDef for DarkOakTrapdoor {
 pub struct PaleOakTrapdoor;
 
 impl ItemDef for PaleOakTrapdoor {
-    const ID: u32 = 772;
+    const ID: i32 = 772;
     const STRING_ID: &'static str = "minecraft:pale_oak_trapdoor";
     const NAME: &'static str = "Pale Oak Trapdoor";
     const STACK_SIZE: u8 = 64;
@@ -7749,7 +7749,7 @@ impl ItemDef for PaleOakTrapdoor {
 pub struct MangroveTrapdoor;
 
 impl ItemDef for MangroveTrapdoor {
-    const ID: u32 = 773;
+    const ID: i32 = 773;
     const STRING_ID: &'static str = "minecraft:mangrove_trapdoor";
     const NAME: &'static str = "Mangrove Trapdoor";
     const STACK_SIZE: u8 = 64;
@@ -7759,7 +7759,7 @@ impl ItemDef for MangroveTrapdoor {
 pub struct BambooTrapdoor;
 
 impl ItemDef for BambooTrapdoor {
-    const ID: u32 = 774;
+    const ID: i32 = 774;
     const STRING_ID: &'static str = "minecraft:bamboo_trapdoor";
     const NAME: &'static str = "Bamboo Trapdoor";
     const STACK_SIZE: u8 = 64;
@@ -7769,7 +7769,7 @@ impl ItemDef for BambooTrapdoor {
 pub struct CrimsonTrapdoor;
 
 impl ItemDef for CrimsonTrapdoor {
-    const ID: u32 = 775;
+    const ID: i32 = 775;
     const STRING_ID: &'static str = "minecraft:crimson_trapdoor";
     const NAME: &'static str = "Crimson Trapdoor";
     const STACK_SIZE: u8 = 64;
@@ -7779,7 +7779,7 @@ impl ItemDef for CrimsonTrapdoor {
 pub struct WarpedTrapdoor;
 
 impl ItemDef for WarpedTrapdoor {
-    const ID: u32 = 776;
+    const ID: i32 = 776;
     const STRING_ID: &'static str = "minecraft:warped_trapdoor";
     const NAME: &'static str = "Warped Trapdoor";
     const STACK_SIZE: u8 = 64;
@@ -7789,7 +7789,7 @@ impl ItemDef for WarpedTrapdoor {
 pub struct CopperTrapdoor;
 
 impl ItemDef for CopperTrapdoor {
-    const ID: u32 = 777;
+    const ID: i32 = 777;
     const STRING_ID: &'static str = "minecraft:copper_trapdoor";
     const NAME: &'static str = "Copper Trapdoor";
     const STACK_SIZE: u8 = 64;
@@ -7799,7 +7799,7 @@ impl ItemDef for CopperTrapdoor {
 pub struct ExposedCopperTrapdoor;
 
 impl ItemDef for ExposedCopperTrapdoor {
-    const ID: u32 = 778;
+    const ID: i32 = 778;
     const STRING_ID: &'static str = "minecraft:exposed_copper_trapdoor";
     const NAME: &'static str = "Exposed Copper Trapdoor";
     const STACK_SIZE: u8 = 64;
@@ -7809,7 +7809,7 @@ impl ItemDef for ExposedCopperTrapdoor {
 pub struct WeatheredCopperTrapdoor;
 
 impl ItemDef for WeatheredCopperTrapdoor {
-    const ID: u32 = 779;
+    const ID: i32 = 779;
     const STRING_ID: &'static str = "minecraft:weathered_copper_trapdoor";
     const NAME: &'static str = "Weathered Copper Trapdoor";
     const STACK_SIZE: u8 = 64;
@@ -7819,7 +7819,7 @@ impl ItemDef for WeatheredCopperTrapdoor {
 pub struct OxidizedCopperTrapdoor;
 
 impl ItemDef for OxidizedCopperTrapdoor {
-    const ID: u32 = 780;
+    const ID: i32 = 780;
     const STRING_ID: &'static str = "minecraft:oxidized_copper_trapdoor";
     const NAME: &'static str = "Oxidized Copper Trapdoor";
     const STACK_SIZE: u8 = 64;
@@ -7829,7 +7829,7 @@ impl ItemDef for OxidizedCopperTrapdoor {
 pub struct WaxedCopperTrapdoor;
 
 impl ItemDef for WaxedCopperTrapdoor {
-    const ID: u32 = 781;
+    const ID: i32 = 781;
     const STRING_ID: &'static str = "minecraft:waxed_copper_trapdoor";
     const NAME: &'static str = "Waxed Copper Trapdoor";
     const STACK_SIZE: u8 = 64;
@@ -7839,7 +7839,7 @@ impl ItemDef for WaxedCopperTrapdoor {
 pub struct WaxedExposedCopperTrapdoor;
 
 impl ItemDef for WaxedExposedCopperTrapdoor {
-    const ID: u32 = 782;
+    const ID: i32 = 782;
     const STRING_ID: &'static str = "minecraft:waxed_exposed_copper_trapdoor";
     const NAME: &'static str = "Waxed Exposed Copper Trapdoor";
     const STACK_SIZE: u8 = 64;
@@ -7849,7 +7849,7 @@ impl ItemDef for WaxedExposedCopperTrapdoor {
 pub struct WaxedWeatheredCopperTrapdoor;
 
 impl ItemDef for WaxedWeatheredCopperTrapdoor {
-    const ID: u32 = 783;
+    const ID: i32 = 783;
     const STRING_ID: &'static str = "minecraft:waxed_weathered_copper_trapdoor";
     const NAME: &'static str = "Waxed Weathered Copper Trapdoor";
     const STACK_SIZE: u8 = 64;
@@ -7859,7 +7859,7 @@ impl ItemDef for WaxedWeatheredCopperTrapdoor {
 pub struct WaxedOxidizedCopperTrapdoor;
 
 impl ItemDef for WaxedOxidizedCopperTrapdoor {
-    const ID: u32 = 784;
+    const ID: i32 = 784;
     const STRING_ID: &'static str = "minecraft:waxed_oxidized_copper_trapdoor";
     const NAME: &'static str = "Waxed Oxidized Copper Trapdoor";
     const STACK_SIZE: u8 = 64;
@@ -7869,7 +7869,7 @@ impl ItemDef for WaxedOxidizedCopperTrapdoor {
 pub struct FenceGate;
 
 impl ItemDef for FenceGate {
-    const ID: u32 = 785;
+    const ID: i32 = 785;
     const STRING_ID: &'static str = "minecraft:fence_gate";
     const NAME: &'static str = "Oak Fence Gate";
     const STACK_SIZE: u8 = 64;
@@ -7879,7 +7879,7 @@ impl ItemDef for FenceGate {
 pub struct SpruceFenceGate;
 
 impl ItemDef for SpruceFenceGate {
-    const ID: u32 = 786;
+    const ID: i32 = 786;
     const STRING_ID: &'static str = "minecraft:spruce_fence_gate";
     const NAME: &'static str = "Spruce Fence Gate";
     const STACK_SIZE: u8 = 64;
@@ -7889,7 +7889,7 @@ impl ItemDef for SpruceFenceGate {
 pub struct BirchFenceGate;
 
 impl ItemDef for BirchFenceGate {
-    const ID: u32 = 787;
+    const ID: i32 = 787;
     const STRING_ID: &'static str = "minecraft:birch_fence_gate";
     const NAME: &'static str = "Birch Fence Gate";
     const STACK_SIZE: u8 = 64;
@@ -7899,7 +7899,7 @@ impl ItemDef for BirchFenceGate {
 pub struct JungleFenceGate;
 
 impl ItemDef for JungleFenceGate {
-    const ID: u32 = 788;
+    const ID: i32 = 788;
     const STRING_ID: &'static str = "minecraft:jungle_fence_gate";
     const NAME: &'static str = "Jungle Fence Gate";
     const STACK_SIZE: u8 = 64;
@@ -7909,7 +7909,7 @@ impl ItemDef for JungleFenceGate {
 pub struct AcaciaFenceGate;
 
 impl ItemDef for AcaciaFenceGate {
-    const ID: u32 = 789;
+    const ID: i32 = 789;
     const STRING_ID: &'static str = "minecraft:acacia_fence_gate";
     const NAME: &'static str = "Acacia Fence Gate";
     const STACK_SIZE: u8 = 64;
@@ -7919,7 +7919,7 @@ impl ItemDef for AcaciaFenceGate {
 pub struct CherryFenceGate;
 
 impl ItemDef for CherryFenceGate {
-    const ID: u32 = 790;
+    const ID: i32 = 790;
     const STRING_ID: &'static str = "minecraft:cherry_fence_gate";
     const NAME: &'static str = "Cherry Fence Gate";
     const STACK_SIZE: u8 = 64;
@@ -7929,7 +7929,7 @@ impl ItemDef for CherryFenceGate {
 pub struct DarkOakFenceGate;
 
 impl ItemDef for DarkOakFenceGate {
-    const ID: u32 = 791;
+    const ID: i32 = 791;
     const STRING_ID: &'static str = "minecraft:dark_oak_fence_gate";
     const NAME: &'static str = "Dark Oak Fence Gate";
     const STACK_SIZE: u8 = 64;
@@ -7939,7 +7939,7 @@ impl ItemDef for DarkOakFenceGate {
 pub struct PaleOakFenceGate;
 
 impl ItemDef for PaleOakFenceGate {
-    const ID: u32 = 792;
+    const ID: i32 = 792;
     const STRING_ID: &'static str = "minecraft:pale_oak_fence_gate";
     const NAME: &'static str = "Pale Oak Fence Gate";
     const STACK_SIZE: u8 = 64;
@@ -7949,7 +7949,7 @@ impl ItemDef for PaleOakFenceGate {
 pub struct MangroveFenceGate;
 
 impl ItemDef for MangroveFenceGate {
-    const ID: u32 = 793;
+    const ID: i32 = 793;
     const STRING_ID: &'static str = "minecraft:mangrove_fence_gate";
     const NAME: &'static str = "Mangrove Fence Gate";
     const STACK_SIZE: u8 = 64;
@@ -7959,7 +7959,7 @@ impl ItemDef for MangroveFenceGate {
 pub struct BambooFenceGate;
 
 impl ItemDef for BambooFenceGate {
-    const ID: u32 = 794;
+    const ID: i32 = 794;
     const STRING_ID: &'static str = "minecraft:bamboo_fence_gate";
     const NAME: &'static str = "Bamboo Fence Gate";
     const STACK_SIZE: u8 = 64;
@@ -7969,7 +7969,7 @@ impl ItemDef for BambooFenceGate {
 pub struct CrimsonFenceGate;
 
 impl ItemDef for CrimsonFenceGate {
-    const ID: u32 = 795;
+    const ID: i32 = 795;
     const STRING_ID: &'static str = "minecraft:crimson_fence_gate";
     const NAME: &'static str = "Crimson Fence Gate";
     const STACK_SIZE: u8 = 64;
@@ -7979,7 +7979,7 @@ impl ItemDef for CrimsonFenceGate {
 pub struct WarpedFenceGate;
 
 impl ItemDef for WarpedFenceGate {
-    const ID: u32 = 796;
+    const ID: i32 = 796;
     const STRING_ID: &'static str = "minecraft:warped_fence_gate";
     const NAME: &'static str = "Warped Fence Gate";
     const STACK_SIZE: u8 = 64;
@@ -7989,7 +7989,7 @@ impl ItemDef for WarpedFenceGate {
 pub struct GoldenRail;
 
 impl ItemDef for GoldenRail {
-    const ID: u32 = 797;
+    const ID: i32 = 797;
     const STRING_ID: &'static str = "minecraft:golden_rail";
     const NAME: &'static str = "Powered Rail";
     const STACK_SIZE: u8 = 64;
@@ -7999,7 +7999,7 @@ impl ItemDef for GoldenRail {
 pub struct DetectorRail;
 
 impl ItemDef for DetectorRail {
-    const ID: u32 = 798;
+    const ID: i32 = 798;
     const STRING_ID: &'static str = "minecraft:detector_rail";
     const NAME: &'static str = "Detector Rail";
     const STACK_SIZE: u8 = 64;
@@ -8009,7 +8009,7 @@ impl ItemDef for DetectorRail {
 pub struct Rail;
 
 impl ItemDef for Rail {
-    const ID: u32 = 799;
+    const ID: i32 = 799;
     const STRING_ID: &'static str = "minecraft:rail";
     const NAME: &'static str = "Rail";
     const STACK_SIZE: u8 = 64;
@@ -8019,7 +8019,7 @@ impl ItemDef for Rail {
 pub struct ActivatorRail;
 
 impl ItemDef for ActivatorRail {
-    const ID: u32 = 800;
+    const ID: i32 = 800;
     const STRING_ID: &'static str = "minecraft:activator_rail";
     const NAME: &'static str = "Activator Rail";
     const STACK_SIZE: u8 = 64;
@@ -8029,7 +8029,7 @@ impl ItemDef for ActivatorRail {
 pub struct Saddle;
 
 impl ItemDef for Saddle {
-    const ID: u32 = 801;
+    const ID: i32 = 801;
     const STRING_ID: &'static str = "minecraft:saddle";
     const NAME: &'static str = "Saddle";
     const STACK_SIZE: u8 = 1;
@@ -8039,7 +8039,7 @@ impl ItemDef for Saddle {
 pub struct WhiteHarness;
 
 impl ItemDef for WhiteHarness {
-    const ID: u32 = 802;
+    const ID: i32 = 802;
     const STRING_ID: &'static str = "minecraft:white_harness";
     const NAME: &'static str = "White Harness";
     const STACK_SIZE: u8 = 1;
@@ -8049,7 +8049,7 @@ impl ItemDef for WhiteHarness {
 pub struct OrangeHarness;
 
 impl ItemDef for OrangeHarness {
-    const ID: u32 = 803;
+    const ID: i32 = 803;
     const STRING_ID: &'static str = "minecraft:orange_harness";
     const NAME: &'static str = "Orange Harness";
     const STACK_SIZE: u8 = 1;
@@ -8059,7 +8059,7 @@ impl ItemDef for OrangeHarness {
 pub struct MagentaHarness;
 
 impl ItemDef for MagentaHarness {
-    const ID: u32 = 804;
+    const ID: i32 = 804;
     const STRING_ID: &'static str = "minecraft:magenta_harness";
     const NAME: &'static str = "Magenta Harness";
     const STACK_SIZE: u8 = 1;
@@ -8069,7 +8069,7 @@ impl ItemDef for MagentaHarness {
 pub struct LightBlueHarness;
 
 impl ItemDef for LightBlueHarness {
-    const ID: u32 = 805;
+    const ID: i32 = 805;
     const STRING_ID: &'static str = "minecraft:light_blue_harness";
     const NAME: &'static str = "Light Blue Harness";
     const STACK_SIZE: u8 = 1;
@@ -8079,7 +8079,7 @@ impl ItemDef for LightBlueHarness {
 pub struct YellowHarness;
 
 impl ItemDef for YellowHarness {
-    const ID: u32 = 806;
+    const ID: i32 = 806;
     const STRING_ID: &'static str = "minecraft:yellow_harness";
     const NAME: &'static str = "Yellow Harness";
     const STACK_SIZE: u8 = 1;
@@ -8089,7 +8089,7 @@ impl ItemDef for YellowHarness {
 pub struct LimeHarness;
 
 impl ItemDef for LimeHarness {
-    const ID: u32 = 807;
+    const ID: i32 = 807;
     const STRING_ID: &'static str = "minecraft:lime_harness";
     const NAME: &'static str = "Lime Harness";
     const STACK_SIZE: u8 = 1;
@@ -8099,7 +8099,7 @@ impl ItemDef for LimeHarness {
 pub struct PinkHarness;
 
 impl ItemDef for PinkHarness {
-    const ID: u32 = 808;
+    const ID: i32 = 808;
     const STRING_ID: &'static str = "minecraft:pink_harness";
     const NAME: &'static str = "Pink Harness";
     const STACK_SIZE: u8 = 1;
@@ -8109,7 +8109,7 @@ impl ItemDef for PinkHarness {
 pub struct GrayHarness;
 
 impl ItemDef for GrayHarness {
-    const ID: u32 = 809;
+    const ID: i32 = 809;
     const STRING_ID: &'static str = "minecraft:gray_harness";
     const NAME: &'static str = "Gray Harness";
     const STACK_SIZE: u8 = 1;
@@ -8119,7 +8119,7 @@ impl ItemDef for GrayHarness {
 pub struct LightGrayHarness;
 
 impl ItemDef for LightGrayHarness {
-    const ID: u32 = 810;
+    const ID: i32 = 810;
     const STRING_ID: &'static str = "minecraft:light_gray_harness";
     const NAME: &'static str = "Light Gray Harness";
     const STACK_SIZE: u8 = 1;
@@ -8129,7 +8129,7 @@ impl ItemDef for LightGrayHarness {
 pub struct CyanHarness;
 
 impl ItemDef for CyanHarness {
-    const ID: u32 = 811;
+    const ID: i32 = 811;
     const STRING_ID: &'static str = "minecraft:cyan_harness";
     const NAME: &'static str = "Cyan Harness";
     const STACK_SIZE: u8 = 1;
@@ -8139,7 +8139,7 @@ impl ItemDef for CyanHarness {
 pub struct PurpleHarness;
 
 impl ItemDef for PurpleHarness {
-    const ID: u32 = 812;
+    const ID: i32 = 812;
     const STRING_ID: &'static str = "minecraft:purple_harness";
     const NAME: &'static str = "Purple Harness";
     const STACK_SIZE: u8 = 1;
@@ -8149,7 +8149,7 @@ impl ItemDef for PurpleHarness {
 pub struct BlueHarness;
 
 impl ItemDef for BlueHarness {
-    const ID: u32 = 813;
+    const ID: i32 = 813;
     const STRING_ID: &'static str = "minecraft:blue_harness";
     const NAME: &'static str = "Blue Harness";
     const STACK_SIZE: u8 = 1;
@@ -8159,7 +8159,7 @@ impl ItemDef for BlueHarness {
 pub struct BrownHarness;
 
 impl ItemDef for BrownHarness {
-    const ID: u32 = 814;
+    const ID: i32 = 814;
     const STRING_ID: &'static str = "minecraft:brown_harness";
     const NAME: &'static str = "Brown Harness";
     const STACK_SIZE: u8 = 1;
@@ -8169,7 +8169,7 @@ impl ItemDef for BrownHarness {
 pub struct GreenHarness;
 
 impl ItemDef for GreenHarness {
-    const ID: u32 = 815;
+    const ID: i32 = 815;
     const STRING_ID: &'static str = "minecraft:green_harness";
     const NAME: &'static str = "Green Harness";
     const STACK_SIZE: u8 = 1;
@@ -8179,7 +8179,7 @@ impl ItemDef for GreenHarness {
 pub struct RedHarness;
 
 impl ItemDef for RedHarness {
-    const ID: u32 = 816;
+    const ID: i32 = 816;
     const STRING_ID: &'static str = "minecraft:red_harness";
     const NAME: &'static str = "Red Harness";
     const STACK_SIZE: u8 = 1;
@@ -8189,7 +8189,7 @@ impl ItemDef for RedHarness {
 pub struct BlackHarness;
 
 impl ItemDef for BlackHarness {
-    const ID: u32 = 817;
+    const ID: i32 = 817;
     const STRING_ID: &'static str = "minecraft:black_harness";
     const NAME: &'static str = "Black Harness";
     const STACK_SIZE: u8 = 1;
@@ -8199,7 +8199,7 @@ impl ItemDef for BlackHarness {
 pub struct Minecart;
 
 impl ItemDef for Minecart {
-    const ID: u32 = 818;
+    const ID: i32 = 818;
     const STRING_ID: &'static str = "minecraft:minecart";
     const NAME: &'static str = "Minecart";
     const STACK_SIZE: u8 = 1;
@@ -8209,7 +8209,7 @@ impl ItemDef for Minecart {
 pub struct ChestMinecart;
 
 impl ItemDef for ChestMinecart {
-    const ID: u32 = 819;
+    const ID: i32 = 819;
     const STRING_ID: &'static str = "minecraft:chest_minecart";
     const NAME: &'static str = "Minecart with Chest";
     const STACK_SIZE: u8 = 1;
@@ -8219,7 +8219,7 @@ impl ItemDef for ChestMinecart {
 pub struct HopperMinecart;
 
 impl ItemDef for HopperMinecart {
-    const ID: u32 = 820;
+    const ID: i32 = 820;
     const STRING_ID: &'static str = "minecraft:hopper_minecart";
     const NAME: &'static str = "Minecart with Furnace";
     const STACK_SIZE: u8 = 1;
@@ -8241,7 +8241,7 @@ impl VariantItem for HopperMinecart {
 pub struct TntMinecart;
 
 impl ItemDef for TntMinecart {
-    const ID: u32 = 821;
+    const ID: i32 = 821;
     const STRING_ID: &'static str = "minecraft:tnt_minecart";
     const NAME: &'static str = "Minecart with TNT";
     const STACK_SIZE: u8 = 1;
@@ -8251,7 +8251,7 @@ impl ItemDef for TntMinecart {
 pub struct CarrotOnAStick;
 
 impl ItemDef for CarrotOnAStick {
-    const ID: u32 = 823;
+    const ID: i32 = 823;
     const STRING_ID: &'static str = "minecraft:carrot_on_a_stick";
     const NAME: &'static str = "Carrot on a Stick";
     const STACK_SIZE: u8 = 1;
@@ -8274,7 +8274,7 @@ impl EnchantableItem for CarrotOnAStick {
 pub struct WarpedFungusOnAStick;
 
 impl ItemDef for WarpedFungusOnAStick {
-    const ID: u32 = 824;
+    const ID: i32 = 824;
     const STRING_ID: &'static str = "minecraft:warped_fungus_on_a_stick";
     const NAME: &'static str = "Warped Fungus on a Stick";
     const STACK_SIZE: u8 = 1;
@@ -8297,7 +8297,7 @@ impl EnchantableItem for WarpedFungusOnAStick {
 pub struct PhantomMembrane;
 
 impl ItemDef for PhantomMembrane {
-    const ID: u32 = 825;
+    const ID: i32 = 825;
     const STRING_ID: &'static str = "minecraft:phantom_membrane";
     const NAME: &'static str = "Phantom Membrane";
     const STACK_SIZE: u8 = 64;
@@ -8307,7 +8307,7 @@ impl ItemDef for PhantomMembrane {
 pub struct Elytra;
 
 impl ItemDef for Elytra {
-    const ID: u32 = 826;
+    const ID: i32 = 826;
     const STRING_ID: &'static str = "minecraft:elytra";
     const NAME: &'static str = "Elytra";
     const STACK_SIZE: u8 = 1;
@@ -8318,7 +8318,7 @@ impl DurableItem for Elytra {
 }
 
 impl RepairableItem for Elytra {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[825]
     }
 }
@@ -8337,7 +8337,7 @@ impl EnchantableItem for Elytra {
 pub struct OakBoat;
 
 impl ItemDef for OakBoat {
-    const ID: u32 = 827;
+    const ID: i32 = 827;
     const STRING_ID: &'static str = "minecraft:oak_boat";
     const NAME: &'static str = "Oak Boat";
     const STACK_SIZE: u8 = 1;
@@ -8347,7 +8347,7 @@ impl ItemDef for OakBoat {
 pub struct OakChestBoat;
 
 impl ItemDef for OakChestBoat {
-    const ID: u32 = 828;
+    const ID: i32 = 828;
     const STRING_ID: &'static str = "minecraft:oak_chest_boat";
     const NAME: &'static str = "Oak Boat with Chest";
     const STACK_SIZE: u8 = 1;
@@ -8357,7 +8357,7 @@ impl ItemDef for OakChestBoat {
 pub struct SpruceBoat;
 
 impl ItemDef for SpruceBoat {
-    const ID: u32 = 829;
+    const ID: i32 = 829;
     const STRING_ID: &'static str = "minecraft:spruce_boat";
     const NAME: &'static str = "Spruce Boat";
     const STACK_SIZE: u8 = 1;
@@ -8367,7 +8367,7 @@ impl ItemDef for SpruceBoat {
 pub struct SpruceChestBoat;
 
 impl ItemDef for SpruceChestBoat {
-    const ID: u32 = 830;
+    const ID: i32 = 830;
     const STRING_ID: &'static str = "minecraft:spruce_chest_boat";
     const NAME: &'static str = "Spruce Boat with Chest";
     const STACK_SIZE: u8 = 1;
@@ -8377,7 +8377,7 @@ impl ItemDef for SpruceChestBoat {
 pub struct BirchBoat;
 
 impl ItemDef for BirchBoat {
-    const ID: u32 = 831;
+    const ID: i32 = 831;
     const STRING_ID: &'static str = "minecraft:birch_boat";
     const NAME: &'static str = "Birch Boat";
     const STACK_SIZE: u8 = 1;
@@ -8387,7 +8387,7 @@ impl ItemDef for BirchBoat {
 pub struct BirchChestBoat;
 
 impl ItemDef for BirchChestBoat {
-    const ID: u32 = 832;
+    const ID: i32 = 832;
     const STRING_ID: &'static str = "minecraft:birch_chest_boat";
     const NAME: &'static str = "Birch Boat with Chest";
     const STACK_SIZE: u8 = 1;
@@ -8397,7 +8397,7 @@ impl ItemDef for BirchChestBoat {
 pub struct JungleBoat;
 
 impl ItemDef for JungleBoat {
-    const ID: u32 = 833;
+    const ID: i32 = 833;
     const STRING_ID: &'static str = "minecraft:jungle_boat";
     const NAME: &'static str = "Jungle Boat";
     const STACK_SIZE: u8 = 1;
@@ -8407,7 +8407,7 @@ impl ItemDef for JungleBoat {
 pub struct JungleChestBoat;
 
 impl ItemDef for JungleChestBoat {
-    const ID: u32 = 834;
+    const ID: i32 = 834;
     const STRING_ID: &'static str = "minecraft:jungle_chest_boat";
     const NAME: &'static str = "Jungle Boat with Chest";
     const STACK_SIZE: u8 = 1;
@@ -8417,7 +8417,7 @@ impl ItemDef for JungleChestBoat {
 pub struct AcaciaBoat;
 
 impl ItemDef for AcaciaBoat {
-    const ID: u32 = 835;
+    const ID: i32 = 835;
     const STRING_ID: &'static str = "minecraft:acacia_boat";
     const NAME: &'static str = "Acacia Boat";
     const STACK_SIZE: u8 = 1;
@@ -8427,7 +8427,7 @@ impl ItemDef for AcaciaBoat {
 pub struct AcaciaChestBoat;
 
 impl ItemDef for AcaciaChestBoat {
-    const ID: u32 = 836;
+    const ID: i32 = 836;
     const STRING_ID: &'static str = "minecraft:acacia_chest_boat";
     const NAME: &'static str = "Acacia Boat with Chest";
     const STACK_SIZE: u8 = 1;
@@ -8437,7 +8437,7 @@ impl ItemDef for AcaciaChestBoat {
 pub struct CherryBoat;
 
 impl ItemDef for CherryBoat {
-    const ID: u32 = 837;
+    const ID: i32 = 837;
     const STRING_ID: &'static str = "minecraft:cherry_boat";
     const NAME: &'static str = "Cherry Boat";
     const STACK_SIZE: u8 = 1;
@@ -8447,7 +8447,7 @@ impl ItemDef for CherryBoat {
 pub struct CherryChestBoat;
 
 impl ItemDef for CherryChestBoat {
-    const ID: u32 = 838;
+    const ID: i32 = 838;
     const STRING_ID: &'static str = "minecraft:cherry_chest_boat";
     const NAME: &'static str = "Cherry Boat with Chest";
     const STACK_SIZE: u8 = 1;
@@ -8457,7 +8457,7 @@ impl ItemDef for CherryChestBoat {
 pub struct DarkOakBoat;
 
 impl ItemDef for DarkOakBoat {
-    const ID: u32 = 839;
+    const ID: i32 = 839;
     const STRING_ID: &'static str = "minecraft:dark_oak_boat";
     const NAME: &'static str = "Dark Oak Boat";
     const STACK_SIZE: u8 = 1;
@@ -8467,7 +8467,7 @@ impl ItemDef for DarkOakBoat {
 pub struct DarkOakChestBoat;
 
 impl ItemDef for DarkOakChestBoat {
-    const ID: u32 = 840;
+    const ID: i32 = 840;
     const STRING_ID: &'static str = "minecraft:dark_oak_chest_boat";
     const NAME: &'static str = "Dark Oak Boat with Chest";
     const STACK_SIZE: u8 = 1;
@@ -8477,7 +8477,7 @@ impl ItemDef for DarkOakChestBoat {
 pub struct PaleOakBoat;
 
 impl ItemDef for PaleOakBoat {
-    const ID: u32 = 841;
+    const ID: i32 = 841;
     const STRING_ID: &'static str = "minecraft:pale_oak_boat";
     const NAME: &'static str = "Pale Oak Boat";
     const STACK_SIZE: u8 = 1;
@@ -8487,7 +8487,7 @@ impl ItemDef for PaleOakBoat {
 pub struct PaleOakChestBoat;
 
 impl ItemDef for PaleOakChestBoat {
-    const ID: u32 = 842;
+    const ID: i32 = 842;
     const STRING_ID: &'static str = "minecraft:pale_oak_chest_boat";
     const NAME: &'static str = "Pale Oak Boat with Chest";
     const STACK_SIZE: u8 = 1;
@@ -8497,7 +8497,7 @@ impl ItemDef for PaleOakChestBoat {
 pub struct MangroveBoat;
 
 impl ItemDef for MangroveBoat {
-    const ID: u32 = 843;
+    const ID: i32 = 843;
     const STRING_ID: &'static str = "minecraft:mangrove_boat";
     const NAME: &'static str = "Mangrove Boat";
     const STACK_SIZE: u8 = 1;
@@ -8507,7 +8507,7 @@ impl ItemDef for MangroveBoat {
 pub struct MangroveChestBoat;
 
 impl ItemDef for MangroveChestBoat {
-    const ID: u32 = 844;
+    const ID: i32 = 844;
     const STRING_ID: &'static str = "minecraft:mangrove_chest_boat";
     const NAME: &'static str = "Mangrove Boat with Chest";
     const STACK_SIZE: u8 = 1;
@@ -8517,7 +8517,7 @@ impl ItemDef for MangroveChestBoat {
 pub struct BambooRaft;
 
 impl ItemDef for BambooRaft {
-    const ID: u32 = 845;
+    const ID: i32 = 845;
     const STRING_ID: &'static str = "minecraft:bamboo_raft";
     const NAME: &'static str = "Bamboo Raft";
     const STACK_SIZE: u8 = 1;
@@ -8527,7 +8527,7 @@ impl ItemDef for BambooRaft {
 pub struct BambooChestRaft;
 
 impl ItemDef for BambooChestRaft {
-    const ID: u32 = 846;
+    const ID: i32 = 846;
     const STRING_ID: &'static str = "minecraft:bamboo_chest_raft";
     const NAME: &'static str = "Bamboo Raft with Chest";
     const STACK_SIZE: u8 = 1;
@@ -8537,7 +8537,7 @@ impl ItemDef for BambooChestRaft {
 pub struct StructureBlock;
 
 impl ItemDef for StructureBlock {
-    const ID: u32 = 847;
+    const ID: i32 = 847;
     const STRING_ID: &'static str = "minecraft:structure_block";
     const NAME: &'static str = "Structure Block";
     const STACK_SIZE: u8 = 64;
@@ -8547,7 +8547,7 @@ impl ItemDef for StructureBlock {
 pub struct Jigsaw;
 
 impl ItemDef for Jigsaw {
-    const ID: u32 = 848;
+    const ID: i32 = 848;
     const STRING_ID: &'static str = "minecraft:jigsaw";
     const NAME: &'static str = "Jigsaw Block";
     const STACK_SIZE: u8 = 64;
@@ -8557,7 +8557,7 @@ impl ItemDef for Jigsaw {
 pub struct Unknown;
 
 impl ItemDef for Unknown {
-    const ID: u32 = 849;
+    const ID: i32 = 849;
     const STRING_ID: &'static str = "minecraft:unknown";
     const NAME: &'static str = "Test Block";
     const STACK_SIZE: u8 = 64;
@@ -8579,7 +8579,7 @@ impl VariantItem for Unknown {
 pub struct TurtleHelmet;
 
 impl ItemDef for TurtleHelmet {
-    const ID: u32 = 851;
+    const ID: i32 = 851;
     const STRING_ID: &'static str = "minecraft:turtle_helmet";
     const NAME: &'static str = "Turtle Shell";
     const STACK_SIZE: u8 = 1;
@@ -8590,7 +8590,7 @@ impl DurableItem for TurtleHelmet {
 }
 
 impl RepairableItem for TurtleHelmet {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[852]
     }
 }
@@ -8611,7 +8611,7 @@ impl EnchantableItem for TurtleHelmet {
 pub struct TurtleScute;
 
 impl ItemDef for TurtleScute {
-    const ID: u32 = 852;
+    const ID: i32 = 852;
     const STRING_ID: &'static str = "minecraft:turtle_scute";
     const NAME: &'static str = "Turtle Scute";
     const STACK_SIZE: u8 = 64;
@@ -8621,7 +8621,7 @@ impl ItemDef for TurtleScute {
 pub struct ArmadilloScute;
 
 impl ItemDef for ArmadilloScute {
-    const ID: u32 = 853;
+    const ID: i32 = 853;
     const STRING_ID: &'static str = "minecraft:armadillo_scute";
     const NAME: &'static str = "Armadillo Scute";
     const STACK_SIZE: u8 = 64;
@@ -8631,7 +8631,7 @@ impl ItemDef for ArmadilloScute {
 pub struct WolfArmor;
 
 impl ItemDef for WolfArmor {
-    const ID: u32 = 854;
+    const ID: i32 = 854;
     const STRING_ID: &'static str = "minecraft:wolf_armor";
     const NAME: &'static str = "Wolf Armor";
     const STACK_SIZE: u8 = 1;
@@ -8642,7 +8642,7 @@ impl DurableItem for WolfArmor {
 }
 
 impl RepairableItem for WolfArmor {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[853]
     }
 }
@@ -8651,7 +8651,7 @@ impl RepairableItem for WolfArmor {
 pub struct FlintAndSteel;
 
 impl ItemDef for FlintAndSteel {
-    const ID: u32 = 855;
+    const ID: i32 = 855;
     const STRING_ID: &'static str = "minecraft:flint_and_steel";
     const NAME: &'static str = "Flint and Steel";
     const STACK_SIZE: u8 = 1;
@@ -8674,7 +8674,7 @@ impl EnchantableItem for FlintAndSteel {
 pub struct Bowl;
 
 impl ItemDef for Bowl {
-    const ID: u32 = 856;
+    const ID: i32 = 856;
     const STRING_ID: &'static str = "minecraft:bowl";
     const NAME: &'static str = "Bowl";
     const STACK_SIZE: u8 = 64;
@@ -8684,7 +8684,7 @@ impl ItemDef for Bowl {
 pub struct Apple;
 
 impl ItemDef for Apple {
-    const ID: u32 = 857;
+    const ID: i32 = 857;
     const STRING_ID: &'static str = "minecraft:apple";
     const NAME: &'static str = "Apple";
     const STACK_SIZE: u8 = 64;
@@ -8694,7 +8694,7 @@ impl ItemDef for Apple {
 pub struct Bow;
 
 impl ItemDef for Bow {
-    const ID: u32 = 858;
+    const ID: i32 = 858;
     const STRING_ID: &'static str = "minecraft:bow";
     const NAME: &'static str = "Bow";
     const STACK_SIZE: u8 = 1;
@@ -8718,7 +8718,7 @@ impl EnchantableItem for Bow {
 pub struct Arrow;
 
 impl ItemDef for Arrow {
-    const ID: u32 = 859;
+    const ID: i32 = 859;
     const STRING_ID: &'static str = "minecraft:arrow";
     const NAME: &'static str = "Arrow";
     const STACK_SIZE: u8 = 64;
@@ -8749,7 +8749,7 @@ impl VariantItem for Arrow {
 pub struct Coal;
 
 impl ItemDef for Coal {
-    const ID: u32 = 860;
+    const ID: i32 = 860;
     const STRING_ID: &'static str = "minecraft:coal";
     const NAME: &'static str = "Coal";
     const STACK_SIZE: u8 = 64;
@@ -8759,7 +8759,7 @@ impl ItemDef for Coal {
 pub struct Charcoal;
 
 impl ItemDef for Charcoal {
-    const ID: u32 = 861;
+    const ID: i32 = 861;
     const STRING_ID: &'static str = "minecraft:charcoal";
     const NAME: &'static str = "Charcoal";
     const STACK_SIZE: u8 = 64;
@@ -8769,7 +8769,7 @@ impl ItemDef for Charcoal {
 pub struct Diamond;
 
 impl ItemDef for Diamond {
-    const ID: u32 = 862;
+    const ID: i32 = 862;
     const STRING_ID: &'static str = "minecraft:diamond";
     const NAME: &'static str = "Diamond";
     const STACK_SIZE: u8 = 64;
@@ -8779,7 +8779,7 @@ impl ItemDef for Diamond {
 pub struct Emerald;
 
 impl ItemDef for Emerald {
-    const ID: u32 = 863;
+    const ID: i32 = 863;
     const STRING_ID: &'static str = "minecraft:emerald";
     const NAME: &'static str = "Emerald";
     const STACK_SIZE: u8 = 64;
@@ -8789,7 +8789,7 @@ impl ItemDef for Emerald {
 pub struct LapisLazuli;
 
 impl ItemDef for LapisLazuli {
-    const ID: u32 = 864;
+    const ID: i32 = 864;
     const STRING_ID: &'static str = "minecraft:lapis_lazuli";
     const NAME: &'static str = "Lapis Lazuli";
     const STACK_SIZE: u8 = 64;
@@ -8799,7 +8799,7 @@ impl ItemDef for LapisLazuli {
 pub struct Quartz;
 
 impl ItemDef for Quartz {
-    const ID: u32 = 865;
+    const ID: i32 = 865;
     const STRING_ID: &'static str = "minecraft:quartz";
     const NAME: &'static str = "Nether Quartz";
     const STACK_SIZE: u8 = 64;
@@ -8809,7 +8809,7 @@ impl ItemDef for Quartz {
 pub struct AmethystShard;
 
 impl ItemDef for AmethystShard {
-    const ID: u32 = 866;
+    const ID: i32 = 866;
     const STRING_ID: &'static str = "minecraft:amethyst_shard";
     const NAME: &'static str = "Amethyst Shard";
     const STACK_SIZE: u8 = 64;
@@ -8819,7 +8819,7 @@ impl ItemDef for AmethystShard {
 pub struct RawIron;
 
 impl ItemDef for RawIron {
-    const ID: u32 = 867;
+    const ID: i32 = 867;
     const STRING_ID: &'static str = "minecraft:raw_iron";
     const NAME: &'static str = "Raw Iron";
     const STACK_SIZE: u8 = 64;
@@ -8829,7 +8829,7 @@ impl ItemDef for RawIron {
 pub struct IronIngot;
 
 impl ItemDef for IronIngot {
-    const ID: u32 = 868;
+    const ID: i32 = 868;
     const STRING_ID: &'static str = "minecraft:iron_ingot";
     const NAME: &'static str = "Iron Ingot";
     const STACK_SIZE: u8 = 64;
@@ -8839,7 +8839,7 @@ impl ItemDef for IronIngot {
 pub struct RawCopper;
 
 impl ItemDef for RawCopper {
-    const ID: u32 = 869;
+    const ID: i32 = 869;
     const STRING_ID: &'static str = "minecraft:raw_copper";
     const NAME: &'static str = "Raw Copper";
     const STACK_SIZE: u8 = 64;
@@ -8849,7 +8849,7 @@ impl ItemDef for RawCopper {
 pub struct CopperIngot;
 
 impl ItemDef for CopperIngot {
-    const ID: u32 = 870;
+    const ID: i32 = 870;
     const STRING_ID: &'static str = "minecraft:copper_ingot";
     const NAME: &'static str = "Copper Ingot";
     const STACK_SIZE: u8 = 64;
@@ -8859,7 +8859,7 @@ impl ItemDef for CopperIngot {
 pub struct RawGold;
 
 impl ItemDef for RawGold {
-    const ID: u32 = 871;
+    const ID: i32 = 871;
     const STRING_ID: &'static str = "minecraft:raw_gold";
     const NAME: &'static str = "Raw Gold";
     const STACK_SIZE: u8 = 64;
@@ -8869,7 +8869,7 @@ impl ItemDef for RawGold {
 pub struct GoldIngot;
 
 impl ItemDef for GoldIngot {
-    const ID: u32 = 872;
+    const ID: i32 = 872;
     const STRING_ID: &'static str = "minecraft:gold_ingot";
     const NAME: &'static str = "Gold Ingot";
     const STACK_SIZE: u8 = 64;
@@ -8879,7 +8879,7 @@ impl ItemDef for GoldIngot {
 pub struct NetheriteIngot;
 
 impl ItemDef for NetheriteIngot {
-    const ID: u32 = 873;
+    const ID: i32 = 873;
     const STRING_ID: &'static str = "minecraft:netherite_ingot";
     const NAME: &'static str = "Netherite Ingot";
     const STACK_SIZE: u8 = 64;
@@ -8889,7 +8889,7 @@ impl ItemDef for NetheriteIngot {
 pub struct NetheriteScrap;
 
 impl ItemDef for NetheriteScrap {
-    const ID: u32 = 874;
+    const ID: i32 = 874;
     const STRING_ID: &'static str = "minecraft:netherite_scrap";
     const NAME: &'static str = "Netherite Scrap";
     const STACK_SIZE: u8 = 64;
@@ -8899,7 +8899,7 @@ impl ItemDef for NetheriteScrap {
 pub struct WoodenSword;
 
 impl ItemDef for WoodenSword {
-    const ID: u32 = 875;
+    const ID: i32 = 875;
     const STRING_ID: &'static str = "minecraft:wooden_sword";
     const NAME: &'static str = "Wooden Sword";
     const STACK_SIZE: u8 = 1;
@@ -8910,7 +8910,7 @@ impl DurableItem for WoodenSword {
 }
 
 impl RepairableItem for WoodenSword {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
     }
 }
@@ -8930,7 +8930,7 @@ impl EnchantableItem for WoodenSword {
 pub struct WoodenShovel;
 
 impl ItemDef for WoodenShovel {
-    const ID: u32 = 876;
+    const ID: i32 = 876;
     const STRING_ID: &'static str = "minecraft:wooden_shovel";
     const NAME: &'static str = "Wooden Shovel";
     const STACK_SIZE: u8 = 1;
@@ -8941,7 +8941,7 @@ impl DurableItem for WoodenShovel {
 }
 
 impl RepairableItem for WoodenShovel {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
     }
 }
@@ -8959,7 +8959,7 @@ impl EnchantableItem for WoodenShovel {
 pub struct WoodenPickaxe;
 
 impl ItemDef for WoodenPickaxe {
-    const ID: u32 = 877;
+    const ID: i32 = 877;
     const STRING_ID: &'static str = "minecraft:wooden_pickaxe";
     const NAME: &'static str = "Wooden Pickaxe";
     const STACK_SIZE: u8 = 1;
@@ -8970,7 +8970,7 @@ impl DurableItem for WoodenPickaxe {
 }
 
 impl RepairableItem for WoodenPickaxe {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
     }
 }
@@ -8988,7 +8988,7 @@ impl EnchantableItem for WoodenPickaxe {
 pub struct WoodenAxe;
 
 impl ItemDef for WoodenAxe {
-    const ID: u32 = 878;
+    const ID: i32 = 878;
     const STRING_ID: &'static str = "minecraft:wooden_axe";
     const NAME: &'static str = "Wooden Axe";
     const STACK_SIZE: u8 = 1;
@@ -8999,7 +8999,7 @@ impl DurableItem for WoodenAxe {
 }
 
 impl RepairableItem for WoodenAxe {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
     }
 }
@@ -9018,7 +9018,7 @@ impl EnchantableItem for WoodenAxe {
 pub struct WoodenHoe;
 
 impl ItemDef for WoodenHoe {
-    const ID: u32 = 879;
+    const ID: i32 = 879;
     const STRING_ID: &'static str = "minecraft:wooden_hoe";
     const NAME: &'static str = "Wooden Hoe";
     const STACK_SIZE: u8 = 1;
@@ -9029,7 +9029,7 @@ impl DurableItem for WoodenHoe {
 }
 
 impl RepairableItem for WoodenHoe {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
     }
 }
@@ -9047,7 +9047,7 @@ impl EnchantableItem for WoodenHoe {
 pub struct StoneSword;
 
 impl ItemDef for StoneSword {
-    const ID: u32 = 880;
+    const ID: i32 = 880;
     const STRING_ID: &'static str = "minecraft:stone_sword";
     const NAME: &'static str = "Stone Sword";
     const STACK_SIZE: u8 = 1;
@@ -9058,7 +9058,7 @@ impl DurableItem for StoneSword {
 }
 
 impl RepairableItem for StoneSword {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[9, 35, 1312]
     }
 }
@@ -9078,7 +9078,7 @@ impl EnchantableItem for StoneSword {
 pub struct StoneShovel;
 
 impl ItemDef for StoneShovel {
-    const ID: u32 = 881;
+    const ID: i32 = 881;
     const STRING_ID: &'static str = "minecraft:stone_shovel";
     const NAME: &'static str = "Stone Shovel";
     const STACK_SIZE: u8 = 1;
@@ -9089,7 +9089,7 @@ impl DurableItem for StoneShovel {
 }
 
 impl RepairableItem for StoneShovel {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[9, 35, 1312]
     }
 }
@@ -9107,7 +9107,7 @@ impl EnchantableItem for StoneShovel {
 pub struct StonePickaxe;
 
 impl ItemDef for StonePickaxe {
-    const ID: u32 = 882;
+    const ID: i32 = 882;
     const STRING_ID: &'static str = "minecraft:stone_pickaxe";
     const NAME: &'static str = "Stone Pickaxe";
     const STACK_SIZE: u8 = 1;
@@ -9118,7 +9118,7 @@ impl DurableItem for StonePickaxe {
 }
 
 impl RepairableItem for StonePickaxe {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[9, 35, 1312]
     }
 }
@@ -9136,7 +9136,7 @@ impl EnchantableItem for StonePickaxe {
 pub struct StoneAxe;
 
 impl ItemDef for StoneAxe {
-    const ID: u32 = 883;
+    const ID: i32 = 883;
     const STRING_ID: &'static str = "minecraft:stone_axe";
     const NAME: &'static str = "Stone Axe";
     const STACK_SIZE: u8 = 1;
@@ -9147,7 +9147,7 @@ impl DurableItem for StoneAxe {
 }
 
 impl RepairableItem for StoneAxe {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[9, 35, 1312]
     }
 }
@@ -9166,7 +9166,7 @@ impl EnchantableItem for StoneAxe {
 pub struct StoneHoe;
 
 impl ItemDef for StoneHoe {
-    const ID: u32 = 884;
+    const ID: i32 = 884;
     const STRING_ID: &'static str = "minecraft:stone_hoe";
     const NAME: &'static str = "Stone Hoe";
     const STACK_SIZE: u8 = 1;
@@ -9177,7 +9177,7 @@ impl DurableItem for StoneHoe {
 }
 
 impl RepairableItem for StoneHoe {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[9, 35, 1312]
     }
 }
@@ -9195,7 +9195,7 @@ impl EnchantableItem for StoneHoe {
 pub struct GoldenSword;
 
 impl ItemDef for GoldenSword {
-    const ID: u32 = 885;
+    const ID: i32 = 885;
     const STRING_ID: &'static str = "minecraft:golden_sword";
     const NAME: &'static str = "Golden Sword";
     const STACK_SIZE: u8 = 1;
@@ -9206,7 +9206,7 @@ impl DurableItem for GoldenSword {
 }
 
 impl RepairableItem for GoldenSword {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[872]
     }
 }
@@ -9226,7 +9226,7 @@ impl EnchantableItem for GoldenSword {
 pub struct GoldenShovel;
 
 impl ItemDef for GoldenShovel {
-    const ID: u32 = 886;
+    const ID: i32 = 886;
     const STRING_ID: &'static str = "minecraft:golden_shovel";
     const NAME: &'static str = "Golden Shovel";
     const STACK_SIZE: u8 = 1;
@@ -9237,7 +9237,7 @@ impl DurableItem for GoldenShovel {
 }
 
 impl RepairableItem for GoldenShovel {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[872]
     }
 }
@@ -9255,7 +9255,7 @@ impl EnchantableItem for GoldenShovel {
 pub struct GoldenPickaxe;
 
 impl ItemDef for GoldenPickaxe {
-    const ID: u32 = 887;
+    const ID: i32 = 887;
     const STRING_ID: &'static str = "minecraft:golden_pickaxe";
     const NAME: &'static str = "Golden Pickaxe";
     const STACK_SIZE: u8 = 1;
@@ -9266,7 +9266,7 @@ impl DurableItem for GoldenPickaxe {
 }
 
 impl RepairableItem for GoldenPickaxe {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[872]
     }
 }
@@ -9284,7 +9284,7 @@ impl EnchantableItem for GoldenPickaxe {
 pub struct GoldenAxe;
 
 impl ItemDef for GoldenAxe {
-    const ID: u32 = 888;
+    const ID: i32 = 888;
     const STRING_ID: &'static str = "minecraft:golden_axe";
     const NAME: &'static str = "Golden Axe";
     const STACK_SIZE: u8 = 1;
@@ -9295,7 +9295,7 @@ impl DurableItem for GoldenAxe {
 }
 
 impl RepairableItem for GoldenAxe {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[872]
     }
 }
@@ -9314,7 +9314,7 @@ impl EnchantableItem for GoldenAxe {
 pub struct GoldenHoe;
 
 impl ItemDef for GoldenHoe {
-    const ID: u32 = 889;
+    const ID: i32 = 889;
     const STRING_ID: &'static str = "minecraft:golden_hoe";
     const NAME: &'static str = "Golden Hoe";
     const STACK_SIZE: u8 = 1;
@@ -9325,7 +9325,7 @@ impl DurableItem for GoldenHoe {
 }
 
 impl RepairableItem for GoldenHoe {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[872]
     }
 }
@@ -9343,7 +9343,7 @@ impl EnchantableItem for GoldenHoe {
 pub struct IronSword;
 
 impl ItemDef for IronSword {
-    const ID: u32 = 890;
+    const ID: i32 = 890;
     const STRING_ID: &'static str = "minecraft:iron_sword";
     const NAME: &'static str = "Iron Sword";
     const STACK_SIZE: u8 = 1;
@@ -9354,7 +9354,7 @@ impl DurableItem for IronSword {
 }
 
 impl RepairableItem for IronSword {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[868]
     }
 }
@@ -9374,7 +9374,7 @@ impl EnchantableItem for IronSword {
 pub struct IronShovel;
 
 impl ItemDef for IronShovel {
-    const ID: u32 = 891;
+    const ID: i32 = 891;
     const STRING_ID: &'static str = "minecraft:iron_shovel";
     const NAME: &'static str = "Iron Shovel";
     const STACK_SIZE: u8 = 1;
@@ -9385,7 +9385,7 @@ impl DurableItem for IronShovel {
 }
 
 impl RepairableItem for IronShovel {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[868]
     }
 }
@@ -9403,7 +9403,7 @@ impl EnchantableItem for IronShovel {
 pub struct IronPickaxe;
 
 impl ItemDef for IronPickaxe {
-    const ID: u32 = 892;
+    const ID: i32 = 892;
     const STRING_ID: &'static str = "minecraft:iron_pickaxe";
     const NAME: &'static str = "Iron Pickaxe";
     const STACK_SIZE: u8 = 1;
@@ -9414,7 +9414,7 @@ impl DurableItem for IronPickaxe {
 }
 
 impl RepairableItem for IronPickaxe {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[868]
     }
 }
@@ -9432,7 +9432,7 @@ impl EnchantableItem for IronPickaxe {
 pub struct IronAxe;
 
 impl ItemDef for IronAxe {
-    const ID: u32 = 893;
+    const ID: i32 = 893;
     const STRING_ID: &'static str = "minecraft:iron_axe";
     const NAME: &'static str = "Iron Axe";
     const STACK_SIZE: u8 = 1;
@@ -9443,7 +9443,7 @@ impl DurableItem for IronAxe {
 }
 
 impl RepairableItem for IronAxe {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[868]
     }
 }
@@ -9462,7 +9462,7 @@ impl EnchantableItem for IronAxe {
 pub struct IronHoe;
 
 impl ItemDef for IronHoe {
-    const ID: u32 = 894;
+    const ID: i32 = 894;
     const STRING_ID: &'static str = "minecraft:iron_hoe";
     const NAME: &'static str = "Iron Hoe";
     const STACK_SIZE: u8 = 1;
@@ -9473,7 +9473,7 @@ impl DurableItem for IronHoe {
 }
 
 impl RepairableItem for IronHoe {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[868]
     }
 }
@@ -9491,7 +9491,7 @@ impl EnchantableItem for IronHoe {
 pub struct DiamondSword;
 
 impl ItemDef for DiamondSword {
-    const ID: u32 = 895;
+    const ID: i32 = 895;
     const STRING_ID: &'static str = "minecraft:diamond_sword";
     const NAME: &'static str = "Diamond Sword";
     const STACK_SIZE: u8 = 1;
@@ -9502,7 +9502,7 @@ impl DurableItem for DiamondSword {
 }
 
 impl RepairableItem for DiamondSword {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[862]
     }
 }
@@ -9522,7 +9522,7 @@ impl EnchantableItem for DiamondSword {
 pub struct DiamondShovel;
 
 impl ItemDef for DiamondShovel {
-    const ID: u32 = 896;
+    const ID: i32 = 896;
     const STRING_ID: &'static str = "minecraft:diamond_shovel";
     const NAME: &'static str = "Diamond Shovel";
     const STACK_SIZE: u8 = 1;
@@ -9533,7 +9533,7 @@ impl DurableItem for DiamondShovel {
 }
 
 impl RepairableItem for DiamondShovel {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[862]
     }
 }
@@ -9551,7 +9551,7 @@ impl EnchantableItem for DiamondShovel {
 pub struct DiamondPickaxe;
 
 impl ItemDef for DiamondPickaxe {
-    const ID: u32 = 897;
+    const ID: i32 = 897;
     const STRING_ID: &'static str = "minecraft:diamond_pickaxe";
     const NAME: &'static str = "Diamond Pickaxe";
     const STACK_SIZE: u8 = 1;
@@ -9562,7 +9562,7 @@ impl DurableItem for DiamondPickaxe {
 }
 
 impl RepairableItem for DiamondPickaxe {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[862]
     }
 }
@@ -9580,7 +9580,7 @@ impl EnchantableItem for DiamondPickaxe {
 pub struct DiamondAxe;
 
 impl ItemDef for DiamondAxe {
-    const ID: u32 = 898;
+    const ID: i32 = 898;
     const STRING_ID: &'static str = "minecraft:diamond_axe";
     const NAME: &'static str = "Diamond Axe";
     const STACK_SIZE: u8 = 1;
@@ -9591,7 +9591,7 @@ impl DurableItem for DiamondAxe {
 }
 
 impl RepairableItem for DiamondAxe {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[862]
     }
 }
@@ -9610,7 +9610,7 @@ impl EnchantableItem for DiamondAxe {
 pub struct DiamondHoe;
 
 impl ItemDef for DiamondHoe {
-    const ID: u32 = 899;
+    const ID: i32 = 899;
     const STRING_ID: &'static str = "minecraft:diamond_hoe";
     const NAME: &'static str = "Diamond Hoe";
     const STACK_SIZE: u8 = 1;
@@ -9621,7 +9621,7 @@ impl DurableItem for DiamondHoe {
 }
 
 impl RepairableItem for DiamondHoe {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[862]
     }
 }
@@ -9639,7 +9639,7 @@ impl EnchantableItem for DiamondHoe {
 pub struct NetheriteSword;
 
 impl ItemDef for NetheriteSword {
-    const ID: u32 = 900;
+    const ID: i32 = 900;
     const STRING_ID: &'static str = "minecraft:netherite_sword";
     const NAME: &'static str = "Netherite Sword";
     const STACK_SIZE: u8 = 1;
@@ -9650,7 +9650,7 @@ impl DurableItem for NetheriteSword {
 }
 
 impl RepairableItem for NetheriteSword {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[873]
     }
 }
@@ -9670,7 +9670,7 @@ impl EnchantableItem for NetheriteSword {
 pub struct NetheriteShovel;
 
 impl ItemDef for NetheriteShovel {
-    const ID: u32 = 901;
+    const ID: i32 = 901;
     const STRING_ID: &'static str = "minecraft:netherite_shovel";
     const NAME: &'static str = "Netherite Shovel";
     const STACK_SIZE: u8 = 1;
@@ -9681,7 +9681,7 @@ impl DurableItem for NetheriteShovel {
 }
 
 impl RepairableItem for NetheriteShovel {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[873]
     }
 }
@@ -9699,7 +9699,7 @@ impl EnchantableItem for NetheriteShovel {
 pub struct NetheritePickaxe;
 
 impl ItemDef for NetheritePickaxe {
-    const ID: u32 = 902;
+    const ID: i32 = 902;
     const STRING_ID: &'static str = "minecraft:netherite_pickaxe";
     const NAME: &'static str = "Netherite Pickaxe";
     const STACK_SIZE: u8 = 1;
@@ -9710,7 +9710,7 @@ impl DurableItem for NetheritePickaxe {
 }
 
 impl RepairableItem for NetheritePickaxe {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[873]
     }
 }
@@ -9728,7 +9728,7 @@ impl EnchantableItem for NetheritePickaxe {
 pub struct NetheriteAxe;
 
 impl ItemDef for NetheriteAxe {
-    const ID: u32 = 903;
+    const ID: i32 = 903;
     const STRING_ID: &'static str = "minecraft:netherite_axe";
     const NAME: &'static str = "Netherite Axe";
     const STACK_SIZE: u8 = 1;
@@ -9739,7 +9739,7 @@ impl DurableItem for NetheriteAxe {
 }
 
 impl RepairableItem for NetheriteAxe {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[873]
     }
 }
@@ -9758,7 +9758,7 @@ impl EnchantableItem for NetheriteAxe {
 pub struct NetheriteHoe;
 
 impl ItemDef for NetheriteHoe {
-    const ID: u32 = 904;
+    const ID: i32 = 904;
     const STRING_ID: &'static str = "minecraft:netherite_hoe";
     const NAME: &'static str = "Netherite Hoe";
     const STACK_SIZE: u8 = 1;
@@ -9769,7 +9769,7 @@ impl DurableItem for NetheriteHoe {
 }
 
 impl RepairableItem for NetheriteHoe {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[873]
     }
 }
@@ -9787,7 +9787,7 @@ impl EnchantableItem for NetheriteHoe {
 pub struct Stick;
 
 impl ItemDef for Stick {
-    const ID: u32 = 905;
+    const ID: i32 = 905;
     const STRING_ID: &'static str = "minecraft:stick";
     const NAME: &'static str = "Stick";
     const STACK_SIZE: u8 = 64;
@@ -9809,7 +9809,7 @@ impl VariantItem for Stick {
 pub struct MushroomStew;
 
 impl ItemDef for MushroomStew {
-    const ID: u32 = 906;
+    const ID: i32 = 906;
     const STRING_ID: &'static str = "minecraft:mushroom_stew";
     const NAME: &'static str = "Mushroom Stew";
     const STACK_SIZE: u8 = 1;
@@ -9819,7 +9819,7 @@ impl ItemDef for MushroomStew {
 pub struct String;
 
 impl ItemDef for String {
-    const ID: u32 = 907;
+    const ID: i32 = 907;
     const STRING_ID: &'static str = "minecraft:string";
     const NAME: &'static str = "String";
     const STACK_SIZE: u8 = 64;
@@ -9829,7 +9829,7 @@ impl ItemDef for String {
 pub struct Feather;
 
 impl ItemDef for Feather {
-    const ID: u32 = 908;
+    const ID: i32 = 908;
     const STRING_ID: &'static str = "minecraft:feather";
     const NAME: &'static str = "Feather";
     const STACK_SIZE: u8 = 64;
@@ -9839,7 +9839,7 @@ impl ItemDef for Feather {
 pub struct Gunpowder;
 
 impl ItemDef for Gunpowder {
-    const ID: u32 = 909;
+    const ID: i32 = 909;
     const STRING_ID: &'static str = "minecraft:gunpowder";
     const NAME: &'static str = "Gunpowder";
     const STACK_SIZE: u8 = 64;
@@ -9849,7 +9849,7 @@ impl ItemDef for Gunpowder {
 pub struct WheatSeeds;
 
 impl ItemDef for WheatSeeds {
-    const ID: u32 = 910;
+    const ID: i32 = 910;
     const STRING_ID: &'static str = "minecraft:wheat_seeds";
     const NAME: &'static str = "Wheat Seeds";
     const STACK_SIZE: u8 = 64;
@@ -9859,7 +9859,7 @@ impl ItemDef for WheatSeeds {
 pub struct Wheat;
 
 impl ItemDef for Wheat {
-    const ID: u32 = 911;
+    const ID: i32 = 911;
     const STRING_ID: &'static str = "minecraft:wheat";
     const NAME: &'static str = "Wheat";
     const STACK_SIZE: u8 = 64;
@@ -9869,7 +9869,7 @@ impl ItemDef for Wheat {
 pub struct Bread;
 
 impl ItemDef for Bread {
-    const ID: u32 = 912;
+    const ID: i32 = 912;
     const STRING_ID: &'static str = "minecraft:bread";
     const NAME: &'static str = "Bread";
     const STACK_SIZE: u8 = 64;
@@ -9879,7 +9879,7 @@ impl ItemDef for Bread {
 pub struct LeatherHelmet;
 
 impl ItemDef for LeatherHelmet {
-    const ID: u32 = 913;
+    const ID: i32 = 913;
     const STRING_ID: &'static str = "minecraft:leather_helmet";
     const NAME: &'static str = "Leather Cap";
     const STACK_SIZE: u8 = 1;
@@ -9890,7 +9890,7 @@ impl DurableItem for LeatherHelmet {
 }
 
 impl RepairableItem for LeatherHelmet {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[972]
     }
 }
@@ -9911,7 +9911,7 @@ impl EnchantableItem for LeatherHelmet {
 pub struct LeatherChestplate;
 
 impl ItemDef for LeatherChestplate {
-    const ID: u32 = 914;
+    const ID: i32 = 914;
     const STRING_ID: &'static str = "minecraft:leather_chestplate";
     const NAME: &'static str = "Leather Tunic";
     const STACK_SIZE: u8 = 1;
@@ -9922,7 +9922,7 @@ impl DurableItem for LeatherChestplate {
 }
 
 impl RepairableItem for LeatherChestplate {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[972]
     }
 }
@@ -9942,7 +9942,7 @@ impl EnchantableItem for LeatherChestplate {
 pub struct LeatherLeggings;
 
 impl ItemDef for LeatherLeggings {
-    const ID: u32 = 915;
+    const ID: i32 = 915;
     const STRING_ID: &'static str = "minecraft:leather_leggings";
     const NAME: &'static str = "Leather Pants";
     const STACK_SIZE: u8 = 1;
@@ -9953,7 +9953,7 @@ impl DurableItem for LeatherLeggings {
 }
 
 impl RepairableItem for LeatherLeggings {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[972]
     }
 }
@@ -9973,7 +9973,7 @@ impl EnchantableItem for LeatherLeggings {
 pub struct LeatherBoots;
 
 impl ItemDef for LeatherBoots {
-    const ID: u32 = 916;
+    const ID: i32 = 916;
     const STRING_ID: &'static str = "minecraft:leather_boots";
     const NAME: &'static str = "Leather Boots";
     const STACK_SIZE: u8 = 1;
@@ -9984,7 +9984,7 @@ impl DurableItem for LeatherBoots {
 }
 
 impl RepairableItem for LeatherBoots {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[972]
     }
 }
@@ -10004,7 +10004,7 @@ impl EnchantableItem for LeatherBoots {
 pub struct ChainmailHelmet;
 
 impl ItemDef for ChainmailHelmet {
-    const ID: u32 = 917;
+    const ID: i32 = 917;
     const STRING_ID: &'static str = "minecraft:chainmail_helmet";
     const NAME: &'static str = "Chainmail Helmet";
     const STACK_SIZE: u8 = 1;
@@ -10015,7 +10015,7 @@ impl DurableItem for ChainmailHelmet {
 }
 
 impl RepairableItem for ChainmailHelmet {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[868]
     }
 }
@@ -10036,7 +10036,7 @@ impl EnchantableItem for ChainmailHelmet {
 pub struct ChainmailChestplate;
 
 impl ItemDef for ChainmailChestplate {
-    const ID: u32 = 918;
+    const ID: i32 = 918;
     const STRING_ID: &'static str = "minecraft:chainmail_chestplate";
     const NAME: &'static str = "Chainmail Chestplate";
     const STACK_SIZE: u8 = 1;
@@ -10047,7 +10047,7 @@ impl DurableItem for ChainmailChestplate {
 }
 
 impl RepairableItem for ChainmailChestplate {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[868]
     }
 }
@@ -10067,7 +10067,7 @@ impl EnchantableItem for ChainmailChestplate {
 pub struct ChainmailLeggings;
 
 impl ItemDef for ChainmailLeggings {
-    const ID: u32 = 919;
+    const ID: i32 = 919;
     const STRING_ID: &'static str = "minecraft:chainmail_leggings";
     const NAME: &'static str = "Chainmail Leggings";
     const STACK_SIZE: u8 = 1;
@@ -10078,7 +10078,7 @@ impl DurableItem for ChainmailLeggings {
 }
 
 impl RepairableItem for ChainmailLeggings {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[868]
     }
 }
@@ -10098,7 +10098,7 @@ impl EnchantableItem for ChainmailLeggings {
 pub struct ChainmailBoots;
 
 impl ItemDef for ChainmailBoots {
-    const ID: u32 = 920;
+    const ID: i32 = 920;
     const STRING_ID: &'static str = "minecraft:chainmail_boots";
     const NAME: &'static str = "Chainmail Boots";
     const STACK_SIZE: u8 = 1;
@@ -10109,7 +10109,7 @@ impl DurableItem for ChainmailBoots {
 }
 
 impl RepairableItem for ChainmailBoots {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[868]
     }
 }
@@ -10129,7 +10129,7 @@ impl EnchantableItem for ChainmailBoots {
 pub struct IronHelmet;
 
 impl ItemDef for IronHelmet {
-    const ID: u32 = 921;
+    const ID: i32 = 921;
     const STRING_ID: &'static str = "minecraft:iron_helmet";
     const NAME: &'static str = "Iron Helmet";
     const STACK_SIZE: u8 = 1;
@@ -10140,7 +10140,7 @@ impl DurableItem for IronHelmet {
 }
 
 impl RepairableItem for IronHelmet {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[868]
     }
 }
@@ -10161,7 +10161,7 @@ impl EnchantableItem for IronHelmet {
 pub struct IronChestplate;
 
 impl ItemDef for IronChestplate {
-    const ID: u32 = 922;
+    const ID: i32 = 922;
     const STRING_ID: &'static str = "minecraft:iron_chestplate";
     const NAME: &'static str = "Iron Chestplate";
     const STACK_SIZE: u8 = 1;
@@ -10172,7 +10172,7 @@ impl DurableItem for IronChestplate {
 }
 
 impl RepairableItem for IronChestplate {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[868]
     }
 }
@@ -10192,7 +10192,7 @@ impl EnchantableItem for IronChestplate {
 pub struct IronLeggings;
 
 impl ItemDef for IronLeggings {
-    const ID: u32 = 923;
+    const ID: i32 = 923;
     const STRING_ID: &'static str = "minecraft:iron_leggings";
     const NAME: &'static str = "Iron Leggings";
     const STACK_SIZE: u8 = 1;
@@ -10203,7 +10203,7 @@ impl DurableItem for IronLeggings {
 }
 
 impl RepairableItem for IronLeggings {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[868]
     }
 }
@@ -10223,7 +10223,7 @@ impl EnchantableItem for IronLeggings {
 pub struct IronBoots;
 
 impl ItemDef for IronBoots {
-    const ID: u32 = 924;
+    const ID: i32 = 924;
     const STRING_ID: &'static str = "minecraft:iron_boots";
     const NAME: &'static str = "Iron Boots";
     const STACK_SIZE: u8 = 1;
@@ -10234,7 +10234,7 @@ impl DurableItem for IronBoots {
 }
 
 impl RepairableItem for IronBoots {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[868]
     }
 }
@@ -10254,7 +10254,7 @@ impl EnchantableItem for IronBoots {
 pub struct DiamondHelmet;
 
 impl ItemDef for DiamondHelmet {
-    const ID: u32 = 925;
+    const ID: i32 = 925;
     const STRING_ID: &'static str = "minecraft:diamond_helmet";
     const NAME: &'static str = "Diamond Helmet";
     const STACK_SIZE: u8 = 1;
@@ -10265,7 +10265,7 @@ impl DurableItem for DiamondHelmet {
 }
 
 impl RepairableItem for DiamondHelmet {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[862]
     }
 }
@@ -10286,7 +10286,7 @@ impl EnchantableItem for DiamondHelmet {
 pub struct DiamondChestplate;
 
 impl ItemDef for DiamondChestplate {
-    const ID: u32 = 926;
+    const ID: i32 = 926;
     const STRING_ID: &'static str = "minecraft:diamond_chestplate";
     const NAME: &'static str = "Diamond Chestplate";
     const STACK_SIZE: u8 = 1;
@@ -10297,7 +10297,7 @@ impl DurableItem for DiamondChestplate {
 }
 
 impl RepairableItem for DiamondChestplate {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[862]
     }
 }
@@ -10317,7 +10317,7 @@ impl EnchantableItem for DiamondChestplate {
 pub struct DiamondLeggings;
 
 impl ItemDef for DiamondLeggings {
-    const ID: u32 = 927;
+    const ID: i32 = 927;
     const STRING_ID: &'static str = "minecraft:diamond_leggings";
     const NAME: &'static str = "Diamond Leggings";
     const STACK_SIZE: u8 = 1;
@@ -10328,7 +10328,7 @@ impl DurableItem for DiamondLeggings {
 }
 
 impl RepairableItem for DiamondLeggings {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[862]
     }
 }
@@ -10348,7 +10348,7 @@ impl EnchantableItem for DiamondLeggings {
 pub struct DiamondBoots;
 
 impl ItemDef for DiamondBoots {
-    const ID: u32 = 928;
+    const ID: i32 = 928;
     const STRING_ID: &'static str = "minecraft:diamond_boots";
     const NAME: &'static str = "Diamond Boots";
     const STACK_SIZE: u8 = 1;
@@ -10359,7 +10359,7 @@ impl DurableItem for DiamondBoots {
 }
 
 impl RepairableItem for DiamondBoots {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[862]
     }
 }
@@ -10379,7 +10379,7 @@ impl EnchantableItem for DiamondBoots {
 pub struct GoldenHelmet;
 
 impl ItemDef for GoldenHelmet {
-    const ID: u32 = 929;
+    const ID: i32 = 929;
     const STRING_ID: &'static str = "minecraft:golden_helmet";
     const NAME: &'static str = "Golden Helmet";
     const STACK_SIZE: u8 = 1;
@@ -10390,7 +10390,7 @@ impl DurableItem for GoldenHelmet {
 }
 
 impl RepairableItem for GoldenHelmet {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[872]
     }
 }
@@ -10411,7 +10411,7 @@ impl EnchantableItem for GoldenHelmet {
 pub struct GoldenChestplate;
 
 impl ItemDef for GoldenChestplate {
-    const ID: u32 = 930;
+    const ID: i32 = 930;
     const STRING_ID: &'static str = "minecraft:golden_chestplate";
     const NAME: &'static str = "Golden Chestplate";
     const STACK_SIZE: u8 = 1;
@@ -10422,7 +10422,7 @@ impl DurableItem for GoldenChestplate {
 }
 
 impl RepairableItem for GoldenChestplate {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[872]
     }
 }
@@ -10442,7 +10442,7 @@ impl EnchantableItem for GoldenChestplate {
 pub struct GoldenLeggings;
 
 impl ItemDef for GoldenLeggings {
-    const ID: u32 = 931;
+    const ID: i32 = 931;
     const STRING_ID: &'static str = "minecraft:golden_leggings";
     const NAME: &'static str = "Golden Leggings";
     const STACK_SIZE: u8 = 1;
@@ -10453,7 +10453,7 @@ impl DurableItem for GoldenLeggings {
 }
 
 impl RepairableItem for GoldenLeggings {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[872]
     }
 }
@@ -10473,7 +10473,7 @@ impl EnchantableItem for GoldenLeggings {
 pub struct GoldenBoots;
 
 impl ItemDef for GoldenBoots {
-    const ID: u32 = 932;
+    const ID: i32 = 932;
     const STRING_ID: &'static str = "minecraft:golden_boots";
     const NAME: &'static str = "Golden Boots";
     const STACK_SIZE: u8 = 1;
@@ -10484,7 +10484,7 @@ impl DurableItem for GoldenBoots {
 }
 
 impl RepairableItem for GoldenBoots {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[872]
     }
 }
@@ -10504,7 +10504,7 @@ impl EnchantableItem for GoldenBoots {
 pub struct NetheriteHelmet;
 
 impl ItemDef for NetheriteHelmet {
-    const ID: u32 = 933;
+    const ID: i32 = 933;
     const STRING_ID: &'static str = "minecraft:netherite_helmet";
     const NAME: &'static str = "Netherite Helmet";
     const STACK_SIZE: u8 = 1;
@@ -10515,7 +10515,7 @@ impl DurableItem for NetheriteHelmet {
 }
 
 impl RepairableItem for NetheriteHelmet {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[873]
     }
 }
@@ -10536,7 +10536,7 @@ impl EnchantableItem for NetheriteHelmet {
 pub struct NetheriteChestplate;
 
 impl ItemDef for NetheriteChestplate {
-    const ID: u32 = 934;
+    const ID: i32 = 934;
     const STRING_ID: &'static str = "minecraft:netherite_chestplate";
     const NAME: &'static str = "Netherite Chestplate";
     const STACK_SIZE: u8 = 1;
@@ -10547,7 +10547,7 @@ impl DurableItem for NetheriteChestplate {
 }
 
 impl RepairableItem for NetheriteChestplate {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[873]
     }
 }
@@ -10567,7 +10567,7 @@ impl EnchantableItem for NetheriteChestplate {
 pub struct NetheriteLeggings;
 
 impl ItemDef for NetheriteLeggings {
-    const ID: u32 = 935;
+    const ID: i32 = 935;
     const STRING_ID: &'static str = "minecraft:netherite_leggings";
     const NAME: &'static str = "Netherite Leggings";
     const STACK_SIZE: u8 = 1;
@@ -10578,7 +10578,7 @@ impl DurableItem for NetheriteLeggings {
 }
 
 impl RepairableItem for NetheriteLeggings {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[873]
     }
 }
@@ -10598,7 +10598,7 @@ impl EnchantableItem for NetheriteLeggings {
 pub struct NetheriteBoots;
 
 impl ItemDef for NetheriteBoots {
-    const ID: u32 = 936;
+    const ID: i32 = 936;
     const STRING_ID: &'static str = "minecraft:netherite_boots";
     const NAME: &'static str = "Netherite Boots";
     const STACK_SIZE: u8 = 1;
@@ -10609,7 +10609,7 @@ impl DurableItem for NetheriteBoots {
 }
 
 impl RepairableItem for NetheriteBoots {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[873]
     }
 }
@@ -10629,7 +10629,7 @@ impl EnchantableItem for NetheriteBoots {
 pub struct Flint;
 
 impl ItemDef for Flint {
-    const ID: u32 = 937;
+    const ID: i32 = 937;
     const STRING_ID: &'static str = "minecraft:flint";
     const NAME: &'static str = "Flint";
     const STACK_SIZE: u8 = 64;
@@ -10639,7 +10639,7 @@ impl ItemDef for Flint {
 pub struct Porkchop;
 
 impl ItemDef for Porkchop {
-    const ID: u32 = 938;
+    const ID: i32 = 938;
     const STRING_ID: &'static str = "minecraft:porkchop";
     const NAME: &'static str = "Raw Porkchop";
     const STACK_SIZE: u8 = 64;
@@ -10649,7 +10649,7 @@ impl ItemDef for Porkchop {
 pub struct CookedPorkchop;
 
 impl ItemDef for CookedPorkchop {
-    const ID: u32 = 939;
+    const ID: i32 = 939;
     const STRING_ID: &'static str = "minecraft:cooked_porkchop";
     const NAME: &'static str = "Cooked Porkchop";
     const STACK_SIZE: u8 = 64;
@@ -10659,7 +10659,7 @@ impl ItemDef for CookedPorkchop {
 pub struct Painting;
 
 impl ItemDef for Painting {
-    const ID: u32 = 940;
+    const ID: i32 = 940;
     const STRING_ID: &'static str = "minecraft:painting";
     const NAME: &'static str = "Painting";
     const STACK_SIZE: u8 = 64;
@@ -10669,7 +10669,7 @@ impl ItemDef for Painting {
 pub struct GoldenApple;
 
 impl ItemDef for GoldenApple {
-    const ID: u32 = 941;
+    const ID: i32 = 941;
     const STRING_ID: &'static str = "minecraft:golden_apple";
     const NAME: &'static str = "Golden Apple";
     const STACK_SIZE: u8 = 64;
@@ -10679,7 +10679,7 @@ impl ItemDef for GoldenApple {
 pub struct EnchantedGoldenApple;
 
 impl ItemDef for EnchantedGoldenApple {
-    const ID: u32 = 942;
+    const ID: i32 = 942;
     const STRING_ID: &'static str = "minecraft:enchanted_golden_apple";
     const NAME: &'static str = "Enchanted Golden Apple";
     const STACK_SIZE: u8 = 64;
@@ -10689,7 +10689,7 @@ impl ItemDef for EnchantedGoldenApple {
 pub struct OakSign;
 
 impl ItemDef for OakSign {
-    const ID: u32 = 943;
+    const ID: i32 = 943;
     const STRING_ID: &'static str = "minecraft:oak_sign";
     const NAME: &'static str = "Oak Sign";
     const STACK_SIZE: u8 = 16;
@@ -10699,7 +10699,7 @@ impl ItemDef for OakSign {
 pub struct SpruceSign;
 
 impl ItemDef for SpruceSign {
-    const ID: u32 = 944;
+    const ID: i32 = 944;
     const STRING_ID: &'static str = "minecraft:spruce_sign";
     const NAME: &'static str = "Spruce Sign";
     const STACK_SIZE: u8 = 16;
@@ -10709,7 +10709,7 @@ impl ItemDef for SpruceSign {
 pub struct BirchSign;
 
 impl ItemDef for BirchSign {
-    const ID: u32 = 945;
+    const ID: i32 = 945;
     const STRING_ID: &'static str = "minecraft:birch_sign";
     const NAME: &'static str = "Birch Sign";
     const STACK_SIZE: u8 = 16;
@@ -10719,7 +10719,7 @@ impl ItemDef for BirchSign {
 pub struct JungleSign;
 
 impl ItemDef for JungleSign {
-    const ID: u32 = 946;
+    const ID: i32 = 946;
     const STRING_ID: &'static str = "minecraft:jungle_sign";
     const NAME: &'static str = "Jungle Sign";
     const STACK_SIZE: u8 = 16;
@@ -10729,7 +10729,7 @@ impl ItemDef for JungleSign {
 pub struct AcaciaSign;
 
 impl ItemDef for AcaciaSign {
-    const ID: u32 = 947;
+    const ID: i32 = 947;
     const STRING_ID: &'static str = "minecraft:acacia_sign";
     const NAME: &'static str = "Acacia Sign";
     const STACK_SIZE: u8 = 16;
@@ -10739,7 +10739,7 @@ impl ItemDef for AcaciaSign {
 pub struct CherrySign;
 
 impl ItemDef for CherrySign {
-    const ID: u32 = 948;
+    const ID: i32 = 948;
     const STRING_ID: &'static str = "minecraft:cherry_sign";
     const NAME: &'static str = "Cherry Sign";
     const STACK_SIZE: u8 = 16;
@@ -10749,7 +10749,7 @@ impl ItemDef for CherrySign {
 pub struct DarkOakSign;
 
 impl ItemDef for DarkOakSign {
-    const ID: u32 = 949;
+    const ID: i32 = 949;
     const STRING_ID: &'static str = "minecraft:dark_oak_sign";
     const NAME: &'static str = "Dark Oak Sign";
     const STACK_SIZE: u8 = 16;
@@ -10759,7 +10759,7 @@ impl ItemDef for DarkOakSign {
 pub struct PaleOakSign;
 
 impl ItemDef for PaleOakSign {
-    const ID: u32 = 950;
+    const ID: i32 = 950;
     const STRING_ID: &'static str = "minecraft:pale_oak_sign";
     const NAME: &'static str = "Pale Oak Sign";
     const STACK_SIZE: u8 = 16;
@@ -10769,7 +10769,7 @@ impl ItemDef for PaleOakSign {
 pub struct MangroveSign;
 
 impl ItemDef for MangroveSign {
-    const ID: u32 = 951;
+    const ID: i32 = 951;
     const STRING_ID: &'static str = "minecraft:mangrove_sign";
     const NAME: &'static str = "Mangrove Sign";
     const STACK_SIZE: u8 = 16;
@@ -10779,7 +10779,7 @@ impl ItemDef for MangroveSign {
 pub struct BambooSign;
 
 impl ItemDef for BambooSign {
-    const ID: u32 = 952;
+    const ID: i32 = 952;
     const STRING_ID: &'static str = "minecraft:bamboo_sign";
     const NAME: &'static str = "Bamboo Sign";
     const STACK_SIZE: u8 = 16;
@@ -10789,7 +10789,7 @@ impl ItemDef for BambooSign {
 pub struct CrimsonSign;
 
 impl ItemDef for CrimsonSign {
-    const ID: u32 = 953;
+    const ID: i32 = 953;
     const STRING_ID: &'static str = "minecraft:crimson_sign";
     const NAME: &'static str = "Crimson Sign";
     const STACK_SIZE: u8 = 16;
@@ -10799,7 +10799,7 @@ impl ItemDef for CrimsonSign {
 pub struct WarpedSign;
 
 impl ItemDef for WarpedSign {
-    const ID: u32 = 954;
+    const ID: i32 = 954;
     const STRING_ID: &'static str = "minecraft:warped_sign";
     const NAME: &'static str = "Warped Sign";
     const STACK_SIZE: u8 = 16;
@@ -10809,7 +10809,7 @@ impl ItemDef for WarpedSign {
 pub struct OakHangingSign;
 
 impl ItemDef for OakHangingSign {
-    const ID: u32 = 955;
+    const ID: i32 = 955;
     const STRING_ID: &'static str = "minecraft:oak_hanging_sign";
     const NAME: &'static str = "Oak Hanging Sign";
     const STACK_SIZE: u8 = 16;
@@ -10819,7 +10819,7 @@ impl ItemDef for OakHangingSign {
 pub struct SpruceHangingSign;
 
 impl ItemDef for SpruceHangingSign {
-    const ID: u32 = 956;
+    const ID: i32 = 956;
     const STRING_ID: &'static str = "minecraft:spruce_hanging_sign";
     const NAME: &'static str = "Spruce Hanging Sign";
     const STACK_SIZE: u8 = 16;
@@ -10829,7 +10829,7 @@ impl ItemDef for SpruceHangingSign {
 pub struct BirchHangingSign;
 
 impl ItemDef for BirchHangingSign {
-    const ID: u32 = 957;
+    const ID: i32 = 957;
     const STRING_ID: &'static str = "minecraft:birch_hanging_sign";
     const NAME: &'static str = "Birch Hanging Sign";
     const STACK_SIZE: u8 = 16;
@@ -10839,7 +10839,7 @@ impl ItemDef for BirchHangingSign {
 pub struct JungleHangingSign;
 
 impl ItemDef for JungleHangingSign {
-    const ID: u32 = 958;
+    const ID: i32 = 958;
     const STRING_ID: &'static str = "minecraft:jungle_hanging_sign";
     const NAME: &'static str = "Jungle Hanging Sign";
     const STACK_SIZE: u8 = 16;
@@ -10849,7 +10849,7 @@ impl ItemDef for JungleHangingSign {
 pub struct AcaciaHangingSign;
 
 impl ItemDef for AcaciaHangingSign {
-    const ID: u32 = 959;
+    const ID: i32 = 959;
     const STRING_ID: &'static str = "minecraft:acacia_hanging_sign";
     const NAME: &'static str = "Acacia Hanging Sign";
     const STACK_SIZE: u8 = 16;
@@ -10859,7 +10859,7 @@ impl ItemDef for AcaciaHangingSign {
 pub struct CherryHangingSign;
 
 impl ItemDef for CherryHangingSign {
-    const ID: u32 = 960;
+    const ID: i32 = 960;
     const STRING_ID: &'static str = "minecraft:cherry_hanging_sign";
     const NAME: &'static str = "Cherry Hanging Sign";
     const STACK_SIZE: u8 = 16;
@@ -10869,7 +10869,7 @@ impl ItemDef for CherryHangingSign {
 pub struct DarkOakHangingSign;
 
 impl ItemDef for DarkOakHangingSign {
-    const ID: u32 = 961;
+    const ID: i32 = 961;
     const STRING_ID: &'static str = "minecraft:dark_oak_hanging_sign";
     const NAME: &'static str = "Dark Oak Hanging Sign";
     const STACK_SIZE: u8 = 16;
@@ -10879,7 +10879,7 @@ impl ItemDef for DarkOakHangingSign {
 pub struct PaleOakHangingSign;
 
 impl ItemDef for PaleOakHangingSign {
-    const ID: u32 = 962;
+    const ID: i32 = 962;
     const STRING_ID: &'static str = "minecraft:pale_oak_hanging_sign";
     const NAME: &'static str = "Pale Oak Hanging Sign";
     const STACK_SIZE: u8 = 16;
@@ -10889,7 +10889,7 @@ impl ItemDef for PaleOakHangingSign {
 pub struct MangroveHangingSign;
 
 impl ItemDef for MangroveHangingSign {
-    const ID: u32 = 963;
+    const ID: i32 = 963;
     const STRING_ID: &'static str = "minecraft:mangrove_hanging_sign";
     const NAME: &'static str = "Mangrove Hanging Sign";
     const STACK_SIZE: u8 = 16;
@@ -10899,7 +10899,7 @@ impl ItemDef for MangroveHangingSign {
 pub struct BambooHangingSign;
 
 impl ItemDef for BambooHangingSign {
-    const ID: u32 = 964;
+    const ID: i32 = 964;
     const STRING_ID: &'static str = "minecraft:bamboo_hanging_sign";
     const NAME: &'static str = "Bamboo Hanging Sign";
     const STACK_SIZE: u8 = 16;
@@ -10909,7 +10909,7 @@ impl ItemDef for BambooHangingSign {
 pub struct CrimsonHangingSign;
 
 impl ItemDef for CrimsonHangingSign {
-    const ID: u32 = 965;
+    const ID: i32 = 965;
     const STRING_ID: &'static str = "minecraft:crimson_hanging_sign";
     const NAME: &'static str = "Crimson Hanging Sign";
     const STACK_SIZE: u8 = 16;
@@ -10919,7 +10919,7 @@ impl ItemDef for CrimsonHangingSign {
 pub struct WarpedHangingSign;
 
 impl ItemDef for WarpedHangingSign {
-    const ID: u32 = 966;
+    const ID: i32 = 966;
     const STRING_ID: &'static str = "minecraft:warped_hanging_sign";
     const NAME: &'static str = "Warped Hanging Sign";
     const STACK_SIZE: u8 = 16;
@@ -10929,7 +10929,7 @@ impl ItemDef for WarpedHangingSign {
 pub struct Bucket;
 
 impl ItemDef for Bucket {
-    const ID: u32 = 967;
+    const ID: i32 = 967;
     const STRING_ID: &'static str = "minecraft:bucket";
     const NAME: &'static str = "Bucket";
     const STACK_SIZE: u8 = 16;
@@ -10939,7 +10939,7 @@ impl ItemDef for Bucket {
 pub struct WaterBucket;
 
 impl ItemDef for WaterBucket {
-    const ID: u32 = 968;
+    const ID: i32 = 968;
     const STRING_ID: &'static str = "minecraft:water_bucket";
     const NAME: &'static str = "Water Bucket";
     const STACK_SIZE: u8 = 1;
@@ -10949,7 +10949,7 @@ impl ItemDef for WaterBucket {
 pub struct LavaBucket;
 
 impl ItemDef for LavaBucket {
-    const ID: u32 = 969;
+    const ID: i32 = 969;
     const STRING_ID: &'static str = "minecraft:lava_bucket";
     const NAME: &'static str = "Lava Bucket";
     const STACK_SIZE: u8 = 1;
@@ -10959,7 +10959,7 @@ impl ItemDef for LavaBucket {
 pub struct PowderSnowBucket;
 
 impl ItemDef for PowderSnowBucket {
-    const ID: u32 = 970;
+    const ID: i32 = 970;
     const STRING_ID: &'static str = "minecraft:powder_snow_bucket";
     const NAME: &'static str = "Powder Snow Bucket";
     const STACK_SIZE: u8 = 1;
@@ -10969,7 +10969,7 @@ impl ItemDef for PowderSnowBucket {
 pub struct Snowball;
 
 impl ItemDef for Snowball {
-    const ID: u32 = 971;
+    const ID: i32 = 971;
     const STRING_ID: &'static str = "minecraft:snowball";
     const NAME: &'static str = "Snowball";
     const STACK_SIZE: u8 = 16;
@@ -10979,7 +10979,7 @@ impl ItemDef for Snowball {
 pub struct Leather;
 
 impl ItemDef for Leather {
-    const ID: u32 = 972;
+    const ID: i32 = 972;
     const STRING_ID: &'static str = "minecraft:leather";
     const NAME: &'static str = "Leather";
     const STACK_SIZE: u8 = 64;
@@ -10989,7 +10989,7 @@ impl ItemDef for Leather {
 pub struct MilkBucket;
 
 impl ItemDef for MilkBucket {
-    const ID: u32 = 973;
+    const ID: i32 = 973;
     const STRING_ID: &'static str = "minecraft:milk_bucket";
     const NAME: &'static str = "Milk Bucket";
     const STACK_SIZE: u8 = 1;
@@ -10999,7 +10999,7 @@ impl ItemDef for MilkBucket {
 pub struct PufferfishBucket;
 
 impl ItemDef for PufferfishBucket {
-    const ID: u32 = 974;
+    const ID: i32 = 974;
     const STRING_ID: &'static str = "minecraft:pufferfish_bucket";
     const NAME: &'static str = "Bucket of Pufferfish";
     const STACK_SIZE: u8 = 1;
@@ -11009,7 +11009,7 @@ impl ItemDef for PufferfishBucket {
 pub struct SalmonBucket;
 
 impl ItemDef for SalmonBucket {
-    const ID: u32 = 975;
+    const ID: i32 = 975;
     const STRING_ID: &'static str = "minecraft:salmon_bucket";
     const NAME: &'static str = "Bucket of Salmon";
     const STACK_SIZE: u8 = 1;
@@ -11019,7 +11019,7 @@ impl ItemDef for SalmonBucket {
 pub struct CodBucket;
 
 impl ItemDef for CodBucket {
-    const ID: u32 = 976;
+    const ID: i32 = 976;
     const STRING_ID: &'static str = "minecraft:cod_bucket";
     const NAME: &'static str = "Bucket of Cod";
     const STACK_SIZE: u8 = 1;
@@ -11029,7 +11029,7 @@ impl ItemDef for CodBucket {
 pub struct TropicalFishBucket;
 
 impl ItemDef for TropicalFishBucket {
-    const ID: u32 = 977;
+    const ID: i32 = 977;
     const STRING_ID: &'static str = "minecraft:tropical_fish_bucket";
     const NAME: &'static str = "Bucket of Tropical Fish";
     const STACK_SIZE: u8 = 1;
@@ -11039,7 +11039,7 @@ impl ItemDef for TropicalFishBucket {
 pub struct AxolotlBucket;
 
 impl ItemDef for AxolotlBucket {
-    const ID: u32 = 978;
+    const ID: i32 = 978;
     const STRING_ID: &'static str = "minecraft:axolotl_bucket";
     const NAME: &'static str = "Bucket of Axolotl";
     const STACK_SIZE: u8 = 1;
@@ -11049,7 +11049,7 @@ impl ItemDef for AxolotlBucket {
 pub struct TadpoleBucket;
 
 impl ItemDef for TadpoleBucket {
-    const ID: u32 = 979;
+    const ID: i32 = 979;
     const STRING_ID: &'static str = "minecraft:tadpole_bucket";
     const NAME: &'static str = "Bucket of Tadpole";
     const STACK_SIZE: u8 = 1;
@@ -11059,7 +11059,7 @@ impl ItemDef for TadpoleBucket {
 pub struct Brick;
 
 impl ItemDef for Brick {
-    const ID: u32 = 980;
+    const ID: i32 = 980;
     const STRING_ID: &'static str = "minecraft:brick";
     const NAME: &'static str = "Brick";
     const STACK_SIZE: u8 = 64;
@@ -11069,7 +11069,7 @@ impl ItemDef for Brick {
 pub struct ClayBall;
 
 impl ItemDef for ClayBall {
-    const ID: u32 = 981;
+    const ID: i32 = 981;
     const STRING_ID: &'static str = "minecraft:clay_ball";
     const NAME: &'static str = "Clay Ball";
     const STACK_SIZE: u8 = 64;
@@ -11079,7 +11079,7 @@ impl ItemDef for ClayBall {
 pub struct DriedKelpBlock;
 
 impl ItemDef for DriedKelpBlock {
-    const ID: u32 = 982;
+    const ID: i32 = 982;
     const STRING_ID: &'static str = "minecraft:dried_kelp_block";
     const NAME: &'static str = "Dried Kelp Block";
     const STACK_SIZE: u8 = 64;
@@ -11089,7 +11089,7 @@ impl ItemDef for DriedKelpBlock {
 pub struct Paper;
 
 impl ItemDef for Paper {
-    const ID: u32 = 983;
+    const ID: i32 = 983;
     const STRING_ID: &'static str = "minecraft:paper";
     const NAME: &'static str = "Paper";
     const STACK_SIZE: u8 = 64;
@@ -11099,7 +11099,7 @@ impl ItemDef for Paper {
 pub struct Book;
 
 impl ItemDef for Book {
-    const ID: u32 = 984;
+    const ID: i32 = 984;
     const STRING_ID: &'static str = "minecraft:book";
     const NAME: &'static str = "Book";
     const STACK_SIZE: u8 = 64;
@@ -11121,7 +11121,7 @@ impl VariantItem for Book {
 pub struct SlimeBall;
 
 impl ItemDef for SlimeBall {
-    const ID: u32 = 985;
+    const ID: i32 = 985;
     const STRING_ID: &'static str = "minecraft:slime_ball";
     const NAME: &'static str = "Slimeball";
     const STACK_SIZE: u8 = 64;
@@ -11131,7 +11131,7 @@ impl ItemDef for SlimeBall {
 pub struct Egg;
 
 impl ItemDef for Egg {
-    const ID: u32 = 986;
+    const ID: i32 = 986;
     const STRING_ID: &'static str = "minecraft:egg";
     const NAME: &'static str = "Egg";
     const STACK_SIZE: u8 = 16;
@@ -11141,7 +11141,7 @@ impl ItemDef for Egg {
 pub struct BlueEgg;
 
 impl ItemDef for BlueEgg {
-    const ID: u32 = 987;
+    const ID: i32 = 987;
     const STRING_ID: &'static str = "minecraft:blue_egg";
     const NAME: &'static str = "Blue Egg";
     const STACK_SIZE: u8 = 16;
@@ -11151,7 +11151,7 @@ impl ItemDef for BlueEgg {
 pub struct BrownEgg;
 
 impl ItemDef for BrownEgg {
-    const ID: u32 = 988;
+    const ID: i32 = 988;
     const STRING_ID: &'static str = "minecraft:brown_egg";
     const NAME: &'static str = "Brown Egg";
     const STACK_SIZE: u8 = 16;
@@ -11161,7 +11161,7 @@ impl ItemDef for BrownEgg {
 pub struct Compass;
 
 impl ItemDef for Compass {
-    const ID: u32 = 989;
+    const ID: i32 = 989;
     const STRING_ID: &'static str = "minecraft:compass";
     const NAME: &'static str = "Compass";
     const STACK_SIZE: u8 = 64;
@@ -11177,7 +11177,7 @@ impl EnchantableItem for Compass {
 pub struct RecoveryCompass;
 
 impl ItemDef for RecoveryCompass {
-    const ID: u32 = 990;
+    const ID: i32 = 990;
     const STRING_ID: &'static str = "minecraft:recovery_compass";
     const NAME: &'static str = "Recovery Compass";
     const STACK_SIZE: u8 = 64;
@@ -11187,7 +11187,7 @@ impl ItemDef for RecoveryCompass {
 pub struct Bundle;
 
 impl ItemDef for Bundle {
-    const ID: u32 = 991;
+    const ID: i32 = 991;
     const STRING_ID: &'static str = "minecraft:bundle";
     const NAME: &'static str = "Bundle";
     const STACK_SIZE: u8 = 1;
@@ -11197,7 +11197,7 @@ impl ItemDef for Bundle {
 pub struct WhiteBundle;
 
 impl ItemDef for WhiteBundle {
-    const ID: u32 = 992;
+    const ID: i32 = 992;
     const STRING_ID: &'static str = "minecraft:white_bundle";
     const NAME: &'static str = "White Bundle";
     const STACK_SIZE: u8 = 1;
@@ -11207,7 +11207,7 @@ impl ItemDef for WhiteBundle {
 pub struct OrangeBundle;
 
 impl ItemDef for OrangeBundle {
-    const ID: u32 = 993;
+    const ID: i32 = 993;
     const STRING_ID: &'static str = "minecraft:orange_bundle";
     const NAME: &'static str = "Orange Bundle";
     const STACK_SIZE: u8 = 1;
@@ -11217,7 +11217,7 @@ impl ItemDef for OrangeBundle {
 pub struct MagentaBundle;
 
 impl ItemDef for MagentaBundle {
-    const ID: u32 = 994;
+    const ID: i32 = 994;
     const STRING_ID: &'static str = "minecraft:magenta_bundle";
     const NAME: &'static str = "Magenta Bundle";
     const STACK_SIZE: u8 = 1;
@@ -11227,7 +11227,7 @@ impl ItemDef for MagentaBundle {
 pub struct LightBlueBundle;
 
 impl ItemDef for LightBlueBundle {
-    const ID: u32 = 995;
+    const ID: i32 = 995;
     const STRING_ID: &'static str = "minecraft:light_blue_bundle";
     const NAME: &'static str = "Light Blue Bundle";
     const STACK_SIZE: u8 = 1;
@@ -11237,7 +11237,7 @@ impl ItemDef for LightBlueBundle {
 pub struct YellowBundle;
 
 impl ItemDef for YellowBundle {
-    const ID: u32 = 996;
+    const ID: i32 = 996;
     const STRING_ID: &'static str = "minecraft:yellow_bundle";
     const NAME: &'static str = "Yellow Bundle";
     const STACK_SIZE: u8 = 1;
@@ -11247,7 +11247,7 @@ impl ItemDef for YellowBundle {
 pub struct LimeBundle;
 
 impl ItemDef for LimeBundle {
-    const ID: u32 = 997;
+    const ID: i32 = 997;
     const STRING_ID: &'static str = "minecraft:lime_bundle";
     const NAME: &'static str = "Lime Bundle";
     const STACK_SIZE: u8 = 1;
@@ -11257,7 +11257,7 @@ impl ItemDef for LimeBundle {
 pub struct PinkBundle;
 
 impl ItemDef for PinkBundle {
-    const ID: u32 = 998;
+    const ID: i32 = 998;
     const STRING_ID: &'static str = "minecraft:pink_bundle";
     const NAME: &'static str = "Pink Bundle";
     const STACK_SIZE: u8 = 1;
@@ -11267,7 +11267,7 @@ impl ItemDef for PinkBundle {
 pub struct GrayBundle;
 
 impl ItemDef for GrayBundle {
-    const ID: u32 = 999;
+    const ID: i32 = 999;
     const STRING_ID: &'static str = "minecraft:gray_bundle";
     const NAME: &'static str = "Gray Bundle";
     const STACK_SIZE: u8 = 1;
@@ -11277,7 +11277,7 @@ impl ItemDef for GrayBundle {
 pub struct LightGrayBundle;
 
 impl ItemDef for LightGrayBundle {
-    const ID: u32 = 1000;
+    const ID: i32 = 1000;
     const STRING_ID: &'static str = "minecraft:light_gray_bundle";
     const NAME: &'static str = "Light Gray Bundle";
     const STACK_SIZE: u8 = 1;
@@ -11287,7 +11287,7 @@ impl ItemDef for LightGrayBundle {
 pub struct CyanBundle;
 
 impl ItemDef for CyanBundle {
-    const ID: u32 = 1001;
+    const ID: i32 = 1001;
     const STRING_ID: &'static str = "minecraft:cyan_bundle";
     const NAME: &'static str = "Cyan Bundle";
     const STACK_SIZE: u8 = 1;
@@ -11297,7 +11297,7 @@ impl ItemDef for CyanBundle {
 pub struct PurpleBundle;
 
 impl ItemDef for PurpleBundle {
-    const ID: u32 = 1002;
+    const ID: i32 = 1002;
     const STRING_ID: &'static str = "minecraft:purple_bundle";
     const NAME: &'static str = "Purple Bundle";
     const STACK_SIZE: u8 = 1;
@@ -11307,7 +11307,7 @@ impl ItemDef for PurpleBundle {
 pub struct BlueBundle;
 
 impl ItemDef for BlueBundle {
-    const ID: u32 = 1003;
+    const ID: i32 = 1003;
     const STRING_ID: &'static str = "minecraft:blue_bundle";
     const NAME: &'static str = "Blue Bundle";
     const STACK_SIZE: u8 = 1;
@@ -11317,7 +11317,7 @@ impl ItemDef for BlueBundle {
 pub struct BrownBundle;
 
 impl ItemDef for BrownBundle {
-    const ID: u32 = 1004;
+    const ID: i32 = 1004;
     const STRING_ID: &'static str = "minecraft:brown_bundle";
     const NAME: &'static str = "Brown Bundle";
     const STACK_SIZE: u8 = 1;
@@ -11327,7 +11327,7 @@ impl ItemDef for BrownBundle {
 pub struct GreenBundle;
 
 impl ItemDef for GreenBundle {
-    const ID: u32 = 1005;
+    const ID: i32 = 1005;
     const STRING_ID: &'static str = "minecraft:green_bundle";
     const NAME: &'static str = "Green Bundle";
     const STACK_SIZE: u8 = 1;
@@ -11337,7 +11337,7 @@ impl ItemDef for GreenBundle {
 pub struct RedBundle;
 
 impl ItemDef for RedBundle {
-    const ID: u32 = 1006;
+    const ID: i32 = 1006;
     const STRING_ID: &'static str = "minecraft:red_bundle";
     const NAME: &'static str = "Red Bundle";
     const STACK_SIZE: u8 = 1;
@@ -11347,7 +11347,7 @@ impl ItemDef for RedBundle {
 pub struct BlackBundle;
 
 impl ItemDef for BlackBundle {
-    const ID: u32 = 1007;
+    const ID: i32 = 1007;
     const STRING_ID: &'static str = "minecraft:black_bundle";
     const NAME: &'static str = "Black Bundle";
     const STACK_SIZE: u8 = 1;
@@ -11357,7 +11357,7 @@ impl ItemDef for BlackBundle {
 pub struct FishingRod;
 
 impl ItemDef for FishingRod {
-    const ID: u32 = 1008;
+    const ID: i32 = 1008;
     const STRING_ID: &'static str = "minecraft:fishing_rod";
     const NAME: &'static str = "Fishing Rod";
     const STACK_SIZE: u8 = 1;
@@ -11380,7 +11380,7 @@ impl EnchantableItem for FishingRod {
 pub struct Clock;
 
 impl ItemDef for Clock {
-    const ID: u32 = 1009;
+    const ID: i32 = 1009;
     const STRING_ID: &'static str = "minecraft:clock";
     const NAME: &'static str = "Clock";
     const STACK_SIZE: u8 = 64;
@@ -11390,7 +11390,7 @@ impl ItemDef for Clock {
 pub struct Spyglass;
 
 impl ItemDef for Spyglass {
-    const ID: u32 = 1010;
+    const ID: i32 = 1010;
     const STRING_ID: &'static str = "minecraft:spyglass";
     const NAME: &'static str = "Spyglass";
     const STACK_SIZE: u8 = 1;
@@ -11400,7 +11400,7 @@ impl ItemDef for Spyglass {
 pub struct GlowstoneDust;
 
 impl ItemDef for GlowstoneDust {
-    const ID: u32 = 1011;
+    const ID: i32 = 1011;
     const STRING_ID: &'static str = "minecraft:glowstone_dust";
     const NAME: &'static str = "Glowstone Dust";
     const STACK_SIZE: u8 = 64;
@@ -11410,7 +11410,7 @@ impl ItemDef for GlowstoneDust {
 pub struct Cod;
 
 impl ItemDef for Cod {
-    const ID: u32 = 1012;
+    const ID: i32 = 1012;
     const STRING_ID: &'static str = "minecraft:cod";
     const NAME: &'static str = "Raw Cod";
     const STACK_SIZE: u8 = 64;
@@ -11420,7 +11420,7 @@ impl ItemDef for Cod {
 pub struct Salmon;
 
 impl ItemDef for Salmon {
-    const ID: u32 = 1013;
+    const ID: i32 = 1013;
     const STRING_ID: &'static str = "minecraft:salmon";
     const NAME: &'static str = "Raw Salmon";
     const STACK_SIZE: u8 = 64;
@@ -11430,7 +11430,7 @@ impl ItemDef for Salmon {
 pub struct TropicalFish;
 
 impl ItemDef for TropicalFish {
-    const ID: u32 = 1014;
+    const ID: i32 = 1014;
     const STRING_ID: &'static str = "minecraft:tropical_fish";
     const NAME: &'static str = "Tropical Fish";
     const STACK_SIZE: u8 = 64;
@@ -11440,7 +11440,7 @@ impl ItemDef for TropicalFish {
 pub struct Pufferfish;
 
 impl ItemDef for Pufferfish {
-    const ID: u32 = 1015;
+    const ID: i32 = 1015;
     const STRING_ID: &'static str = "minecraft:pufferfish";
     const NAME: &'static str = "Pufferfish";
     const STACK_SIZE: u8 = 64;
@@ -11450,7 +11450,7 @@ impl ItemDef for Pufferfish {
 pub struct CookedCod;
 
 impl ItemDef for CookedCod {
-    const ID: u32 = 1016;
+    const ID: i32 = 1016;
     const STRING_ID: &'static str = "minecraft:cooked_cod";
     const NAME: &'static str = "Cooked Cod";
     const STACK_SIZE: u8 = 64;
@@ -11460,7 +11460,7 @@ impl ItemDef for CookedCod {
 pub struct CookedSalmon;
 
 impl ItemDef for CookedSalmon {
-    const ID: u32 = 1017;
+    const ID: i32 = 1017;
     const STRING_ID: &'static str = "minecraft:cooked_salmon";
     const NAME: &'static str = "Cooked Salmon";
     const STACK_SIZE: u8 = 64;
@@ -11470,7 +11470,7 @@ impl ItemDef for CookedSalmon {
 pub struct InkSac;
 
 impl ItemDef for InkSac {
-    const ID: u32 = 1018;
+    const ID: i32 = 1018;
     const STRING_ID: &'static str = "minecraft:ink_sac";
     const NAME: &'static str = "Ink Sac";
     const STACK_SIZE: u8 = 64;
@@ -11480,7 +11480,7 @@ impl ItemDef for InkSac {
 pub struct GlowInkSac;
 
 impl ItemDef for GlowInkSac {
-    const ID: u32 = 1019;
+    const ID: i32 = 1019;
     const STRING_ID: &'static str = "minecraft:glow_ink_sac";
     const NAME: &'static str = "Glow Ink Sac";
     const STACK_SIZE: u8 = 64;
@@ -11490,7 +11490,7 @@ impl ItemDef for GlowInkSac {
 pub struct CocoaBeans;
 
 impl ItemDef for CocoaBeans {
-    const ID: u32 = 1020;
+    const ID: i32 = 1020;
     const STRING_ID: &'static str = "minecraft:cocoa_beans";
     const NAME: &'static str = "Cocoa Beans";
     const STACK_SIZE: u8 = 64;
@@ -11500,7 +11500,7 @@ impl ItemDef for CocoaBeans {
 pub struct WhiteDye;
 
 impl ItemDef for WhiteDye {
-    const ID: u32 = 1021;
+    const ID: i32 = 1021;
     const STRING_ID: &'static str = "minecraft:white_dye";
     const NAME: &'static str = "White Dye";
     const STACK_SIZE: u8 = 64;
@@ -11510,7 +11510,7 @@ impl ItemDef for WhiteDye {
 pub struct OrangeDye;
 
 impl ItemDef for OrangeDye {
-    const ID: u32 = 1022;
+    const ID: i32 = 1022;
     const STRING_ID: &'static str = "minecraft:orange_dye";
     const NAME: &'static str = "Orange Dye";
     const STACK_SIZE: u8 = 64;
@@ -11520,7 +11520,7 @@ impl ItemDef for OrangeDye {
 pub struct MagentaDye;
 
 impl ItemDef for MagentaDye {
-    const ID: u32 = 1023;
+    const ID: i32 = 1023;
     const STRING_ID: &'static str = "minecraft:magenta_dye";
     const NAME: &'static str = "Magenta Dye";
     const STACK_SIZE: u8 = 64;
@@ -11530,7 +11530,7 @@ impl ItemDef for MagentaDye {
 pub struct LightBlueDye;
 
 impl ItemDef for LightBlueDye {
-    const ID: u32 = 1024;
+    const ID: i32 = 1024;
     const STRING_ID: &'static str = "minecraft:light_blue_dye";
     const NAME: &'static str = "Light Blue Dye";
     const STACK_SIZE: u8 = 64;
@@ -11540,7 +11540,7 @@ impl ItemDef for LightBlueDye {
 pub struct YellowDye;
 
 impl ItemDef for YellowDye {
-    const ID: u32 = 1025;
+    const ID: i32 = 1025;
     const STRING_ID: &'static str = "minecraft:yellow_dye";
     const NAME: &'static str = "Yellow Dye";
     const STACK_SIZE: u8 = 64;
@@ -11550,7 +11550,7 @@ impl ItemDef for YellowDye {
 pub struct LimeDye;
 
 impl ItemDef for LimeDye {
-    const ID: u32 = 1026;
+    const ID: i32 = 1026;
     const STRING_ID: &'static str = "minecraft:lime_dye";
     const NAME: &'static str = "Lime Dye";
     const STACK_SIZE: u8 = 64;
@@ -11560,7 +11560,7 @@ impl ItemDef for LimeDye {
 pub struct PinkDye;
 
 impl ItemDef for PinkDye {
-    const ID: u32 = 1027;
+    const ID: i32 = 1027;
     const STRING_ID: &'static str = "minecraft:pink_dye";
     const NAME: &'static str = "Pink Dye";
     const STACK_SIZE: u8 = 64;
@@ -11570,7 +11570,7 @@ impl ItemDef for PinkDye {
 pub struct GrayDye;
 
 impl ItemDef for GrayDye {
-    const ID: u32 = 1028;
+    const ID: i32 = 1028;
     const STRING_ID: &'static str = "minecraft:gray_dye";
     const NAME: &'static str = "Gray Dye";
     const STACK_SIZE: u8 = 64;
@@ -11580,7 +11580,7 @@ impl ItemDef for GrayDye {
 pub struct LightGrayDye;
 
 impl ItemDef for LightGrayDye {
-    const ID: u32 = 1029;
+    const ID: i32 = 1029;
     const STRING_ID: &'static str = "minecraft:light_gray_dye";
     const NAME: &'static str = "Light Gray Dye";
     const STACK_SIZE: u8 = 64;
@@ -11590,7 +11590,7 @@ impl ItemDef for LightGrayDye {
 pub struct CyanDye;
 
 impl ItemDef for CyanDye {
-    const ID: u32 = 1030;
+    const ID: i32 = 1030;
     const STRING_ID: &'static str = "minecraft:cyan_dye";
     const NAME: &'static str = "Cyan Dye";
     const STACK_SIZE: u8 = 64;
@@ -11600,7 +11600,7 @@ impl ItemDef for CyanDye {
 pub struct PurpleDye;
 
 impl ItemDef for PurpleDye {
-    const ID: u32 = 1031;
+    const ID: i32 = 1031;
     const STRING_ID: &'static str = "minecraft:purple_dye";
     const NAME: &'static str = "Purple Dye";
     const STACK_SIZE: u8 = 64;
@@ -11610,7 +11610,7 @@ impl ItemDef for PurpleDye {
 pub struct BlueDye;
 
 impl ItemDef for BlueDye {
-    const ID: u32 = 1032;
+    const ID: i32 = 1032;
     const STRING_ID: &'static str = "minecraft:blue_dye";
     const NAME: &'static str = "Blue Dye";
     const STACK_SIZE: u8 = 64;
@@ -11620,7 +11620,7 @@ impl ItemDef for BlueDye {
 pub struct BrownDye;
 
 impl ItemDef for BrownDye {
-    const ID: u32 = 1033;
+    const ID: i32 = 1033;
     const STRING_ID: &'static str = "minecraft:brown_dye";
     const NAME: &'static str = "Brown Dye";
     const STACK_SIZE: u8 = 64;
@@ -11630,7 +11630,7 @@ impl ItemDef for BrownDye {
 pub struct GreenDye;
 
 impl ItemDef for GreenDye {
-    const ID: u32 = 1034;
+    const ID: i32 = 1034;
     const STRING_ID: &'static str = "minecraft:green_dye";
     const NAME: &'static str = "Green Dye";
     const STACK_SIZE: u8 = 64;
@@ -11640,7 +11640,7 @@ impl ItemDef for GreenDye {
 pub struct RedDye;
 
 impl ItemDef for RedDye {
-    const ID: u32 = 1035;
+    const ID: i32 = 1035;
     const STRING_ID: &'static str = "minecraft:red_dye";
     const NAME: &'static str = "Red Dye";
     const STACK_SIZE: u8 = 64;
@@ -11650,7 +11650,7 @@ impl ItemDef for RedDye {
 pub struct BlackDye;
 
 impl ItemDef for BlackDye {
-    const ID: u32 = 1036;
+    const ID: i32 = 1036;
     const STRING_ID: &'static str = "minecraft:black_dye";
     const NAME: &'static str = "Black Dye";
     const STACK_SIZE: u8 = 64;
@@ -11660,7 +11660,7 @@ impl ItemDef for BlackDye {
 pub struct BoneMeal;
 
 impl ItemDef for BoneMeal {
-    const ID: u32 = 1037;
+    const ID: i32 = 1037;
     const STRING_ID: &'static str = "minecraft:bone_meal";
     const NAME: &'static str = "Bone Meal";
     const STACK_SIZE: u8 = 64;
@@ -11670,7 +11670,7 @@ impl ItemDef for BoneMeal {
 pub struct Bone;
 
 impl ItemDef for Bone {
-    const ID: u32 = 1038;
+    const ID: i32 = 1038;
     const STRING_ID: &'static str = "minecraft:bone";
     const NAME: &'static str = "Bone";
     const STACK_SIZE: u8 = 64;
@@ -11680,7 +11680,7 @@ impl ItemDef for Bone {
 pub struct Sugar;
 
 impl ItemDef for Sugar {
-    const ID: u32 = 1039;
+    const ID: i32 = 1039;
     const STRING_ID: &'static str = "minecraft:sugar";
     const NAME: &'static str = "Sugar";
     const STACK_SIZE: u8 = 64;
@@ -11690,7 +11690,7 @@ impl ItemDef for Sugar {
 pub struct Cake;
 
 impl ItemDef for Cake {
-    const ID: u32 = 1040;
+    const ID: i32 = 1040;
     const STRING_ID: &'static str = "minecraft:cake";
     const NAME: &'static str = "Cake";
     const STACK_SIZE: u8 = 1;
@@ -11700,7 +11700,7 @@ impl ItemDef for Cake {
 pub struct Bed;
 
 impl ItemDef for Bed {
-    const ID: u32 = 1041;
+    const ID: i32 = 1041;
     const STRING_ID: &'static str = "minecraft:bed";
     const NAME: &'static str = "White Bed";
     const STACK_SIZE: u8 = 1;
@@ -11822,7 +11822,7 @@ impl VariantItem for Bed {
 pub struct Cookie;
 
 impl ItemDef for Cookie {
-    const ID: u32 = 1057;
+    const ID: i32 = 1057;
     const STRING_ID: &'static str = "minecraft:cookie";
     const NAME: &'static str = "Cookie";
     const STACK_SIZE: u8 = 64;
@@ -11832,7 +11832,7 @@ impl ItemDef for Cookie {
 pub struct Crafter;
 
 impl ItemDef for Crafter {
-    const ID: u32 = 1058;
+    const ID: i32 = 1058;
     const STRING_ID: &'static str = "minecraft:crafter";
     const NAME: &'static str = "Crafter";
     const STACK_SIZE: u8 = 64;
@@ -11842,7 +11842,7 @@ impl ItemDef for Crafter {
 pub struct FilledMap;
 
 impl ItemDef for FilledMap {
-    const ID: u32 = 1059;
+    const ID: i32 = 1059;
     const STRING_ID: &'static str = "minecraft:filled_map";
     const NAME: &'static str = "Map";
     const STACK_SIZE: u8 = 64;
@@ -11852,7 +11852,7 @@ impl ItemDef for FilledMap {
 pub struct Shears;
 
 impl ItemDef for Shears {
-    const ID: u32 = 1060;
+    const ID: i32 = 1060;
     const STRING_ID: &'static str = "minecraft:shears";
     const NAME: &'static str = "Shears";
     const STACK_SIZE: u8 = 1;
@@ -11875,7 +11875,7 @@ impl EnchantableItem for Shears {
 pub struct MelonSlice;
 
 impl ItemDef for MelonSlice {
-    const ID: u32 = 1061;
+    const ID: i32 = 1061;
     const STRING_ID: &'static str = "minecraft:melon_slice";
     const NAME: &'static str = "Melon Slice";
     const STACK_SIZE: u8 = 64;
@@ -11885,7 +11885,7 @@ impl ItemDef for MelonSlice {
 pub struct DriedKelp;
 
 impl ItemDef for DriedKelp {
-    const ID: u32 = 1062;
+    const ID: i32 = 1062;
     const STRING_ID: &'static str = "minecraft:dried_kelp";
     const NAME: &'static str = "Dried Kelp";
     const STACK_SIZE: u8 = 64;
@@ -11895,7 +11895,7 @@ impl ItemDef for DriedKelp {
 pub struct PumpkinSeeds;
 
 impl ItemDef for PumpkinSeeds {
-    const ID: u32 = 1063;
+    const ID: i32 = 1063;
     const STRING_ID: &'static str = "minecraft:pumpkin_seeds";
     const NAME: &'static str = "Pumpkin Seeds";
     const STACK_SIZE: u8 = 64;
@@ -11905,7 +11905,7 @@ impl ItemDef for PumpkinSeeds {
 pub struct MelonSeeds;
 
 impl ItemDef for MelonSeeds {
-    const ID: u32 = 1064;
+    const ID: i32 = 1064;
     const STRING_ID: &'static str = "minecraft:melon_seeds";
     const NAME: &'static str = "Melon Seeds";
     const STACK_SIZE: u8 = 64;
@@ -11915,7 +11915,7 @@ impl ItemDef for MelonSeeds {
 pub struct Beef;
 
 impl ItemDef for Beef {
-    const ID: u32 = 1065;
+    const ID: i32 = 1065;
     const STRING_ID: &'static str = "minecraft:beef";
     const NAME: &'static str = "Raw Beef";
     const STACK_SIZE: u8 = 64;
@@ -11925,7 +11925,7 @@ impl ItemDef for Beef {
 pub struct CookedBeef;
 
 impl ItemDef for CookedBeef {
-    const ID: u32 = 1066;
+    const ID: i32 = 1066;
     const STRING_ID: &'static str = "minecraft:cooked_beef";
     const NAME: &'static str = "Steak";
     const STACK_SIZE: u8 = 64;
@@ -11935,7 +11935,7 @@ impl ItemDef for CookedBeef {
 pub struct Chicken;
 
 impl ItemDef for Chicken {
-    const ID: u32 = 1067;
+    const ID: i32 = 1067;
     const STRING_ID: &'static str = "minecraft:chicken";
     const NAME: &'static str = "Raw Chicken";
     const STACK_SIZE: u8 = 64;
@@ -11945,7 +11945,7 @@ impl ItemDef for Chicken {
 pub struct CookedChicken;
 
 impl ItemDef for CookedChicken {
-    const ID: u32 = 1068;
+    const ID: i32 = 1068;
     const STRING_ID: &'static str = "minecraft:cooked_chicken";
     const NAME: &'static str = "Cooked Chicken";
     const STACK_SIZE: u8 = 64;
@@ -11955,7 +11955,7 @@ impl ItemDef for CookedChicken {
 pub struct RottenFlesh;
 
 impl ItemDef for RottenFlesh {
-    const ID: u32 = 1069;
+    const ID: i32 = 1069;
     const STRING_ID: &'static str = "minecraft:rotten_flesh";
     const NAME: &'static str = "Rotten Flesh";
     const STACK_SIZE: u8 = 64;
@@ -11965,7 +11965,7 @@ impl ItemDef for RottenFlesh {
 pub struct EnderPearl;
 
 impl ItemDef for EnderPearl {
-    const ID: u32 = 1070;
+    const ID: i32 = 1070;
     const STRING_ID: &'static str = "minecraft:ender_pearl";
     const NAME: &'static str = "Ender Pearl";
     const STACK_SIZE: u8 = 16;
@@ -11975,7 +11975,7 @@ impl ItemDef for EnderPearl {
 pub struct BlazeRod;
 
 impl ItemDef for BlazeRod {
-    const ID: u32 = 1071;
+    const ID: i32 = 1071;
     const STRING_ID: &'static str = "minecraft:blaze_rod";
     const NAME: &'static str = "Blaze Rod";
     const STACK_SIZE: u8 = 64;
@@ -11985,7 +11985,7 @@ impl ItemDef for BlazeRod {
 pub struct GhastTear;
 
 impl ItemDef for GhastTear {
-    const ID: u32 = 1072;
+    const ID: i32 = 1072;
     const STRING_ID: &'static str = "minecraft:ghast_tear";
     const NAME: &'static str = "Ghast Tear";
     const STACK_SIZE: u8 = 64;
@@ -11995,7 +11995,7 @@ impl ItemDef for GhastTear {
 pub struct GoldNugget;
 
 impl ItemDef for GoldNugget {
-    const ID: u32 = 1073;
+    const ID: i32 = 1073;
     const STRING_ID: &'static str = "minecraft:gold_nugget";
     const NAME: &'static str = "Gold Nugget";
     const STACK_SIZE: u8 = 64;
@@ -12005,7 +12005,7 @@ impl ItemDef for GoldNugget {
 pub struct NetherWart;
 
 impl ItemDef for NetherWart {
-    const ID: u32 = 1074;
+    const ID: i32 = 1074;
     const STRING_ID: &'static str = "minecraft:nether_wart";
     const NAME: &'static str = "Nether Wart";
     const STACK_SIZE: u8 = 64;
@@ -12015,7 +12015,7 @@ impl ItemDef for NetherWart {
 pub struct GlassBottle;
 
 impl ItemDef for GlassBottle {
-    const ID: u32 = 1075;
+    const ID: i32 = 1075;
     const STRING_ID: &'static str = "minecraft:glass_bottle";
     const NAME: &'static str = "Glass Bottle";
     const STACK_SIZE: u8 = 64;
@@ -12025,7 +12025,7 @@ impl ItemDef for GlassBottle {
 pub struct Potion;
 
 impl ItemDef for Potion {
-    const ID: u32 = 1076;
+    const ID: i32 = 1076;
     const STRING_ID: &'static str = "minecraft:potion";
     const NAME: &'static str = "Potion";
     const STACK_SIZE: u8 = 1;
@@ -12035,7 +12035,7 @@ impl ItemDef for Potion {
 pub struct SpiderEye;
 
 impl ItemDef for SpiderEye {
-    const ID: u32 = 1077;
+    const ID: i32 = 1077;
     const STRING_ID: &'static str = "minecraft:spider_eye";
     const NAME: &'static str = "Spider Eye";
     const STACK_SIZE: u8 = 64;
@@ -12045,7 +12045,7 @@ impl ItemDef for SpiderEye {
 pub struct FermentedSpiderEye;
 
 impl ItemDef for FermentedSpiderEye {
-    const ID: u32 = 1078;
+    const ID: i32 = 1078;
     const STRING_ID: &'static str = "minecraft:fermented_spider_eye";
     const NAME: &'static str = "Fermented Spider Eye";
     const STACK_SIZE: u8 = 64;
@@ -12055,7 +12055,7 @@ impl ItemDef for FermentedSpiderEye {
 pub struct BlazePowder;
 
 impl ItemDef for BlazePowder {
-    const ID: u32 = 1079;
+    const ID: i32 = 1079;
     const STRING_ID: &'static str = "minecraft:blaze_powder";
     const NAME: &'static str = "Blaze Powder";
     const STACK_SIZE: u8 = 64;
@@ -12065,7 +12065,7 @@ impl ItemDef for BlazePowder {
 pub struct MagmaCream;
 
 impl ItemDef for MagmaCream {
-    const ID: u32 = 1080;
+    const ID: i32 = 1080;
     const STRING_ID: &'static str = "minecraft:magma_cream";
     const NAME: &'static str = "Magma Cream";
     const STACK_SIZE: u8 = 64;
@@ -12075,7 +12075,7 @@ impl ItemDef for MagmaCream {
 pub struct BrewingStand;
 
 impl ItemDef for BrewingStand {
-    const ID: u32 = 1081;
+    const ID: i32 = 1081;
     const STRING_ID: &'static str = "minecraft:brewing_stand";
     const NAME: &'static str = "Brewing Stand";
     const STACK_SIZE: u8 = 64;
@@ -12085,7 +12085,7 @@ impl ItemDef for BrewingStand {
 pub struct Cauldron;
 
 impl ItemDef for Cauldron {
-    const ID: u32 = 1082;
+    const ID: i32 = 1082;
     const STRING_ID: &'static str = "minecraft:cauldron";
     const NAME: &'static str = "Cauldron";
     const STACK_SIZE: u8 = 64;
@@ -12095,7 +12095,7 @@ impl ItemDef for Cauldron {
 pub struct EnderEye;
 
 impl ItemDef for EnderEye {
-    const ID: u32 = 1083;
+    const ID: i32 = 1083;
     const STRING_ID: &'static str = "minecraft:ender_eye";
     const NAME: &'static str = "Eye of Ender";
     const STACK_SIZE: u8 = 64;
@@ -12105,7 +12105,7 @@ impl ItemDef for EnderEye {
 pub struct GlisteringMelonSlice;
 
 impl ItemDef for GlisteringMelonSlice {
-    const ID: u32 = 1084;
+    const ID: i32 = 1084;
     const STRING_ID: &'static str = "minecraft:glistering_melon_slice";
     const NAME: &'static str = "Glistering Melon Slice";
     const STACK_SIZE: u8 = 64;
@@ -12115,7 +12115,7 @@ impl ItemDef for GlisteringMelonSlice {
 pub struct ArmadilloSpawnEgg;
 
 impl ItemDef for ArmadilloSpawnEgg {
-    const ID: u32 = 1085;
+    const ID: i32 = 1085;
     const STRING_ID: &'static str = "minecraft:armadillo_spawn_egg";
     const NAME: &'static str = "Armadillo Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12125,7 +12125,7 @@ impl ItemDef for ArmadilloSpawnEgg {
 pub struct AllaySpawnEgg;
 
 impl ItemDef for AllaySpawnEgg {
-    const ID: u32 = 1086;
+    const ID: i32 = 1086;
     const STRING_ID: &'static str = "minecraft:allay_spawn_egg";
     const NAME: &'static str = "Allay Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12135,7 +12135,7 @@ impl ItemDef for AllaySpawnEgg {
 pub struct AxolotlSpawnEgg;
 
 impl ItemDef for AxolotlSpawnEgg {
-    const ID: u32 = 1087;
+    const ID: i32 = 1087;
     const STRING_ID: &'static str = "minecraft:axolotl_spawn_egg";
     const NAME: &'static str = "Axolotl Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12145,7 +12145,7 @@ impl ItemDef for AxolotlSpawnEgg {
 pub struct BatSpawnEgg;
 
 impl ItemDef for BatSpawnEgg {
-    const ID: u32 = 1088;
+    const ID: i32 = 1088;
     const STRING_ID: &'static str = "minecraft:bat_spawn_egg";
     const NAME: &'static str = "Bat Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12155,7 +12155,7 @@ impl ItemDef for BatSpawnEgg {
 pub struct BeeSpawnEgg;
 
 impl ItemDef for BeeSpawnEgg {
-    const ID: u32 = 1089;
+    const ID: i32 = 1089;
     const STRING_ID: &'static str = "minecraft:bee_spawn_egg";
     const NAME: &'static str = "Bee Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12165,7 +12165,7 @@ impl ItemDef for BeeSpawnEgg {
 pub struct BlazeSpawnEgg;
 
 impl ItemDef for BlazeSpawnEgg {
-    const ID: u32 = 1090;
+    const ID: i32 = 1090;
     const STRING_ID: &'static str = "minecraft:blaze_spawn_egg";
     const NAME: &'static str = "Blaze Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12175,7 +12175,7 @@ impl ItemDef for BlazeSpawnEgg {
 pub struct BoggedSpawnEgg;
 
 impl ItemDef for BoggedSpawnEgg {
-    const ID: u32 = 1091;
+    const ID: i32 = 1091;
     const STRING_ID: &'static str = "minecraft:bogged_spawn_egg";
     const NAME: &'static str = "Bogged Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12185,7 +12185,7 @@ impl ItemDef for BoggedSpawnEgg {
 pub struct BreezeSpawnEgg;
 
 impl ItemDef for BreezeSpawnEgg {
-    const ID: u32 = 1092;
+    const ID: i32 = 1092;
     const STRING_ID: &'static str = "minecraft:breeze_spawn_egg";
     const NAME: &'static str = "Breeze Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12195,7 +12195,7 @@ impl ItemDef for BreezeSpawnEgg {
 pub struct CatSpawnEgg;
 
 impl ItemDef for CatSpawnEgg {
-    const ID: u32 = 1093;
+    const ID: i32 = 1093;
     const STRING_ID: &'static str = "minecraft:cat_spawn_egg";
     const NAME: &'static str = "Cat Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12205,7 +12205,7 @@ impl ItemDef for CatSpawnEgg {
 pub struct CamelSpawnEgg;
 
 impl ItemDef for CamelSpawnEgg {
-    const ID: u32 = 1094;
+    const ID: i32 = 1094;
     const STRING_ID: &'static str = "minecraft:camel_spawn_egg";
     const NAME: &'static str = "Camel Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12215,7 +12215,7 @@ impl ItemDef for CamelSpawnEgg {
 pub struct CaveSpiderSpawnEgg;
 
 impl ItemDef for CaveSpiderSpawnEgg {
-    const ID: u32 = 1095;
+    const ID: i32 = 1095;
     const STRING_ID: &'static str = "minecraft:cave_spider_spawn_egg";
     const NAME: &'static str = "Cave Spider Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12225,7 +12225,7 @@ impl ItemDef for CaveSpiderSpawnEgg {
 pub struct ChickenSpawnEgg;
 
 impl ItemDef for ChickenSpawnEgg {
-    const ID: u32 = 1096;
+    const ID: i32 = 1096;
     const STRING_ID: &'static str = "minecraft:chicken_spawn_egg";
     const NAME: &'static str = "Chicken Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12235,7 +12235,7 @@ impl ItemDef for ChickenSpawnEgg {
 pub struct CodSpawnEgg;
 
 impl ItemDef for CodSpawnEgg {
-    const ID: u32 = 1097;
+    const ID: i32 = 1097;
     const STRING_ID: &'static str = "minecraft:cod_spawn_egg";
     const NAME: &'static str = "Cod Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12245,7 +12245,7 @@ impl ItemDef for CodSpawnEgg {
 pub struct CowSpawnEgg;
 
 impl ItemDef for CowSpawnEgg {
-    const ID: u32 = 1098;
+    const ID: i32 = 1098;
     const STRING_ID: &'static str = "minecraft:cow_spawn_egg";
     const NAME: &'static str = "Cow Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12255,7 +12255,7 @@ impl ItemDef for CowSpawnEgg {
 pub struct CreeperSpawnEgg;
 
 impl ItemDef for CreeperSpawnEgg {
-    const ID: u32 = 1099;
+    const ID: i32 = 1099;
     const STRING_ID: &'static str = "minecraft:creeper_spawn_egg";
     const NAME: &'static str = "Creeper Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12265,7 +12265,7 @@ impl ItemDef for CreeperSpawnEgg {
 pub struct DolphinSpawnEgg;
 
 impl ItemDef for DolphinSpawnEgg {
-    const ID: u32 = 1100;
+    const ID: i32 = 1100;
     const STRING_ID: &'static str = "minecraft:dolphin_spawn_egg";
     const NAME: &'static str = "Dolphin Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12275,7 +12275,7 @@ impl ItemDef for DolphinSpawnEgg {
 pub struct DonkeySpawnEgg;
 
 impl ItemDef for DonkeySpawnEgg {
-    const ID: u32 = 1101;
+    const ID: i32 = 1101;
     const STRING_ID: &'static str = "minecraft:donkey_spawn_egg";
     const NAME: &'static str = "Donkey Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12285,7 +12285,7 @@ impl ItemDef for DonkeySpawnEgg {
 pub struct DrownedSpawnEgg;
 
 impl ItemDef for DrownedSpawnEgg {
-    const ID: u32 = 1102;
+    const ID: i32 = 1102;
     const STRING_ID: &'static str = "minecraft:drowned_spawn_egg";
     const NAME: &'static str = "Drowned Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12295,7 +12295,7 @@ impl ItemDef for DrownedSpawnEgg {
 pub struct ElderGuardianSpawnEgg;
 
 impl ItemDef for ElderGuardianSpawnEgg {
-    const ID: u32 = 1103;
+    const ID: i32 = 1103;
     const STRING_ID: &'static str = "minecraft:elder_guardian_spawn_egg";
     const NAME: &'static str = "Elder Guardian Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12305,7 +12305,7 @@ impl ItemDef for ElderGuardianSpawnEgg {
 pub struct EnderDragonSpawnEgg;
 
 impl ItemDef for EnderDragonSpawnEgg {
-    const ID: u32 = 1104;
+    const ID: i32 = 1104;
     const STRING_ID: &'static str = "minecraft:ender_dragon_spawn_egg";
     const NAME: &'static str = "Ender Dragon Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12315,7 +12315,7 @@ impl ItemDef for EnderDragonSpawnEgg {
 pub struct EndermanSpawnEgg;
 
 impl ItemDef for EndermanSpawnEgg {
-    const ID: u32 = 1105;
+    const ID: i32 = 1105;
     const STRING_ID: &'static str = "minecraft:enderman_spawn_egg";
     const NAME: &'static str = "Enderman Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12325,7 +12325,7 @@ impl ItemDef for EndermanSpawnEgg {
 pub struct EndermiteSpawnEgg;
 
 impl ItemDef for EndermiteSpawnEgg {
-    const ID: u32 = 1106;
+    const ID: i32 = 1106;
     const STRING_ID: &'static str = "minecraft:endermite_spawn_egg";
     const NAME: &'static str = "Endermite Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12335,7 +12335,7 @@ impl ItemDef for EndermiteSpawnEgg {
 pub struct EvokerSpawnEgg;
 
 impl ItemDef for EvokerSpawnEgg {
-    const ID: u32 = 1107;
+    const ID: i32 = 1107;
     const STRING_ID: &'static str = "minecraft:evoker_spawn_egg";
     const NAME: &'static str = "Evoker Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12345,7 +12345,7 @@ impl ItemDef for EvokerSpawnEgg {
 pub struct FoxSpawnEgg;
 
 impl ItemDef for FoxSpawnEgg {
-    const ID: u32 = 1108;
+    const ID: i32 = 1108;
     const STRING_ID: &'static str = "minecraft:fox_spawn_egg";
     const NAME: &'static str = "Fox Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12355,7 +12355,7 @@ impl ItemDef for FoxSpawnEgg {
 pub struct FrogSpawnEgg;
 
 impl ItemDef for FrogSpawnEgg {
-    const ID: u32 = 1109;
+    const ID: i32 = 1109;
     const STRING_ID: &'static str = "minecraft:frog_spawn_egg";
     const NAME: &'static str = "Frog Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12365,7 +12365,7 @@ impl ItemDef for FrogSpawnEgg {
 pub struct GhastSpawnEgg;
 
 impl ItemDef for GhastSpawnEgg {
-    const ID: u32 = 1110;
+    const ID: i32 = 1110;
     const STRING_ID: &'static str = "minecraft:ghast_spawn_egg";
     const NAME: &'static str = "Ghast Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12375,7 +12375,7 @@ impl ItemDef for GhastSpawnEgg {
 pub struct HappyGhastSpawnEgg;
 
 impl ItemDef for HappyGhastSpawnEgg {
-    const ID: u32 = 1111;
+    const ID: i32 = 1111;
     const STRING_ID: &'static str = "minecraft:happy_ghast_spawn_egg";
     const NAME: &'static str = "Happy Ghast Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12385,7 +12385,7 @@ impl ItemDef for HappyGhastSpawnEgg {
 pub struct GlowSquidSpawnEgg;
 
 impl ItemDef for GlowSquidSpawnEgg {
-    const ID: u32 = 1112;
+    const ID: i32 = 1112;
     const STRING_ID: &'static str = "minecraft:glow_squid_spawn_egg";
     const NAME: &'static str = "Glow Squid Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12395,7 +12395,7 @@ impl ItemDef for GlowSquidSpawnEgg {
 pub struct GoatSpawnEgg;
 
 impl ItemDef for GoatSpawnEgg {
-    const ID: u32 = 1113;
+    const ID: i32 = 1113;
     const STRING_ID: &'static str = "minecraft:goat_spawn_egg";
     const NAME: &'static str = "Goat Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12405,7 +12405,7 @@ impl ItemDef for GoatSpawnEgg {
 pub struct GuardianSpawnEgg;
 
 impl ItemDef for GuardianSpawnEgg {
-    const ID: u32 = 1114;
+    const ID: i32 = 1114;
     const STRING_ID: &'static str = "minecraft:guardian_spawn_egg";
     const NAME: &'static str = "Guardian Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12415,7 +12415,7 @@ impl ItemDef for GuardianSpawnEgg {
 pub struct HoglinSpawnEgg;
 
 impl ItemDef for HoglinSpawnEgg {
-    const ID: u32 = 1115;
+    const ID: i32 = 1115;
     const STRING_ID: &'static str = "minecraft:hoglin_spawn_egg";
     const NAME: &'static str = "Hoglin Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12425,7 +12425,7 @@ impl ItemDef for HoglinSpawnEgg {
 pub struct HorseSpawnEgg;
 
 impl ItemDef for HorseSpawnEgg {
-    const ID: u32 = 1116;
+    const ID: i32 = 1116;
     const STRING_ID: &'static str = "minecraft:horse_spawn_egg";
     const NAME: &'static str = "Horse Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12435,7 +12435,7 @@ impl ItemDef for HorseSpawnEgg {
 pub struct HuskSpawnEgg;
 
 impl ItemDef for HuskSpawnEgg {
-    const ID: u32 = 1117;
+    const ID: i32 = 1117;
     const STRING_ID: &'static str = "minecraft:husk_spawn_egg";
     const NAME: &'static str = "Husk Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12445,7 +12445,7 @@ impl ItemDef for HuskSpawnEgg {
 pub struct IronGolemSpawnEgg;
 
 impl ItemDef for IronGolemSpawnEgg {
-    const ID: u32 = 1118;
+    const ID: i32 = 1118;
     const STRING_ID: &'static str = "minecraft:iron_golem_spawn_egg";
     const NAME: &'static str = "Iron Golem Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12455,7 +12455,7 @@ impl ItemDef for IronGolemSpawnEgg {
 pub struct LlamaSpawnEgg;
 
 impl ItemDef for LlamaSpawnEgg {
-    const ID: u32 = 1119;
+    const ID: i32 = 1119;
     const STRING_ID: &'static str = "minecraft:llama_spawn_egg";
     const NAME: &'static str = "Llama Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12465,7 +12465,7 @@ impl ItemDef for LlamaSpawnEgg {
 pub struct MagmaCubeSpawnEgg;
 
 impl ItemDef for MagmaCubeSpawnEgg {
-    const ID: u32 = 1120;
+    const ID: i32 = 1120;
     const STRING_ID: &'static str = "minecraft:magma_cube_spawn_egg";
     const NAME: &'static str = "Magma Cube Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12475,7 +12475,7 @@ impl ItemDef for MagmaCubeSpawnEgg {
 pub struct MooshroomSpawnEgg;
 
 impl ItemDef for MooshroomSpawnEgg {
-    const ID: u32 = 1121;
+    const ID: i32 = 1121;
     const STRING_ID: &'static str = "minecraft:mooshroom_spawn_egg";
     const NAME: &'static str = "Mooshroom Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12485,7 +12485,7 @@ impl ItemDef for MooshroomSpawnEgg {
 pub struct MuleSpawnEgg;
 
 impl ItemDef for MuleSpawnEgg {
-    const ID: u32 = 1122;
+    const ID: i32 = 1122;
     const STRING_ID: &'static str = "minecraft:mule_spawn_egg";
     const NAME: &'static str = "Mule Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12495,7 +12495,7 @@ impl ItemDef for MuleSpawnEgg {
 pub struct OcelotSpawnEgg;
 
 impl ItemDef for OcelotSpawnEgg {
-    const ID: u32 = 1123;
+    const ID: i32 = 1123;
     const STRING_ID: &'static str = "minecraft:ocelot_spawn_egg";
     const NAME: &'static str = "Ocelot Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12505,7 +12505,7 @@ impl ItemDef for OcelotSpawnEgg {
 pub struct PandaSpawnEgg;
 
 impl ItemDef for PandaSpawnEgg {
-    const ID: u32 = 1124;
+    const ID: i32 = 1124;
     const STRING_ID: &'static str = "minecraft:panda_spawn_egg";
     const NAME: &'static str = "Panda Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12515,7 +12515,7 @@ impl ItemDef for PandaSpawnEgg {
 pub struct ParrotSpawnEgg;
 
 impl ItemDef for ParrotSpawnEgg {
-    const ID: u32 = 1125;
+    const ID: i32 = 1125;
     const STRING_ID: &'static str = "minecraft:parrot_spawn_egg";
     const NAME: &'static str = "Parrot Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12525,7 +12525,7 @@ impl ItemDef for ParrotSpawnEgg {
 pub struct PhantomSpawnEgg;
 
 impl ItemDef for PhantomSpawnEgg {
-    const ID: u32 = 1126;
+    const ID: i32 = 1126;
     const STRING_ID: &'static str = "minecraft:phantom_spawn_egg";
     const NAME: &'static str = "Phantom Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12535,7 +12535,7 @@ impl ItemDef for PhantomSpawnEgg {
 pub struct PigSpawnEgg;
 
 impl ItemDef for PigSpawnEgg {
-    const ID: u32 = 1127;
+    const ID: i32 = 1127;
     const STRING_ID: &'static str = "minecraft:pig_spawn_egg";
     const NAME: &'static str = "Pig Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12545,7 +12545,7 @@ impl ItemDef for PigSpawnEgg {
 pub struct PiglinSpawnEgg;
 
 impl ItemDef for PiglinSpawnEgg {
-    const ID: u32 = 1128;
+    const ID: i32 = 1128;
     const STRING_ID: &'static str = "minecraft:piglin_spawn_egg";
     const NAME: &'static str = "Piglin Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12555,7 +12555,7 @@ impl ItemDef for PiglinSpawnEgg {
 pub struct PiglinBruteSpawnEgg;
 
 impl ItemDef for PiglinBruteSpawnEgg {
-    const ID: u32 = 1129;
+    const ID: i32 = 1129;
     const STRING_ID: &'static str = "minecraft:piglin_brute_spawn_egg";
     const NAME: &'static str = "Piglin Brute Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12565,7 +12565,7 @@ impl ItemDef for PiglinBruteSpawnEgg {
 pub struct PillagerSpawnEgg;
 
 impl ItemDef for PillagerSpawnEgg {
-    const ID: u32 = 1130;
+    const ID: i32 = 1130;
     const STRING_ID: &'static str = "minecraft:pillager_spawn_egg";
     const NAME: &'static str = "Pillager Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12575,7 +12575,7 @@ impl ItemDef for PillagerSpawnEgg {
 pub struct PolarBearSpawnEgg;
 
 impl ItemDef for PolarBearSpawnEgg {
-    const ID: u32 = 1131;
+    const ID: i32 = 1131;
     const STRING_ID: &'static str = "minecraft:polar_bear_spawn_egg";
     const NAME: &'static str = "Polar Bear Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12585,7 +12585,7 @@ impl ItemDef for PolarBearSpawnEgg {
 pub struct PufferfishSpawnEgg;
 
 impl ItemDef for PufferfishSpawnEgg {
-    const ID: u32 = 1132;
+    const ID: i32 = 1132;
     const STRING_ID: &'static str = "minecraft:pufferfish_spawn_egg";
     const NAME: &'static str = "Pufferfish Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12595,7 +12595,7 @@ impl ItemDef for PufferfishSpawnEgg {
 pub struct RabbitSpawnEgg;
 
 impl ItemDef for RabbitSpawnEgg {
-    const ID: u32 = 1133;
+    const ID: i32 = 1133;
     const STRING_ID: &'static str = "minecraft:rabbit_spawn_egg";
     const NAME: &'static str = "Rabbit Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12605,7 +12605,7 @@ impl ItemDef for RabbitSpawnEgg {
 pub struct RavagerSpawnEgg;
 
 impl ItemDef for RavagerSpawnEgg {
-    const ID: u32 = 1134;
+    const ID: i32 = 1134;
     const STRING_ID: &'static str = "minecraft:ravager_spawn_egg";
     const NAME: &'static str = "Ravager Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12615,7 +12615,7 @@ impl ItemDef for RavagerSpawnEgg {
 pub struct SalmonSpawnEgg;
 
 impl ItemDef for SalmonSpawnEgg {
-    const ID: u32 = 1135;
+    const ID: i32 = 1135;
     const STRING_ID: &'static str = "minecraft:salmon_spawn_egg";
     const NAME: &'static str = "Salmon Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12625,7 +12625,7 @@ impl ItemDef for SalmonSpawnEgg {
 pub struct SheepSpawnEgg;
 
 impl ItemDef for SheepSpawnEgg {
-    const ID: u32 = 1136;
+    const ID: i32 = 1136;
     const STRING_ID: &'static str = "minecraft:sheep_spawn_egg";
     const NAME: &'static str = "Sheep Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12635,7 +12635,7 @@ impl ItemDef for SheepSpawnEgg {
 pub struct ShulkerSpawnEgg;
 
 impl ItemDef for ShulkerSpawnEgg {
-    const ID: u32 = 1137;
+    const ID: i32 = 1137;
     const STRING_ID: &'static str = "minecraft:shulker_spawn_egg";
     const NAME: &'static str = "Shulker Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12645,7 +12645,7 @@ impl ItemDef for ShulkerSpawnEgg {
 pub struct SilverfishSpawnEgg;
 
 impl ItemDef for SilverfishSpawnEgg {
-    const ID: u32 = 1138;
+    const ID: i32 = 1138;
     const STRING_ID: &'static str = "minecraft:silverfish_spawn_egg";
     const NAME: &'static str = "Silverfish Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12655,7 +12655,7 @@ impl ItemDef for SilverfishSpawnEgg {
 pub struct SkeletonSpawnEgg;
 
 impl ItemDef for SkeletonSpawnEgg {
-    const ID: u32 = 1139;
+    const ID: i32 = 1139;
     const STRING_ID: &'static str = "minecraft:skeleton_spawn_egg";
     const NAME: &'static str = "Skeleton Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12665,7 +12665,7 @@ impl ItemDef for SkeletonSpawnEgg {
 pub struct SkeletonHorseSpawnEgg;
 
 impl ItemDef for SkeletonHorseSpawnEgg {
-    const ID: u32 = 1140;
+    const ID: i32 = 1140;
     const STRING_ID: &'static str = "minecraft:skeleton_horse_spawn_egg";
     const NAME: &'static str = "Skeleton Horse Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12675,7 +12675,7 @@ impl ItemDef for SkeletonHorseSpawnEgg {
 pub struct SlimeSpawnEgg;
 
 impl ItemDef for SlimeSpawnEgg {
-    const ID: u32 = 1141;
+    const ID: i32 = 1141;
     const STRING_ID: &'static str = "minecraft:slime_spawn_egg";
     const NAME: &'static str = "Slime Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12685,7 +12685,7 @@ impl ItemDef for SlimeSpawnEgg {
 pub struct SnifferSpawnEgg;
 
 impl ItemDef for SnifferSpawnEgg {
-    const ID: u32 = 1142;
+    const ID: i32 = 1142;
     const STRING_ID: &'static str = "minecraft:sniffer_spawn_egg";
     const NAME: &'static str = "Sniffer Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12695,7 +12695,7 @@ impl ItemDef for SnifferSpawnEgg {
 pub struct SnowGolemSpawnEgg;
 
 impl ItemDef for SnowGolemSpawnEgg {
-    const ID: u32 = 1143;
+    const ID: i32 = 1143;
     const STRING_ID: &'static str = "minecraft:snow_golem_spawn_egg";
     const NAME: &'static str = "Snow Golem Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12705,7 +12705,7 @@ impl ItemDef for SnowGolemSpawnEgg {
 pub struct SpiderSpawnEgg;
 
 impl ItemDef for SpiderSpawnEgg {
-    const ID: u32 = 1144;
+    const ID: i32 = 1144;
     const STRING_ID: &'static str = "minecraft:spider_spawn_egg";
     const NAME: &'static str = "Spider Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12715,7 +12715,7 @@ impl ItemDef for SpiderSpawnEgg {
 pub struct SquidSpawnEgg;
 
 impl ItemDef for SquidSpawnEgg {
-    const ID: u32 = 1145;
+    const ID: i32 = 1145;
     const STRING_ID: &'static str = "minecraft:squid_spawn_egg";
     const NAME: &'static str = "Squid Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12725,7 +12725,7 @@ impl ItemDef for SquidSpawnEgg {
 pub struct StraySpawnEgg;
 
 impl ItemDef for StraySpawnEgg {
-    const ID: u32 = 1146;
+    const ID: i32 = 1146;
     const STRING_ID: &'static str = "minecraft:stray_spawn_egg";
     const NAME: &'static str = "Stray Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12735,7 +12735,7 @@ impl ItemDef for StraySpawnEgg {
 pub struct StriderSpawnEgg;
 
 impl ItemDef for StriderSpawnEgg {
-    const ID: u32 = 1147;
+    const ID: i32 = 1147;
     const STRING_ID: &'static str = "minecraft:strider_spawn_egg";
     const NAME: &'static str = "Strider Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12745,7 +12745,7 @@ impl ItemDef for StriderSpawnEgg {
 pub struct TadpoleSpawnEgg;
 
 impl ItemDef for TadpoleSpawnEgg {
-    const ID: u32 = 1148;
+    const ID: i32 = 1148;
     const STRING_ID: &'static str = "minecraft:tadpole_spawn_egg";
     const NAME: &'static str = "Tadpole Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12755,7 +12755,7 @@ impl ItemDef for TadpoleSpawnEgg {
 pub struct TraderLlamaSpawnEgg;
 
 impl ItemDef for TraderLlamaSpawnEgg {
-    const ID: u32 = 1149;
+    const ID: i32 = 1149;
     const STRING_ID: &'static str = "minecraft:trader_llama_spawn_egg";
     const NAME: &'static str = "Trader Llama Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12765,7 +12765,7 @@ impl ItemDef for TraderLlamaSpawnEgg {
 pub struct TropicalFishSpawnEgg;
 
 impl ItemDef for TropicalFishSpawnEgg {
-    const ID: u32 = 1150;
+    const ID: i32 = 1150;
     const STRING_ID: &'static str = "minecraft:tropical_fish_spawn_egg";
     const NAME: &'static str = "Tropical Fish Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12775,7 +12775,7 @@ impl ItemDef for TropicalFishSpawnEgg {
 pub struct TurtleSpawnEgg;
 
 impl ItemDef for TurtleSpawnEgg {
-    const ID: u32 = 1151;
+    const ID: i32 = 1151;
     const STRING_ID: &'static str = "minecraft:turtle_spawn_egg";
     const NAME: &'static str = "Turtle Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12785,7 +12785,7 @@ impl ItemDef for TurtleSpawnEgg {
 pub struct VexSpawnEgg;
 
 impl ItemDef for VexSpawnEgg {
-    const ID: u32 = 1152;
+    const ID: i32 = 1152;
     const STRING_ID: &'static str = "minecraft:vex_spawn_egg";
     const NAME: &'static str = "Vex Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12795,7 +12795,7 @@ impl ItemDef for VexSpawnEgg {
 pub struct VillagerSpawnEgg;
 
 impl ItemDef for VillagerSpawnEgg {
-    const ID: u32 = 1153;
+    const ID: i32 = 1153;
     const STRING_ID: &'static str = "minecraft:villager_spawn_egg";
     const NAME: &'static str = "Villager Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12805,7 +12805,7 @@ impl ItemDef for VillagerSpawnEgg {
 pub struct VindicatorSpawnEgg;
 
 impl ItemDef for VindicatorSpawnEgg {
-    const ID: u32 = 1154;
+    const ID: i32 = 1154;
     const STRING_ID: &'static str = "minecraft:vindicator_spawn_egg";
     const NAME: &'static str = "Vindicator Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12815,7 +12815,7 @@ impl ItemDef for VindicatorSpawnEgg {
 pub struct WanderingTraderSpawnEgg;
 
 impl ItemDef for WanderingTraderSpawnEgg {
-    const ID: u32 = 1155;
+    const ID: i32 = 1155;
     const STRING_ID: &'static str = "minecraft:wandering_trader_spawn_egg";
     const NAME: &'static str = "Wandering Trader Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12825,7 +12825,7 @@ impl ItemDef for WanderingTraderSpawnEgg {
 pub struct WardenSpawnEgg;
 
 impl ItemDef for WardenSpawnEgg {
-    const ID: u32 = 1156;
+    const ID: i32 = 1156;
     const STRING_ID: &'static str = "minecraft:warden_spawn_egg";
     const NAME: &'static str = "Warden Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12835,7 +12835,7 @@ impl ItemDef for WardenSpawnEgg {
 pub struct WitchSpawnEgg;
 
 impl ItemDef for WitchSpawnEgg {
-    const ID: u32 = 1157;
+    const ID: i32 = 1157;
     const STRING_ID: &'static str = "minecraft:witch_spawn_egg";
     const NAME: &'static str = "Witch Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12845,7 +12845,7 @@ impl ItemDef for WitchSpawnEgg {
 pub struct WitherSpawnEgg;
 
 impl ItemDef for WitherSpawnEgg {
-    const ID: u32 = 1158;
+    const ID: i32 = 1158;
     const STRING_ID: &'static str = "minecraft:wither_spawn_egg";
     const NAME: &'static str = "Wither Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12855,7 +12855,7 @@ impl ItemDef for WitherSpawnEgg {
 pub struct WitherSkeletonSpawnEgg;
 
 impl ItemDef for WitherSkeletonSpawnEgg {
-    const ID: u32 = 1159;
+    const ID: i32 = 1159;
     const STRING_ID: &'static str = "minecraft:wither_skeleton_spawn_egg";
     const NAME: &'static str = "Wither Skeleton Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12865,7 +12865,7 @@ impl ItemDef for WitherSkeletonSpawnEgg {
 pub struct WolfSpawnEgg;
 
 impl ItemDef for WolfSpawnEgg {
-    const ID: u32 = 1160;
+    const ID: i32 = 1160;
     const STRING_ID: &'static str = "minecraft:wolf_spawn_egg";
     const NAME: &'static str = "Wolf Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12875,7 +12875,7 @@ impl ItemDef for WolfSpawnEgg {
 pub struct ZoglinSpawnEgg;
 
 impl ItemDef for ZoglinSpawnEgg {
-    const ID: u32 = 1161;
+    const ID: i32 = 1161;
     const STRING_ID: &'static str = "minecraft:zoglin_spawn_egg";
     const NAME: &'static str = "Zoglin Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12885,7 +12885,7 @@ impl ItemDef for ZoglinSpawnEgg {
 pub struct CreakingSpawnEgg;
 
 impl ItemDef for CreakingSpawnEgg {
-    const ID: u32 = 1162;
+    const ID: i32 = 1162;
     const STRING_ID: &'static str = "minecraft:creaking_spawn_egg";
     const NAME: &'static str = "Creaking Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12895,7 +12895,7 @@ impl ItemDef for CreakingSpawnEgg {
 pub struct ZombieSpawnEgg;
 
 impl ItemDef for ZombieSpawnEgg {
-    const ID: u32 = 1163;
+    const ID: i32 = 1163;
     const STRING_ID: &'static str = "minecraft:zombie_spawn_egg";
     const NAME: &'static str = "Zombie Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12905,7 +12905,7 @@ impl ItemDef for ZombieSpawnEgg {
 pub struct ZombieHorseSpawnEgg;
 
 impl ItemDef for ZombieHorseSpawnEgg {
-    const ID: u32 = 1164;
+    const ID: i32 = 1164;
     const STRING_ID: &'static str = "minecraft:zombie_horse_spawn_egg";
     const NAME: &'static str = "Zombie Horse Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12915,7 +12915,7 @@ impl ItemDef for ZombieHorseSpawnEgg {
 pub struct ZombieVillagerSpawnEgg;
 
 impl ItemDef for ZombieVillagerSpawnEgg {
-    const ID: u32 = 1165;
+    const ID: i32 = 1165;
     const STRING_ID: &'static str = "minecraft:zombie_villager_spawn_egg";
     const NAME: &'static str = "Zombie Villager Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12925,7 +12925,7 @@ impl ItemDef for ZombieVillagerSpawnEgg {
 pub struct ZombiePigmanSpawnEgg;
 
 impl ItemDef for ZombiePigmanSpawnEgg {
-    const ID: u32 = 1166;
+    const ID: i32 = 1166;
     const STRING_ID: &'static str = "minecraft:zombie_pigman_spawn_egg";
     const NAME: &'static str = "Zombified Piglin Spawn Egg";
     const STACK_SIZE: u8 = 64;
@@ -12935,7 +12935,7 @@ impl ItemDef for ZombiePigmanSpawnEgg {
 pub struct ExperienceBottle;
 
 impl ItemDef for ExperienceBottle {
-    const ID: u32 = 1167;
+    const ID: i32 = 1167;
     const STRING_ID: &'static str = "minecraft:experience_bottle";
     const NAME: &'static str = "Bottle o' Enchanting";
     const STACK_SIZE: u8 = 64;
@@ -12945,7 +12945,7 @@ impl ItemDef for ExperienceBottle {
 pub struct FireCharge;
 
 impl ItemDef for FireCharge {
-    const ID: u32 = 1168;
+    const ID: i32 = 1168;
     const STRING_ID: &'static str = "minecraft:fire_charge";
     const NAME: &'static str = "Fire Charge";
     const STACK_SIZE: u8 = 64;
@@ -12955,7 +12955,7 @@ impl ItemDef for FireCharge {
 pub struct WindCharge;
 
 impl ItemDef for WindCharge {
-    const ID: u32 = 1169;
+    const ID: i32 = 1169;
     const STRING_ID: &'static str = "minecraft:wind_charge";
     const NAME: &'static str = "Wind Charge";
     const STACK_SIZE: u8 = 64;
@@ -12965,7 +12965,7 @@ impl ItemDef for WindCharge {
 pub struct WritableBook;
 
 impl ItemDef for WritableBook {
-    const ID: u32 = 1170;
+    const ID: i32 = 1170;
     const STRING_ID: &'static str = "minecraft:writable_book";
     const NAME: &'static str = "Book and Quill";
     const STACK_SIZE: u8 = 1;
@@ -12975,7 +12975,7 @@ impl ItemDef for WritableBook {
 pub struct WrittenBook;
 
 impl ItemDef for WrittenBook {
-    const ID: u32 = 1171;
+    const ID: i32 = 1171;
     const STRING_ID: &'static str = "minecraft:written_book";
     const NAME: &'static str = "Written Book";
     const STACK_SIZE: u8 = 16;
@@ -12985,7 +12985,7 @@ impl ItemDef for WrittenBook {
 pub struct BreezeRod;
 
 impl ItemDef for BreezeRod {
-    const ID: u32 = 1172;
+    const ID: i32 = 1172;
     const STRING_ID: &'static str = "minecraft:breeze_rod";
     const NAME: &'static str = "Breeze Rod";
     const STACK_SIZE: u8 = 64;
@@ -12995,7 +12995,7 @@ impl ItemDef for BreezeRod {
 pub struct Mace;
 
 impl ItemDef for Mace {
-    const ID: u32 = 1173;
+    const ID: i32 = 1173;
     const STRING_ID: &'static str = "minecraft:mace";
     const NAME: &'static str = "Mace";
     const STACK_SIZE: u8 = 1;
@@ -13006,7 +13006,7 @@ impl DurableItem for Mace {
 }
 
 impl RepairableItem for Mace {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[1172]
     }
 }
@@ -13025,7 +13025,7 @@ impl EnchantableItem for Mace {
 pub struct Frame;
 
 impl ItemDef for Frame {
-    const ID: u32 = 1174;
+    const ID: i32 = 1174;
     const STRING_ID: &'static str = "minecraft:frame";
     const NAME: &'static str = "Item Frame";
     const STACK_SIZE: u8 = 64;
@@ -13035,7 +13035,7 @@ impl ItemDef for Frame {
 pub struct GlowFrame;
 
 impl ItemDef for GlowFrame {
-    const ID: u32 = 1175;
+    const ID: i32 = 1175;
     const STRING_ID: &'static str = "minecraft:glow_frame";
     const NAME: &'static str = "Glow Item Frame";
     const STACK_SIZE: u8 = 64;
@@ -13045,7 +13045,7 @@ impl ItemDef for GlowFrame {
 pub struct FlowerPot;
 
 impl ItemDef for FlowerPot {
-    const ID: u32 = 1176;
+    const ID: i32 = 1176;
     const STRING_ID: &'static str = "minecraft:flower_pot";
     const NAME: &'static str = "Flower Pot";
     const STACK_SIZE: u8 = 64;
@@ -13055,7 +13055,7 @@ impl ItemDef for FlowerPot {
 pub struct Carrot;
 
 impl ItemDef for Carrot {
-    const ID: u32 = 1177;
+    const ID: i32 = 1177;
     const STRING_ID: &'static str = "minecraft:carrot";
     const NAME: &'static str = "Carrot";
     const STACK_SIZE: u8 = 64;
@@ -13065,7 +13065,7 @@ impl ItemDef for Carrot {
 pub struct Potato;
 
 impl ItemDef for Potato {
-    const ID: u32 = 1178;
+    const ID: i32 = 1178;
     const STRING_ID: &'static str = "minecraft:potato";
     const NAME: &'static str = "Potato";
     const STACK_SIZE: u8 = 64;
@@ -13075,7 +13075,7 @@ impl ItemDef for Potato {
 pub struct BakedPotato;
 
 impl ItemDef for BakedPotato {
-    const ID: u32 = 1179;
+    const ID: i32 = 1179;
     const STRING_ID: &'static str = "minecraft:baked_potato";
     const NAME: &'static str = "Baked Potato";
     const STACK_SIZE: u8 = 64;
@@ -13085,7 +13085,7 @@ impl ItemDef for BakedPotato {
 pub struct PoisonousPotato;
 
 impl ItemDef for PoisonousPotato {
-    const ID: u32 = 1180;
+    const ID: i32 = 1180;
     const STRING_ID: &'static str = "minecraft:poisonous_potato";
     const NAME: &'static str = "Poisonous Potato";
     const STACK_SIZE: u8 = 64;
@@ -13095,7 +13095,7 @@ impl ItemDef for PoisonousPotato {
 pub struct EmptyMap;
 
 impl ItemDef for EmptyMap {
-    const ID: u32 = 1181;
+    const ID: i32 = 1181;
     const STRING_ID: &'static str = "minecraft:empty_map";
     const NAME: &'static str = "Empty Map";
     const STACK_SIZE: u8 = 64;
@@ -13105,7 +13105,7 @@ impl ItemDef for EmptyMap {
 pub struct GoldenCarrot;
 
 impl ItemDef for GoldenCarrot {
-    const ID: u32 = 1182;
+    const ID: i32 = 1182;
     const STRING_ID: &'static str = "minecraft:golden_carrot";
     const NAME: &'static str = "Golden Carrot";
     const STACK_SIZE: u8 = 64;
@@ -13115,7 +13115,7 @@ impl ItemDef for GoldenCarrot {
 pub struct SkeletonSkull;
 
 impl ItemDef for SkeletonSkull {
-    const ID: u32 = 1183;
+    const ID: i32 = 1183;
     const STRING_ID: &'static str = "minecraft:skeleton_skull";
     const NAME: &'static str = "Skeleton Skull";
     const STACK_SIZE: u8 = 64;
@@ -13134,7 +13134,7 @@ impl EnchantableItem for SkeletonSkull {
 pub struct WitherSkeletonSkull;
 
 impl ItemDef for WitherSkeletonSkull {
-    const ID: u32 = 1184;
+    const ID: i32 = 1184;
     const STRING_ID: &'static str = "minecraft:wither_skeleton_skull";
     const NAME: &'static str = "Wither Skeleton Skull";
     const STACK_SIZE: u8 = 64;
@@ -13153,7 +13153,7 @@ impl EnchantableItem for WitherSkeletonSkull {
 pub struct PlayerHead;
 
 impl ItemDef for PlayerHead {
-    const ID: u32 = 1185;
+    const ID: i32 = 1185;
     const STRING_ID: &'static str = "minecraft:player_head";
     const NAME: &'static str = "Player Head";
     const STACK_SIZE: u8 = 64;
@@ -13172,7 +13172,7 @@ impl EnchantableItem for PlayerHead {
 pub struct ZombieHead;
 
 impl ItemDef for ZombieHead {
-    const ID: u32 = 1186;
+    const ID: i32 = 1186;
     const STRING_ID: &'static str = "minecraft:zombie_head";
     const NAME: &'static str = "Zombie Head";
     const STACK_SIZE: u8 = 64;
@@ -13191,7 +13191,7 @@ impl EnchantableItem for ZombieHead {
 pub struct CreeperHead;
 
 impl ItemDef for CreeperHead {
-    const ID: u32 = 1187;
+    const ID: i32 = 1187;
     const STRING_ID: &'static str = "minecraft:creeper_head";
     const NAME: &'static str = "Creeper Head";
     const STACK_SIZE: u8 = 64;
@@ -13210,7 +13210,7 @@ impl EnchantableItem for CreeperHead {
 pub struct DragonHead;
 
 impl ItemDef for DragonHead {
-    const ID: u32 = 1188;
+    const ID: i32 = 1188;
     const STRING_ID: &'static str = "minecraft:dragon_head";
     const NAME: &'static str = "Dragon Head";
     const STACK_SIZE: u8 = 64;
@@ -13229,7 +13229,7 @@ impl EnchantableItem for DragonHead {
 pub struct PiglinHead;
 
 impl ItemDef for PiglinHead {
-    const ID: u32 = 1189;
+    const ID: i32 = 1189;
     const STRING_ID: &'static str = "minecraft:piglin_head";
     const NAME: &'static str = "Piglin Head";
     const STACK_SIZE: u8 = 64;
@@ -13248,7 +13248,7 @@ impl EnchantableItem for PiglinHead {
 pub struct NetherStar;
 
 impl ItemDef for NetherStar {
-    const ID: u32 = 1190;
+    const ID: i32 = 1190;
     const STRING_ID: &'static str = "minecraft:nether_star";
     const NAME: &'static str = "Nether Star";
     const STACK_SIZE: u8 = 64;
@@ -13258,7 +13258,7 @@ impl ItemDef for NetherStar {
 pub struct PumpkinPie;
 
 impl ItemDef for PumpkinPie {
-    const ID: u32 = 1191;
+    const ID: i32 = 1191;
     const STRING_ID: &'static str = "minecraft:pumpkin_pie";
     const NAME: &'static str = "Pumpkin Pie";
     const STACK_SIZE: u8 = 64;
@@ -13268,7 +13268,7 @@ impl ItemDef for PumpkinPie {
 pub struct FireworkRocket;
 
 impl ItemDef for FireworkRocket {
-    const ID: u32 = 1192;
+    const ID: i32 = 1192;
     const STRING_ID: &'static str = "minecraft:firework_rocket";
     const NAME: &'static str = "Firework Rocket";
     const STACK_SIZE: u8 = 64;
@@ -13278,7 +13278,7 @@ impl ItemDef for FireworkRocket {
 pub struct FireworkStar;
 
 impl ItemDef for FireworkStar {
-    const ID: u32 = 1193;
+    const ID: i32 = 1193;
     const STRING_ID: &'static str = "minecraft:firework_star";
     const NAME: &'static str = "Firework Star";
     const STACK_SIZE: u8 = 64;
@@ -13288,7 +13288,7 @@ impl ItemDef for FireworkStar {
 pub struct EnchantedBook;
 
 impl ItemDef for EnchantedBook {
-    const ID: u32 = 1194;
+    const ID: i32 = 1194;
     const STRING_ID: &'static str = "minecraft:enchanted_book";
     const NAME: &'static str = "Enchanted Book";
     const STACK_SIZE: u8 = 1;
@@ -13298,7 +13298,7 @@ impl ItemDef for EnchantedBook {
 pub struct Netherbrick;
 
 impl ItemDef for Netherbrick {
-    const ID: u32 = 1195;
+    const ID: i32 = 1195;
     const STRING_ID: &'static str = "minecraft:netherbrick";
     const NAME: &'static str = "Nether Brick";
     const STACK_SIZE: u8 = 64;
@@ -13308,7 +13308,7 @@ impl ItemDef for Netherbrick {
 pub struct ResinBrick;
 
 impl ItemDef for ResinBrick {
-    const ID: u32 = 1196;
+    const ID: i32 = 1196;
     const STRING_ID: &'static str = "minecraft:resin_brick";
     const NAME: &'static str = "Resin Brick";
     const STACK_SIZE: u8 = 64;
@@ -13318,7 +13318,7 @@ impl ItemDef for ResinBrick {
 pub struct PrismarineShard;
 
 impl ItemDef for PrismarineShard {
-    const ID: u32 = 1197;
+    const ID: i32 = 1197;
     const STRING_ID: &'static str = "minecraft:prismarine_shard";
     const NAME: &'static str = "Prismarine Shard";
     const STACK_SIZE: u8 = 64;
@@ -13328,7 +13328,7 @@ impl ItemDef for PrismarineShard {
 pub struct PrismarineCrystals;
 
 impl ItemDef for PrismarineCrystals {
-    const ID: u32 = 1198;
+    const ID: i32 = 1198;
     const STRING_ID: &'static str = "minecraft:prismarine_crystals";
     const NAME: &'static str = "Prismarine Crystals";
     const STACK_SIZE: u8 = 64;
@@ -13338,7 +13338,7 @@ impl ItemDef for PrismarineCrystals {
 pub struct Rabbit;
 
 impl ItemDef for Rabbit {
-    const ID: u32 = 1199;
+    const ID: i32 = 1199;
     const STRING_ID: &'static str = "minecraft:rabbit";
     const NAME: &'static str = "Raw Rabbit";
     const STACK_SIZE: u8 = 64;
@@ -13348,7 +13348,7 @@ impl ItemDef for Rabbit {
 pub struct CookedRabbit;
 
 impl ItemDef for CookedRabbit {
-    const ID: u32 = 1200;
+    const ID: i32 = 1200;
     const STRING_ID: &'static str = "minecraft:cooked_rabbit";
     const NAME: &'static str = "Cooked Rabbit";
     const STACK_SIZE: u8 = 64;
@@ -13358,7 +13358,7 @@ impl ItemDef for CookedRabbit {
 pub struct RabbitStew;
 
 impl ItemDef for RabbitStew {
-    const ID: u32 = 1201;
+    const ID: i32 = 1201;
     const STRING_ID: &'static str = "minecraft:rabbit_stew";
     const NAME: &'static str = "Rabbit Stew";
     const STACK_SIZE: u8 = 1;
@@ -13368,7 +13368,7 @@ impl ItemDef for RabbitStew {
 pub struct RabbitFoot;
 
 impl ItemDef for RabbitFoot {
-    const ID: u32 = 1202;
+    const ID: i32 = 1202;
     const STRING_ID: &'static str = "minecraft:rabbit_foot";
     const NAME: &'static str = "Rabbit's Foot";
     const STACK_SIZE: u8 = 64;
@@ -13378,7 +13378,7 @@ impl ItemDef for RabbitFoot {
 pub struct RabbitHide;
 
 impl ItemDef for RabbitHide {
-    const ID: u32 = 1203;
+    const ID: i32 = 1203;
     const STRING_ID: &'static str = "minecraft:rabbit_hide";
     const NAME: &'static str = "Rabbit Hide";
     const STACK_SIZE: u8 = 64;
@@ -13388,7 +13388,7 @@ impl ItemDef for RabbitHide {
 pub struct ArmorStand;
 
 impl ItemDef for ArmorStand {
-    const ID: u32 = 1204;
+    const ID: i32 = 1204;
     const STRING_ID: &'static str = "minecraft:armor_stand";
     const NAME: &'static str = "Armor Stand";
     const STACK_SIZE: u8 = 16;
@@ -13398,7 +13398,7 @@ impl ItemDef for ArmorStand {
 pub struct IronHorseArmor;
 
 impl ItemDef for IronHorseArmor {
-    const ID: u32 = 1205;
+    const ID: i32 = 1205;
     const STRING_ID: &'static str = "minecraft:iron_horse_armor";
     const NAME: &'static str = "Iron Horse Armor";
     const STACK_SIZE: u8 = 1;
@@ -13408,7 +13408,7 @@ impl ItemDef for IronHorseArmor {
 pub struct GoldenHorseArmor;
 
 impl ItemDef for GoldenHorseArmor {
-    const ID: u32 = 1206;
+    const ID: i32 = 1206;
     const STRING_ID: &'static str = "minecraft:golden_horse_armor";
     const NAME: &'static str = "Golden Horse Armor";
     const STACK_SIZE: u8 = 1;
@@ -13418,7 +13418,7 @@ impl ItemDef for GoldenHorseArmor {
 pub struct DiamondHorseArmor;
 
 impl ItemDef for DiamondHorseArmor {
-    const ID: u32 = 1207;
+    const ID: i32 = 1207;
     const STRING_ID: &'static str = "minecraft:diamond_horse_armor";
     const NAME: &'static str = "Diamond Horse Armor";
     const STACK_SIZE: u8 = 1;
@@ -13428,7 +13428,7 @@ impl ItemDef for DiamondHorseArmor {
 pub struct LeatherHorseArmor;
 
 impl ItemDef for LeatherHorseArmor {
-    const ID: u32 = 1208;
+    const ID: i32 = 1208;
     const STRING_ID: &'static str = "minecraft:leather_horse_armor";
     const NAME: &'static str = "Leather Horse Armor";
     const STACK_SIZE: u8 = 1;
@@ -13438,7 +13438,7 @@ impl ItemDef for LeatherHorseArmor {
 pub struct Lead;
 
 impl ItemDef for Lead {
-    const ID: u32 = 1209;
+    const ID: i32 = 1209;
     const STRING_ID: &'static str = "minecraft:lead";
     const NAME: &'static str = "Lead";
     const STACK_SIZE: u8 = 64;
@@ -13448,7 +13448,7 @@ impl ItemDef for Lead {
 pub struct NameTag;
 
 impl ItemDef for NameTag {
-    const ID: u32 = 1210;
+    const ID: i32 = 1210;
     const STRING_ID: &'static str = "minecraft:name_tag";
     const NAME: &'static str = "Name Tag";
     const STACK_SIZE: u8 = 64;
@@ -13458,7 +13458,7 @@ impl ItemDef for NameTag {
 pub struct CommandBlockMinecart;
 
 impl ItemDef for CommandBlockMinecart {
-    const ID: u32 = 1211;
+    const ID: i32 = 1211;
     const STRING_ID: &'static str = "minecraft:command_block_minecart";
     const NAME: &'static str = "Minecart with Command Block";
     const STACK_SIZE: u8 = 1;
@@ -13468,7 +13468,7 @@ impl ItemDef for CommandBlockMinecart {
 pub struct Mutton;
 
 impl ItemDef for Mutton {
-    const ID: u32 = 1212;
+    const ID: i32 = 1212;
     const STRING_ID: &'static str = "minecraft:mutton";
     const NAME: &'static str = "Raw Mutton";
     const STACK_SIZE: u8 = 64;
@@ -13478,7 +13478,7 @@ impl ItemDef for Mutton {
 pub struct CookedMutton;
 
 impl ItemDef for CookedMutton {
-    const ID: u32 = 1213;
+    const ID: i32 = 1213;
     const STRING_ID: &'static str = "minecraft:cooked_mutton";
     const NAME: &'static str = "Cooked Mutton";
     const STACK_SIZE: u8 = 64;
@@ -13488,7 +13488,7 @@ impl ItemDef for CookedMutton {
 pub struct Banner;
 
 impl ItemDef for Banner {
-    const ID: u32 = 1229;
+    const ID: i32 = 1229;
     const STRING_ID: &'static str = "minecraft:banner";
     const NAME: &'static str = "Black Banner";
     const STACK_SIZE: u8 = 16;
@@ -13610,7 +13610,7 @@ impl VariantItem for Banner {
 pub struct EndCrystal;
 
 impl ItemDef for EndCrystal {
-    const ID: u32 = 1230;
+    const ID: i32 = 1230;
     const STRING_ID: &'static str = "minecraft:end_crystal";
     const NAME: &'static str = "End Crystal";
     const STACK_SIZE: u8 = 64;
@@ -13620,7 +13620,7 @@ impl ItemDef for EndCrystal {
 pub struct ChorusFruit;
 
 impl ItemDef for ChorusFruit {
-    const ID: u32 = 1231;
+    const ID: i32 = 1231;
     const STRING_ID: &'static str = "minecraft:chorus_fruit";
     const NAME: &'static str = "Chorus Fruit";
     const STACK_SIZE: u8 = 64;
@@ -13630,7 +13630,7 @@ impl ItemDef for ChorusFruit {
 pub struct PoppedChorusFruit;
 
 impl ItemDef for PoppedChorusFruit {
-    const ID: u32 = 1232;
+    const ID: i32 = 1232;
     const STRING_ID: &'static str = "minecraft:popped_chorus_fruit";
     const NAME: &'static str = "Popped Chorus Fruit";
     const STACK_SIZE: u8 = 64;
@@ -13640,7 +13640,7 @@ impl ItemDef for PoppedChorusFruit {
 pub struct TorchflowerSeeds;
 
 impl ItemDef for TorchflowerSeeds {
-    const ID: u32 = 1233;
+    const ID: i32 = 1233;
     const STRING_ID: &'static str = "minecraft:torchflower_seeds";
     const NAME: &'static str = "Torchflower Seeds";
     const STACK_SIZE: u8 = 64;
@@ -13650,7 +13650,7 @@ impl ItemDef for TorchflowerSeeds {
 pub struct PitcherPod;
 
 impl ItemDef for PitcherPod {
-    const ID: u32 = 1234;
+    const ID: i32 = 1234;
     const STRING_ID: &'static str = "minecraft:pitcher_pod";
     const NAME: &'static str = "Pitcher Pod";
     const STACK_SIZE: u8 = 64;
@@ -13660,7 +13660,7 @@ impl ItemDef for PitcherPod {
 pub struct Beetroot;
 
 impl ItemDef for Beetroot {
-    const ID: u32 = 1235;
+    const ID: i32 = 1235;
     const STRING_ID: &'static str = "minecraft:beetroot";
     const NAME: &'static str = "Beetroot";
     const STACK_SIZE: u8 = 64;
@@ -13670,7 +13670,7 @@ impl ItemDef for Beetroot {
 pub struct BeetrootSeeds;
 
 impl ItemDef for BeetrootSeeds {
-    const ID: u32 = 1236;
+    const ID: i32 = 1236;
     const STRING_ID: &'static str = "minecraft:beetroot_seeds";
     const NAME: &'static str = "Beetroot Seeds";
     const STACK_SIZE: u8 = 64;
@@ -13680,7 +13680,7 @@ impl ItemDef for BeetrootSeeds {
 pub struct BeetrootSoup;
 
 impl ItemDef for BeetrootSoup {
-    const ID: u32 = 1237;
+    const ID: i32 = 1237;
     const STRING_ID: &'static str = "minecraft:beetroot_soup";
     const NAME: &'static str = "Beetroot Soup";
     const STACK_SIZE: u8 = 1;
@@ -13690,7 +13690,7 @@ impl ItemDef for BeetrootSoup {
 pub struct DragonBreath;
 
 impl ItemDef for DragonBreath {
-    const ID: u32 = 1238;
+    const ID: i32 = 1238;
     const STRING_ID: &'static str = "minecraft:dragon_breath";
     const NAME: &'static str = "Dragon's Breath";
     const STACK_SIZE: u8 = 64;
@@ -13700,7 +13700,7 @@ impl ItemDef for DragonBreath {
 pub struct SplashPotion;
 
 impl ItemDef for SplashPotion {
-    const ID: u32 = 1239;
+    const ID: i32 = 1239;
     const STRING_ID: &'static str = "minecraft:splash_potion";
     const NAME: &'static str = "Splash Potion";
     const STACK_SIZE: u8 = 1;
@@ -13710,7 +13710,7 @@ impl ItemDef for SplashPotion {
 pub struct LingeringPotion;
 
 impl ItemDef for LingeringPotion {
-    const ID: u32 = 1242;
+    const ID: i32 = 1242;
     const STRING_ID: &'static str = "minecraft:lingering_potion";
     const NAME: &'static str = "Lingering Potion";
     const STACK_SIZE: u8 = 1;
@@ -13720,7 +13720,7 @@ impl ItemDef for LingeringPotion {
 pub struct Shield;
 
 impl ItemDef for Shield {
-    const ID: u32 = 1243;
+    const ID: i32 = 1243;
     const STRING_ID: &'static str = "minecraft:shield";
     const NAME: &'static str = "Shield";
     const STACK_SIZE: u8 = 1;
@@ -13731,7 +13731,7 @@ impl DurableItem for Shield {
 }
 
 impl RepairableItem for Shield {
-    fn repair_items() -> &'static [u32] {
+    fn repair_items() -> &'static [i32] {
         &[36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
     }
 }
@@ -13749,7 +13749,7 @@ impl EnchantableItem for Shield {
 pub struct TotemOfUndying;
 
 impl ItemDef for TotemOfUndying {
-    const ID: u32 = 1244;
+    const ID: i32 = 1244;
     const STRING_ID: &'static str = "minecraft:totem_of_undying";
     const NAME: &'static str = "Totem of Undying";
     const STACK_SIZE: u8 = 1;
@@ -13759,7 +13759,7 @@ impl ItemDef for TotemOfUndying {
 pub struct ShulkerShell;
 
 impl ItemDef for ShulkerShell {
-    const ID: u32 = 1245;
+    const ID: i32 = 1245;
     const STRING_ID: &'static str = "minecraft:shulker_shell";
     const NAME: &'static str = "Shulker Shell";
     const STACK_SIZE: u8 = 64;
@@ -13769,7 +13769,7 @@ impl ItemDef for ShulkerShell {
 pub struct IronNugget;
 
 impl ItemDef for IronNugget {
-    const ID: u32 = 1246;
+    const ID: i32 = 1246;
     const STRING_ID: &'static str = "minecraft:iron_nugget";
     const NAME: &'static str = "Iron Nugget";
     const STACK_SIZE: u8 = 64;
@@ -13779,7 +13779,7 @@ impl ItemDef for IronNugget {
 pub struct MusicDisc13;
 
 impl ItemDef for MusicDisc13 {
-    const ID: u32 = 1249;
+    const ID: i32 = 1249;
     const STRING_ID: &'static str = "minecraft:music_disc_13";
     const NAME: &'static str = "Music Disc";
     const STACK_SIZE: u8 = 1;
@@ -13789,7 +13789,7 @@ impl ItemDef for MusicDisc13 {
 pub struct MusicDiscCat;
 
 impl ItemDef for MusicDiscCat {
-    const ID: u32 = 1250;
+    const ID: i32 = 1250;
     const STRING_ID: &'static str = "minecraft:music_disc_cat";
     const NAME: &'static str = "Music Disc";
     const STACK_SIZE: u8 = 1;
@@ -13799,7 +13799,7 @@ impl ItemDef for MusicDiscCat {
 pub struct MusicDiscBlocks;
 
 impl ItemDef for MusicDiscBlocks {
-    const ID: u32 = 1251;
+    const ID: i32 = 1251;
     const STRING_ID: &'static str = "minecraft:music_disc_blocks";
     const NAME: &'static str = "Music Disc";
     const STACK_SIZE: u8 = 1;
@@ -13809,7 +13809,7 @@ impl ItemDef for MusicDiscBlocks {
 pub struct MusicDiscChirp;
 
 impl ItemDef for MusicDiscChirp {
-    const ID: u32 = 1252;
+    const ID: i32 = 1252;
     const STRING_ID: &'static str = "minecraft:music_disc_chirp";
     const NAME: &'static str = "Music Disc";
     const STACK_SIZE: u8 = 1;
@@ -13819,7 +13819,7 @@ impl ItemDef for MusicDiscChirp {
 pub struct MusicDiscCreator;
 
 impl ItemDef for MusicDiscCreator {
-    const ID: u32 = 1253;
+    const ID: i32 = 1253;
     const STRING_ID: &'static str = "minecraft:music_disc_creator";
     const NAME: &'static str = "Music Disc";
     const STACK_SIZE: u8 = 1;
@@ -13829,7 +13829,7 @@ impl ItemDef for MusicDiscCreator {
 pub struct MusicDiscCreatorMusicBox;
 
 impl ItemDef for MusicDiscCreatorMusicBox {
-    const ID: u32 = 1254;
+    const ID: i32 = 1254;
     const STRING_ID: &'static str = "minecraft:music_disc_creator_music_box";
     const NAME: &'static str = "Music Disc";
     const STACK_SIZE: u8 = 1;
@@ -13839,7 +13839,7 @@ impl ItemDef for MusicDiscCreatorMusicBox {
 pub struct MusicDiscFar;
 
 impl ItemDef for MusicDiscFar {
-    const ID: u32 = 1255;
+    const ID: i32 = 1255;
     const STRING_ID: &'static str = "minecraft:music_disc_far";
     const NAME: &'static str = "Music Disc";
     const STACK_SIZE: u8 = 1;
@@ -13849,7 +13849,7 @@ impl ItemDef for MusicDiscFar {
 pub struct MusicDiscLavaChicken;
 
 impl ItemDef for MusicDiscLavaChicken {
-    const ID: u32 = 1256;
+    const ID: i32 = 1256;
     const STRING_ID: &'static str = "minecraft:music_disc_lava_chicken";
     const NAME: &'static str = "Music Disc";
     const STACK_SIZE: u8 = 1;
@@ -13859,7 +13859,7 @@ impl ItemDef for MusicDiscLavaChicken {
 pub struct MusicDiscMall;
 
 impl ItemDef for MusicDiscMall {
-    const ID: u32 = 1257;
+    const ID: i32 = 1257;
     const STRING_ID: &'static str = "minecraft:music_disc_mall";
     const NAME: &'static str = "Music Disc";
     const STACK_SIZE: u8 = 1;
@@ -13869,7 +13869,7 @@ impl ItemDef for MusicDiscMall {
 pub struct MusicDiscMellohi;
 
 impl ItemDef for MusicDiscMellohi {
-    const ID: u32 = 1258;
+    const ID: i32 = 1258;
     const STRING_ID: &'static str = "minecraft:music_disc_mellohi";
     const NAME: &'static str = "Music Disc";
     const STACK_SIZE: u8 = 1;
@@ -13879,7 +13879,7 @@ impl ItemDef for MusicDiscMellohi {
 pub struct MusicDiscStal;
 
 impl ItemDef for MusicDiscStal {
-    const ID: u32 = 1259;
+    const ID: i32 = 1259;
     const STRING_ID: &'static str = "minecraft:music_disc_stal";
     const NAME: &'static str = "Music Disc";
     const STACK_SIZE: u8 = 1;
@@ -13889,7 +13889,7 @@ impl ItemDef for MusicDiscStal {
 pub struct MusicDiscStrad;
 
 impl ItemDef for MusicDiscStrad {
-    const ID: u32 = 1260;
+    const ID: i32 = 1260;
     const STRING_ID: &'static str = "minecraft:music_disc_strad";
     const NAME: &'static str = "Music Disc";
     const STACK_SIZE: u8 = 1;
@@ -13899,7 +13899,7 @@ impl ItemDef for MusicDiscStrad {
 pub struct MusicDiscWard;
 
 impl ItemDef for MusicDiscWard {
-    const ID: u32 = 1261;
+    const ID: i32 = 1261;
     const STRING_ID: &'static str = "minecraft:music_disc_ward";
     const NAME: &'static str = "Music Disc";
     const STACK_SIZE: u8 = 1;
@@ -13909,7 +13909,7 @@ impl ItemDef for MusicDiscWard {
 pub struct MusicDisc11;
 
 impl ItemDef for MusicDisc11 {
-    const ID: u32 = 1262;
+    const ID: i32 = 1262;
     const STRING_ID: &'static str = "minecraft:music_disc_11";
     const NAME: &'static str = "Music Disc";
     const STACK_SIZE: u8 = 1;
@@ -13919,7 +13919,7 @@ impl ItemDef for MusicDisc11 {
 pub struct MusicDiscWait;
 
 impl ItemDef for MusicDiscWait {
-    const ID: u32 = 1263;
+    const ID: i32 = 1263;
     const STRING_ID: &'static str = "minecraft:music_disc_wait";
     const NAME: &'static str = "Music Disc";
     const STACK_SIZE: u8 = 1;
@@ -13929,7 +13929,7 @@ impl ItemDef for MusicDiscWait {
 pub struct MusicDiscOtherside;
 
 impl ItemDef for MusicDiscOtherside {
-    const ID: u32 = 1264;
+    const ID: i32 = 1264;
     const STRING_ID: &'static str = "minecraft:music_disc_otherside";
     const NAME: &'static str = "Music Disc";
     const STACK_SIZE: u8 = 1;
@@ -13939,7 +13939,7 @@ impl ItemDef for MusicDiscOtherside {
 pub struct MusicDiscRelic;
 
 impl ItemDef for MusicDiscRelic {
-    const ID: u32 = 1265;
+    const ID: i32 = 1265;
     const STRING_ID: &'static str = "minecraft:music_disc_relic";
     const NAME: &'static str = "Music Disc";
     const STACK_SIZE: u8 = 1;
@@ -13949,7 +13949,7 @@ impl ItemDef for MusicDiscRelic {
 pub struct MusicDisc5;
 
 impl ItemDef for MusicDisc5 {
-    const ID: u32 = 1266;
+    const ID: i32 = 1266;
     const STRING_ID: &'static str = "minecraft:music_disc_5";
     const NAME: &'static str = "Music Disc";
     const STACK_SIZE: u8 = 1;
@@ -13959,7 +13959,7 @@ impl ItemDef for MusicDisc5 {
 pub struct MusicDiscPigstep;
 
 impl ItemDef for MusicDiscPigstep {
-    const ID: u32 = 1267;
+    const ID: i32 = 1267;
     const STRING_ID: &'static str = "minecraft:music_disc_pigstep";
     const NAME: &'static str = "Music Disc";
     const STACK_SIZE: u8 = 1;
@@ -13969,7 +13969,7 @@ impl ItemDef for MusicDiscPigstep {
 pub struct MusicDiscPrecipice;
 
 impl ItemDef for MusicDiscPrecipice {
-    const ID: u32 = 1268;
+    const ID: i32 = 1268;
     const STRING_ID: &'static str = "minecraft:music_disc_precipice";
     const NAME: &'static str = "Music Disc";
     const STACK_SIZE: u8 = 1;
@@ -13979,7 +13979,7 @@ impl ItemDef for MusicDiscPrecipice {
 pub struct MusicDiscTears;
 
 impl ItemDef for MusicDiscTears {
-    const ID: u32 = 1269;
+    const ID: i32 = 1269;
     const STRING_ID: &'static str = "minecraft:music_disc_tears";
     const NAME: &'static str = "Music Disc";
     const STACK_SIZE: u8 = 1;
@@ -13989,7 +13989,7 @@ impl ItemDef for MusicDiscTears {
 pub struct DiscFragment5;
 
 impl ItemDef for DiscFragment5 {
-    const ID: u32 = 1270;
+    const ID: i32 = 1270;
     const STRING_ID: &'static str = "minecraft:disc_fragment_5";
     const NAME: &'static str = "Disc Fragment";
     const STACK_SIZE: u8 = 64;
@@ -13999,7 +13999,7 @@ impl ItemDef for DiscFragment5 {
 pub struct Trident;
 
 impl ItemDef for Trident {
-    const ID: u32 = 1271;
+    const ID: i32 = 1271;
     const STRING_ID: &'static str = "minecraft:trident";
     const NAME: &'static str = "Trident";
     const STACK_SIZE: u8 = 1;
@@ -14023,7 +14023,7 @@ impl EnchantableItem for Trident {
 pub struct NautilusShell;
 
 impl ItemDef for NautilusShell {
-    const ID: u32 = 1272;
+    const ID: i32 = 1272;
     const STRING_ID: &'static str = "minecraft:nautilus_shell";
     const NAME: &'static str = "Nautilus Shell";
     const STACK_SIZE: u8 = 64;
@@ -14033,7 +14033,7 @@ impl ItemDef for NautilusShell {
 pub struct HeartOfTheSea;
 
 impl ItemDef for HeartOfTheSea {
-    const ID: u32 = 1273;
+    const ID: i32 = 1273;
     const STRING_ID: &'static str = "minecraft:heart_of_the_sea";
     const NAME: &'static str = "Heart of the Sea";
     const STACK_SIZE: u8 = 64;
@@ -14043,7 +14043,7 @@ impl ItemDef for HeartOfTheSea {
 pub struct Crossbow;
 
 impl ItemDef for Crossbow {
-    const ID: u32 = 1274;
+    const ID: i32 = 1274;
     const STRING_ID: &'static str = "minecraft:crossbow";
     const NAME: &'static str = "Crossbow";
     const STACK_SIZE: u8 = 1;
@@ -14067,7 +14067,7 @@ impl EnchantableItem for Crossbow {
 pub struct SuspiciousStew;
 
 impl ItemDef for SuspiciousStew {
-    const ID: u32 = 1275;
+    const ID: i32 = 1275;
     const STRING_ID: &'static str = "minecraft:suspicious_stew";
     const NAME: &'static str = "Suspicious Stew";
     const STACK_SIZE: u8 = 1;
@@ -14077,7 +14077,7 @@ impl ItemDef for SuspiciousStew {
 pub struct Loom;
 
 impl ItemDef for Loom {
-    const ID: u32 = 1276;
+    const ID: i32 = 1276;
     const STRING_ID: &'static str = "minecraft:loom";
     const NAME: &'static str = "Loom";
     const STACK_SIZE: u8 = 64;
@@ -14087,7 +14087,7 @@ impl ItemDef for Loom {
 pub struct FlowerBannerPattern;
 
 impl ItemDef for FlowerBannerPattern {
-    const ID: u32 = 1277;
+    const ID: i32 = 1277;
     const STRING_ID: &'static str = "minecraft:flower_banner_pattern";
     const NAME: &'static str = "Flower Charge Banner Pattern";
     const STACK_SIZE: u8 = 1;
@@ -14097,7 +14097,7 @@ impl ItemDef for FlowerBannerPattern {
 pub struct CreeperBannerPattern;
 
 impl ItemDef for CreeperBannerPattern {
-    const ID: u32 = 1278;
+    const ID: i32 = 1278;
     const STRING_ID: &'static str = "minecraft:creeper_banner_pattern";
     const NAME: &'static str = "Creeper Charge Banner Pattern";
     const STACK_SIZE: u8 = 1;
@@ -14107,7 +14107,7 @@ impl ItemDef for CreeperBannerPattern {
 pub struct SkullBannerPattern;
 
 impl ItemDef for SkullBannerPattern {
-    const ID: u32 = 1279;
+    const ID: i32 = 1279;
     const STRING_ID: &'static str = "minecraft:skull_banner_pattern";
     const NAME: &'static str = "Skull Charge Banner Pattern";
     const STACK_SIZE: u8 = 1;
@@ -14117,7 +14117,7 @@ impl ItemDef for SkullBannerPattern {
 pub struct MojangBannerPattern;
 
 impl ItemDef for MojangBannerPattern {
-    const ID: u32 = 1280;
+    const ID: i32 = 1280;
     const STRING_ID: &'static str = "minecraft:mojang_banner_pattern";
     const NAME: &'static str = "Thing Banner Pattern";
     const STACK_SIZE: u8 = 1;
@@ -14127,7 +14127,7 @@ impl ItemDef for MojangBannerPattern {
 pub struct GlobeBannerPattern;
 
 impl ItemDef for GlobeBannerPattern {
-    const ID: u32 = 1281;
+    const ID: i32 = 1281;
     const STRING_ID: &'static str = "minecraft:globe_banner_pattern";
     const NAME: &'static str = "Globe Banner Pattern";
     const STACK_SIZE: u8 = 1;
@@ -14137,7 +14137,7 @@ impl ItemDef for GlobeBannerPattern {
 pub struct PiglinBannerPattern;
 
 impl ItemDef for PiglinBannerPattern {
-    const ID: u32 = 1282;
+    const ID: i32 = 1282;
     const STRING_ID: &'static str = "minecraft:piglin_banner_pattern";
     const NAME: &'static str = "Snout Banner Pattern";
     const STACK_SIZE: u8 = 1;
@@ -14147,7 +14147,7 @@ impl ItemDef for PiglinBannerPattern {
 pub struct FlowBannerPattern;
 
 impl ItemDef for FlowBannerPattern {
-    const ID: u32 = 1283;
+    const ID: i32 = 1283;
     const STRING_ID: &'static str = "minecraft:flow_banner_pattern";
     const NAME: &'static str = "Flow Banner Pattern";
     const STACK_SIZE: u8 = 1;
@@ -14157,7 +14157,7 @@ impl ItemDef for FlowBannerPattern {
 pub struct GusterBannerPattern;
 
 impl ItemDef for GusterBannerPattern {
-    const ID: u32 = 1284;
+    const ID: i32 = 1284;
     const STRING_ID: &'static str = "minecraft:guster_banner_pattern";
     const NAME: &'static str = "Guster Banner Pattern";
     const STACK_SIZE: u8 = 1;
@@ -14167,7 +14167,7 @@ impl ItemDef for GusterBannerPattern {
 pub struct FieldMasonedBannerPattern;
 
 impl ItemDef for FieldMasonedBannerPattern {
-    const ID: u32 = 1285;
+    const ID: i32 = 1285;
     const STRING_ID: &'static str = "minecraft:field_masoned_banner_pattern";
     const NAME: &'static str = "Field Masoned Banner Pattern";
     const STACK_SIZE: u8 = 1;
@@ -14177,7 +14177,7 @@ impl ItemDef for FieldMasonedBannerPattern {
 pub struct BordureIndentedBannerPattern;
 
 impl ItemDef for BordureIndentedBannerPattern {
-    const ID: u32 = 1286;
+    const ID: i32 = 1286;
     const STRING_ID: &'static str = "minecraft:bordure_indented_banner_pattern";
     const NAME: &'static str = "Bordure Indented Banner Pattern";
     const STACK_SIZE: u8 = 1;
@@ -14187,7 +14187,7 @@ impl ItemDef for BordureIndentedBannerPattern {
 pub struct GoatHorn;
 
 impl ItemDef for GoatHorn {
-    const ID: u32 = 1287;
+    const ID: i32 = 1287;
     const STRING_ID: &'static str = "minecraft:goat_horn";
     const NAME: &'static str = "Goat Horn";
     const STACK_SIZE: u8 = 1;
@@ -14197,7 +14197,7 @@ impl ItemDef for GoatHorn {
 pub struct Composter;
 
 impl ItemDef for Composter {
-    const ID: u32 = 1288;
+    const ID: i32 = 1288;
     const STRING_ID: &'static str = "minecraft:composter";
     const NAME: &'static str = "Composter";
     const STACK_SIZE: u8 = 64;
@@ -14207,7 +14207,7 @@ impl ItemDef for Composter {
 pub struct Barrel;
 
 impl ItemDef for Barrel {
-    const ID: u32 = 1289;
+    const ID: i32 = 1289;
     const STRING_ID: &'static str = "minecraft:barrel";
     const NAME: &'static str = "Barrel";
     const STACK_SIZE: u8 = 64;
@@ -14217,7 +14217,7 @@ impl ItemDef for Barrel {
 pub struct Smoker;
 
 impl ItemDef for Smoker {
-    const ID: u32 = 1290;
+    const ID: i32 = 1290;
     const STRING_ID: &'static str = "minecraft:smoker";
     const NAME: &'static str = "Smoker";
     const STACK_SIZE: u8 = 64;
@@ -14227,7 +14227,7 @@ impl ItemDef for Smoker {
 pub struct BlastFurnace;
 
 impl ItemDef for BlastFurnace {
-    const ID: u32 = 1291;
+    const ID: i32 = 1291;
     const STRING_ID: &'static str = "minecraft:blast_furnace";
     const NAME: &'static str = "Blast Furnace";
     const STACK_SIZE: u8 = 64;
@@ -14237,7 +14237,7 @@ impl ItemDef for BlastFurnace {
 pub struct CartographyTable;
 
 impl ItemDef for CartographyTable {
-    const ID: u32 = 1292;
+    const ID: i32 = 1292;
     const STRING_ID: &'static str = "minecraft:cartography_table";
     const NAME: &'static str = "Cartography Table";
     const STACK_SIZE: u8 = 64;
@@ -14247,7 +14247,7 @@ impl ItemDef for CartographyTable {
 pub struct FletchingTable;
 
 impl ItemDef for FletchingTable {
-    const ID: u32 = 1293;
+    const ID: i32 = 1293;
     const STRING_ID: &'static str = "minecraft:fletching_table";
     const NAME: &'static str = "Fletching Table";
     const STACK_SIZE: u8 = 64;
@@ -14257,7 +14257,7 @@ impl ItemDef for FletchingTable {
 pub struct Grindstone;
 
 impl ItemDef for Grindstone {
-    const ID: u32 = 1294;
+    const ID: i32 = 1294;
     const STRING_ID: &'static str = "minecraft:grindstone";
     const NAME: &'static str = "Grindstone";
     const STACK_SIZE: u8 = 64;
@@ -14267,7 +14267,7 @@ impl ItemDef for Grindstone {
 pub struct SmithingTable;
 
 impl ItemDef for SmithingTable {
-    const ID: u32 = 1295;
+    const ID: i32 = 1295;
     const STRING_ID: &'static str = "minecraft:smithing_table";
     const NAME: &'static str = "Smithing Table";
     const STACK_SIZE: u8 = 64;
@@ -14277,7 +14277,7 @@ impl ItemDef for SmithingTable {
 pub struct StonecutterBlock;
 
 impl ItemDef for StonecutterBlock {
-    const ID: u32 = 1296;
+    const ID: i32 = 1296;
     const STRING_ID: &'static str = "minecraft:stonecutter_block";
     const NAME: &'static str = "Stonecutter";
     const STACK_SIZE: u8 = 64;
@@ -14287,7 +14287,7 @@ impl ItemDef for StonecutterBlock {
 pub struct Bell;
 
 impl ItemDef for Bell {
-    const ID: u32 = 1297;
+    const ID: i32 = 1297;
     const STRING_ID: &'static str = "minecraft:bell";
     const NAME: &'static str = "Bell";
     const STACK_SIZE: u8 = 64;
@@ -14297,7 +14297,7 @@ impl ItemDef for Bell {
 pub struct Lantern;
 
 impl ItemDef for Lantern {
-    const ID: u32 = 1298;
+    const ID: i32 = 1298;
     const STRING_ID: &'static str = "minecraft:lantern";
     const NAME: &'static str = "Lantern";
     const STACK_SIZE: u8 = 64;
@@ -14307,7 +14307,7 @@ impl ItemDef for Lantern {
 pub struct SoulLantern;
 
 impl ItemDef for SoulLantern {
-    const ID: u32 = 1299;
+    const ID: i32 = 1299;
     const STRING_ID: &'static str = "minecraft:soul_lantern";
     const NAME: &'static str = "Soul Lantern";
     const STACK_SIZE: u8 = 64;
@@ -14317,7 +14317,7 @@ impl ItemDef for SoulLantern {
 pub struct SweetBerries;
 
 impl ItemDef for SweetBerries {
-    const ID: u32 = 1300;
+    const ID: i32 = 1300;
     const STRING_ID: &'static str = "minecraft:sweet_berries";
     const NAME: &'static str = "Sweet Berries";
     const STACK_SIZE: u8 = 64;
@@ -14327,7 +14327,7 @@ impl ItemDef for SweetBerries {
 pub struct GlowBerries;
 
 impl ItemDef for GlowBerries {
-    const ID: u32 = 1301;
+    const ID: i32 = 1301;
     const STRING_ID: &'static str = "minecraft:glow_berries";
     const NAME: &'static str = "Glow Berries";
     const STACK_SIZE: u8 = 64;
@@ -14337,7 +14337,7 @@ impl ItemDef for GlowBerries {
 pub struct Campfire;
 
 impl ItemDef for Campfire {
-    const ID: u32 = 1302;
+    const ID: i32 = 1302;
     const STRING_ID: &'static str = "minecraft:campfire";
     const NAME: &'static str = "Campfire";
     const STACK_SIZE: u8 = 64;
@@ -14347,7 +14347,7 @@ impl ItemDef for Campfire {
 pub struct SoulCampfire;
 
 impl ItemDef for SoulCampfire {
-    const ID: u32 = 1303;
+    const ID: i32 = 1303;
     const STRING_ID: &'static str = "minecraft:soul_campfire";
     const NAME: &'static str = "Soul Campfire";
     const STACK_SIZE: u8 = 64;
@@ -14357,7 +14357,7 @@ impl ItemDef for SoulCampfire {
 pub struct Shroomlight;
 
 impl ItemDef for Shroomlight {
-    const ID: u32 = 1304;
+    const ID: i32 = 1304;
     const STRING_ID: &'static str = "minecraft:shroomlight";
     const NAME: &'static str = "Shroomlight";
     const STACK_SIZE: u8 = 64;
@@ -14367,7 +14367,7 @@ impl ItemDef for Shroomlight {
 pub struct Honeycomb;
 
 impl ItemDef for Honeycomb {
-    const ID: u32 = 1305;
+    const ID: i32 = 1305;
     const STRING_ID: &'static str = "minecraft:honeycomb";
     const NAME: &'static str = "Honeycomb";
     const STACK_SIZE: u8 = 64;
@@ -14377,7 +14377,7 @@ impl ItemDef for Honeycomb {
 pub struct BeeNest;
 
 impl ItemDef for BeeNest {
-    const ID: u32 = 1306;
+    const ID: i32 = 1306;
     const STRING_ID: &'static str = "minecraft:bee_nest";
     const NAME: &'static str = "Bee Nest";
     const STACK_SIZE: u8 = 64;
@@ -14387,7 +14387,7 @@ impl ItemDef for BeeNest {
 pub struct Beehive;
 
 impl ItemDef for Beehive {
-    const ID: u32 = 1307;
+    const ID: i32 = 1307;
     const STRING_ID: &'static str = "minecraft:beehive";
     const NAME: &'static str = "Beehive";
     const STACK_SIZE: u8 = 64;
@@ -14397,7 +14397,7 @@ impl ItemDef for Beehive {
 pub struct HoneyBottle;
 
 impl ItemDef for HoneyBottle {
-    const ID: u32 = 1308;
+    const ID: i32 = 1308;
     const STRING_ID: &'static str = "minecraft:honey_bottle";
     const NAME: &'static str = "Honey Bottle";
     const STACK_SIZE: u8 = 16;
@@ -14407,7 +14407,7 @@ impl ItemDef for HoneyBottle {
 pub struct HoneycombBlock;
 
 impl ItemDef for HoneycombBlock {
-    const ID: u32 = 1309;
+    const ID: i32 = 1309;
     const STRING_ID: &'static str = "minecraft:honeycomb_block";
     const NAME: &'static str = "Honeycomb Block";
     const STACK_SIZE: u8 = 64;
@@ -14417,7 +14417,7 @@ impl ItemDef for HoneycombBlock {
 pub struct Lodestone;
 
 impl ItemDef for Lodestone {
-    const ID: u32 = 1310;
+    const ID: i32 = 1310;
     const STRING_ID: &'static str = "minecraft:lodestone";
     const NAME: &'static str = "Lodestone";
     const STACK_SIZE: u8 = 64;
@@ -14427,7 +14427,7 @@ impl ItemDef for Lodestone {
 pub struct CryingObsidian;
 
 impl ItemDef for CryingObsidian {
-    const ID: u32 = 1311;
+    const ID: i32 = 1311;
     const STRING_ID: &'static str = "minecraft:crying_obsidian";
     const NAME: &'static str = "Crying Obsidian";
     const STACK_SIZE: u8 = 64;
@@ -14437,7 +14437,7 @@ impl ItemDef for CryingObsidian {
 pub struct Blackstone;
 
 impl ItemDef for Blackstone {
-    const ID: u32 = 1312;
+    const ID: i32 = 1312;
     const STRING_ID: &'static str = "minecraft:blackstone";
     const NAME: &'static str = "Blackstone";
     const STACK_SIZE: u8 = 64;
@@ -14447,7 +14447,7 @@ impl ItemDef for Blackstone {
 pub struct BlackstoneSlab;
 
 impl ItemDef for BlackstoneSlab {
-    const ID: u32 = 1313;
+    const ID: i32 = 1313;
     const STRING_ID: &'static str = "minecraft:blackstone_slab";
     const NAME: &'static str = "Blackstone Slab";
     const STACK_SIZE: u8 = 64;
@@ -14457,7 +14457,7 @@ impl ItemDef for BlackstoneSlab {
 pub struct BlackstoneStairs;
 
 impl ItemDef for BlackstoneStairs {
-    const ID: u32 = 1314;
+    const ID: i32 = 1314;
     const STRING_ID: &'static str = "minecraft:blackstone_stairs";
     const NAME: &'static str = "Blackstone Stairs";
     const STACK_SIZE: u8 = 64;
@@ -14467,7 +14467,7 @@ impl ItemDef for BlackstoneStairs {
 pub struct GildedBlackstone;
 
 impl ItemDef for GildedBlackstone {
-    const ID: u32 = 1315;
+    const ID: i32 = 1315;
     const STRING_ID: &'static str = "minecraft:gilded_blackstone";
     const NAME: &'static str = "Gilded Blackstone";
     const STACK_SIZE: u8 = 64;
@@ -14477,7 +14477,7 @@ impl ItemDef for GildedBlackstone {
 pub struct PolishedBlackstone;
 
 impl ItemDef for PolishedBlackstone {
-    const ID: u32 = 1316;
+    const ID: i32 = 1316;
     const STRING_ID: &'static str = "minecraft:polished_blackstone";
     const NAME: &'static str = "Polished Blackstone";
     const STACK_SIZE: u8 = 64;
@@ -14487,7 +14487,7 @@ impl ItemDef for PolishedBlackstone {
 pub struct PolishedBlackstoneSlab;
 
 impl ItemDef for PolishedBlackstoneSlab {
-    const ID: u32 = 1317;
+    const ID: i32 = 1317;
     const STRING_ID: &'static str = "minecraft:polished_blackstone_slab";
     const NAME: &'static str = "Polished Blackstone Slab";
     const STACK_SIZE: u8 = 64;
@@ -14497,7 +14497,7 @@ impl ItemDef for PolishedBlackstoneSlab {
 pub struct PolishedBlackstoneStairs;
 
 impl ItemDef for PolishedBlackstoneStairs {
-    const ID: u32 = 1318;
+    const ID: i32 = 1318;
     const STRING_ID: &'static str = "minecraft:polished_blackstone_stairs";
     const NAME: &'static str = "Polished Blackstone Stairs";
     const STACK_SIZE: u8 = 64;
@@ -14507,7 +14507,7 @@ impl ItemDef for PolishedBlackstoneStairs {
 pub struct ChiseledPolishedBlackstone;
 
 impl ItemDef for ChiseledPolishedBlackstone {
-    const ID: u32 = 1319;
+    const ID: i32 = 1319;
     const STRING_ID: &'static str = "minecraft:chiseled_polished_blackstone";
     const NAME: &'static str = "Chiseled Polished Blackstone";
     const STACK_SIZE: u8 = 64;
@@ -14517,7 +14517,7 @@ impl ItemDef for ChiseledPolishedBlackstone {
 pub struct PolishedBlackstoneBricks;
 
 impl ItemDef for PolishedBlackstoneBricks {
-    const ID: u32 = 1320;
+    const ID: i32 = 1320;
     const STRING_ID: &'static str = "minecraft:polished_blackstone_bricks";
     const NAME: &'static str = "Polished Blackstone Bricks";
     const STACK_SIZE: u8 = 64;
@@ -14527,7 +14527,7 @@ impl ItemDef for PolishedBlackstoneBricks {
 pub struct PolishedBlackstoneBrickSlab;
 
 impl ItemDef for PolishedBlackstoneBrickSlab {
-    const ID: u32 = 1321;
+    const ID: i32 = 1321;
     const STRING_ID: &'static str = "minecraft:polished_blackstone_brick_slab";
     const NAME: &'static str = "Polished Blackstone Brick Slab";
     const STACK_SIZE: u8 = 64;
@@ -14537,7 +14537,7 @@ impl ItemDef for PolishedBlackstoneBrickSlab {
 pub struct PolishedBlackstoneBrickStairs;
 
 impl ItemDef for PolishedBlackstoneBrickStairs {
-    const ID: u32 = 1322;
+    const ID: i32 = 1322;
     const STRING_ID: &'static str = "minecraft:polished_blackstone_brick_stairs";
     const NAME: &'static str = "Polished Blackstone Brick Stairs";
     const STACK_SIZE: u8 = 64;
@@ -14547,7 +14547,7 @@ impl ItemDef for PolishedBlackstoneBrickStairs {
 pub struct CrackedPolishedBlackstoneBricks;
 
 impl ItemDef for CrackedPolishedBlackstoneBricks {
-    const ID: u32 = 1323;
+    const ID: i32 = 1323;
     const STRING_ID: &'static str = "minecraft:cracked_polished_blackstone_bricks";
     const NAME: &'static str = "Cracked Polished Blackstone Bricks";
     const STACK_SIZE: u8 = 64;
@@ -14557,7 +14557,7 @@ impl ItemDef for CrackedPolishedBlackstoneBricks {
 pub struct RespawnAnchor;
 
 impl ItemDef for RespawnAnchor {
-    const ID: u32 = 1324;
+    const ID: i32 = 1324;
     const STRING_ID: &'static str = "minecraft:respawn_anchor";
     const NAME: &'static str = "Respawn Anchor";
     const STACK_SIZE: u8 = 64;
@@ -14567,7 +14567,7 @@ impl ItemDef for RespawnAnchor {
 pub struct Candle;
 
 impl ItemDef for Candle {
-    const ID: u32 = 1325;
+    const ID: i32 = 1325;
     const STRING_ID: &'static str = "minecraft:candle";
     const NAME: &'static str = "Candle";
     const STACK_SIZE: u8 = 64;
@@ -14577,7 +14577,7 @@ impl ItemDef for Candle {
 pub struct WhiteCandle;
 
 impl ItemDef for WhiteCandle {
-    const ID: u32 = 1326;
+    const ID: i32 = 1326;
     const STRING_ID: &'static str = "minecraft:white_candle";
     const NAME: &'static str = "White Candle";
     const STACK_SIZE: u8 = 64;
@@ -14587,7 +14587,7 @@ impl ItemDef for WhiteCandle {
 pub struct OrangeCandle;
 
 impl ItemDef for OrangeCandle {
-    const ID: u32 = 1327;
+    const ID: i32 = 1327;
     const STRING_ID: &'static str = "minecraft:orange_candle";
     const NAME: &'static str = "Orange Candle";
     const STACK_SIZE: u8 = 64;
@@ -14597,7 +14597,7 @@ impl ItemDef for OrangeCandle {
 pub struct MagentaCandle;
 
 impl ItemDef for MagentaCandle {
-    const ID: u32 = 1328;
+    const ID: i32 = 1328;
     const STRING_ID: &'static str = "minecraft:magenta_candle";
     const NAME: &'static str = "Magenta Candle";
     const STACK_SIZE: u8 = 64;
@@ -14607,7 +14607,7 @@ impl ItemDef for MagentaCandle {
 pub struct LightBlueCandle;
 
 impl ItemDef for LightBlueCandle {
-    const ID: u32 = 1329;
+    const ID: i32 = 1329;
     const STRING_ID: &'static str = "minecraft:light_blue_candle";
     const NAME: &'static str = "Light Blue Candle";
     const STACK_SIZE: u8 = 64;
@@ -14617,7 +14617,7 @@ impl ItemDef for LightBlueCandle {
 pub struct YellowCandle;
 
 impl ItemDef for YellowCandle {
-    const ID: u32 = 1330;
+    const ID: i32 = 1330;
     const STRING_ID: &'static str = "minecraft:yellow_candle";
     const NAME: &'static str = "Yellow Candle";
     const STACK_SIZE: u8 = 64;
@@ -14627,7 +14627,7 @@ impl ItemDef for YellowCandle {
 pub struct LimeCandle;
 
 impl ItemDef for LimeCandle {
-    const ID: u32 = 1331;
+    const ID: i32 = 1331;
     const STRING_ID: &'static str = "minecraft:lime_candle";
     const NAME: &'static str = "Lime Candle";
     const STACK_SIZE: u8 = 64;
@@ -14637,7 +14637,7 @@ impl ItemDef for LimeCandle {
 pub struct PinkCandle;
 
 impl ItemDef for PinkCandle {
-    const ID: u32 = 1332;
+    const ID: i32 = 1332;
     const STRING_ID: &'static str = "minecraft:pink_candle";
     const NAME: &'static str = "Pink Candle";
     const STACK_SIZE: u8 = 64;
@@ -14647,7 +14647,7 @@ impl ItemDef for PinkCandle {
 pub struct GrayCandle;
 
 impl ItemDef for GrayCandle {
-    const ID: u32 = 1333;
+    const ID: i32 = 1333;
     const STRING_ID: &'static str = "minecraft:gray_candle";
     const NAME: &'static str = "Gray Candle";
     const STACK_SIZE: u8 = 64;
@@ -14657,7 +14657,7 @@ impl ItemDef for GrayCandle {
 pub struct LightGrayCandle;
 
 impl ItemDef for LightGrayCandle {
-    const ID: u32 = 1334;
+    const ID: i32 = 1334;
     const STRING_ID: &'static str = "minecraft:light_gray_candle";
     const NAME: &'static str = "Light Gray Candle";
     const STACK_SIZE: u8 = 64;
@@ -14667,7 +14667,7 @@ impl ItemDef for LightGrayCandle {
 pub struct CyanCandle;
 
 impl ItemDef for CyanCandle {
-    const ID: u32 = 1335;
+    const ID: i32 = 1335;
     const STRING_ID: &'static str = "minecraft:cyan_candle";
     const NAME: &'static str = "Cyan Candle";
     const STACK_SIZE: u8 = 64;
@@ -14677,7 +14677,7 @@ impl ItemDef for CyanCandle {
 pub struct PurpleCandle;
 
 impl ItemDef for PurpleCandle {
-    const ID: u32 = 1336;
+    const ID: i32 = 1336;
     const STRING_ID: &'static str = "minecraft:purple_candle";
     const NAME: &'static str = "Purple Candle";
     const STACK_SIZE: u8 = 64;
@@ -14687,7 +14687,7 @@ impl ItemDef for PurpleCandle {
 pub struct BlueCandle;
 
 impl ItemDef for BlueCandle {
-    const ID: u32 = 1337;
+    const ID: i32 = 1337;
     const STRING_ID: &'static str = "minecraft:blue_candle";
     const NAME: &'static str = "Blue Candle";
     const STACK_SIZE: u8 = 64;
@@ -14697,7 +14697,7 @@ impl ItemDef for BlueCandle {
 pub struct BrownCandle;
 
 impl ItemDef for BrownCandle {
-    const ID: u32 = 1338;
+    const ID: i32 = 1338;
     const STRING_ID: &'static str = "minecraft:brown_candle";
     const NAME: &'static str = "Brown Candle";
     const STACK_SIZE: u8 = 64;
@@ -14707,7 +14707,7 @@ impl ItemDef for BrownCandle {
 pub struct GreenCandle;
 
 impl ItemDef for GreenCandle {
-    const ID: u32 = 1339;
+    const ID: i32 = 1339;
     const STRING_ID: &'static str = "minecraft:green_candle";
     const NAME: &'static str = "Green Candle";
     const STACK_SIZE: u8 = 64;
@@ -14717,7 +14717,7 @@ impl ItemDef for GreenCandle {
 pub struct RedCandle;
 
 impl ItemDef for RedCandle {
-    const ID: u32 = 1340;
+    const ID: i32 = 1340;
     const STRING_ID: &'static str = "minecraft:red_candle";
     const NAME: &'static str = "Red Candle";
     const STACK_SIZE: u8 = 64;
@@ -14727,7 +14727,7 @@ impl ItemDef for RedCandle {
 pub struct BlackCandle;
 
 impl ItemDef for BlackCandle {
-    const ID: u32 = 1341;
+    const ID: i32 = 1341;
     const STRING_ID: &'static str = "minecraft:black_candle";
     const NAME: &'static str = "Black Candle";
     const STACK_SIZE: u8 = 64;
@@ -14737,7 +14737,7 @@ impl ItemDef for BlackCandle {
 pub struct SmallAmethystBud;
 
 impl ItemDef for SmallAmethystBud {
-    const ID: u32 = 1342;
+    const ID: i32 = 1342;
     const STRING_ID: &'static str = "minecraft:small_amethyst_bud";
     const NAME: &'static str = "Small Amethyst Bud";
     const STACK_SIZE: u8 = 64;
@@ -14747,7 +14747,7 @@ impl ItemDef for SmallAmethystBud {
 pub struct MediumAmethystBud;
 
 impl ItemDef for MediumAmethystBud {
-    const ID: u32 = 1343;
+    const ID: i32 = 1343;
     const STRING_ID: &'static str = "minecraft:medium_amethyst_bud";
     const NAME: &'static str = "Medium Amethyst Bud";
     const STACK_SIZE: u8 = 64;
@@ -14757,7 +14757,7 @@ impl ItemDef for MediumAmethystBud {
 pub struct LargeAmethystBud;
 
 impl ItemDef for LargeAmethystBud {
-    const ID: u32 = 1344;
+    const ID: i32 = 1344;
     const STRING_ID: &'static str = "minecraft:large_amethyst_bud";
     const NAME: &'static str = "Large Amethyst Bud";
     const STACK_SIZE: u8 = 64;
@@ -14767,7 +14767,7 @@ impl ItemDef for LargeAmethystBud {
 pub struct AmethystCluster;
 
 impl ItemDef for AmethystCluster {
-    const ID: u32 = 1345;
+    const ID: i32 = 1345;
     const STRING_ID: &'static str = "minecraft:amethyst_cluster";
     const NAME: &'static str = "Amethyst Cluster";
     const STACK_SIZE: u8 = 64;
@@ -14777,7 +14777,7 @@ impl ItemDef for AmethystCluster {
 pub struct PointedDripstone;
 
 impl ItemDef for PointedDripstone {
-    const ID: u32 = 1346;
+    const ID: i32 = 1346;
     const STRING_ID: &'static str = "minecraft:pointed_dripstone";
     const NAME: &'static str = "Pointed Dripstone";
     const STACK_SIZE: u8 = 64;
@@ -14787,7 +14787,7 @@ impl ItemDef for PointedDripstone {
 pub struct OchreFroglight;
 
 impl ItemDef for OchreFroglight {
-    const ID: u32 = 1347;
+    const ID: i32 = 1347;
     const STRING_ID: &'static str = "minecraft:ochre_froglight";
     const NAME: &'static str = "Ochre Froglight";
     const STACK_SIZE: u8 = 64;
@@ -14797,7 +14797,7 @@ impl ItemDef for OchreFroglight {
 pub struct VerdantFroglight;
 
 impl ItemDef for VerdantFroglight {
-    const ID: u32 = 1348;
+    const ID: i32 = 1348;
     const STRING_ID: &'static str = "minecraft:verdant_froglight";
     const NAME: &'static str = "Verdant Froglight";
     const STACK_SIZE: u8 = 64;
@@ -14807,7 +14807,7 @@ impl ItemDef for VerdantFroglight {
 pub struct PearlescentFroglight;
 
 impl ItemDef for PearlescentFroglight {
-    const ID: u32 = 1349;
+    const ID: i32 = 1349;
     const STRING_ID: &'static str = "minecraft:pearlescent_froglight";
     const NAME: &'static str = "Pearlescent Froglight";
     const STACK_SIZE: u8 = 64;
@@ -14817,7 +14817,7 @@ impl ItemDef for PearlescentFroglight {
 pub struct FrogSpawn;
 
 impl ItemDef for FrogSpawn {
-    const ID: u32 = 1350;
+    const ID: i32 = 1350;
     const STRING_ID: &'static str = "minecraft:frog_spawn";
     const NAME: &'static str = "Frogspawn";
     const STACK_SIZE: u8 = 64;
@@ -14827,7 +14827,7 @@ impl ItemDef for FrogSpawn {
 pub struct EchoShard;
 
 impl ItemDef for EchoShard {
-    const ID: u32 = 1351;
+    const ID: i32 = 1351;
     const STRING_ID: &'static str = "minecraft:echo_shard";
     const NAME: &'static str = "Echo Shard";
     const STACK_SIZE: u8 = 64;
@@ -14837,7 +14837,7 @@ impl ItemDef for EchoShard {
 pub struct Brush;
 
 impl ItemDef for Brush {
-    const ID: u32 = 1352;
+    const ID: i32 = 1352;
     const STRING_ID: &'static str = "minecraft:brush";
     const NAME: &'static str = "Brush";
     const STACK_SIZE: u8 = 1;
@@ -14860,7 +14860,7 @@ impl EnchantableItem for Brush {
 pub struct NetheriteUpgradeSmithingTemplate;
 
 impl ItemDef for NetheriteUpgradeSmithingTemplate {
-    const ID: u32 = 1353;
+    const ID: i32 = 1353;
     const STRING_ID: &'static str = "minecraft:netherite_upgrade_smithing_template";
     const NAME: &'static str = "Netherite Upgrade";
     const STACK_SIZE: u8 = 64;
@@ -14870,7 +14870,7 @@ impl ItemDef for NetheriteUpgradeSmithingTemplate {
 pub struct SentryArmorTrimSmithingTemplate;
 
 impl ItemDef for SentryArmorTrimSmithingTemplate {
-    const ID: u32 = 1354;
+    const ID: i32 = 1354;
     const STRING_ID: &'static str = "minecraft:sentry_armor_trim_smithing_template";
     const NAME: &'static str = "Sentry Armor Trim";
     const STACK_SIZE: u8 = 64;
@@ -14880,7 +14880,7 @@ impl ItemDef for SentryArmorTrimSmithingTemplate {
 pub struct DuneArmorTrimSmithingTemplate;
 
 impl ItemDef for DuneArmorTrimSmithingTemplate {
-    const ID: u32 = 1355;
+    const ID: i32 = 1355;
     const STRING_ID: &'static str = "minecraft:dune_armor_trim_smithing_template";
     const NAME: &'static str = "Dune Armor Trim";
     const STACK_SIZE: u8 = 64;
@@ -14890,7 +14890,7 @@ impl ItemDef for DuneArmorTrimSmithingTemplate {
 pub struct CoastArmorTrimSmithingTemplate;
 
 impl ItemDef for CoastArmorTrimSmithingTemplate {
-    const ID: u32 = 1356;
+    const ID: i32 = 1356;
     const STRING_ID: &'static str = "minecraft:coast_armor_trim_smithing_template";
     const NAME: &'static str = "Coast Armor Trim";
     const STACK_SIZE: u8 = 64;
@@ -14900,7 +14900,7 @@ impl ItemDef for CoastArmorTrimSmithingTemplate {
 pub struct WildArmorTrimSmithingTemplate;
 
 impl ItemDef for WildArmorTrimSmithingTemplate {
-    const ID: u32 = 1357;
+    const ID: i32 = 1357;
     const STRING_ID: &'static str = "minecraft:wild_armor_trim_smithing_template";
     const NAME: &'static str = "Wild Armor Trim";
     const STACK_SIZE: u8 = 64;
@@ -14910,7 +14910,7 @@ impl ItemDef for WildArmorTrimSmithingTemplate {
 pub struct WardArmorTrimSmithingTemplate;
 
 impl ItemDef for WardArmorTrimSmithingTemplate {
-    const ID: u32 = 1358;
+    const ID: i32 = 1358;
     const STRING_ID: &'static str = "minecraft:ward_armor_trim_smithing_template";
     const NAME: &'static str = "Ward Armor Trim";
     const STACK_SIZE: u8 = 64;
@@ -14920,7 +14920,7 @@ impl ItemDef for WardArmorTrimSmithingTemplate {
 pub struct EyeArmorTrimSmithingTemplate;
 
 impl ItemDef for EyeArmorTrimSmithingTemplate {
-    const ID: u32 = 1359;
+    const ID: i32 = 1359;
     const STRING_ID: &'static str = "minecraft:eye_armor_trim_smithing_template";
     const NAME: &'static str = "Eye Armor Trim";
     const STACK_SIZE: u8 = 64;
@@ -14930,7 +14930,7 @@ impl ItemDef for EyeArmorTrimSmithingTemplate {
 pub struct VexArmorTrimSmithingTemplate;
 
 impl ItemDef for VexArmorTrimSmithingTemplate {
-    const ID: u32 = 1360;
+    const ID: i32 = 1360;
     const STRING_ID: &'static str = "minecraft:vex_armor_trim_smithing_template";
     const NAME: &'static str = "Vex Armor Trim";
     const STACK_SIZE: u8 = 64;
@@ -14940,7 +14940,7 @@ impl ItemDef for VexArmorTrimSmithingTemplate {
 pub struct TideArmorTrimSmithingTemplate;
 
 impl ItemDef for TideArmorTrimSmithingTemplate {
-    const ID: u32 = 1361;
+    const ID: i32 = 1361;
     const STRING_ID: &'static str = "minecraft:tide_armor_trim_smithing_template";
     const NAME: &'static str = "Tide Armor Trim";
     const STACK_SIZE: u8 = 64;
@@ -14950,7 +14950,7 @@ impl ItemDef for TideArmorTrimSmithingTemplate {
 pub struct SnoutArmorTrimSmithingTemplate;
 
 impl ItemDef for SnoutArmorTrimSmithingTemplate {
-    const ID: u32 = 1362;
+    const ID: i32 = 1362;
     const STRING_ID: &'static str = "minecraft:snout_armor_trim_smithing_template";
     const NAME: &'static str = "Snout Armor Trim";
     const STACK_SIZE: u8 = 64;
@@ -14960,7 +14960,7 @@ impl ItemDef for SnoutArmorTrimSmithingTemplate {
 pub struct RibArmorTrimSmithingTemplate;
 
 impl ItemDef for RibArmorTrimSmithingTemplate {
-    const ID: u32 = 1363;
+    const ID: i32 = 1363;
     const STRING_ID: &'static str = "minecraft:rib_armor_trim_smithing_template";
     const NAME: &'static str = "Rib Armor Trim";
     const STACK_SIZE: u8 = 64;
@@ -14970,7 +14970,7 @@ impl ItemDef for RibArmorTrimSmithingTemplate {
 pub struct SpireArmorTrimSmithingTemplate;
 
 impl ItemDef for SpireArmorTrimSmithingTemplate {
-    const ID: u32 = 1364;
+    const ID: i32 = 1364;
     const STRING_ID: &'static str = "minecraft:spire_armor_trim_smithing_template";
     const NAME: &'static str = "Spire Armor Trim";
     const STACK_SIZE: u8 = 64;
@@ -14980,7 +14980,7 @@ impl ItemDef for SpireArmorTrimSmithingTemplate {
 pub struct WayfinderArmorTrimSmithingTemplate;
 
 impl ItemDef for WayfinderArmorTrimSmithingTemplate {
-    const ID: u32 = 1365;
+    const ID: i32 = 1365;
     const STRING_ID: &'static str = "minecraft:wayfinder_armor_trim_smithing_template";
     const NAME: &'static str = "Wayfinder Armor Trim";
     const STACK_SIZE: u8 = 64;
@@ -14990,7 +14990,7 @@ impl ItemDef for WayfinderArmorTrimSmithingTemplate {
 pub struct ShaperArmorTrimSmithingTemplate;
 
 impl ItemDef for ShaperArmorTrimSmithingTemplate {
-    const ID: u32 = 1366;
+    const ID: i32 = 1366;
     const STRING_ID: &'static str = "minecraft:shaper_armor_trim_smithing_template";
     const NAME: &'static str = "Shaper Armor Trim";
     const STACK_SIZE: u8 = 64;
@@ -15000,7 +15000,7 @@ impl ItemDef for ShaperArmorTrimSmithingTemplate {
 pub struct SilenceArmorTrimSmithingTemplate;
 
 impl ItemDef for SilenceArmorTrimSmithingTemplate {
-    const ID: u32 = 1367;
+    const ID: i32 = 1367;
     const STRING_ID: &'static str = "minecraft:silence_armor_trim_smithing_template";
     const NAME: &'static str = "Silence Armor Trim";
     const STACK_SIZE: u8 = 64;
@@ -15010,7 +15010,7 @@ impl ItemDef for SilenceArmorTrimSmithingTemplate {
 pub struct RaiserArmorTrimSmithingTemplate;
 
 impl ItemDef for RaiserArmorTrimSmithingTemplate {
-    const ID: u32 = 1368;
+    const ID: i32 = 1368;
     const STRING_ID: &'static str = "minecraft:raiser_armor_trim_smithing_template";
     const NAME: &'static str = "Raiser Armor Trim";
     const STACK_SIZE: u8 = 64;
@@ -15020,7 +15020,7 @@ impl ItemDef for RaiserArmorTrimSmithingTemplate {
 pub struct HostArmorTrimSmithingTemplate;
 
 impl ItemDef for HostArmorTrimSmithingTemplate {
-    const ID: u32 = 1369;
+    const ID: i32 = 1369;
     const STRING_ID: &'static str = "minecraft:host_armor_trim_smithing_template";
     const NAME: &'static str = "Host Armor Trim";
     const STACK_SIZE: u8 = 64;
@@ -15030,7 +15030,7 @@ impl ItemDef for HostArmorTrimSmithingTemplate {
 pub struct FlowArmorTrimSmithingTemplate;
 
 impl ItemDef for FlowArmorTrimSmithingTemplate {
-    const ID: u32 = 1370;
+    const ID: i32 = 1370;
     const STRING_ID: &'static str = "minecraft:flow_armor_trim_smithing_template";
     const NAME: &'static str = "Flow Armor Trim";
     const STACK_SIZE: u8 = 64;
@@ -15040,7 +15040,7 @@ impl ItemDef for FlowArmorTrimSmithingTemplate {
 pub struct BoltArmorTrimSmithingTemplate;
 
 impl ItemDef for BoltArmorTrimSmithingTemplate {
-    const ID: u32 = 1371;
+    const ID: i32 = 1371;
     const STRING_ID: &'static str = "minecraft:bolt_armor_trim_smithing_template";
     const NAME: &'static str = "Bolt Armor Trim";
     const STACK_SIZE: u8 = 64;
@@ -15050,7 +15050,7 @@ impl ItemDef for BoltArmorTrimSmithingTemplate {
 pub struct AnglerPotterySherd;
 
 impl ItemDef for AnglerPotterySherd {
-    const ID: u32 = 1372;
+    const ID: i32 = 1372;
     const STRING_ID: &'static str = "minecraft:angler_pottery_sherd";
     const NAME: &'static str = "Angler Pottery Sherd";
     const STACK_SIZE: u8 = 64;
@@ -15060,7 +15060,7 @@ impl ItemDef for AnglerPotterySherd {
 pub struct ArcherPotterySherd;
 
 impl ItemDef for ArcherPotterySherd {
-    const ID: u32 = 1373;
+    const ID: i32 = 1373;
     const STRING_ID: &'static str = "minecraft:archer_pottery_sherd";
     const NAME: &'static str = "Archer Pottery Sherd";
     const STACK_SIZE: u8 = 64;
@@ -15070,7 +15070,7 @@ impl ItemDef for ArcherPotterySherd {
 pub struct ArmsUpPotterySherd;
 
 impl ItemDef for ArmsUpPotterySherd {
-    const ID: u32 = 1374;
+    const ID: i32 = 1374;
     const STRING_ID: &'static str = "minecraft:arms_up_pottery_sherd";
     const NAME: &'static str = "Arms Up Pottery Sherd";
     const STACK_SIZE: u8 = 64;
@@ -15080,7 +15080,7 @@ impl ItemDef for ArmsUpPotterySherd {
 pub struct BladePotterySherd;
 
 impl ItemDef for BladePotterySherd {
-    const ID: u32 = 1375;
+    const ID: i32 = 1375;
     const STRING_ID: &'static str = "minecraft:blade_pottery_sherd";
     const NAME: &'static str = "Blade Pottery Sherd";
     const STACK_SIZE: u8 = 64;
@@ -15090,7 +15090,7 @@ impl ItemDef for BladePotterySherd {
 pub struct BrewerPotterySherd;
 
 impl ItemDef for BrewerPotterySherd {
-    const ID: u32 = 1376;
+    const ID: i32 = 1376;
     const STRING_ID: &'static str = "minecraft:brewer_pottery_sherd";
     const NAME: &'static str = "Brewer Pottery Sherd";
     const STACK_SIZE: u8 = 64;
@@ -15100,7 +15100,7 @@ impl ItemDef for BrewerPotterySherd {
 pub struct BurnPotterySherd;
 
 impl ItemDef for BurnPotterySherd {
-    const ID: u32 = 1377;
+    const ID: i32 = 1377;
     const STRING_ID: &'static str = "minecraft:burn_pottery_sherd";
     const NAME: &'static str = "Burn Pottery Sherd";
     const STACK_SIZE: u8 = 64;
@@ -15110,7 +15110,7 @@ impl ItemDef for BurnPotterySherd {
 pub struct DangerPotterySherd;
 
 impl ItemDef for DangerPotterySherd {
-    const ID: u32 = 1378;
+    const ID: i32 = 1378;
     const STRING_ID: &'static str = "minecraft:danger_pottery_sherd";
     const NAME: &'static str = "Danger Pottery Sherd";
     const STACK_SIZE: u8 = 64;
@@ -15120,7 +15120,7 @@ impl ItemDef for DangerPotterySherd {
 pub struct ExplorerPotterySherd;
 
 impl ItemDef for ExplorerPotterySherd {
-    const ID: u32 = 1379;
+    const ID: i32 = 1379;
     const STRING_ID: &'static str = "minecraft:explorer_pottery_sherd";
     const NAME: &'static str = "Explorer Pottery Sherd";
     const STACK_SIZE: u8 = 64;
@@ -15130,7 +15130,7 @@ impl ItemDef for ExplorerPotterySherd {
 pub struct FlowPotterySherd;
 
 impl ItemDef for FlowPotterySherd {
-    const ID: u32 = 1380;
+    const ID: i32 = 1380;
     const STRING_ID: &'static str = "minecraft:flow_pottery_sherd";
     const NAME: &'static str = "Flow Pottery Sherd";
     const STACK_SIZE: u8 = 64;
@@ -15140,7 +15140,7 @@ impl ItemDef for FlowPotterySherd {
 pub struct FriendPotterySherd;
 
 impl ItemDef for FriendPotterySherd {
-    const ID: u32 = 1381;
+    const ID: i32 = 1381;
     const STRING_ID: &'static str = "minecraft:friend_pottery_sherd";
     const NAME: &'static str = "Friend Pottery Sherd";
     const STACK_SIZE: u8 = 64;
@@ -15150,7 +15150,7 @@ impl ItemDef for FriendPotterySherd {
 pub struct GusterPotterySherd;
 
 impl ItemDef for GusterPotterySherd {
-    const ID: u32 = 1382;
+    const ID: i32 = 1382;
     const STRING_ID: &'static str = "minecraft:guster_pottery_sherd";
     const NAME: &'static str = "Guster Pottery Sherd";
     const STACK_SIZE: u8 = 64;
@@ -15160,7 +15160,7 @@ impl ItemDef for GusterPotterySherd {
 pub struct HeartPotterySherd;
 
 impl ItemDef for HeartPotterySherd {
-    const ID: u32 = 1383;
+    const ID: i32 = 1383;
     const STRING_ID: &'static str = "minecraft:heart_pottery_sherd";
     const NAME: &'static str = "Heart Pottery Sherd";
     const STACK_SIZE: u8 = 64;
@@ -15170,7 +15170,7 @@ impl ItemDef for HeartPotterySherd {
 pub struct HeartbreakPotterySherd;
 
 impl ItemDef for HeartbreakPotterySherd {
-    const ID: u32 = 1384;
+    const ID: i32 = 1384;
     const STRING_ID: &'static str = "minecraft:heartbreak_pottery_sherd";
     const NAME: &'static str = "Heartbreak Pottery Sherd";
     const STACK_SIZE: u8 = 64;
@@ -15180,7 +15180,7 @@ impl ItemDef for HeartbreakPotterySherd {
 pub struct HowlPotterySherd;
 
 impl ItemDef for HowlPotterySherd {
-    const ID: u32 = 1385;
+    const ID: i32 = 1385;
     const STRING_ID: &'static str = "minecraft:howl_pottery_sherd";
     const NAME: &'static str = "Howl Pottery Sherd";
     const STACK_SIZE: u8 = 64;
@@ -15190,7 +15190,7 @@ impl ItemDef for HowlPotterySherd {
 pub struct MinerPotterySherd;
 
 impl ItemDef for MinerPotterySherd {
-    const ID: u32 = 1386;
+    const ID: i32 = 1386;
     const STRING_ID: &'static str = "minecraft:miner_pottery_sherd";
     const NAME: &'static str = "Miner Pottery Sherd";
     const STACK_SIZE: u8 = 64;
@@ -15200,7 +15200,7 @@ impl ItemDef for MinerPotterySherd {
 pub struct MournerPotterySherd;
 
 impl ItemDef for MournerPotterySherd {
-    const ID: u32 = 1387;
+    const ID: i32 = 1387;
     const STRING_ID: &'static str = "minecraft:mourner_pottery_sherd";
     const NAME: &'static str = "Mourner Pottery Sherd";
     const STACK_SIZE: u8 = 64;
@@ -15210,7 +15210,7 @@ impl ItemDef for MournerPotterySherd {
 pub struct PlentyPotterySherd;
 
 impl ItemDef for PlentyPotterySherd {
-    const ID: u32 = 1388;
+    const ID: i32 = 1388;
     const STRING_ID: &'static str = "minecraft:plenty_pottery_sherd";
     const NAME: &'static str = "Plenty Pottery Sherd";
     const STACK_SIZE: u8 = 64;
@@ -15220,7 +15220,7 @@ impl ItemDef for PlentyPotterySherd {
 pub struct PrizePotterySherd;
 
 impl ItemDef for PrizePotterySherd {
-    const ID: u32 = 1389;
+    const ID: i32 = 1389;
     const STRING_ID: &'static str = "minecraft:prize_pottery_sherd";
     const NAME: &'static str = "Prize Pottery Sherd";
     const STACK_SIZE: u8 = 64;
@@ -15230,7 +15230,7 @@ impl ItemDef for PrizePotterySherd {
 pub struct ScrapePotterySherd;
 
 impl ItemDef for ScrapePotterySherd {
-    const ID: u32 = 1390;
+    const ID: i32 = 1390;
     const STRING_ID: &'static str = "minecraft:scrape_pottery_sherd";
     const NAME: &'static str = "Scrape Pottery Sherd";
     const STACK_SIZE: u8 = 64;
@@ -15240,7 +15240,7 @@ impl ItemDef for ScrapePotterySherd {
 pub struct SheafPotterySherd;
 
 impl ItemDef for SheafPotterySherd {
-    const ID: u32 = 1391;
+    const ID: i32 = 1391;
     const STRING_ID: &'static str = "minecraft:sheaf_pottery_sherd";
     const NAME: &'static str = "Sheaf Pottery Sherd";
     const STACK_SIZE: u8 = 64;
@@ -15250,7 +15250,7 @@ impl ItemDef for SheafPotterySherd {
 pub struct ShelterPotterySherd;
 
 impl ItemDef for ShelterPotterySherd {
-    const ID: u32 = 1392;
+    const ID: i32 = 1392;
     const STRING_ID: &'static str = "minecraft:shelter_pottery_sherd";
     const NAME: &'static str = "Shelter Pottery Sherd";
     const STACK_SIZE: u8 = 64;
@@ -15260,7 +15260,7 @@ impl ItemDef for ShelterPotterySherd {
 pub struct SkullPotterySherd;
 
 impl ItemDef for SkullPotterySherd {
-    const ID: u32 = 1393;
+    const ID: i32 = 1393;
     const STRING_ID: &'static str = "minecraft:skull_pottery_sherd";
     const NAME: &'static str = "Skull Pottery Sherd";
     const STACK_SIZE: u8 = 64;
@@ -15270,7 +15270,7 @@ impl ItemDef for SkullPotterySherd {
 pub struct SnortPotterySherd;
 
 impl ItemDef for SnortPotterySherd {
-    const ID: u32 = 1394;
+    const ID: i32 = 1394;
     const STRING_ID: &'static str = "minecraft:snort_pottery_sherd";
     const NAME: &'static str = "Snort Pottery Sherd";
     const STACK_SIZE: u8 = 64;
@@ -15280,7 +15280,7 @@ impl ItemDef for SnortPotterySherd {
 pub struct CopperGrate;
 
 impl ItemDef for CopperGrate {
-    const ID: u32 = 1395;
+    const ID: i32 = 1395;
     const STRING_ID: &'static str = "minecraft:copper_grate";
     const NAME: &'static str = "Copper Grate";
     const STACK_SIZE: u8 = 64;
@@ -15290,7 +15290,7 @@ impl ItemDef for CopperGrate {
 pub struct ExposedCopperGrate;
 
 impl ItemDef for ExposedCopperGrate {
-    const ID: u32 = 1396;
+    const ID: i32 = 1396;
     const STRING_ID: &'static str = "minecraft:exposed_copper_grate";
     const NAME: &'static str = "Exposed Copper Grate";
     const STACK_SIZE: u8 = 64;
@@ -15300,7 +15300,7 @@ impl ItemDef for ExposedCopperGrate {
 pub struct WeatheredCopperGrate;
 
 impl ItemDef for WeatheredCopperGrate {
-    const ID: u32 = 1397;
+    const ID: i32 = 1397;
     const STRING_ID: &'static str = "minecraft:weathered_copper_grate";
     const NAME: &'static str = "Weathered Copper Grate";
     const STACK_SIZE: u8 = 64;
@@ -15310,7 +15310,7 @@ impl ItemDef for WeatheredCopperGrate {
 pub struct OxidizedCopperGrate;
 
 impl ItemDef for OxidizedCopperGrate {
-    const ID: u32 = 1398;
+    const ID: i32 = 1398;
     const STRING_ID: &'static str = "minecraft:oxidized_copper_grate";
     const NAME: &'static str = "Oxidized Copper Grate";
     const STACK_SIZE: u8 = 64;
@@ -15320,7 +15320,7 @@ impl ItemDef for OxidizedCopperGrate {
 pub struct WaxedCopperGrate;
 
 impl ItemDef for WaxedCopperGrate {
-    const ID: u32 = 1399;
+    const ID: i32 = 1399;
     const STRING_ID: &'static str = "minecraft:waxed_copper_grate";
     const NAME: &'static str = "Waxed Copper Grate";
     const STACK_SIZE: u8 = 64;
@@ -15330,7 +15330,7 @@ impl ItemDef for WaxedCopperGrate {
 pub struct WaxedExposedCopperGrate;
 
 impl ItemDef for WaxedExposedCopperGrate {
-    const ID: u32 = 1400;
+    const ID: i32 = 1400;
     const STRING_ID: &'static str = "minecraft:waxed_exposed_copper_grate";
     const NAME: &'static str = "Waxed Exposed Copper Grate";
     const STACK_SIZE: u8 = 64;
@@ -15340,7 +15340,7 @@ impl ItemDef for WaxedExposedCopperGrate {
 pub struct WaxedWeatheredCopperGrate;
 
 impl ItemDef for WaxedWeatheredCopperGrate {
-    const ID: u32 = 1401;
+    const ID: i32 = 1401;
     const STRING_ID: &'static str = "minecraft:waxed_weathered_copper_grate";
     const NAME: &'static str = "Waxed Weathered Copper Grate";
     const STACK_SIZE: u8 = 64;
@@ -15350,7 +15350,7 @@ impl ItemDef for WaxedWeatheredCopperGrate {
 pub struct WaxedOxidizedCopperGrate;
 
 impl ItemDef for WaxedOxidizedCopperGrate {
-    const ID: u32 = 1402;
+    const ID: i32 = 1402;
     const STRING_ID: &'static str = "minecraft:waxed_oxidized_copper_grate";
     const NAME: &'static str = "Waxed Oxidized Copper Grate";
     const STACK_SIZE: u8 = 64;
@@ -15360,7 +15360,7 @@ impl ItemDef for WaxedOxidizedCopperGrate {
 pub struct CopperBulb;
 
 impl ItemDef for CopperBulb {
-    const ID: u32 = 1403;
+    const ID: i32 = 1403;
     const STRING_ID: &'static str = "minecraft:copper_bulb";
     const NAME: &'static str = "Copper Bulb";
     const STACK_SIZE: u8 = 64;
@@ -15370,7 +15370,7 @@ impl ItemDef for CopperBulb {
 pub struct ExposedCopperBulb;
 
 impl ItemDef for ExposedCopperBulb {
-    const ID: u32 = 1404;
+    const ID: i32 = 1404;
     const STRING_ID: &'static str = "minecraft:exposed_copper_bulb";
     const NAME: &'static str = "Exposed Copper Bulb";
     const STACK_SIZE: u8 = 64;
@@ -15380,7 +15380,7 @@ impl ItemDef for ExposedCopperBulb {
 pub struct WeatheredCopperBulb;
 
 impl ItemDef for WeatheredCopperBulb {
-    const ID: u32 = 1405;
+    const ID: i32 = 1405;
     const STRING_ID: &'static str = "minecraft:weathered_copper_bulb";
     const NAME: &'static str = "Weathered Copper Bulb";
     const STACK_SIZE: u8 = 64;
@@ -15390,7 +15390,7 @@ impl ItemDef for WeatheredCopperBulb {
 pub struct OxidizedCopperBulb;
 
 impl ItemDef for OxidizedCopperBulb {
-    const ID: u32 = 1406;
+    const ID: i32 = 1406;
     const STRING_ID: &'static str = "minecraft:oxidized_copper_bulb";
     const NAME: &'static str = "Oxidized Copper Bulb";
     const STACK_SIZE: u8 = 64;
@@ -15400,7 +15400,7 @@ impl ItemDef for OxidizedCopperBulb {
 pub struct WaxedCopperBulb;
 
 impl ItemDef for WaxedCopperBulb {
-    const ID: u32 = 1407;
+    const ID: i32 = 1407;
     const STRING_ID: &'static str = "minecraft:waxed_copper_bulb";
     const NAME: &'static str = "Waxed Copper Bulb";
     const STACK_SIZE: u8 = 64;
@@ -15410,7 +15410,7 @@ impl ItemDef for WaxedCopperBulb {
 pub struct WaxedExposedCopperBulb;
 
 impl ItemDef for WaxedExposedCopperBulb {
-    const ID: u32 = 1408;
+    const ID: i32 = 1408;
     const STRING_ID: &'static str = "minecraft:waxed_exposed_copper_bulb";
     const NAME: &'static str = "Waxed Exposed Copper Bulb";
     const STACK_SIZE: u8 = 64;
@@ -15420,7 +15420,7 @@ impl ItemDef for WaxedExposedCopperBulb {
 pub struct WaxedWeatheredCopperBulb;
 
 impl ItemDef for WaxedWeatheredCopperBulb {
-    const ID: u32 = 1409;
+    const ID: i32 = 1409;
     const STRING_ID: &'static str = "minecraft:waxed_weathered_copper_bulb";
     const NAME: &'static str = "Waxed Weathered Copper Bulb";
     const STACK_SIZE: u8 = 64;
@@ -15430,7 +15430,7 @@ impl ItemDef for WaxedWeatheredCopperBulb {
 pub struct WaxedOxidizedCopperBulb;
 
 impl ItemDef for WaxedOxidizedCopperBulb {
-    const ID: u32 = 1410;
+    const ID: i32 = 1410;
     const STRING_ID: &'static str = "minecraft:waxed_oxidized_copper_bulb";
     const NAME: &'static str = "Waxed Oxidized Copper Bulb";
     const STACK_SIZE: u8 = 64;
@@ -15440,7 +15440,7 @@ impl ItemDef for WaxedOxidizedCopperBulb {
 pub struct TrialSpawner;
 
 impl ItemDef for TrialSpawner {
-    const ID: u32 = 1411;
+    const ID: i32 = 1411;
     const STRING_ID: &'static str = "minecraft:trial_spawner";
     const NAME: &'static str = "Trial Spawner";
     const STACK_SIZE: u8 = 64;
@@ -15450,7 +15450,7 @@ impl ItemDef for TrialSpawner {
 pub struct TrialKey;
 
 impl ItemDef for TrialKey {
-    const ID: u32 = 1412;
+    const ID: i32 = 1412;
     const STRING_ID: &'static str = "minecraft:trial_key";
     const NAME: &'static str = "Trial Key";
     const STACK_SIZE: u8 = 64;
@@ -15460,7 +15460,7 @@ impl ItemDef for TrialKey {
 pub struct OminousTrialKey;
 
 impl ItemDef for OminousTrialKey {
-    const ID: u32 = 1413;
+    const ID: i32 = 1413;
     const STRING_ID: &'static str = "minecraft:ominous_trial_key";
     const NAME: &'static str = "Ominous Trial Key";
     const STACK_SIZE: u8 = 64;
@@ -15470,7 +15470,7 @@ impl ItemDef for OminousTrialKey {
 pub struct Vault;
 
 impl ItemDef for Vault {
-    const ID: u32 = 1414;
+    const ID: i32 = 1414;
     const STRING_ID: &'static str = "minecraft:vault";
     const NAME: &'static str = "Vault";
     const STACK_SIZE: u8 = 64;
@@ -15480,7 +15480,7 @@ impl ItemDef for Vault {
 pub struct OminousBottle;
 
 impl ItemDef for OminousBottle {
-    const ID: u32 = 1415;
+    const ID: i32 = 1415;
     const STRING_ID: &'static str = "minecraft:ominous_bottle";
     const NAME: &'static str = "Ominous Bottle";
     const STACK_SIZE: u8 = 64;
@@ -15490,7 +15490,7 @@ impl ItemDef for OminousBottle {
 pub struct MangroveDoorItem;
 
 impl ItemDef for MangroveDoorItem {
-    const ID: u32 = 9017;
+    const ID: i32 = 9017;
     const STRING_ID: &'static str = "minecraft:item.mangrove_door";
     const NAME: &'static str = "Mangrove Door";
     const STACK_SIZE: u8 = 1;
@@ -15500,7 +15500,7 @@ impl ItemDef for MangroveDoorItem {
 pub struct RapidFertilizer;
 
 impl ItemDef for RapidFertilizer {
-    const ID: u32 = 9022;
+    const ID: i32 = 9022;
     const STRING_ID: &'static str = "minecraft:rapid_fertilizer";
     const NAME: &'static str = "Rapid Fertilizer";
     const STACK_SIZE: u8 = 1;
@@ -15510,7 +15510,7 @@ impl ItemDef for RapidFertilizer {
 pub struct Sparkler;
 
 impl ItemDef for Sparkler {
-    const ID: u32 = 9039;
+    const ID: i32 = 9039;
     const STRING_ID: &'static str = "minecraft:sparkler";
     const NAME: &'static str = "Sparkler";
     const STACK_SIZE: u8 = 1;
@@ -15520,7 +15520,7 @@ impl ItemDef for Sparkler {
 pub struct UnderwaterTnt;
 
 impl ItemDef for UnderwaterTnt {
-    const ID: u32 = 9044;
+    const ID: i32 = 9044;
     const STRING_ID: &'static str = "minecraft:underwater_tnt";
     const NAME: &'static str = "Underwater Tnt";
     const STACK_SIZE: u8 = 1;
@@ -15530,7 +15530,7 @@ impl ItemDef for UnderwaterTnt {
 pub struct FrameItem;
 
 impl ItemDef for FrameItem {
-    const ID: u32 = 9046;
+    const ID: i32 = 9046;
     const STRING_ID: &'static str = "minecraft:item.frame";
     const NAME: &'static str = "Frame";
     const STACK_SIZE: u8 = 1;
@@ -15540,7 +15540,7 @@ impl ItemDef for FrameItem {
 pub struct Element15;
 
 impl ItemDef for Element15 {
-    const ID: u32 = 9056;
+    const ID: i32 = 9056;
     const STRING_ID: &'static str = "minecraft:element_15";
     const NAME: &'static str = "Element 15";
     const STACK_SIZE: u8 = 1;
@@ -15550,7 +15550,7 @@ impl ItemDef for Element15 {
 pub struct PolishedTuffDoubleSlab;
 
 impl ItemDef for PolishedTuffDoubleSlab {
-    const ID: u32 = 9060;
+    const ID: i32 = 9060;
     const STRING_ID: &'static str = "minecraft:polished_tuff_double_slab";
     const NAME: &'static str = "Polished Tuff Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -15560,7 +15560,7 @@ impl ItemDef for PolishedTuffDoubleSlab {
 pub struct Balloon;
 
 impl ItemDef for Balloon {
-    const ID: u32 = 9073;
+    const ID: i32 = 9073;
     const STRING_ID: &'static str = "minecraft:balloon";
     const NAME: &'static str = "Balloon";
     const STACK_SIZE: u8 = 1;
@@ -15570,7 +15570,7 @@ impl ItemDef for Balloon {
 pub struct SmoothSandstoneDoubleSlab;
 
 impl ItemDef for SmoothSandstoneDoubleSlab {
-    const ID: u32 = 9074;
+    const ID: i32 = 9074;
     const STRING_ID: &'static str = "minecraft:smooth_sandstone_double_slab";
     const NAME: &'static str = "Smooth Sandstone Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -15580,7 +15580,7 @@ impl ItemDef for SmoothSandstoneDoubleSlab {
 pub struct Element104;
 
 impl ItemDef for Element104 {
-    const ID: u32 = 9078;
+    const ID: i32 = 9078;
     const STRING_ID: &'static str = "minecraft:element_104";
     const NAME: &'static str = "Element 104";
     const STACK_SIZE: u8 = 1;
@@ -15590,7 +15590,7 @@ impl ItemDef for Element104 {
 pub struct WhiteCandleCake;
 
 impl ItemDef for WhiteCandleCake {
-    const ID: u32 = 9080;
+    const ID: i32 = 9080;
     const STRING_ID: &'static str = "minecraft:white_candle_cake";
     const NAME: &'static str = "White Candle Cake";
     const STACK_SIZE: u8 = 1;
@@ -15600,7 +15600,7 @@ impl ItemDef for WhiteCandleCake {
 pub struct DeadTubeCoralWallFan;
 
 impl ItemDef for DeadTubeCoralWallFan {
-    const ID: u32 = 9083;
+    const ID: i32 = 9083;
     const STRING_ID: &'static str = "minecraft:dead_tube_coral_wall_fan";
     const NAME: &'static str = "Dead Tube Coral Wall Fan";
     const STACK_SIZE: u8 = 1;
@@ -15610,7 +15610,7 @@ impl ItemDef for DeadTubeCoralWallFan {
 pub struct Element13;
 
 impl ItemDef for Element13 {
-    const ID: u32 = 9096;
+    const ID: i32 = 9096;
     const STRING_ID: &'static str = "minecraft:element_13";
     const NAME: &'static str = "Element 13";
     const STACK_SIZE: u8 = 1;
@@ -15620,7 +15620,7 @@ impl ItemDef for Element13 {
 pub struct Element43;
 
 impl ItemDef for Element43 {
-    const ID: u32 = 9118;
+    const ID: i32 = 9118;
     const STRING_ID: &'static str = "minecraft:element_43";
     const NAME: &'static str = "Element 43";
     const STACK_SIZE: u8 = 1;
@@ -15630,7 +15630,7 @@ impl ItemDef for Element43 {
 pub struct CopperSword;
 
 impl ItemDef for CopperSword {
-    const ID: u32 = 9125;
+    const ID: i32 = 9125;
     const STRING_ID: &'static str = "minecraft:copper_sword";
     const NAME: &'static str = "Copper Sword";
     const STACK_SIZE: u8 = 1;
@@ -15640,7 +15640,7 @@ impl ItemDef for CopperSword {
 pub struct Element68;
 
 impl ItemDef for Element68 {
-    const ID: u32 = 9126;
+    const ID: i32 = 9126;
     const STRING_ID: &'static str = "minecraft:element_68";
     const NAME: &'static str = "Element 68";
     const STACK_SIZE: u8 = 1;
@@ -15650,7 +15650,7 @@ impl ItemDef for Element68 {
 pub struct Element50;
 
 impl ItemDef for Element50 {
-    const ID: u32 = 9132;
+    const ID: i32 = 9132;
     const STRING_ID: &'static str = "minecraft:element_50";
     const NAME: &'static str = "Element 50";
     const STACK_SIZE: u8 = 1;
@@ -15660,7 +15660,7 @@ impl ItemDef for Element50 {
 pub struct Board;
 
 impl ItemDef for Board {
-    const ID: u32 = 9133;
+    const ID: i32 = 9133;
     const STRING_ID: &'static str = "minecraft:board";
     const NAME: &'static str = "Board";
     const STACK_SIZE: u8 = 1;
@@ -15670,7 +15670,7 @@ impl ItemDef for Board {
 pub struct HardBlueStainedGlass;
 
 impl ItemDef for HardBlueStainedGlass {
-    const ID: u32 = 9134;
+    const ID: i32 = 9134;
     const STRING_ID: &'static str = "minecraft:hard_blue_stained_glass";
     const NAME: &'static str = "Hard Blue Stained Glass";
     const STACK_SIZE: u8 = 1;
@@ -15680,7 +15680,7 @@ impl ItemDef for HardBlueStainedGlass {
 pub struct IronDoorItem;
 
 impl ItemDef for IronDoorItem {
-    const ID: u32 = 9148;
+    const ID: i32 = 9148;
     const STRING_ID: &'static str = "minecraft:item.iron_door";
     const NAME: &'static str = "Iron Door";
     const STACK_SIZE: u8 = 1;
@@ -15690,7 +15690,7 @@ impl ItemDef for IronDoorItem {
 pub struct Element27;
 
 impl ItemDef for Element27 {
-    const ID: u32 = 9151;
+    const ID: i32 = 9151;
     const STRING_ID: &'static str = "minecraft:element_27";
     const NAME: &'static str = "Element 27";
     const STACK_SIZE: u8 = 1;
@@ -15700,7 +15700,7 @@ impl ItemDef for Element27 {
 pub struct WoodenSlab;
 
 impl ItemDef for WoodenSlab {
-    const ID: u32 = 9158;
+    const ID: i32 = 9158;
     const STRING_ID: &'static str = "minecraft:wooden_slab";
     const NAME: &'static str = "Wooden Slab";
     const STACK_SIZE: u8 = 1;
@@ -15710,7 +15710,7 @@ impl ItemDef for WoodenSlab {
 pub struct MagentaCandleCake;
 
 impl ItemDef for MagentaCandleCake {
-    const ID: u32 = 9171;
+    const ID: i32 = 9171;
     const STRING_ID: &'static str = "minecraft:magenta_candle_cake";
     const NAME: &'static str = "Magenta Candle Cake";
     const STACK_SIZE: u8 = 1;
@@ -15720,7 +15720,7 @@ impl ItemDef for MagentaCandleCake {
 pub struct CampfireItem;
 
 impl ItemDef for CampfireItem {
-    const ID: u32 = 9172;
+    const ID: i32 = 9172;
     const STRING_ID: &'static str = "minecraft:item.campfire";
     const NAME: &'static str = "Campfire";
     const STACK_SIZE: u8 = 1;
@@ -15730,7 +15730,7 @@ impl ItemDef for CampfireItem {
 pub struct Element62;
 
 impl ItemDef for Element62 {
-    const ID: u32 = 9180;
+    const ID: i32 = 9180;
     const STRING_ID: &'static str = "minecraft:element_62";
     const NAME: &'static str = "Element 62";
     const STACK_SIZE: u8 = 1;
@@ -15740,7 +15740,7 @@ impl ItemDef for Element62 {
 pub struct HardPinkStainedGlass;
 
 impl ItemDef for HardPinkStainedGlass {
-    const ID: u32 = 9200;
+    const ID: i32 = 9200;
     const STRING_ID: &'static str = "minecraft:hard_pink_stained_glass";
     const NAME: &'static str = "Hard Pink Stained Glass";
     const STACK_SIZE: u8 = 1;
@@ -15750,7 +15750,7 @@ impl ItemDef for HardPinkStainedGlass {
 pub struct Element2;
 
 impl ItemDef for Element2 {
-    const ID: u32 = 9204;
+    const ID: i32 = 9204;
     const STRING_ID: &'static str = "minecraft:element_2";
     const NAME: &'static str = "Element 2";
     const STACK_SIZE: u8 = 1;
@@ -15760,7 +15760,7 @@ impl ItemDef for Element2 {
 pub struct AcaciaShelf;
 
 impl ItemDef for AcaciaShelf {
-    const ID: u32 = 9207;
+    const ID: i32 = 9207;
     const STRING_ID: &'static str = "minecraft:acacia_shelf";
     const NAME: &'static str = "Acacia Shelf";
     const STACK_SIZE: u8 = 1;
@@ -15770,7 +15770,7 @@ impl ItemDef for AcaciaShelf {
 pub struct PowderSnow;
 
 impl ItemDef for PowderSnow {
-    const ID: u32 = 9210;
+    const ID: i32 = 9210;
     const STRING_ID: &'static str = "minecraft:powder_snow";
     const NAME: &'static str = "Powder Snow";
     const STACK_SIZE: u8 = 1;
@@ -15780,7 +15780,7 @@ impl ItemDef for PowderSnow {
 pub struct Element80;
 
 impl ItemDef for Element80 {
-    const ID: u32 = 9213;
+    const ID: i32 = 9213;
     const STRING_ID: &'static str = "minecraft:element_80";
     const NAME: &'static str = "Element 80";
     const STACK_SIZE: u8 = 1;
@@ -15790,7 +15790,7 @@ impl ItemDef for Element80 {
 pub struct HardBrownStainedGlass;
 
 impl ItemDef for HardBrownStainedGlass {
-    const ID: u32 = 9217;
+    const ID: i32 = 9217;
     const STRING_ID: &'static str = "minecraft:hard_brown_stained_glass";
     const NAME: &'static str = "Hard Brown Stained Glass";
     const STACK_SIZE: u8 = 1;
@@ -15800,7 +15800,7 @@ impl ItemDef for HardBrownStainedGlass {
 pub struct CopperGolemStatue;
 
 impl ItemDef for CopperGolemStatue {
-    const ID: u32 = 9225;
+    const ID: i32 = 9225;
     const STRING_ID: &'static str = "minecraft:copper_golem_statue";
     const NAME: &'static str = "Copper Golem Statue";
     const STACK_SIZE: u8 = 1;
@@ -15810,7 +15810,7 @@ impl ItemDef for CopperGolemStatue {
 pub struct Portal;
 
 impl ItemDef for Portal {
-    const ID: u32 = 9235;
+    const ID: i32 = 9235;
     const STRING_ID: &'static str = "minecraft:portal";
     const NAME: &'static str = "Portal";
     const STACK_SIZE: u8 = 1;
@@ -15820,7 +15820,7 @@ impl ItemDef for Portal {
 pub struct WaxedExposedCopperLantern;
 
 impl ItemDef for WaxedExposedCopperLantern {
-    const ID: u32 = 9248;
+    const ID: i32 = 9248;
     const STRING_ID: &'static str = "minecraft:waxed_exposed_copper_lantern";
     const NAME: &'static str = "Waxed Exposed Copper Lantern";
     const STACK_SIZE: u8 = 1;
@@ -15830,7 +15830,7 @@ impl ItemDef for WaxedExposedCopperLantern {
 pub struct LightBlock15;
 
 impl ItemDef for LightBlock15 {
-    const ID: u32 = 9253;
+    const ID: i32 = 9253;
     const STRING_ID: &'static str = "minecraft:light_block_15";
     const NAME: &'static str = "Light Block 15";
     const STACK_SIZE: u8 = 1;
@@ -15840,7 +15840,7 @@ impl ItemDef for LightBlock15 {
 pub struct Planks;
 
 impl ItemDef for Planks {
-    const ID: u32 = 9258;
+    const ID: i32 = 9258;
     const STRING_ID: &'static str = "minecraft:planks";
     const NAME: &'static str = "Planks";
     const STACK_SIZE: u8 = 1;
@@ -15850,7 +15850,7 @@ impl ItemDef for Planks {
 pub struct StainedGlassPane;
 
 impl ItemDef for StainedGlassPane {
-    const ID: u32 = 9261;
+    const ID: i32 = 9261;
     const STRING_ID: &'static str = "minecraft:stained_glass_pane";
     const NAME: &'static str = "Stained Glass Pane";
     const STACK_SIZE: u8 = 1;
@@ -15860,7 +15860,7 @@ impl ItemDef for StainedGlassPane {
 pub struct ColoredTorchPurple;
 
 impl ItemDef for ColoredTorchPurple {
-    const ID: u32 = 9266;
+    const ID: i32 = 9266;
     const STRING_ID: &'static str = "minecraft:colored_torch_purple";
     const NAME: &'static str = "Colored Torch Purple";
     const STACK_SIZE: u8 = 1;
@@ -15870,7 +15870,7 @@ impl ItemDef for ColoredTorchPurple {
 pub struct HardGlass;
 
 impl ItemDef for HardGlass {
-    const ID: u32 = 9275;
+    const ID: i32 = 9275;
     const STRING_ID: &'static str = "minecraft:hard_glass";
     const NAME: &'static str = "Hard Glass";
     const STACK_SIZE: u8 = 1;
@@ -15880,7 +15880,7 @@ impl ItemDef for HardGlass {
 pub struct FlowingWater;
 
 impl ItemDef for FlowingWater {
-    const ID: u32 = 9281;
+    const ID: i32 = 9281;
     const STRING_ID: &'static str = "minecraft:flowing_water";
     const NAME: &'static str = "Flowing Water";
     const STACK_SIZE: u8 = 1;
@@ -15890,7 +15890,7 @@ impl ItemDef for FlowingWater {
 pub struct LitDeepslateRedstoneOre;
 
 impl ItemDef for LitDeepslateRedstoneOre {
-    const ID: u32 = 9291;
+    const ID: i32 = 9291;
     const STRING_ID: &'static str = "minecraft:lit_deepslate_redstone_ore";
     const NAME: &'static str = "Lit Deepslate Redstone Ore";
     const STACK_SIZE: u8 = 1;
@@ -15900,7 +15900,7 @@ impl ItemDef for LitDeepslateRedstoneOre {
 pub struct LitRedstoneLamp;
 
 impl ItemDef for LitRedstoneLamp {
-    const ID: u32 = 9295;
+    const ID: i32 = 9295;
     const STRING_ID: &'static str = "minecraft:lit_redstone_lamp";
     const NAME: &'static str = "Lit Redstone Lamp";
     const STACK_SIZE: u8 = 1;
@@ -15910,7 +15910,7 @@ impl ItemDef for LitRedstoneLamp {
 pub struct Element52;
 
 impl ItemDef for Element52 {
-    const ID: u32 = 9297;
+    const ID: i32 = 9297;
     const STRING_ID: &'static str = "minecraft:element_52";
     const NAME: &'static str = "Element 52";
     const STACK_SIZE: u8 = 1;
@@ -15920,7 +15920,7 @@ impl ItemDef for Element52 {
 pub struct Element86;
 
 impl ItemDef for Element86 {
-    const ID: u32 = 9315;
+    const ID: i32 = 9315;
     const STRING_ID: &'static str = "minecraft:element_86";
     const NAME: &'static str = "Element 86";
     const STACK_SIZE: u8 = 1;
@@ -15930,7 +15930,7 @@ impl ItemDef for Element86 {
 pub struct PetrifiedOakDoubleSlab;
 
 impl ItemDef for PetrifiedOakDoubleSlab {
-    const ID: u32 = 9323;
+    const ID: i32 = 9323;
     const STRING_ID: &'static str = "minecraft:petrified_oak_double_slab";
     const NAME: &'static str = "Petrified Oak Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -15940,7 +15940,7 @@ impl ItemDef for PetrifiedOakDoubleSlab {
 pub struct EndGateway;
 
 impl ItemDef for EndGateway {
-    const ID: u32 = 9329;
+    const ID: i32 = 9329;
     const STRING_ID: &'static str = "minecraft:end_gateway";
     const NAME: &'static str = "End Gateway";
     const STACK_SIZE: u8 = 1;
@@ -15950,7 +15950,7 @@ impl ItemDef for EndGateway {
 pub struct BeetrootItem;
 
 impl ItemDef for BeetrootItem {
-    const ID: u32 = 9331;
+    const ID: i32 = 9331;
     const STRING_ID: &'static str = "minecraft:item.beetroot";
     const NAME: &'static str = "Beetroot";
     const STACK_SIZE: u8 = 1;
@@ -15960,7 +15960,7 @@ impl ItemDef for BeetrootItem {
 pub struct DarkOakDoubleSlab;
 
 impl ItemDef for DarkOakDoubleSlab {
-    const ID: u32 = 9332;
+    const ID: i32 = 9332;
     const STRING_ID: &'static str = "minecraft:dark_oak_double_slab";
     const NAME: &'static str = "Dark Oak Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -15970,7 +15970,7 @@ impl ItemDef for DarkOakDoubleSlab {
 pub struct HardCyanStainedGlassPane;
 
 impl ItemDef for HardCyanStainedGlassPane {
-    const ID: u32 = 9341;
+    const ID: i32 = 9341;
     const STRING_ID: &'static str = "minecraft:hard_cyan_stained_glass_pane";
     const NAME: &'static str = "Hard Cyan Stained Glass Pane";
     const STACK_SIZE: u8 = 1;
@@ -15980,7 +15980,7 @@ impl ItemDef for HardCyanStainedGlassPane {
 pub struct Element51;
 
 impl ItemDef for Element51 {
-    const ID: u32 = 9352;
+    const ID: i32 = 9352;
     const STRING_ID: &'static str = "minecraft:element_51";
     const NAME: &'static str = "Element 51";
     const STACK_SIZE: u8 = 1;
@@ -15990,7 +15990,7 @@ impl ItemDef for Element51 {
 pub struct HardCyanStainedGlass;
 
 impl ItemDef for HardCyanStainedGlass {
-    const ID: u32 = 9360;
+    const ID: i32 = 9360;
     const STRING_ID: &'static str = "minecraft:hard_cyan_stained_glass";
     const NAME: &'static str = "Hard Cyan Stained Glass";
     const STACK_SIZE: u8 = 1;
@@ -16000,7 +16000,7 @@ impl ItemDef for HardCyanStainedGlass {
 pub struct AgentSpawnEgg;
 
 impl ItemDef for AgentSpawnEgg {
-    const ID: u32 = 9362;
+    const ID: i32 = 9362;
     const STRING_ID: &'static str = "minecraft:agent_spawn_egg";
     const NAME: &'static str = "Agent Spawn Egg";
     const STACK_SIZE: u8 = 1;
@@ -16010,7 +16010,7 @@ impl ItemDef for AgentSpawnEgg {
 pub struct Carpet;
 
 impl ItemDef for Carpet {
-    const ID: u32 = 9363;
+    const ID: i32 = 9363;
     const STRING_ID: &'static str = "minecraft:carpet";
     const NAME: &'static str = "Carpet";
     const STACK_SIZE: u8 = 1;
@@ -16020,7 +16020,7 @@ impl ItemDef for Carpet {
 pub struct ColoredTorchBlue;
 
 impl ItemDef for ColoredTorchBlue {
-    const ID: u32 = 9367;
+    const ID: i32 = 9367;
     const STRING_ID: &'static str = "minecraft:colored_torch_blue";
     const NAME: &'static str = "Colored Torch Blue";
     const STACK_SIZE: u8 = 1;
@@ -16030,7 +16030,7 @@ impl ItemDef for ColoredTorchBlue {
 pub struct CherryWallSign;
 
 impl ItemDef for CherryWallSign {
-    const ID: u32 = 9376;
+    const ID: i32 = 9376;
     const STRING_ID: &'static str = "minecraft:cherry_wall_sign";
     const NAME: &'static str = "Cherry Wall Sign";
     const STACK_SIZE: u8 = 1;
@@ -16040,7 +16040,7 @@ impl ItemDef for CherryWallSign {
 pub struct Element74;
 
 impl ItemDef for Element74 {
-    const ID: u32 = 9377;
+    const ID: i32 = 9377;
     const STRING_ID: &'static str = "minecraft:element_74";
     const NAME: &'static str = "Element 74";
     const STACK_SIZE: u8 = 1;
@@ -16050,7 +16050,7 @@ impl ItemDef for Element74 {
 pub struct DeadBrainCoralWallFan;
 
 impl ItemDef for DeadBrainCoralWallFan {
-    const ID: u32 = 9381;
+    const ID: i32 = 9381;
     const STRING_ID: &'static str = "minecraft:dead_brain_coral_wall_fan";
     const NAME: &'static str = "Dead Brain Coral Wall Fan";
     const STACK_SIZE: u8 = 1;
@@ -16060,7 +16060,7 @@ impl ItemDef for DeadBrainCoralWallFan {
 pub struct OxidizedCopperChain;
 
 impl ItemDef for OxidizedCopperChain {
-    const ID: u32 = 9389;
+    const ID: i32 = 9389;
     const STRING_ID: &'static str = "minecraft:oxidized_copper_chain";
     const NAME: &'static str = "Oxidized Copper Chain";
     const STACK_SIZE: u8 = 1;
@@ -16070,7 +16070,7 @@ impl ItemDef for OxidizedCopperChain {
 pub struct NetherWartItem;
 
 impl ItemDef for NetherWartItem {
-    const ID: u32 = 9397;
+    const ID: i32 = 9397;
     const STRING_ID: &'static str = "minecraft:item.nether_wart";
     const NAME: &'static str = "Nether Wart";
     const STACK_SIZE: u8 = 1;
@@ -16080,7 +16080,7 @@ impl ItemDef for NetherWartItem {
 pub struct WaxedWeatheredCopperBars;
 
 impl ItemDef for WaxedWeatheredCopperBars {
-    const ID: u32 = 9416;
+    const ID: i32 = 9416;
     const STRING_ID: &'static str = "minecraft:waxed_weathered_copper_bars";
     const NAME: &'static str = "Waxed Weathered Copper Bars";
     const STACK_SIZE: u8 = 1;
@@ -16090,7 +16090,7 @@ impl ItemDef for WaxedWeatheredCopperBars {
 pub struct DeadFireCoralWallFan;
 
 impl ItemDef for DeadFireCoralWallFan {
-    const ID: u32 = 9417;
+    const ID: i32 = 9417;
     const STRING_ID: &'static str = "minecraft:dead_fire_coral_wall_fan";
     const NAME: &'static str = "Dead Fire Coral Wall Fan";
     const STACK_SIZE: u8 = 1;
@@ -16100,7 +16100,7 @@ impl ItemDef for DeadFireCoralWallFan {
 pub struct Element97;
 
 impl ItemDef for Element97 {
-    const ID: u32 = 9421;
+    const ID: i32 = 9421;
     const STRING_ID: &'static str = "minecraft:element_97";
     const NAME: &'static str = "Element 97";
     const STACK_SIZE: u8 = 1;
@@ -16110,7 +16110,7 @@ impl ItemDef for Element97 {
 pub struct ChemistryTable;
 
 impl ItemDef for ChemistryTable {
-    const ID: u32 = 9426;
+    const ID: i32 = 9426;
     const STRING_ID: &'static str = "minecraft:chemistry_table";
     const NAME: &'static str = "Chemistry Table";
     const STACK_SIZE: u8 = 1;
@@ -16120,7 +16120,7 @@ impl ItemDef for ChemistryTable {
 pub struct HardBrownStainedGlassPane;
 
 impl ItemDef for HardBrownStainedGlassPane {
-    const ID: u32 = 9441;
+    const ID: i32 = 9441;
     const STRING_ID: &'static str = "minecraft:hard_brown_stained_glass_pane";
     const NAME: &'static str = "Hard Brown Stained Glass Pane";
     const STACK_SIZE: u8 = 1;
@@ -16130,7 +16130,7 @@ impl ItemDef for HardBrownStainedGlassPane {
 pub struct HardLimeStainedGlassPane;
 
 impl ItemDef for HardLimeStainedGlassPane {
-    const ID: u32 = 9447;
+    const ID: i32 = 9447;
     const STRING_ID: &'static str = "minecraft:hard_lime_stained_glass_pane";
     const NAME: &'static str = "Hard Lime Stained Glass Pane";
     const STACK_SIZE: u8 = 1;
@@ -16140,7 +16140,7 @@ impl ItemDef for HardLimeStainedGlassPane {
 pub struct Element23;
 
 impl ItemDef for Element23 {
-    const ID: u32 = 9452;
+    const ID: i32 = 9452;
     const STRING_ID: &'static str = "minecraft:element_23";
     const NAME: &'static str = "Element 23";
     const STACK_SIZE: u8 = 1;
@@ -16150,7 +16150,7 @@ impl ItemDef for Element23 {
 pub struct Coral;
 
 impl ItemDef for Coral {
-    const ID: u32 = 9456;
+    const ID: i32 = 9456;
     const STRING_ID: &'static str = "minecraft:coral";
     const NAME: &'static str = "Coral";
     const STACK_SIZE: u8 = 1;
@@ -16160,7 +16160,7 @@ impl ItemDef for Coral {
 pub struct Reserved6;
 
 impl ItemDef for Reserved6 {
-    const ID: u32 = 9470;
+    const ID: i32 = 9470;
     const STRING_ID: &'static str = "minecraft:reserved6";
     const NAME: &'static str = "Reserved6";
     const STACK_SIZE: u8 = 1;
@@ -16170,7 +16170,7 @@ impl ItemDef for Reserved6 {
 pub struct ShulkerBox;
 
 impl ItemDef for ShulkerBox {
-    const ID: u32 = 9476;
+    const ID: i32 = 9476;
     const STRING_ID: &'static str = "minecraft:shulker_box";
     const NAME: &'static str = "Shulker Box";
     const STACK_SIZE: u8 = 1;
@@ -16180,7 +16180,7 @@ impl ItemDef for ShulkerBox {
 pub struct RedCandleCake;
 
 impl ItemDef for RedCandleCake {
-    const ID: u32 = 9477;
+    const ID: i32 = 9477;
     const STRING_ID: &'static str = "minecraft:red_candle_cake";
     const NAME: &'static str = "Red Candle Cake";
     const STACK_SIZE: u8 = 1;
@@ -16190,7 +16190,7 @@ impl ItemDef for RedCandleCake {
 pub struct Deny;
 
 impl ItemDef for Deny {
-    const ID: u32 = 9479;
+    const ID: i32 = 9479;
     const STRING_ID: &'static str = "minecraft:deny";
     const NAME: &'static str = "Deny";
     const STACK_SIZE: u8 = 1;
@@ -16200,7 +16200,7 @@ impl ItemDef for Deny {
 pub struct PaleOakWallSign;
 
 impl ItemDef for PaleOakWallSign {
-    const ID: u32 = 9485;
+    const ID: i32 = 9485;
     const STRING_ID: &'static str = "minecraft:pale_oak_wall_sign";
     const NAME: &'static str = "Pale Oak Wall Sign";
     const STACK_SIZE: u8 = 1;
@@ -16210,7 +16210,7 @@ impl ItemDef for PaleOakWallSign {
 pub struct CakeItem;
 
 impl ItemDef for CakeItem {
-    const ID: u32 = 9490;
+    const ID: i32 = 9490;
     const STRING_ID: &'static str = "minecraft:item.cake";
     const NAME: &'static str = "Cake";
     const STACK_SIZE: u8 = 1;
@@ -16220,7 +16220,7 @@ impl ItemDef for CakeItem {
 pub struct ExposedCopperBars;
 
 impl ItemDef for ExposedCopperBars {
-    const ID: u32 = 9491;
+    const ID: i32 = 9491;
     const STRING_ID: &'static str = "minecraft:exposed_copper_bars";
     const NAME: &'static str = "Exposed Copper Bars";
     const STACK_SIZE: u8 = 1;
@@ -16230,7 +16230,7 @@ impl ItemDef for ExposedCopperBars {
 pub struct AndesiteDoubleSlab;
 
 impl ItemDef for AndesiteDoubleSlab {
-    const ID: u32 = 9498;
+    const ID: i32 = 9498;
     const STRING_ID: &'static str = "minecraft:andesite_double_slab";
     const NAME: &'static str = "Andesite Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -16240,7 +16240,7 @@ impl ItemDef for AndesiteDoubleSlab {
 pub struct StickyPistonArmCollision;
 
 impl ItemDef for StickyPistonArmCollision {
-    const ID: u32 = 9501;
+    const ID: i32 = 9501;
     const STRING_ID: &'static str = "minecraft:sticky_piston_arm_collision";
     const NAME: &'static str = "Sticky Piston Arm Collision";
     const STACK_SIZE: u8 = 1;
@@ -16250,7 +16250,7 @@ impl ItemDef for StickyPistonArmCollision {
 pub struct QuartzDoubleSlab;
 
 impl ItemDef for QuartzDoubleSlab {
-    const ID: u32 = 9505;
+    const ID: i32 = 9505;
     const STRING_ID: &'static str = "minecraft:quartz_double_slab";
     const NAME: &'static str = "Quartz Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -16260,7 +16260,7 @@ impl ItemDef for QuartzDoubleSlab {
 pub struct Element41;
 
 impl ItemDef for Element41 {
-    const ID: u32 = 9506;
+    const ID: i32 = 9506;
     const STRING_ID: &'static str = "minecraft:element_41";
     const NAME: &'static str = "Element 41";
     const STACK_SIZE: u8 = 1;
@@ -16270,7 +16270,7 @@ impl ItemDef for Element41 {
 pub struct LightBlock0;
 
 impl ItemDef for LightBlock0 {
-    const ID: u32 = 9511;
+    const ID: i32 = 9511;
     const STRING_ID: &'static str = "minecraft:light_block_0";
     const NAME: &'static str = "Light Block 0";
     const STACK_SIZE: u8 = 1;
@@ -16280,7 +16280,7 @@ impl ItemDef for LightBlock0 {
 pub struct StainedGlass;
 
 impl ItemDef for StainedGlass {
-    const ID: u32 = 9519;
+    const ID: i32 = 9519;
     const STRING_ID: &'static str = "minecraft:stained_glass";
     const NAME: &'static str = "Stained Glass";
     const STACK_SIZE: u8 = 1;
@@ -16290,7 +16290,7 @@ impl ItemDef for StainedGlass {
 pub struct FlowerPotItem;
 
 impl ItemDef for FlowerPotItem {
-    const ID: u32 = 9529;
+    const ID: i32 = 9529;
     const STRING_ID: &'static str = "minecraft:item.flower_pot";
     const NAME: &'static str = "Flower Pot";
     const STACK_SIZE: u8 = 1;
@@ -16300,7 +16300,7 @@ impl ItemDef for FlowerPotItem {
 pub struct CompoundCreator;
 
 impl ItemDef for CompoundCreator {
-    const ID: u32 = 9534;
+    const ID: i32 = 9534;
     const STRING_ID: &'static str = "minecraft:compound_creator";
     const NAME: &'static str = "Compound Creator";
     const STACK_SIZE: u8 = 1;
@@ -16310,7 +16310,7 @@ impl ItemDef for CompoundCreator {
 pub struct Camera;
 
 impl ItemDef for Camera {
-    const ID: u32 = 9536;
+    const ID: i32 = 9536;
     const STRING_ID: &'static str = "minecraft:camera";
     const NAME: &'static str = "Camera";
     const STACK_SIZE: u8 = 1;
@@ -16320,7 +16320,7 @@ impl ItemDef for Camera {
 pub struct NetherBrickDoubleSlab;
 
 impl ItemDef for NetherBrickDoubleSlab {
-    const ID: u32 = 9555;
+    const ID: i32 = 9555;
     const STRING_ID: &'static str = "minecraft:nether_brick_double_slab";
     const NAME: &'static str = "Nether Brick Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -16330,7 +16330,7 @@ impl ItemDef for NetherBrickDoubleSlab {
 pub struct HardRedStainedGlass;
 
 impl ItemDef for HardRedStainedGlass {
-    const ID: u32 = 9559;
+    const ID: i32 = 9559;
     const STRING_ID: &'static str = "minecraft:hard_red_stained_glass";
     const NAME: &'static str = "Hard Red Stained Glass";
     const STACK_SIZE: u8 = 1;
@@ -16340,7 +16340,7 @@ impl ItemDef for HardRedStainedGlass {
 pub struct SmoothStoneDoubleSlab;
 
 impl ItemDef for SmoothStoneDoubleSlab {
-    const ID: u32 = 9561;
+    const ID: i32 = 9561;
     const STRING_ID: &'static str = "minecraft:smooth_stone_double_slab";
     const NAME: &'static str = "Smooth Stone Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -16350,7 +16350,7 @@ impl ItemDef for SmoothStoneDoubleSlab {
 pub struct Element44;
 
 impl ItemDef for Element44 {
-    const ID: u32 = 9564;
+    const ID: i32 = 9564;
     const STRING_ID: &'static str = "minecraft:element_44";
     const NAME: &'static str = "Element 44";
     const STACK_SIZE: u8 = 1;
@@ -16360,7 +16360,7 @@ impl ItemDef for Element44 {
 pub struct ColoredTorchRg;
 
 impl ItemDef for ColoredTorchRg {
-    const ID: u32 = 9584;
+    const ID: i32 = 9584;
     const STRING_ID: &'static str = "minecraft:colored_torch_rg";
     const NAME: &'static str = "Colored Torch Rg";
     const STACK_SIZE: u8 = 1;
@@ -16370,7 +16370,7 @@ impl ItemDef for ColoredTorchRg {
 pub struct Bleach;
 
 impl ItemDef for Bleach {
-    const ID: u32 = 9585;
+    const ID: i32 = 9585;
     const STRING_ID: &'static str = "minecraft:bleach";
     const NAME: &'static str = "Bleach";
     const STACK_SIZE: u8 = 1;
@@ -16380,7 +16380,7 @@ impl ItemDef for Bleach {
 pub struct HardRedStainedGlassPane;
 
 impl ItemDef for HardRedStainedGlassPane {
-    const ID: u32 = 9587;
+    const ID: i32 = 9587;
     const STRING_ID: &'static str = "minecraft:hard_red_stained_glass_pane";
     const NAME: &'static str = "Hard Red Stained Glass Pane";
     const STACK_SIZE: u8 = 1;
@@ -16390,7 +16390,7 @@ impl ItemDef for HardRedStainedGlassPane {
 pub struct Chalkboard;
 
 impl ItemDef for Chalkboard {
-    const ID: u32 = 9606;
+    const ID: i32 = 9606;
     const STRING_ID: &'static str = "minecraft:chalkboard";
     const NAME: &'static str = "Chalkboard";
     const STACK_SIZE: u8 = 1;
@@ -16400,7 +16400,7 @@ impl ItemDef for Chalkboard {
 pub struct PinkCandleCake;
 
 impl ItemDef for PinkCandleCake {
-    const ID: u32 = 9611;
+    const ID: i32 = 9611;
     const STRING_ID: &'static str = "minecraft:pink_candle_cake";
     const NAME: &'static str = "Pink Candle Cake";
     const STACK_SIZE: u8 = 1;
@@ -16410,7 +16410,7 @@ impl ItemDef for PinkCandleCake {
 pub struct DoublePlant;
 
 impl ItemDef for DoublePlant {
-    const ID: u32 = 9618;
+    const ID: i32 = 9618;
     const STRING_ID: &'static str = "minecraft:double_plant";
     const NAME: &'static str = "Double Plant";
     const STACK_SIZE: u8 = 1;
@@ -16420,7 +16420,7 @@ impl ItemDef for DoublePlant {
 pub struct Element109;
 
 impl ItemDef for Element109 {
-    const ID: u32 = 9621;
+    const ID: i32 = 9621;
     const STRING_ID: &'static str = "minecraft:element_109";
     const NAME: &'static str = "Element 109";
     const STACK_SIZE: u8 = 1;
@@ -16430,7 +16430,7 @@ impl ItemDef for Element109 {
 pub struct LightBlock14;
 
 impl ItemDef for LightBlock14 {
-    const ID: u32 = 9624;
+    const ID: i32 = 9624;
     const STRING_ID: &'static str = "minecraft:light_block_14";
     const NAME: &'static str = "Light Block 14";
     const STACK_SIZE: u8 = 1;
@@ -16440,7 +16440,7 @@ impl ItemDef for LightBlock14 {
 pub struct NpcSpawnEgg;
 
 impl ItemDef for NpcSpawnEgg {
-    const ID: u32 = 9631;
+    const ID: i32 = 9631;
     const STRING_ID: &'static str = "minecraft:npc_spawn_egg";
     const NAME: &'static str = "Npc Spawn Egg";
     const STACK_SIZE: u8 = 1;
@@ -16450,7 +16450,7 @@ impl ItemDef for NpcSpawnEgg {
 pub struct SpruceWallSign;
 
 impl ItemDef for SpruceWallSign {
-    const ID: u32 = 9636;
+    const ID: i32 = 9636;
     const STRING_ID: &'static str = "minecraft:spruce_wall_sign";
     const NAME: &'static str = "Spruce Wall Sign";
     const STACK_SIZE: u8 = 1;
@@ -16460,7 +16460,7 @@ impl ItemDef for SpruceWallSign {
 pub struct DaylightDetectorInverted;
 
 impl ItemDef for DaylightDetectorInverted {
-    const ID: u32 = 9641;
+    const ID: i32 = 9641;
     const STRING_ID: &'static str = "minecraft:daylight_detector_inverted";
     const NAME: &'static str = "Daylight Detector Inverted";
     const STACK_SIZE: u8 = 1;
@@ -16470,7 +16470,7 @@ impl ItemDef for DaylightDetectorInverted {
 pub struct DioriteDoubleSlab;
 
 impl ItemDef for DioriteDoubleSlab {
-    const ID: u32 = 9645;
+    const ID: i32 = 9645;
     const STRING_ID: &'static str = "minecraft:diorite_double_slab";
     const NAME: &'static str = "Diorite Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -16480,7 +16480,7 @@ impl ItemDef for DioriteDoubleSlab {
 pub struct StandingSign;
 
 impl ItemDef for StandingSign {
-    const ID: u32 = 9649;
+    const ID: i32 = 9649;
     const STRING_ID: &'static str = "minecraft:standing_sign";
     const NAME: &'static str = "Standing Sign";
     const STACK_SIZE: u8 = 1;
@@ -16490,7 +16490,7 @@ impl ItemDef for StandingSign {
 pub struct NormalStoneDoubleSlab;
 
 impl ItemDef for NormalStoneDoubleSlab {
-    const ID: u32 = 9653;
+    const ID: i32 = 9653;
     const STRING_ID: &'static str = "minecraft:normal_stone_double_slab";
     const NAME: &'static str = "Normal Stone Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -16500,7 +16500,7 @@ impl ItemDef for NormalStoneDoubleSlab {
 pub struct DoubleCutCopperSlab;
 
 impl ItemDef for DoubleCutCopperSlab {
-    const ID: u32 = 9657;
+    const ID: i32 = 9657;
     const STRING_ID: &'static str = "minecraft:double_cut_copper_slab";
     const NAME: &'static str = "Double Cut Copper Slab";
     const STACK_SIZE: u8 = 1;
@@ -16510,7 +16510,7 @@ impl ItemDef for DoubleCutCopperSlab {
 pub struct ElementConstructor;
 
 impl ItemDef for ElementConstructor {
-    const ID: u32 = 9659;
+    const ID: i32 = 9659;
     const STRING_ID: &'static str = "minecraft:element_constructor";
     const NAME: &'static str = "Element Constructor";
     const STACK_SIZE: u8 = 1;
@@ -16520,7 +16520,7 @@ impl ItemDef for ElementConstructor {
 pub struct AcaciaDoorItem;
 
 impl ItemDef for AcaciaDoorItem {
-    const ID: u32 = 9660;
+    const ID: i32 = 9660;
     const STRING_ID: &'static str = "minecraft:item.acacia_door";
     const NAME: &'static str = "Acacia Door";
     const STACK_SIZE: u8 = 1;
@@ -16530,7 +16530,7 @@ impl ItemDef for AcaciaDoorItem {
 pub struct PurpurDoubleSlab;
 
 impl ItemDef for PurpurDoubleSlab {
-    const ID: u32 = 9665;
+    const ID: i32 = 9665;
     const STRING_ID: &'static str = "minecraft:purpur_double_slab";
     const NAME: &'static str = "Purpur Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -16540,7 +16540,7 @@ impl ItemDef for PurpurDoubleSlab {
 pub struct OrangeCandleCake;
 
 impl ItemDef for OrangeCandleCake {
-    const ID: u32 = 9691;
+    const ID: i32 = 9691;
     const STRING_ID: &'static str = "minecraft:orange_candle_cake";
     const NAME: &'static str = "Orange Candle Cake";
     const STACK_SIZE: u8 = 1;
@@ -16550,7 +16550,7 @@ impl ItemDef for OrangeCandleCake {
 pub struct DoubleStoneBlockSlab3;
 
 impl ItemDef for DoubleStoneBlockSlab3 {
-    const ID: u32 = 9699;
+    const ID: i32 = 9699;
     const STRING_ID: &'static str = "minecraft:double_stone_block_slab3";
     const NAME: &'static str = "Double Stone Block Slab3";
     const STACK_SIZE: u8 = 1;
@@ -16560,7 +16560,7 @@ impl ItemDef for DoubleStoneBlockSlab3 {
 pub struct Element69;
 
 impl ItemDef for Element69 {
-    const ID: u32 = 9715;
+    const ID: i32 = 9715;
     const STRING_ID: &'static str = "minecraft:element_69";
     const NAME: &'static str = "Element 69";
     const STACK_SIZE: u8 = 1;
@@ -16570,7 +16570,7 @@ impl ItemDef for Element69 {
 pub struct CopperTorch;
 
 impl ItemDef for CopperTorch {
-    const ID: u32 = 9718;
+    const ID: i32 = 9718;
     const STRING_ID: &'static str = "minecraft:copper_torch";
     const NAME: &'static str = "Copper Torch";
     const STACK_SIZE: u8 = 1;
@@ -16580,7 +16580,7 @@ impl ItemDef for CopperTorch {
 pub struct DeepslateBrickDoubleSlab;
 
 impl ItemDef for DeepslateBrickDoubleSlab {
-    const ID: u32 = 9719;
+    const ID: i32 = 9719;
     const STRING_ID: &'static str = "minecraft:deepslate_brick_double_slab";
     const NAME: &'static str = "Deepslate Brick Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -16590,7 +16590,7 @@ impl ItemDef for DeepslateBrickDoubleSlab {
 pub struct DarkPrismarineDoubleSlab;
 
 impl ItemDef for DarkPrismarineDoubleSlab {
-    const ID: u32 = 9721;
+    const ID: i32 = 9721;
     const STRING_ID: &'static str = "minecraft:dark_prismarine_double_slab";
     const NAME: &'static str = "Dark Prismarine Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -16600,7 +16600,7 @@ impl ItemDef for DarkPrismarineDoubleSlab {
 pub struct CopperChain;
 
 impl ItemDef for CopperChain {
-    const ID: u32 = 9722;
+    const ID: i32 = 9722;
     const STRING_ID: &'static str = "minecraft:copper_chain";
     const NAME: &'static str = "Copper Chain";
     const STACK_SIZE: u8 = 1;
@@ -16610,7 +16610,7 @@ impl ItemDef for CopperChain {
 pub struct Element102;
 
 impl ItemDef for Element102 {
-    const ID: u32 = 9729;
+    const ID: i32 = 9729;
     const STRING_ID: &'static str = "minecraft:element_102";
     const NAME: &'static str = "Element 102";
     const STACK_SIZE: u8 = 1;
@@ -16620,7 +16620,7 @@ impl ItemDef for Element102 {
 pub struct ColoredTorchBp;
 
 impl ItemDef for ColoredTorchBp {
-    const ID: u32 = 9730;
+    const ID: i32 = 9730;
     const STRING_ID: &'static str = "minecraft:colored_torch_bp";
     const NAME: &'static str = "Colored Torch Bp";
     const STACK_SIZE: u8 = 1;
@@ -16630,7 +16630,7 @@ impl ItemDef for ColoredTorchBp {
 pub struct DeadBubbleCoralWallFan;
 
 impl ItemDef for DeadBubbleCoralWallFan {
-    const ID: u32 = 9735;
+    const ID: i32 = 9735;
     const STRING_ID: &'static str = "minecraft:dead_bubble_coral_wall_fan";
     const NAME: &'static str = "Dead Bubble Coral Wall Fan";
     const STACK_SIZE: u8 = 1;
@@ -16640,7 +16640,7 @@ impl ItemDef for DeadBubbleCoralWallFan {
 pub struct InfoUpdate2;
 
 impl ItemDef for InfoUpdate2 {
-    const ID: u32 = 9751;
+    const ID: i32 = 9751;
     const STRING_ID: &'static str = "minecraft:info_update2";
     const NAME: &'static str = "Info Update2";
     const STACK_SIZE: u8 = 1;
@@ -16650,7 +16650,7 @@ impl ItemDef for InfoUpdate2 {
 pub struct Element32;
 
 impl ItemDef for Element32 {
-    const ID: u32 = 9755;
+    const ID: i32 = 9755;
     const STRING_ID: &'static str = "minecraft:element_32";
     const NAME: &'static str = "Element 32";
     const STACK_SIZE: u8 = 1;
@@ -16660,7 +16660,7 @@ impl ItemDef for Element32 {
 pub struct Element42;
 
 impl ItemDef for Element42 {
-    const ID: u32 = 9764;
+    const ID: i32 = 9764;
     const STRING_ID: &'static str = "minecraft:element_42";
     const NAME: &'static str = "Element 42";
     const STACK_SIZE: u8 = 1;
@@ -16670,7 +16670,7 @@ impl ItemDef for Element42 {
 pub struct CoralFanDead;
 
 impl ItemDef for CoralFanDead {
-    const ID: u32 = 9783;
+    const ID: i32 = 9783;
     const STRING_ID: &'static str = "minecraft:coral_fan_dead";
     const NAME: &'static str = "Coral Fan Dead";
     const STACK_SIZE: u8 = 1;
@@ -16680,7 +16680,7 @@ impl ItemDef for CoralFanDead {
 pub struct CherryShelf;
 
 impl ItemDef for CherryShelf {
-    const ID: u32 = 9784;
+    const ID: i32 = 9784;
     const STRING_ID: &'static str = "minecraft:cherry_shelf";
     const NAME: &'static str = "Cherry Shelf";
     const STACK_SIZE: u8 = 1;
@@ -16690,7 +16690,7 @@ impl ItemDef for CherryShelf {
 pub struct CopperAxe;
 
 impl ItemDef for CopperAxe {
-    const ID: u32 = 9785;
+    const ID: i32 = 9785;
     const STRING_ID: &'static str = "minecraft:copper_axe";
     const NAME: &'static str = "Copper Axe";
     const STACK_SIZE: u8 = 1;
@@ -16700,7 +16700,7 @@ impl ItemDef for CopperAxe {
 pub struct MonsterEgg;
 
 impl ItemDef for MonsterEgg {
-    const ID: u32 = 9792;
+    const ID: i32 = 9792;
     const STRING_ID: &'static str = "minecraft:monster_egg";
     const NAME: &'static str = "Monster Egg";
     const STACK_SIZE: u8 = 1;
@@ -16710,7 +16710,7 @@ impl ItemDef for MonsterEgg {
 pub struct PurpleCandleCake;
 
 impl ItemDef for PurpleCandleCake {
-    const ID: u32 = 9796;
+    const ID: i32 = 9796;
     const STRING_ID: &'static str = "minecraft:purple_candle_cake";
     const NAME: &'static str = "Purple Candle Cake";
     const STACK_SIZE: u8 = 1;
@@ -16720,7 +16720,7 @@ impl ItemDef for PurpleCandleCake {
 pub struct Potatoes;
 
 impl ItemDef for Potatoes {
-    const ID: u32 = 9799;
+    const ID: i32 = 9799;
     const STRING_ID: &'static str = "minecraft:potatoes";
     const NAME: &'static str = "Potatoes";
     const STACK_SIZE: u8 = 1;
@@ -16730,7 +16730,7 @@ impl ItemDef for Potatoes {
 pub struct Boat;
 
 impl ItemDef for Boat {
-    const ID: u32 = 9802;
+    const ID: i32 = 9802;
     const STRING_ID: &'static str = "minecraft:boat";
     const NAME: &'static str = "Boat";
     const STACK_SIZE: u8 = 1;
@@ -16740,7 +16740,7 @@ impl ItemDef for Boat {
 pub struct BirchShelf;
 
 impl ItemDef for BirchShelf {
-    const ID: u32 = 9807;
+    const ID: i32 = 9807;
     const STRING_ID: &'static str = "minecraft:birch_shelf";
     const NAME: &'static str = "Birch Shelf";
     const STACK_SIZE: u8 = 1;
@@ -16750,7 +16750,7 @@ impl ItemDef for BirchShelf {
 pub struct BlueCandleCake;
 
 impl ItemDef for BlueCandleCake {
-    const ID: u32 = 9809;
+    const ID: i32 = 9809;
     const STRING_ID: &'static str = "minecraft:blue_candle_cake";
     const NAME: &'static str = "Blue Candle Cake";
     const STACK_SIZE: u8 = 1;
@@ -16760,7 +16760,7 @@ impl ItemDef for BlueCandleCake {
 pub struct Element22;
 
 impl ItemDef for Element22 {
-    const ID: u32 = 9810;
+    const ID: i32 = 9810;
     const STRING_ID: &'static str = "minecraft:element_22";
     const NAME: &'static str = "Element 22";
     const STACK_SIZE: u8 = 1;
@@ -16770,7 +16770,7 @@ impl ItemDef for Element22 {
 pub struct Compound;
 
 impl ItemDef for Compound {
-    const ID: u32 = 9813;
+    const ID: i32 = 9813;
     const STRING_ID: &'static str = "minecraft:compound";
     const NAME: &'static str = "Compound";
     const STACK_SIZE: u8 = 1;
@@ -16780,7 +16780,7 @@ impl ItemDef for Compound {
 pub struct IceBomb;
 
 impl ItemDef for IceBomb {
-    const ID: u32 = 9815;
+    const ID: i32 = 9815;
     const STRING_ID: &'static str = "minecraft:ice_bomb";
     const NAME: &'static str = "Ice Bomb";
     const STACK_SIZE: u8 = 1;
@@ -16790,7 +16790,7 @@ impl ItemDef for IceBomb {
 pub struct Medicine;
 
 impl ItemDef for Medicine {
-    const ID: u32 = 9816;
+    const ID: i32 = 9816;
     const STRING_ID: &'static str = "minecraft:medicine";
     const NAME: &'static str = "Medicine";
     const STACK_SIZE: u8 = 1;
@@ -16800,7 +16800,7 @@ impl ItemDef for Medicine {
 pub struct GlowStick;
 
 impl ItemDef for GlowStick {
-    const ID: u32 = 9817;
+    const ID: i32 = 9817;
     const STRING_ID: &'static str = "minecraft:glow_stick";
     const NAME: &'static str = "Glow Stick";
     const STACK_SIZE: u8 = 1;
@@ -16810,7 +16810,7 @@ impl ItemDef for GlowStick {
 pub struct Element83;
 
 impl ItemDef for Element83 {
-    const ID: u32 = 9818;
+    const ID: i32 = 9818;
     const STRING_ID: &'static str = "minecraft:element_83";
     const NAME: &'static str = "Element 83";
     const STACK_SIZE: u8 = 1;
@@ -16820,7 +16820,7 @@ impl ItemDef for Element83 {
 pub struct LodestoneCompass;
 
 impl ItemDef for LodestoneCompass {
-    const ID: u32 = 9819;
+    const ID: i32 = 9819;
     const STRING_ID: &'static str = "minecraft:lodestone_compass";
     const NAME: &'static str = "Lodestone Compass";
     const STACK_SIZE: u8 = 1;
@@ -16830,7 +16830,7 @@ impl ItemDef for LodestoneCompass {
 pub struct WaxedCopperGolemStatue;
 
 impl ItemDef for WaxedCopperGolemStatue {
-    const ID: u32 = 9822;
+    const ID: i32 = 9822;
     const STRING_ID: &'static str = "minecraft:waxed_copper_golem_statue";
     const NAME: &'static str = "Waxed Copper Golem Statue";
     const STACK_SIZE: u8 = 1;
@@ -16840,7 +16840,7 @@ impl ItemDef for WaxedCopperGolemStatue {
 pub struct PolishedDeepslateDoubleSlab;
 
 impl ItemDef for PolishedDeepslateDoubleSlab {
-    const ID: u32 = 9827;
+    const ID: i32 = 9827;
     const STRING_ID: &'static str = "minecraft:polished_deepslate_double_slab";
     const NAME: &'static str = "Polished Deepslate Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -16850,7 +16850,7 @@ impl ItemDef for PolishedDeepslateDoubleSlab {
 pub struct MossyCobblestoneDoubleSlab;
 
 impl ItemDef for MossyCobblestoneDoubleSlab {
-    const ID: u32 = 9830;
+    const ID: i32 = 9830;
     const STRING_ID: &'static str = "minecraft:mossy_cobblestone_double_slab";
     const NAME: &'static str = "Mossy Cobblestone Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -16860,7 +16860,7 @@ impl ItemDef for MossyCobblestoneDoubleSlab {
 pub struct Concrete;
 
 impl ItemDef for Concrete {
-    const ID: u32 = 9837;
+    const ID: i32 = 9837;
     const STRING_ID: &'static str = "minecraft:concrete";
     const NAME: &'static str = "Concrete";
     const STACK_SIZE: u8 = 1;
@@ -16870,7 +16870,7 @@ impl ItemDef for Concrete {
 pub struct Element33;
 
 impl ItemDef for Element33 {
-    const ID: u32 = 9852;
+    const ID: i32 = 9852;
     const STRING_ID: &'static str = "minecraft:element_33";
     const NAME: &'static str = "Element 33";
     const STACK_SIZE: u8 = 1;
@@ -16880,7 +16880,7 @@ impl ItemDef for Element33 {
 pub struct WaxedWeatheredDoubleCutCopperSlab;
 
 impl ItemDef for WaxedWeatheredDoubleCutCopperSlab {
-    const ID: u32 = 9859;
+    const ID: i32 = 9859;
     const STRING_ID: &'static str = "minecraft:waxed_weathered_double_cut_copper_slab";
     const NAME: &'static str = "Waxed Weathered Double Cut Copper Slab";
     const STACK_SIZE: u8 = 1;
@@ -16890,7 +16890,7 @@ impl ItemDef for WaxedWeatheredDoubleCutCopperSlab {
 pub struct JungleStandingSign;
 
 impl ItemDef for JungleStandingSign {
-    const ID: u32 = 9867;
+    const ID: i32 = 9867;
     const STRING_ID: &'static str = "minecraft:jungle_standing_sign";
     const NAME: &'static str = "Jungle Standing Sign";
     const STACK_SIZE: u8 = 1;
@@ -16900,7 +16900,7 @@ impl ItemDef for JungleStandingSign {
 pub struct CandleCake;
 
 impl ItemDef for CandleCake {
-    const ID: u32 = 9869;
+    const ID: i32 = 9869;
     const STRING_ID: &'static str = "minecraft:candle_cake";
     const NAME: &'static str = "Candle Cake";
     const STACK_SIZE: u8 = 1;
@@ -16910,7 +16910,7 @@ impl ItemDef for CandleCake {
 pub struct InfoUpdate;
 
 impl ItemDef for InfoUpdate {
-    const ID: u32 = 9880;
+    const ID: i32 = 9880;
     const STRING_ID: &'static str = "minecraft:info_update";
     const NAME: &'static str = "Info Update";
     const STACK_SIZE: u8 = 1;
@@ -16920,7 +16920,7 @@ impl ItemDef for InfoUpdate {
 pub struct ChestBoat;
 
 impl ItemDef for ChestBoat {
-    const ID: u32 = 9886;
+    const ID: i32 = 9886;
     const STRING_ID: &'static str = "minecraft:chest_boat";
     const NAME: &'static str = "Chest Boat";
     const STACK_SIZE: u8 = 1;
@@ -16930,7 +16930,7 @@ impl ItemDef for ChestBoat {
 pub struct WaxedExposedCopperChest;
 
 impl ItemDef for WaxedExposedCopperChest {
-    const ID: u32 = 9892;
+    const ID: i32 = 9892;
     const STRING_ID: &'static str = "minecraft:waxed_exposed_copper_chest";
     const NAME: &'static str = "Waxed Exposed Copper Chest";
     const STACK_SIZE: u8 = 1;
@@ -16940,7 +16940,7 @@ impl ItemDef for WaxedExposedCopperChest {
 pub struct LitFurnace;
 
 impl ItemDef for LitFurnace {
-    const ID: u32 = 9894;
+    const ID: i32 = 9894;
     const STRING_ID: &'static str = "minecraft:lit_furnace";
     const NAME: &'static str = "Lit Furnace";
     const STACK_SIZE: u8 = 1;
@@ -16950,7 +16950,7 @@ impl ItemDef for LitFurnace {
 pub struct Element89;
 
 impl ItemDef for Element89 {
-    const ID: u32 = 9902;
+    const ID: i32 = 9902;
     const STRING_ID: &'static str = "minecraft:element_89";
     const NAME: &'static str = "Element 89";
     const STACK_SIZE: u8 = 1;
@@ -16960,7 +16960,7 @@ impl ItemDef for Element89 {
 pub struct CrimsonShelf;
 
 impl ItemDef for CrimsonShelf {
-    const ID: u32 = 9904;
+    const ID: i32 = 9904;
     const STRING_ID: &'static str = "minecraft:crimson_shelf";
     const NAME: &'static str = "Crimson Shelf";
     const STACK_SIZE: u8 = 1;
@@ -16970,7 +16970,7 @@ impl ItemDef for CrimsonShelf {
 pub struct DoubleStoneBlockSlab;
 
 impl ItemDef for DoubleStoneBlockSlab {
-    const ID: u32 = 9915;
+    const ID: i32 = 9915;
     const STRING_ID: &'static str = "minecraft:double_stone_block_slab";
     const NAME: &'static str = "Double Stone Block Slab";
     const STACK_SIZE: u8 = 1;
@@ -16980,7 +16980,7 @@ impl ItemDef for DoubleStoneBlockSlab {
 pub struct StoneBrickDoubleSlab;
 
 impl ItemDef for StoneBrickDoubleSlab {
-    const ID: u32 = 9917;
+    const ID: i32 = 9917;
     const STRING_ID: &'static str = "minecraft:stone_brick_double_slab";
     const NAME: &'static str = "Stone Brick Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -16990,7 +16990,7 @@ impl ItemDef for StoneBrickDoubleSlab {
 pub struct BrickDoubleSlab;
 
 impl ItemDef for BrickDoubleSlab {
-    const ID: u32 = 9927;
+    const ID: i32 = 9927;
     const STRING_ID: &'static str = "minecraft:brick_double_slab";
     const NAME: &'static str = "Brick Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -17000,7 +17000,7 @@ impl ItemDef for BrickDoubleSlab {
 pub struct UnlitRedstoneTorch;
 
 impl ItemDef for UnlitRedstoneTorch {
-    const ID: u32 = 9929;
+    const ID: i32 = 9929;
     const STRING_ID: &'static str = "minecraft:unlit_redstone_torch";
     const NAME: &'static str = "Unlit Redstone Torch";
     const STACK_SIZE: u8 = 1;
@@ -17010,7 +17010,7 @@ impl ItemDef for UnlitRedstoneTorch {
 pub struct Element118;
 
 impl ItemDef for Element118 {
-    const ID: u32 = 9940;
+    const ID: i32 = 9940;
     const STRING_ID: &'static str = "minecraft:element_118";
     const NAME: &'static str = "Element 118";
     const STACK_SIZE: u8 = 1;
@@ -17020,7 +17020,7 @@ impl ItemDef for Element118 {
 pub struct Element4;
 
 impl ItemDef for Element4 {
-    const ID: u32 = 9942;
+    const ID: i32 = 9942;
     const STRING_ID: &'static str = "minecraft:element_4";
     const NAME: &'static str = "Element 4";
     const STACK_SIZE: u8 = 1;
@@ -17030,7 +17030,7 @@ impl ItemDef for Element4 {
 pub struct WeatheredCopperGolemStatue;
 
 impl ItemDef for WeatheredCopperGolemStatue {
-    const ID: u32 = 9946;
+    const ID: i32 = 9946;
     const STRING_ID: &'static str = "minecraft:weathered_copper_golem_statue";
     const NAME: &'static str = "Weathered Copper Golem Statue";
     const STACK_SIZE: u8 = 1;
@@ -17040,7 +17040,7 @@ impl ItemDef for WeatheredCopperGolemStatue {
 pub struct Wool;
 
 impl ItemDef for Wool {
-    const ID: u32 = 9947;
+    const ID: i32 = 9947;
     const STRING_ID: &'static str = "minecraft:wool";
     const NAME: &'static str = "Wool";
     const STACK_SIZE: u8 = 1;
@@ -17050,7 +17050,7 @@ impl ItemDef for Wool {
 pub struct LightBlock10;
 
 impl ItemDef for LightBlock10 {
-    const ID: u32 = 9952;
+    const ID: i32 = 9952;
     const STRING_ID: &'static str = "minecraft:light_block_10";
     const NAME: &'static str = "Light Block 10";
     const STACK_SIZE: u8 = 1;
@@ -17060,7 +17060,7 @@ impl ItemDef for LightBlock10 {
 pub struct Element11;
 
 impl ItemDef for Element11 {
-    const ID: u32 = 9954;
+    const ID: i32 = 9954;
     const STRING_ID: &'static str = "minecraft:element_11";
     const NAME: &'static str = "Element 11";
     const STACK_SIZE: u8 = 1;
@@ -17070,7 +17070,7 @@ impl ItemDef for Element11 {
 pub struct CobblestoneDoubleSlab;
 
 impl ItemDef for CobblestoneDoubleSlab {
-    const ID: u32 = 9956;
+    const ID: i32 = 9956;
     const STRING_ID: &'static str = "minecraft:cobblestone_double_slab";
     const NAME: &'static str = "Cobblestone Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -17080,7 +17080,7 @@ impl ItemDef for CobblestoneDoubleSlab {
 pub struct Skull;
 
 impl ItemDef for Skull {
-    const ID: u32 = 9965;
+    const ID: i32 = 9965;
     const STRING_ID: &'static str = "minecraft:skull";
     const NAME: &'static str = "Skull";
     const STACK_SIZE: u8 = 1;
@@ -17090,7 +17090,7 @@ impl ItemDef for Skull {
 pub struct CopperNugget;
 
 impl ItemDef for CopperNugget {
-    const ID: u32 = 9970;
+    const ID: i32 = 9970;
     const STRING_ID: &'static str = "minecraft:copper_nugget";
     const NAME: &'static str = "Copper Nugget";
     const STACK_SIZE: u8 = 1;
@@ -17100,7 +17100,7 @@ impl ItemDef for CopperNugget {
 pub struct WaxedOxidizedCopperLantern;
 
 impl ItemDef for WaxedOxidizedCopperLantern {
-    const ID: u32 = 9973;
+    const ID: i32 = 9973;
     const STRING_ID: &'static str = "minecraft:waxed_oxidized_copper_lantern";
     const NAME: &'static str = "Waxed Oxidized Copper Lantern";
     const STACK_SIZE: u8 = 1;
@@ -17110,7 +17110,7 @@ impl ItemDef for WaxedOxidizedCopperLantern {
 pub struct CopperHorseArmor;
 
 impl ItemDef for CopperHorseArmor {
-    const ID: u32 = 9975;
+    const ID: i32 = 9975;
     const STRING_ID: &'static str = "minecraft:copper_horse_armor";
     const NAME: &'static str = "Copper Horse Armor";
     const STACK_SIZE: u8 = 1;
@@ -17120,7 +17120,7 @@ impl ItemDef for CopperHorseArmor {
 pub struct SmoothRedSandstoneDoubleSlab;
 
 impl ItemDef for SmoothRedSandstoneDoubleSlab {
-    const ID: u32 = 9977;
+    const ID: i32 = 9977;
     const STRING_ID: &'static str = "minecraft:smooth_red_sandstone_double_slab";
     const NAME: &'static str = "Smooth Red Sandstone Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -17130,7 +17130,7 @@ impl ItemDef for SmoothRedSandstoneDoubleSlab {
 pub struct StainedHardenedClay;
 
 impl ItemDef for StainedHardenedClay {
-    const ID: u32 = 9985;
+    const ID: i32 = 9985;
     const STRING_ID: &'static str = "minecraft:stained_hardened_clay";
     const NAME: &'static str = "Stained Hardened Clay";
     const STACK_SIZE: u8 = 1;
@@ -17140,7 +17140,7 @@ impl ItemDef for StainedHardenedClay {
 pub struct Element9;
 
 impl ItemDef for Element9 {
-    const ID: u32 = 9990;
+    const ID: i32 = 9990;
     const STRING_ID: &'static str = "minecraft:element_9";
     const NAME: &'static str = "Element 9";
     const STACK_SIZE: u8 = 1;
@@ -17150,7 +17150,7 @@ impl ItemDef for Element9 {
 pub struct StoneBlockSlab4;
 
 impl ItemDef for StoneBlockSlab4 {
-    const ID: u32 = 10003;
+    const ID: i32 = 10003;
     const STRING_ID: &'static str = "minecraft:stone_block_slab4";
     const NAME: &'static str = "Stone Block Slab4";
     const STACK_SIZE: u8 = 1;
@@ -17160,7 +17160,7 @@ impl ItemDef for StoneBlockSlab4 {
 pub struct DoubleStoneBlockSlab2;
 
 impl ItemDef for DoubleStoneBlockSlab2 {
-    const ID: u32 = 10015;
+    const ID: i32 = 10015;
     const STRING_ID: &'static str = "minecraft:double_stone_block_slab2";
     const NAME: &'static str = "Double Stone Block Slab2";
     const STACK_SIZE: u8 = 1;
@@ -17170,7 +17170,7 @@ impl ItemDef for DoubleStoneBlockSlab2 {
 pub struct CopperGolemSpawnEgg;
 
 impl ItemDef for CopperGolemSpawnEgg {
-    const ID: u32 = 10041;
+    const ID: i32 = 10041;
     const STRING_ID: &'static str = "minecraft:copper_golem_spawn_egg";
     const NAME: &'static str = "Copper Golem Spawn Egg";
     const STACK_SIZE: u8 = 1;
@@ -17180,7 +17180,7 @@ impl ItemDef for CopperGolemSpawnEgg {
 pub struct CopperShovel;
 
 impl ItemDef for CopperShovel {
-    const ID: u32 = 10042;
+    const ID: i32 = 10042;
     const STRING_ID: &'static str = "minecraft:copper_shovel";
     const NAME: &'static str = "Copper Shovel";
     const STACK_SIZE: u8 = 1;
@@ -17190,7 +17190,7 @@ impl ItemDef for CopperShovel {
 pub struct HardGrayStainedGlass;
 
 impl ItemDef for HardGrayStainedGlass {
-    const ID: u32 = 10043;
+    const ID: i32 = 10043;
     const STRING_ID: &'static str = "minecraft:hard_gray_stained_glass";
     const NAME: &'static str = "Hard Gray Stained Glass";
     const STACK_SIZE: u8 = 1;
@@ -17200,7 +17200,7 @@ impl ItemDef for HardGrayStainedGlass {
 pub struct TripWire;
 
 impl ItemDef for TripWire {
-    const ID: u32 = 10044;
+    const ID: i32 = 10044;
     const STRING_ID: &'static str = "minecraft:trip_wire";
     const NAME: &'static str = "Trip Wire";
     const STACK_SIZE: u8 = 1;
@@ -17210,7 +17210,7 @@ impl ItemDef for TripWire {
 pub struct CopperPickaxe;
 
 impl ItemDef for CopperPickaxe {
-    const ID: u32 = 10045;
+    const ID: i32 = 10045;
     const STRING_ID: &'static str = "minecraft:copper_pickaxe";
     const NAME: &'static str = "Copper Pickaxe";
     const STACK_SIZE: u8 = 1;
@@ -17220,7 +17220,7 @@ impl ItemDef for CopperPickaxe {
 pub struct CaveVinesBodyWithBerries;
 
 impl ItemDef for CaveVinesBodyWithBerries {
-    const ID: u32 = 10048;
+    const ID: i32 = 10048;
     const STRING_ID: &'static str = "minecraft:cave_vines_body_with_berries";
     const NAME: &'static str = "Cave Vines Body With Berries";
     const STACK_SIZE: u8 = 1;
@@ -17230,7 +17230,7 @@ impl ItemDef for CaveVinesBodyWithBerries {
 pub struct CopperHoe;
 
 impl ItemDef for CopperHoe {
-    const ID: u32 = 10050;
+    const ID: i32 = 10050;
     const STRING_ID: &'static str = "minecraft:copper_hoe";
     const NAME: &'static str = "Copper Hoe";
     const STACK_SIZE: u8 = 1;
@@ -17240,7 +17240,7 @@ impl ItemDef for CopperHoe {
 pub struct LightBlock2;
 
 impl ItemDef for LightBlock2 {
-    const ID: u32 = 10051;
+    const ID: i32 = 10051;
     const STRING_ID: &'static str = "minecraft:light_block_2";
     const NAME: &'static str = "Light Block 2";
     const STACK_SIZE: u8 = 1;
@@ -17250,7 +17250,7 @@ impl ItemDef for LightBlock2 {
 pub struct CopperHelmet;
 
 impl ItemDef for CopperHelmet {
-    const ID: u32 = 10052;
+    const ID: i32 = 10052;
     const STRING_ID: &'static str = "minecraft:copper_helmet";
     const NAME: &'static str = "Copper Helmet";
     const STACK_SIZE: u8 = 1;
@@ -17260,7 +17260,7 @@ impl ItemDef for CopperHelmet {
 pub struct SpruceStandingSign;
 
 impl ItemDef for SpruceStandingSign {
-    const ID: u32 = 10053;
+    const ID: i32 = 10053;
     const STRING_ID: &'static str = "minecraft:spruce_standing_sign";
     const NAME: &'static str = "Spruce Standing Sign";
     const STACK_SIZE: u8 = 1;
@@ -17270,7 +17270,7 @@ impl ItemDef for SpruceStandingSign {
 pub struct CopperChestplate;
 
 impl ItemDef for CopperChestplate {
-    const ID: u32 = 10054;
+    const ID: i32 = 10054;
     const STRING_ID: &'static str = "minecraft:copper_chestplate";
     const NAME: &'static str = "Copper Chestplate";
     const STACK_SIZE: u8 = 1;
@@ -17280,7 +17280,7 @@ impl ItemDef for CopperChestplate {
 pub struct CopperLeggings;
 
 impl ItemDef for CopperLeggings {
-    const ID: u32 = 10059;
+    const ID: i32 = 10059;
     const STRING_ID: &'static str = "minecraft:copper_leggings";
     const NAME: &'static str = "Copper Leggings";
     const STACK_SIZE: u8 = 1;
@@ -17290,7 +17290,7 @@ impl ItemDef for CopperLeggings {
 pub struct DoubleStoneBlockSlab4;
 
 impl ItemDef for DoubleStoneBlockSlab4 {
-    const ID: u32 = 10061;
+    const ID: i32 = 10061;
     const STRING_ID: &'static str = "minecraft:double_stone_block_slab4";
     const NAME: &'static str = "Double Stone Block Slab4";
     const STACK_SIZE: u8 = 1;
@@ -17300,7 +17300,7 @@ impl ItemDef for DoubleStoneBlockSlab4 {
 pub struct CopperBoots;
 
 impl ItemDef for CopperBoots {
-    const ID: u32 = 10062;
+    const ID: i32 = 10062;
     const STRING_ID: &'static str = "minecraft:copper_boots";
     const NAME: &'static str = "Copper Boots";
     const STACK_SIZE: u8 = 1;
@@ -17310,7 +17310,7 @@ impl ItemDef for CopperBoots {
 pub struct PrismarineBrickDoubleSlab;
 
 impl ItemDef for PrismarineBrickDoubleSlab {
-    const ID: u32 = 10063;
+    const ID: i32 = 10063;
     const STRING_ID: &'static str = "minecraft:prismarine_brick_double_slab";
     const NAME: &'static str = "Prismarine Brick Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -17320,7 +17320,7 @@ impl ItemDef for PrismarineBrickDoubleSlab {
 pub struct Element18;
 
 impl ItemDef for Element18 {
-    const ID: u32 = 10074;
+    const ID: i32 = 10074;
     const STRING_ID: &'static str = "minecraft:element_18";
     const NAME: &'static str = "Element 18";
     const STACK_SIZE: u8 = 1;
@@ -17330,7 +17330,7 @@ impl ItemDef for Element18 {
 pub struct CherryDoubleSlab;
 
 impl ItemDef for CherryDoubleSlab {
-    const ID: u32 = 10076;
+    const ID: i32 = 10076;
     const STRING_ID: &'static str = "minecraft:cherry_double_slab";
     const NAME: &'static str = "Cherry Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -17340,7 +17340,7 @@ impl ItemDef for CherryDoubleSlab {
 pub struct Element29;
 
 impl ItemDef for Element29 {
-    const ID: u32 = 10078;
+    const ID: i32 = 10078;
     const STRING_ID: &'static str = "minecraft:element_29";
     const NAME: &'static str = "Element 29";
     const STACK_SIZE: u8 = 1;
@@ -17350,7 +17350,7 @@ impl ItemDef for Element29 {
 pub struct HardBlackStainedGlass;
 
 impl ItemDef for HardBlackStainedGlass {
-    const ID: u32 = 10085;
+    const ID: i32 = 10085;
     const STRING_ID: &'static str = "minecraft:hard_black_stained_glass";
     const NAME: &'static str = "Hard Black Stained Glass";
     const STACK_SIZE: u8 = 1;
@@ -17360,7 +17360,7 @@ impl ItemDef for HardBlackStainedGlass {
 pub struct Log;
 
 impl ItemDef for Log {
-    const ID: u32 = 10092;
+    const ID: i32 = 10092;
     const STRING_ID: &'static str = "minecraft:log";
     const NAME: &'static str = "Log";
     const STACK_SIZE: u8 = 1;
@@ -17370,7 +17370,7 @@ impl ItemDef for Log {
 pub struct Element53;
 
 impl ItemDef for Element53 {
-    const ID: u32 = 10097;
+    const ID: i32 = 10097;
     const STRING_ID: &'static str = "minecraft:element_53";
     const NAME: &'static str = "Element 53";
     const STACK_SIZE: u8 = 1;
@@ -17380,7 +17380,7 @@ impl ItemDef for Element53 {
 pub struct Fence;
 
 impl ItemDef for Fence {
-    const ID: u32 = 10098;
+    const ID: i32 = 10098;
     const STRING_ID: &'static str = "minecraft:fence";
     const NAME: &'static str = "Fence";
     const STACK_SIZE: u8 = 1;
@@ -17390,7 +17390,7 @@ impl ItemDef for Fence {
 pub struct WaxedOxidizedDoubleCutCopperSlab;
 
 impl ItemDef for WaxedOxidizedDoubleCutCopperSlab {
-    const ID: u32 = 10099;
+    const ID: i32 = 10099;
     const STRING_ID: &'static str = "minecraft:waxed_oxidized_double_cut_copper_slab";
     const NAME: &'static str = "Waxed Oxidized Double Cut Copper Slab";
     const STACK_SIZE: u8 = 1;
@@ -17400,7 +17400,7 @@ impl ItemDef for WaxedOxidizedDoubleCutCopperSlab {
 pub struct OxidizedCopperGolemStatue;
 
 impl ItemDef for OxidizedCopperGolemStatue {
-    const ID: u32 = 10100;
+    const ID: i32 = 10100;
     const STRING_ID: &'static str = "minecraft:oxidized_copper_golem_statue";
     const NAME: &'static str = "Oxidized Copper Golem Statue";
     const STACK_SIZE: u8 = 1;
@@ -17410,7 +17410,7 @@ impl ItemDef for OxidizedCopperGolemStatue {
 pub struct Stonebrick;
 
 impl ItemDef for Stonebrick {
-    const ID: u32 = 10106;
+    const ID: i32 = 10106;
     const STRING_ID: &'static str = "minecraft:stonebrick";
     const NAME: &'static str = "Stonebrick";
     const STACK_SIZE: u8 = 1;
@@ -17420,7 +17420,7 @@ impl ItemDef for Stonebrick {
 pub struct OxidizedCopperLantern;
 
 impl ItemDef for OxidizedCopperLantern {
-    const ID: u32 = 10111;
+    const ID: i32 = 10111;
     const STRING_ID: &'static str = "minecraft:oxidized_copper_lantern";
     const NAME: &'static str = "Oxidized Copper Lantern";
     const STACK_SIZE: u8 = 1;
@@ -17430,7 +17430,7 @@ impl ItemDef for OxidizedCopperLantern {
 pub struct LitBlastFurnace;
 
 impl ItemDef for LitBlastFurnace {
-    const ID: u32 = 10115;
+    const ID: i32 = 10115;
     const STRING_ID: &'static str = "minecraft:lit_blast_furnace";
     const NAME: &'static str = "Lit Blast Furnace";
     const STACK_SIZE: u8 = 1;
@@ -17440,7 +17440,7 @@ impl ItemDef for LitBlastFurnace {
 pub struct CoralBlock;
 
 impl ItemDef for CoralBlock {
-    const ID: u32 = 10117;
+    const ID: i32 = 10117;
     const STRING_ID: &'static str = "minecraft:coral_block";
     const NAME: &'static str = "Coral Block";
     const STACK_SIZE: u8 = 1;
@@ -17450,7 +17450,7 @@ impl ItemDef for CoralBlock {
 pub struct StoneBlockSlab;
 
 impl ItemDef for StoneBlockSlab {
-    const ID: u32 = 10121;
+    const ID: i32 = 10121;
     const STRING_ID: &'static str = "minecraft:stone_block_slab";
     const NAME: &'static str = "Stone Block Slab";
     const STACK_SIZE: u8 = 1;
@@ -17460,7 +17460,7 @@ impl ItemDef for StoneBlockSlab {
 pub struct Leaves;
 
 impl ItemDef for Leaves {
-    const ID: u32 = 10122;
+    const ID: i32 = 10122;
     const STRING_ID: &'static str = "minecraft:leaves";
     const NAME: &'static str = "Leaves";
     const STACK_SIZE: u8 = 1;
@@ -17470,7 +17470,7 @@ impl ItemDef for Leaves {
 pub struct StoneBlockSlab2;
 
 impl ItemDef for StoneBlockSlab2 {
-    const ID: u32 = 10127;
+    const ID: i32 = 10127;
     const STRING_ID: &'static str = "minecraft:stone_block_slab2";
     const NAME: &'static str = "Stone Block Slab2";
     const STACK_SIZE: u8 = 1;
@@ -17480,7 +17480,7 @@ impl ItemDef for StoneBlockSlab2 {
 pub struct Leaves2;
 
 impl ItemDef for Leaves2 {
-    const ID: u32 = 10128;
+    const ID: i32 = 10128;
     const STRING_ID: &'static str = "minecraft:leaves2";
     const NAME: &'static str = "Leaves2";
     const STACK_SIZE: u8 = 1;
@@ -17490,7 +17490,7 @@ impl ItemDef for Leaves2 {
 pub struct BirchStandingSign;
 
 impl ItemDef for BirchStandingSign {
-    const ID: u32 = 10139;
+    const ID: i32 = 10139;
     const STRING_ID: &'static str = "minecraft:birch_standing_sign";
     const NAME: &'static str = "Birch Standing Sign";
     const STACK_SIZE: u8 = 1;
@@ -17500,7 +17500,7 @@ impl ItemDef for BirchStandingSign {
 pub struct StoneBlockSlab3;
 
 impl ItemDef for StoneBlockSlab3 {
-    const ID: u32 = 10142;
+    const ID: i32 = 10142;
     const STRING_ID: &'static str = "minecraft:stone_block_slab3";
     const NAME: &'static str = "Stone Block Slab3";
     const STACK_SIZE: u8 = 1;
@@ -17510,7 +17510,7 @@ impl ItemDef for StoneBlockSlab3 {
 pub struct Element16;
 
 impl ItemDef for Element16 {
-    const ID: u32 = 10145;
+    const ID: i32 = 10145;
     const STRING_ID: &'static str = "minecraft:element_16";
     const NAME: &'static str = "Element 16";
     const STACK_SIZE: u8 = 1;
@@ -17520,7 +17520,7 @@ impl ItemDef for Element16 {
 pub struct SandstoneDoubleSlab;
 
 impl ItemDef for SandstoneDoubleSlab {
-    const ID: u32 = 10147;
+    const ID: i32 = 10147;
     const STRING_ID: &'static str = "minecraft:sandstone_double_slab";
     const NAME: &'static str = "Sandstone Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -17530,7 +17530,7 @@ impl ItemDef for SandstoneDoubleSlab {
 pub struct RedSandstoneDoubleSlab;
 
 impl ItemDef for RedSandstoneDoubleSlab {
-    const ID: u32 = 10148;
+    const ID: i32 = 10148;
     const STRING_ID: &'static str = "minecraft:red_sandstone_double_slab";
     const NAME: &'static str = "Red Sandstone Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -17540,7 +17540,7 @@ impl ItemDef for RedSandstoneDoubleSlab {
 pub struct PrismarineDoubleSlab;
 
 impl ItemDef for PrismarineDoubleSlab {
-    const ID: u32 = 10150;
+    const ID: i32 = 10150;
     const STRING_ID: &'static str = "minecraft:prismarine_double_slab";
     const NAME: &'static str = "Prismarine Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -17550,7 +17550,7 @@ impl ItemDef for PrismarineDoubleSlab {
 pub struct RedNetherBrickDoubleSlab;
 
 impl ItemDef for RedNetherBrickDoubleSlab {
-    const ID: u32 = 10152;
+    const ID: i32 = 10152;
     const STRING_ID: &'static str = "minecraft:red_nether_brick_double_slab";
     const NAME: &'static str = "Red Nether Brick Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -17560,7 +17560,7 @@ impl ItemDef for RedNetherBrickDoubleSlab {
 pub struct EndStoneBrickDoubleSlab;
 
 impl ItemDef for EndStoneBrickDoubleSlab {
-    const ID: u32 = 10154;
+    const ID: i32 = 10154;
     const STRING_ID: &'static str = "minecraft:end_stone_brick_double_slab";
     const NAME: &'static str = "End Stone Brick Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -17570,7 +17570,7 @@ impl ItemDef for EndStoneBrickDoubleSlab {
 pub struct PolishedAndesiteDoubleSlab;
 
 impl ItemDef for PolishedAndesiteDoubleSlab {
-    const ID: u32 = 10155;
+    const ID: i32 = 10155;
     const STRING_ID: &'static str = "minecraft:polished_andesite_double_slab";
     const NAME: &'static str = "Polished Andesite Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -17580,7 +17580,7 @@ impl ItemDef for PolishedAndesiteDoubleSlab {
 pub struct BorderBlock;
 
 impl ItemDef for BorderBlock {
-    const ID: u32 = 10156;
+    const ID: i32 = 10156;
     const STRING_ID: &'static str = "minecraft:border_block";
     const NAME: &'static str = "Border Block";
     const STACK_SIZE: u8 = 1;
@@ -17590,7 +17590,7 @@ impl ItemDef for BorderBlock {
 pub struct PolishedDioriteDoubleSlab;
 
 impl ItemDef for PolishedDioriteDoubleSlab {
-    const ID: u32 = 10157;
+    const ID: i32 = 10157;
     const STRING_ID: &'static str = "minecraft:polished_diorite_double_slab";
     const NAME: &'static str = "Polished Diorite Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -17600,7 +17600,7 @@ impl ItemDef for PolishedDioriteDoubleSlab {
 pub struct GraniteDoubleSlab;
 
 impl ItemDef for GraniteDoubleSlab {
-    const ID: u32 = 10158;
+    const ID: i32 = 10158;
     const STRING_ID: &'static str = "minecraft:granite_double_slab";
     const NAME: &'static str = "Granite Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -17610,7 +17610,7 @@ impl ItemDef for GraniteDoubleSlab {
 pub struct Element10;
 
 impl ItemDef for Element10 {
-    const ID: u32 = 10159;
+    const ID: i32 = 10159;
     const STRING_ID: &'static str = "minecraft:element_10";
     const NAME: &'static str = "Element 10";
     const STACK_SIZE: u8 = 1;
@@ -17620,7 +17620,7 @@ impl ItemDef for Element10 {
 pub struct PolishedGraniteDoubleSlab;
 
 impl ItemDef for PolishedGraniteDoubleSlab {
-    const ID: u32 = 10160;
+    const ID: i32 = 10160;
     const STRING_ID: &'static str = "minecraft:polished_granite_double_slab";
     const NAME: &'static str = "Polished Granite Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -17630,7 +17630,7 @@ impl ItemDef for PolishedGraniteDoubleSlab {
 pub struct MossyStoneBrickDoubleSlab;
 
 impl ItemDef for MossyStoneBrickDoubleSlab {
-    const ID: u32 = 10161;
+    const ID: i32 = 10161;
     const STRING_ID: &'static str = "minecraft:mossy_stone_brick_double_slab";
     const NAME: &'static str = "Mossy Stone Brick Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -17640,7 +17640,7 @@ impl ItemDef for MossyStoneBrickDoubleSlab {
 pub struct SmoothQuartzDoubleSlab;
 
 impl ItemDef for SmoothQuartzDoubleSlab {
-    const ID: u32 = 10164;
+    const ID: i32 = 10164;
     const STRING_ID: &'static str = "minecraft:smooth_quartz_double_slab";
     const NAME: &'static str = "Smooth Quartz Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -17650,7 +17650,7 @@ impl ItemDef for SmoothQuartzDoubleSlab {
 pub struct CutSandstoneDoubleSlab;
 
 impl ItemDef for CutSandstoneDoubleSlab {
-    const ID: u32 = 10165;
+    const ID: i32 = 10165;
     const STRING_ID: &'static str = "minecraft:cut_sandstone_double_slab";
     const NAME: &'static str = "Cut Sandstone Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -17660,7 +17660,7 @@ impl ItemDef for CutSandstoneDoubleSlab {
 pub struct CutRedSandstoneDoubleSlab;
 
 impl ItemDef for CutRedSandstoneDoubleSlab {
-    const ID: u32 = 10167;
+    const ID: i32 = 10167;
     const STRING_ID: &'static str = "minecraft:cut_red_sandstone_double_slab";
     const NAME: &'static str = "Cut Red Sandstone Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -17670,7 +17670,7 @@ impl ItemDef for CutRedSandstoneDoubleSlab {
 pub struct SweetBerryBush;
 
 impl ItemDef for SweetBerryBush {
-    const ID: u32 = 10168;
+    const ID: i32 = 10168;
     const STRING_ID: &'static str = "minecraft:sweet_berry_bush";
     const NAME: &'static str = "Sweet Berry Bush";
     const STACK_SIZE: u8 = 1;
@@ -17680,7 +17680,7 @@ impl ItemDef for SweetBerryBush {
 pub struct CoralFan;
 
 impl ItemDef for CoralFan {
-    const ID: u32 = 10175;
+    const ID: i32 = 10175;
     const STRING_ID: &'static str = "minecraft:coral_fan";
     const NAME: &'static str = "Coral Fan";
     const STACK_SIZE: u8 = 1;
@@ -17690,7 +17690,7 @@ impl ItemDef for CoralFan {
 pub struct Sapling;
 
 impl ItemDef for Sapling {
-    const ID: u32 = 10183;
+    const ID: i32 = 10183;
     const STRING_ID: &'static str = "minecraft:sapling";
     const NAME: &'static str = "Sapling";
     const STACK_SIZE: u8 = 1;
@@ -17700,7 +17700,7 @@ impl ItemDef for Sapling {
 pub struct SoulFire;
 
 impl ItemDef for SoulFire {
-    const ID: u32 = 10188;
+    const ID: i32 = 10188;
     const STRING_ID: &'static str = "minecraft:soul_fire";
     const NAME: &'static str = "Soul Fire";
     const STACK_SIZE: u8 = 1;
@@ -17710,7 +17710,7 @@ impl ItemDef for SoulFire {
 pub struct RedFlower;
 
 impl ItemDef for RedFlower {
-    const ID: u32 = 10208;
+    const ID: i32 = 10208;
     const STRING_ID: &'static str = "minecraft:red_flower";
     const NAME: &'static str = "Red Flower";
     const STACK_SIZE: u8 = 1;
@@ -17720,7 +17720,7 @@ impl ItemDef for RedFlower {
 pub struct DeprecatedPurpurBlock1;
 
 impl ItemDef for DeprecatedPurpurBlock1 {
-    const ID: u32 = 10223;
+    const ID: i32 = 10223;
     const STRING_ID: &'static str = "minecraft:deprecated_purpur_block_1";
     const NAME: &'static str = "Deprecated Purpur Block 1";
     const STACK_SIZE: u8 = 1;
@@ -17730,7 +17730,7 @@ impl ItemDef for DeprecatedPurpurBlock1 {
 pub struct Element77;
 
 impl ItemDef for Element77 {
-    const ID: u32 = 10224;
+    const ID: i32 = 10224;
     const STRING_ID: &'static str = "minecraft:element_77";
     const NAME: &'static str = "Element 77";
     const STACK_SIZE: u8 = 1;
@@ -17740,7 +17740,7 @@ impl ItemDef for Element77 {
 pub struct DeprecatedPurpurBlock2;
 
 impl ItemDef for DeprecatedPurpurBlock2 {
-    const ID: u32 = 10226;
+    const ID: i32 = 10226;
     const STRING_ID: &'static str = "minecraft:deprecated_purpur_block_2";
     const NAME: &'static str = "Deprecated Purpur Block 2";
     const STACK_SIZE: u8 = 1;
@@ -17750,7 +17750,7 @@ impl ItemDef for DeprecatedPurpurBlock2 {
 pub struct Tallgrass;
 
 impl ItemDef for Tallgrass {
-    const ID: u32 = 10237;
+    const ID: i32 = 10237;
     const STRING_ID: &'static str = "minecraft:tallgrass";
     const NAME: &'static str = "Tallgrass";
     const STACK_SIZE: u8 = 1;
@@ -17760,7 +17760,7 @@ impl ItemDef for Tallgrass {
 pub struct Element103;
 
 impl ItemDef for Element103 {
-    const ID: u32 = 10238;
+    const ID: i32 = 10238;
     const STRING_ID: &'static str = "minecraft:element_103";
     const NAME: &'static str = "Element 103";
     const STACK_SIZE: u8 = 1;
@@ -17770,7 +17770,7 @@ impl ItemDef for Element103 {
 pub struct Log2;
 
 impl ItemDef for Log2 {
-    const ID: u32 = 10242;
+    const ID: i32 = 10242;
     const STRING_ID: &'static str = "minecraft:log2";
     const NAME: &'static str = "Log2";
     const STACK_SIZE: u8 = 1;
@@ -17780,7 +17780,7 @@ impl ItemDef for Log2 {
 pub struct DeprecatedAnvil;
 
 impl ItemDef for DeprecatedAnvil {
-    const ID: u32 = 10248;
+    const ID: i32 = 10248;
     const STRING_ID: &'static str = "minecraft:deprecated_anvil";
     const NAME: &'static str = "Deprecated Anvil";
     const STACK_SIZE: u8 = 1;
@@ -17790,7 +17790,7 @@ impl ItemDef for DeprecatedAnvil {
 pub struct Element56;
 
 impl ItemDef for Element56 {
-    const ID: u32 = 10257;
+    const ID: i32 = 10257;
     const STRING_ID: &'static str = "minecraft:element_56";
     const NAME: &'static str = "Element 56";
     const STACK_SIZE: u8 = 1;
@@ -17800,7 +17800,7 @@ impl ItemDef for Element56 {
 pub struct ConcretePowder;
 
 impl ItemDef for ConcretePowder {
-    const ID: u32 = 10275;
+    const ID: i32 = 10275;
     const STRING_ID: &'static str = "minecraft:concrete_powder";
     const NAME: &'static str = "Concrete Powder";
     const STACK_SIZE: u8 = 1;
@@ -17810,7 +17810,7 @@ impl ItemDef for ConcretePowder {
 pub struct Element75;
 
 impl ItemDef for Element75 {
-    const ID: u32 = 10276;
+    const ID: i32 = 10276;
     const STRING_ID: &'static str = "minecraft:element_75";
     const NAME: &'static str = "Element 75";
     const STACK_SIZE: u8 = 1;
@@ -17820,7 +17820,7 @@ impl ItemDef for Element75 {
 pub struct Element64;
 
 impl ItemDef for Element64 {
-    const ID: u32 = 10278;
+    const ID: i32 = 10278;
     const STRING_ID: &'static str = "minecraft:element_64";
     const NAME: &'static str = "Element 64";
     const STACK_SIZE: u8 = 1;
@@ -17830,7 +17830,7 @@ impl ItemDef for Element64 {
 pub struct HopperItem;
 
 impl ItemDef for HopperItem {
-    const ID: u32 = 10282;
+    const ID: i32 = 10282;
     const STRING_ID: &'static str = "minecraft:item.hopper";
     const NAME: &'static str = "Hopper";
     const STACK_SIZE: u8 = 1;
@@ -17840,7 +17840,7 @@ impl ItemDef for HopperItem {
 pub struct Wood;
 
 impl ItemDef for Wood {
-    const ID: u32 = 10283;
+    const ID: i32 = 10283;
     const STRING_ID: &'static str = "minecraft:wood";
     const NAME: &'static str = "Wood";
     const STACK_SIZE: u8 = 1;
@@ -17850,7 +17850,7 @@ impl ItemDef for Wood {
 pub struct HardMagentaStainedGlass;
 
 impl ItemDef for HardMagentaStainedGlass {
-    const ID: u32 = 10284;
+    const ID: i32 = 10284;
     const STRING_ID: &'static str = "minecraft:hard_magenta_stained_glass";
     const NAME: &'static str = "Hard Magenta Stained Glass";
     const STACK_SIZE: u8 = 1;
@@ -17860,7 +17860,7 @@ impl ItemDef for HardMagentaStainedGlass {
 pub struct MudBrickDoubleSlab;
 
 impl ItemDef for MudBrickDoubleSlab {
-    const ID: u32 = 10285;
+    const ID: i32 = 10285;
     const STRING_ID: &'static str = "minecraft:mud_brick_double_slab";
     const NAME: &'static str = "Mud Brick Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -17870,7 +17870,7 @@ impl ItemDef for MudBrickDoubleSlab {
 pub struct CrimsonDoubleSlab;
 
 impl ItemDef for CrimsonDoubleSlab {
-    const ID: u32 = 10287;
+    const ID: i32 = 10287;
     const STRING_ID: &'static str = "minecraft:crimson_double_slab";
     const NAME: &'static str = "Crimson Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -17880,7 +17880,7 @@ impl ItemDef for CrimsonDoubleSlab {
 pub struct HardPurpleStainedGlass;
 
 impl ItemDef for HardPurpleStainedGlass {
-    const ID: u32 = 10288;
+    const ID: i32 = 10288;
     const STRING_ID: &'static str = "minecraft:hard_purple_stained_glass";
     const NAME: &'static str = "Hard Purple Stained Glass";
     const STACK_SIZE: u8 = 1;
@@ -17890,7 +17890,7 @@ impl ItemDef for HardPurpleStainedGlass {
 pub struct DarkOakDoorItem;
 
 impl ItemDef for DarkOakDoorItem {
-    const ID: u32 = 10295;
+    const ID: i32 = 10295;
     const STRING_ID: &'static str = "minecraft:item.dark_oak_door";
     const NAME: &'static str = "Dark Oak Door";
     const STACK_SIZE: u8 = 1;
@@ -17900,7 +17900,7 @@ impl ItemDef for DarkOakDoorItem {
 pub struct HardGreenStainedGlassPane;
 
 impl ItemDef for HardGreenStainedGlassPane {
-    const ID: u32 = 10303;
+    const ID: i32 = 10303;
     const STRING_ID: &'static str = "minecraft:hard_green_stained_glass_pane";
     const NAME: &'static str = "Hard Green Stained Glass Pane";
     const STACK_SIZE: u8 = 1;
@@ -17910,7 +17910,7 @@ impl ItemDef for HardGreenStainedGlassPane {
 pub struct TorchflowerCrop;
 
 impl ItemDef for TorchflowerCrop {
-    const ID: u32 = 10316;
+    const ID: i32 = 10316;
     const STRING_ID: &'static str = "minecraft:torchflower_crop";
     const NAME: &'static str = "Torchflower Crop";
     const STACK_SIZE: u8 = 1;
@@ -17920,7 +17920,7 @@ impl ItemDef for TorchflowerCrop {
 pub struct MaterialReducer;
 
 impl ItemDef for MaterialReducer {
-    const ID: u32 = 10331;
+    const ID: i32 = 10331;
     const STRING_ID: &'static str = "minecraft:material_reducer";
     const NAME: &'static str = "Material Reducer";
     const STACK_SIZE: u8 = 1;
@@ -17930,7 +17930,7 @@ impl ItemDef for MaterialReducer {
 pub struct LabTable;
 
 impl ItemDef for LabTable {
-    const ID: u32 = 10332;
+    const ID: i32 = 10332;
     const STRING_ID: &'static str = "minecraft:lab_table";
     const NAME: &'static str = "Lab Table";
     const STACK_SIZE: u8 = 1;
@@ -17940,7 +17940,7 @@ impl ItemDef for LabTable {
 pub struct HardWhiteStainedGlass;
 
 impl ItemDef for HardWhiteStainedGlass {
-    const ID: u32 = 10333;
+    const ID: i32 = 10333;
     const STRING_ID: &'static str = "minecraft:hard_white_stained_glass";
     const NAME: &'static str = "Hard White Stained Glass";
     const STACK_SIZE: u8 = 1;
@@ -17950,7 +17950,7 @@ impl ItemDef for HardWhiteStainedGlass {
 pub struct HardOrangeStainedGlass;
 
 impl ItemDef for HardOrangeStainedGlass {
-    const ID: u32 = 10335;
+    const ID: i32 = 10335;
     const STRING_ID: &'static str = "minecraft:hard_orange_stained_glass";
     const NAME: &'static str = "Hard Orange Stained Glass";
     const STACK_SIZE: u8 = 1;
@@ -17960,7 +17960,7 @@ impl ItemDef for HardOrangeStainedGlass {
 pub struct HardLightBlueStainedGlass;
 
 impl ItemDef for HardLightBlueStainedGlass {
-    const ID: u32 = 10337;
+    const ID: i32 = 10337;
     const STRING_ID: &'static str = "minecraft:hard_light_blue_stained_glass";
     const NAME: &'static str = "Hard Light Blue Stained Glass";
     const STACK_SIZE: u8 = 1;
@@ -17970,7 +17970,7 @@ impl ItemDef for HardLightBlueStainedGlass {
 pub struct HardYellowStainedGlass;
 
 impl ItemDef for HardYellowStainedGlass {
-    const ID: u32 = 10338;
+    const ID: i32 = 10338;
     const STRING_ID: &'static str = "minecraft:hard_yellow_stained_glass";
     const NAME: &'static str = "Hard Yellow Stained Glass";
     const STACK_SIZE: u8 = 1;
@@ -17980,7 +17980,7 @@ impl ItemDef for HardYellowStainedGlass {
 pub struct HardLimeStainedGlass;
 
 impl ItemDef for HardLimeStainedGlass {
-    const ID: u32 = 10339;
+    const ID: i32 = 10339;
     const STRING_ID: &'static str = "minecraft:hard_lime_stained_glass";
     const NAME: &'static str = "Hard Lime Stained Glass";
     const STACK_SIZE: u8 = 1;
@@ -17990,7 +17990,7 @@ impl ItemDef for HardLimeStainedGlass {
 pub struct HardLightGrayStainedGlass;
 
 impl ItemDef for HardLightGrayStainedGlass {
-    const ID: u32 = 10340;
+    const ID: i32 = 10340;
     const STRING_ID: &'static str = "minecraft:hard_light_gray_stained_glass";
     const NAME: &'static str = "Hard Light Gray Stained Glass";
     const STACK_SIZE: u8 = 1;
@@ -18000,7 +18000,7 @@ impl ItemDef for HardLightGrayStainedGlass {
 pub struct HardGreenStainedGlass;
 
 impl ItemDef for HardGreenStainedGlass {
-    const ID: u32 = 10341;
+    const ID: i32 = 10341;
     const STRING_ID: &'static str = "minecraft:hard_green_stained_glass";
     const NAME: &'static str = "Hard Green Stained Glass";
     const STACK_SIZE: u8 = 1;
@@ -18010,7 +18010,7 @@ impl ItemDef for HardGreenStainedGlass {
 pub struct Element84;
 
 impl ItemDef for Element84 {
-    const ID: u32 = 10342;
+    const ID: i32 = 10342;
     const STRING_ID: &'static str = "minecraft:element_84";
     const NAME: &'static str = "Element 84";
     const STACK_SIZE: u8 = 1;
@@ -18020,7 +18020,7 @@ impl ItemDef for Element84 {
 pub struct HardStainedGlass;
 
 impl ItemDef for HardStainedGlass {
-    const ID: u32 = 10343;
+    const ID: i32 = 10343;
     const STRING_ID: &'static str = "minecraft:hard_stained_glass";
     const NAME: &'static str = "Hard Stained Glass";
     const STACK_SIZE: u8 = 1;
@@ -18030,7 +18030,7 @@ impl ItemDef for HardStainedGlass {
 pub struct HardWhiteStainedGlassPane;
 
 impl ItemDef for HardWhiteStainedGlassPane {
-    const ID: u32 = 10344;
+    const ID: i32 = 10344;
     const STRING_ID: &'static str = "minecraft:hard_white_stained_glass_pane";
     const NAME: &'static str = "Hard White Stained Glass Pane";
     const STACK_SIZE: u8 = 1;
@@ -18040,7 +18040,7 @@ impl ItemDef for HardWhiteStainedGlassPane {
 pub struct HardOrangeStainedGlassPane;
 
 impl ItemDef for HardOrangeStainedGlassPane {
-    const ID: u32 = 10345;
+    const ID: i32 = 10345;
     const STRING_ID: &'static str = "minecraft:hard_orange_stained_glass_pane";
     const NAME: &'static str = "Hard Orange Stained Glass Pane";
     const STACK_SIZE: u8 = 1;
@@ -18050,7 +18050,7 @@ impl ItemDef for HardOrangeStainedGlassPane {
 pub struct HardMagentaStainedGlassPane;
 
 impl ItemDef for HardMagentaStainedGlassPane {
-    const ID: u32 = 10346;
+    const ID: i32 = 10346;
     const STRING_ID: &'static str = "minecraft:hard_magenta_stained_glass_pane";
     const NAME: &'static str = "Hard Magenta Stained Glass Pane";
     const STACK_SIZE: u8 = 1;
@@ -18060,7 +18060,7 @@ impl ItemDef for HardMagentaStainedGlassPane {
 pub struct HardLightBlueStainedGlassPane;
 
 impl ItemDef for HardLightBlueStainedGlassPane {
-    const ID: u32 = 10347;
+    const ID: i32 = 10347;
     const STRING_ID: &'static str = "minecraft:hard_light_blue_stained_glass_pane";
     const NAME: &'static str = "Hard Light Blue Stained Glass Pane";
     const STACK_SIZE: u8 = 1;
@@ -18070,7 +18070,7 @@ impl ItemDef for HardLightBlueStainedGlassPane {
 pub struct HardYellowStainedGlassPane;
 
 impl ItemDef for HardYellowStainedGlassPane {
-    const ID: u32 = 10348;
+    const ID: i32 = 10348;
     const STRING_ID: &'static str = "minecraft:hard_yellow_stained_glass_pane";
     const NAME: &'static str = "Hard Yellow Stained Glass Pane";
     const STACK_SIZE: u8 = 1;
@@ -18080,7 +18080,7 @@ impl ItemDef for HardYellowStainedGlassPane {
 pub struct HardPinkStainedGlassPane;
 
 impl ItemDef for HardPinkStainedGlassPane {
-    const ID: u32 = 10349;
+    const ID: i32 = 10349;
     const STRING_ID: &'static str = "minecraft:hard_pink_stained_glass_pane";
     const NAME: &'static str = "Hard Pink Stained Glass Pane";
     const STACK_SIZE: u8 = 1;
@@ -18090,7 +18090,7 @@ impl ItemDef for HardPinkStainedGlassPane {
 pub struct Carrots;
 
 impl ItemDef for Carrots {
-    const ID: u32 = 10350;
+    const ID: i32 = 10350;
     const STRING_ID: &'static str = "minecraft:carrots";
     const NAME: &'static str = "Carrots";
     const STACK_SIZE: u8 = 1;
@@ -18100,7 +18100,7 @@ impl ItemDef for Carrots {
 pub struct HardGrayStainedGlassPane;
 
 impl ItemDef for HardGrayStainedGlassPane {
-    const ID: u32 = 10351;
+    const ID: i32 = 10351;
     const STRING_ID: &'static str = "minecraft:hard_gray_stained_glass_pane";
     const NAME: &'static str = "Hard Gray Stained Glass Pane";
     const STACK_SIZE: u8 = 1;
@@ -18110,7 +18110,7 @@ impl ItemDef for HardGrayStainedGlassPane {
 pub struct HardLightGrayStainedGlassPane;
 
 impl ItemDef for HardLightGrayStainedGlassPane {
-    const ID: u32 = 10352;
+    const ID: i32 = 10352;
     const STRING_ID: &'static str = "minecraft:hard_light_gray_stained_glass_pane";
     const NAME: &'static str = "Hard Light Gray Stained Glass Pane";
     const STACK_SIZE: u8 = 1;
@@ -18120,7 +18120,7 @@ impl ItemDef for HardLightGrayStainedGlassPane {
 pub struct HardPurpleStainedGlassPane;
 
 impl ItemDef for HardPurpleStainedGlassPane {
-    const ID: u32 = 10353;
+    const ID: i32 = 10353;
     const STRING_ID: &'static str = "minecraft:hard_purple_stained_glass_pane";
     const NAME: &'static str = "Hard Purple Stained Glass Pane";
     const STACK_SIZE: u8 = 1;
@@ -18130,7 +18130,7 @@ impl ItemDef for HardPurpleStainedGlassPane {
 pub struct HardBlueStainedGlassPane;
 
 impl ItemDef for HardBlueStainedGlassPane {
-    const ID: u32 = 10354;
+    const ID: i32 = 10354;
     const STRING_ID: &'static str = "minecraft:hard_blue_stained_glass_pane";
     const NAME: &'static str = "Hard Blue Stained Glass Pane";
     const STACK_SIZE: u8 = 1;
@@ -18140,7 +18140,7 @@ impl ItemDef for HardBlueStainedGlassPane {
 pub struct HardBlackStainedGlassPane;
 
 impl ItemDef for HardBlackStainedGlassPane {
-    const ID: u32 = 10355;
+    const ID: i32 = 10355;
     const STRING_ID: &'static str = "minecraft:hard_black_stained_glass_pane";
     const NAME: &'static str = "Hard Black Stained Glass Pane";
     const STACK_SIZE: u8 = 1;
@@ -18150,7 +18150,7 @@ impl ItemDef for HardBlackStainedGlassPane {
 pub struct HardStainedGlassPane;
 
 impl ItemDef for HardStainedGlassPane {
-    const ID: u32 = 10356;
+    const ID: i32 = 10356;
     const STRING_ID: &'static str = "minecraft:hard_stained_glass_pane";
     const NAME: &'static str = "Hard Stained Glass Pane";
     const STACK_SIZE: u8 = 1;
@@ -18160,7 +18160,7 @@ impl ItemDef for HardStainedGlassPane {
 pub struct ColoredTorchRed;
 
 impl ItemDef for ColoredTorchRed {
-    const ID: u32 = 10358;
+    const ID: i32 = 10358;
     const STRING_ID: &'static str = "minecraft:colored_torch_red";
     const NAME: &'static str = "Colored Torch Red";
     const STACK_SIZE: u8 = 1;
@@ -18170,7 +18170,7 @@ impl ItemDef for ColoredTorchRed {
 pub struct ColoredTorchGreen;
 
 impl ItemDef for ColoredTorchGreen {
-    const ID: u32 = 10360;
+    const ID: i32 = 10360;
     const STRING_ID: &'static str = "minecraft:colored_torch_green";
     const NAME: &'static str = "Colored Torch Green";
     const STACK_SIZE: u8 = 1;
@@ -18180,7 +18180,7 @@ impl ItemDef for ColoredTorchGreen {
 pub struct LightBlock1;
 
 impl ItemDef for LightBlock1 {
-    const ID: u32 = 10361;
+    const ID: i32 = 10361;
     const STRING_ID: &'static str = "minecraft:light_block_1";
     const NAME: &'static str = "Light Block 1";
     const STACK_SIZE: u8 = 1;
@@ -18190,7 +18190,7 @@ impl ItemDef for LightBlock1 {
 pub struct MangroveShelf;
 
 impl ItemDef for MangroveShelf {
-    const ID: u32 = 10362;
+    const ID: i32 = 10362;
     const STRING_ID: &'static str = "minecraft:mangrove_shelf";
     const NAME: &'static str = "Mangrove Shelf";
     const STACK_SIZE: u8 = 1;
@@ -18200,7 +18200,7 @@ impl ItemDef for MangroveShelf {
 pub struct LightBlock3;
 
 impl ItemDef for LightBlock3 {
-    const ID: u32 = 10363;
+    const ID: i32 = 10363;
     const STRING_ID: &'static str = "minecraft:light_block_3";
     const NAME: &'static str = "Light Block 3";
     const STACK_SIZE: u8 = 1;
@@ -18210,7 +18210,7 @@ impl ItemDef for LightBlock3 {
 pub struct LightBlock4;
 
 impl ItemDef for LightBlock4 {
-    const ID: u32 = 10364;
+    const ID: i32 = 10364;
     const STRING_ID: &'static str = "minecraft:light_block_4";
     const NAME: &'static str = "Light Block 4";
     const STACK_SIZE: u8 = 1;
@@ -18220,7 +18220,7 @@ impl ItemDef for LightBlock4 {
 pub struct GrayCandleCake;
 
 impl ItemDef for GrayCandleCake {
-    const ID: u32 = 10365;
+    const ID: i32 = 10365;
     const STRING_ID: &'static str = "minecraft:gray_candle_cake";
     const NAME: &'static str = "Gray Candle Cake";
     const STACK_SIZE: u8 = 1;
@@ -18230,7 +18230,7 @@ impl ItemDef for GrayCandleCake {
 pub struct LightBlock5;
 
 impl ItemDef for LightBlock5 {
-    const ID: u32 = 10366;
+    const ID: i32 = 10366;
     const STRING_ID: &'static str = "minecraft:light_block_5";
     const NAME: &'static str = "Light Block 5";
     const STACK_SIZE: u8 = 1;
@@ -18240,7 +18240,7 @@ impl ItemDef for LightBlock5 {
 pub struct LightBlock6;
 
 impl ItemDef for LightBlock6 {
-    const ID: u32 = 10367;
+    const ID: i32 = 10367;
     const STRING_ID: &'static str = "minecraft:light_block_6";
     const NAME: &'static str = "Light Block 6";
     const STACK_SIZE: u8 = 1;
@@ -18250,7 +18250,7 @@ impl ItemDef for LightBlock6 {
 pub struct LightBlock7;
 
 impl ItemDef for LightBlock7 {
-    const ID: u32 = 10370;
+    const ID: i32 = 10370;
     const STRING_ID: &'static str = "minecraft:light_block_7";
     const NAME: &'static str = "Light Block 7";
     const STACK_SIZE: u8 = 1;
@@ -18260,7 +18260,7 @@ impl ItemDef for LightBlock7 {
 pub struct DeepslateTileDoubleSlab;
 
 impl ItemDef for DeepslateTileDoubleSlab {
-    const ID: u32 = 10371;
+    const ID: i32 = 10371;
     const STRING_ID: &'static str = "minecraft:deepslate_tile_double_slab";
     const NAME: &'static str = "Deepslate Tile Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -18270,7 +18270,7 @@ impl ItemDef for DeepslateTileDoubleSlab {
 pub struct LightBlock8;
 
 impl ItemDef for LightBlock8 {
-    const ID: u32 = 10372;
+    const ID: i32 = 10372;
     const STRING_ID: &'static str = "minecraft:light_block_8";
     const NAME: &'static str = "Light Block 8";
     const STACK_SIZE: u8 = 1;
@@ -18280,7 +18280,7 @@ impl ItemDef for LightBlock8 {
 pub struct LightBlock9;
 
 impl ItemDef for LightBlock9 {
-    const ID: u32 = 10373;
+    const ID: i32 = 10373;
     const STRING_ID: &'static str = "minecraft:light_block_9";
     const NAME: &'static str = "Light Block 9";
     const STACK_SIZE: u8 = 1;
@@ -18290,7 +18290,7 @@ impl ItemDef for LightBlock9 {
 pub struct WaxedOxidizedCopperBars;
 
 impl ItemDef for WaxedOxidizedCopperBars {
-    const ID: u32 = 10374;
+    const ID: i32 = 10374;
     const STRING_ID: &'static str = "minecraft:waxed_oxidized_copper_bars";
     const NAME: &'static str = "Waxed Oxidized Copper Bars";
     const STACK_SIZE: u8 = 1;
@@ -18300,7 +18300,7 @@ impl ItemDef for WaxedOxidizedCopperBars {
 pub struct LightBlock11;
 
 impl ItemDef for LightBlock11 {
-    const ID: u32 = 10375;
+    const ID: i32 = 10375;
     const STRING_ID: &'static str = "minecraft:light_block_11";
     const NAME: &'static str = "Light Block 11";
     const STACK_SIZE: u8 = 1;
@@ -18310,7 +18310,7 @@ impl ItemDef for LightBlock11 {
 pub struct LightBlock12;
 
 impl ItemDef for LightBlock12 {
-    const ID: u32 = 10377;
+    const ID: i32 = 10377;
     const STRING_ID: &'static str = "minecraft:light_block_12";
     const NAME: &'static str = "Light Block 12";
     const STACK_SIZE: u8 = 1;
@@ -18320,7 +18320,7 @@ impl ItemDef for LightBlock12 {
 pub struct LightBlock13;
 
 impl ItemDef for LightBlock13 {
-    const ID: u32 = 10378;
+    const ID: i32 = 10378;
     const STRING_ID: &'static str = "minecraft:light_block_13";
     const NAME: &'static str = "Light Block 13";
     const STACK_SIZE: u8 = 1;
@@ -18330,7 +18330,7 @@ impl ItemDef for LightBlock13 {
 pub struct Fire;
 
 impl ItemDef for Fire {
-    const ID: u32 = 10384;
+    const ID: i32 = 10384;
     const STRING_ID: &'static str = "minecraft:fire";
     const NAME: &'static str = "Fire";
     const STACK_SIZE: u8 = 1;
@@ -18340,7 +18340,7 @@ impl ItemDef for Fire {
 pub struct BlackCandleCake;
 
 impl ItemDef for BlackCandleCake {
-    const ID: u32 = 10387;
+    const ID: i32 = 10387;
     const STRING_ID: &'static str = "minecraft:black_candle_cake";
     const NAME: &'static str = "Black Candle Cake";
     const STACK_SIZE: u8 = 1;
@@ -18350,7 +18350,7 @@ impl ItemDef for BlackCandleCake {
 pub struct Element0;
 
 impl ItemDef for Element0 {
-    const ID: u32 = 10394;
+    const ID: i32 = 10394;
     const STRING_ID: &'static str = "minecraft:element_0";
     const NAME: &'static str = "Element 0";
     const STACK_SIZE: u8 = 1;
@@ -18360,7 +18360,7 @@ impl ItemDef for Element0 {
 pub struct Element1;
 
 impl ItemDef for Element1 {
-    const ID: u32 = 10395;
+    const ID: i32 = 10395;
     const STRING_ID: &'static str = "minecraft:element_1";
     const NAME: &'static str = "Element 1";
     const STACK_SIZE: u8 = 1;
@@ -18370,7 +18370,7 @@ impl ItemDef for Element1 {
 pub struct Element3;
 
 impl ItemDef for Element3 {
-    const ID: u32 = 10396;
+    const ID: i32 = 10396;
     const STRING_ID: &'static str = "minecraft:element_3";
     const NAME: &'static str = "Element 3";
     const STACK_SIZE: u8 = 1;
@@ -18380,7 +18380,7 @@ impl ItemDef for Element3 {
 pub struct Element5;
 
 impl ItemDef for Element5 {
-    const ID: u32 = 10397;
+    const ID: i32 = 10397;
     const STRING_ID: &'static str = "minecraft:element_5";
     const NAME: &'static str = "Element 5";
     const STACK_SIZE: u8 = 1;
@@ -18390,7 +18390,7 @@ impl ItemDef for Element5 {
 pub struct Element6;
 
 impl ItemDef for Element6 {
-    const ID: u32 = 10398;
+    const ID: i32 = 10398;
     const STRING_ID: &'static str = "minecraft:element_6";
     const NAME: &'static str = "Element 6";
     const STACK_SIZE: u8 = 1;
@@ -18400,7 +18400,7 @@ impl ItemDef for Element6 {
 pub struct Element7;
 
 impl ItemDef for Element7 {
-    const ID: u32 = 10400;
+    const ID: i32 = 10400;
     const STRING_ID: &'static str = "minecraft:element_7";
     const NAME: &'static str = "Element 7";
     const STACK_SIZE: u8 = 1;
@@ -18410,7 +18410,7 @@ impl ItemDef for Element7 {
 pub struct Element8;
 
 impl ItemDef for Element8 {
-    const ID: u32 = 10401;
+    const ID: i32 = 10401;
     const STRING_ID: &'static str = "minecraft:element_8";
     const NAME: &'static str = "Element 8";
     const STACK_SIZE: u8 = 1;
@@ -18420,7 +18420,7 @@ impl ItemDef for Element8 {
 pub struct Element12;
 
 impl ItemDef for Element12 {
-    const ID: u32 = 10402;
+    const ID: i32 = 10402;
     const STRING_ID: &'static str = "minecraft:element_12";
     const NAME: &'static str = "Element 12";
     const STACK_SIZE: u8 = 1;
@@ -18430,7 +18430,7 @@ impl ItemDef for Element12 {
 pub struct Element14;
 
 impl ItemDef for Element14 {
-    const ID: u32 = 10403;
+    const ID: i32 = 10403;
     const STRING_ID: &'static str = "minecraft:element_14";
     const NAME: &'static str = "Element 14";
     const STACK_SIZE: u8 = 1;
@@ -18440,7 +18440,7 @@ impl ItemDef for Element14 {
 pub struct PaleOakStandingSign;
 
 impl ItemDef for PaleOakStandingSign {
-    const ID: u32 = 10404;
+    const ID: i32 = 10404;
     const STRING_ID: &'static str = "minecraft:pale_oak_standing_sign";
     const NAME: &'static str = "Pale Oak Standing Sign";
     const STACK_SIZE: u8 = 1;
@@ -18450,7 +18450,7 @@ impl ItemDef for PaleOakStandingSign {
 pub struct ClientRequestPlaceholderBlock;
 
 impl ItemDef for ClientRequestPlaceholderBlock {
-    const ID: u32 = 10405;
+    const ID: i32 = 10405;
     const STRING_ID: &'static str = "minecraft:client_request_placeholder_block";
     const NAME: &'static str = "Client Request Placeholder Block";
     const STACK_SIZE: u8 = 1;
@@ -18460,7 +18460,7 @@ impl ItemDef for ClientRequestPlaceholderBlock {
 pub struct Element17;
 
 impl ItemDef for Element17 {
-    const ID: u32 = 10406;
+    const ID: i32 = 10406;
     const STRING_ID: &'static str = "minecraft:element_17";
     const NAME: &'static str = "Element 17";
     const STACK_SIZE: u8 = 1;
@@ -18470,7 +18470,7 @@ impl ItemDef for Element17 {
 pub struct Element19;
 
 impl ItemDef for Element19 {
-    const ID: u32 = 10407;
+    const ID: i32 = 10407;
     const STRING_ID: &'static str = "minecraft:element_19";
     const NAME: &'static str = "Element 19";
     const STACK_SIZE: u8 = 1;
@@ -18480,7 +18480,7 @@ impl ItemDef for Element19 {
 pub struct Element20;
 
 impl ItemDef for Element20 {
-    const ID: u32 = 10409;
+    const ID: i32 = 10409;
     const STRING_ID: &'static str = "minecraft:element_20";
     const NAME: &'static str = "Element 20";
     const STACK_SIZE: u8 = 1;
@@ -18490,7 +18490,7 @@ impl ItemDef for Element20 {
 pub struct Element21;
 
 impl ItemDef for Element21 {
-    const ID: u32 = 10410;
+    const ID: i32 = 10410;
     const STRING_ID: &'static str = "minecraft:element_21";
     const NAME: &'static str = "Element 21";
     const STACK_SIZE: u8 = 1;
@@ -18500,7 +18500,7 @@ impl ItemDef for Element21 {
 pub struct Element24;
 
 impl ItemDef for Element24 {
-    const ID: u32 = 10411;
+    const ID: i32 = 10411;
     const STRING_ID: &'static str = "minecraft:element_24";
     const NAME: &'static str = "Element 24";
     const STACK_SIZE: u8 = 1;
@@ -18510,7 +18510,7 @@ impl ItemDef for Element24 {
 pub struct Element25;
 
 impl ItemDef for Element25 {
-    const ID: u32 = 10412;
+    const ID: i32 = 10412;
     const STRING_ID: &'static str = "minecraft:element_25";
     const NAME: &'static str = "Element 25";
     const STACK_SIZE: u8 = 1;
@@ -18520,7 +18520,7 @@ impl ItemDef for Element25 {
 pub struct Element26;
 
 impl ItemDef for Element26 {
-    const ID: u32 = 10413;
+    const ID: i32 = 10413;
     const STRING_ID: &'static str = "minecraft:element_26";
     const NAME: &'static str = "Element 26";
     const STACK_SIZE: u8 = 1;
@@ -18530,7 +18530,7 @@ impl ItemDef for Element26 {
 pub struct Element28;
 
 impl ItemDef for Element28 {
-    const ID: u32 = 10414;
+    const ID: i32 = 10414;
     const STRING_ID: &'static str = "minecraft:element_28";
     const NAME: &'static str = "Element 28";
     const STACK_SIZE: u8 = 1;
@@ -18540,7 +18540,7 @@ impl ItemDef for Element28 {
 pub struct Element30;
 
 impl ItemDef for Element30 {
-    const ID: u32 = 10415;
+    const ID: i32 = 10415;
     const STRING_ID: &'static str = "minecraft:element_30";
     const NAME: &'static str = "Element 30";
     const STACK_SIZE: u8 = 1;
@@ -18550,7 +18550,7 @@ impl ItemDef for Element30 {
 pub struct Element31;
 
 impl ItemDef for Element31 {
-    const ID: u32 = 10416;
+    const ID: i32 = 10416;
     const STRING_ID: &'static str = "minecraft:element_31";
     const NAME: &'static str = "Element 31";
     const STACK_SIZE: u8 = 1;
@@ -18560,7 +18560,7 @@ impl ItemDef for Element31 {
 pub struct Element34;
 
 impl ItemDef for Element34 {
-    const ID: u32 = 10417;
+    const ID: i32 = 10417;
     const STRING_ID: &'static str = "minecraft:element_34";
     const NAME: &'static str = "Element 34";
     const STACK_SIZE: u8 = 1;
@@ -18570,7 +18570,7 @@ impl ItemDef for Element34 {
 pub struct BambooDoubleSlab;
 
 impl ItemDef for BambooDoubleSlab {
-    const ID: u32 = 10418;
+    const ID: i32 = 10418;
     const STRING_ID: &'static str = "minecraft:bamboo_double_slab";
     const NAME: &'static str = "Bamboo Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -18580,7 +18580,7 @@ impl ItemDef for BambooDoubleSlab {
 pub struct Element35;
 
 impl ItemDef for Element35 {
-    const ID: u32 = 10419;
+    const ID: i32 = 10419;
     const STRING_ID: &'static str = "minecraft:element_35";
     const NAME: &'static str = "Element 35";
     const STACK_SIZE: u8 = 1;
@@ -18590,7 +18590,7 @@ impl ItemDef for Element35 {
 pub struct Element36;
 
 impl ItemDef for Element36 {
-    const ID: u32 = 10420;
+    const ID: i32 = 10420;
     const STRING_ID: &'static str = "minecraft:element_36";
     const NAME: &'static str = "Element 36";
     const STACK_SIZE: u8 = 1;
@@ -18600,7 +18600,7 @@ impl ItemDef for Element36 {
 pub struct Element37;
 
 impl ItemDef for Element37 {
-    const ID: u32 = 10421;
+    const ID: i32 = 10421;
     const STRING_ID: &'static str = "minecraft:element_37";
     const NAME: &'static str = "Element 37";
     const STACK_SIZE: u8 = 1;
@@ -18610,7 +18610,7 @@ impl ItemDef for Element37 {
 pub struct Element38;
 
 impl ItemDef for Element38 {
-    const ID: u32 = 10422;
+    const ID: i32 = 10422;
     const STRING_ID: &'static str = "minecraft:element_38";
     const NAME: &'static str = "Element 38";
     const STACK_SIZE: u8 = 1;
@@ -18620,7 +18620,7 @@ impl ItemDef for Element38 {
 pub struct Element39;
 
 impl ItemDef for Element39 {
-    const ID: u32 = 10423;
+    const ID: i32 = 10423;
     const STRING_ID: &'static str = "minecraft:element_39";
     const NAME: &'static str = "Element 39";
     const STACK_SIZE: u8 = 1;
@@ -18630,7 +18630,7 @@ impl ItemDef for Element39 {
 pub struct Element40;
 
 impl ItemDef for Element40 {
-    const ID: u32 = 10424;
+    const ID: i32 = 10424;
     const STRING_ID: &'static str = "minecraft:element_40";
     const NAME: &'static str = "Element 40";
     const STACK_SIZE: u8 = 1;
@@ -18640,7 +18640,7 @@ impl ItemDef for Element40 {
 pub struct Element45;
 
 impl ItemDef for Element45 {
-    const ID: u32 = 10425;
+    const ID: i32 = 10425;
     const STRING_ID: &'static str = "minecraft:element_45";
     const NAME: &'static str = "Element 45";
     const STACK_SIZE: u8 = 1;
@@ -18650,7 +18650,7 @@ impl ItemDef for Element45 {
 pub struct Element46;
 
 impl ItemDef for Element46 {
-    const ID: u32 = 10426;
+    const ID: i32 = 10426;
     const STRING_ID: &'static str = "minecraft:element_46";
     const NAME: &'static str = "Element 46";
     const STACK_SIZE: u8 = 1;
@@ -18660,7 +18660,7 @@ impl ItemDef for Element46 {
 pub struct Element47;
 
 impl ItemDef for Element47 {
-    const ID: u32 = 10427;
+    const ID: i32 = 10427;
     const STRING_ID: &'static str = "minecraft:element_47";
     const NAME: &'static str = "Element 47";
     const STACK_SIZE: u8 = 1;
@@ -18670,7 +18670,7 @@ impl ItemDef for Element47 {
 pub struct Element48;
 
 impl ItemDef for Element48 {
-    const ID: u32 = 10428;
+    const ID: i32 = 10428;
     const STRING_ID: &'static str = "minecraft:element_48";
     const NAME: &'static str = "Element 48";
     const STACK_SIZE: u8 = 1;
@@ -18680,7 +18680,7 @@ impl ItemDef for Element48 {
 pub struct Element49;
 
 impl ItemDef for Element49 {
-    const ID: u32 = 10430;
+    const ID: i32 = 10430;
     const STRING_ID: &'static str = "minecraft:element_49";
     const NAME: &'static str = "Element 49";
     const STACK_SIZE: u8 = 1;
@@ -18690,7 +18690,7 @@ impl ItemDef for Element49 {
 pub struct Element54;
 
 impl ItemDef for Element54 {
-    const ID: u32 = 10431;
+    const ID: i32 = 10431;
     const STRING_ID: &'static str = "minecraft:element_54";
     const NAME: &'static str = "Element 54";
     const STACK_SIZE: u8 = 1;
@@ -18700,7 +18700,7 @@ impl ItemDef for Element54 {
 pub struct Element55;
 
 impl ItemDef for Element55 {
-    const ID: u32 = 10432;
+    const ID: i32 = 10432;
     const STRING_ID: &'static str = "minecraft:element_55";
     const NAME: &'static str = "Element 55";
     const STACK_SIZE: u8 = 1;
@@ -18710,7 +18710,7 @@ impl ItemDef for Element55 {
 pub struct Element57;
 
 impl ItemDef for Element57 {
-    const ID: u32 = 10434;
+    const ID: i32 = 10434;
     const STRING_ID: &'static str = "minecraft:element_57";
     const NAME: &'static str = "Element 57";
     const STACK_SIZE: u8 = 1;
@@ -18720,7 +18720,7 @@ impl ItemDef for Element57 {
 pub struct Element58;
 
 impl ItemDef for Element58 {
-    const ID: u32 = 10435;
+    const ID: i32 = 10435;
     const STRING_ID: &'static str = "minecraft:element_58";
     const NAME: &'static str = "Element 58";
     const STACK_SIZE: u8 = 1;
@@ -18730,7 +18730,7 @@ impl ItemDef for Element58 {
 pub struct Element59;
 
 impl ItemDef for Element59 {
-    const ID: u32 = 10436;
+    const ID: i32 = 10436;
     const STRING_ID: &'static str = "minecraft:element_59";
     const NAME: &'static str = "Element 59";
     const STACK_SIZE: u8 = 1;
@@ -18740,7 +18740,7 @@ impl ItemDef for Element59 {
 pub struct Element60;
 
 impl ItemDef for Element60 {
-    const ID: u32 = 10437;
+    const ID: i32 = 10437;
     const STRING_ID: &'static str = "minecraft:element_60";
     const NAME: &'static str = "Element 60";
     const STACK_SIZE: u8 = 1;
@@ -18750,7 +18750,7 @@ impl ItemDef for Element60 {
 pub struct Element61;
 
 impl ItemDef for Element61 {
-    const ID: u32 = 10438;
+    const ID: i32 = 10438;
     const STRING_ID: &'static str = "minecraft:element_61";
     const NAME: &'static str = "Element 61";
     const STACK_SIZE: u8 = 1;
@@ -18760,7 +18760,7 @@ impl ItemDef for Element61 {
 pub struct Element63;
 
 impl ItemDef for Element63 {
-    const ID: u32 = 10439;
+    const ID: i32 = 10439;
     const STRING_ID: &'static str = "minecraft:element_63";
     const NAME: &'static str = "Element 63";
     const STACK_SIZE: u8 = 1;
@@ -18770,7 +18770,7 @@ impl ItemDef for Element63 {
 pub struct Element65;
 
 impl ItemDef for Element65 {
-    const ID: u32 = 10440;
+    const ID: i32 = 10440;
     const STRING_ID: &'static str = "minecraft:element_65";
     const NAME: &'static str = "Element 65";
     const STACK_SIZE: u8 = 1;
@@ -18780,7 +18780,7 @@ impl ItemDef for Element65 {
 pub struct Element66;
 
 impl ItemDef for Element66 {
-    const ID: u32 = 10441;
+    const ID: i32 = 10441;
     const STRING_ID: &'static str = "minecraft:element_66";
     const NAME: &'static str = "Element 66";
     const STACK_SIZE: u8 = 1;
@@ -18790,7 +18790,7 @@ impl ItemDef for Element66 {
 pub struct Element67;
 
 impl ItemDef for Element67 {
-    const ID: u32 = 10442;
+    const ID: i32 = 10442;
     const STRING_ID: &'static str = "minecraft:element_67";
     const NAME: &'static str = "Element 67";
     const STACK_SIZE: u8 = 1;
@@ -18800,7 +18800,7 @@ impl ItemDef for Element67 {
 pub struct Element70;
 
 impl ItemDef for Element70 {
-    const ID: u32 = 10443;
+    const ID: i32 = 10443;
     const STRING_ID: &'static str = "minecraft:element_70";
     const NAME: &'static str = "Element 70";
     const STACK_SIZE: u8 = 1;
@@ -18810,7 +18810,7 @@ impl ItemDef for Element70 {
 pub struct Element71;
 
 impl ItemDef for Element71 {
-    const ID: u32 = 10444;
+    const ID: i32 = 10444;
     const STRING_ID: &'static str = "minecraft:element_71";
     const NAME: &'static str = "Element 71";
     const STACK_SIZE: u8 = 1;
@@ -18820,7 +18820,7 @@ impl ItemDef for Element71 {
 pub struct Element72;
 
 impl ItemDef for Element72 {
-    const ID: u32 = 10445;
+    const ID: i32 = 10445;
     const STRING_ID: &'static str = "minecraft:element_72";
     const NAME: &'static str = "Element 72";
     const STACK_SIZE: u8 = 1;
@@ -18830,7 +18830,7 @@ impl ItemDef for Element72 {
 pub struct Element73;
 
 impl ItemDef for Element73 {
-    const ID: u32 = 10446;
+    const ID: i32 = 10446;
     const STRING_ID: &'static str = "minecraft:element_73";
     const NAME: &'static str = "Element 73";
     const STACK_SIZE: u8 = 1;
@@ -18840,7 +18840,7 @@ impl ItemDef for Element73 {
 pub struct Element76;
 
 impl ItemDef for Element76 {
-    const ID: u32 = 10448;
+    const ID: i32 = 10448;
     const STRING_ID: &'static str = "minecraft:element_76";
     const NAME: &'static str = "Element 76";
     const STACK_SIZE: u8 = 1;
@@ -18850,7 +18850,7 @@ impl ItemDef for Element76 {
 pub struct Element78;
 
 impl ItemDef for Element78 {
-    const ID: u32 = 10449;
+    const ID: i32 = 10449;
     const STRING_ID: &'static str = "minecraft:element_78";
     const NAME: &'static str = "Element 78";
     const STACK_SIZE: u8 = 1;
@@ -18860,7 +18860,7 @@ impl ItemDef for Element78 {
 pub struct Element79;
 
 impl ItemDef for Element79 {
-    const ID: u32 = 10452;
+    const ID: i32 = 10452;
     const STRING_ID: &'static str = "minecraft:element_79";
     const NAME: &'static str = "Element 79";
     const STACK_SIZE: u8 = 1;
@@ -18870,7 +18870,7 @@ impl ItemDef for Element79 {
 pub struct WeatheredCopperBars;
 
 impl ItemDef for WeatheredCopperBars {
-    const ID: u32 = 10453;
+    const ID: i32 = 10453;
     const STRING_ID: &'static str = "minecraft:weathered_copper_bars";
     const NAME: &'static str = "Weathered Copper Bars";
     const STACK_SIZE: u8 = 1;
@@ -18880,7 +18880,7 @@ impl ItemDef for WeatheredCopperBars {
 pub struct Element81;
 
 impl ItemDef for Element81 {
-    const ID: u32 = 10454;
+    const ID: i32 = 10454;
     const STRING_ID: &'static str = "minecraft:element_81";
     const NAME: &'static str = "Element 81";
     const STACK_SIZE: u8 = 1;
@@ -18890,7 +18890,7 @@ impl ItemDef for Element81 {
 pub struct ExposedLightningRod;
 
 impl ItemDef for ExposedLightningRod {
-    const ID: u32 = 10455;
+    const ID: i32 = 10455;
     const STRING_ID: &'static str = "minecraft:exposed_lightning_rod";
     const NAME: &'static str = "Exposed Lightning Rod";
     const STACK_SIZE: u8 = 1;
@@ -18900,7 +18900,7 @@ impl ItemDef for ExposedLightningRod {
 pub struct Element82;
 
 impl ItemDef for Element82 {
-    const ID: u32 = 10456;
+    const ID: i32 = 10456;
     const STRING_ID: &'static str = "minecraft:element_82";
     const NAME: &'static str = "Element 82";
     const STACK_SIZE: u8 = 1;
@@ -18910,7 +18910,7 @@ impl ItemDef for Element82 {
 pub struct Element85;
 
 impl ItemDef for Element85 {
-    const ID: u32 = 10458;
+    const ID: i32 = 10458;
     const STRING_ID: &'static str = "minecraft:element_85";
     const NAME: &'static str = "Element 85";
     const STACK_SIZE: u8 = 1;
@@ -18920,7 +18920,7 @@ impl ItemDef for Element85 {
 pub struct Element87;
 
 impl ItemDef for Element87 {
-    const ID: u32 = 10459;
+    const ID: i32 = 10459;
     const STRING_ID: &'static str = "minecraft:element_87";
     const NAME: &'static str = "Element 87";
     const STACK_SIZE: u8 = 1;
@@ -18930,7 +18930,7 @@ impl ItemDef for Element87 {
 pub struct Element88;
 
 impl ItemDef for Element88 {
-    const ID: u32 = 10460;
+    const ID: i32 = 10460;
     const STRING_ID: &'static str = "minecraft:element_88";
     const NAME: &'static str = "Element 88";
     const STACK_SIZE: u8 = 1;
@@ -18940,7 +18940,7 @@ impl ItemDef for Element88 {
 pub struct Element90;
 
 impl ItemDef for Element90 {
-    const ID: u32 = 10461;
+    const ID: i32 = 10461;
     const STRING_ID: &'static str = "minecraft:element_90";
     const NAME: &'static str = "Element 90";
     const STACK_SIZE: u8 = 1;
@@ -18950,7 +18950,7 @@ impl ItemDef for Element90 {
 pub struct Element91;
 
 impl ItemDef for Element91 {
-    const ID: u32 = 10462;
+    const ID: i32 = 10462;
     const STRING_ID: &'static str = "minecraft:element_91";
     const NAME: &'static str = "Element 91";
     const STACK_SIZE: u8 = 1;
@@ -18960,7 +18960,7 @@ impl ItemDef for Element91 {
 pub struct Element92;
 
 impl ItemDef for Element92 {
-    const ID: u32 = 10463;
+    const ID: i32 = 10463;
     const STRING_ID: &'static str = "minecraft:element_92";
     const NAME: &'static str = "Element 92";
     const STACK_SIZE: u8 = 1;
@@ -18970,7 +18970,7 @@ impl ItemDef for Element92 {
 pub struct Element93;
 
 impl ItemDef for Element93 {
-    const ID: u32 = 10464;
+    const ID: i32 = 10464;
     const STRING_ID: &'static str = "minecraft:element_93";
     const NAME: &'static str = "Element 93";
     const STACK_SIZE: u8 = 1;
@@ -18980,7 +18980,7 @@ impl ItemDef for Element93 {
 pub struct Element94;
 
 impl ItemDef for Element94 {
-    const ID: u32 = 10465;
+    const ID: i32 = 10465;
     const STRING_ID: &'static str = "minecraft:element_94";
     const NAME: &'static str = "Element 94";
     const STACK_SIZE: u8 = 1;
@@ -18990,7 +18990,7 @@ impl ItemDef for Element94 {
 pub struct Element95;
 
 impl ItemDef for Element95 {
-    const ID: u32 = 10466;
+    const ID: i32 = 10466;
     const STRING_ID: &'static str = "minecraft:element_95";
     const NAME: &'static str = "Element 95";
     const STACK_SIZE: u8 = 1;
@@ -19000,7 +19000,7 @@ impl ItemDef for Element95 {
 pub struct Element96;
 
 impl ItemDef for Element96 {
-    const ID: u32 = 10468;
+    const ID: i32 = 10468;
     const STRING_ID: &'static str = "minecraft:element_96";
     const NAME: &'static str = "Element 96";
     const STACK_SIZE: u8 = 1;
@@ -19010,7 +19010,7 @@ impl ItemDef for Element96 {
 pub struct Element98;
 
 impl ItemDef for Element98 {
-    const ID: u32 = 10469;
+    const ID: i32 = 10469;
     const STRING_ID: &'static str = "minecraft:element_98";
     const NAME: &'static str = "Element 98";
     const STACK_SIZE: u8 = 1;
@@ -19020,7 +19020,7 @@ impl ItemDef for Element98 {
 pub struct Element99;
 
 impl ItemDef for Element99 {
-    const ID: u32 = 10471;
+    const ID: i32 = 10471;
     const STRING_ID: &'static str = "minecraft:element_99";
     const NAME: &'static str = "Element 99";
     const STACK_SIZE: u8 = 1;
@@ -19030,7 +19030,7 @@ impl ItemDef for Element99 {
 pub struct Element100;
 
 impl ItemDef for Element100 {
-    const ID: u32 = 10473;
+    const ID: i32 = 10473;
     const STRING_ID: &'static str = "minecraft:element_100";
     const NAME: &'static str = "Element 100";
     const STACK_SIZE: u8 = 1;
@@ -19040,7 +19040,7 @@ impl ItemDef for Element100 {
 pub struct Element101;
 
 impl ItemDef for Element101 {
-    const ID: u32 = 10474;
+    const ID: i32 = 10474;
     const STRING_ID: &'static str = "minecraft:element_101";
     const NAME: &'static str = "Element 101";
     const STACK_SIZE: u8 = 1;
@@ -19050,7 +19050,7 @@ impl ItemDef for Element101 {
 pub struct Element105;
 
 impl ItemDef for Element105 {
-    const ID: u32 = 10475;
+    const ID: i32 = 10475;
     const STRING_ID: &'static str = "minecraft:element_105";
     const NAME: &'static str = "Element 105";
     const STACK_SIZE: u8 = 1;
@@ -19060,7 +19060,7 @@ impl ItemDef for Element105 {
 pub struct Element106;
 
 impl ItemDef for Element106 {
-    const ID: u32 = 10476;
+    const ID: i32 = 10476;
     const STRING_ID: &'static str = "minecraft:element_106";
     const NAME: &'static str = "Element 106";
     const STACK_SIZE: u8 = 1;
@@ -19070,7 +19070,7 @@ impl ItemDef for Element106 {
 pub struct Element107;
 
 impl ItemDef for Element107 {
-    const ID: u32 = 10477;
+    const ID: i32 = 10477;
     const STRING_ID: &'static str = "minecraft:element_107";
     const NAME: &'static str = "Element 107";
     const STACK_SIZE: u8 = 1;
@@ -19080,7 +19080,7 @@ impl ItemDef for Element107 {
 pub struct Element108;
 
 impl ItemDef for Element108 {
-    const ID: u32 = 10478;
+    const ID: i32 = 10478;
     const STRING_ID: &'static str = "minecraft:element_108";
     const NAME: &'static str = "Element 108";
     const STACK_SIZE: u8 = 1;
@@ -19090,7 +19090,7 @@ impl ItemDef for Element108 {
 pub struct Element110;
 
 impl ItemDef for Element110 {
-    const ID: u32 = 10479;
+    const ID: i32 = 10479;
     const STRING_ID: &'static str = "minecraft:element_110";
     const NAME: &'static str = "Element 110";
     const STACK_SIZE: u8 = 1;
@@ -19100,7 +19100,7 @@ impl ItemDef for Element110 {
 pub struct Element111;
 
 impl ItemDef for Element111 {
-    const ID: u32 = 10480;
+    const ID: i32 = 10480;
     const STRING_ID: &'static str = "minecraft:element_111";
     const NAME: &'static str = "Element 111";
     const STACK_SIZE: u8 = 1;
@@ -19110,7 +19110,7 @@ impl ItemDef for Element111 {
 pub struct Element112;
 
 impl ItemDef for Element112 {
-    const ID: u32 = 10481;
+    const ID: i32 = 10481;
     const STRING_ID: &'static str = "minecraft:element_112";
     const NAME: &'static str = "Element 112";
     const STACK_SIZE: u8 = 1;
@@ -19120,7 +19120,7 @@ impl ItemDef for Element112 {
 pub struct Element113;
 
 impl ItemDef for Element113 {
-    const ID: u32 = 10483;
+    const ID: i32 = 10483;
     const STRING_ID: &'static str = "minecraft:element_113";
     const NAME: &'static str = "Element 113";
     const STACK_SIZE: u8 = 1;
@@ -19130,7 +19130,7 @@ impl ItemDef for Element113 {
 pub struct Element114;
 
 impl ItemDef for Element114 {
-    const ID: u32 = 10485;
+    const ID: i32 = 10485;
     const STRING_ID: &'static str = "minecraft:element_114";
     const NAME: &'static str = "Element 114";
     const STACK_SIZE: u8 = 1;
@@ -19140,7 +19140,7 @@ impl ItemDef for Element114 {
 pub struct Element115;
 
 impl ItemDef for Element115 {
-    const ID: u32 = 10486;
+    const ID: i32 = 10486;
     const STRING_ID: &'static str = "minecraft:element_115";
     const NAME: &'static str = "Element 115";
     const STACK_SIZE: u8 = 1;
@@ -19150,7 +19150,7 @@ impl ItemDef for Element115 {
 pub struct Element116;
 
 impl ItemDef for Element116 {
-    const ID: u32 = 10488;
+    const ID: i32 = 10488;
     const STRING_ID: &'static str = "minecraft:element_116";
     const NAME: &'static str = "Element 116";
     const STACK_SIZE: u8 = 1;
@@ -19160,7 +19160,7 @@ impl ItemDef for Element116 {
 pub struct Element117;
 
 impl ItemDef for Element117 {
-    const ID: u32 = 10489;
+    const ID: i32 = 10489;
     const STRING_ID: &'static str = "minecraft:element_117";
     const NAME: &'static str = "Element 117";
     const STACK_SIZE: u8 = 1;
@@ -19170,7 +19170,7 @@ impl ItemDef for Element117 {
 pub struct Dye;
 
 impl ItemDef for Dye {
-    const ID: u32 = 10492;
+    const ID: i32 = 10492;
     const STRING_ID: &'static str = "minecraft:dye";
     const NAME: &'static str = "Dye";
     const STACK_SIZE: u8 = 1;
@@ -19180,7 +19180,7 @@ impl ItemDef for Dye {
 pub struct BannerPattern;
 
 impl ItemDef for BannerPattern {
-    const ID: u32 = 10493;
+    const ID: i32 = 10493;
     const STRING_ID: &'static str = "minecraft:banner_pattern";
     const NAME: &'static str = "Banner Pattern";
     const STACK_SIZE: u8 = 1;
@@ -19190,7 +19190,7 @@ impl ItemDef for BannerPattern {
 pub struct SpawnEgg;
 
 impl ItemDef for SpawnEgg {
-    const ID: u32 = 10494;
+    const ID: i32 = 10494;
     const STRING_ID: &'static str = "minecraft:spawn_egg";
     const NAME: &'static str = "Spawn Egg";
     const STACK_SIZE: u8 = 1;
@@ -19200,7 +19200,7 @@ impl ItemDef for SpawnEgg {
 pub struct WaxedWeatheredCopperChain;
 
 impl ItemDef for WaxedWeatheredCopperChain {
-    const ID: u32 = 10498;
+    const ID: i32 = 10498;
     const STRING_ID: &'static str = "minecraft:waxed_weathered_copper_chain";
     const NAME: &'static str = "Waxed Weathered Copper Chain";
     const STACK_SIZE: u8 = 1;
@@ -19210,7 +19210,7 @@ impl ItemDef for WaxedWeatheredCopperChain {
 pub struct WaxedWeatheredCopperChest;
 
 impl ItemDef for WaxedWeatheredCopperChest {
-    const ID: u32 = 10499;
+    const ID: i32 = 10499;
     const STRING_ID: &'static str = "minecraft:waxed_weathered_copper_chest";
     const NAME: &'static str = "Waxed Weathered Copper Chest";
     const STACK_SIZE: u8 = 1;
@@ -19220,7 +19220,7 @@ impl ItemDef for WaxedWeatheredCopperChest {
 pub struct WarpedDoorItem;
 
 impl ItemDef for WarpedDoorItem {
-    const ID: u32 = 10500;
+    const ID: i32 = 10500;
     const STRING_ID: &'static str = "minecraft:item.warped_door";
     const NAME: &'static str = "Warped Door";
     const STACK_SIZE: u8 = 1;
@@ -19230,7 +19230,7 @@ impl ItemDef for WarpedDoorItem {
 pub struct PistonArmCollision;
 
 impl ItemDef for PistonArmCollision {
-    const ID: u32 = 10502;
+    const ID: i32 = 10502;
     const STRING_ID: &'static str = "minecraft:piston_arm_collision";
     const NAME: &'static str = "Piston Arm Collision";
     const STACK_SIZE: u8 = 1;
@@ -19240,7 +19240,7 @@ impl ItemDef for PistonArmCollision {
 pub struct BlackstoneDoubleSlab;
 
 impl ItemDef for BlackstoneDoubleSlab {
-    const ID: u32 = 10507;
+    const ID: i32 = 10507;
     const STRING_ID: &'static str = "minecraft:blackstone_double_slab";
     const NAME: &'static str = "Blackstone Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -19250,7 +19250,7 @@ impl ItemDef for BlackstoneDoubleSlab {
 pub struct CrimsonWallSign;
 
 impl ItemDef for CrimsonWallSign {
-    const ID: u32 = 10511;
+    const ID: i32 = 10511;
     const STRING_ID: &'static str = "minecraft:crimson_wall_sign";
     const NAME: &'static str = "Crimson Wall Sign";
     const STACK_SIZE: u8 = 1;
@@ -19260,7 +19260,7 @@ impl ItemDef for CrimsonWallSign {
 pub struct GlowFrameItem;
 
 impl ItemDef for GlowFrameItem {
-    const ID: u32 = 10513;
+    const ID: i32 = 10513;
     const STRING_ID: &'static str = "minecraft:item.glow_frame";
     const NAME: &'static str = "Glow Frame";
     const STACK_SIZE: u8 = 1;
@@ -19270,7 +19270,7 @@ impl ItemDef for GlowFrameItem {
 pub struct WaxedExposedCopperChain;
 
 impl ItemDef for WaxedExposedCopperChain {
-    const ID: u32 = 10515;
+    const ID: i32 = 10515;
     const STRING_ID: &'static str = "minecraft:waxed_exposed_copper_chain";
     const NAME: &'static str = "Waxed Exposed Copper Chain";
     const STACK_SIZE: u8 = 1;
@@ -19280,7 +19280,7 @@ impl ItemDef for WaxedExposedCopperChain {
 pub struct WarpedStandingSign;
 
 impl ItemDef for WarpedStandingSign {
-    const ID: u32 = 10525;
+    const ID: i32 = 10525;
     const STRING_ID: &'static str = "minecraft:warped_standing_sign";
     const NAME: &'static str = "Warped Standing Sign";
     const STACK_SIZE: u8 = 1;
@@ -19290,7 +19290,7 @@ impl ItemDef for WarpedStandingSign {
 pub struct PitcherCrop;
 
 impl ItemDef for PitcherCrop {
-    const ID: u32 = 10527;
+    const ID: i32 = 10527;
     const STRING_ID: &'static str = "minecraft:pitcher_crop";
     const NAME: &'static str = "Pitcher Crop";
     const STACK_SIZE: u8 = 1;
@@ -19300,7 +19300,7 @@ impl ItemDef for PitcherCrop {
 pub struct LightBlueCandleCake;
 
 impl ItemDef for LightBlueCandleCake {
-    const ID: u32 = 10533;
+    const ID: i32 = 10533;
     const STRING_ID: &'static str = "minecraft:light_blue_candle_cake";
     const NAME: &'static str = "Light Blue Candle Cake";
     const STACK_SIZE: u8 = 1;
@@ -19310,7 +19310,7 @@ impl ItemDef for LightBlueCandleCake {
 pub struct OxidizedLightningRod;
 
 impl ItemDef for OxidizedLightningRod {
-    const ID: u32 = 10535;
+    const ID: i32 = 10535;
     const STRING_ID: &'static str = "minecraft:oxidized_lightning_rod";
     const NAME: &'static str = "Oxidized Lightning Rod";
     const STACK_SIZE: u8 = 1;
@@ -19320,7 +19320,7 @@ impl ItemDef for OxidizedLightningRod {
 pub struct PoweredComparator;
 
 impl ItemDef for PoweredComparator {
-    const ID: u32 = 10545;
+    const ID: i32 = 10545;
     const STRING_ID: &'static str = "minecraft:powered_comparator";
     const NAME: &'static str = "Powered Comparator";
     const STACK_SIZE: u8 = 1;
@@ -19330,7 +19330,7 @@ impl ItemDef for PoweredComparator {
 pub struct WarpedWallSign;
 
 impl ItemDef for WarpedWallSign {
-    const ID: u32 = 10546;
+    const ID: i32 = 10546;
     const STRING_ID: &'static str = "minecraft:warped_wall_sign";
     const NAME: &'static str = "Warped Wall Sign";
     const STACK_SIZE: u8 = 1;
@@ -19340,7 +19340,7 @@ impl ItemDef for WarpedWallSign {
 pub struct MangroveDoubleSlab;
 
 impl ItemDef for MangroveDoubleSlab {
-    const ID: u32 = 10549;
+    const ID: i32 = 10549;
     const STRING_ID: &'static str = "minecraft:mangrove_double_slab";
     const NAME: &'static str = "Mangrove Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -19350,7 +19350,7 @@ impl ItemDef for MangroveDoubleSlab {
 pub struct OxidizedDoubleCutCopperSlab;
 
 impl ItemDef for OxidizedDoubleCutCopperSlab {
-    const ID: u32 = 10551;
+    const ID: i32 = 10551;
     const STRING_ID: &'static str = "minecraft:oxidized_double_cut_copper_slab";
     const NAME: &'static str = "Oxidized Double Cut Copper Slab";
     const STACK_SIZE: u8 = 1;
@@ -19360,7 +19360,7 @@ impl ItemDef for OxidizedDoubleCutCopperSlab {
 pub struct WaxedCopperBars;
 
 impl ItemDef for WaxedCopperBars {
-    const ID: u32 = 10552;
+    const ID: i32 = 10552;
     const STRING_ID: &'static str = "minecraft:waxed_copper_bars";
     const NAME: &'static str = "Waxed Copper Bars";
     const STACK_SIZE: u8 = 1;
@@ -19370,7 +19370,7 @@ impl ItemDef for WaxedCopperBars {
 pub struct JungleShelf;
 
 impl ItemDef for JungleShelf {
-    const ID: u32 = 10554;
+    const ID: i32 = 10554;
     const STRING_ID: &'static str = "minecraft:jungle_shelf";
     const NAME: &'static str = "Jungle Shelf";
     const STACK_SIZE: u8 = 1;
@@ -19380,7 +19380,7 @@ impl ItemDef for JungleShelf {
 pub struct ExposedDoubleCutCopperSlab;
 
 impl ItemDef for ExposedDoubleCutCopperSlab {
-    const ID: u32 = 10555;
+    const ID: i32 = 10555;
     const STRING_ID: &'static str = "minecraft:exposed_double_cut_copper_slab";
     const NAME: &'static str = "Exposed Double Cut Copper Slab";
     const STACK_SIZE: u8 = 1;
@@ -19390,7 +19390,7 @@ impl ItemDef for ExposedDoubleCutCopperSlab {
 pub struct PolishedBlackstoneDoubleSlab;
 
 impl ItemDef for PolishedBlackstoneDoubleSlab {
-    const ID: u32 = 10560;
+    const ID: i32 = 10560;
     const STRING_ID: &'static str = "minecraft:polished_blackstone_double_slab";
     const NAME: &'static str = "Polished Blackstone Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -19400,7 +19400,7 @@ impl ItemDef for PolishedBlackstoneDoubleSlab {
 pub struct HardGlassPane;
 
 impl ItemDef for HardGlassPane {
-    const ID: u32 = 10561;
+    const ID: i32 = 10561;
     const STRING_ID: &'static str = "minecraft:hard_glass_pane";
     const NAME: &'static str = "Hard Glass Pane";
     const STACK_SIZE: u8 = 1;
@@ -19410,7 +19410,7 @@ impl ItemDef for HardGlassPane {
 pub struct PolishedBlackstoneBrickDoubleSlab;
 
 impl ItemDef for PolishedBlackstoneBrickDoubleSlab {
-    const ID: u32 = 10563;
+    const ID: i32 = 10563;
     const STRING_ID: &'static str = "minecraft:polished_blackstone_brick_double_slab";
     const NAME: &'static str = "Polished Blackstone Brick Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -19420,7 +19420,7 @@ impl ItemDef for PolishedBlackstoneBrickDoubleSlab {
 pub struct ResinBrickDoubleSlab;
 
 impl ItemDef for ResinBrickDoubleSlab {
-    const ID: u32 = 10566;
+    const ID: i32 = 10566;
     const STRING_ID: &'static str = "minecraft:resin_brick_double_slab";
     const NAME: &'static str = "Resin Brick Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -19430,7 +19430,7 @@ impl ItemDef for ResinBrickDoubleSlab {
 pub struct CyanCandleCake;
 
 impl ItemDef for CyanCandleCake {
-    const ID: u32 = 10567;
+    const ID: i32 = 10567;
     const STRING_ID: &'static str = "minecraft:cyan_candle_cake";
     const NAME: &'static str = "Cyan Candle Cake";
     const STACK_SIZE: u8 = 1;
@@ -19440,7 +19440,7 @@ impl ItemDef for CyanCandleCake {
 pub struct Stonecutter;
 
 impl ItemDef for Stonecutter {
-    const ID: u32 = 10574;
+    const ID: i32 = 10574;
     const STRING_ID: &'static str = "minecraft:stonecutter";
     const NAME: &'static str = "Stonecutter";
     const STACK_SIZE: u8 = 1;
@@ -19450,7 +19450,7 @@ impl ItemDef for Stonecutter {
 pub struct InvisibleBedrock;
 
 impl ItemDef for InvisibleBedrock {
-    const ID: u32 = 10578;
+    const ID: i32 = 10578;
     const STRING_ID: &'static str = "minecraft:invisible_bedrock";
     const NAME: &'static str = "Invisible Bedrock";
     const STACK_SIZE: u8 = 1;
@@ -19460,7 +19460,7 @@ impl ItemDef for InvisibleBedrock {
 pub struct OxidizedCopperBars;
 
 impl ItemDef for OxidizedCopperBars {
-    const ID: u32 = 10581;
+    const ID: i32 = 10581;
     const STRING_ID: &'static str = "minecraft:oxidized_copper_bars";
     const NAME: &'static str = "Oxidized Copper Bars";
     const STACK_SIZE: u8 = 1;
@@ -19470,7 +19470,7 @@ impl ItemDef for OxidizedCopperBars {
 pub struct UnderwaterTorch;
 
 impl ItemDef for UnderwaterTorch {
-    const ID: u32 = 10585;
+    const ID: i32 = 10585;
     const STRING_ID: &'static str = "minecraft:underwater_torch";
     const NAME: &'static str = "Underwater Torch";
     const STACK_SIZE: u8 = 1;
@@ -19480,7 +19480,7 @@ impl ItemDef for UnderwaterTorch {
 pub struct WallBanner;
 
 impl ItemDef for WallBanner {
-    const ID: u32 = 10586;
+    const ID: i32 = 10586;
     const STRING_ID: &'static str = "minecraft:wall_banner";
     const NAME: &'static str = "Wall Banner";
     const STACK_SIZE: u8 = 1;
@@ -19490,7 +19490,7 @@ impl ItemDef for WallBanner {
 pub struct SpruceDoubleSlab;
 
 impl ItemDef for SpruceDoubleSlab {
-    const ID: u32 = 10587;
+    const ID: i32 = 10587;
     const STRING_ID: &'static str = "minecraft:spruce_double_slab";
     const NAME: &'static str = "Spruce Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -19500,7 +19500,7 @@ impl ItemDef for SpruceDoubleSlab {
 pub struct Glowingobsidian;
 
 impl ItemDef for Glowingobsidian {
-    const ID: u32 = 10591;
+    const ID: i32 = 10591;
     const STRING_ID: &'static str = "minecraft:glowingobsidian";
     const NAME: &'static str = "Glowingobsidian";
     const STACK_SIZE: u8 = 1;
@@ -19510,7 +19510,7 @@ impl ItemDef for Glowingobsidian {
 pub struct ExposedCopperLantern;
 
 impl ItemDef for ExposedCopperLantern {
-    const ID: u32 = 10594;
+    const ID: i32 = 10594;
     const STRING_ID: &'static str = "minecraft:exposed_copper_lantern";
     const NAME: &'static str = "Exposed Copper Lantern";
     const STACK_SIZE: u8 = 1;
@@ -19520,7 +19520,7 @@ impl ItemDef for ExposedCopperLantern {
 pub struct WaxedExposedCopperBars;
 
 impl ItemDef for WaxedExposedCopperBars {
-    const ID: u32 = 10597;
+    const ID: i32 = 10597;
     const STRING_ID: &'static str = "minecraft:waxed_exposed_copper_bars";
     const NAME: &'static str = "Waxed Exposed Copper Bars";
     const STACK_SIZE: u8 = 1;
@@ -19530,7 +19530,7 @@ impl ItemDef for WaxedExposedCopperBars {
 pub struct SpruceShelf;
 
 impl ItemDef for SpruceShelf {
-    const ID: u32 = 10598;
+    const ID: i32 = 10598;
     const STRING_ID: &'static str = "minecraft:spruce_shelf";
     const NAME: &'static str = "Spruce Shelf";
     const STACK_SIZE: u8 = 1;
@@ -19540,7 +19540,7 @@ impl ItemDef for SpruceShelf {
 pub struct MovingBlock;
 
 impl ItemDef for MovingBlock {
-    const ID: u32 = 10599;
+    const ID: i32 = 10599;
     const STRING_ID: &'static str = "minecraft:moving_block";
     const NAME: &'static str = "Moving Block";
     const STACK_SIZE: u8 = 1;
@@ -19550,7 +19550,7 @@ impl ItemDef for MovingBlock {
 pub struct GreenCandleCake;
 
 impl ItemDef for GreenCandleCake {
-    const ID: u32 = 10605;
+    const ID: i32 = 10605;
     const STRING_ID: &'static str = "minecraft:green_candle_cake";
     const NAME: &'static str = "Green Candle Cake";
     const STACK_SIZE: u8 = 1;
@@ -19560,7 +19560,7 @@ impl ItemDef for GreenCandleCake {
 pub struct WaxedLightningRod;
 
 impl ItemDef for WaxedLightningRod {
-    const ID: u32 = 10608;
+    const ID: i32 = 10608;
     const STRING_ID: &'static str = "minecraft:waxed_lightning_rod";
     const NAME: &'static str = "Waxed Lightning Rod";
     const STACK_SIZE: u8 = 1;
@@ -19570,7 +19570,7 @@ impl ItemDef for WaxedLightningRod {
 pub struct WarpedShelf;
 
 impl ItemDef for WarpedShelf {
-    const ID: u32 = 10609;
+    const ID: i32 = 10609;
     const STRING_ID: &'static str = "minecraft:warped_shelf";
     const NAME: &'static str = "Warped Shelf";
     const STACK_SIZE: u8 = 1;
@@ -19580,7 +19580,7 @@ impl ItemDef for WarpedShelf {
 pub struct CopperBars;
 
 impl ItemDef for CopperBars {
-    const ID: u32 = 10610;
+    const ID: i32 = 10610;
     const STRING_ID: &'static str = "minecraft:copper_bars";
     const NAME: &'static str = "Copper Bars";
     const STACK_SIZE: u8 = 1;
@@ -19590,7 +19590,7 @@ impl ItemDef for CopperBars {
 pub struct OakDoubleSlab;
 
 impl ItemDef for OakDoubleSlab {
-    const ID: u32 = 10611;
+    const ID: i32 = 10611;
     const STRING_ID: &'static str = "minecraft:oak_double_slab";
     const NAME: &'static str = "Oak Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -19600,7 +19600,7 @@ impl ItemDef for OakDoubleSlab {
 pub struct BrownCandleCake;
 
 impl ItemDef for BrownCandleCake {
-    const ID: u32 = 10612;
+    const ID: i32 = 10612;
     const STRING_ID: &'static str = "minecraft:brown_candle_cake";
     const NAME: &'static str = "Brown Candle Cake";
     const STACK_SIZE: u8 = 1;
@@ -19610,7 +19610,7 @@ impl ItemDef for BrownCandleCake {
 pub struct AcaciaWallSign;
 
 impl ItemDef for AcaciaWallSign {
-    const ID: u32 = 10614;
+    const ID: i32 = 10614;
     const STRING_ID: &'static str = "minecraft:acacia_wall_sign";
     const NAME: &'static str = "Acacia Wall Sign";
     const STACK_SIZE: u8 = 1;
@@ -19620,7 +19620,7 @@ impl ItemDef for AcaciaWallSign {
 pub struct CopperChest;
 
 impl ItemDef for CopperChest {
-    const ID: u32 = 10622;
+    const ID: i32 = 10622;
     const STRING_ID: &'static str = "minecraft:copper_chest";
     const NAME: &'static str = "Copper Chest";
     const STACK_SIZE: u8 = 1;
@@ -19630,7 +19630,7 @@ impl ItemDef for CopperChest {
 pub struct WoodenDoorItem;
 
 impl ItemDef for WoodenDoorItem {
-    const ID: u32 = 10623;
+    const ID: i32 = 10623;
     const STRING_ID: &'static str = "minecraft:item.wooden_door";
     const NAME: &'static str = "Wooden Door";
     const STACK_SIZE: u8 = 1;
@@ -19640,7 +19640,7 @@ impl ItemDef for WoodenDoorItem {
 pub struct RedstoneWire;
 
 impl ItemDef for RedstoneWire {
-    const ID: u32 = 10628;
+    const ID: i32 = 10628;
     const STRING_ID: &'static str = "minecraft:redstone_wire";
     const NAME: &'static str = "Redstone Wire";
     const STACK_SIZE: u8 = 1;
@@ -19650,7 +19650,7 @@ impl ItemDef for RedstoneWire {
 pub struct Lava;
 
 impl ItemDef for Lava {
-    const ID: u32 = 10630;
+    const ID: i32 = 10630;
     const STRING_ID: &'static str = "minecraft:lava";
     const NAME: &'static str = "Lava";
     const STACK_SIZE: u8 = 1;
@@ -19660,7 +19660,7 @@ impl ItemDef for Lava {
 pub struct WaxedWeatheredCopperLantern;
 
 impl ItemDef for WaxedWeatheredCopperLantern {
-    const ID: u32 = 10631;
+    const ID: i32 = 10631;
     const STRING_ID: &'static str = "minecraft:waxed_weathered_copper_lantern";
     const NAME: &'static str = "Waxed Weathered Copper Lantern";
     const STACK_SIZE: u8 = 1;
@@ -19670,7 +19670,7 @@ impl ItemDef for WaxedWeatheredCopperLantern {
 pub struct CrimsonDoorItem;
 
 impl ItemDef for CrimsonDoorItem {
-    const ID: u32 = 10632;
+    const ID: i32 = 10632;
     const STRING_ID: &'static str = "minecraft:item.crimson_door";
     const NAME: &'static str = "Crimson Door";
     const STACK_SIZE: u8 = 1;
@@ -19680,7 +19680,7 @@ impl ItemDef for CrimsonDoorItem {
 pub struct WaxedExposedLightningRod;
 
 impl ItemDef for WaxedExposedLightningRod {
-    const ID: u32 = 10635;
+    const ID: i32 = 10635;
     const STRING_ID: &'static str = "minecraft:waxed_exposed_lightning_rod";
     const NAME: &'static str = "Waxed Exposed Lightning Rod";
     const STACK_SIZE: u8 = 1;
@@ -19690,7 +19690,7 @@ impl ItemDef for WaxedExposedLightningRod {
 pub struct BrainCoralWallFan;
 
 impl ItemDef for BrainCoralWallFan {
-    const ID: u32 = 10641;
+    const ID: i32 = 10641;
     const STRING_ID: &'static str = "minecraft:brain_coral_wall_fan";
     const NAME: &'static str = "Brain Coral Wall Fan";
     const STACK_SIZE: u8 = 1;
@@ -19700,7 +19700,7 @@ impl ItemDef for BrainCoralWallFan {
 pub struct DarkoakStandingSign;
 
 impl ItemDef for DarkoakStandingSign {
-    const ID: u32 = 10642;
+    const ID: i32 = 10642;
     const STRING_ID: &'static str = "minecraft:darkoak_standing_sign";
     const NAME: &'static str = "Darkoak Standing Sign";
     const STACK_SIZE: u8 = 1;
@@ -19710,7 +19710,7 @@ impl ItemDef for DarkoakStandingSign {
 pub struct WaxedExposedCopperGolemStatue;
 
 impl ItemDef for WaxedExposedCopperGolemStatue {
-    const ID: u32 = 10643;
+    const ID: i32 = 10643;
     const STRING_ID: &'static str = "minecraft:waxed_exposed_copper_golem_statue";
     const NAME: &'static str = "Waxed Exposed Copper Golem Statue";
     const STACK_SIZE: u8 = 1;
@@ -19720,7 +19720,7 @@ impl ItemDef for WaxedExposedCopperGolemStatue {
 pub struct WaxedOxidizedCopperChest;
 
 impl ItemDef for WaxedOxidizedCopperChest {
-    const ID: u32 = 10645;
+    const ID: i32 = 10645;
     const STRING_ID: &'static str = "minecraft:waxed_oxidized_copper_chest";
     const NAME: &'static str = "Waxed Oxidized Copper Chest";
     const STACK_SIZE: u8 = 1;
@@ -19730,7 +19730,7 @@ impl ItemDef for WaxedOxidizedCopperChest {
 pub struct WaxedOxidizedCopperChain;
 
 impl ItemDef for WaxedOxidizedCopperChain {
-    const ID: u32 = 10646;
+    const ID: i32 = 10646;
     const STRING_ID: &'static str = "minecraft:waxed_oxidized_copper_chain";
     const NAME: &'static str = "Waxed Oxidized Copper Chain";
     const STACK_SIZE: u8 = 1;
@@ -19740,7 +19740,7 @@ impl ItemDef for WaxedOxidizedCopperChain {
 pub struct BambooMosaicDoubleSlab;
 
 impl ItemDef for BambooMosaicDoubleSlab {
-    const ID: u32 = 10647;
+    const ID: i32 = 10647;
     const STRING_ID: &'static str = "minecraft:bamboo_mosaic_double_slab";
     const NAME: &'static str = "Bamboo Mosaic Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -19750,7 +19750,7 @@ impl ItemDef for BambooMosaicDoubleSlab {
 pub struct MangroveStandingSign;
 
 impl ItemDef for MangroveStandingSign {
-    const ID: u32 = 10651;
+    const ID: i32 = 10651;
     const STRING_ID: &'static str = "minecraft:mangrove_standing_sign";
     const NAME: &'static str = "Mangrove Standing Sign";
     const STACK_SIZE: u8 = 1;
@@ -19760,7 +19760,7 @@ impl ItemDef for MangroveStandingSign {
 pub struct DarkOakShelf;
 
 impl ItemDef for DarkOakShelf {
-    const ID: u32 = 10653;
+    const ID: i32 = 10653;
     const STRING_ID: &'static str = "minecraft:dark_oak_shelf";
     const NAME: &'static str = "Dark Oak Shelf";
     const STACK_SIZE: u8 = 1;
@@ -19770,7 +19770,7 @@ impl ItemDef for DarkOakShelf {
 pub struct LitRedstoneOre;
 
 impl ItemDef for LitRedstoneOre {
-    const ID: u32 = 10654;
+    const ID: i32 = 10654;
     const STRING_ID: &'static str = "minecraft:lit_redstone_ore";
     const NAME: &'static str = "Lit Redstone Ore";
     const STACK_SIZE: u8 = 1;
@@ -19780,7 +19780,7 @@ impl ItemDef for LitRedstoneOre {
 pub struct BambooShelf;
 
 impl ItemDef for BambooShelf {
-    const ID: u32 = 10659;
+    const ID: i32 = 10659;
     const STRING_ID: &'static str = "minecraft:bamboo_shelf";
     const NAME: &'static str = "Bamboo Shelf";
     const STACK_SIZE: u8 = 1;
@@ -19790,7 +19790,7 @@ impl ItemDef for BambooShelf {
 pub struct WaxedCopperChest;
 
 impl ItemDef for WaxedCopperChest {
-    const ID: u32 = 10661;
+    const ID: i32 = 10661;
     const STRING_ID: &'static str = "minecraft:waxed_copper_chest";
     const NAME: &'static str = "Waxed Copper Chest";
     const STACK_SIZE: u8 = 1;
@@ -19800,7 +19800,7 @@ impl ItemDef for WaxedCopperChest {
 pub struct WaxedCopperChain;
 
 impl ItemDef for WaxedCopperChain {
-    const ID: u32 = 10662;
+    const ID: i32 = 10662;
     const STRING_ID: &'static str = "minecraft:waxed_copper_chain";
     const NAME: &'static str = "Waxed Copper Chain";
     const STACK_SIZE: u8 = 1;
@@ -19810,7 +19810,7 @@ impl ItemDef for WaxedCopperChain {
 pub struct WarpedDoubleSlab;
 
 impl ItemDef for WarpedDoubleSlab {
-    const ID: u32 = 10670;
+    const ID: i32 = 10670;
     const STRING_ID: &'static str = "minecraft:warped_double_slab";
     const NAME: &'static str = "Warped Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -19820,7 +19820,7 @@ impl ItemDef for WarpedDoubleSlab {
 pub struct JungleWallSign;
 
 impl ItemDef for JungleWallSign {
-    const ID: u32 = 10671;
+    const ID: i32 = 10671;
     const STRING_ID: &'static str = "minecraft:jungle_wall_sign";
     const NAME: &'static str = "Jungle Wall Sign";
     const STACK_SIZE: u8 = 1;
@@ -19830,7 +19830,7 @@ impl ItemDef for JungleWallSign {
 pub struct OakShelf;
 
 impl ItemDef for OakShelf {
-    const ID: u32 = 10673;
+    const ID: i32 = 10673;
     const STRING_ID: &'static str = "minecraft:oak_shelf";
     const NAME: &'static str = "Oak Shelf";
     const STACK_SIZE: u8 = 1;
@@ -19840,7 +19840,7 @@ impl ItemDef for OakShelf {
 pub struct PoweredRepeater;
 
 impl ItemDef for PoweredRepeater {
-    const ID: u32 = 10681;
+    const ID: i32 = 10681;
     const STRING_ID: &'static str = "minecraft:powered_repeater";
     const NAME: &'static str = "Powered Repeater";
     const STACK_SIZE: u8 = 1;
@@ -19850,7 +19850,7 @@ impl ItemDef for PoweredRepeater {
 pub struct YellowCandleCake;
 
 impl ItemDef for YellowCandleCake {
-    const ID: u32 = 10687;
+    const ID: i32 = 10687;
     const STRING_ID: &'static str = "minecraft:yellow_candle_cake";
     const NAME: &'static str = "Yellow Candle Cake";
     const STACK_SIZE: u8 = 1;
@@ -19860,7 +19860,7 @@ impl ItemDef for YellowCandleCake {
 pub struct WaxedWeatheredCopperGolemStatue;
 
 impl ItemDef for WaxedWeatheredCopperGolemStatue {
-    const ID: u32 = 10696;
+    const ID: i32 = 10696;
     const STRING_ID: &'static str = "minecraft:waxed_weathered_copper_golem_statue";
     const NAME: &'static str = "Waxed Weathered Copper Golem Statue";
     const STACK_SIZE: u8 = 1;
@@ -19870,7 +19870,7 @@ impl ItemDef for WaxedWeatheredCopperGolemStatue {
 pub struct WheatItem;
 
 impl ItemDef for WheatItem {
-    const ID: u32 = 10697;
+    const ID: i32 = 10697;
     const STRING_ID: &'static str = "minecraft:item.wheat";
     const NAME: &'static str = "Wheat";
     const STACK_SIZE: u8 = 1;
@@ -19880,7 +19880,7 @@ impl ItemDef for WheatItem {
 pub struct SpruceDoorItem;
 
 impl ItemDef for SpruceDoorItem {
-    const ID: u32 = 10698;
+    const ID: i32 = 10698;
     const STRING_ID: &'static str = "minecraft:item.spruce_door";
     const NAME: &'static str = "Spruce Door";
     const STACK_SIZE: u8 = 1;
@@ -19890,7 +19890,7 @@ impl ItemDef for SpruceDoorItem {
 pub struct FrostedIce;
 
 impl ItemDef for FrostedIce {
-    const ID: u32 = 10700;
+    const ID: i32 = 10700;
     const STRING_ID: &'static str = "minecraft:frosted_ice";
     const NAME: &'static str = "Frosted Ice";
     const STACK_SIZE: u8 = 1;
@@ -19900,7 +19900,7 @@ impl ItemDef for FrostedIce {
 pub struct CaveVines;
 
 impl ItemDef for CaveVines {
-    const ID: u32 = 10705;
+    const ID: i32 = 10705;
     const STRING_ID: &'static str = "minecraft:cave_vines";
     const NAME: &'static str = "Cave Vines";
     const STACK_SIZE: u8 = 1;
@@ -19910,7 +19910,7 @@ impl ItemDef for CaveVines {
 pub struct MelonStem;
 
 impl ItemDef for MelonStem {
-    const ID: u32 = 10706;
+    const ID: i32 = 10706;
     const STRING_ID: &'static str = "minecraft:melon_stem";
     const NAME: &'static str = "Melon Stem";
     const STACK_SIZE: u8 = 1;
@@ -19920,7 +19920,7 @@ impl ItemDef for MelonStem {
 pub struct HornCoralWallFan;
 
 impl ItemDef for HornCoralWallFan {
-    const ID: u32 = 10709;
+    const ID: i32 = 10709;
     const STRING_ID: &'static str = "minecraft:horn_coral_wall_fan";
     const NAME: &'static str = "Horn Coral Wall Fan";
     const STACK_SIZE: u8 = 1;
@@ -19930,7 +19930,7 @@ impl ItemDef for HornCoralWallFan {
 pub struct WallSign;
 
 impl ItemDef for WallSign {
-    const ID: u32 = 10712;
+    const ID: i32 = 10712;
     const STRING_ID: &'static str = "minecraft:wall_sign";
     const NAME: &'static str = "Wall Sign";
     const STACK_SIZE: u8 = 1;
@@ -19940,7 +19940,7 @@ impl ItemDef for WallSign {
 pub struct WaxedOxidizedCopperGolemStatue;
 
 impl ItemDef for WaxedOxidizedCopperGolemStatue {
-    const ID: u32 = 10713;
+    const ID: i32 = 10713;
     const STRING_ID: &'static str = "minecraft:waxed_oxidized_copper_golem_statue";
     const NAME: &'static str = "Waxed Oxidized Copper Golem Statue";
     const STACK_SIZE: u8 = 1;
@@ -19950,7 +19950,7 @@ impl ItemDef for WaxedOxidizedCopperGolemStatue {
 pub struct BirchDoubleSlab;
 
 impl ItemDef for BirchDoubleSlab {
-    const ID: u32 = 10715;
+    const ID: i32 = 10715;
     const STRING_ID: &'static str = "minecraft:birch_double_slab";
     const NAME: &'static str = "Birch Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -19960,7 +19960,7 @@ impl ItemDef for BirchDoubleSlab {
 pub struct WeatheredLightningRod;
 
 impl ItemDef for WeatheredLightningRod {
-    const ID: u32 = 10718;
+    const ID: i32 = 10718;
     const STRING_ID: &'static str = "minecraft:weathered_lightning_rod";
     const NAME: &'static str = "Weathered Lightning Rod";
     const STACK_SIZE: u8 = 1;
@@ -19970,7 +19970,7 @@ impl ItemDef for WeatheredLightningRod {
 pub struct MangroveWallSign;
 
 impl ItemDef for MangroveWallSign {
-    const ID: u32 = 10720;
+    const ID: i32 = 10720;
     const STRING_ID: &'static str = "minecraft:mangrove_wall_sign";
     const NAME: &'static str = "Mangrove Wall Sign";
     const STACK_SIZE: u8 = 1;
@@ -19980,7 +19980,7 @@ impl ItemDef for MangroveWallSign {
 pub struct LightGrayCandleCake;
 
 impl ItemDef for LightGrayCandleCake {
-    const ID: u32 = 10721;
+    const ID: i32 = 10721;
     const STRING_ID: &'static str = "minecraft:light_gray_candle_cake";
     const NAME: &'static str = "Light Gray Candle Cake";
     const STACK_SIZE: u8 = 1;
@@ -19990,7 +19990,7 @@ impl ItemDef for LightGrayCandleCake {
 pub struct DarkoakWallSign;
 
 impl ItemDef for DarkoakWallSign {
-    const ID: u32 = 10723;
+    const ID: i32 = 10723;
     const STRING_ID: &'static str = "minecraft:darkoak_wall_sign";
     const NAME: &'static str = "Darkoak Wall Sign";
     const STACK_SIZE: u8 = 1;
@@ -20000,7 +20000,7 @@ impl ItemDef for DarkoakWallSign {
 pub struct FireCoralWallFan;
 
 impl ItemDef for FireCoralWallFan {
-    const ID: u32 = 10727;
+    const ID: i32 = 10727;
     const STRING_ID: &'static str = "minecraft:fire_coral_wall_fan";
     const NAME: &'static str = "Fire Coral Wall Fan";
     const STACK_SIZE: u8 = 1;
@@ -20010,7 +20010,7 @@ impl ItemDef for FireCoralWallFan {
 pub struct FlowingLava;
 
 impl ItemDef for FlowingLava {
-    const ID: u32 = 10728;
+    const ID: i32 = 10728;
     const STRING_ID: &'static str = "minecraft:flowing_lava";
     const NAME: &'static str = "Flowing Lava";
     const STACK_SIZE: u8 = 1;
@@ -20020,7 +20020,7 @@ impl ItemDef for FlowingLava {
 pub struct ExposedCopperChest;
 
 impl ItemDef for ExposedCopperChest {
-    const ID: u32 = 10733;
+    const ID: i32 = 10733;
     const STRING_ID: &'static str = "minecraft:exposed_copper_chest";
     const NAME: &'static str = "Exposed Copper Chest";
     const STACK_SIZE: u8 = 1;
@@ -20030,7 +20030,7 @@ impl ItemDef for ExposedCopperChest {
 pub struct ExposedCopperChain;
 
 impl ItemDef for ExposedCopperChain {
-    const ID: u32 = 10734;
+    const ID: i32 = 10734;
     const STRING_ID: &'static str = "minecraft:exposed_copper_chain";
     const NAME: &'static str = "Exposed Copper Chain";
     const STACK_SIZE: u8 = 1;
@@ -20040,7 +20040,7 @@ impl ItemDef for ExposedCopperChain {
 pub struct WaxedDoubleCutCopperSlab;
 
 impl ItemDef for WaxedDoubleCutCopperSlab {
-    const ID: u32 = 10735;
+    const ID: i32 = 10735;
     const STRING_ID: &'static str = "minecraft:waxed_double_cut_copper_slab";
     const NAME: &'static str = "Waxed Double Cut Copper Slab";
     const STACK_SIZE: u8 = 1;
@@ -20050,7 +20050,7 @@ impl ItemDef for WaxedDoubleCutCopperSlab {
 pub struct KelpItem;
 
 impl ItemDef for KelpItem {
-    const ID: u32 = 10736;
+    const ID: i32 = 10736;
     const STRING_ID: &'static str = "minecraft:item.kelp";
     const NAME: &'static str = "Kelp";
     const STACK_SIZE: u8 = 1;
@@ -20060,7 +20060,7 @@ impl ItemDef for KelpItem {
 pub struct Water;
 
 impl ItemDef for Water {
-    const ID: u32 = 10738;
+    const ID: i32 = 10738;
     const STRING_ID: &'static str = "minecraft:water";
     const NAME: &'static str = "Water";
     const STACK_SIZE: u8 = 1;
@@ -20070,7 +20070,7 @@ impl ItemDef for Water {
 pub struct ChemicalHeat;
 
 impl ItemDef for ChemicalHeat {
-    const ID: u32 = 10739;
+    const ID: i32 = 10739;
     const STRING_ID: &'static str = "minecraft:chemical_heat";
     const NAME: &'static str = "Chemical Heat";
     const STACK_SIZE: u8 = 1;
@@ -20080,7 +20080,7 @@ impl ItemDef for ChemicalHeat {
 pub struct UnpoweredRepeater;
 
 impl ItemDef for UnpoweredRepeater {
-    const ID: u32 = 10741;
+    const ID: i32 = 10741;
     const STRING_ID: &'static str = "minecraft:unpowered_repeater";
     const NAME: &'static str = "Unpowered Repeater";
     const STACK_SIZE: u8 = 1;
@@ -20090,7 +20090,7 @@ impl ItemDef for UnpoweredRepeater {
 pub struct WeatheredCopperChest;
 
 impl ItemDef for WeatheredCopperChest {
-    const ID: u32 = 10744;
+    const ID: i32 = 10744;
     const STRING_ID: &'static str = "minecraft:weathered_copper_chest";
     const NAME: &'static str = "Weathered Copper Chest";
     const STACK_SIZE: u8 = 1;
@@ -20100,7 +20100,7 @@ impl ItemDef for WeatheredCopperChest {
 pub struct WeatheredCopperChain;
 
 impl ItemDef for WeatheredCopperChain {
-    const ID: u32 = 10745;
+    const ID: i32 = 10745;
     const STRING_ID: &'static str = "minecraft:weathered_copper_chain";
     const NAME: &'static str = "Weathered Copper Chain";
     const STACK_SIZE: u8 = 1;
@@ -20110,7 +20110,7 @@ impl ItemDef for WeatheredCopperChain {
 pub struct AcaciaDoubleSlab;
 
 impl ItemDef for AcaciaDoubleSlab {
-    const ID: u32 = 10747;
+    const ID: i32 = 10747;
     const STRING_ID: &'static str = "minecraft:acacia_double_slab";
     const NAME: &'static str = "Acacia Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -20120,7 +20120,7 @@ impl ItemDef for AcaciaDoubleSlab {
 pub struct BubbleColumn;
 
 impl ItemDef for BubbleColumn {
-    const ID: u32 = 10751;
+    const ID: i32 = 10751;
     const STRING_ID: &'static str = "minecraft:bubble_column";
     const NAME: &'static str = "Bubble Column";
     const STACK_SIZE: u8 = 1;
@@ -20130,7 +20130,7 @@ impl ItemDef for BubbleColumn {
 pub struct CobbledDeepslateDoubleSlab;
 
 impl ItemDef for CobbledDeepslateDoubleSlab {
-    const ID: u32 = 10754;
+    const ID: i32 = 10754;
     const STRING_ID: &'static str = "minecraft:cobbled_deepslate_double_slab";
     const NAME: &'static str = "Cobbled Deepslate Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -20140,7 +20140,7 @@ impl ItemDef for CobbledDeepslateDoubleSlab {
 pub struct CherryStandingSign;
 
 impl ItemDef for CherryStandingSign {
-    const ID: u32 = 10756;
+    const ID: i32 = 10756;
     const STRING_ID: &'static str = "minecraft:cherry_standing_sign";
     const NAME: &'static str = "Cherry Standing Sign";
     const STACK_SIZE: u8 = 1;
@@ -20150,7 +20150,7 @@ impl ItemDef for CherryStandingSign {
 pub struct PaleOakShelf;
 
 impl ItemDef for PaleOakShelf {
-    const ID: u32 = 10757;
+    const ID: i32 = 10757;
     const STRING_ID: &'static str = "minecraft:pale_oak_shelf";
     const NAME: &'static str = "Pale Oak Shelf";
     const STACK_SIZE: u8 = 1;
@@ -20160,7 +20160,7 @@ impl ItemDef for PaleOakShelf {
 pub struct TuffBrickDoubleSlab;
 
 impl ItemDef for TuffBrickDoubleSlab {
-    const ID: u32 = 10763;
+    const ID: i32 = 10763;
     const STRING_ID: &'static str = "minecraft:tuff_brick_double_slab";
     const NAME: &'static str = "Tuff Brick Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -20170,7 +20170,7 @@ impl ItemDef for TuffBrickDoubleSlab {
 pub struct Reeds;
 
 impl ItemDef for Reeds {
-    const ID: u32 = 10768;
+    const ID: i32 = 10768;
     const STRING_ID: &'static str = "minecraft:item.reeds";
     const NAME: &'static str = "Reeds";
     const STACK_SIZE: u8 = 1;
@@ -20180,7 +20180,7 @@ impl ItemDef for Reeds {
 pub struct CameraItem;
 
 impl ItemDef for CameraItem {
-    const ID: u32 = 10771;
+    const ID: i32 = 10771;
     const STRING_ID: &'static str = "minecraft:item.camera";
     const NAME: &'static str = "Camera";
     const STACK_SIZE: u8 = 1;
@@ -20190,7 +20190,7 @@ impl ItemDef for CameraItem {
 pub struct JungleDoorItem;
 
 impl ItemDef for JungleDoorItem {
-    const ID: u32 = 10774;
+    const ID: i32 = 10774;
     const STRING_ID: &'static str = "minecraft:item.jungle_door";
     const NAME: &'static str = "Jungle Door";
     const STACK_SIZE: u8 = 1;
@@ -20200,7 +20200,7 @@ impl ItemDef for JungleDoorItem {
 pub struct AcaciaStandingSign;
 
 impl ItemDef for AcaciaStandingSign {
-    const ID: u32 = 10780;
+    const ID: i32 = 10780;
     const STRING_ID: &'static str = "minecraft:acacia_standing_sign";
     const NAME: &'static str = "Acacia Standing Sign";
     const STACK_SIZE: u8 = 1;
@@ -20210,7 +20210,7 @@ impl ItemDef for AcaciaStandingSign {
 pub struct PumpkinStem;
 
 impl ItemDef for PumpkinStem {
-    const ID: u32 = 10786;
+    const ID: i32 = 10786;
     const STRING_ID: &'static str = "minecraft:pumpkin_stem";
     const NAME: &'static str = "Pumpkin Stem";
     const STACK_SIZE: u8 = 1;
@@ -20220,7 +20220,7 @@ impl ItemDef for PumpkinStem {
 pub struct UnpoweredComparator;
 
 impl ItemDef for UnpoweredComparator {
-    const ID: u32 = 10789;
+    const ID: i32 = 10789;
     const STRING_ID: &'static str = "minecraft:unpowered_comparator";
     const NAME: &'static str = "Unpowered Comparator";
     const STACK_SIZE: u8 = 1;
@@ -20230,7 +20230,7 @@ impl ItemDef for UnpoweredComparator {
 pub struct WeatheredCopperLantern;
 
 impl ItemDef for WeatheredCopperLantern {
-    const ID: u32 = 10791;
+    const ID: i32 = 10791;
     const STRING_ID: &'static str = "minecraft:weathered_copper_lantern";
     const NAME: &'static str = "Weathered Copper Lantern";
     const STACK_SIZE: u8 = 1;
@@ -20240,7 +20240,7 @@ impl ItemDef for WeatheredCopperLantern {
 pub struct NetherSproutsItem;
 
 impl ItemDef for NetherSproutsItem {
-    const ID: u32 = 10792;
+    const ID: i32 = 10792;
     const STRING_ID: &'static str = "minecraft:item.nether_sprouts";
     const NAME: &'static str = "Nether Sprouts";
     const STACK_SIZE: u8 = 1;
@@ -20250,7 +20250,7 @@ impl ItemDef for NetherSproutsItem {
 pub struct Cocoa;
 
 impl ItemDef for Cocoa {
-    const ID: u32 = 10797;
+    const ID: i32 = 10797;
     const STRING_ID: &'static str = "minecraft:cocoa";
     const NAME: &'static str = "Cocoa";
     const STACK_SIZE: u8 = 1;
@@ -20260,7 +20260,7 @@ impl ItemDef for Cocoa {
 pub struct BedItem;
 
 impl ItemDef for BedItem {
-    const ID: u32 = 10803;
+    const ID: i32 = 10803;
     const STRING_ID: &'static str = "minecraft:item.bed";
     const NAME: &'static str = "Bed";
     const STACK_SIZE: u8 = 1;
@@ -20270,7 +20270,7 @@ impl ItemDef for BedItem {
 pub struct OxidizedCopperChest;
 
 impl ItemDef for OxidizedCopperChest {
-    const ID: u32 = 10805;
+    const ID: i32 = 10805;
     const STRING_ID: &'static str = "minecraft:oxidized_copper_chest";
     const NAME: &'static str = "Oxidized Copper Chest";
     const STACK_SIZE: u8 = 1;
@@ -20280,7 +20280,7 @@ impl ItemDef for OxidizedCopperChest {
 pub struct WaxedExposedDoubleCutCopperSlab;
 
 impl ItemDef for WaxedExposedDoubleCutCopperSlab {
-    const ID: u32 = 10807;
+    const ID: i32 = 10807;
     const STRING_ID: &'static str = "minecraft:waxed_exposed_double_cut_copper_slab";
     const NAME: &'static str = "Waxed Exposed Double Cut Copper Slab";
     const STACK_SIZE: u8 = 1;
@@ -20290,7 +20290,7 @@ impl ItemDef for WaxedExposedDoubleCutCopperSlab {
 pub struct BubbleCoralWallFan;
 
 impl ItemDef for BubbleCoralWallFan {
-    const ID: u32 = 10808;
+    const ID: i32 = 10808;
     const STRING_ID: &'static str = "minecraft:bubble_coral_wall_fan";
     const NAME: &'static str = "Bubble Coral Wall Fan";
     const STACK_SIZE: u8 = 1;
@@ -20300,7 +20300,7 @@ impl ItemDef for BubbleCoralWallFan {
 pub struct BirchWallSign;
 
 impl ItemDef for BirchWallSign {
-    const ID: u32 = 10811;
+    const ID: i32 = 10811;
     const STRING_ID: &'static str = "minecraft:birch_wall_sign";
     const NAME: &'static str = "Birch Wall Sign";
     const STACK_SIZE: u8 = 1;
@@ -20310,7 +20310,7 @@ impl ItemDef for BirchWallSign {
 pub struct BambooWallSign;
 
 impl ItemDef for BambooWallSign {
-    const ID: u32 = 10812;
+    const ID: i32 = 10812;
     const STRING_ID: &'static str = "minecraft:bamboo_wall_sign";
     const NAME: &'static str = "Bamboo Wall Sign";
     const STACK_SIZE: u8 = 1;
@@ -20320,7 +20320,7 @@ impl ItemDef for BambooWallSign {
 pub struct BambooSapling;
 
 impl ItemDef for BambooSapling {
-    const ID: u32 = 10814;
+    const ID: i32 = 10814;
     const STRING_ID: &'static str = "minecraft:bamboo_sapling";
     const NAME: &'static str = "Bamboo Sapling";
     const STACK_SIZE: u8 = 1;
@@ -20330,7 +20330,7 @@ impl ItemDef for BambooSapling {
 pub struct StandingBanner;
 
 impl ItemDef for StandingBanner {
-    const ID: u32 = 10815;
+    const ID: i32 = 10815;
     const STRING_ID: &'static str = "minecraft:standing_banner";
     const NAME: &'static str = "Standing Banner";
     const STACK_SIZE: u8 = 1;
@@ -20340,7 +20340,7 @@ impl ItemDef for StandingBanner {
 pub struct JungleDoubleSlab;
 
 impl ItemDef for JungleDoubleSlab {
-    const ID: u32 = 10817;
+    const ID: i32 = 10817;
     const STRING_ID: &'static str = "minecraft:jungle_double_slab";
     const NAME: &'static str = "Jungle Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -20350,7 +20350,7 @@ impl ItemDef for JungleDoubleSlab {
 pub struct DeadHornCoralWallFan;
 
 impl ItemDef for DeadHornCoralWallFan {
-    const ID: u32 = 10824;
+    const ID: i32 = 10824;
     const STRING_ID: &'static str = "minecraft:dead_horn_coral_wall_fan";
     const NAME: &'static str = "Dead Horn Coral Wall Fan";
     const STACK_SIZE: u8 = 1;
@@ -20360,7 +20360,7 @@ impl ItemDef for DeadHornCoralWallFan {
 pub struct WeatheredDoubleCutCopperSlab;
 
 impl ItemDef for WeatheredDoubleCutCopperSlab {
-    const ID: u32 = 10825;
+    const ID: i32 = 10825;
     const STRING_ID: &'static str = "minecraft:weathered_double_cut_copper_slab";
     const NAME: &'static str = "Weathered Double Cut Copper Slab";
     const STACK_SIZE: u8 = 1;
@@ -20370,7 +20370,7 @@ impl ItemDef for WeatheredDoubleCutCopperSlab {
 pub struct WaxedOxidizedLightningRod;
 
 impl ItemDef for WaxedOxidizedLightningRod {
-    const ID: u32 = 10828;
+    const ID: i32 = 10828;
     const STRING_ID: &'static str = "minecraft:waxed_oxidized_lightning_rod";
     const NAME: &'static str = "Waxed Oxidized Lightning Rod";
     const STACK_SIZE: u8 = 1;
@@ -20380,7 +20380,7 @@ impl ItemDef for WaxedOxidizedLightningRod {
 pub struct Allow;
 
 impl ItemDef for Allow {
-    const ID: u32 = 10829;
+    const ID: i32 = 10829;
     const STRING_ID: &'static str = "minecraft:allow";
     const NAME: &'static str = "Allow";
     const STACK_SIZE: u8 = 1;
@@ -20390,7 +20390,7 @@ impl ItemDef for Allow {
 pub struct BirchDoorItem;
 
 impl ItemDef for BirchDoorItem {
-    const ID: u32 = 10830;
+    const ID: i32 = 10830;
     const STRING_ID: &'static str = "minecraft:item.birch_door";
     const NAME: &'static str = "Birch Door";
     const STACK_SIZE: u8 = 1;
@@ -20400,7 +20400,7 @@ impl ItemDef for BirchDoorItem {
 pub struct BambooStandingSign;
 
 impl ItemDef for BambooStandingSign {
-    const ID: u32 = 10832;
+    const ID: i32 = 10832;
     const STRING_ID: &'static str = "minecraft:bamboo_standing_sign";
     const NAME: &'static str = "Bamboo Standing Sign";
     const STACK_SIZE: u8 = 1;
@@ -20410,7 +20410,7 @@ impl ItemDef for BambooStandingSign {
 pub struct CrimsonStandingSign;
 
 impl ItemDef for CrimsonStandingSign {
-    const ID: u32 = 10841;
+    const ID: i32 = 10841;
     const STRING_ID: &'static str = "minecraft:crimson_standing_sign";
     const NAME: &'static str = "Crimson Standing Sign";
     const STACK_SIZE: u8 = 1;
@@ -20420,7 +20420,7 @@ impl ItemDef for CrimsonStandingSign {
 pub struct Netherreactor;
 
 impl ItemDef for Netherreactor {
-    const ID: u32 = 10844;
+    const ID: i32 = 10844;
     const STRING_ID: &'static str = "minecraft:netherreactor";
     const NAME: &'static str = "Netherreactor";
     const STACK_SIZE: u8 = 1;
@@ -20430,7 +20430,7 @@ impl ItemDef for Netherreactor {
 pub struct ExposedCopperGolemStatue;
 
 impl ItemDef for ExposedCopperGolemStatue {
-    const ID: u32 = 10845;
+    const ID: i32 = 10845;
     const STRING_ID: &'static str = "minecraft:exposed_copper_golem_statue";
     const NAME: &'static str = "Exposed Copper Golem Statue";
     const STACK_SIZE: u8 = 1;
@@ -20440,7 +20440,7 @@ impl ItemDef for ExposedCopperGolemStatue {
 pub struct CauldronItem;
 
 impl ItemDef for CauldronItem {
-    const ID: u32 = 10846;
+    const ID: i32 = 10846;
     const STRING_ID: &'static str = "minecraft:item.cauldron";
     const NAME: &'static str = "Cauldron";
     const STACK_SIZE: u8 = 1;
@@ -20450,7 +20450,7 @@ impl ItemDef for CauldronItem {
 pub struct CaveVinesHeadWithBerries;
 
 impl ItemDef for CaveVinesHeadWithBerries {
-    const ID: u32 = 10847;
+    const ID: i32 = 10847;
     const STRING_ID: &'static str = "minecraft:cave_vines_head_with_berries";
     const NAME: &'static str = "Cave Vines Head With Berries";
     const STACK_SIZE: u8 = 1;
@@ -20460,7 +20460,7 @@ impl ItemDef for CaveVinesHeadWithBerries {
 pub struct BrewingStandItem;
 
 impl ItemDef for BrewingStandItem {
-    const ID: u32 = 10849;
+    const ID: i32 = 10849;
     const STRING_ID: &'static str = "minecraft:item.brewing_stand";
     const NAME: &'static str = "Brewing Stand";
     const STACK_SIZE: u8 = 1;
@@ -20470,7 +20470,7 @@ impl ItemDef for BrewingStandItem {
 pub struct EndPortal;
 
 impl ItemDef for EndPortal {
-    const ID: u32 = 10851;
+    const ID: i32 = 10851;
     const STRING_ID: &'static str = "minecraft:end_portal";
     const NAME: &'static str = "End Portal";
     const STACK_SIZE: u8 = 1;
@@ -20480,7 +20480,7 @@ impl ItemDef for EndPortal {
 pub struct LitSmoker;
 
 impl ItemDef for LitSmoker {
-    const ID: u32 = 10853;
+    const ID: i32 = 10853;
     const STRING_ID: &'static str = "minecraft:lit_smoker";
     const NAME: &'static str = "Lit Smoker";
     const STACK_SIZE: u8 = 1;
@@ -20490,7 +20490,7 @@ impl ItemDef for LitSmoker {
 pub struct WaxedCopperLantern;
 
 impl ItemDef for WaxedCopperLantern {
-    const ID: u32 = 10855;
+    const ID: i32 = 10855;
     const STRING_ID: &'static str = "minecraft:waxed_copper_lantern";
     const NAME: &'static str = "Waxed Copper Lantern";
     const STACK_SIZE: u8 = 1;
@@ -20500,7 +20500,7 @@ impl ItemDef for WaxedCopperLantern {
 pub struct TuffDoubleSlab;
 
 impl ItemDef for TuffDoubleSlab {
-    const ID: u32 = 10859;
+    const ID: i32 = 10859;
     const STRING_ID: &'static str = "minecraft:tuff_double_slab";
     const NAME: &'static str = "Tuff Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -20510,7 +20510,7 @@ impl ItemDef for TuffDoubleSlab {
 pub struct SoulCampfireItem;
 
 impl ItemDef for SoulCampfireItem {
-    const ID: u32 = 10865;
+    const ID: i32 = 10865;
     const STRING_ID: &'static str = "minecraft:item.soul_campfire";
     const NAME: &'static str = "Soul Campfire";
     const STACK_SIZE: u8 = 1;
@@ -20520,7 +20520,7 @@ impl ItemDef for SoulCampfireItem {
 pub struct LimeCandleCake;
 
 impl ItemDef for LimeCandleCake {
-    const ID: u32 = 10867;
+    const ID: i32 = 10867;
     const STRING_ID: &'static str = "minecraft:lime_candle_cake";
     const NAME: &'static str = "Lime Candle Cake";
     const STACK_SIZE: u8 = 1;
@@ -20530,7 +20530,7 @@ impl ItemDef for LimeCandleCake {
 pub struct WaxedWeatheredLightningRod;
 
 impl ItemDef for WaxedWeatheredLightningRod {
-    const ID: u32 = 10870;
+    const ID: i32 = 10870;
     const STRING_ID: &'static str = "minecraft:waxed_weathered_lightning_rod";
     const NAME: &'static str = "Waxed Weathered Lightning Rod";
     const STACK_SIZE: u8 = 1;
@@ -20540,7 +20540,7 @@ impl ItemDef for WaxedWeatheredLightningRod {
 pub struct PaleOakDoubleSlab;
 
 impl ItemDef for PaleOakDoubleSlab {
-    const ID: u32 = 10872;
+    const ID: i32 = 10872;
     const STRING_ID: &'static str = "minecraft:pale_oak_double_slab";
     const NAME: &'static str = "Pale Oak Double Slab";
     const STACK_SIZE: u8 = 1;
@@ -20550,7 +20550,7 @@ impl ItemDef for PaleOakDoubleSlab {
 pub struct CopperLantern;
 
 impl ItemDef for CopperLantern {
-    const ID: u32 = 10879;
+    const ID: i32 = 10879;
     const STRING_ID: &'static str = "minecraft:copper_lantern";
     const NAME: &'static str = "Copper Lantern";
     const STACK_SIZE: u8 = 1;
@@ -20560,7 +20560,7 @@ impl ItemDef for CopperLantern {
 pub struct TubeCoralWallFan;
 
 impl ItemDef for TubeCoralWallFan {
-    const ID: u32 = 10880;
+    const ID: i32 = 10880;
     const STRING_ID: &'static str = "minecraft:tube_coral_wall_fan";
     const NAME: &'static str = "Tube Coral Wall Fan";
     const STACK_SIZE: u8 = 1;

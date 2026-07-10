@@ -14,7 +14,7 @@ use tracing::debug;
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ItemJson {
-    id: u32,
+    id: i32,
     name: String,
     display_name: String,
     #[serde(default = "default_stack_size")]
@@ -34,7 +34,7 @@ struct ItemJson {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ItemVariantJson {
-    id: u32,
+    id: i32,
     metadata: u32,
     name: String,
     display_name: String,
@@ -99,7 +99,7 @@ pub fn generate_items(
     debug!(count = items.len(), "Generating ZST items with traits");
 
     // Build name->ID map for repair item resolution
-    let name_to_id: HashMap<String, u32> = items
+    let name_to_id: HashMap<String, i32> = items
         .iter()
         .map(|item| (item.name.clone(), item.id))
         .collect();
@@ -159,7 +159,7 @@ pub fn generate_items(
 
         // Generate ItemDef impl
         writeln!(out, "impl ItemDef for {} {{", struct_name)?;
-        writeln!(out, "    const ID: u32 = {};", item.id)?;
+        writeln!(out, "    const ID: i32 = {};", item.id)?;
         writeln!(
             out,
             r#"    const STRING_ID: &'static str = "minecraft:{}";"#,
@@ -183,7 +183,7 @@ pub fn generate_items(
 
         // Generate RepairableItem impl if needed
         if !item.repair_with.is_empty() {
-            let repair_ids: Vec<u32> = item
+            let repair_ids: Vec<i32> = item
                 .repair_with
                 .iter()
                 .filter_map(|name| name_to_id.get(name).copied())
@@ -191,7 +191,7 @@ pub fn generate_items(
 
             if !repair_ids.is_empty() {
                 writeln!(out, "impl RepairableItem for {} {{", struct_name)?;
-                writeln!(out, "    fn repair_items() -> &'static [u32] {{")?;
+                writeln!(out, "    fn repair_items() -> &'static [i32] {{")?;
                 writeln!(out, "        &{:?}", repair_ids)?;
                 writeln!(out, "    }}")?;
                 writeln!(out, "}}")?;
@@ -283,4 +283,19 @@ pub fn generate_items(
     writeln!(out, "];")?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ItemJson;
+
+    #[test]
+    fn deserializes_negative_item_ids() {
+        let item = serde_json::from_str::<ItemJson>(
+            r#"{"id":-1125,"name":"sulfur_spike","displayName":"Sulfur Spike"}"#,
+        )
+        .expect("negative item IDs are valid minecraft-data values");
+
+        assert_eq!(item.id, -1125);
+    }
 }

@@ -1,6 +1,6 @@
 use bytes::{Buf, BytesMut};
 use valentine::bedrock::codec::BedrockCodec;
-use valentine::bedrock::protocol::v1_26_0::*;
+use valentine::bedrock::protocol::v1_26_30::*;
 use valentine_bedrock_core::bedrock::codec::Nbt;
 
 #[test]
@@ -58,7 +58,7 @@ fn jolyne_start_game_roundtrip() {
         persona_disabled: false,
         custom_skins_disabled: false,
         emote_chat_muted: false,
-        game_version: "1.26.0".to_string(),
+        game_version: "1.26.30".to_string(),
         limited_world_width: 0,
         limited_world_length: 0,
         is_new_nether: true,
@@ -69,6 +69,8 @@ fn jolyne_start_game_roundtrip() {
         experimental_gameplay_override: false,
         chat_restriction_level: StartGamePacketChatRestrictionLevel::None,
         disable_player_interactions: false,
+        server_editor_connection_policy: 0,
+        allow_anonymous_block_drops_in_editor_worlds: false,
         server_identifier: "".to_string(),
         world_identifier: "".to_string(),
         scenario_identifier: "".to_string(),
@@ -94,6 +96,7 @@ fn jolyne_start_game_roundtrip() {
         client_side_generation: false,
         block_network_ids_are_hashes: false,
         server_controlled_sound: false,
+        is_chat_logging: false,
         server_join_info: None,
     };
 

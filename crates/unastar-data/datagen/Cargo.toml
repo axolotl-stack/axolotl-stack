@@ -21,4 +21,4 @@ heck = "0.5"
 miette = { version = "7.0", features = ["fancy"] }
 thiserror = { workspace = true }
 valentine_bedrock_core = { workspace = true }
-valentine_bedrock_1_26_0 = { workspace = true }
+valentine_bedrock_1_26_30 = { workspace = true }

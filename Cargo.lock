@@ -4615,7 +4615,7 @@ dependencies = [
  "thiserror 2.0.17",
  "tracing",
  "tracing-subscriber",
- "valentine_bedrock_1_26_0",
+ "valentine_bedrock_1_26_30",
  "valentine_bedrock_core",
  "walkdir",
 ]
@@ -4757,11 +4757,22 @@ dependencies = [
  "tracing-subscriber",
  "uuid",
  "valentine_bedrock_1_26_0",
+ "valentine_bedrock_1_26_30",
  "valentine_bedrock_core",
 ]
 
 [[package]]
 name = "valentine_bedrock_1_26_0"
+version = "0.1.0"
+dependencies = [
+ "bitflags 2.10.0",
+ "bytes",
+ "uuid",
+ "valentine_bedrock_core",
+]
+
+[[package]]
+name = "valentine_bedrock_1_26_30"
 version = "0.1.0"
 dependencies = [
  "bitflags 2.10.0",

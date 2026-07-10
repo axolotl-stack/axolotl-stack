@@ -65,10 +65,10 @@ pub struct ManifestInputs<'a> {
 pub fn write_manifest(output_dir: &Path, inputs: &ManifestInputs<'_>) -> miette::Result<()> {
     let mut sources = vec![
         source_from_path(
-            "valentine_bedrock_1_26_0",
+            "valentine_bedrock_1_26_30",
             "generated_protocol_data",
             inputs.valentine_version_path,
-            Some("bedrock_1_26_0".to_string()),
+            Some("bedrock_1_26_30".to_string()),
             "high",
             false,
         )?,

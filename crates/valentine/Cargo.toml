@@ -10,6 +10,7 @@ bytes.workspace = true
 uuid.workspace = true
 valentine_bedrock_core.workspace = true
 valentine_bedrock_1_26_0 = { path = "bedrock_versions/v1_26_0", optional = true }
+valentine_bedrock_1_26_30 = { path = "bedrock_versions/v1_26_30", optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "time"] }
@@ -21,8 +22,9 @@ anyhow.workspace = true
 criterion.workspace = true
 
 [features]
-default = ["bedrock_1_26_0"]
+default = ["bedrock_1_26_30"]
 bedrock_1_26_0 = ["dep:valentine_bedrock_1_26_0"]
+bedrock_1_26_30 = ["dep:valentine_bedrock_1_26_30"]
 
 [[bench]]
 name = "codec"

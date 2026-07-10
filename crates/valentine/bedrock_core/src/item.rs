@@ -11,7 +11,7 @@ use std::fmt::Debug;
 /// Each item (Stone, DiamondSword, etc.) is a ZST implementing this trait.
 /// All data is const for zero-cost access.
 pub trait ItemDef: 'static + Send + Sync + Sized {
-    const ID: u32;
+    const ID: i32;
     /// Raw item string ID from protocol (e.g., "item.hopper" or "minecraft:hopper")
     const STRING_ID: &'static str;
     /// Display name (e.g., "Hopper", "Stone")
@@ -30,7 +30,7 @@ pub trait DurableItem: ItemDef {
 /// Extension trait for items that can be repaired with specific materials.
 pub trait RepairableItem: DurableItem {
     /// Item IDs that can repair this item (e.g., diamond for diamond tools)
-    fn repair_items() -> &'static [u32];
+    fn repair_items() -> &'static [i32];
 }
 
 /// Extension trait for items that can be enchanted.
@@ -108,7 +108,7 @@ impl EnchantmentCategory {
 /// Item variant data (for items with multiple metadata values).
 #[derive(Debug, Clone, Copy)]
 pub struct ItemVariant {
-    pub id: u32,
+    pub id: i32,
     pub metadata: u32,
     pub name: &'static str,
     pub display_name: &'static str,
@@ -119,7 +119,7 @@ pub struct ItemVariant {
 ///
 /// Allows storing `&dyn ItemDefDyn` in arrays/vectors.
 pub trait ItemDefDyn: Send + Sync {
-    fn id(&self) -> u32;
+    fn id(&self) -> i32;
     fn string_id(&self) -> &'static str;
     fn name(&self) -> &'static str;
     fn stack_size(&self) -> u8;
@@ -127,7 +127,7 @@ pub trait ItemDefDyn: Send + Sync {
 }
 
 impl<T: ItemDef> ItemDefDyn for T {
-    fn id(&self) -> u32 {
+    fn id(&self) -> i32 {
         T::ID
     }
     fn string_id(&self) -> &'static str {

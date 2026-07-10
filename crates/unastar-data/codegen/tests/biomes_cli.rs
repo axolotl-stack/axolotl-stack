@@ -53,7 +53,7 @@ fn biomes_only_cli_rejects_non_behavior_pack_source() {
     let output = temp.path().join("output");
     std::fs::create_dir_all(&input).expect("create input dir");
     std::fs::create_dir_all(&output).expect("create output dir");
-    write_biomes_artifact(&input, "valentine_bedrock_1_26_0");
+    write_biomes_artifact(&input, "valentine_bedrock_1_26_30");
 
     let output = Command::new(env!("CARGO_BIN_EXE_unastar-data-codegen"))
         .arg("--biomes-only")

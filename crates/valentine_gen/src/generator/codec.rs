@@ -2515,13 +2515,35 @@ fn case_value_pattern(
         let clean = &case_name[1..];
         let field_name = crate::generator::utils::clean_field_name(clean, "");
         let field_ident = format_ident!("{}", field_name);
+        // ShieldItemID is supplied by the session as i32, while ItemNew encodes its
+        // network ID as a little-endian i16. Compare in the shared signed domain.
+        if case_name == "/ShieldItemID" {
+            return quote! { x if i32::from(x) == args.#field_ident };
+        }
         return quote! { x if x == args.#field_ident };
     }
 
     if let Some(field) = discriminator_field {
+        if let Type::Option(inner) = &field.type_def
+            && matches!(resolve_type(inner, ctx), Type::Enum { .. })
+        {
+            let type_name = match inner.as_ref() {
+                Type::Reference(name) => clean_type_name(name),
+                _ => clean_type_name(&format!("{}{}", container_name, camel_case(&field.name))),
+            };
+            let type_ident = format_ident!("{}", type_name);
+            let variant_ident = format_ident!("{}", safe_camel_ident(case_name));
+            return quote! { Some(#type_ident::#variant_ident) };
+        }
+
         let resolved_type = resolve_type(&field.type_def, ctx);
 
         match resolved_type {
+            Type::Reference(name) => {
+                let type_ident = format_ident!("{}", clean_type_name(&name));
+                let variant_ident = format_ident!("{}", safe_camel_ident(case_name));
+                return quote! { #type_ident::#variant_ident };
+            }
             Type::Enum { ref variants, .. } => {
                 let variant_name = if let Ok(val) = case_name.parse::<i64>() {
                     variants

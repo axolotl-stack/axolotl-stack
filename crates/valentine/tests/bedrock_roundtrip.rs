@@ -2,7 +2,7 @@ use bytes::{Buf, BytesMut};
 
 use valentine::bedrock::codec::{BedrockCodec, VarInt};
 use valentine::bedrock::error::DecodeError;
-use valentine::bedrock::protocol::v1_26_0::{
+use valentine::bedrock::protocol::v1_26_30::{
     DisconnectFailReason, DisconnectPacket, DisconnectPacketContent, TextPacket, TextPacketType,
 };
 
@@ -66,7 +66,7 @@ fn packet_disconnect_roundtrip_hidden_reason() {
 
 #[test]
 fn packet_text_roundtrip_chat_message() {
-    use valentine_bedrock_1_26_0::{
+    use valentine_bedrock_1_26_30::{
         TextPacketCategory, TextPacketContent, TextPacketContentAnnouncement,
     };
     let packet = TextPacket {
@@ -87,7 +87,7 @@ fn packet_text_roundtrip_chat_message() {
 
 #[test]
 fn packet_text_roundtrip_translation() {
-    use valentine_bedrock_1_26_0::{
+    use valentine_bedrock_1_26_30::{
         TextPacketCategory, TextPacketContent, TextPacketContentJukeboxPopup,
     };
     let packet = TextPacket {
@@ -144,7 +144,7 @@ fn packet_disconnect_rejects_truncated_payload() {
 
 #[test]
 fn enum_zigzag32_encodes_as_varint() {
-    use valentine::bedrock::protocol::v1_26_0::types::GameMode;
+    use valentine::bedrock::protocol::v1_26_30::types::GameMode;
 
     let mut buf = BytesMut::new();
     GameMode::Creative

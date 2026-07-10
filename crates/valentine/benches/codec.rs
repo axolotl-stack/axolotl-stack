@@ -6,7 +6,7 @@ use valentine::bedrock::borrowed::{
 };
 use valentine::bedrock::codec::{BedrockCodec, BedrockSized};
 use valentine::bedrock::context::BedrockSession;
-use valentine::bedrock::version::v1_26_0::*;
+use valentine::bedrock::version::v1_26_30::*;
 use valentine_bedrock_core::bedrock::codec::Nbt;
 
 fn sample_disconnect_packet() -> DisconnectPacket {
@@ -99,7 +99,7 @@ fn sample_start_game_packet() -> StartGamePacket {
         persona_disabled: false,
         custom_skins_disabled: false,
         emote_chat_muted: false,
-        game_version: "1.26.0".to_string(),
+        game_version: "1.26.30".to_string(),
         limited_world_width: 0,
         limited_world_length: 0,
         is_new_nether: true,
@@ -110,6 +110,8 @@ fn sample_start_game_packet() -> StartGamePacket {
         experimental_gameplay_override: false,
         chat_restriction_level: StartGamePacketChatRestrictionLevel::None,
         disable_player_interactions: false,
+        server_editor_connection_policy: 0,
+        allow_anonymous_block_drops_in_editor_worlds: false,
         server_identifier: "".to_string(),
         world_identifier: "".to_string(),
         scenario_identifier: "".to_string(),
@@ -135,6 +137,7 @@ fn sample_start_game_packet() -> StartGamePacket {
         client_side_generation: false,
         block_network_ids_are_hashes: false,
         server_controlled_sound: false,
+        is_chat_logging: false,
         server_join_info: None,
     }
 }
