@@ -9908,8 +9908,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemExtraDataWithoutBlockingTickNbt
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let version = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let nbt =
-            <crate::bedrock::codec::Nbt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let nbt = crate::bedrock::codec::Nbt::decode_little_endian(buf)?;
         Ok(Self { version, nbt })
     }
 }
@@ -10711,10 +10710,12 @@ impl crate::bedrock::codec::BedrockSized for ItemLegacy {
         size += crate::bedrock::codec::BedrockSized::encoded_size(
             &crate::bedrock::codec::ZigZag32(self.network_id),
         );
-        size += match &self.content {
-            Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-            None => 0usize,
-        };
+        if self.network_id != 0 && self.network_id != -1 {
+            size += match &self.content {
+                Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
+                None => 0usize,
+            };
+        }
         size
     }
 }
@@ -10723,8 +10724,10 @@ impl crate::bedrock::codec::BedrockCodec for ItemLegacy {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
         crate::bedrock::codec::ZigZag32(self.network_id).encode(buf)?;
-        if let Some(v) = &self.content {
-            v.encode(buf)?;
+        if self.network_id != 0 && self.network_id != -1 {
+            if let Some(v) = &self.content {
+                v.encode(buf)?;
+            }
         }
         Ok(())
     }
@@ -10739,7 +10742,7 @@ impl crate::bedrock::codec::BedrockCodec for ItemLegacy {
                 (),
             )?
             .0;
-        let content = if (network_id) != 0 {
+        let content = if network_id != 0 && network_id != -1 {
             Some(Box::new(
                 <ItemLegacyContent as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
@@ -14926,11 +14929,11 @@ impl crate::bedrock::codec::BedrockCodec for MapDecoration {
 }
 pub type MapInfo = Vec<u8>;
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct MaterialReducerItems {
+pub struct MaterialReducerOutput {
     pub network_id: i32,
     pub count: i32,
 }
-impl crate::bedrock::codec::BedrockSized for MaterialReducerItems {
+impl crate::bedrock::codec::BedrockSized for MaterialReducerOutput {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(
@@ -14942,7 +14945,7 @@ impl crate::bedrock::codec::BedrockSized for MaterialReducerItems {
         size
     }
 }
-impl crate::bedrock::codec::BedrockCodec for MaterialReducerItems {
+impl crate::bedrock::codec::BedrockCodec for MaterialReducerOutput {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
@@ -14973,7 +14976,7 @@ impl crate::bedrock::codec::BedrockCodec for MaterialReducerItems {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct MaterialReducer {
     pub mix: i32,
-    pub items: MaterialReducerItems,
+    pub outputs: Vec<MaterialReducerOutput>,
 }
 impl crate::bedrock::codec::BedrockSized for MaterialReducer {
     fn encoded_size(&self) -> usize {
@@ -14981,7 +14984,14 @@ impl crate::bedrock::codec::BedrockSized for MaterialReducer {
         size += crate::bedrock::codec::BedrockSized::encoded_size(
             &crate::bedrock::codec::ZigZag32(self.mix),
         );
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.items);
+        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
+            self.outputs.len() as i32,
+        ));
+        size += self
+            .outputs
+            .iter()
+            .map(crate::bedrock::codec::BedrockSized::encoded_size)
+            .sum::<usize>();
         size
     }
 }
@@ -14990,7 +15000,26 @@ impl crate::bedrock::codec::BedrockCodec for MaterialReducer {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
         crate::bedrock::codec::ZigZag32(self.mix).encode(buf)?;
-        self.items.encode(buf)?;
+        let len = self.outputs.len();
+        if len > crate::proto::MAX_LOGIN_COLLECTION_ELEMENTS {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!(
+                    "material reducer output count {len} exceeds maximum {}",
+                    crate::proto::MAX_LOGIN_COLLECTION_ELEMENTS
+                ),
+            ));
+        }
+        let len = i32::try_from(len).map_err(|_| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "material reducer output count does not fit VarUInt32",
+            )
+        })?;
+        crate::bedrock::codec::VarInt(len).encode(buf)?;
+        for output in &self.outputs {
+            output.encode(buf)?;
+        }
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -15003,8 +15032,33 @@ impl crate::bedrock::codec::BedrockCodec for MaterialReducer {
             (),
         )?
         .0;
-        let items = <MaterialReducerItems as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        Ok(Self { mix, items })
+        let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?
+        .0 as i64;
+        if raw < 0 {
+            return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+        }
+        let len = raw as usize;
+        crate::proto::validate_collection_len(
+            len,
+            crate::proto::MAX_LOGIN_COLLECTION_ELEMENTS,
+            buf.remaining(),
+        )?;
+        let mut outputs = Vec::new();
+        outputs.try_reserve_exact(len).map_err(|_| {
+            crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                declared: len,
+                available: 0,
+            }
+        })?;
+        for _ in 0..len {
+            outputs.push(
+                <MaterialReducerOutput as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
+            );
+        }
+        Ok(Self { mix, outputs })
     }
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -18226,6 +18280,79 @@ pub struct PlayerRecords {
     pub records: Vec<Option<PlayerRecordsRecordsItem>>,
     pub verified: Option<Vec<bool>>,
 }
+const MAX_PLAYER_RECORDS: usize = 4096;
+
+impl PlayerRecords {
+    fn validate_encoding(&self) -> Result<(), std::io::Error> {
+        let records_count = usize::try_from(self.records_count).map_err(|_| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "player record count must not be negative",
+            )
+        })?;
+        if records_count > MAX_PLAYER_RECORDS {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("player record count {records_count} exceeds maximum {MAX_PLAYER_RECORDS}"),
+            ));
+        }
+        if records_count != self.records.len() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!(
+                    "player record count {records_count} does not match {} records",
+                    self.records.len()
+                ),
+            ));
+        }
+
+        match self.type_ {
+            PlayerRecordsType::Add => {
+                if !self
+                    .records
+                    .iter()
+                    .all(|record| matches!(record, Some(PlayerRecordsRecordsItem::Add(_))))
+                {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        "Add player list contains a missing or non-Add record",
+                    ));
+                }
+                if self.verified.as_ref().map(Vec::len) != Some(records_count) {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        "Add player list must contain one verified flag per record",
+                    ));
+                }
+            }
+            PlayerRecordsType::Remove => {
+                if !self
+                    .records
+                    .iter()
+                    .all(|record| matches!(record, Some(PlayerRecordsRecordsItem::Remove(_))))
+                {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        "Remove player list contains a missing or non-Remove record",
+                    ));
+                }
+                if self.verified.is_some() {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        "Remove player list must not contain verified flags",
+                    ));
+                }
+            }
+            PlayerRecordsType::Unknown(value) => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    format!("cannot encode unknown player record action {value}"),
+                ));
+            }
+        }
+        Ok(())
+    }
+}
 impl crate::bedrock::codec::BedrockSized for PlayerRecords {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
@@ -18233,32 +18360,22 @@ impl crate::bedrock::codec::BedrockSized for PlayerRecords {
         size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
             self.records_count,
         ));
-        size += {
-            let _len = (&self.records).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.records)
-                .iter()
-                .map(|_item| match _item {
-                    Some(_v) => match _v {
-                        PlayerRecordsRecordsItem::Add(_v) => {
-                            crate::bedrock::codec::BedrockSized::encoded_size(_v)
-                        }
-                        PlayerRecordsRecordsItem::Remove(_v) => {
-                            crate::bedrock::codec::BedrockSized::encoded_size(_v)
-                        }
-                    },
-                    None => 0usize,
-                })
-                .sum::<usize>()
-        };
+        size += (&self.records)
+            .iter()
+            .map(|_item| match _item {
+                Some(_v) => match _v {
+                    PlayerRecordsRecordsItem::Add(_v) => {
+                        crate::bedrock::codec::BedrockSized::encoded_size(_v)
+                    }
+                    PlayerRecordsRecordsItem::Remove(_v) => {
+                        crate::bedrock::codec::BedrockSized::encoded_size(_v)
+                    }
+                },
+                None => 0usize,
+            })
+            .sum::<usize>();
         size += match &self.verified {
-            Some(_v) => {
-                let _len = (_v).len();
-                crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                    _len as i32,
-                )) + (_v).iter().map(|_item| 1usize).sum::<usize>()
-            }
+            Some(_v) => (_v).iter().map(|_item| 1usize).sum::<usize>(),
             None => 0usize,
         };
         size
@@ -18268,10 +18385,9 @@ impl crate::bedrock::codec::BedrockCodec for PlayerRecords {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
+        self.validate_encoding()?;
         self.type_.encode(buf)?;
         crate::bedrock::codec::VarInt(self.records_count).encode(buf)?;
-        let len = self.records.len();
-        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.records {
             if let Some(v) = item {
                 match v {
@@ -18285,8 +18401,6 @@ impl crate::bedrock::codec::BedrockCodec for PlayerRecords {
             }
         }
         if let Some(v) = &self.verified {
-            let len = v.len();
-            crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
             for item in v {
                 (*item).encode(buf)?;
             }
@@ -18305,19 +18419,27 @@ impl crate::bedrock::codec::BedrockCodec for PlayerRecords {
                 (),
             )?
             .0;
+        if records_count < 0 {
+            return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                value: records_count as i64,
+            });
+        }
+        let records_count_len = records_count as usize;
+        if records_count_len > MAX_PLAYER_RECORDS {
+            return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                declared: records_count_len,
+                available: MAX_PLAYER_RECORDS,
+            });
+        }
+        if records_count_len > buf.remaining() {
+            return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                declared: records_count_len,
+                available: buf.remaining(),
+            });
+        }
         let records = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?
-                .0 as i64;
-            if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
-            }
-            let len = raw as usize;
-            let mut tmp_vec = Vec::with_capacity(len);
-            for _ in 0..len {
+            let mut tmp_vec = Vec::with_capacity(records_count_len);
+            for _ in 0..records_count_len {
                 tmp_vec
                     .push(
                         match type_ {
@@ -18351,18 +18473,8 @@ impl crate::bedrock::codec::BedrockCodec for PlayerRecords {
         };
         let verified = match type_ {
             PlayerRecordsType::Add => Some({
-                let raw =
-                    <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?
-                    .0 as i64;
-                if raw < 0 {
-                    return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
-                }
-                let len = raw as usize;
-                let mut tmp_vec = Vec::with_capacity(len);
-                for _ in 0..len {
+                let mut tmp_vec = Vec::with_capacity(records_count_len);
+                for _ in 0..records_count_len {
                     tmp_vec.push(<bool as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
                         (),
@@ -19995,7 +20107,7 @@ pub struct RecipesItemRecipeShaped {
     pub recipe_id: LatinString,
     pub width: i32,
     pub height: i32,
-    pub input: Vec<Vec<RecipeIngredient>>,
+    pub input: Vec<RecipeIngredient>,
     pub output: Vec<ItemLegacy>,
     pub uuid: uuid::Uuid,
     pub block: String,
@@ -20030,23 +20142,10 @@ impl crate::bedrock::codec::BedrockSized for RecipesItemRecipeShaped {
         size += crate::bedrock::codec::BedrockSized::encoded_size(
             &crate::bedrock::codec::ZigZag32(self.height),
         );
-        size += {
-            let _len = (&self.input).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.input)
-                .iter()
-                .map(|_item| {
-                    let _len = (_item).len();
-                    crate::bedrock::codec::BedrockSized::encoded_size(
-                        &crate::bedrock::codec::VarInt(_len as i32),
-                    ) + (_item)
-                        .iter()
-                        .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                        .sum::<usize>()
-                })
-                .sum::<usize>()
-        };
+        size += (&self.input)
+            .iter()
+            .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
+            .sum::<usize>();
         size += {
             let _len = (&self.output).len();
             crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
@@ -20090,14 +20189,23 @@ impl crate::bedrock::codec::BedrockCodec for RecipesItemRecipeShaped {
         buf.put_slice(&bytes);
         crate::bedrock::codec::ZigZag32(self.width).encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.height).encode(buf)?;
-        let len = self.input.len();
-        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
+        let expected_input_len = i64::from(self.width) * i64::from(self.height);
+        if self.width < 0
+            || self.height < 0
+            || usize::try_from(expected_input_len).ok() != Some(self.input.len())
+        {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!(
+                    "shaped recipe input length {} does not match {}x{}",
+                    self.input.len(),
+                    self.width,
+                    self.height
+                ),
+            ));
+        }
         for item in &self.input {
-            let len = item.len();
-            crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
-            for item in item {
-                item.encode(buf)?;
-            }
+            item.encode(buf)?;
         }
         let len = self.output.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
@@ -20158,43 +20266,34 @@ impl crate::bedrock::codec::BedrockCodec for RecipesItemRecipeShaped {
             )?
             .0;
         let input = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?
-                .0 as i64;
-            if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+            if width < 0 {
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: i64::from(width),
+                });
             }
-            let len = raw as usize;
+            if height < 0 {
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: i64::from(height),
+                });
+            }
+            let raw = i64::from(width) * i64::from(height);
+            let len = usize::try_from(raw).map_err(|_| {
+                crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                    declared: usize::MAX,
+                    available: buf.remaining(),
+                }
+            })?;
+            if len > buf.remaining() {
+                return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                    declared: len,
+                    available: buf.remaining(),
+                });
+            }
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec
-                    .push({
-                        let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
-                                buf,
-                                (),
-                            )?
-                            .0 as i64;
-                        if raw < 0 {
-                            return Err(crate::bedrock::error::DecodeError::NegativeLength {
-                                value: raw,
-                            });
-                        }
-                        let len = raw as usize;
-                        let mut tmp_vec = Vec::with_capacity(len);
-                        for _ in 0..len {
-                            tmp_vec
-                                .push(
-                                    <RecipeIngredient as crate::bedrock::codec::BedrockCodec>::decode(
-                                        buf,
-                                        (),
-                                    )?,
-                                );
-                        }
-                        tmp_vec
-                    });
+                tmp_vec.push(
+                    <RecipeIngredient as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
+                );
             }
             tmp_vec
         };
@@ -24347,6 +24446,11 @@ impl crate::bedrock::codec::BedrockCodec for SubChunkEntryWithCachingItem {
                         });
                     }
                     let len = raw as usize;
+                    crate::proto::validate_collection_len(
+                        len,
+                        crate::proto::MAX_PACKET_BYTE_ARRAY_BYTES,
+                        buf.remaining(),
+                    )?;
                     let mut tmp_vec = Vec::with_capacity(len);
                     for _ in 0..len {
                         tmp_vec.push(<u8 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -24558,6 +24662,11 @@ impl crate::bedrock::codec::BedrockCodec for SubChunkEntryWithoutCachingItem {
                     return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
                 }
                 let len = raw as usize;
+                crate::proto::validate_collection_len(
+                    len,
+                    crate::proto::MAX_PACKET_BYTE_ARRAY_BYTES,
+                    buf.remaining(),
+                )?;
                 let mut tmp_vec = Vec::with_capacity(len);
                 for _ in 0..len {
                     tmp_vec.push(<u8 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -30286,6 +30395,11 @@ impl crate::bedrock::codec::BedrockCodec for LevelChunkPacketBlobs {
                 return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
             }
             let len = raw as usize;
+            crate::proto::validate_collection_len(
+                len,
+                crate::proto::MAX_WORLD_COLLECTION_ELEMENTS,
+                buf.remaining() / 8,
+            )?;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec.push(

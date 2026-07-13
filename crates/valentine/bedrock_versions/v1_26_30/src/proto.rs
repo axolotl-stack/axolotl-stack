@@ -8,6 +8,33 @@
 #![allow(clippy::all)]
 use crate::types::*;
 use bytes::Buf;
+// Match the pinned gophertunnel decoder's maximum generic slice length.
+pub(crate) const MAX_LOGIN_COLLECTION_ELEMENTS: usize = 4096;
+pub(crate) const MAX_SUB_CHUNK_ENTRIES: usize = 256;
+pub(crate) const MAX_WORLD_BLOCK_UPDATES: usize = 4096;
+pub(crate) const MAX_PACKET_BYTE_ARRAY_BYTES: usize = 16 * 1024 * 1024;
+pub(crate) const MAX_WORLD_COLLECTION_ELEMENTS: usize = 4096;
+pub(crate) const MAX_DIMENSION_DEFINITIONS: usize = 64;
+
+pub(crate) fn validate_collection_len(
+    len: usize,
+    max: usize,
+    remaining: usize,
+) -> Result<(), crate::bedrock::error::DecodeError> {
+    if len > max {
+        return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+            declared: len,
+            available: max,
+        });
+    }
+    if len > remaining {
+        return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+            declared: len,
+            available: remaining,
+        });
+    }
+    Ok(())
+}
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct LoginPacket {
     pub protocol_version: i32,
@@ -298,6 +325,18 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePacksInfoPacket {
                     return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
                 }
                 let len = raw as usize;
+                if len > MAX_LOGIN_COLLECTION_ELEMENTS {
+                    return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                        declared: len,
+                        available: MAX_LOGIN_COLLECTION_ELEMENTS,
+                    });
+                }
+                if len > buf.remaining() {
+                    return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                        declared: len,
+                        available: buf.remaining(),
+                    });
+                }
                 let mut tmp_vec = Vec::with_capacity(len);
                 for _ in 0..len {
                     tmp_vec.push(
@@ -403,6 +442,18 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackStackPacket {
                     return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
                 }
                 let len = raw as usize;
+                if len > MAX_LOGIN_COLLECTION_ELEMENTS {
+                    return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                        declared: len,
+                        available: MAX_LOGIN_COLLECTION_ELEMENTS,
+                    });
+                }
+                if len > buf.remaining() {
+                    return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                        declared: len,
+                        available: buf.remaining(),
+                    });
+                }
                 let mut tmp_vec = Vec::with_capacity(len);
                 for _ in 0..len {
                     tmp_vec
@@ -450,6 +501,18 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackStackPacket {
                     return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
                 }
                 let len = raw as usize;
+                if len > MAX_LOGIN_COLLECTION_ELEMENTS {
+                    return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                        declared: len,
+                        available: MAX_LOGIN_COLLECTION_ELEMENTS,
+                    });
+                }
+                if len > buf.remaining() {
+                    return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                        declared: len,
+                        available: buf.remaining(),
+                    });
+                }
                 let mut tmp_vec = Vec::with_capacity(len);
                 for _ in 0..len {
                     tmp_vec.push(<Experiment as crate::bedrock::codec::BedrockCodec>::decode(
@@ -1460,6 +1523,18 @@ impl crate::bedrock::codec::BedrockCodec for StartGamePacket {
                 return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
             }
             let len = raw as usize;
+            if len > MAX_LOGIN_COLLECTION_ELEMENTS {
+                return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                    declared: len,
+                    available: MAX_LOGIN_COLLECTION_ELEMENTS,
+                });
+            }
+            if len > buf.remaining() {
+                return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                    declared: len,
+                    available: buf.remaining(),
+                });
+            }
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec.push(
@@ -1480,6 +1555,18 @@ impl crate::bedrock::codec::BedrockCodec for StartGamePacket {
                     return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
                 }
                 let len = raw as usize;
+                if len > MAX_LOGIN_COLLECTION_ELEMENTS {
+                    return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                        declared: len,
+                        available: MAX_LOGIN_COLLECTION_ELEMENTS,
+                    });
+                }
+                if len > buf.remaining() {
+                    return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                        declared: len,
+                        available: buf.remaining(),
+                    });
+                }
                 let mut tmp_vec = Vec::with_capacity(len);
                 for _ in 0..len {
                     tmp_vec.push(<Experiment as crate::bedrock::codec::BedrockCodec>::decode(
@@ -1656,6 +1743,18 @@ impl crate::bedrock::codec::BedrockCodec for StartGamePacket {
                     return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
                 }
                 let len = raw as usize;
+                if len > MAX_LOGIN_COLLECTION_ELEMENTS {
+                    return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                        declared: len,
+                        available: MAX_LOGIN_COLLECTION_ELEMENTS,
+                    });
+                }
+                if len > buf.remaining() {
+                    return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                        declared: len,
+                        available: buf.remaining(),
+                    });
+                }
                 let mut tmp_vec = Vec::with_capacity(len);
                 for _ in 0..len {
                     tmp_vec.push(
@@ -2769,32 +2868,28 @@ impl crate::bedrock::codec::BedrockCodec for MoveEntityPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct MovePlayerPacket {
-    pub runtime_id: i32,
+    pub runtime_id: u64,
     pub position: Vec3F,
     pub pitch: f32,
     pub yaw: f32,
     pub head_yaw: f32,
     pub mode: MovePlayerPacketMode,
     pub on_ground: bool,
-    pub ridden_runtime_id: i32,
+    pub ridden_runtime_id: u64,
     pub teleport: Option<MovePlayerPacketTeleport>,
     pub tick: i64,
 }
 impl crate::bedrock::codec::BedrockSized for MovePlayerPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-            self.runtime_id,
-        ));
+        size += crate::protocol::wire::var_u64_len(self.runtime_id);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.position);
         size += 4usize;
         size += 4usize;
         size += 4usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.mode);
         size += 1usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-            self.ridden_runtime_id,
-        ));
+        size += crate::protocol::wire::var_u64_len(self.ridden_runtime_id);
         size += match &self.teleport {
             Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
             None => 0usize,
@@ -2809,14 +2904,14 @@ impl crate::bedrock::codec::BedrockCodec for MovePlayerPacket {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        crate::bedrock::codec::VarInt(self.runtime_id).encode(buf)?;
+        crate::protocol::wire::write_var_u64(buf, self.runtime_id);
         self.position.encode(buf)?;
         crate::bedrock::codec::F32LE(self.pitch).encode(buf)?;
         crate::bedrock::codec::F32LE(self.yaw).encode(buf)?;
         crate::bedrock::codec::F32LE(self.head_yaw).encode(buf)?;
         self.mode.encode(buf)?;
         self.on_ground.encode(buf)?;
-        crate::bedrock::codec::VarInt(self.ridden_runtime_id).encode(buf)?;
+        crate::protocol::wire::write_var_u64(buf, self.ridden_runtime_id);
         if let Some(v) = &self.teleport {
             v.encode(buf)?;
         }
@@ -2828,12 +2923,7 @@ impl crate::bedrock::codec::BedrockCodec for MovePlayerPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let runtime_id =
-            <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
+        let runtime_id = crate::protocol::wire::read_var_u64(buf)?;
         let position = <Vec3F as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let pitch =
             <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
@@ -2846,12 +2936,7 @@ impl crate::bedrock::codec::BedrockCodec for MovePlayerPacket {
                 .0;
         let mode = <MovePlayerPacketMode as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let on_ground = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let ridden_runtime_id =
-            <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
+        let ridden_runtime_id = crate::protocol::wire::read_var_u64(buf)?;
         let teleport = match mode {
             MovePlayerPacketMode::Teleport => Some(
                 <MovePlayerPacketTeleport as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
@@ -5488,6 +5573,7 @@ impl crate::bedrock::codec::BedrockCodec for LevelChunkPacket {
                     return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
                 }
                 let len = raw as usize;
+                validate_collection_len(len, MAX_PACKET_BYTE_ARRAY_BYTES, buf.remaining())?;
                 let mut tmp_vec = Vec::with_capacity(len);
                 for _ in 0..len {
                     tmp_vec.push(<u8 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -6425,7 +6511,6 @@ impl crate::bedrock::codec::BedrockCodec for ShowCreditsPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct AvailableCommandsPacket {
-    pub values_len: i32,
     pub enum_values: Vec<String>,
     pub chained_subcommand_values: Vec<String>,
     pub suffixes: Vec<String>,
@@ -6438,9 +6523,6 @@ pub struct AvailableCommandsPacket {
 impl crate::bedrock::codec::BedrockSized for AvailableCommandsPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-            self.values_len,
-        ));
         size += {
             let _len = (&self.enum_values).len();
             crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
@@ -6535,9 +6617,22 @@ impl crate::bedrock::codec::BedrockCodec for AvailableCommandsPacket {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        crate::bedrock::codec::VarInt(self.values_len).encode(buf)?;
         let len = self.enum_values.len();
-        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
+        if len > MAX_LOGIN_COLLECTION_ELEMENTS {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!(
+                    "AvailableCommands enum value count {len} exceeds maximum {MAX_LOGIN_COLLECTION_ELEMENTS}"
+                ),
+            ));
+        }
+        let len = i32::try_from(len).map_err(|_| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "AvailableCommands enum value count does not fit VarUInt32",
+            )
+        })?;
+        crate::bedrock::codec::VarInt(len).encode(buf)?;
         for item in &self.enum_values {
             let bytes = (item).as_bytes();
             let len = bytes.len();
@@ -6592,12 +6687,6 @@ impl crate::bedrock::codec::BedrockCodec for AvailableCommandsPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let values_len =
-            <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?
-            .0;
         let enum_values = {
             let raw =
                 <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
@@ -6609,7 +6698,14 @@ impl crate::bedrock::codec::BedrockCodec for AvailableCommandsPacket {
                 return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
             }
             let len = raw as usize;
-            let mut tmp_vec = Vec::with_capacity(len);
+            validate_collection_len(len, MAX_LOGIN_COLLECTION_ELEMENTS, buf.remaining())?;
+            let mut tmp_vec = Vec::new();
+            tmp_vec.try_reserve_exact(len).map_err(|_| {
+                crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                    declared: len,
+                    available: 0,
+                }
+            })?;
             for _ in 0..len {
                 tmp_vec
                     .push({
@@ -6831,7 +6927,6 @@ impl crate::bedrock::codec::BedrockCodec for AvailableCommandsPacket {
             tmp_vec
         };
         Ok(Self {
-            values_len,
             enum_values,
             chained_subcommand_values,
             suffixes,
@@ -10810,6 +10905,7 @@ impl crate::bedrock::codec::BedrockCodec for NetworkChunkPublisherUpdatePacket {
                     (),
                 )?
                 .0) as usize;
+            validate_collection_len(len, MAX_WORLD_COLLECTION_ELEMENTS, buf.remaining())?;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec
@@ -10898,6 +10994,18 @@ impl crate::bedrock::codec::BedrockCodec for BiomeDefinitionListPacket {
                 return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
             }
             let len = raw as usize;
+            if len > MAX_LOGIN_COLLECTION_ELEMENTS {
+                return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                    declared: len,
+                    available: MAX_LOGIN_COLLECTION_ELEMENTS,
+                });
+            }
+            if len > buf.remaining() {
+                return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                    declared: len,
+                    available: buf.remaining(),
+                });
+            }
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec.push(
@@ -10917,6 +11025,18 @@ impl crate::bedrock::codec::BedrockCodec for BiomeDefinitionListPacket {
                 return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
             }
             let len = raw as usize;
+            if len > MAX_LOGIN_COLLECTION_ELEMENTS {
+                return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                    declared: len,
+                    available: MAX_LOGIN_COLLECTION_ELEMENTS,
+                });
+            }
+            if len > buf.remaining() {
+                return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                    declared: len,
+                    available: buf.remaining(),
+                });
+            }
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec
@@ -12673,6 +12793,18 @@ impl crate::bedrock::codec::BedrockCodec for CreativeContentPacket {
                 return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
             }
             let len = raw as usize;
+            if len > MAX_LOGIN_COLLECTION_ELEMENTS {
+                return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                    declared: len,
+                    available: MAX_LOGIN_COLLECTION_ELEMENTS,
+                });
+            }
+            if len > buf.remaining() {
+                return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                    declared: len,
+                    available: buf.remaining(),
+                });
+            }
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec
@@ -12698,6 +12830,18 @@ impl crate::bedrock::codec::BedrockCodec for CreativeContentPacket {
                 return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
             }
             let len = raw as usize;
+            if len > MAX_LOGIN_COLLECTION_ELEMENTS {
+                return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                    declared: len,
+                    available: MAX_LOGIN_COLLECTION_ELEMENTS,
+                });
+            }
+            if len > buf.remaining() {
+                return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                    declared: len,
+                    available: buf.remaining(),
+                });
+            }
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec
@@ -13939,6 +14083,18 @@ impl crate::bedrock::codec::BedrockCodec for ItemRegistryPacket {
                     return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
                 }
                 let len = raw as usize;
+                if len > MAX_LOGIN_COLLECTION_ELEMENTS {
+                    return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                        declared: len,
+                        available: MAX_LOGIN_COLLECTION_ELEMENTS,
+                    });
+                }
+                if len > buf.remaining() {
+                    return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                        declared: len,
+                        available: buf.remaining(),
+                    });
+                }
                 let mut tmp_vec = Vec::with_capacity(len);
                 for _ in 0..len {
                     tmp_vec.push(
@@ -14702,6 +14858,7 @@ impl crate::bedrock::codec::BedrockCodec for UpdateSubchunkBlocksPacket {
                 return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
             }
             let len = raw as usize;
+            validate_collection_len(len, MAX_WORLD_BLOCK_UPDATES, buf.remaining())?;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec
@@ -14720,6 +14877,7 @@ impl crate::bedrock::codec::BedrockCodec for UpdateSubchunkBlocksPacket {
                 return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
             }
             let len = raw as usize;
+            validate_collection_len(len, MAX_WORLD_BLOCK_UPDATES, buf.remaining())?;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec
@@ -14855,6 +15013,7 @@ impl crate::bedrock::codec::BedrockCodec for SubchunkPacket {
                             (),
                         )?
                         .0) as usize;
+                    validate_collection_len(len, MAX_SUB_CHUNK_ENTRIES, buf.remaining())?;
                     let mut tmp_vec = Vec::with_capacity(len);
                     for _ in 0..len {
                         tmp_vec
@@ -14877,6 +15036,7 @@ impl crate::bedrock::codec::BedrockCodec for SubchunkPacket {
                             (),
                         )?
                         .0) as usize;
+                    validate_collection_len(len, MAX_SUB_CHUNK_ENTRIES, buf.remaining())?;
                     let mut tmp_vec = Vec::with_capacity(len);
                     for _ in 0..len {
                         tmp_vec
@@ -15253,6 +15413,7 @@ impl crate::bedrock::codec::BedrockCodec for DimensionDataPacket {
                 return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
             }
             let len = raw as usize;
+            validate_collection_len(len, MAX_DIMENSION_DEFINITIONS, buf.remaining())?;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec
