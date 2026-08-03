@@ -1,0 +1,101 @@
+name: Update Prismarine data
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+  repository_dispatch:
+    types: [prismarine-data-updated]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: prismarine-data-update
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out Axolotl
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: false
+
+      - name: Initialize public data submodules
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git config --global --add url."https://github.com/".insteadOf "ssh://git@github.com/"
+          git submodule sync --recursive
+          git submodule update --init --recursive \
+            crates/valentine_gen/minecraft-data \
+            crates/valentine_gen/bedrock-data
+
+      - name: Check for Prismarine updates
+        id: prismarine
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          data_dir="crates/valentine_gen/minecraft-data"
+          repo_url="https://github.com/PrismarineJS/minecraft-data.git"
+          current="$(git -C "$data_dir" rev-parse HEAD)"
+          default_branch="$(git ls-remote --symref "$repo_url" HEAD \
+            | awk '/^ref:/ {sub("refs/heads/", "", $2); print $2; exit}')"
+
+          if [[ -z "$default_branch" ]]; then
+            echo "Could not determine Prismarine's default branch" >&2
+            exit 1
+          fi
+
+          git -C "$data_dir" remote set-url origin "$repo_url"
+          git -C "$data_dir" fetch --depth=1 origin "$default_branch"
+          git -C "$data_dir" checkout --detach FETCH_HEAD
+          latest="$(git -C "$data_dir" rev-parse HEAD)"
+
+          echo "current=$current"
+          echo "latest=$latest"
+          if [[ "$current" == "$latest" ]]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            git -C "$data_dir" checkout --detach "$current"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Rust
+        if: steps.prismarine.outputs.changed == 'true'
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2025-12-25
+
+      - name: Cache Cargo dependencies
+        if: steps.prismarine.outputs.changed == 'true'
+        uses: Swatinem/rust-cache@v2
+
+      - name: Regenerate the latest Bedrock data
+        if: steps.prismarine.outputs.changed == 'true'
+        run: cargo run -p valentine_gen -- --latest
+
+      - name: Open generated-data pull request
+        if: steps.prismarine.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: main
+          branch: automation/prismarine-data-update
+          delete-branch: true
+          add-paths: |
+            crates/valentine_gen/minecraft-data
+            crates/valentine
+          commit-message: "chore(data): update Prismarine data and regenerate Valentine"
+          title: "chore(data): update Prismarine data and regenerate Valentine"
+          body: |
+            This automated PR advances the PrismarineJS `minecraft-data` submodule and regenerates the latest Valentine Bedrock data.
+
+            The workflow polls Prismarine daily and can also be triggered manually or through the `prismarine-data-updated` repository-dispatch event.
+
+            Please review generated protocol and data changes before merging.
