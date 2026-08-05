@@ -1,0 +1,139 @@
+{
+    "source": "https://github.com/TwistedAsylumMC/bpd-fixer/tree/824b89b8602008ea99401b507059fc2f45e08a40/src/overrides",
+    "operations": [
+        {
+            "op": "add_document",
+            "file": "NetworkItemStackDescriptor.json",
+            "document": {
+                "title": "NetworkItemStackDescriptor",
+                "type": "object",
+                "properties": {
+                    "Id": {"type": "integer", "x-underlying-type": "int16", "x-ordinal-index": 0},
+                    "Stack size": {"type": "integer", "x-underlying-type": "uint16", "x-ordinal-index": 1},
+                    "Aux value": {"type": "integer", "x-underlying-type": "uint32", "x-serialization-options": ["Compression"], "x-ordinal-index": 2},
+                    "Net Id Variant": {"type": "integer", "x-underlying-type": "int32", "x-serialization-options": ["Compression"], "x-ordinal-index": 3},
+                    "Block Runtime Id": {"type": "integer", "x-underlying-type": "uint32", "x-serialization-options": ["Compression"], "x-ordinal-index": 4},
+                    "User Data Buffer": {"type": "string", "x-ordinal-index": 5}
+                },
+                "required": ["Aux value", "Block Runtime Id", "Id", "Stack size", "User Data Buffer"]
+            },
+            "why": "r/26_u3 leaves NetworkItemStackDescriptor as a title-only local definition; restore the published six-field cerealizer shape so inventory packets do not silently become unit types. The corresponding later published schema is https://github.com/TwistedAsylumMC/bpd-fixer/blob/824b89b8602008ea99401b507059fc2f45e08a40/output/json/cerealizer_NetworkItemStackDescriptor___SerializedData.json."
+        },
+        {
+            "op": "add_document",
+            "file": "MolangVariableMap.json",
+            "document": {
+                "title": "MolangVariableMap",
+                "type": "string"
+            },
+            "why": "r/26_u3 leaves MolangVariableMap as a title-only local definition; the established packet wire shape is a length-prefixed JSON string. See https://github.com/TwistedAsylumMC/bpd-fixer/blob/824b89b8602008ea99401b507059fc2f45e08a40/output/json/MolangVariableMap.json."
+        },
+        {
+            "op": "replace_ref",
+            "from": "#/definitions/1987673147",
+            "to": "NetworkItemStackDescriptor.json",
+            "why": "Route r/26_u3's title-only NetworkItemStackDescriptor references to the documented in-memory compatibility schema above."
+        },
+        {
+            "op": "replace_ref",
+            "from": "#/definitions/511743889",
+            "to": "MolangVariableMap.json",
+            "why": "Route r/26_u3's title-only MolangVariableMap reference to the documented in-memory string schema above."
+        },
+        {
+            "op": "remove_required",
+            "schema_title": "FullContainerName",
+            "field": "Dynamic ID",
+            "why": "bpd-fixer: Dynamic ID is present only for dynamic containers and is optional on the wire."
+        },
+        {
+            "op": "patch_property",
+            "schema": "PlayerSkinPacket.json",
+            "field": "TrustedSkinFlag",
+            "patch": {
+                "x-underlying-type": "uint8"
+            },
+            "why": "Mojang's r/26_u3 schema marks this ordinal enum's underlying type as object even though the published enum values are indexed 0..2; use the byte-sized ordinal representation until the schema publishes a scalar underlying type. See https://github.com/Mojang/bedrock-protocol-docs/blob/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json/PlayerSkinPacket.json."
+        },
+        {
+      "op": "remove_required",
+            "schema_title": "PlayerAuthInputPacketPayload",
+      "field": "Input Data",
+      "why": "bpd-fixer: Input Data is optional despite being listed as required by the upstream schema."
+    },
+    {
+      "op": "add_required",
+      "schema_title": "SetScorePacketPayload",
+      "field": "Score Info",
+      "why": "bpd-fixer: Score Info is required on the wire although the upstream schema marks it optional."
+    },
+    {
+      "op": "add_enum_values",
+      "schema_title": "ItemStackRequestActionType",
+      "values": ["PlaceInItemContainer", "TakeFromItemContainer"],
+      "why": "bpd-fixer: deprecated legacy action values 7 and 8 are still serialized by clients."
+    },
+    {
+      "op": "patch_property",
+      "schema_title": "PlayerListAddEntry",
+      "field": "Action",
+      "patch": {"enum": ["Add", "Remove"]},
+      "why": "bpd-fixer: the discriminator can carry either PlayerList action, not only the local variant."
+    },
+    {
+      "op": "patch_property",
+      "schema_title": "PlayerListRemoveEntry",
+      "field": "Action",
+      "patch": {"enum": ["Add", "Remove"]},
+      "why": "bpd-fixer: the discriminator can carry either PlayerList action, not only the local variant."
+    },
+    {
+      "op": "double_optional",
+      "schema_title": "ItemStackResponseInfo",
+      "field": "Containers",
+      "why": "bpd-fixer: Containers uses the client double-write optional presence header."
+    },
+    {
+      "op": "double_optional",
+      "schema_title": "ItemStackResponseSlotInfo",
+      "field": "Item Stack Net Id",
+      "why": "bpd-fixer: Item Stack Net Id uses the client double-write optional presence header."
+    },
+    {
+      "op": "double_optional",
+      "schema_title": "PlayerAuthInputPacketPayload",
+      "field": "Item Use Transaction",
+      "why": "bpd-fixer: this optional payload is written with two presence bytes by the client."
+    },
+    {
+      "op": "double_optional",
+      "schema_title": "PlayerAuthInputPacketPayload",
+      "field": "Item Stack Request",
+      "why": "bpd-fixer: this optional payload is written with two presence bytes by the client."
+    },
+    {
+      "op": "double_optional",
+      "schema_title": "PlayerAuthInputPacketPayload",
+      "field": "Player Block Actions",
+      "why": "bpd-fixer: this optional payload is written with two presence bytes by the client."
+    },
+    {
+      "op": "double_optional",
+      "schema_title": "PlayerAuthInputPacketPayload",
+      "field": "Vehicle Rotation",
+      "why": "bpd-fixer: this optional payload is written with two presence bytes by the client."
+    },
+    {
+      "op": "double_optional",
+      "schema_title": "PlayerAuthInputPacketPayload",
+      "field": "Client Predicted Vehicle",
+      "why": "bpd-fixer: this optional payload is written with two presence bytes by the client."
+    },
+    {
+      "op": "add_serialization_option",
+      "selector": "oneOf_with_control",
+      "option": "Compression",
+      "why": "bpd-fixer global rule: Mojang discriminated oneOf control values are varint-compressed on the wire."
+    }
+  ]
+}
