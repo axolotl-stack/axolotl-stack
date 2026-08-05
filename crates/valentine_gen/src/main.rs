@@ -104,7 +104,7 @@ OTHER OPTIONS:
   --bedrock-data <DIR>    Path to a pmmp/BedrockData checkout (defaults to ./bedrock-data)
   --mojang-docs <DIR>     Path to a bedrock-protocol-docs checkout (defaults to ./bedrock-protocol-docs)
   --overrides <DIR>       Mojang correction JSON directory (defaults to ./overrides)
-  --output-dir <DIR>      Valentine output root (defaults to ../valentine)
+  --output-dir <DIR>      Valentine output root (Prismarine defaults to ../valentine; required for Mojang)
   --log <FILTER>          tracing filter (default: "info"), e.g. "debug" or "valentine_gen=debug"
   -h, --help              Print help and exit
 "#
@@ -520,21 +520,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map(|p| if p.is_relative() { root.join(p) } else { p })
         .unwrap_or_else(|| root.join("bedrock-data"));
 
-    let valentine_root = args
-        .output_dir
-        .clone()
-        .map(|path| {
-            if path.is_relative() {
-                root.join(path)
-            } else {
-                path
-            }
-        })
-        .unwrap_or_else(|| {
-            root.parent()
-                .expect("CARGO_MANIFEST_DIR has no parent directory")
-                .join("valentine")
-        });
+    let valentine_root = if let Some(path) = args.output_dir.clone() {
+        if path.is_relative() {
+            root.join(path)
+        } else {
+            path
+        }
+    } else if args.source == ProtocolSource::Mojang {
+        return Err(
+            "--source mojang requires an explicit --output-dir; generation is intentionally not allowed to overwrite the checked-in Valentine surface"
+                .into(),
+        );
+    } else {
+        root.parent()
+            .ok_or("CARGO_MANIFEST_DIR has no parent directory")?
+            .join("valentine")
+    };
 
     if args.source == ProtocolSource::Mojang {
         return generate_mojang(&args, root, &valentine_root);
@@ -1202,4 +1203,101 @@ valentine_bedrock_core = {{ path = "../../bedrock_core" }}
     cargo_file.write_all(cargo_toml.as_bytes())?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod generated_crate_tests {
+    use super::{CliArgs, ProtocolSource, generate_mojang};
+    use std::fs;
+    use std::path::Path;
+    use std::process::Command;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn copy_directory(source: &Path, destination: &Path) -> std::io::Result<()> {
+        fs::create_dir_all(destination)?;
+        for entry in fs::read_dir(source)? {
+            let entry = entry?;
+            let source_path = entry.path();
+            let destination_path = destination.join(entry.file_name());
+            if source_path.is_dir() {
+                copy_directory(&source_path, &destination_path)?;
+            } else {
+                fs::copy(source_path, destination_path)?;
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn real_mojang_generation_passes_cargo_check_in_a_temp_crate() {
+        let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let docs = manifest_dir.join("bedrock-protocol-docs");
+        assert!(
+            docs.join("json").is_dir(),
+            "the pinned bedrock-protocol-docs submodule is required for this gate"
+        );
+
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock before UNIX_EPOCH")
+            .as_nanos();
+        let output = std::env::temp_dir().join(format!(
+            "valentine-gen-cargo-check-{}-{nonce}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&output);
+        fs::create_dir_all(&output).expect("create generated crate directory");
+
+        let args = CliArgs {
+            source: ProtocolSource::Mojang,
+            versions: Vec::new(),
+            all: false,
+            latest: false,
+            list_versions: false,
+            log_filter: "error".to_string(),
+            minecraft_data: None,
+            bedrock_data: None,
+            mojang_docs: None,
+            overrides: None,
+            output_dir: Some(output.clone()),
+            gen_proto: true,
+            gen_items: false,
+            gen_blocks: false,
+            gen_block_states: false,
+            gen_entities: false,
+            gen_biomes: false,
+        };
+        generate_mojang(&args, manifest_dir, &output).expect("generate Mojang temp crate");
+
+        let core_source = manifest_dir
+            .parent()
+            .expect("valentine_gen has a crate parent")
+            .join("valentine/bedrock_core");
+        copy_directory(&core_source, &output.join("bedrock_core"))
+            .expect("copy bedrock_core into generated temp crate");
+        fs::write(
+            output.join("Cargo.toml"),
+            "[workspace]\nresolver = \"2\"\nmembers = [\"bedrock_core\", \"bedrock_versions/v1_26_30\"]\n[workspace.package]\nedition = \"2024\"\n[workspace.dependencies]\nbytes = \"1\"\nuuid = \"1.8.0\"\n",
+        )
+        .expect("write temp workspace manifest");
+
+        let cargo = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
+        let check = Command::new(cargo)
+            .args([
+                "check",
+                "--offline",
+                "--manifest-path",
+                output.join("Cargo.toml").to_str().expect("UTF-8 temp path"),
+            ])
+            .env("RUSTC_WRAPPER", "")
+            .env("CARGO_NET_OFFLINE", "true")
+            .output()
+            .expect("run cargo check on generated temp crate");
+        let _ = fs::remove_dir_all(&output);
+        assert!(
+            check.status.success(),
+            "cargo check failed for generated crate:\n{}",
+            String::from_utf8_lossy(&check.stderr)
+        );
+    }
 }

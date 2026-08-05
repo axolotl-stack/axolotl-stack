@@ -454,7 +454,12 @@ pub fn define_type(
         ctx.argful_types.insert(safe_name_str.clone());
     }
 
-    let group = get_group_name(&safe_name_str);
+    // Only packet containers belong in proto.rs. Inline/container helper types
+    // are emitted from define_type and must remain in types.rs even when their
+    // generated name happens to end in `Packet` (for example
+    // `Vec3PrimitiveShapesPacket`). Keeping that distinction here prevents a
+    // type definition from being visible only through the packet module.
+    let group = "types".to_string();
     let fingerprint = compute_fingerprint(&safe_name_str, t, ctx);
 
     // Only attempt deduplication if there are NO arguments.
@@ -1145,7 +1150,10 @@ pub fn define_container(
         return Ok(());
     }
 
-    let group = get_group_name(&safe_name_str);
+    // Packet bodies are the only definitions emitted into proto.rs. Helper
+    // types reached while defining a packet are emitted by define_type and
+    // therefore use the `types` group above.
+    let group = "proto".to_string();
     let fingerprint = compute_packet_fingerprint(&safe_name_str, signature);
 
     if let Some(canonical) = ctx.global_registry.get_packet(&fingerprint).cloned() {

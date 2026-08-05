@@ -56,79 +56,25 @@
             "why": "Mojang's r/26_u3 schema marks this ordinal enum's underlying type as object even though the published enum values are indexed 0..2; use the byte-sized ordinal representation until the schema publishes a scalar underlying type. See https://github.com/Mojang/bedrock-protocol-docs/blob/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json/PlayerSkinPacket.json."
         },
         {
-      "op": "remove_required",
-            "schema_title": "PlayerAuthInputPacketPayload",
-      "field": "Input Data",
-      "why": "bpd-fixer: Input Data is optional despite being listed as required by the upstream schema."
-    },
-    {
-      "op": "add_required",
-      "schema_title": "SetScorePacketPayload",
-      "field": "Score Info",
-      "why": "bpd-fixer: Score Info is required on the wire although the upstream schema marks it optional."
-    },
-    {
-      "op": "add_enum_values",
-      "schema_title": "ItemStackRequestActionType",
-      "values": ["PlaceInItemContainer", "TakeFromItemContainer"],
-      "why": "bpd-fixer: deprecated legacy action values 7 and 8 are still serialized by clients."
-    },
-    {
-      "op": "patch_property",
-      "schema_title": "PlayerListAddEntry",
-      "field": "Action",
-      "patch": {"enum": ["Add", "Remove"]},
-      "why": "bpd-fixer: the discriminator can carry either PlayerList action, not only the local variant."
-    },
-    {
-      "op": "patch_property",
-      "schema_title": "PlayerListRemoveEntry",
-      "field": "Action",
-      "patch": {"enum": ["Add", "Remove"]},
-      "why": "bpd-fixer: the discriminator can carry either PlayerList action, not only the local variant."
-    },
-    {
-      "op": "double_optional",
-      "schema_title": "ItemStackResponseInfo",
-      "field": "Containers",
-      "why": "bpd-fixer: Containers uses the client double-write optional presence header."
-    },
-    {
-      "op": "double_optional",
-      "schema_title": "ItemStackResponseSlotInfo",
-      "field": "Item Stack Net Id",
-      "why": "bpd-fixer: Item Stack Net Id uses the client double-write optional presence header."
-    },
-    {
-      "op": "double_optional",
-      "schema_title": "PlayerAuthInputPacketPayload",
-      "field": "Item Use Transaction",
-      "why": "bpd-fixer: this optional payload is written with two presence bytes by the client."
-    },
-    {
-      "op": "double_optional",
-      "schema_title": "PlayerAuthInputPacketPayload",
-      "field": "Item Stack Request",
-      "why": "bpd-fixer: this optional payload is written with two presence bytes by the client."
-    },
-    {
-      "op": "double_optional",
-      "schema_title": "PlayerAuthInputPacketPayload",
-      "field": "Player Block Actions",
-      "why": "bpd-fixer: this optional payload is written with two presence bytes by the client."
-    },
-    {
-      "op": "double_optional",
-      "schema_title": "PlayerAuthInputPacketPayload",
-      "field": "Vehicle Rotation",
-      "why": "bpd-fixer: this optional payload is written with two presence bytes by the client."
-    },
-    {
-      "op": "double_optional",
-      "schema_title": "PlayerAuthInputPacketPayload",
-      "field": "Client Predicted Vehicle",
-      "why": "bpd-fixer: this optional payload is written with two presence bytes by the client."
-    },
+            "op": "patch_property",
+            "schema": "AnimatePacket.json",
+            "field": "Action",
+            "patch": {"x-enum-values": [0, 1, 3, 4, 5]},
+            "why": "The published Prismarine wire enum retains an unnamed value 2 between Swing and WakeUp; Mojang's string list omits that legacy name, so an explicit pinned mapping prevents array-index guessing. See https://github.com/axolotl-stack/axolotl-stack/blob/feat/mojang-docs-protocol-frontend/crates/valentine/bedrock_versions/v1_26_30/src/types.rs."
+        },
+        {
+            "op": "select_one_of_branch",
+            "schema_title": "Color255RGBA",
+            "index": 1,
+            "why": "Color255RGBA is an untagged representational alternation in r/26_u3; there is no wire discriminator in the schema, so keep generation explicit and loud by selecting the fixed four-int representation until Valentine has an untagged-union IR. See https://github.com/Mojang/bedrock-protocol-docs/blob/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json/ClientboundAttributeLayerSyncPacket.json."
+        },
+        {
+            "op": "patch_property",
+            "schema_title": "Data Store Change",
+            "field": "The New Property Value",
+            "patch": {"x-valentine-allow-void": true},
+            "why": "r/26_u3 publishes this required dynamic Data Store value without a schema or discriminator. Preserve the field position as an explicit temporary void lowering, with a generator warning and a parity TODO, rather than silently dropping a required field. The Prismarine baseline models the missing DataStorePropertyValue family separately. See https://github.com/Mojang/bedrock-protocol-docs/blob/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json/ClientboundDataStorePacket.json."
+        },
     {
       "op": "add_serialization_option",
       "selector": "oneOf_with_control",

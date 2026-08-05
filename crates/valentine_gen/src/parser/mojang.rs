@@ -13,7 +13,7 @@ use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
-use tracing::debug;
+use tracing::{debug, warn};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VersionInfo {
@@ -314,6 +314,7 @@ impl Lowerer {
         &mut self,
         reference: &str,
         current_file: &str,
+        allow_void: bool,
     ) -> Result<Type, Box<dyn std::error::Error>> {
         if let Some(builtin) = builtin_type_for_reference(reference) {
             return Ok(builtin);
@@ -328,6 +329,9 @@ impl Lowerer {
             .map(str::to_owned)
             .unwrap_or_else(|| target_name_from_pointer(&target));
         if is_void_schema(&target_value) {
+            if !allow_void {
+                return Err(format!("Mojang $ref {reference} in {current_file} resolves to an untyped schema; add a correction or model the missing wire type explicitly").into());
+            }
             return Ok(Type::Primitive(Primitive::Void));
         }
         Ok(Type::Reference(self.ensure_named(target, &title)?))
@@ -351,8 +355,18 @@ impl Lowerer {
         hint: &str,
         current_file: &str,
     ) -> Result<Type, Box<dyn std::error::Error>> {
+        self.lower_schema_with_void(schema, hint, current_file, false)
+    }
+
+    fn lower_schema_with_void(
+        &mut self,
+        schema: &Value,
+        hint: &str,
+        current_file: &str,
+        allow_void: bool,
+    ) -> Result<Type, Box<dyn std::error::Error>> {
         if let Some(reference) = schema.get("$ref").and_then(Value::as_str) {
-            return self.lower_ref(reference, current_file);
+            return self.lower_ref(reference, current_file, allow_void);
         }
         if schema.get("oneOf").is_some() {
             let name = self.allocate_anonymous_name(hint);
@@ -362,7 +376,7 @@ impl Lowerer {
         }
         if let Some(all_of) = schema.get("allOf").and_then(Value::as_array) {
             if all_of.len() == 1 {
-                return self.lower_schema(&all_of[0], hint, current_file);
+                return self.lower_schema_with_void(&all_of[0], hint, current_file, allow_void);
             }
             return Err(format!("unsupported multi-branch allOf in {current_file}: {hint}").into());
         }
@@ -389,14 +403,9 @@ impl Lowerer {
                         )
                         .into());
                     }
-                    Ok(Type::Array {
-                        count_type: Box::new(Type::Primitive(Primitive::VarInt)),
-                        inner_type: Box::new(self.lower_schema(
-                            entries,
-                            &format!("{hint}Entry"),
-                            current_file,
-                        )?),
-                    })
+                    let inner_type =
+                        self.lower_schema(entries, &format!("{hint}Entry"), current_file)?;
+                    Ok(self.lower_array_type(schema, inner_type))
                 } else {
                     Ok(Type::Container(Container {
                         name: hint.to_string(),
@@ -407,20 +416,31 @@ impl Lowerer {
             None if schema.get("properties").is_some() => Ok(Type::Container(
                 self.lower_container(schema, hint, current_file)?,
             )),
-            None if is_void_schema(schema) => Ok(Type::Primitive(Primitive::Void)),
+            None if is_void_schema(schema) => {
+                if allow_void {
+                    Ok(Type::Primitive(Primitive::Void))
+                } else if schema
+                    .get("x-valentine-allow-void")
+                    .and_then(Value::as_bool)
+                    == Some(true)
+                {
+                    warn!(
+                        file = current_file,
+                        field = hint,
+                        "Mojang schema explicitly allows an untyped field; lowering it to void is a documented parity gap"
+                    );
+                    Ok(Type::Primitive(Primitive::Void))
+                } else {
+                    Err(format!("untyped Mojang schema in {current_file}: {hint}; add a correction or model the missing wire type explicitly").into())
+                }
+            }
             None => Err(format!("schema {hint} in {current_file} has no type").into()),
             Some("array") => {
                 let items = schema
                     .get("items")
                     .ok_or_else(|| format!("array {hint} in {current_file} has no items"))?;
-                Ok(Type::Array {
-                    count_type: Box::new(Type::Primitive(Primitive::VarInt)),
-                    inner_type: Box::new(self.lower_schema(
-                        items,
-                        &format!("{hint}Item"),
-                        current_file,
-                    )?),
-                })
+                let inner_type = self.lower_schema(items, &format!("{hint}Item"), current_file)?;
+                Ok(self.lower_array_type(schema, inner_type))
             }
             Some("string") => Ok(Type::String {
                 count_type: Box::new(Type::Primitive(Primitive::VarInt)),
@@ -433,6 +453,33 @@ impl Lowerer {
                 "unsupported Mojang JSON Schema type {other} in {current_file}: {hint}"
             )
             .into()),
+        }
+    }
+
+    fn lower_array_type(&self, schema: &Value, inner_type: Type) -> Type {
+        let fixed_size = schema
+            .get("minItems")
+            .and_then(value_as_i64)
+            .zip(schema.get("maxItems").and_then(value_as_i64))
+            .filter(|(min, max)| min >= &0 && min == max)
+            .and_then(|(min, _)| usize::try_from(min).ok());
+        if let Some(size) = fixed_size {
+            return Type::FixedArray {
+                size,
+                inner_type: Box::new(inner_type),
+            };
+        }
+
+        let no_size_compression = serialization_options(schema)
+            .iter()
+            .any(|option| option.eq_ignore_ascii_case("No size compression"));
+        Type::Array {
+            count_type: Box::new(if no_size_compression {
+                Type::Primitive(Primitive::U32LE)
+            } else {
+                Type::Primitive(Primitive::VarInt)
+            }),
+            inner_type: Box::new(inner_type),
         }
     }
 
@@ -459,6 +506,16 @@ impl Lowerer {
             .unwrap_or_default();
 
         let mut names = properties.keys().cloned().collect::<Vec<_>>();
+        for field_name in &names {
+            if properties.get(field_name).and_then(ordinal).is_none() {
+                warn!(
+                    file = current_file,
+                    container = hint,
+                    field = field_name,
+                    "Mojang schema field has no x-ordinal-index; alphabetical fallback is being used"
+                );
+            }
+        }
         names.sort_by(|a, b| {
             let a_ordinal = properties.get(a).and_then(ordinal).unwrap_or(i64::MAX);
             let b_ordinal = properties.get(b).and_then(ordinal).unwrap_or(i64::MAX);
@@ -476,6 +533,19 @@ impl Lowerer {
                 crate::generator::utils::safe_camel_ident(&field_name)
             );
             let mut field_type = self.lower_schema(field_schema, &field_hint, current_file)?;
+            let allow_void = field_schema
+                .get("x-valentine-allow-void")
+                .and_then(Value::as_bool)
+                == Some(true);
+            if required.contains(field_name.as_str())
+                && matches!(field_type, Type::Primitive(Primitive::Void))
+                && !allow_void
+            {
+                return Err(format!(
+                    "required typeless Mojang field {field_name} in {current_file}"
+                )
+                .into());
+            }
             let options = serialization_options(field_schema);
             let presence_count = if options.iter().any(|option| option == "+double-optional") {
                 2
@@ -504,14 +574,37 @@ impl Lowerer {
             .get("enum")
             .and_then(Value::as_array)
             .ok_or("enum schema has no enum array")?;
+        let explicit_numbers = schema
+            .get("x-enum-values")
+            .and_then(Value::as_array)
+            .filter(|numbers| numbers.len() == values.len());
+        let numbers = values
+            .iter()
+            .enumerate()
+            .map(|(index, value)| {
+                value.as_i64().or_else(|| {
+                    explicit_numbers
+                        .and_then(|numbers| numbers.get(index))
+                        .and_then(value_as_i64)
+                })
+            })
+            .collect::<Option<Vec<_>>>();
+        let numbers = numbers.ok_or_else(|| {
+            "Mojang string enum has no explicit wire values; add an x-enum-values correction "
+                .to_string()
+        })?;
         let mut variants = Vec::with_capacity(values.len());
+        let mut used_values = HashSet::new();
         for (index, value) in values.iter().enumerate() {
             let name = value
                 .as_str()
                 .map(str::to_owned)
                 .or_else(|| value.as_i64().map(|number| format!("Value{number}")))
                 .unwrap_or_else(|| format!("Value{index}"));
-            let number = value.as_i64().unwrap_or(index as i64);
+            let number = numbers[index];
+            if !used_values.insert(number) {
+                return Err(format!("Mojang enum contains duplicate wire value {number}").into());
+            }
             variants.push((name, number));
         }
         Ok(Type::Enum {
@@ -533,13 +626,32 @@ impl Lowerer {
         if branches.is_empty() {
             return Err(format!("oneOf in {current_file}: {hint} has no variants").into());
         }
+        if schema.get("x-control-value-type").is_none() {
+            return Err(format!("oneOf in {current_file}: {hint} has no x-control-value-type; add a documented correction for an untagged representation").into());
+        }
         let mut variants = Vec::with_capacity(branches.len());
         let mut used_names = HashSet::new();
+        let mut used_values = HashSet::new();
         for (index, branch) in branches.iter().enumerate() {
             let value = branch
                 .get("x-ordinal-index")
                 .and_then(value_as_i64)
-                .unwrap_or(index as i64);
+                .or_else(|| {
+                    schema
+                        .get("x-control-values")
+                        .and_then(Value::as_array)
+                        .and_then(|values| values.get(index))
+                        .and_then(value_as_i64)
+                })
+                .ok_or_else(|| {
+                    format!("oneOf in {current_file}: {hint} branch {index} has no wire discriminant; add x-ordinal-index or a documented override")
+                })?;
+            if !used_values.insert(value) {
+                return Err(format!(
+                    "oneOf in {current_file}: {hint} repeats wire discriminant {value}"
+                )
+                .into());
+            }
             let branch_name = branch
                 .get("$ref")
                 .and_then(Value::as_str)
@@ -566,7 +678,12 @@ impl Lowerer {
                 name = format!("{}{}", name, value);
                 used_names.insert(name.clone());
             }
-            let type_def = self.lower_schema(branch, &format!("{}{}", hint, name), current_file)?;
+            let type_def = self.lower_schema_with_void(
+                branch,
+                &format!("{}{}", hint, name),
+                current_file,
+                true,
+            )?;
             variants.push(UnionVariant {
                 control_value: value,
                 name,
@@ -595,7 +712,7 @@ impl Lowerer {
         let underlying = schema
             .get("x-control-value-type")
             .and_then(Value::as_str)
-            .unwrap_or("uint32");
+            .ok_or("Mojang oneOf is missing x-control-value-type")?;
         primitive_from_underlying(underlying, serialization_options(schema))
     }
 }
@@ -724,10 +841,26 @@ fn primitive_from_underlying(
         return Ok(zigzag);
     }
     if compressed {
-        if normalized.contains("64") || normalized == "long" || normalized == "ulong" {
-            return Ok(Primitive::VarLong);
-        }
-        return Ok(Primitive::VarInt);
+        // Mojang's `Compression` means a signed value is zig-zag encoded
+        // before the variable-length representation.  Treating every
+        // compressed integer as an unsigned VarInt loses negative values and
+        // was the source of a large wire-level mismatch with Prismarine.
+        return Ok(match normalized.as_str() {
+            "long" | "int64" => Primitive::ZigZag64,
+            "byte" | "int8" | "sbyte" | "short" | "int16" | "int" | "int32" => Primitive::ZigZag32,
+            "ulong" | "uint64" => Primitive::VarLong,
+            "ubyte" | "uint8" | "ushort" | "uint16" | "uint" | "uint32" => Primitive::VarInt,
+            // A few upstream schemas attach Compression to boolean and
+            // collection nodes as a broad metadata marker.  Their wire type
+            // is not an integer varint, so preserve the actual primitive.
+            "bool" | "boolean" => Primitive::Bool,
+            other => {
+                return Err(format!(
+                    "Compression is unsupported for Mojang underlying type {other}"
+                )
+                .into());
+            }
+        });
     }
 
     let mut primitive = match normalized.as_str() {
@@ -754,12 +887,17 @@ fn primitive_from_underlying(
             return Err(format!("unsupported Mojang x-underlying-type {other}").into());
         }
     };
-    if options.iter().any(|option| {
+    let big_endian = options.iter().any(|option| {
         option
             .to_ascii_lowercase()
-            .replace(['_', '-'], " ")
-            .contains("little endian")
-    }) {
+            .replace(['_', '-', ' '], "")
+            .contains("bigendian")
+    });
+    // Bedrock fixed-width numerics are little-endian by default.  Mojang's
+    // schemas spell the exception as `Big Endian`; older code looked for a
+    // literal `little endian` option that never occurs in this corpus and
+    // consequently emitted big-endian primitives for almost every field.
+    if !big_endian {
         primitive = match primitive {
             Primitive::U16 => Primitive::U16LE,
             Primitive::I16 => Primitive::I16LE,
@@ -784,7 +922,7 @@ fn version_parts(version: &str) -> Vec<u64> {
 
 #[cfg(test)]
 mod tests {
-    use super::parse;
+    use super::{parse, primitive_from_underlying};
     use crate::ir::Primitive;
     use serde_json::json;
     use std::fs;
@@ -827,6 +965,7 @@ mod tests {
                         "x-ordinal-index":2
                     },
                     "Optional": {"type":"integer", "x-underlying-type":"int32", "x-ordinal-index":0}
+                    ,"DoubleOptional": {"type":"integer", "x-underlying-type":"int32", "x-serialization-options":["+double-optional"], "x-ordinal-index":5}
                 },
                 "required":["Choice","Compound"],
                 "$metaProperties":{"[cereal:packet]":99}
@@ -851,13 +990,67 @@ mod tests {
             &result.packets[0].body.fields[2].type_def,
             crate::ir::Type::Primitive(Primitive::Nbt)
         ));
-        assert!(
-            result
-                .types
-                .values()
-                .any(|ty| matches!(ty, crate::ir::Type::Union { .. }))
+        assert!(matches!(
+            &result.packets[0].body.fields[3].type_def,
+            crate::ir::Type::Option(inner) if matches!(inner.as_ref(), crate::ir::Type::Option(_))
+        ));
+        let union = result
+            .types
+            .values()
+            .find_map(|ty| match ty {
+                crate::ir::Type::Union { variants, .. } => Some(variants),
+                _ => None,
+            })
+            .expect("fixture union lowered");
+        assert_eq!(
+            union
+                .iter()
+                .map(|variant| variant.control_value)
+                .collect::<Vec<_>>(),
+            vec![3, 4]
         );
 
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn primitive_options_preserve_bedrock_wire_endianness_and_signed_compression() {
+        let cases = [
+            ("uint32", vec![], Primitive::U32LE),
+            ("int32", vec![], Primitive::I32LE),
+            ("uint16", vec![], Primitive::U16LE),
+            ("int16", vec![], Primitive::I16LE),
+            ("uint64", vec![], Primitive::U64LE),
+            ("int64", vec![], Primitive::I64LE),
+            ("float", vec![], Primitive::F32LE),
+            ("double", vec![], Primitive::F64LE),
+            ("uint32", vec!["Big Endian".to_string()], Primitive::U32),
+            ("int32", vec!["Big Endian".to_string()], Primitive::I32),
+            ("double", vec!["Big Endian".to_string()], Primitive::F64),
+            (
+                "int32",
+                vec!["Compression".to_string()],
+                Primitive::ZigZag32,
+            ),
+            (
+                "int64",
+                vec!["Compression".to_string()],
+                Primitive::ZigZag64,
+            ),
+            ("uint32", vec!["Compression".to_string()], Primitive::VarInt),
+            (
+                "uint64",
+                vec!["Compression".to_string()],
+                Primitive::VarLong,
+            ),
+        ];
+
+        for (underlying, options, expected) in cases {
+            assert_eq!(
+                primitive_from_underlying(underlying, options).expect("primitive mapping"),
+                expected,
+                "unexpected mapping for {underlying}"
+            );
+        }
     }
 }

@@ -14,8 +14,11 @@ Source: ba81d713aa983bb6bc26fe662a9934c5de1838a5 (r/26_u3); schema metadata is M
 | Present with exact generated field names/order | 31 | Root packet fields match after Mojang ordinal ordering and Rust emission |
 | Present with field-layout differences | 172 | Root field names/order differ; this is not a full codec comparison |
 | Missing from Mojang r/26_u3 | 41 | Baseline IDs with no Mojang packet document; not synthesized |
-| Discriminated oneOf nodes | 24 | Across 18 real schema files; override adds Compression |
+| oneOf nodes | 25 | 24 discriminated nodes across 18 files plus one explicit untagged correction |
 | Dictionary-shaped objects | 9 | Lowered as entry arrays using the existing IR |
+| Fixed-size arrays | 5 | Lowered from equal `minItems`/`maxItems`; no length prefix |
+| `No size compression` arrays | 3 | Lowered with fixed-width `U32LE` length prefixes |
+| Explicit string-enum ordinal override operations | 109 | Required because Mojang omits numeric values from string enum schemas |
 
 ## Schema inventory
 
@@ -27,6 +30,25 @@ Source: ba81d713aa983bb6bc26fe662a9934c5de1838a5 (r/26_u3); schema metadata is M
 | Dangling local definition refs before builtin handling | 1 |
 
 The only dangling local definition reference is `#/definitions/3172631924`. Mojang uses global hashed definition IDs, and this ID is the builtin `CompoundTag` rather than a per-file definition. The parser maps it directly to `Primitive::Nbt`; all other local definition references resolve in the real corpus.
+
+## Wire-lowering comparison
+
+The following are raw codec-identifier occurrences in generated source, not
+field counts. Mojang emits many shared definitions and the borrowed module
+duplicates codec paths, so these numbers are useful regression signals rather
+than a claim of one-to-one source structure.
+
+| File | Generated F32LE | Baseline F32LE | Generated ZigZag32 | Baseline ZigZag32 | Generated ZigZag64 | Baseline ZigZag64 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `proto.rs` | 50 | 110 | 123 | 177 | 0 | 72 |
+| `types.rs` | 340 | 182 | 444 | 329 | 69 | 51 |
+| `borrowed.rs` | 380 | 184 | 480 | 228 | 69 | 69 |
+| **total** | **770** | **476** | **1,047** | **734** | **138** | **192** |
+
+The previous Mojang output had no zig-zag primitives and treated fixed-width
+values as big-endian. The current lowering uses little-endian by default,
+honors `Big Endian`, maps signed `Compression` fields to ZigZag32/ZigZag64,
+and maps unsigned compressed fields to VarInt/VarLong.
 
 ## Per-packet status
 
@@ -284,15 +306,22 @@ The only dangling local definition reference is `#/definitions/3172631924`. Moja
 - Mojang dictionary schemas (`additionalProperties`) are represented as length-prefixed entry arrays because the existing IR has no map type. Untyped boolean `additionalProperties` fails fast.
 - Named Mojang `oneOf` unions use `Args = ()` for their branch codecs. A future union whose branch depends on an enclosing resolver argument needs an explicit IR/codec extension.
 - Unknown discriminant values cannot be decoded without a payload schema and are reported as `InvalidEnumValue`; no guessed fallback payload is generated.
+- `Color255RGBA` is the one untagged `oneOf` in r/26_u3. Its correction explicitly selects the fixed four-int branch until the IR can represent an untagged alternation; the parser errors on any other untagged `oneOf` instead of fabricating a uint32 tag.
+- `DataStore Change.The New Property Value` is required but typeless in r/26_u3. It has an explicit correction marker, emits a warning, and lowers to zero-byte `()` so the full corpus remains inspectable; implementing the baseline's dependent `DataStorePropertyValue` family is a wire-correctness TODO.
+- Mojang omits numeric values from all 127 string-enum schemas in this snapshot. `overrides/enum-ordinals.json` makes the pinned positional mappings explicit, while the Animate correction preserves the omitted legacy value 2 (`WakeUp = 3`). A new or changed enum mapping must be added as data, otherwise lowering fails.
+- Five equal-bound array schemas lower to `FixedArray`; the three `No size compression` arrays use fixed-width little-endian `u32` lengths. Other arrays retain the existing VarInt length IR.
+- Fourteen map-entry fields lack `x-ordinal-index`; lowering warns and retains the deterministic alphabetical fallback. The schema should publish ordinals or receive a correction before claiming exact field ordering.
 - Valentine currently exposes one NBT primitive/codec. The builtin `CompoundTag` mapping therefore follows the existing Network Little-Endian `Nbt` convention; fixed-width LE call sites use the same IR alias today, so dialect-specific NBT typing remains a documented follow-up.
-- The correction file `crates/valentine_gen/overrides/bpd-fixer.json` ports the requiredness, legacy enum, discriminator enum, double-optional, and compressed-control corrections identified by bpd-fixer. Overrides are applied in memory before lowering.
+- The correction files under `crates/valentine_gen/overrides/` port the requiredness, legacy enum, discriminator enum, double-optional, enum ordinal, untagged-union, dynamic-field, and compressed-control corrections. Overrides are applied in memory before lowering and unmatched selectors fail generation.
 
 ## Validation
 
-The full command below was run against the checked-out submodule at ba81d713 and exited successfully, generating all 203 Mojang packet schemas for protocol 1001 into a temporary output directory. No checked-in generated version files were overwritten.
+The full command below was run against the checked-out submodule at ba81d713, generating all 203 Mojang packet schemas for protocol 1001 into a temporary output directory. The test suite then copied that generated version into an isolated temporary Cargo workspace and passed `cargo check`; no checked-in generated version files were overwritten.
 
 ```text
 cargo run -p valentine_gen -- --source mojang --proto --output-dir <tmp>
+cargo test -p valentine_gen --all-targets
+cargo check --manifest-path <generated-temp-workspace>/Cargo.toml
 ```
 
 ## Reproduction

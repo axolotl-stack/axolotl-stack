@@ -87,6 +87,8 @@ fn apply_operation(
     let serialization_option = object.get("option").and_then(Value::as_str);
 
     let mut changed = false;
+    let mut matched = false;
+    let mut invalid: Option<String> = None;
     for (file_name, document) in documents.iter_mut() {
         let mut visit = |node: &mut Map<String, Value>| {
             let schema_matches = matches_schema(node, file_name, object);
@@ -95,13 +97,19 @@ fn apply_operation(
                     if !schema_matches {
                         return;
                     }
+                    if node.get("properties").is_none() && node.get("required").is_none() {
+                        return;
+                    }
+                    matched = true;
                     let Some(field) = object.get("field").and_then(Value::as_str) else {
+                        invalid = Some(format!("{op} is missing field"));
                         return;
                     };
                     let required = node
                         .entry("required")
                         .or_insert_with(|| Value::Array(Vec::new()));
                     let Some(required) = required.as_array_mut() else {
+                        invalid = Some(format!("{op} target has a non-array required value"));
                         return;
                     };
                     if op == "remove_required" {
@@ -117,32 +125,101 @@ fn apply_operation(
                     if !schema_matches {
                         return;
                     }
+                    if node.get("enum").and_then(Value::as_array).is_none() {
+                        return;
+                    }
+                    matched = true;
                     let Some(values) = object.get("values").and_then(Value::as_array) else {
+                        invalid = Some("add_enum_values is missing values".to_string());
                         return;
                     };
-                    if let Some(enumeration) = node.get_mut("enum").and_then(Value::as_array_mut) {
-                        for value in values {
-                            if !enumeration.contains(value) {
-                                enumeration.push(value.clone());
-                                changed = true;
-                            }
+                    let Some(enumeration) = node.get_mut("enum").and_then(Value::as_array_mut)
+                    else {
+                        invalid = Some("add_enum_values target has no enum array".to_string());
+                        return;
+                    };
+                    for value in values {
+                        if !enumeration.contains(value) {
+                            enumeration.push(value.clone());
+                            changed = true;
                         }
                     }
                 }
-                "patch_property" | "double_optional" => {
+                "set_enum_values" => {
                     if !schema_matches {
                         return;
                     }
+                    let Some(enumeration) = node.get("enum").and_then(Value::as_array) else {
+                        return;
+                    };
+                    let Some(values) = object.get("values").and_then(Value::as_array) else {
+                        invalid = Some("set_enum_values is missing values".to_string());
+                        return;
+                    };
+                    if values.len() != enumeration.len()
+                        || values.iter().any(|value| value_as_i64(value).is_none())
+                    {
+                        invalid =
+                            Some("set_enum_values length or values do not match enum".to_string());
+                        return;
+                    }
+                    matched = true;
+                    // A more specific correction (for example Animate's
+                    // omitted legacy value) is authoritative when it ran
+                    // earlier in the lexically ordered override set.
+                    if node.get("x-enum-values").is_none() {
+                        node.insert("x-enum-values".to_string(), Value::Array(values.clone()));
+                        changed = true;
+                    }
+                }
+                "patch_property" | "double_optional" | "select_one_of_branch" => {
+                    if !schema_matches {
+                        return;
+                    }
+                    matched = true;
+                    if op == "select_one_of_branch" {
+                        let Some(index) = object.get("index").and_then(Value::as_u64) else {
+                            invalid =
+                                Some("select_one_of_branch is missing a numeric index".to_string());
+                            return;
+                        };
+                        let Some(branch) = node
+                            .get("oneOf")
+                            .and_then(Value::as_array)
+                            .and_then(|branches| branches.get(index as usize))
+                            .and_then(Value::as_object)
+                        else {
+                            invalid = Some(format!(
+                                "select_one_of_branch index {index} is not present in oneOf"
+                            ));
+                            return;
+                        };
+                        *node = branch.clone();
+                        changed = true;
+                        return;
+                    }
+                    if node.get("properties").is_none() {
+                        return;
+                    }
                     let Some(field) = object.get("field").and_then(Value::as_str) else {
+                        invalid = Some(format!("{op} is missing field"));
                         return;
                     };
                     let Some(properties) =
                         node.get_mut("properties").and_then(Value::as_object_mut)
                     else {
+                        invalid = Some(format!("{op} target has no properties object"));
                         return;
                     };
                     let Some(property) = properties.get_mut(field).and_then(Value::as_object_mut)
                     else {
+                        if object
+                            .get("schema_title")
+                            .or_else(|| object.get("title"))
+                            .is_some()
+                        {
+                            invalid = Some(format!("{op} target has no property {field}"));
+                        }
                         return;
                     };
                     if op == "double_optional" {
@@ -172,7 +249,10 @@ fn apply_operation(
                         && node.get("oneOf").and_then(Value::as_array).is_some()
                         && node.get("x-control-value-type").is_some()
                     {
+                        matched = true;
                         let Some(option) = serialization_option else {
+                            invalid =
+                                Some("add_serialization_option is missing option".to_string());
                             return;
                         };
                         let options = node
@@ -205,20 +285,24 @@ fn apply_operation(
                         return;
                     };
                     if node.get("$ref").and_then(Value::as_str) == Some(from) {
+                        matched = true;
                         node.insert("$ref".to_string(), Value::String(to.to_string()));
                         changed = true;
                     }
                 }
-                _ => {}
+                _ => invalid = Some(format!("unsupported override operation {op}")),
             }
         };
         visit_objects(document, &mut visit);
     }
 
-    if op != "add_serialization_option" && !changed {
-        // A correction can legitimately be a no-op for an older/newer schema
-        // snapshot, so do not fail generation. The explicit `why` remains the
-        // audit trail for that intentional tolerance.
+    if let Some(invalid) = invalid {
+        return Err(invalid);
+    }
+    if !matched {
+        return Err(format!(
+            "override operation {op} did not match any schema node"
+        ));
     }
 
     Ok(())
@@ -249,7 +333,19 @@ fn matches_schema(
         }
     }
 
+    if let Some(expected) = operation.get("match_enum").and_then(Value::as_array) {
+        if node.get("enum").and_then(Value::as_array) != Some(expected) {
+            return false;
+        }
+    }
+
     file_selector.is_some() || title_selector.is_some()
+}
+
+fn value_as_i64(value: &Value) -> Option<i64> {
+    value
+        .as_i64()
+        .or_else(|| value.as_u64().and_then(|number| i64::try_from(number).ok()))
 }
 
 fn visit_objects<F>(value: &mut Value, visit: &mut F)
@@ -337,6 +433,38 @@ mod tests {
         assert_eq!(document["ref"]["$ref"], "Added.json");
         assert_eq!(documents["Added.json"]["title"], "Added");
 
+        let _ = fs::remove_dir_all(directory);
+    }
+
+    #[test]
+    fn rejects_unmatched_corrections() {
+        let directory = std::env::temp_dir().join(format!(
+            "valentine-gen-overrides-unmatched-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&directory);
+        fs::create_dir_all(&directory).expect("create unmatched override fixture");
+        fs::write(
+            directory.join("fixture.json"),
+            serde_json::to_vec(&json!({
+                "source": "https://example.invalid/fixture",
+                "operations": [{
+                    "op": "double_optional",
+                    "schema_title": "MissingSchema",
+                    "field": "MissingField",
+                    "why": "test unmatched correction"
+                }]
+            }))
+            .expect("serialize unmatched override"),
+        )
+        .expect("write unmatched override");
+
+        let mut documents = HashMap::from([(
+            "Example.json".to_string(),
+            json!({"title":"Example", "type":"object", "properties": {}}),
+        )]);
+        let error = apply(&mut documents, &directory).expect_err("unmatched correction fails");
+        assert!(error.to_string().contains("did not match"));
         let _ = fs::remove_dir_all(directory);
     }
 }

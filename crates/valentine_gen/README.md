@@ -39,15 +39,21 @@ cargo run -p valentine_gen -- --source prismarine --latest --proto
 ```
 
 Mojang schemas are selected explicitly. The source currently supports protocol
-generation only; item/block/entity data still comes from PrismarineJS:
+generation only; item/block/entity data still comes from PrismarineJS. Mojang
+generation always requires `--output-dir` so a scratch run cannot overwrite the
+checked-in `crates/valentine` surface or remove versions that are not present in
+the Mojang snapshot:
 
 ```bash
-cargo run -p valentine_gen -- --source mojang --versions 1.26.30 --proto
+cargo run -p valentine_gen -- \
+  --source mojang --versions 1.26.30 --proto \
+  --output-dir C:/tmp/valentine-mojang
 ```
 
 Use `--mojang-docs <DIR>` and `--overrides <DIR>` to point at alternate
-checkouts/directories. Use `--output-dir <DIR>` for a scratch generation; this
-is useful for reviewing output without touching the checked-in version crates:
+checkouts/directories. The generated scratch surface contains a version crate;
+the `valentine_gen` test suite also copies it into a temporary workspace and
+runs `cargo check` against that crate.
 
 ```bash
 cargo run -p valentine_gen -- \
@@ -74,9 +80,12 @@ not used here.
 Mojang parsing. It records the source link and reason for requiredness fixes,
 legacy enum values, discriminator enum corrections, the known double-optional
 presence-byte fields, and the global compressed `oneOf` discriminator rule.
-The parser recognizes `+double-optional` as two presence bytes. Add future
-schema corrections to the data file (or another JSON file in the same
-directory); never patch generated Rust output.
+`overrides/enum-ordinals.json` materializes the pinned string-enum ordinal maps;
+the Animate correction explicitly retains the unnamed wire value 2, so enum
+lowering never silently invents a value. The parser recognizes
+`+double-optional` as two presence bytes. Add future schema corrections to a
+JSON file in this directory, with a `why` and source link; unmatched
+corrections fail generation. Never patch generated Rust output.
 
 Mojang definition IDs are global hashes. The r/26_u3 hash
 `#/definitions/3172631924` is the builtin `CompoundTag`, not a missing
@@ -84,6 +93,20 @@ per-file definition; the parser maps it directly to Valentine’s
 `Primitive::Nbt`. Valentine currently exposes one NBT codec using its Network
 Little-Endian convention, so fixed-width LE NBT call sites share that IR alias
 until dialect-specific NBT types are added.
+
+Mojang fixed-width numeric schemas are little-endian by default; `Big Endian`
+is treated as the exception. `Compression` maps signed integers to zig-zag
+varints and unsigned integers to ordinary varints. `No size compression` on an
+array uses a fixed-width little-endian `u32` length, while equal `minItems` and
+`maxItems` become fixed arrays. `Enum-as-Value` is metadata for the enum's
+underlying scalar and does not replace the explicit ordinal map.
+
+The pinned snapshot has one untagged `Color255RGBA` alternation and one required
+dynamic Data Store field with no schema. Both are explicit correction/TODO
+cases: the former selects the fixed-array representation, and the latter is
+lowered to a zero-byte `()` placeholder with a warning. See
+[`MOJANG_PARITY.md`](MOJANG_PARITY.md) before treating the generated surface as
+wire-complete.
 
 ## Usage
 

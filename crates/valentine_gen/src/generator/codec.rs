@@ -369,12 +369,14 @@ fn generate_field_decode_expr(
                 )?;
 
                 Ok(quote! {{
-                    let mut arr = std::mem::MaybeUninit::<[_; #size_lit]>::uninit();
-                    let ptr = arr.as_mut_ptr() as *mut _;
-                    for i in 0..#size_lit {
-                        unsafe { std::ptr::write(ptr.add(i), #inner_decode); }
+                    let mut values = Vec::with_capacity(#size_lit);
+                    for _ in 0..#size_lit {
+                        values.push(#inner_decode);
                     }
-                    unsafe { arr.assume_init() }
+                    match values.try_into() {
+                        Ok(array) => array,
+                        Err(_) => unreachable!("fixed-array decoder produced the wrong length"),
+                    }
                 }})
             }
         }
