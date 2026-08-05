@@ -1,5 +1,7 @@
 use crate::generator::analysis::{get_deps, should_box_variant};
-use crate::generator::codec::{generate_codec_impl, generate_enum_type_codec};
+use crate::generator::codec::{
+    generate_codec_impl, generate_enum_type_codec, generate_union_type_codec,
+};
 use crate::generator::context::{Context, PacketSymbol, TypeCanonical};
 use crate::generator::primitives::{
     primitive_to_enum_repr_tokens, primitive_to_rust_tokens, primitive_to_unsigned_tokens,
@@ -60,6 +62,16 @@ fn emit_inline_types_for_dedup(
                 resolve_type_to_tokens(default.as_ref(), &format!("{parent_name}Default"), ctx)?;
             Ok(())
         }
+        Type::Union { variants, .. } => {
+            for variant in variants {
+                let _ = resolve_type_to_tokens(
+                    &variant.type_def,
+                    &format!("{parent_name}{}", camel_case(&variant.name)),
+                    ctx,
+                )?;
+            }
+            Ok(())
+        }
     }
 }
 
@@ -115,6 +127,24 @@ pub fn fingerprint_type(t: &Type) -> String {
                 s.push_str(&format!("{}=>{};", name, fingerprint_type(ty)));
             }
             s.push_str(&format!("D:{}]", fingerprint_type(default.as_ref())));
+            s
+        }
+        Type::Union {
+            control_type,
+            variants,
+        } => {
+            let mut s = format!("U:{:?}:[", control_type);
+            let mut sorted_variants: Vec<_> = variants.iter().collect();
+            sorted_variants.sort_by_key(|variant| variant.control_value);
+            for variant in sorted_variants {
+                s.push_str(&format!(
+                    "{}:{}=>{};",
+                    variant.control_value,
+                    variant.name,
+                    fingerprint_type(&variant.type_def)
+                ));
+            }
+            s.push(']');
             s
         }
         Type::Enum {
@@ -353,6 +383,14 @@ pub fn resolve_type_to_tokens(
                 return Ok(quote! { Option<#default_tokens> });
             }
 
+            let name = clean_type_name(hint);
+            if !ctx.emitted.contains(&name) && !ctx.in_progress.contains(&name) {
+                define_type(&name, t, ctx)?;
+            }
+            let ident = format_ident!("{}", name);
+            quote! { #ident }
+        }
+        Type::Union { .. } => {
             let name = clean_type_name(hint);
             if !ctx.emitted.contains(&name) && !ctx.in_progress.contains(&name) {
                 define_type(&name, t, ctx)?;
@@ -734,6 +772,63 @@ pub fn define_type(
                         }
                     }
                 }
+            }
+        }
+        Type::Union {
+            control_type,
+            variants: union_variants,
+        } => {
+            let mut enum_variants = Vec::new();
+            let mut codec_variants = Vec::new();
+            for variant in union_variants {
+                let variant_ident = format_ident!("{}", safe_camel_ident(&variant.name));
+                let variant_type = resolve_type_to_tokens(
+                    &variant.type_def,
+                    &format!("{}{}", safe_name_str, camel_case(&variant.name)),
+                    ctx,
+                )?;
+                let is_void = matches!(&variant.type_def, Type::Primitive(Primitive::Void));
+                let boxed = !is_void && should_box_variant(&variant.type_def, ctx, 0);
+                if is_void {
+                    enum_variants.push(quote! { #variant_ident });
+                } else if boxed {
+                    enum_variants.push(quote! { #variant_ident(Box<#variant_type>) });
+                } else {
+                    enum_variants.push(quote! { #variant_ident(#variant_type) });
+                }
+                codec_variants.push((
+                    safe_camel_ident(&variant.name),
+                    variant.control_value,
+                    variant_type,
+                    boxed,
+                    is_void,
+                ));
+            }
+            let first = union_variants
+                .first()
+                .ok_or("union has no variants for default impl")?;
+            let first_ident = format_ident!("{}", safe_camel_ident(&first.name));
+            let first_is_void = matches!(&first.type_def, Type::Primitive(Primitive::Void));
+            let first_boxed = !first_is_void && should_box_variant(&first.type_def, ctx, 0);
+            let default_value = if first_is_void {
+                quote! { Self::#first_ident }
+            } else if first_boxed {
+                quote! { Self::#first_ident(Box::new(Default::default())) }
+            } else {
+                quote! { Self::#first_ident(Default::default()) }
+            };
+            let codec = generate_union_type_codec(&safe_name_str, control_type, &codec_variants)?;
+            quote! {
+                #[derive(Debug, Clone, PartialEq)]
+                pub enum #ident { #(#enum_variants),* }
+
+                impl Default for #ident {
+                    fn default() -> Self {
+                        #default_value
+                    }
+                }
+
+                #codec
             }
         }
         Type::Bitfield {

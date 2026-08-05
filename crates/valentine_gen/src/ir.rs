@@ -79,6 +79,15 @@ pub enum Type {
         default: Box<Type>, // The fallback
     },
 
+    /// A Mojang-schema `oneOf` whose wire discriminator is serialized before
+    /// the selected variant.  The parser materializes these as named types so
+    /// the existing resolver and codec machinery can treat packet fields as
+    /// ordinary references.
+    Union {
+        control_type: Primitive,
+        variants: Vec<UnionVariant>,
+    },
+
     /// Numeric discriminator mapped to named variants (e.g., mapper { type: varint, mappings: {...} })
     /// This becomes a C-like Rust enum with explicit discriminants.
     Enum {
@@ -105,6 +114,13 @@ pub struct PackedField {
     pub name: String,
     pub shift: u32,
     pub mask: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
+pub struct UnionVariant {
+    pub control_value: i64,
+    pub name: String,
+    pub type_def: Type,
 }
 
 /// Represents a Struct (Packet or nested object)

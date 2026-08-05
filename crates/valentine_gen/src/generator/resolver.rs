@@ -220,6 +220,18 @@ impl ResolvedContainer {
                         );
                     }
                 }
+                Type::Union { variants, .. } => {
+                    for variant in variants {
+                        visit_type(
+                            None,
+                            &variant.type_def,
+                            ctx,
+                            variable_types,
+                            switch_resolutions,
+                            discriminator_upgrades,
+                        );
+                    }
+                }
                 _ => {}
             }
         }
@@ -644,6 +656,24 @@ fn canonical_type_signature_inner(ty: &Type, ctx: &Context, seen: &mut HashSet<S
                 cases.join(","),
                 canonical_type_signature_inner(default, ctx, seen)
             )
+        }
+        Type::Union {
+            control_type,
+            variants,
+        } => {
+            let mut cases = variants
+                .iter()
+                .map(|variant| {
+                    format!(
+                        "{}:{}=>{}",
+                        variant.control_value,
+                        variant.name,
+                        canonical_type_signature_inner(&variant.type_def, ctx, seen)
+                    )
+                })
+                .collect::<Vec<_>>();
+            cases.sort();
+            format!("U:{:?}:[{}]", control_type, cases.join(","))
         }
         Type::Enum {
             underlying,
