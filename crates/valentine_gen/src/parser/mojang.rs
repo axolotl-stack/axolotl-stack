@@ -121,8 +121,33 @@ pub fn parse(
             .and_then(Value::as_str)
             .map(str::to_owned)
             .unwrap_or_else(|| file.trim_end_matches(".json").to_owned());
-        let body = lowerer.lower_container(&document, &title, &file)?;
         let packet_name = packet_ir_name(&title);
+        let packet_type = lowerer.lower_schema(&document, &title, &file)?;
+        let mut body = match packet_type {
+            Type::Container(container) => container,
+            Type::Reference(name) => match lowerer.types.get(&name) {
+                Some(Type::Container(container)) => container.clone(),
+                Some(other) => {
+                    return Err(format!(
+                        "Mojang packet {title} in {file} resolves to non-container type {other:?}"
+                    )
+                    .into());
+                }
+                None => {
+                    return Err(format!(
+                        "Mojang packet {title} in {file} resolves to missing type {name}"
+                    )
+                    .into());
+                }
+            },
+            other => {
+                return Err(format!(
+                    "Mojang packet {title} in {file} has non-container body {other:?}"
+                )
+                .into());
+            }
+        };
+        body.name.clone_from(&packet_name);
         packets.push(Packet {
             id,
             name: packet_name,
@@ -158,7 +183,12 @@ pub fn discover_versions(
         let Some(protocol) = document.get("x-protocol-version").and_then(value_as_i64) else {
             continue;
         };
-        versions.insert(version.to_string(), protocol as i32);
+        // Mojang may publish the release corpus with a beta metadata suffix
+        // (for example 1.26.40-beta.0) even when the protocol pin is the final
+        // 1.26.40 network revision. Generated Rust identifiers and crate names
+        // use the numeric release triplet.
+        let release_version = version.split('-').next().unwrap_or(version);
+        versions.insert(release_version.to_string(), protocol as i32);
     }
     let mut result = versions
         .into_iter()
@@ -366,6 +396,33 @@ impl Lowerer {
         allow_void: bool,
     ) -> Result<Type, Box<dyn std::error::Error>> {
         if let Some(reference) = schema.get("$ref").and_then(Value::as_str) {
+            // Enum definitions carry the symbolic members, while packet fields
+            // carry the actual wire representation (underlying type and
+            // Compression). A plain reference would discard that contextual
+            // metadata and encode many int32 enums as fixed I32LE values.
+            if serialization_options(schema)
+                .iter()
+                .any(|option| option.eq_ignore_ascii_case("Enum-as-Value"))
+            {
+                let target = self.resolve_ref(reference, current_file)?;
+                let mut enum_schema = self.target_value(&target).ok_or_else(|| {
+                    format!("unable to resolve Mojang enum $ref {reference} in {current_file}")
+                })?;
+                if enum_schema.get("enum").is_some() {
+                    let object = enum_schema
+                        .as_object_mut()
+                        .ok_or_else(|| format!("Mojang enum $ref {reference} is not an object"))?;
+                    for key in ["x-underlying-type", "x-serialization-options"] {
+                        if let Some(value) = schema.get(key) {
+                            object.insert(key.to_string(), value.clone());
+                        }
+                    }
+                    let name = self.allocate_anonymous_name(hint);
+                    let lowered = self.lower_enum(&enum_schema, &name, current_file)?;
+                    self.types.insert(name.clone(), lowered);
+                    return Ok(Type::Reference(name));
+                }
+            }
             return self.lower_ref(reference, current_file, allow_void);
         }
         if schema.get("oneOf").is_some() {
@@ -381,7 +438,7 @@ impl Lowerer {
             return Err(format!("unsupported multi-branch allOf in {current_file}: {hint}").into());
         }
         if schema.get("enum").is_some() {
-            return self.lower_enum(schema);
+            return self.lower_enum(schema, hint, current_file);
         }
 
         let schema_type = schema.get("type").and_then(Value::as_str);
@@ -569,7 +626,12 @@ impl Lowerer {
         })
     }
 
-    fn lower_enum(&self, schema: &Value) -> Result<Type, Box<dyn std::error::Error>> {
+    fn lower_enum(
+        &self,
+        schema: &Value,
+        hint: &str,
+        current_file: &str,
+    ) -> Result<Type, Box<dyn std::error::Error>> {
         let values = schema
             .get("enum")
             .and_then(Value::as_array)
@@ -590,8 +652,10 @@ impl Lowerer {
             })
             .collect::<Option<Vec<_>>>();
         let numbers = numbers.ok_or_else(|| {
-            "Mojang string enum has no explicit wire values; add an x-enum-values correction "
-                .to_string()
+            format!(
+                "Mojang string enum {hint} in {current_file} has no explicit wire values; \
+                 add an x-enum-values correction"
+            )
         })?;
         let mut variants = Vec::with_capacity(values.len());
         let mut used_values = HashSet::new();
@@ -801,7 +865,8 @@ fn serialization_options(schema: &Value) -> Vec<String> {
 }
 
 fn is_void_schema(schema: &Value) -> bool {
-    schema.get("type").is_none()
+    schema.get("$ref").is_none()
+        && schema.get("type").is_none()
         && schema.get("properties").is_none()
         && schema.get("additionalProperties").is_none()
         && schema.get("items").is_none()
@@ -844,7 +909,8 @@ fn primitive_from_underlying(
         // Mojang's `Compression` means a signed value is zig-zag encoded
         // before the variable-length representation.  Treating every
         // compressed integer as an unsigned VarInt loses negative values and
-        // was the source of a large wire-level mismatch with Prismarine.
+        // was the source of a large wire-level mismatch with the protocol
+        // 2168 gophertunnel and Cloudburst serializers.
         return Ok(match normalized.as_str() {
             "long" | "int64" => Primitive::ZigZag64,
             "byte" | "int8" | "sbyte" | "short" | "int16" | "int" | "int32" => Primitive::ZigZag32,
@@ -1009,6 +1075,104 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![3, 4]
         );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn packet_root_reference_uses_the_referenced_payload_fields() {
+        let root = std::env::temp_dir().join(format!(
+            "valentine-gen-mojang-packet-ref-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("json")).expect("create fixture");
+        fs::write(
+            root.join("json").join("Payload.json"),
+            serde_json::to_vec(&json!({
+                "title":"Payload",
+                "type":"object",
+                "properties": {
+                    "Value": {"type":"integer", "x-underlying-type":"uint32", "x-ordinal-index":0}
+                },
+                "required":["Value"]
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            root.join("json").join("WrappedPacket.json"),
+            serde_json::to_vec(&json!({
+                "title":"WrappedPacket",
+                "$ref":"Payload.json",
+                "$metaProperties":{"[cereal:packet]":7}
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+
+        let result = parse(&root, &root.join("missing-overrides")).expect("parse packet wrapper");
+        assert_eq!(result.packets.len(), 1);
+        assert_eq!(result.packets[0].body.fields.len(), 1);
+        assert_eq!(result.packets[0].body.fields[0].name, "Value");
+        assert!(matches!(
+            result.packets[0].body.fields[0].type_def,
+            crate::ir::Type::Primitive(Primitive::U32LE)
+        ));
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn referenced_enum_uses_the_packet_fields_wire_metadata() {
+        let root = std::env::temp_dir().join(format!(
+            "valentine-gen-mojang-enum-wire-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("json")).expect("create fixture");
+        fs::write(
+            root.join("json").join("Mode.json"),
+            serde_json::to_vec(&json!({
+                "title":"Mode",
+                "type":"string",
+                "enum":["First", "Second"],
+                "x-enum-values":[0, 1]
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            root.join("json").join("EnumPacket.json"),
+            serde_json::to_vec(&json!({
+                "title":"EnumPacket",
+                "type":"object",
+                "properties": {
+                    "Mode": {
+                        "$ref":"Mode.json",
+                        "x-underlying-type":"int32",
+                        "x-serialization-options":["Compression", "Enum-as-Value"],
+                        "x-ordinal-index":0
+                    }
+                },
+                "required":["Mode"],
+                "$metaProperties":{"[cereal:packet]":8}
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+
+        let result = parse(&root, &root.join("missing-overrides")).expect("parse enum packet");
+        let crate::ir::Type::Reference(name) = &result.packets[0].body.fields[0].type_def else {
+            panic!("enum field should reference its contextual enum type");
+        };
+        assert!(matches!(
+            result.types.get(name),
+            Some(crate::ir::Type::Enum {
+                underlying: Primitive::ZigZag32,
+                ..
+            })
+        ));
 
         let _ = fs::remove_dir_all(root);
     }

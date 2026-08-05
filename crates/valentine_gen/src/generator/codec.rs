@@ -3262,6 +3262,19 @@ pub fn generate_enum_type_codec(
     })
 }
 
+/// One variant of a Mojang discriminated union, as the codec emitter needs it.
+pub struct UnionVariantCodec {
+    pub name: String,
+    pub control_value: i64,
+    pub type_tokens: TokenStream,
+    pub boxed: bool,
+    pub is_void: bool,
+    /// Set when the payload is a fixed-size numeric array. Such a payload is
+    /// not a `BedrockCodec`, so it is written element-wise with no length
+    /// prefix (e.g. `Color255RGBA`'s four little-endian components).
+    pub fixed: Option<(usize, Primitive)>,
+}
+
 /// Generate the codec for a Mojang `oneOf` with an explicit wire discriminator.
 ///
 /// Union payloads currently use `Args = ()`. Mojang's discriminated payload
@@ -3271,20 +3284,62 @@ pub fn generate_enum_type_codec(
 pub fn generate_union_type_codec(
     name: &str,
     control_type: &Primitive,
-    variants: &[(String, i64, TokenStream, bool, bool)],
+    variants: &[UnionVariantCodec],
 ) -> Result<TokenStream, Box<dyn std::error::Error>> {
     let struct_ident = format_ident!("{}", name);
     let mut encode_arms = Vec::new();
     let mut decode_arms = Vec::new();
     let mut size_arms = Vec::new();
 
-    for (variant_name, control_value, type_tokens, boxed, is_void) in variants {
+    for UnionVariantCodec {
+        name: variant_name,
+        control_value,
+        type_tokens,
+        boxed,
+        is_void,
+        fixed,
+    } in variants
+    {
         let variant_ident = format_ident!("{}", variant_name);
         let control_literal = proc_macro2::Literal::i64_unsuffixed(*control_value);
         let encode_control = union_control_encode(control_type, quote! { control_value })?;
         let size_control = union_control_size(control_type, quote! { #control_literal })?;
 
-        if *is_void {
+        if let Some((size, element)) = fixed {
+            // Fixed-size numeric array: no length prefix, each element written
+            // with its own wire encoding (little-endian by Bedrock default).
+            let len_lit = proc_macro2::Literal::usize_unsuffixed(*size);
+            let element_encode = union_control_encode(element, quote! { (*item) })?;
+            let element_decode = union_control_decode(element)?;
+            let element_size = union_control_size(element, quote! { (*item) })?;
+            encode_arms.push(quote! {
+                #struct_ident::#variant_ident(value) => {
+                    let control_value = #control_literal as i64;
+                    #encode_control?;
+                    for item in value.iter() {
+                        #element_encode?;
+                    }
+                    Ok(())
+                }
+            });
+            decode_arms.push(quote! {
+                #control_literal => {
+                    let mut array: #type_tokens = Default::default();
+                    for slot in array.iter_mut() {
+                        // union_control_decode emits `let control_value = ...;`
+                        #element_decode
+                        *slot = control_value as _;
+                    }
+                    Ok(#struct_ident::#variant_ident(array))
+                }
+            });
+            size_arms.push(quote! {
+                #struct_ident::#variant_ident(value) => {
+                    debug_assert_eq!(value.len(), #len_lit);
+                    #size_control + value.iter().map(|item| #element_size).sum::<usize>()
+                }
+            });
+        } else if *is_void {
             encode_arms.push(quote! {
                 #struct_ident::#variant_ident => {
                     let control_value = #control_literal as i64;

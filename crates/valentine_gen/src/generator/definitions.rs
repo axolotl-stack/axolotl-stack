@@ -1,6 +1,6 @@
 use crate::generator::analysis::{get_deps, should_box_variant};
 use crate::generator::codec::{
-    generate_codec_impl, generate_enum_type_codec, generate_union_type_codec,
+    UnionVariantCodec, generate_codec_impl, generate_enum_type_codec, generate_union_type_codec,
 };
 use crate::generator::context::{Context, PacketSymbol, TypeCanonical};
 use crate::generator::primitives::{
@@ -801,13 +801,25 @@ pub fn define_type(
                 } else {
                     enum_variants.push(quote! { #variant_ident(#variant_type) });
                 }
-                codec_variants.push((
-                    safe_camel_ident(&variant.name),
-                    variant.control_value,
-                    variant_type,
+                // A fixed-size array payload (e.g. Color255RGBA's four I32LE
+                // components) is not a BedrockCodec, so the union codec has to
+                // encode it element-wise. Pass the shape down; the TokenStream
+                // alone cannot convey it.
+                let fixed = match &variant.type_def {
+                    Type::FixedArray { size, inner_type } => match inner_type.as_ref() {
+                        Type::Primitive(primitive) => Some((*size, primitive.clone())),
+                        _ => None,
+                    },
+                    _ => None,
+                };
+                codec_variants.push(UnionVariantCodec {
+                    name: safe_camel_ident(&variant.name),
+                    control_value: variant.control_value,
+                    type_tokens: variant_type,
                     boxed,
                     is_void,
-                ));
+                    fixed,
+                });
             }
             let first = union_variants
                 .first()
