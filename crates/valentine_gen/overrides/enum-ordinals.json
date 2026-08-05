@@ -1,1 +1,2128 @@
-{"source":"https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json","operations":[{"op":"set_enum_values","schema_title":"ActorEvent","values":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"AgentActionType","values":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"Agent Animation","values":[0,1],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"AnimatePacketPayload Action","values":[0,1,2,3,4],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"ActorSwingSource","values":[0,1,2,3,4,5,6,7,8],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"CommandPermissionLevel","values":[0,1,2,3,4,5],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"RandomDistributionType","values":[0,1,2,3,4,5,6],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"CoordinateEvaluationOrder","values":[0,1,2,3,4,5],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"VillageType","values":[0,1,2,3,4],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"BossBarColor","values":[0,1,2,3,4,5,6,7],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"BossEventUpdateType","values":[0,1,2,3,4,5,6,7,8],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"BossBarOverlay","values":[0,1,2,3,4],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"CameraAimAssistPacketPayload Action","values":[0,1],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"CameraAimAssistPacketPayload TargetMode","values":[0,1],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"CameraAimAssistPresetsPacketOperation","values":[0,1],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"easing_function","values":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"Aim-Assist Target Mode","values":[0,1],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"Control Scheme","values":[0,1,2,3,4],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"SharedTypes::Comprehensive::CameraPreset::AudioListener","values":[0,1],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"CameraShakeAction","values":[0,1],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"CameraShakeType","values":[0,1],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"FloatAttributeOperation","values":[0,1,2,3,4,5,6],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"BoolAttributeOperation","values":[0,1,2,3,4,5,6,7],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"ColorAttributeOperation","values":[0,1,2,3,4],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"PayloadType","values":[0,1,2],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"ClientboundTextureShiftPacketPayload::Action","values":[0,1,2,3,4],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"SoundDataEvent","values":[0],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"ClientCameraAimAssistPacketAction","values":[0,1],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"CodeBuilderStorageQueryOptions Category","values":[0,1,2],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"CodeBuilderExecutionState CodeStatus","values":[0,1,2,3,4,5],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"CodeBuilderStorageQueryOptions Operation","values":[0,1,2,3],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"CommandOriginType","values":[0,1,2,3],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"CommandOutputType","values":[0,1,2,3,4],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"CurrentCmdVersion","values":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"ContainerEnumName","values":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"RewindType","values":[0,1],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"DisconnectFailReason","values":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"Rotation","values":[0,1,2,3,4,5,6],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"GraphicsOverrideParameterType","values":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"InteractPacketPayload Action","values":[0,1,2,3,4],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"ItemUseActionType","values":[0,1,2,3],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"ItemUseClientCooldownState","values":[0,1],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"ItemUsePredictedResult","values":[0,1],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"ItemUseTriggerType","values":[0,1,2],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"ItemUseOnActorActionType","values":[0,1,2],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"ItemReleaseActionType","values":[0,1],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"InventorySourceFlags","values":[0,1],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"InventorySourceType","values":[0,1,2,3,4],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"ItemVersion","values":[0,1,2],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"LabTableReactionType","values":[0,1,2,3,4,5,6,7,8,9,10,11,12],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"LabTablePacketPayload::Type","values":[0,1,2],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"MinecraftEventing::POIBlockInteractionType","values":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"MinecraftEventing::AchievementIds","values":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"MinecraftEventing::InteractionType","values":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"ActorType","values":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"LegacyTelemetryEventPacketPayload::Type","values":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"ServerWaypointGroup::Action","values":[0,1,2,3],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"MobEffectPacketPayload::Event","values":[0,1,2,3],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"ModalFormCancelReason","values":[0,1],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"MovementEffectType","values":[0,1,2],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"MultiplayerSettingsPacketType","values":[0,1,2],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"PacketCompressionAlgorithm","values":[0,1,2],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"NpcDialogueActionType","values":[0,1],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"NpcRequestPacketPayload RequestType","values":[0,1,2,3,4,5,6],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"PacketViolationSeverity","values":[0,1,2,3],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"PacketViolationType","values":[0,1],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"PhotoType","values":[0,1,2],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"PlayerActionType","values":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"SharedTypes::Legacy::ArmorSlot","values":[0,1,2,3,4],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"Enchant::Type","values":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"persona::AnimatedTextureType","values":[0,1,2],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"persona::AnimationExpression","values":[0,1],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"persona::ArmSize::Type","values":[0,1],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"persona::PieceType","values":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"TrustedSkinFlag","values":[0,1,2],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"PlayStatus","values":[0,1,2,3,4,5,6,7,8,9],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"PositionTrackingDBClientRequestPacketPayload::Action","values":[0],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"PositionTrackingDBServerBroadcastPacketPayload::Action","values":[0,1,2],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"ScriptModuleMinecraft::ScriptPrimitiveShapeType","values":[0,1,2,3,4,5,6,7,8,9],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"RequestAbilityPacketPayload::Type","values":[0,1,2],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"PlayerRespawnState","values":[0,1,2],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"PartyDestinationCookieIntent","values":[0,1,2],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"DataDrivenScreenClosedReason","values":[0,1,2,3,4],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"Memory::MemoryCategory","values":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"ServerboundLoadingScreenPacketType","values":[0,1],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"ActorLinkType","values":[0,1,2],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"GameType","match_enum":["Survival","Creative","Adventure","Default","Spectator","WorldDefault"],"values":[0,1,2,3,4,5],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"HudElement","values":[0,1,2,3,4,5,6,7,8,9,10,11,12],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"HudVisibility","values":[0,1],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"GameType","match_enum":["Undefined","Survival","Creative","Adventure","Default","Spectator","WorldDefault"],"values":[0,1,2,3,4,5,6],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"InventoryLayout","values":[0,1,2,3],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"InventoryLeftTabIndex","values":[0,1,2,3,4,5,6],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"InventoryRightTabIndex","values":[0,1,2,3],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"SpawnPositionType","values":[0,1],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"SetTitlePacket TitleType","values":[0,1,2,3,4,5,6,7,8],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"ShowStoreOfferRedirectType","values":[0,1,2],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"Subtype","values":[0,1,2,3],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"SimulationType","values":[0,1,2,3],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"AnimationMode","values":[0,1,2],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"Mirror","values":[0,1,2,3],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"StructureTemplateRequestOperation","values":[0,1,2,3],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"StructureTemplateResponseType","values":[0,1,2],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"TextPacketType","match_enum":["chat","whisper","announcement"],"values":[0,1,2],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"TextPacketType","match_enum":["raw","tip","systemMessage","textObjectWhisper","textObject","textObjectAnnouncement"],"values":[0,1,2,3,4,5],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"TextPacketType","match_enum":["translate","popup","jukeboxPopup"],"values":[0,1,2],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"UnlockedRecipesPacketPayload::PacketType","values":[0,1,2,3,4],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"PlayerPermissionLevel","values":[0,1,2,3],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"GraphicsMode","values":[0,1,2,3],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."},{"op":"set_enum_values","schema_title":"SoftEnumUpdateType","values":[0,1,2],"why":"Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."}]}
+{
+  "source": "https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json",
+  "operations": [
+    {
+      "op": "set_enum_values",
+      "schema_title": "ActorEvent",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60
+      ],
+      "why": "Baseline-audited against EntityEventPacketEventId. The Prismarine enum omits names for several occupied slots (including slot 0), while Mojang names those slots; the shared values retain their ordinal positions, so this mapping intentionally stays sequential. See crates/valentine/bedrock_versions/v1_26_30/src/proto.rs and https://github.com/Mojang/bedrock-protocol-docs/blob/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json/ActorEventPacket.json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "AgentActionType",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "Agent Animation",
+      "values": [
+        0,
+        1
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "AnimatePacketPayload Action",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "ActorSwingSource",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "CommandPermissionLevel",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "RandomDistributionType",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "CoordinateEvaluationOrder",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "VillageType",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "BossBarColor",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "BossEventUpdateType",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "BossBarOverlay",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "CameraAimAssistPacketPayload Action",
+      "values": [
+        0,
+        1
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "CameraAimAssistPacketPayload TargetMode",
+      "values": [
+        0,
+        1
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "CameraAimAssistPresetsPacketOperation",
+      "values": [
+        0,
+        1
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "easing_function",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "Aim-Assist Target Mode",
+      "values": [
+        0,
+        1
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "Control Scheme",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "SharedTypes::Comprehensive::CameraPreset::AudioListener",
+      "values": [
+        0,
+        1
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "CameraShakeAction",
+      "values": [
+        0,
+        1
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "CameraShakeType",
+      "values": [
+        0,
+        1
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "FloatAttributeOperation",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "BoolAttributeOperation",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "ColorAttributeOperation",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "PayloadType",
+      "values": [
+        0,
+        1,
+        2
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "ClientboundTextureShiftPacketPayload::Action",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "SoundDataEvent",
+      "values": [
+        0
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "ClientCameraAimAssistPacketAction",
+      "values": [
+        0,
+        1
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "CodeBuilderStorageQueryOptions Category",
+      "values": [
+        0,
+        1,
+        2
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "CodeBuilderExecutionState CodeStatus",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "CodeBuilderStorageQueryOptions Operation",
+      "values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "CommandOriginType",
+      "values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "CommandOutputType",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "CurrentCmdVersion",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "ContainerEnumName",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        65,
+        66,
+        67,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63
+      ],
+      "why": "Baseline-audited against ContainerSlotType (not the unrelated WindowType): r/26_u3 inserts RecipeFood, RecipeBlocks, and RecipeFurnaceItems in the name list, but their established wire values remain 65, 66, and 67 while RecipeSearch through Dynamic remain 18..63. See crates/valentine/bedrock_versions/v1_26_30/src/types.rs and https://github.com/Mojang/bedrock-protocol-docs/blob/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json/InventoryContentPacket.json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "RewindType",
+      "values": [
+        0,
+        1
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "DisconnectFailReason",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114,
+        115,
+        116,
+        117,
+        118,
+        119,
+        120,
+        121,
+        122,
+        123,
+        124,
+        125,
+        126,
+        127,
+        128,
+        129,
+        130,
+        131,
+        132,
+        133,
+        134,
+        135,
+        136,
+        137,
+        138,
+        139,
+        140,
+        141
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "Rotation",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "GraphicsOverrideParameterType",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "InteractPacketPayload Action",
+      "values": [
+        0,
+        3,
+        4,
+        5,
+        6
+      ],
+      "why": "Baseline-audited against InteractPacketActionId: Invalid occupies 0, while StopRiding, InteractUpdate, NpcOpen, and OpenInventory retain wire values 3..6; values 1 and 2 are legacy holes. See crates/valentine/bedrock_versions/v1_26_30/src/proto.rs and https://github.com/Mojang/bedrock-protocol-docs/blob/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json/InteractPacket.json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "ItemUseActionType",
+      "values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "ItemUseClientCooldownState",
+      "values": [
+        0,
+        1
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "ItemUsePredictedResult",
+      "values": [
+        0,
+        1
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "ItemUseTriggerType",
+      "values": [
+        0,
+        1,
+        2
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "ItemUseOnActorActionType",
+      "values": [
+        0,
+        1,
+        2
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "ItemReleaseActionType",
+      "values": [
+        0,
+        1
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "InventorySourceFlags",
+      "values": [
+        0,
+        1
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "add_enum_values",
+      "schema_title": "InventorySourceType",
+      "values": [
+        "Craft Slot"
+      ],
+      "why": "Baseline-audited against TransactionActionsItemSourceType: Mojang omits the CraftSlot member (wire value 100) entirely, so restore it before assigning explicit values. See crates/valentine/bedrock_versions/v1_26_30/src/types.rs and https://github.com/Mojang/bedrock-protocol-docs/blob/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json/InventoryTransactionPacket.json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "InventorySourceType",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        99999,
+        100
+      ],
+      "why": "Baseline-audited against TransactionActionsItemSourceType: Non Implemented Feature TODO is the Craft sentinel at 99999 and the restored Craft Slot member is 100; neither is its positional index. See crates/valentine/bedrock_versions/v1_26_30/src/types.rs and https://github.com/Mojang/bedrock-protocol-docs/blob/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json/InventoryTransactionPacket.json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "ItemVersion",
+      "values": [
+        0,
+        1,
+        2
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "LabTableReactionType",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "LabTablePacketPayload::Type",
+      "values": [
+        0,
+        1,
+        2
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "MinecraftEventing::POIBlockInteractionType",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "MinecraftEventing::AchievementIds",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "MinecraftEventing::InteractionType",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "ActorType",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114,
+        115,
+        116,
+        117,
+        118,
+        119,
+        120,
+        121,
+        122,
+        123,
+        124,
+        125,
+        126,
+        127,
+        128,
+        129,
+        130,
+        131,
+        132,
+        133,
+        134,
+        135,
+        136,
+        137,
+        138,
+        139,
+        140,
+        141,
+        142,
+        143,
+        144,
+        145,
+        146,
+        147,
+        148,
+        149,
+        150,
+        151,
+        152,
+        153,
+        154,
+        155,
+        156,
+        157
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "LegacyTelemetryEventPacketPayload::Type",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "ServerWaypointGroup::Action",
+      "values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "MobEffectPacketPayload::Event",
+      "values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "why": "Baseline-audited against MobEffectPacketEventId. Mojang names Invalid at slot 0, which Prismarine leaves unnamed; Add, Update, and Remove remain values 1, 2, and 3, so the full Mojang list is sequential. See crates/valentine/bedrock_versions/v1_26_30/src/proto.rs and https://github.com/Mojang/bedrock-protocol-docs/blob/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json/MobEffectPacket.json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "ModalFormCancelReason",
+      "values": [
+        0,
+        1
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "MovementEffectType",
+      "values": [
+        0,
+        1,
+        2
+      ],
+      "why": "Baseline-audited against MovementEffectType. Mojang names DolphinBoost at slot 1, which the Prismarine baseline omits, so GeyserBoost moves from the baseline's compacted second named entry to its actual ordinal 2; the Mojang list is intentionally sequential. See crates/valentine/bedrock_versions/v1_26_30/src/types.rs and https://github.com/Mojang/bedrock-protocol-docs/blob/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json/MovementEffectPacket.json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "MultiplayerSettingsPacketType",
+      "values": [
+        0,
+        1,
+        2
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "PacketCompressionAlgorithm",
+      "values": [
+        0,
+        1,
+        2
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "NpcDialogueActionType",
+      "values": [
+        0,
+        1
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "NpcRequestPacketPayload RequestType",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "PacketViolationSeverity",
+      "values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "PacketViolationType",
+      "values": [
+        0,
+        1
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "PhotoType",
+      "values": [
+        0,
+        1,
+        2
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "PlayerActionType",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "SharedTypes::Legacy::ArmorSlot",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "Enchant::Type",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "persona::AnimatedTextureType",
+      "values": [
+        0,
+        1,
+        2
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "persona::AnimationExpression",
+      "values": [
+        0,
+        1
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "persona::ArmSize::Type",
+      "values": [
+        0,
+        1
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "persona::PieceType",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "TrustedSkinFlag",
+      "values": [
+        0,
+        1,
+        2
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "PlayStatus",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "PositionTrackingDBClientRequestPacketPayload::Action",
+      "values": [
+        0
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "PositionTrackingDBServerBroadcastPacketPayload::Action",
+      "values": [
+        0,
+        1,
+        2
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "ScriptModuleMinecraft::ScriptPrimitiveShapeType",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "RequestAbilityPacketPayload::Type",
+      "values": [
+        0,
+        1,
+        2
+      ],
+      "why": "Baseline-audited against RequestAbilityPacketValueType. Mojang names Unset at slot 0, which Prismarine leaves unnamed; Bool and Float remain values 1 and 2, so the full Mojang list is sequential. See crates/valentine/bedrock_versions/v1_26_30/src/proto.rs and https://github.com/Mojang/bedrock-protocol-docs/blob/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json/RequestAbilityPacket.json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "PlayerRespawnState",
+      "values": [
+        0,
+        1,
+        2
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "PartyDestinationCookieIntent",
+      "values": [
+        0,
+        1,
+        2
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "DataDrivenScreenClosedReason",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "Memory::MemoryCategory",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "ServerboundLoadingScreenPacketType",
+      "values": [
+        0,
+        1
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "ActorLinkType",
+      "values": [
+        0,
+        1,
+        2
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "GameType",
+      "match_enum": [
+        "Survival",
+        "Creative",
+        "Adventure",
+        "Default",
+        "Spectator",
+        "WorldDefault"
+      ],
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "HudElement",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "HudVisibility",
+      "values": [
+        0,
+        1
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "GameType",
+      "match_enum": [
+        "Undefined",
+        "Survival",
+        "Creative",
+        "Adventure",
+        "Default",
+        "Spectator",
+        "WorldDefault"
+      ],
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "InventoryLayout",
+      "values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "InventoryLeftTabIndex",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "InventoryRightTabIndex",
+      "values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "SpawnPositionType",
+      "values": [
+        0,
+        1
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "SetTitlePacket TitleType",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "ShowStoreOfferRedirectType",
+      "values": [
+        0,
+        1,
+        2
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "Subtype",
+      "values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "SimulationType",
+      "values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "AnimationMode",
+      "values": [
+        0,
+        1,
+        2
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "Mirror",
+      "values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "StructureTemplateRequestOperation",
+      "values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "why": "Baseline-audited against StructureTemplateDataExportRequestPacketRequestType. Mojang names None at slot 0, which Prismarine leaves unnamed; ExportFromSaveMode, ExportFromLoadMode, and QuerySavedStructure retain values 1..3, so the Mojang list is sequential. See crates/valentine/bedrock_versions/v1_26_30/src/proto.rs and https://github.com/Mojang/bedrock-protocol-docs/blob/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json/StructureTemplateDataRequestPacket.json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "StructureTemplateResponseType",
+      "values": [
+        0,
+        1,
+        2
+      ],
+      "why": "Baseline-audited against StructureTemplateDataExportResponsePacketResponseType. Mojang names None at slot 0, which Prismarine leaves unnamed; Export and Query retain values 1 and 2, so the Mojang list is sequential. See crates/valentine/bedrock_versions/v1_26_30/src/proto.rs and https://github.com/Mojang/bedrock-protocol-docs/blob/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json/StructureTemplateDataResponsePacket.json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "TextPacketType",
+      "match_enum": [
+        "chat",
+        "whisper",
+        "announcement"
+      ],
+      "values": [
+        0,
+        1,
+        2
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "TextPacketType",
+      "match_enum": [
+        "raw",
+        "tip",
+        "systemMessage",
+        "textObjectWhisper",
+        "textObject",
+        "textObjectAnnouncement"
+      ],
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "TextPacketType",
+      "match_enum": [
+        "translate",
+        "popup",
+        "jukeboxPopup"
+      ],
+      "values": [
+        0,
+        1,
+        2
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "UnlockedRecipesPacketPayload::PacketType",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "PlayerPermissionLevel",
+      "values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "GraphicsMode",
+      "values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    },
+    {
+      "op": "set_enum_values",
+      "schema_title": "SoftEnumUpdateType",
+      "values": [
+        0,
+        1,
+        2
+      ],
+      "why": "Mojang r/26_u3 exposes string enum names without numeric wire values; this pinned explicit ordinal map makes the positional convention reviewable and keeps any omitted legacy value subject to a separate correction. See https://github.com/Mojang/bedrock-protocol-docs/tree/ba81d713aa983bb6bc26fe662a9934c5de1838a5/json."
+    }
+  ]
+}

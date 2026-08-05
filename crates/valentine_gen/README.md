@@ -80,9 +80,14 @@ not used here.
 Mojang parsing. It records the source link and reason for requiredness fixes,
 legacy enum values, discriminator enum corrections, the known double-optional
 presence-byte fields, and the global compressed `oneOf` discriminator rule.
-`overrides/enum-ordinals.json` materializes the pinned string-enum ordinal maps;
-the Animate correction explicitly retains the unnamed wire value 2, so enum
-lowering never silently invents a value. The parser recognizes
+`overrides/enum-ordinals.json` materializes 109 distinct string-enum ordinal
+maps used by 127 schema occurrences. The non-sequential baseline audit records
+its evidence in each affected operation: Animate preserves unnamed wire value
+2, InventorySourceType restores `CraftSlot = 100` and `Craft = 99999`,
+ContainerEnumName follows baseline ContainerSlotType's established values, and
+Interact preserves its legacy holes. Sequential mappings are retained where
+Mojang supplies names for slots that Prismarine leaves unnamed. Enum lowering
+therefore never silently invents a value. The parser recognizes
 `+double-optional` as two presence bytes. Add future schema corrections to a
 JSON file in this directory, with a `why` and source link; unmatched
 corrections fail generation. Never patch generated Rust output.

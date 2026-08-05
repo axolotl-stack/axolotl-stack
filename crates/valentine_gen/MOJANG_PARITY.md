@@ -18,7 +18,7 @@ Source: ba81d713aa983bb6bc26fe662a9934c5de1838a5 (r/26_u3); schema metadata is M
 | Dictionary-shaped objects | 9 | Lowered as entry arrays using the existing IR |
 | Fixed-size arrays | 5 | Lowered from equal `minItems`/`maxItems`; no length prefix |
 | `No size compression` arrays | 3 | Lowered with fixed-width `U32LE` length prefixes |
-| Explicit string-enum ordinal override operations | 109 | Required because Mojang omits numeric values from string enum schemas |
+| Distinct string-enum ordinal maps | 109 | Covers 127 schema occurrences; repeated schemas share the same audited map |
 
 ## Schema inventory
 
@@ -308,9 +308,9 @@ and maps unsigned compressed fields to VarInt/VarLong.
 - Unknown discriminant values cannot be decoded without a payload schema and are reported as `InvalidEnumValue`; no guessed fallback payload is generated.
 - `Color255RGBA` is the one untagged `oneOf` in r/26_u3. Its correction explicitly selects the fixed four-int branch until the IR can represent an untagged alternation; the parser errors on any other untagged `oneOf` instead of fabricating a uint32 tag.
 - `DataStore Change.The New Property Value` is required but typeless in r/26_u3. It has an explicit correction marker, emits a warning, and lowers to zero-byte `()` so the full corpus remains inspectable; implementing the baseline's dependent `DataStorePropertyValue` family is a wire-correctness TODO.
-- Mojang omits numeric values from all 127 string-enum schemas in this snapshot. `overrides/enum-ordinals.json` makes the pinned positional mappings explicit, while the Animate correction preserves the omitted legacy value 2 (`WakeUp = 3`). A new or changed enum mapping must be added as data, otherwise lowering fails.
+- Mojang omits numeric values from 127 string-enum schema occurrences in this snapshot; repeated title/value sets collapse to 109 distinct `set_enum_values` operations. The checked-in baseline's 21 non-sequential enums were audited against those operations. Real divergences are encoded for Animate, InventorySourceType, ContainerEnumName (which corresponds to baseline ContainerSlotType, not WindowType), and Interact action; sequential maps are retained where Mojang names slots that Prismarine leaves unnamed, including ActorEvent, MobEffect, MovementEffect, RequestAbility, and the structure-template request/response enums. Each audited operation records its baseline comparison in `why`; enums with no corresponding Mojang string-enum schema did not require an ordinal override.
 - Five equal-bound array schemas lower to `FixedArray`; the three `No size compression` arrays use fixed-width little-endian `u32` lengths. Other arrays retain the existing VarInt length IR.
-- Fourteen map-entry fields lack `x-ordinal-index`; lowering warns and retains the deterministic alphabetical fallback. The schema should publish ordinals or receive a correction before claiming exact field ordering.
+- Fourteen map-entry fields lack `x-ordinal-index`; lowering warns and retains the deterministic alphabetical fallback. They are the key/value fields in `BiomeDefinitionListPacket.json`, the three key/value maps in `CameraAimAssistPresetsPacket.json`, and the key/value fields in `GraphicsOverrideParameterPacket.json`, `PlayerSkinPacket.json`, and `VoxelShapesPacket.json`; these schemas need published ordinals or corrections before claiming exact field ordering.
 - Valentine currently exposes one NBT primitive/codec. The builtin `CompoundTag` mapping therefore follows the existing Network Little-Endian `Nbt` convention; fixed-width LE call sites use the same IR alias today, so dialect-specific NBT typing remains a documented follow-up.
 - The correction files under `crates/valentine_gen/overrides/` port the requiredness, legacy enum, discriminator enum, double-optional, enum ordinal, untagged-union, dynamic-field, and compressed-control corrections. Overrides are applied in memory before lowering and unmatched selectors fail generation.
 
