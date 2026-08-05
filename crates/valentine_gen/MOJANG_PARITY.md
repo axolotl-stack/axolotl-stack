@@ -9,8 +9,19 @@ after 1.26.30, so it cannot be a baseline for this target.
 | Input | Pin/version | Role |
 |---|---|---|
 | Mojang `bedrock-protocol-docs` | `0e00fe80f4f3c71572ff6429de40146d1f4412fc`, `automated/1.26.40` | Generated source; metadata says 1.26.40-beta.0 / 2168 |
-| gophertunnel | PR 481, `agent/protocol-1.26.40`, `CurrentProtocol=2168` | Primary ordered-wire oracle |
+| gophertunnel | PR 481, `agent/protocol-1.26.40` @ `5189cf19`, `CurrentProtocol=2168` | Primary ordered-wire oracle |
 | Cloudburst | `Bedrock_v2168`, inheriting from `Bedrock_v1001` with overrides | Independent cross-check where the effective serializer could be resolved |
+
+The oracle is pinned to a commit, not just a branch, because PR 481 is still
+moving and its wire encodings have already been corrected in place. Re-running
+the extraction against `5189cf19` (which includes "Fix protocol 2168 field
+encodings") changed three packets' operations versus the earlier revision this
+report was first built against: `StartGame` (two fields), `MovePlayer` (a
+refactor of the teleport-data presence flag into an explicit bool — identical
+bytes), and `PlayerLocation` (a reserved field made explicit — also identical
+bytes, since the generated `CoordinatesLocationPacketType` already emitted the
+same `ZigZag32`). Only one of those was a real divergence for us, and it is
+corrected: see `LevelSettings.Player Permissions` below.
 
 The pinned corpus contains 971 JSON files, 229 cereal packets, 37 `oneOf`
 nodes, 186 string-enum occurrences without upstream wire values, and zero
@@ -109,7 +120,7 @@ against the effective Cloudburst path.
 | `ItemUseInventoryTransaction.json` | Face | `U8` | packet 30 InventoryTransaction → `inventory.go` |
 | `ItemUseInventoryTransaction.json` | Trigger Type | `U8` | packet 30 InventoryTransaction → `inventory.go` |
 | `LegacySetSlot.json` | Container Enum | `U8` | packet 30 InventoryTransaction → `inventory.go` |
-| `LevelSettings.json` | Player Permissions | `ZigZag32` | packet 11 StartGame `PlayerPermissions` → `packet/start_game.go` |
+| `LevelSettings.json` | Player Permissions | `I8` | packet 11 StartGame `PlayerPermissions` → `packet/start_game.go:319` (`io.Uint8`) — was pinned `ZigZag32` against an earlier PR 481 revision; corrected by that branch's "Fix protocol 2168 field encodings" |
 | `LocatorBarWaypointPayload.json` | ActionFlag | `U8` | packet 341 LocatorBar → `locator.go` |
 | `MessageAndParams.json` | Message Type | `U8` | packet 9 Text → `packet/text.go` |
 | `MessageOnly.json` | Message Type | `U8` | packet 9 Text → `packet/text.go` |

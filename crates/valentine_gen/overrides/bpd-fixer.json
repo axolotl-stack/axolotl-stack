@@ -1,1246 +1,1245 @@
 {
-  "source": "Protocol 2168 exact-version oracles: gophertunnel PR #481 and CloudburstMC Bedrock_v2168",
-  "operations": [
-    {
-      "op": "remove_required",
-      "schema": "FullContainerName.json",
-      "schema_title": "FullContainerName",
-      "field": "Dynamic ID",
-      "why": "Protocol 2168 gophertunnel minecraft/protocol/container.go FullContainerName.Marshal writes DynamicContainerID with OptionalFunc; Cloudburst BedrockCodecHelper_v729.writeFullContainerName uses writeOptionalNull."
-    },
-    {
-      "op": "patch_schema",
-      "schema": "AnimatePacketPayload_Action.json",
-      "patch": {
-        "x-enum-values": [
-          0,
-          1,
-          3,
-          4,
-          5
-        ]
-      },
-      "why": "Protocol 2168 gophertunnel minecraft/protocol/packet/animate.go defines SwingArm=1, preserves wire hole 2, then StopSleep=3, CriticalHit=4, MagicCriticalHit=5; packet/animate.go marshals ActionType as Uint8."
-    },
-    {
-      "op": "patch_schema",
-      "schema": "Color255RGBA.json",
-      "patch": {
-        "x-control-value-type": "uint32",
-        "x-control-values": [
-          0,
-          1
-        ]
-      },
-      "why": "Cloudburst effective v2168 serializer bedrock-codec/.../v944/serializer/ClientboundAttributeLayerSyncSerializer_v944.java writes VarInts unsigned discriminants 0 (string) and 1 (four I32LE values). gophertunnel 2168 does not implement this packet family."
-    },
-    {
-      "op": "patch_property",
-      "schema": "DataItemEntry.json",
-      "field": "Payload",
-      "patch": {
-        "x-control-values": [
-          0,
-          1,
-          2,
-          3,
-          4,
-          5,
-          6,
-          7,
-          8
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 gophertunnel minecraft/protocol/writer.go EntityMetadata writes Varuint32 type values 0..8 before each payload; each DataItem*Payload schema then emits the legacy Uint8 type byte documented by the same switch."
-    },
-    {
-      "op": "add_document",
-      "file": "ValentineDataStorePropertyValue.json",
-      "document": {
-        "title": "DataStorePropertyValue",
-        "oneOf": [
-          {},
-          {
-            "type": "boolean"
-          },
-          {
-            "type": "integer",
-            "x-underlying-type": "int64"
-          },
-          {
-            "type": "number",
-            "x-underlying-type": "double"
-          },
-          {
-            "type": "string"
-          },
-          {
-            "type": "array",
-            "items": {
-              "$ref": "ValentineDataStorePropertyValue.json"
-            }
-          },
-          {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "Key": {
-                  "type": "string",
-                  "x-ordinal-index": 0
-                },
-                "Value": {
-                  "$ref": "ValentineDataStorePropertyValue.json",
-                  "x-ordinal-index": 1
+    "source": "Protocol 2168 exact-version oracles: gophertunnel PR #481 and CloudburstMC Bedrock_v2168",
+    "operations": [
+        {
+            "op": "remove_required",
+            "schema": "FullContainerName.json",
+            "schema_title": "FullContainerName",
+            "field": "Dynamic ID",
+            "why": "Protocol 2168 gophertunnel minecraft/protocol/container.go FullContainerName.Marshal writes DynamicContainerID with OptionalFunc; Cloudburst BedrockCodecHelper_v729.writeFullContainerName uses writeOptionalNull."
+        },
+        {
+            "op": "patch_schema",
+            "schema": "AnimatePacketPayload_Action.json",
+            "patch": {
+                "x-enum-values": [
+                    0,
+                    1,
+                    3,
+                    4,
+                    5
+                ]
+            },
+            "why": "Protocol 2168 gophertunnel minecraft/protocol/packet/animate.go defines SwingArm=1, preserves wire hole 2, then StopSleep=3, CriticalHit=4, MagicCriticalHit=5; packet/animate.go marshals ActionType as Uint8."
+        },
+        {
+            "op": "patch_schema",
+            "schema": "Color255RGBA.json",
+            "patch": {
+                "x-control-value-type": "uint32",
+                "x-control-values": [
+                    0,
+                    1
+                ]
+            },
+            "why": "Cloudburst effective v2168 serializer bedrock-codec/.../v944/serializer/ClientboundAttributeLayerSyncSerializer_v944.java writes VarInts unsigned discriminants 0 (string) and 1 (four I32LE values). gophertunnel 2168 does not implement this packet family."
+        },
+        {
+            "op": "patch_property",
+            "schema": "DataItemEntry.json",
+            "field": "Payload",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 gophertunnel minecraft/protocol/writer.go EntityMetadata writes Varuint32 type values 0..8 before each payload; each DataItem*Payload schema then emits the legacy Uint8 type byte documented by the same switch."
+        },
+        {
+            "op": "add_document",
+            "file": "ValentineDataStorePropertyValue.json",
+            "document": {
+                "title": "DataStorePropertyValue",
+                "oneOf": [
+                    {},
+                    {
+                        "type": "boolean"
+                    },
+                    {
+                        "type": "integer",
+                        "x-underlying-type": "int64"
+                    },
+                    {
+                        "type": "number",
+                        "x-underlying-type": "double"
+                    },
+                    {
+                        "type": "string"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "$ref": "ValentineDataStorePropertyValue.json"
+                        }
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "Key": {
+                                    "type": "string",
+                                    "x-ordinal-index": 0
+                                },
+                                "Value": {
+                                    "$ref": "ValentineDataStorePropertyValue.json",
+                                    "x-ordinal-index": 1
+                                }
+                            },
+                            "required": [
+                                "Key",
+                                "Value"
+                            ]
+                        }
+                    }
+                ],
+                "x-control-value-type": "int32",
+                "x-control-values": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6
+                ]
+            },
+            "why": "Protocol 2168 gophertunnel minecraft/protocol/data_store.go MarshalDataStorePropertyValue writes I32LE tags 0..6 and Bool/I64LE/F64LE/String/VarInt-array payloads, recursively for lists and maps; Cloudburst v898 ClientboundDataStoreSerializer_v898.java implements the same tagged family."
+        },
+        {
+            "op": "patch_property",
+            "schema": "Data_Store_Change.json",
+            "field": "The New Property Value",
+            "patch": {
+                "$ref": "ValentineDataStorePropertyValue.json"
+            },
+            "why": "Protocol 2168 gophertunnel minecraft/protocol/data_store.go DataStoreChange.Marshal calls MarshalDataStorePropertyValue after UpdateCount; Cloudburst v898 ClientboundDataStoreSerializer_v898.java calls writeDataStoreChange at the same position."
+        },
+        {
+            "op": "patch_property",
+            "schema": "Achievement.json",
+            "field": "Achievement ID",
+            "patch": {
+                "x-serialization-options": [
+                    "Enum-as-Value"
+                ]
+            },
+            "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 65 Event delegates to minecraft/protocol/events.go (Achievement, io.Uint8); Cloudburst EventSerializer_v291 event helper matches U8."
+        },
+        {
+            "op": "patch_property",
+            "schema": "AuthorAndMessage.json",
+            "field": "Message Type",
+            "patch": {
+                "x-serialization-options": [
+                    "Enum-as-Value"
+                ]
+            },
+            "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 9 Text delegates to minecraft/protocol/packet/text.go (io.Uint8 message type); Cloudburst TextSerializer_v291 writes type as byte."
+        },
+        {
+            "op": "patch_property",
+            "schema": "BossEventPacketPayload.json",
+            "field": "Color",
+            "patch": {
+                "x-serialization-options": [
+                    "Enum-as-Value"
+                ]
+            },
+            "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 74 BossEvent records EventType, Colour, and Overlay as U8 in minecraft/protocol/packet/boss_event.go; Cloudburst BossEventSerializer_v291 writes the same three fields as bytes."
+        },
+        {
+            "op": "patch_property",
+            "schema": "BossEventPacketPayload.json",
+            "field": "Event Type",
+            "patch": {
+                "x-serialization-options": [
+                    "Enum-as-Value"
+                ]
+            },
+            "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 74 BossEvent records EventType, Colour, and Overlay as U8 in minecraft/protocol/packet/boss_event.go; Cloudburst BossEventSerializer_v291 writes the same three fields as bytes."
+        },
+        {
+            "op": "patch_property",
+            "schema": "BossEventPacketPayload.json",
+            "field": "Overlay",
+            "patch": {
+                "x-serialization-options": [
+                    "Enum-as-Value"
+                ]
+            },
+            "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 74 BossEvent records EventType, Colour, and Overlay as U8 in minecraft/protocol/packet/boss_event.go; Cloudburst BossEventSerializer_v291 writes the same three fields as bytes."
+        },
+        {
+            "op": "patch_property",
+            "schema": "ComposterUsed.json",
+            "field": "Block Interaction Type",
+            "patch": {
+                "x-serialization-options": [
+                    "Enum-as-Value"
+                ]
+            },
+            "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 65 Event delegates to minecraft/protocol/events.go (ComposterUsed block interaction type, io.Uint8); Cloudburst EventSerializer_v291 event helper matches U8."
+        },
+        {
+            "op": "patch_property",
+            "schema": "EnchantmentInstance.json",
+            "field": "Enchant Type",
+            "patch": {
+                "x-serialization-options": [
+                    "Enum-as-Value"
+                ]
+            },
+            "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 146 PlayerEnchantOptions delegates Options to minecraft/protocol/enchant.go, where EnchantmentInstance type is io.Uint8; Cloudburst PlayerEnchantOptionsSerializer_v407 writes enchantment type as byte."
+        },
+        {
+            "op": "patch_property",
+            "schema": "Interaction.json",
+            "field": "Interaction Actor Color",
+            "patch": {
+                "x-serialization-options": []
+            },
+            "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 65 Event delegates to minecraft/protocol/events.go (Interaction type and actor colour, io.Uint8); Cloudburst EventSerializer_v291 event helper matches U8."
+        },
+        {
+            "op": "patch_property",
+            "schema": "Interaction.json",
+            "field": "Interaction Type",
+            "patch": {
+                "x-serialization-options": [
+                    "Enum-as-Value"
+                ]
+            },
+            "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 65 Event delegates to minecraft/protocol/events.go (Interaction type and actor colour, io.Uint8); Cloudburst EventSerializer_v291 event helper matches U8."
+        },
+        {
+            "op": "patch_property",
+            "schema": "InventorySlotPacketPayload.json",
+            "field": "Container Id",
+            "patch": {
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 Compression-on-8-bit resolution: VarInt. gophertunnel-2168.json packet 50 InventorySlot records WindowID as VarInt (Varuint32) in minecraft/protocol/packet/inventory_slot.go; Cloudburst InventorySlotSerializer_v407 uses unsigned VarInt."
+        },
+        {
+            "op": "patch_property",
+            "schema": "InventorySource.json",
+            "field": "Container ID",
+            "patch": {
+                "x-serialization-options": []
+            },
+            "why": "Protocol 2168 Compression-on-8-bit resolution: I8. gophertunnel-2168.json packet 30 InventoryTransaction delegates Actions to minecraft/protocol/inventory.go, where InventorySource WindowID is io.Int8; Cloudburst BedrockCodecHelper inventory-action path reads a signed byte."
+        },
+        {
+            "op": "patch_property",
+            "schema": "ItemUseInventoryTransaction.json",
+            "field": "Face",
+            "patch": {
+                "x-serialization-options": []
+            },
+            "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 30 InventoryTransaction delegates transaction data to minecraft/protocol/inventory.go, where BlockFace and TriggerType use IntegerFunc(..., io.Uint8); Cloudburst inventory transaction serializer writes both as bytes."
+        },
+        {
+            "op": "patch_property",
+            "schema": "ItemUseInventoryTransaction.json",
+            "field": "Trigger Type",
+            "patch": {
+                "x-serialization-options": [
+                    "Enum-as-Value"
+                ]
+            },
+            "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 30 InventoryTransaction delegates transaction data to minecraft/protocol/inventory.go, where BlockFace and TriggerType use IntegerFunc(..., io.Uint8); Cloudburst inventory transaction serializer writes both as bytes."
+        },
+        {
+            "op": "patch_property",
+            "schema": "LegacySetSlot.json",
+            "field": "Container Enum",
+            "patch": {
+                "x-serialization-options": [
+                    "Enum-as-Value"
+                ]
+            },
+            "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 30 InventoryTransaction delegates LegacySetItemSlots to minecraft/protocol/inventory.go, where ContainerID is io.Uint8; Cloudburst InventoryTransactionSerializer legacy slots use a byte."
+        },
+        {
+            "op": "patch_property",
+            "schema": "LevelSettings.json",
+            "field": "Player Permissions",
+            "patch": {
+                "x-serialization-options": [
+                    "Enum-as-Value"
+                ]
+            },
+            "why": "int8 + Compression is not mechanically interpretable; 8-bit fields carrying Compression may be raw bytes or varints and must be pinned per field. gophertunnel agent/protocol-1.26.40 @5189cf19 (commit \"Fix protocol 2168 field encodings\") writes io.Uint8(&pk.PlayerPermissions) at minecraft/protocol/packet/start_game.go:319, i.e. a raw byte, so Compression is dropped here. An earlier revision of that branch encoded this as a signed varint; that was the bug the commit fixed."
+        },
+        {
+            "op": "patch_property",
+            "schema": "LocatorBarWaypointPayload.json",
+            "field": "ActionFlag",
+            "patch": {
+                "x-serialization-options": [
+                    "Enum-as-Value"
+                ]
+            },
+            "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 341 LocatorBar delegates Waypoints to minecraft/protocol/locator.go, where ActionFlag is io.Uint8; Cloudburst LocatorBarSerializer_v800 waypoint helper matches a byte."
+        },
+        {
+            "op": "patch_property",
+            "schema": "MessageAndParams.json",
+            "field": "Message Type",
+            "patch": {
+                "x-serialization-options": [
+                    "Enum-as-Value"
+                ]
+            },
+            "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 9 Text delegates to minecraft/protocol/packet/text.go (io.Uint8 message type); Cloudburst TextSerializer_v291 writes type as byte."
+        },
+        {
+            "op": "patch_property",
+            "schema": "MessageOnly.json",
+            "field": "Message Type",
+            "patch": {
+                "x-serialization-options": [
+                    "Enum-as-Value"
+                ]
+            },
+            "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 9 Text delegates to minecraft/protocol/packet/text.go (io.Uint8 message type); Cloudburst TextSerializer_v291 writes type as byte."
+        },
+        {
+            "op": "patch_property",
+            "schema": "MobBorn.json",
+            "field": "Born Baby: Color",
+            "patch": {
+                "x-serialization-options": []
+            },
+            "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 65 Event delegates to minecraft/protocol/events.go (MobBorn baby colour, io.Uint8); Cloudburst EventSerializer_v291 event helper matches U8."
+        },
+        {
+            "op": "patch_property",
+            "schema": "MobEquipmentPacketPayload.json",
+            "field": "Container ID",
+            "patch": {
+                "x-serialization-options": []
+            },
+            "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 31 MobEquipment records InventorySlot, HotBarSlot, and WindowID as U8 in minecraft/protocol/packet/mob_equipment.go; Cloudburst MobEquipmentSerializer_v291 writes all three as bytes."
+        },
+        {
+            "op": "patch_property",
+            "schema": "MobEquipmentPacketPayload.json",
+            "field": "Selected Slot",
+            "patch": {
+                "x-serialization-options": []
+            },
+            "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 31 MobEquipment records InventorySlot, HotBarSlot, and WindowID as U8 in minecraft/protocol/packet/mob_equipment.go; Cloudburst MobEquipmentSerializer_v291 writes all three as bytes."
+        },
+        {
+            "op": "patch_property",
+            "schema": "MobEquipmentPacketPayload.json",
+            "field": "Slot",
+            "patch": {
+                "x-serialization-options": []
+            },
+            "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 31 MobEquipment records InventorySlot, HotBarSlot, and WindowID as U8 in minecraft/protocol/packet/mob_equipment.go; Cloudburst MobEquipmentSerializer_v291 writes all three as bytes."
+        },
+        {
+            "op": "patch_property",
+            "schema": "POICauldronUsed.json",
+            "field": "Block Interaction Type",
+            "patch": {
+                "x-serialization-options": [
+                    "Enum-as-Value"
+                ]
+            },
+            "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 65 Event delegates to minecraft/protocol/events.go (POICauldronUsed block interaction type, io.Uint8); Cloudburst EventSerializer_v291 event helper matches U8."
+        },
+        {
+            "op": "patch_property",
+            "schema": "StructureEditorData.json",
+            "field": "Redstone Save Mode",
+            "patch": {
+                "x-serialization-options": [
+                    "Enum-as-Value"
+                ]
+            },
+            "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 90 StructureBlockUpdate records RedstoneSaveMode as U8 in minecraft/protocol/packet/structure_block_update.go; Cloudburst StructureBlockUpdateSerializer_v554 writes it as byte."
+        },
+        {
+            "op": "patch_property",
+            "schema": "DataItemCompoundTagPayload.json",
+            "field": "Value",
+            "patch": {
+                "$ref": "#/definitions/3172631924"
+            },
+            "why": "Protocol 2168 gophertunnel minecraft/protocol/writer.go EntityMetadata case map[string]any writes NBT with NetworkLittleEndian; Cloudburst entity-data helper writes the same NBT payload."
+        },
+        {
+            "op": "patch_property",
+            "schema": "AvailableActorIdentifiersPacketPayload.json",
+            "field": "Identifier List",
+            "patch": {
+                "$ref": "#/definitions/3172631924"
+            },
+            "why": "Protocol 2168 gophertunnel minecraft/protocol/packet/available_actor_identifiers.go marshals IdentifierList with NBT; Cloudburst AvailableEntityIdentifiersSerializer writes a tag."
+        },
+        {
+            "op": "patch_property",
+            "schema": "PositionTrackingDBServerBroadcastPacketPayload.json",
+            "field": "Position tracking data",
+            "patch": {
+                "$ref": "#/definitions/3172631924"
+            },
+            "why": "Protocol 2168 gophertunnel minecraft/protocol/packet/position_tracking_db_server_broadcast.go marshals Payload with NBT; Cloudburst effective serializer writes the corresponding tag."
+        },
+        {
+            "op": "patch_property",
+            "schema": "AddVolumeEntityPacketPayload.json",
+            "field": "Components",
+            "patch": {
+                "$ref": "#/definitions/3172631924"
+            },
+            "why": "Protocol 2168 gophertunnel minecraft/protocol/packet/add_volume_entity.go marshals this field as Network Little Endian NBT; Cloudburst effective v2168 uses its matching NBT/tag helper."
+        },
+        {
+            "op": "patch_property",
+            "schema": "BlockActorDataPacketPayload.json",
+            "field": "Actor Data Tags",
+            "patch": {
+                "$ref": "#/definitions/3172631924"
+            },
+            "why": "Protocol 2168 gophertunnel minecraft/protocol/packet/block_actor_data.go marshals this field as Network Little Endian NBT; Cloudburst effective v2168 uses its matching NBT/tag helper."
+        },
+        {
+            "op": "patch_property",
+            "schema": "ItemData.json",
+            "field": "Item Component Data",
+            "patch": {
+                "$ref": "#/definitions/3172631924"
+            },
+            "why": "Protocol 2168 gophertunnel minecraft/protocol/item.go marshals this field as Network Little Endian NBT; Cloudburst effective v2168 uses its matching NBT/tag helper."
+        },
+        {
+            "op": "patch_property",
+            "schema": "JigsawStructureDataPacketPayload.json",
+            "field": "Jigsaw Structure Data Tag",
+            "patch": {
+                "$ref": "#/definitions/3172631924"
+            },
+            "why": "Protocol 2168 gophertunnel minecraft/protocol/packet/jigsaw_structure_data.go marshals this field as Network Little Endian NBT; Cloudburst effective v2168 uses its matching NBT/tag helper."
+        },
+        {
+            "op": "patch_property",
+            "schema": "ServerBlockProperty.json",
+            "field": "Block Definition",
+            "patch": {
+                "$ref": "#/definitions/3172631924"
+            },
+            "why": "Protocol 2168 gophertunnel minecraft/protocol/block.go marshals this field as Network Little Endian NBT; Cloudburst effective v2168 uses its matching NBT/tag helper."
+        },
+        {
+            "op": "patch_property",
+            "schema": "StartGamePacketPayload.json",
+            "field": "Player Property Data",
+            "patch": {
+                "$ref": "#/definitions/3172631924"
+            },
+            "why": "Protocol 2168 gophertunnel minecraft/protocol/packet/start_game.go marshals this field as Network Little Endian NBT; Cloudburst effective v2168 uses its matching NBT/tag helper."
+        },
+        {
+            "op": "patch_property",
+            "schema": "StructureTemplateDataResponsePacketPayload.json",
+            "field": "Structure's NBT",
+            "patch": {
+                "$ref": "#/definitions/3172631924"
+            },
+            "why": "Protocol 2168 gophertunnel minecraft/protocol/packet/structure_template_data_response.go marshals this field as Network Little Endian NBT; Cloudburst effective v2168 uses its matching NBT/tag helper."
+        },
+        {
+            "op": "patch_property",
+            "schema": "SyncActorPropertyPacketPayload.json",
+            "field": "Property Data",
+            "patch": {
+                "$ref": "#/definitions/3172631924"
+            },
+            "why": "Protocol 2168 gophertunnel minecraft/protocol/packet/sync_actor_property.go marshals this field as Network Little Endian NBT; Cloudburst effective v2168 uses its matching NBT/tag helper."
+        },
+        {
+            "op": "patch_property",
+            "schema": "UpdateEquipPacketPayload.json",
+            "field": "Data",
+            "patch": {
+                "$ref": "#/definitions/3172631924"
+            },
+            "why": "Protocol 2168 gophertunnel minecraft/protocol/packet/update_equip.go marshals this field as Network Little Endian NBT; Cloudburst effective v2168 uses its matching NBT/tag helper."
+        },
+        {
+            "op": "patch_property",
+            "schema": "UpdateTradePacketPayload.json",
+            "field": "Data",
+            "patch": {
+                "$ref": "#/definitions/3172631924"
+            },
+            "why": "Protocol 2168 gophertunnel minecraft/protocol/packet/update_trade.go marshals this field as Network Little Endian NBT; Cloudburst effective v2168 uses its matching NBT/tag helper."
+        },
+        {
+            "op": "patch_property",
+            "schema": "LevelEventGenericPacketPayload.json",
+            "field": "__[[CTD]]__",
+            "patch": {
+                "type": "integer",
+                "x-underlying-type": "buffer"
+            },
+            "why": "Protocol 2168 gophertunnel extraction for packet 124 LevelEventGeneric records RawBytes/Bytes for SerialisedEventData, and minecraft/protocol/packet/level_event_generic.go consumes the remaining packet bytes; Cloudburst effective serializer likewise uses a raw buffer."
+        },
+        {
+            "op": "patch_property",
+            "schema": "BookEditPacketPayload.json",
+            "field": "Operation",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/book_edit.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "ClientboundAttributeLayerSyncPacketPayload.json",
+            "field": "Data",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1,
+                    2,
+                    3
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 discriminants pinned against Cloudburst v944 ClientboundAttributeLayerSyncSerializer_v944.java. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "ClientboundUpdateSoundDataPacketPayload.json",
+            "field": "Fade",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/clientbound_update_sound_data.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "ClientboundUpdateSoundDataPacketPayload.json",
+            "field": "Pause",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/clientbound_update_sound_data.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "ClientboundUpdateSoundDataPacketPayload.json",
+            "field": "Resume",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/clientbound_update_sound_data.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "ClientboundUpdateSoundDataPacketPayload.json",
+            "field": "SeekTo",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/clientbound_update_sound_data.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "ClientboundUpdateSoundDataPacketPayload.json",
+            "field": "SetPitch",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/clientbound_update_sound_data.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "ClientboundUpdateSoundDataPacketPayload.json",
+            "field": "SetVolume",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/clientbound_update_sound_data.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "ClientboundUpdateSoundDataPacketPayload.json",
+            "field": "Stop",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/clientbound_update_sound_data.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "Clientbound_Data_Store_Payload.json",
+            "field": "Updates",
+            "patch": {
+                "items": {
+                    "oneOf": [
+                        {
+                            "$ref": "./Data_Store_Update.json"
+                        },
+                        {
+                            "$ref": "./Data_Store_Change.json"
+                        },
+                        {
+                            "$ref": "./Data_Store_Removal.json"
+                        }
+                    ],
+                    "x-control-value-type": "uint32",
+                    "x-control-values": [
+                        0,
+                        1,
+                        2
+                    ],
+                    "x-serialization-options": [
+                        "Compression"
+                    ]
                 }
-              },
-              "required": [
-                "Key",
-                "Value"
-              ]
-            }
-          }
-        ],
-        "x-control-value-type": "int32",
-        "x-control-values": [
-          0,
-          1,
-          2,
-          3,
-          4,
-          5,
-          6
-        ]
-      },
-      "why": "Protocol 2168 gophertunnel minecraft/protocol/data_store.go MarshalDataStorePropertyValue writes I32LE tags 0..6 and Bool/I64LE/F64LE/String/VarInt-array payloads, recursively for lists and maps; Cloudburst v898 ClientboundDataStoreSerializer_v898.java implements the same tagged family."
-    },
-    {
-      "op": "patch_property",
-      "schema": "Data_Store_Change.json",
-      "field": "The New Property Value",
-      "patch": {
-        "$ref": "ValentineDataStorePropertyValue.json"
-      },
-      "why": "Protocol 2168 gophertunnel minecraft/protocol/data_store.go DataStoreChange.Marshal calls MarshalDataStorePropertyValue after UpdateCount; Cloudburst v898 ClientboundDataStoreSerializer_v898.java calls writeDataStoreChange at the same position."
-    },
-    {
-      "op": "patch_property",
-      "schema": "Achievement.json",
-      "field": "Achievement ID",
-      "patch": {
-        "x-serialization-options": [
-          "Enum-as-Value"
-        ]
-      },
-      "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 65 Event delegates to minecraft/protocol/events.go (Achievement, io.Uint8); Cloudburst EventSerializer_v291 event helper matches U8."
-    },
-    {
-      "op": "patch_property",
-      "schema": "AuthorAndMessage.json",
-      "field": "Message Type",
-      "patch": {
-        "x-serialization-options": [
-          "Enum-as-Value"
-        ]
-      },
-      "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 9 Text delegates to minecraft/protocol/packet/text.go (io.Uint8 message type); Cloudburst TextSerializer_v291 writes type as byte."
-    },
-    {
-      "op": "patch_property",
-      "schema": "BossEventPacketPayload.json",
-      "field": "Color",
-      "patch": {
-        "x-serialization-options": [
-          "Enum-as-Value"
-        ]
-      },
-      "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 74 BossEvent records EventType, Colour, and Overlay as U8 in minecraft/protocol/packet/boss_event.go; Cloudburst BossEventSerializer_v291 writes the same three fields as bytes."
-    },
-    {
-      "op": "patch_property",
-      "schema": "BossEventPacketPayload.json",
-      "field": "Event Type",
-      "patch": {
-        "x-serialization-options": [
-          "Enum-as-Value"
-        ]
-      },
-      "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 74 BossEvent records EventType, Colour, and Overlay as U8 in minecraft/protocol/packet/boss_event.go; Cloudburst BossEventSerializer_v291 writes the same three fields as bytes."
-    },
-    {
-      "op": "patch_property",
-      "schema": "BossEventPacketPayload.json",
-      "field": "Overlay",
-      "patch": {
-        "x-serialization-options": [
-          "Enum-as-Value"
-        ]
-      },
-      "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 74 BossEvent records EventType, Colour, and Overlay as U8 in minecraft/protocol/packet/boss_event.go; Cloudburst BossEventSerializer_v291 writes the same three fields as bytes."
-    },
-    {
-      "op": "patch_property",
-      "schema": "ComposterUsed.json",
-      "field": "Block Interaction Type",
-      "patch": {
-        "x-serialization-options": [
-          "Enum-as-Value"
-        ]
-      },
-      "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 65 Event delegates to minecraft/protocol/events.go (ComposterUsed block interaction type, io.Uint8); Cloudburst EventSerializer_v291 event helper matches U8."
-    },
-    {
-      "op": "patch_property",
-      "schema": "EnchantmentInstance.json",
-      "field": "Enchant Type",
-      "patch": {
-        "x-serialization-options": [
-          "Enum-as-Value"
-        ]
-      },
-      "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 146 PlayerEnchantOptions delegates Options to minecraft/protocol/enchant.go, where EnchantmentInstance type is io.Uint8; Cloudburst PlayerEnchantOptionsSerializer_v407 writes enchantment type as byte."
-    },
-    {
-      "op": "patch_property",
-      "schema": "Interaction.json",
-      "field": "Interaction Actor Color",
-      "patch": {
-        "x-serialization-options": []
-      },
-      "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 65 Event delegates to minecraft/protocol/events.go (Interaction type and actor colour, io.Uint8); Cloudburst EventSerializer_v291 event helper matches U8."
-    },
-    {
-      "op": "patch_property",
-      "schema": "Interaction.json",
-      "field": "Interaction Type",
-      "patch": {
-        "x-serialization-options": [
-          "Enum-as-Value"
-        ]
-      },
-      "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 65 Event delegates to minecraft/protocol/events.go (Interaction type and actor colour, io.Uint8); Cloudburst EventSerializer_v291 event helper matches U8."
-    },
-    {
-      "op": "patch_property",
-      "schema": "InventorySlotPacketPayload.json",
-      "field": "Container Id",
-      "patch": {
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 Compression-on-8-bit resolution: VarInt. gophertunnel-2168.json packet 50 InventorySlot records WindowID as VarInt (Varuint32) in minecraft/protocol/packet/inventory_slot.go; Cloudburst InventorySlotSerializer_v407 uses unsigned VarInt."
-    },
-    {
-      "op": "patch_property",
-      "schema": "InventorySource.json",
-      "field": "Container ID",
-      "patch": {
-        "x-serialization-options": []
-      },
-      "why": "Protocol 2168 Compression-on-8-bit resolution: I8. gophertunnel-2168.json packet 30 InventoryTransaction delegates Actions to minecraft/protocol/inventory.go, where InventorySource WindowID is io.Int8; Cloudburst BedrockCodecHelper inventory-action path reads a signed byte."
-    },
-    {
-      "op": "patch_property",
-      "schema": "ItemUseInventoryTransaction.json",
-      "field": "Face",
-      "patch": {
-        "x-serialization-options": []
-      },
-      "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 30 InventoryTransaction delegates transaction data to minecraft/protocol/inventory.go, where BlockFace and TriggerType use IntegerFunc(..., io.Uint8); Cloudburst inventory transaction serializer writes both as bytes."
-    },
-    {
-      "op": "patch_property",
-      "schema": "ItemUseInventoryTransaction.json",
-      "field": "Trigger Type",
-      "patch": {
-        "x-serialization-options": [
-          "Enum-as-Value"
-        ]
-      },
-      "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 30 InventoryTransaction delegates transaction data to minecraft/protocol/inventory.go, where BlockFace and TriggerType use IntegerFunc(..., io.Uint8); Cloudburst inventory transaction serializer writes both as bytes."
-    },
-    {
-      "op": "patch_property",
-      "schema": "LegacySetSlot.json",
-      "field": "Container Enum",
-      "patch": {
-        "x-serialization-options": [
-          "Enum-as-Value"
-        ]
-      },
-      "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 30 InventoryTransaction delegates LegacySetItemSlots to minecraft/protocol/inventory.go, where ContainerID is io.Uint8; Cloudburst InventoryTransactionSerializer legacy slots use a byte."
-    },
-    {
-      "op": "patch_property",
-      "schema": "LevelSettings.json",
-      "field": "Player Permissions",
-      "patch": {
-        "x-serialization-options": [
-          "Compression",
-          "Enum-as-Value"
-        ]
-      },
-      "why": "Protocol 2168 Compression-on-8-bit resolution: ZigZag32. gophertunnel-2168.json packet 11 StartGame records PlayerPermissions as ZigZag32 (Varint32) in minecraft/protocol/packet/start_game.go; Cloudburst StartGameSerializer_v2168 uses VarInts.writeInt."
-    },
-    {
-      "op": "patch_property",
-      "schema": "LocatorBarWaypointPayload.json",
-      "field": "ActionFlag",
-      "patch": {
-        "x-serialization-options": [
-          "Enum-as-Value"
-        ]
-      },
-      "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 341 LocatorBar delegates Waypoints to minecraft/protocol/locator.go, where ActionFlag is io.Uint8; Cloudburst LocatorBarSerializer_v800 waypoint helper matches a byte."
-    },
-    {
-      "op": "patch_property",
-      "schema": "MessageAndParams.json",
-      "field": "Message Type",
-      "patch": {
-        "x-serialization-options": [
-          "Enum-as-Value"
-        ]
-      },
-      "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 9 Text delegates to minecraft/protocol/packet/text.go (io.Uint8 message type); Cloudburst TextSerializer_v291 writes type as byte."
-    },
-    {
-      "op": "patch_property",
-      "schema": "MessageOnly.json",
-      "field": "Message Type",
-      "patch": {
-        "x-serialization-options": [
-          "Enum-as-Value"
-        ]
-      },
-      "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 9 Text delegates to minecraft/protocol/packet/text.go (io.Uint8 message type); Cloudburst TextSerializer_v291 writes type as byte."
-    },
-    {
-      "op": "patch_property",
-      "schema": "MobBorn.json",
-      "field": "Born Baby: Color",
-      "patch": {
-        "x-serialization-options": []
-      },
-      "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 65 Event delegates to minecraft/protocol/events.go (MobBorn baby colour, io.Uint8); Cloudburst EventSerializer_v291 event helper matches U8."
-    },
-    {
-      "op": "patch_property",
-      "schema": "MobEquipmentPacketPayload.json",
-      "field": "Container ID",
-      "patch": {
-        "x-serialization-options": []
-      },
-      "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 31 MobEquipment records InventorySlot, HotBarSlot, and WindowID as U8 in minecraft/protocol/packet/mob_equipment.go; Cloudburst MobEquipmentSerializer_v291 writes all three as bytes."
-    },
-    {
-      "op": "patch_property",
-      "schema": "MobEquipmentPacketPayload.json",
-      "field": "Selected Slot",
-      "patch": {
-        "x-serialization-options": []
-      },
-      "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 31 MobEquipment records InventorySlot, HotBarSlot, and WindowID as U8 in minecraft/protocol/packet/mob_equipment.go; Cloudburst MobEquipmentSerializer_v291 writes all three as bytes."
-    },
-    {
-      "op": "patch_property",
-      "schema": "MobEquipmentPacketPayload.json",
-      "field": "Slot",
-      "patch": {
-        "x-serialization-options": []
-      },
-      "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 31 MobEquipment records InventorySlot, HotBarSlot, and WindowID as U8 in minecraft/protocol/packet/mob_equipment.go; Cloudburst MobEquipmentSerializer_v291 writes all three as bytes."
-    },
-    {
-      "op": "patch_property",
-      "schema": "POICauldronUsed.json",
-      "field": "Block Interaction Type",
-      "patch": {
-        "x-serialization-options": [
-          "Enum-as-Value"
-        ]
-      },
-      "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 65 Event delegates to minecraft/protocol/events.go (POICauldronUsed block interaction type, io.Uint8); Cloudburst EventSerializer_v291 event helper matches U8."
-    },
-    {
-      "op": "patch_property",
-      "schema": "StructureEditorData.json",
-      "field": "Redstone Save Mode",
-      "patch": {
-        "x-serialization-options": [
-          "Enum-as-Value"
-        ]
-      },
-      "why": "Protocol 2168 Compression-on-8-bit resolution: U8. gophertunnel-2168.json packet 90 StructureBlockUpdate records RedstoneSaveMode as U8 in minecraft/protocol/packet/structure_block_update.go; Cloudburst StructureBlockUpdateSerializer_v554 writes it as byte."
-    },
-    {
-      "op": "patch_property",
-      "schema": "DataItemCompoundTagPayload.json",
-      "field": "Value",
-      "patch": {
-        "$ref": "#/definitions/3172631924"
-      },
-      "why": "Protocol 2168 gophertunnel minecraft/protocol/writer.go EntityMetadata case map[string]any writes NBT with NetworkLittleEndian; Cloudburst entity-data helper writes the same NBT payload."
-    },
-    {
-      "op": "patch_property",
-      "schema": "AvailableActorIdentifiersPacketPayload.json",
-      "field": "Identifier List",
-      "patch": {
-        "$ref": "#/definitions/3172631924"
-      },
-      "why": "Protocol 2168 gophertunnel minecraft/protocol/packet/available_actor_identifiers.go marshals IdentifierList with NBT; Cloudburst AvailableEntityIdentifiersSerializer writes a tag."
-    },
-    {
-      "op": "patch_property",
-      "schema": "PositionTrackingDBServerBroadcastPacketPayload.json",
-      "field": "Position tracking data",
-      "patch": {
-        "$ref": "#/definitions/3172631924"
-      },
-      "why": "Protocol 2168 gophertunnel minecraft/protocol/packet/position_tracking_db_server_broadcast.go marshals Payload with NBT; Cloudburst effective serializer writes the corresponding tag."
-    },
-    {
-      "op": "patch_property",
-      "schema": "AddVolumeEntityPacketPayload.json",
-      "field": "Components",
-      "patch": {
-        "$ref": "#/definitions/3172631924"
-      },
-      "why": "Protocol 2168 gophertunnel minecraft/protocol/packet/add_volume_entity.go marshals this field as Network Little Endian NBT; Cloudburst effective v2168 uses its matching NBT/tag helper."
-    },
-    {
-      "op": "patch_property",
-      "schema": "BlockActorDataPacketPayload.json",
-      "field": "Actor Data Tags",
-      "patch": {
-        "$ref": "#/definitions/3172631924"
-      },
-      "why": "Protocol 2168 gophertunnel minecraft/protocol/packet/block_actor_data.go marshals this field as Network Little Endian NBT; Cloudburst effective v2168 uses its matching NBT/tag helper."
-    },
-    {
-      "op": "patch_property",
-      "schema": "ItemData.json",
-      "field": "Item Component Data",
-      "patch": {
-        "$ref": "#/definitions/3172631924"
-      },
-      "why": "Protocol 2168 gophertunnel minecraft/protocol/item.go marshals this field as Network Little Endian NBT; Cloudburst effective v2168 uses its matching NBT/tag helper."
-    },
-    {
-      "op": "patch_property",
-      "schema": "JigsawStructureDataPacketPayload.json",
-      "field": "Jigsaw Structure Data Tag",
-      "patch": {
-        "$ref": "#/definitions/3172631924"
-      },
-      "why": "Protocol 2168 gophertunnel minecraft/protocol/packet/jigsaw_structure_data.go marshals this field as Network Little Endian NBT; Cloudburst effective v2168 uses its matching NBT/tag helper."
-    },
-    {
-      "op": "patch_property",
-      "schema": "ServerBlockProperty.json",
-      "field": "Block Definition",
-      "patch": {
-        "$ref": "#/definitions/3172631924"
-      },
-      "why": "Protocol 2168 gophertunnel minecraft/protocol/block.go marshals this field as Network Little Endian NBT; Cloudburst effective v2168 uses its matching NBT/tag helper."
-    },
-    {
-      "op": "patch_property",
-      "schema": "StartGamePacketPayload.json",
-      "field": "Player Property Data",
-      "patch": {
-        "$ref": "#/definitions/3172631924"
-      },
-      "why": "Protocol 2168 gophertunnel minecraft/protocol/packet/start_game.go marshals this field as Network Little Endian NBT; Cloudburst effective v2168 uses its matching NBT/tag helper."
-    },
-    {
-      "op": "patch_property",
-      "schema": "StructureTemplateDataResponsePacketPayload.json",
-      "field": "Structure's NBT",
-      "patch": {
-        "$ref": "#/definitions/3172631924"
-      },
-      "why": "Protocol 2168 gophertunnel minecraft/protocol/packet/structure_template_data_response.go marshals this field as Network Little Endian NBT; Cloudburst effective v2168 uses its matching NBT/tag helper."
-    },
-    {
-      "op": "patch_property",
-      "schema": "SyncActorPropertyPacketPayload.json",
-      "field": "Property Data",
-      "patch": {
-        "$ref": "#/definitions/3172631924"
-      },
-      "why": "Protocol 2168 gophertunnel minecraft/protocol/packet/sync_actor_property.go marshals this field as Network Little Endian NBT; Cloudburst effective v2168 uses its matching NBT/tag helper."
-    },
-    {
-      "op": "patch_property",
-      "schema": "UpdateEquipPacketPayload.json",
-      "field": "Data",
-      "patch": {
-        "$ref": "#/definitions/3172631924"
-      },
-      "why": "Protocol 2168 gophertunnel minecraft/protocol/packet/update_equip.go marshals this field as Network Little Endian NBT; Cloudburst effective v2168 uses its matching NBT/tag helper."
-    },
-    {
-      "op": "patch_property",
-      "schema": "UpdateTradePacketPayload.json",
-      "field": "Data",
-      "patch": {
-        "$ref": "#/definitions/3172631924"
-      },
-      "why": "Protocol 2168 gophertunnel minecraft/protocol/packet/update_trade.go marshals this field as Network Little Endian NBT; Cloudburst effective v2168 uses its matching NBT/tag helper."
-    },
-    {
-      "op": "patch_property",
-      "schema": "LevelEventGenericPacketPayload.json",
-      "field": "__[[CTD]]__",
-      "patch": {
-        "type": "integer",
-        "x-underlying-type": "buffer"
-      },
-      "why": "Protocol 2168 gophertunnel extraction for packet 124 LevelEventGeneric records RawBytes/Bytes for SerialisedEventData, and minecraft/protocol/packet/level_event_generic.go consumes the remaining packet bytes; Cloudburst effective serializer likewise uses a raw buffer."
-    },
-    {
-      "op": "patch_property",
-      "schema": "BookEditPacketPayload.json",
-      "field": "Operation",
-      "patch": {
-        "x-control-values": [
-          0,
-          1,
-          2,
-          3,
-          4
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/book_edit.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "ClientboundAttributeLayerSyncPacketPayload.json",
-      "field": "Data",
-      "patch": {
-        "x-control-values": [
-          0,
-          1,
-          2,
-          3
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 discriminants pinned against Cloudburst v944 ClientboundAttributeLayerSyncSerializer_v944.java. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "ClientboundUpdateSoundDataPacketPayload.json",
-      "field": "Fade",
-      "patch": {
-        "x-control-values": [
-          0,
-          1,
-          2,
-          3,
-          4,
-          5,
-          6
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/clientbound_update_sound_data.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "ClientboundUpdateSoundDataPacketPayload.json",
-      "field": "Pause",
-      "patch": {
-        "x-control-values": [
-          0,
-          1,
-          2,
-          3,
-          4,
-          5,
-          6
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/clientbound_update_sound_data.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "ClientboundUpdateSoundDataPacketPayload.json",
-      "field": "Resume",
-      "patch": {
-        "x-control-values": [
-          0,
-          1,
-          2,
-          3,
-          4,
-          5,
-          6
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/clientbound_update_sound_data.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "ClientboundUpdateSoundDataPacketPayload.json",
-      "field": "SeekTo",
-      "patch": {
-        "x-control-values": [
-          0,
-          1,
-          2,
-          3,
-          4,
-          5,
-          6
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/clientbound_update_sound_data.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "ClientboundUpdateSoundDataPacketPayload.json",
-      "field": "SetPitch",
-      "patch": {
-        "x-control-values": [
-          0,
-          1,
-          2,
-          3,
-          4,
-          5,
-          6
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/clientbound_update_sound_data.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "ClientboundUpdateSoundDataPacketPayload.json",
-      "field": "SetVolume",
-      "patch": {
-        "x-control-values": [
-          0,
-          1,
-          2,
-          3,
-          4,
-          5,
-          6
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/clientbound_update_sound_data.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "ClientboundUpdateSoundDataPacketPayload.json",
-      "field": "Stop",
-      "patch": {
-        "x-control-values": [
-          0,
-          1,
-          2,
-          3,
-          4,
-          5,
-          6
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/clientbound_update_sound_data.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "Clientbound_Data_Store_Payload.json",
-      "field": "Updates",
-      "patch": {
-        "items": {
-          "oneOf": [
-            {
-              "$ref": "./Data_Store_Update.json"
             },
-            {
-              "$ref": "./Data_Store_Change.json"
+            "why": "Protocol 2168 discriminants pinned against minecraft/protocol/data_store.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "CommandBlockUpdatePacketPayload.json",
+            "field": "Target",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
             },
-            {
-              "$ref": "./Data_Store_Removal.json"
-            }
-          ],
-          "x-control-value-type": "uint32",
-          "x-control-values": [
-            0,
-            1,
-            2
-          ],
-          "x-serialization-options": [
-            "Compression"
-          ]
+            "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/command_block_update.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "DisconnectPacketPayload.json",
+            "field": "Messages",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/disconnect.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "EnvironmentAttributeData.json",
+            "field": "Attribute",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1,
+                    2
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 discriminants pinned against Cloudburst v944 ClientboundAttributeLayerSyncSerializer_v944.java. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "EnvironmentAttributeData.json",
+            "field": "FromAttribute",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1,
+                    2
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 discriminants pinned against Cloudburst v944 ClientboundAttributeLayerSyncSerializer_v944.java. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "EnvironmentAttributeData.json",
+            "field": "ToAttribute",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1,
+                    2
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 discriminants pinned against Cloudburst v944 ClientboundAttributeLayerSyncSerializer_v944.java. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "InventoryTransactionPacketPayload.json",
+            "field": "Transaction",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 discriminants pinned against minecraft/protocol/inventory.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "ItemStackRequest.json",
+            "field": "Actions",
+            "patch": {
+                "items": {
+                    "oneOf": [
+                        {
+                            "$ref": "./ItemStackRequestTakeAction.json"
+                        },
+                        {
+                            "$ref": "./ItemStackRequestPlaceAction.json"
+                        },
+                        {
+                            "$ref": "./ItemStackRequestSwapAction.json"
+                        },
+                        {
+                            "$ref": "./ItemStackRequestDropAction.json"
+                        },
+                        {
+                            "$ref": "./ItemStackRequestDestroyAction.json"
+                        },
+                        {
+                            "$ref": "./ItemStackRequestConsumeAction.json"
+                        },
+                        {
+                            "$ref": "./ItemStackRequestCreateAction.json"
+                        },
+                        {
+                            "$ref": "./ItemStackRequestLabTableCombineAction.json"
+                        },
+                        {
+                            "$ref": "./ItemStackRequestBeaconPaymentAction.json"
+                        },
+                        {
+                            "$ref": "./ItemStackRequestMineBlockAction.json"
+                        },
+                        {
+                            "$ref": "./ItemStackRequestCraftRecipeAction.json"
+                        },
+                        {
+                            "$ref": "./ItemStackRequestCraftRecipeAutoAction.json"
+                        },
+                        {
+                            "$ref": "./ItemStackRequestCraftCreativeAction.json"
+                        },
+                        {
+                            "$ref": "./ItemStackRequestCraftRecipeOptionalAction.json"
+                        },
+                        {
+                            "$ref": "./ItemStackRequestCraftRepairAndDisenchantAction.json"
+                        },
+                        {
+                            "$ref": "./ItemStackRequestCraftLoomAction.json"
+                        },
+                        {
+                            "$ref": "./ItemStackRequestCraftNonImplementedDeprecatedAction.json"
+                        },
+                        {
+                            "$ref": "./ItemStackRequestCraftResultsDeprecatedAction.json"
+                        }
+                    ],
+                    "x-control-value-type": "uint32",
+                    "x-control-values": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10,
+                        11,
+                        12,
+                        13,
+                        14,
+                        15,
+                        16,
+                        17
+                    ],
+                    "x-serialization-options": [
+                        "Compression"
+                    ]
+                }
+            },
+            "why": "Protocol 2168 discriminants pinned against minecraft/protocol/item_stack.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "ItemStackRequestNetworkItemInstanceDescriptor.json",
+            "field": "Item Descriptor",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1,
+                    2,
+                    3
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 discriminants pinned against minecraft/protocol/item_descriptor.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "LegacyTelemetryEventPacketPayload.json",
+            "field": "Event Data",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    11,
+                    13,
+                    15,
+                    16,
+                    17,
+                    18,
+                    19,
+                    23,
+                    24,
+                    25,
+                    26,
+                    27,
+                    31,
+                    255
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 discriminants pinned against minecraft/protocol/events.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "PlayerListPacketPayload.json",
+            "field": "Entries",
+            "patch": {
+                "items": {
+                    "oneOf": [
+                        {
+                            "$ref": "./PlayerListRemoveEntry.json"
+                        },
+                        {
+                            "$ref": "./PlayerListAddEntry.json"
+                        }
+                    ],
+                    "x-control-value-type": "uint32",
+                    "x-control-values": [
+                        0,
+                        1
+                    ],
+                    "x-serialization-options": [
+                        "Compression"
+                    ]
+                }
+            },
+            "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/player_list.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "PlayerLocationPacketPayload.json",
+            "field": "Location",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/player_location.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "PlayerUpdateEntityOverridesPacketPayload.json",
+            "field": "Update",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1,
+                    2,
+                    3
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/player_update_entity_overrides.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "PlayerVideoCapturePacketPayload.json",
+            "field": "Start Video Capture",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/player_video_capture.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "PlayerVideoCapturePacketPayload.json",
+            "field": "Stop Video Capture",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/player_video_capture.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "PrimitiveShapeDataPayload.json",
+            "field": "Extra Shape Data",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 discriminants pinned against Cloudburst effective v2168 debug renderer serializer. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "RecipeIngredient.json",
+            "field": "Item Descriptor",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1,
+                    2,
+                    3
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 discriminants pinned against minecraft/protocol/item_descriptor.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "ResourcePackClientResponsePacketPayload.json",
+            "field": "Response",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1,
+                    2,
+                    3
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/resource_pack_client_response.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "SetScorePacketPayload.json",
+            "field": "Score Info",
+            "patch": {
+                "items": {
+                    "oneOf": [
+                        {
+                            "$ref": "./RemoveScore.json"
+                        },
+                        {
+                            "$ref": "./ChangePlayerScore.json"
+                        },
+                        {
+                            "$ref": "./ChangeEntityScore.json"
+                        },
+                        {
+                            "$ref": "./ChangeFakePlayerScore.json"
+                        }
+                    ],
+                    "x-control-value-type": "uint32",
+                    "x-control-values": [
+                        0,
+                        1,
+                        2,
+                        3
+                    ],
+                    "x-serialization-options": [
+                        "Compression"
+                    ]
+                }
+            },
+            "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/set_score.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "SyncWorldClocksPacketPayload.json",
+            "field": "Data",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1,
+                    2,
+                    3
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/sync_world_clocks.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_property",
+            "schema": "TextPacketPayload.json",
+            "field": "Body",
+            "patch": {
+                "x-control-values": [
+                    0,
+                    1,
+                    2
+                ],
+                "x-serialization-options": [
+                    "Compression"
+                ]
+            },
+            "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/text.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
+        },
+        {
+            "op": "patch_schema",
+            "schema": "Color255RGB.json",
+            "patch": {
+                "x-control-value-type": "uint32",
+                "x-control-values": [
+                    0,
+                    1
+                ]
+            },
+            "why": "Cloudburst effective v2168 ClientboundAttributeLayerSyncSerializer_v944.java establishes the color-family convention: VarInt discriminant 0 for string and 1 for fixed numeric array. This sibling type is not referenced by a 2168 packet and has no direct gophertunnel implementation; record as unresolved oracle coverage in MOJANG_PARITY.md."
+        },
+        {
+            "op": "patch_schema",
+            "schema": "ColorNormRGB.json",
+            "patch": {
+                "x-control-value-type": "uint32",
+                "x-control-values": [
+                    0,
+                    1
+                ]
+            },
+            "why": "Cloudburst effective v2168 ClientboundAttributeLayerSyncSerializer_v944.java establishes the color-family convention: VarInt discriminant 0 for string and 1 for fixed numeric array. This sibling type is not referenced by a 2168 packet and has no direct gophertunnel implementation; record as unresolved oracle coverage in MOJANG_PARITY.md."
+        },
+        {
+            "op": "patch_schema",
+            "schema": "PackType.json",
+            "patch": {
+                "x-underlying-type": "uint8"
+            },
+            "why": "Protocol 2168 gophertunnel minecraft/protocol/packet/resource_pack_data_info.go defines Invalid=0 and resource pack kinds 1..8, and marshals PackType with Uint8; Cloudburst ResourcePackDataInfo serializer writes a byte."
+        },
+        {
+            "op": "patch_schema",
+            "schema": "TrustedSkinFlag.json",
+            "patch": {
+                "x-underlying-type": "uint8"
+            },
+            "why": "Protocol 2168 schema models the tri-state Unset/False/True flag; gophertunnel skin serialization and Cloudburst skin helpers use a single byte/boolean representation. uint8 preserves the explicit 0/1/2 oracle ordinals."
+        },
+        {
+            "op": "patch_property",
+            "schema": "SerializedSkin.json",
+            "field": "TrustedSkinFlag",
+            "patch": {
+                "x-underlying-type": "uint8"
+            },
+            "why": "Protocol 2168 gophertunnel skin serialization and Cloudburst skin helpers represent trusted-skin state in one byte; replace Mojang's non-scalar object marker at the use site."
+        },
+        {
+            "op": "patch_schema",
+            "schema": "WebToken.json",
+            "patch": {
+                "$ref": null,
+                "type": "string"
+            },
+            "why": "Protocol 2168 gophertunnel minecraft/protocol/packet/server_to_client_handshake.go marshals JWT with String/ByteSlice semantics; Cloudburst ServerToClientHandshake serializer uses helper.writeString. Mojang's self-reference is non-terminating."
+        },
+        {
+            "op": "patch_schema",
+            "schema": "Item_Descriptor.json",
+            "patch": {
+                "$ref": null,
+                "type": "string"
+            },
+            "why": "This 2168 document is an unreferenced self-reference and has no packet oracle path. Lower it as its documented descriptor string solely to prevent an infinite alias; record it as unresolved and unreachable in MOJANG_PARITY.md."
+        },
+        {
+            "op": "add_serialization_option",
+            "selector": "oneOf_with_control",
+            "option": "Compression",
+            "why": "Protocol 2168 gophertunnel serializers use Varuint32 for schema oneOf control values; Cloudburst effective v2168 serializers use VarInts.writeUnsignedInt for the same discriminants."
+        },
+        {
+            "op": "patch_property",
+            "schema": "SendPartyDestinationCookiePacketPayload.json",
+            "field": "Intent",
+            "patch": {
+                "$ref": null,
+                "type": "string"
+            },
+            "why": "Protocol 2168 correction: gophertunnel-2168.json packet 349 SendPartyDestinationCookie records Intent as String and minecraft/protocol/packet/send_party_destination_cookie.go calls io.String; Cloudburst bedrock-codec v1001 SendPartyDestinationCookieSerializer_v1001 uses helper.writeString/readString."
         }
-      },
-      "why": "Protocol 2168 discriminants pinned against minecraft/protocol/data_store.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "CommandBlockUpdatePacketPayload.json",
-      "field": "Target",
-      "patch": {
-        "x-control-values": [
-          0,
-          1
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/command_block_update.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "DisconnectPacketPayload.json",
-      "field": "Messages",
-      "patch": {
-        "x-control-values": [
-          0,
-          1
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/disconnect.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "EnvironmentAttributeData.json",
-      "field": "Attribute",
-      "patch": {
-        "x-control-values": [
-          0,
-          1,
-          2
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 discriminants pinned against Cloudburst v944 ClientboundAttributeLayerSyncSerializer_v944.java. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "EnvironmentAttributeData.json",
-      "field": "FromAttribute",
-      "patch": {
-        "x-control-values": [
-          0,
-          1,
-          2
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 discriminants pinned against Cloudburst v944 ClientboundAttributeLayerSyncSerializer_v944.java. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "EnvironmentAttributeData.json",
-      "field": "ToAttribute",
-      "patch": {
-        "x-control-values": [
-          0,
-          1,
-          2
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 discriminants pinned against Cloudburst v944 ClientboundAttributeLayerSyncSerializer_v944.java. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "InventoryTransactionPacketPayload.json",
-      "field": "Transaction",
-      "patch": {
-        "x-control-values": [
-          0,
-          1,
-          2,
-          3,
-          4
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 discriminants pinned against minecraft/protocol/inventory.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "ItemStackRequest.json",
-      "field": "Actions",
-      "patch": {
-        "items": {
-          "oneOf": [
-            {
-              "$ref": "./ItemStackRequestTakeAction.json"
-            },
-            {
-              "$ref": "./ItemStackRequestPlaceAction.json"
-            },
-            {
-              "$ref": "./ItemStackRequestSwapAction.json"
-            },
-            {
-              "$ref": "./ItemStackRequestDropAction.json"
-            },
-            {
-              "$ref": "./ItemStackRequestDestroyAction.json"
-            },
-            {
-              "$ref": "./ItemStackRequestConsumeAction.json"
-            },
-            {
-              "$ref": "./ItemStackRequestCreateAction.json"
-            },
-            {
-              "$ref": "./ItemStackRequestLabTableCombineAction.json"
-            },
-            {
-              "$ref": "./ItemStackRequestBeaconPaymentAction.json"
-            },
-            {
-              "$ref": "./ItemStackRequestMineBlockAction.json"
-            },
-            {
-              "$ref": "./ItemStackRequestCraftRecipeAction.json"
-            },
-            {
-              "$ref": "./ItemStackRequestCraftRecipeAutoAction.json"
-            },
-            {
-              "$ref": "./ItemStackRequestCraftCreativeAction.json"
-            },
-            {
-              "$ref": "./ItemStackRequestCraftRecipeOptionalAction.json"
-            },
-            {
-              "$ref": "./ItemStackRequestCraftRepairAndDisenchantAction.json"
-            },
-            {
-              "$ref": "./ItemStackRequestCraftLoomAction.json"
-            },
-            {
-              "$ref": "./ItemStackRequestCraftNonImplementedDeprecatedAction.json"
-            },
-            {
-              "$ref": "./ItemStackRequestCraftResultsDeprecatedAction.json"
-            }
-          ],
-          "x-control-value-type": "uint32",
-          "x-control-values": [
-            0,
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12,
-            13,
-            14,
-            15,
-            16,
-            17
-          ],
-          "x-serialization-options": [
-            "Compression"
-          ]
-        }
-      },
-      "why": "Protocol 2168 discriminants pinned against minecraft/protocol/item_stack.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "ItemStackRequestNetworkItemInstanceDescriptor.json",
-      "field": "Item Descriptor",
-      "patch": {
-        "x-control-values": [
-          0,
-          1,
-          2,
-          3
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 discriminants pinned against minecraft/protocol/item_descriptor.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "LegacyTelemetryEventPacketPayload.json",
-      "field": "Event Data",
-      "patch": {
-        "x-control-values": [
-          0,
-          1,
-          2,
-          3,
-          4,
-          5,
-          6,
-          7,
-          11,
-          13,
-          15,
-          16,
-          17,
-          18,
-          19,
-          23,
-          24,
-          25,
-          26,
-          27,
-          31,
-          255
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 discriminants pinned against minecraft/protocol/events.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "PlayerListPacketPayload.json",
-      "field": "Entries",
-      "patch": {
-        "items": {
-          "oneOf": [
-            {
-              "$ref": "./PlayerListRemoveEntry.json"
-            },
-            {
-              "$ref": "./PlayerListAddEntry.json"
-            }
-          ],
-          "x-control-value-type": "uint32",
-          "x-control-values": [
-            0,
-            1
-          ],
-          "x-serialization-options": [
-            "Compression"
-          ]
-        }
-      },
-      "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/player_list.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "PlayerLocationPacketPayload.json",
-      "field": "Location",
-      "patch": {
-        "x-control-values": [
-          0,
-          1
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/player_location.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "PlayerUpdateEntityOverridesPacketPayload.json",
-      "field": "Update",
-      "patch": {
-        "x-control-values": [
-          0,
-          1,
-          2,
-          3
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/player_update_entity_overrides.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "PlayerVideoCapturePacketPayload.json",
-      "field": "Start Video Capture",
-      "patch": {
-        "x-control-values": [
-          0,
-          1
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/player_video_capture.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "PlayerVideoCapturePacketPayload.json",
-      "field": "Stop Video Capture",
-      "patch": {
-        "x-control-values": [
-          0,
-          1
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/player_video_capture.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "PrimitiveShapeDataPayload.json",
-      "field": "Extra Shape Data",
-      "patch": {
-        "x-control-values": [
-          0,
-          1,
-          2,
-          3,
-          4,
-          5,
-          6,
-          7,
-          8,
-          9
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 discriminants pinned against Cloudburst effective v2168 debug renderer serializer. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "RecipeIngredient.json",
-      "field": "Item Descriptor",
-      "patch": {
-        "x-control-values": [
-          0,
-          1,
-          2,
-          3
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 discriminants pinned against minecraft/protocol/item_descriptor.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "ResourcePackClientResponsePacketPayload.json",
-      "field": "Response",
-      "patch": {
-        "x-control-values": [
-          0,
-          1,
-          2,
-          3
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/resource_pack_client_response.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "SetScorePacketPayload.json",
-      "field": "Score Info",
-      "patch": {
-        "items": {
-          "oneOf": [
-            {
-              "$ref": "./RemoveScore.json"
-            },
-            {
-              "$ref": "./ChangePlayerScore.json"
-            },
-            {
-              "$ref": "./ChangeEntityScore.json"
-            },
-            {
-              "$ref": "./ChangeFakePlayerScore.json"
-            }
-          ],
-          "x-control-value-type": "uint32",
-          "x-control-values": [
-            0,
-            1,
-            2,
-            3
-          ],
-          "x-serialization-options": [
-            "Compression"
-          ]
-        }
-      },
-      "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/set_score.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "SyncWorldClocksPacketPayload.json",
-      "field": "Data",
-      "patch": {
-        "x-control-values": [
-          0,
-          1,
-          2,
-          3
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/sync_world_clocks.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_property",
-      "schema": "TextPacketPayload.json",
-      "field": "Body",
-      "patch": {
-        "x-control-values": [
-          0,
-          1,
-          2
-        ],
-        "x-serialization-options": [
-          "Compression"
-        ]
-      },
-      "why": "Protocol 2168 discriminants pinned against minecraft/protocol/packet/text.go. The listed x-control-values follow the oracle switch/constants; 255 on LegacyTelemetry Empty remains an explicit unresolved catch-all sentinel."
-    },
-    {
-      "op": "patch_schema",
-      "schema": "Color255RGB.json",
-      "patch": {
-        "x-control-value-type": "uint32",
-        "x-control-values": [
-          0,
-          1
-        ]
-      },
-      "why": "Cloudburst effective v2168 ClientboundAttributeLayerSyncSerializer_v944.java establishes the color-family convention: VarInt discriminant 0 for string and 1 for fixed numeric array. This sibling type is not referenced by a 2168 packet and has no direct gophertunnel implementation; record as unresolved oracle coverage in MOJANG_PARITY.md."
-    },
-    {
-      "op": "patch_schema",
-      "schema": "ColorNormRGB.json",
-      "patch": {
-        "x-control-value-type": "uint32",
-        "x-control-values": [
-          0,
-          1
-        ]
-      },
-      "why": "Cloudburst effective v2168 ClientboundAttributeLayerSyncSerializer_v944.java establishes the color-family convention: VarInt discriminant 0 for string and 1 for fixed numeric array. This sibling type is not referenced by a 2168 packet and has no direct gophertunnel implementation; record as unresolved oracle coverage in MOJANG_PARITY.md."
-    },
-    {
-      "op": "patch_schema",
-      "schema": "PackType.json",
-      "patch": {
-        "x-underlying-type": "uint8"
-      },
-      "why": "Protocol 2168 gophertunnel minecraft/protocol/packet/resource_pack_data_info.go defines Invalid=0 and resource pack kinds 1..8, and marshals PackType with Uint8; Cloudburst ResourcePackDataInfo serializer writes a byte."
-    },
-    {
-      "op": "patch_schema",
-      "schema": "TrustedSkinFlag.json",
-      "patch": {
-        "x-underlying-type": "uint8"
-      },
-      "why": "Protocol 2168 schema models the tri-state Unset/False/True flag; gophertunnel skin serialization and Cloudburst skin helpers use a single byte/boolean representation. uint8 preserves the explicit 0/1/2 oracle ordinals."
-    },
-    {
-      "op": "patch_property",
-      "schema": "SerializedSkin.json",
-      "field": "TrustedSkinFlag",
-      "patch": {
-        "x-underlying-type": "uint8"
-      },
-      "why": "Protocol 2168 gophertunnel skin serialization and Cloudburst skin helpers represent trusted-skin state in one byte; replace Mojang's non-scalar object marker at the use site."
-    },
-    {
-      "op": "patch_schema",
-      "schema": "WebToken.json",
-      "patch": {
-        "$ref": null,
-        "type": "string"
-      },
-      "why": "Protocol 2168 gophertunnel minecraft/protocol/packet/server_to_client_handshake.go marshals JWT with String/ByteSlice semantics; Cloudburst ServerToClientHandshake serializer uses helper.writeString. Mojang's self-reference is non-terminating."
-    },
-    {
-      "op": "patch_schema",
-      "schema": "Item_Descriptor.json",
-      "patch": {
-        "$ref": null,
-        "type": "string"
-      },
-      "why": "This 2168 document is an unreferenced self-reference and has no packet oracle path. Lower it as its documented descriptor string solely to prevent an infinite alias; record it as unresolved and unreachable in MOJANG_PARITY.md."
-    },
-    {
-      "op": "add_serialization_option",
-      "selector": "oneOf_with_control",
-      "option": "Compression",
-      "why": "Protocol 2168 gophertunnel serializers use Varuint32 for schema oneOf control values; Cloudburst effective v2168 serializers use VarInts.writeUnsignedInt for the same discriminants."
-    },
-    {
-      "op": "patch_property",
-      "schema": "SendPartyDestinationCookiePacketPayload.json",
-      "field": "Intent",
-      "patch": {
-        "$ref": null,
-        "type": "string"
-      },
-      "why": "Protocol 2168 correction: gophertunnel-2168.json packet 349 SendPartyDestinationCookie records Intent as String and minecraft/protocol/packet/send_party_destination_cookie.go calls io.String; Cloudburst bedrock-codec v1001 SendPartyDestinationCookieSerializer_v1001 uses helper.writeString/readString."
-    }
-  ]
+    ]
 }
