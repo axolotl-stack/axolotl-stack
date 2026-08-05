@@ -172,6 +172,22 @@ fn apply_operation(
                         changed = true;
                     }
                 }
+                "patch_schema" => {
+                    if !schema_matches {
+                        return;
+                    }
+                    let Some(patch) = object.get("patch").and_then(Value::as_object) else {
+                        invalid = Some("patch_schema is missing patch".to_string());
+                        return;
+                    };
+                    matched = true;
+                    for (key, value) in patch {
+                        if node.get(key) != Some(value) {
+                            node.insert(key.clone(), value.clone());
+                            changed = true;
+                        }
+                    }
+                }
                 "patch_property" | "double_optional" | "select_one_of_branch" => {
                     if !schema_matches {
                         return;
@@ -300,8 +316,24 @@ fn apply_operation(
         return Err(invalid);
     }
     if !matched {
+        let schema = object
+            .get("schema")
+            .or_else(|| object.get("schema_title"))
+            .or_else(|| object.get("file"))
+            .and_then(Value::as_str)
+            .unwrap_or("<any schema>");
+        let field = object
+            .get("field")
+            .and_then(Value::as_str)
+            .unwrap_or("<any field>");
+        let reference = object
+            .get("from")
+            .and_then(Value::as_str)
+            .map(|from| format!(", reference {from}"))
+            .unwrap_or_default();
         return Err(format!(
-            "override operation {op} did not match any schema node"
+            "override operation {op} did not match any schema node \
+             (schema {schema}, field {field}{reference})"
         ));
     }
 
@@ -389,6 +421,7 @@ mod tests {
                     {"op":"remove_required", "schema":"Example.json", "field":"Optional", "why":"test requiredness correction"},
                     {"op":"add_enum_values", "schema_title":"ExampleEnum", "values":["Legacy"], "why":"test enum correction"},
                     {"op":"double_optional", "schema":"Example.json", "field":"Optional", "why":"test double presence correction"},
+                    {"op":"patch_schema", "schema_title":"Example", "patch":{"x-fixture":"patched"}, "why":"test schema correction"},
                     {"op":"add_serialization_option", "selector":"oneOf_with_control", "option":"Compression", "why":"test discriminator correction"},
                     {"op":"add_document", "file":"Added.json", "document":{"title":"Added", "type":"string"}, "why":"test document correction"},
                     {"op":"replace_ref", "from":"#/definitions/legacy", "to":"Added.json", "why":"test reference correction"}
@@ -431,6 +464,7 @@ mod tests {
             json!(["Compression"])
         );
         assert_eq!(document["ref"]["$ref"], "Added.json");
+        assert_eq!(document["x-fixture"], "patched");
         assert_eq!(documents["Added.json"]["title"], "Added");
 
         let _ = fs::remove_dir_all(directory);
@@ -465,6 +499,8 @@ mod tests {
         )]);
         let error = apply(&mut documents, &directory).expect_err("unmatched correction fails");
         assert!(error.to_string().contains("did not match"));
+        assert!(error.to_string().contains("MissingSchema"));
+        assert!(error.to_string().contains("MissingField"));
         let _ = fs::remove_dir_all(directory);
     }
 }

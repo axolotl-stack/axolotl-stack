@@ -1275,9 +1275,30 @@ mod generated_crate_tests {
             .join("valentine/bedrock_core");
         copy_directory(&core_source, &output.join("bedrock_core"))
             .expect("copy bedrock_core into generated temp crate");
+        // Derive members from what was actually generated: the module name
+        // tracks the pinned docs version, so hardcoding it breaks on a bump.
+        let mut members = vec!["\"bedrock_core\"".to_string()];
+        for entry in
+            fs::read_dir(output.join("bedrock_versions")).expect("read generated bedrock_versions")
+        {
+            let entry = entry.expect("read generated version entry");
+            if entry.path().join("Cargo.toml").is_file() {
+                members.push(format!(
+                    "\"bedrock_versions/{}\"",
+                    entry.file_name().to_string_lossy()
+                ));
+            }
+        }
+        assert!(
+            members.len() > 1,
+            "generation produced no version crates under bedrock_versions"
+        );
         fs::write(
             output.join("Cargo.toml"),
-            "[workspace]\nresolver = \"2\"\nmembers = [\"bedrock_core\", \"bedrock_versions/v1_26_30\"]\n[workspace.package]\nedition = \"2024\"\n[workspace.dependencies]\nbytes = \"1\"\nuuid = \"1.8.0\"\n",
+            format!(
+                "[workspace]\nresolver = \"2\"\nmembers = [{}]\n[workspace.package]\nedition = \"2024\"\n[workspace.dependencies]\nbytes = \"1\"\nuuid = \"1.8.0\"\n",
+                members.join(", ")
+            ),
         )
         .expect("write temp workspace manifest");
 
