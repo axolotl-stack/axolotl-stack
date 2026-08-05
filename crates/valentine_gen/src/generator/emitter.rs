@@ -47,6 +47,9 @@ pub fn generated_module_tokens(
         #![allow(non_snake_case)]
         #![allow(dead_code)]
         #![allow(unused_parens)]
+        // Codec signatures are uniform across packets, so a packet whose
+        // decode needs no arguments still takes them.
+        #![allow(unused_variables)]
         #![allow(clippy::all)]
         #imports
 

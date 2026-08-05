@@ -28,6 +28,7 @@ mod generator;
 mod ir;
 mod overrides;
 mod parser;
+mod wire_manifest;
 
 #[derive(Debug, Clone, Deserialize)]
 struct BedrockVersionJson {
@@ -62,6 +63,7 @@ struct CliArgs {
     mojang_docs: Option<PathBuf>,
     overrides: Option<PathBuf>,
     output_dir: Option<PathBuf>,
+    emit_wire_manifest: Option<PathBuf>,
     /// Generation targets (composable)
     gen_proto: bool,
     gen_items: bool,
@@ -105,6 +107,8 @@ OTHER OPTIONS:
   --mojang-docs <DIR>     Path to a bedrock-protocol-docs checkout (defaults to ./bedrock-protocol-docs)
   --overrides <DIR>       Mojang correction JSON directory (defaults to ./overrides)
   --output-dir <DIR>      Valentine output root (Prismarine defaults to ../valentine; required for Mojang)
+  --emit-wire-manifest <FILE>
+                         Emit the selected version's fully resolved wire manifest as JSON
   --log <FILTER>          tracing filter (default: "info"), e.g. "debug" or "valentine_gen=debug"
   -h, --help              Print help and exit
 "#
@@ -123,6 +127,7 @@ fn parse_args() -> Result<CliArgs, String> {
     let mut mojang_docs: Option<PathBuf> = None;
     let mut overrides: Option<PathBuf> = None;
     let mut output_dir: Option<PathBuf> = None;
+    let mut emit_wire_manifest: Option<PathBuf> = None;
 
     // Generation targets - all false means "generate all"
     let mut gen_proto = false;
@@ -197,6 +202,12 @@ fn parse_args() -> Result<CliArgs, String> {
                     .ok_or_else(|| "--output-dir expects a path".to_string())?;
                 output_dir = Some(PathBuf::from(raw));
             }
+            "--emit-wire-manifest" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--emit-wire-manifest expects a path".to_string())?;
+                emit_wire_manifest = Some(PathBuf::from(raw));
+            }
             _ if arg.starts_with("--versions=") => {
                 let raw = arg.trim_start_matches("--versions=");
                 for v in raw.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {
@@ -223,6 +234,11 @@ fn parse_args() -> Result<CliArgs, String> {
             }
             _ if arg.starts_with("--output-dir=") => {
                 output_dir = Some(PathBuf::from(arg.trim_start_matches("--output-dir=")));
+            }
+            _ if arg.starts_with("--emit-wire-manifest=") => {
+                emit_wire_manifest = Some(PathBuf::from(
+                    arg.trim_start_matches("--emit-wire-manifest="),
+                ));
             }
             _ => return Err(format!("Unknown argument: {arg}")),
         }
@@ -270,6 +286,7 @@ fn parse_args() -> Result<CliArgs, String> {
         mojang_docs,
         overrides,
         output_dir,
+        emit_wire_manifest,
         gen_proto,
         gen_items,
         gen_blocks,
@@ -423,12 +440,31 @@ fn generate_mojang(
     if selected.is_empty() {
         return Err("No Mojang schema versions selected for generation".into());
     }
+    if args.emit_wire_manifest.is_some() && selected.len() != 1 {
+        return Err("--emit-wire-manifest requires exactly one selected version".into());
+    }
 
     let parse_result = if args.gen_proto {
         Some(parser::mojang::parse(&docs_root, &override_root)?)
     } else {
         None
     };
+    if let (Some(path), Some(parsed)) = (&args.emit_wire_manifest, &parse_result) {
+        let version = &selected[0];
+        let path = if path.is_relative() {
+            root.join(path)
+        } else {
+            path.clone()
+        };
+        let manifest = wire_manifest::build(
+            parsed,
+            "mojang",
+            Some(version.minecraft_version.clone()),
+            Some(version.protocol_version),
+        )?;
+        wire_manifest::write(&path, &manifest)?;
+        info!(path = %path.display(), "Emitted resolved wire manifest");
+    }
     let mut version_decls = Vec::new();
     let mut global_registry = GlobalRegistry::new();
     let bedrock_versions_dir = valentine_root.join("bedrock_versions");
@@ -480,6 +516,18 @@ fn generate_mojang(
         });
     }
 
+    // A Mojang checkout contains one release, while the checked-in Valentine
+    // surface may intentionally retain older generated crates. Preserve those
+    // declarations when adding a new Mojang-generated version in place.
+    for existing in read_existing_version_decls(valentine_root)? {
+        if !version_decls
+            .iter()
+            .any(|decl| decl.module_name == existing.module_name)
+        {
+            version_decls.push(existing);
+        }
+    }
+
     let default_version = latest_version(
         &version_decls
             .iter()
@@ -491,6 +539,67 @@ fn generate_mojang(
     version_decls.sort_by(|a, b| a.module_name.cmp(&b.module_name));
     write_generated_surface(valentine_root, &version_decls, &default_feature)?;
     Ok(())
+}
+
+fn read_existing_version_decls(
+    valentine_root: &Path,
+) -> Result<Vec<VersionDecl>, Box<dyn std::error::Error>> {
+    let path = valentine_root
+        .join("src")
+        .join("bedrock")
+        .join("version.rs");
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    let source = fs::read_to_string(path)?;
+    let mut declarations = Vec::new();
+    for block in source.split("#[cfg(feature = \"").skip(1) {
+        let Some((feature, block)) = block.split_once("\")]") else {
+            continue;
+        };
+        let Some(module_name) = quoted_after(block, "pub mod ", " {") else {
+            continue;
+        };
+        let Some(minecraft_version) = quoted_after(block, "GAME_VERSION: &str = \"", "\"") else {
+            continue;
+        };
+        let Some(protocol) = quoted_after(block, "PROTOCOL_VERSION: i32 = ", "i32") else {
+            continue;
+        };
+        let Some(major_version) = quoted_after(block, "MAJOR_VERSION: &str = \"", "\"") else {
+            continue;
+        };
+        let Some(release_type) = quoted_after(block, "RELEASE_TYPE: &str = \"", "\"") else {
+            continue;
+        };
+        let crate_name = module_name.replacen("v", "valentine_bedrock_", 1);
+        if !valentine_root
+            .join("bedrock_versions")
+            .join(&module_name)
+            .exists()
+        {
+            continue;
+        }
+        declarations.push(VersionDecl {
+            module_name,
+            feature: feature.to_string(),
+            crate_name,
+            meta: BedrockVersionJson {
+                protocol_version: protocol.parse()?,
+                minecraft_version,
+                major_version,
+                release_type,
+            },
+        });
+    }
+    Ok(declarations)
+}
+
+fn quoted_after(source: &str, prefix: &str, suffix: &str) -> Option<String> {
+    source
+        .split_once(prefix)
+        .and_then(|(_, rest)| rest.split_once(suffix))
+        .map(|(value, _)| value.to_string())
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -599,6 +708,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Default to generating only the latest Bedrock version.
         HashSet::from([latest_version(&supported_versions).ok_or("No versions available")?])
     };
+    if args.emit_wire_manifest.is_some() && generate_versions.len() != 1 {
+        return Err("--emit-wire-manifest requires exactly one selected version".into());
+    }
 
     if generate_versions.is_empty() {
         return Err("No versions selected for generation".into());
@@ -707,6 +819,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         continue;
                     }
                 };
+
+                if let Some(path) = &args.emit_wire_manifest {
+                    let path = if path.is_relative() {
+                        root.join(path)
+                    } else {
+                        path.clone()
+                    };
+                    let manifest = wire_manifest::build(
+                        &parse_result,
+                        "prismarine",
+                        Some(meta.minecraft_version.clone()),
+                        Some(meta.protocol_version),
+                    )?;
+                    wire_manifest::write(&path, &manifest)?;
+                    info!(path = %path.display(), "Emitted resolved wire manifest");
+                }
 
                 match generator::generate_protocol_module(
                     &crate_name,
@@ -1260,6 +1388,7 @@ mod generated_crate_tests {
             mojang_docs: None,
             overrides: None,
             output_dir: Some(output.clone()),
+            emit_wire_manifest: None,
             gen_proto: true,
             gen_items: false,
             gen_blocks: false,

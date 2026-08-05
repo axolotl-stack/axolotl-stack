@@ -19,8 +19,18 @@ version crates:
 cargo run -p valentine_gen -- --source prismarine --latest --proto
 cargo run -p valentine_gen -- \
   --source mojang --versions 1.26.40 --proto \
-  --output-dir C:/tmp/valentine-mojang
+  --output-dir C:/tmp/valentine-mojang \
+  --emit-wire-manifest C:/tmp/valentine-2168-wire.json
 ```
+
+`--emit-wire-manifest <FILE>` requires one selected version and writes a stable,
+machine-readable view of the lowered IR. Each packet contains its ordered wire
+operations with references and nested containers recursively expanded. Primitive
+operations stay primitive; arrays record their count prefix, options record the
+Bool presence boundary, unions record their control codec and per-value payload,
+and recursive references become explicit cycle markers. This makes conformance
+comparison independent of generated Rust syntax and is suitable for a future CI
+gate.
 
 `--mojang-docs <DIR>` selects any other docs checkout without changing the
 submodule pin. For example, maintainers can inspect Mojang main/protocol 2169 in
@@ -83,9 +93,10 @@ Mojang fixed-width numerics are little-endian unless marked `Big Endian`.
 
 1. Parse the selected source into the IR in `src/ir.rs`.
 2. Analyze containers and codec arguments in `src/generator/resolver.rs`.
-3. Emit `proto.rs`, `types.rs`, `mcpe.rs`, `common.rs`, `borrowed.rs`, and the
+3. Optionally emit the structured wire manifest from the fully lowered IR.
+4. Emit `proto.rs`, `types.rs`, `mcpe.rs`, `common.rs`, `borrowed.rs`, and the
    version crate manifest.
-4. Register canonical definitions for reuse among versions generated in the
+5. Register canonical definitions for reuse among versions generated in the
    same invocation.
 
 The test suite generates Mojang output in a temporary directory and runs

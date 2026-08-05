@@ -100,11 +100,18 @@ fn apply_operation(
                     if node.get("properties").is_none() && node.get("required").is_none() {
                         return;
                     }
-                    matched = true;
                     let Some(field) = object.get("field").and_then(Value::as_str) else {
                         invalid = Some(format!("{op} is missing field"));
                         return;
                     };
+                    if !node
+                        .get("properties")
+                        .and_then(Value::as_object)
+                        .is_some_and(|properties| properties.contains_key(field))
+                    {
+                        return;
+                    }
+                    matched = true;
                     let required = node
                         .entry("required")
                         .or_insert_with(|| Value::Array(Vec::new()));
@@ -188,11 +195,25 @@ fn apply_operation(
                         }
                     }
                 }
+                "replace_schema" => {
+                    if !schema_matches {
+                        return;
+                    }
+                    let Some(replacement) = object.get("replacement").and_then(Value::as_object)
+                    else {
+                        invalid = Some("replace_schema is missing replacement".to_string());
+                        return;
+                    };
+                    matched = true;
+                    if node != replacement {
+                        *node = replacement.clone();
+                        changed = true;
+                    }
+                }
                 "patch_property" | "double_optional" | "select_one_of_branch" => {
                     if !schema_matches {
                         return;
                     }
-                    matched = true;
                     if op == "select_one_of_branch" {
                         let Some(index) = object.get("index").and_then(Value::as_u64) else {
                             invalid =
@@ -210,6 +231,7 @@ fn apply_operation(
                             ));
                             return;
                         };
+                        matched = true;
                         *node = branch.clone();
                         changed = true;
                         return;
@@ -229,15 +251,9 @@ fn apply_operation(
                     };
                     let Some(property) = properties.get_mut(field).and_then(Value::as_object_mut)
                     else {
-                        if object
-                            .get("schema_title")
-                            .or_else(|| object.get("title"))
-                            .is_some()
-                        {
-                            invalid = Some(format!("{op} target has no property {field}"));
-                        }
                         return;
                     };
+                    matched = true;
                     if op == "double_optional" {
                         let options = property
                             .entry("x-serialization-options")
@@ -264,6 +280,8 @@ fn apply_operation(
                     if selector == Some("oneOf_with_control")
                         && node.get("oneOf").and_then(Value::as_array).is_some()
                         && node.get("x-control-value-type").is_some()
+                        && node.get("x-control-value-type").and_then(Value::as_str)
+                            != Some("boolean")
                     {
                         matched = true;
                         let Some(option) = serialization_option else {
@@ -501,6 +519,41 @@ mod tests {
         assert!(error.to_string().contains("did not match"));
         assert!(error.to_string().contains("MissingSchema"));
         assert!(error.to_string().contains("MissingField"));
+        let _ = fs::remove_dir_all(directory);
+    }
+
+    #[test]
+    fn rejects_missing_field_in_file_scoped_property_patch() {
+        let directory = std::env::temp_dir().join(format!(
+            "valentine-gen-overrides-missing-field-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&directory);
+        fs::create_dir_all(&directory).expect("create missing-field override fixture");
+        fs::write(
+            directory.join("fixture.json"),
+            serde_json::to_vec(&json!({
+                "source": "https://example.invalid/fixture",
+                "operations": [{
+                    "op": "patch_property",
+                    "schema": "Example.json",
+                    "field": "MissingField",
+                    "patch": {"type": "string"},
+                    "why": "test file-scoped field diagnostics"
+                }]
+            }))
+            .expect("serialize missing-field override"),
+        )
+        .expect("write missing-field override");
+
+        let mut documents = HashMap::from([(
+            "Example.json".to_string(),
+            json!({"title":"Example", "type":"object", "properties": {}}),
+        )]);
+        let error = apply(&mut documents, &directory).expect_err("missing field fails closed");
+        let message = error.to_string();
+        assert!(message.contains("Example.json"));
+        assert!(message.contains("MissingField"));
         let _ = fs::remove_dir_all(directory);
     }
 }

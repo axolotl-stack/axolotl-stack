@@ -496,6 +496,33 @@ impl Lowerer {
                 let items = schema
                     .get("items")
                     .ok_or_else(|| format!("array {hint} in {current_file} has no items"))?;
+                // Mojang puts element wire metadata on the array node rather
+                // than on `items` (SetHud's Hud Element, PlayerAuthInput's
+                // Input Data). Without propagating it, int32 elements carrying
+                // Compression would encode as fixed I32LE instead of a zigzag
+                // varint. "No size compression" is excluded deliberately: it
+                // governs the count prefix, not the elements.
+                let merged_items = match items.as_object() {
+                    Some(object) if items.get("x-serialization-options").is_none() => {
+                        let element_options = serialization_options(schema)
+                            .into_iter()
+                            .filter(|option| !option.eq_ignore_ascii_case("No size compression"))
+                            .map(Value::String)
+                            .collect::<Vec<_>>();
+                        if element_options.is_empty() {
+                            None
+                        } else {
+                            let mut object = object.clone();
+                            object.insert(
+                                "x-serialization-options".to_string(),
+                                Value::Array(element_options),
+                            );
+                            Some(Value::Object(object))
+                        }
+                    }
+                    _ => None,
+                };
+                let items = merged_items.as_ref().unwrap_or(items);
                 let inner_type = self.lower_schema(items, &format!("{hint}Item"), current_file)?;
                 Ok(self.lower_array_type(schema, inner_type))
             }
@@ -523,6 +550,18 @@ impl Lowerer {
         if let Some(size) = fixed_size {
             return Type::FixedArray {
                 size,
+                inner_type: Box::new(inner_type),
+            };
+        }
+
+        if let Some(count_type) = schema
+            .get("x-valentine-array-count-type")
+            .and_then(Value::as_str)
+        {
+            let primitive = primitive_from_underlying(count_type, Vec::new())
+                .expect("validated override array count type");
+            return Type::Array {
+                count_type: Box::new(Type::Primitive(primitive)),
                 inner_type: Box::new(inner_type),
             };
         }

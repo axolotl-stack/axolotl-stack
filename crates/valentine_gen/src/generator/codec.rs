@@ -3336,7 +3336,15 @@ pub fn generate_union_type_codec(
             size_arms.push(quote! {
                 #struct_ident::#variant_ident(value) => {
                     debug_assert_eq!(value.len(), #len_lit);
-                    #size_control + value.iter().map(|item| #element_size).sum::<usize>()
+                    #size_control
+                        + value
+                            .iter()
+                            .map(|item| {
+                                // Constant-width elements ignore `item`.
+                                let _ = item;
+                                #element_size
+                            })
+                            .sum::<usize>()
                 }
             });
         } else if *is_void {

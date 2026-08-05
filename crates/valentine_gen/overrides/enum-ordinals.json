@@ -1042,23 +1042,6 @@
     },
     {
       "op": "set_enum_values",
-      "schema": "CommandOriginData.json",
-      "match_enum": [
-        "Player",
-        "DevConsole",
-        "Test",
-        "AutomationPlayer"
-      ],
-      "values": [
-        0,
-        1,
-        2,
-        3
-      ],
-      "why": "Protocol 2168 enum values cross-checked against gophertunnel minecraft/protocol/command.go (member-name matches 4/4) and Cloudburst bedrock-codec/src/main/java/org/cloudburstmc/protocol/bedrock/codec/v1001/serializer/BossEventSerializer_v1001.java (member-name matches 2/4)."
-    },
-    {
-      "op": "set_enum_values",
       "schema": "CommandOriginType.json",
       "match_enum": [
         "Player",
