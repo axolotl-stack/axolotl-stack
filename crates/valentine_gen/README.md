@@ -1,160 +1,106 @@
 # `valentine_gen`
 
 `valentine_gen` generates the Bedrock protocol crates consumed by `valentine`.
+It accepts either PrismarineJS `minecraft-data` or Mojang's official
+`bedrock-protocol-docs`, lowers the selected source into a shared IR, and emits
+the version crate and Valentine workspace wiring.
 
-It reads either PrismarineJS `minecraft-data` or Mojang's official
-`bedrock-protocol-docs`, resolves protocol schema dependencies into typed Rust
-structures, emits formatted Rust with `quote` + `syn` + `prettyplease`, and
-updates the `valentine` workspace wiring.
-
-## What It Generates
-
-- `crates/valentine/bedrock_versions/vX_Y_Z/`
-- `crates/valentine/src/bedrock/protocol/mod.rs`
-- `crates/valentine/src/bedrock/version.rs`
-- `crates/valentine/Cargo.toml` feature/dependency entries
-
-## Generator Pipeline
-
-1. Parse `protocol.json` into the internal IR in `src/ir.rs`.
-2. Analyze containers in `src/generator/resolver.rs`.
-3. Resolve discriminator/argument types once and reuse that analysis for:
-   - packet signatures
-   - `BedrockCodec::Args` generation
-   - mcpe packet dispatch generation
-   - nested packet/type argument forwarding
-4. Emit `proto.rs`, `types.rs`, `mcpe.rs`, `common.rs`, and version `lib.rs`.
-5. Register canonical definitions so later versions generated in the same run can reuse identical types/packets and add the necessary inter-version crate dependencies automatically.
-
-## Setup
+## Setup and sources
 
 ```bash
 git submodule update --init --recursive
 ```
 
-The default source remains PrismarineJS and is unchanged:
+Prismarine remains the default source. Mojang generation is selected explicitly
+and requires a scratch output directory, so it cannot overwrite the checked-in
+version crates:
 
 ```bash
 cargo run -p valentine_gen -- --source prismarine --latest --proto
-```
-
-Mojang schemas are selected explicitly. The source currently supports protocol
-generation only; item/block/entity data still comes from PrismarineJS. Mojang
-generation always requires `--output-dir` so a scratch run cannot overwrite the
-checked-in `crates/valentine` surface or remove versions that are not present in
-the Mojang snapshot:
-
-```bash
 cargo run -p valentine_gen -- \
-  --source mojang --versions 1.26.30 --proto \
+  --source mojang --versions 1.26.40 --proto \
   --output-dir C:/tmp/valentine-mojang
 ```
 
-Use `--mojang-docs <DIR>` and `--overrides <DIR>` to point at alternate
-checkouts/directories. The generated scratch surface contains a version crate;
-the `valentine_gen` test suite also copies it into a temporary workspace and
-runs `cargo check` against that crate.
+`--mojang-docs <DIR>` selects any other docs checkout without changing the
+submodule pin. For example, maintainers can inspect Mojang main/protocol 2169 in
+a scratch checkout while the repository remains pinned to the live-server 2168
+target. `--overrides <DIR>` similarly selects an alternate correction set.
 
-```bash
-cargo run -p valentine_gen -- \
-  --source mojang --versions 1.26.30 --proto \
-  --output-dir C:/tmp/valentine-mojang
-```
+## Mojang version mapping and pin policy
 
-### Mojang version mapping
+The `bedrock-protocol-docs` gitlink is
+`0e00fe80f4f3c71572ff6429de40146d1f4412fc` (`automated/1.26.40`). Its schemas
+stamp `x-minecraft-version: 1.26.40-beta.0` and `x-protocol-version: 2168`;
+Valentine normalizes the prerelease metadata suffix to crate/module version
+`v1_26_40` while retaining protocol 2168.
 
-The pinned `bedrock-protocol-docs` submodule is commit
-[`ba81d713aa983bb6bc26fe662a9934c5de1838a5`](https://github.com/Mojang/bedrock-protocol-docs/commit/ba81d713aa983bb6bc26fe662a9934c5de1838a5),
-the `r/26_u3` snapshot. Its schema metadata and
-[`changelog_1001_05_18_26.md`](https://github.com/Mojang/bedrock-protocol-docs/blob/ba81d713aa983bb6bc26fe662a9934c5de1838a5/changelog_1001_05_18_26.md)
-identify Minecraft 1.26.30 as network protocol 1001. Valentine calls this
-same target `v1_26_30`; the two projects use different release/tag naming and
-network-version histories, so the generator reads `x-minecraft-version` and
-`x-protocol-version` from the schemas rather than guessing from a tag. The
-next `r/26_u4` snapshot changes the protocol numbering, so it is intentionally
-not used here.
+This is intentionally not Mojang main/`r/26_u4` (1.26.50/protocol 2169).
+Cinnabar is a client and must advertise the protocol accepted by live 1.26.40
+servers. A 1.26.40 server rejects RequestNetworkSettings advertising 2169, and
+using the newer layouts would also misparse TextData and persona animated
+texture enums. Cinnabar's preceding target is protocol 1001, verified against
+live BDS 1.26.32.2; protocol 2168 is its next interoperable target. Both
+independent hand-written implementations used as oracles—gophertunnel and
+Cloudburst—implement 2168, while neither implements 2169.
 
-### Mojang corrections
+Ignoring version/format stamp lines, 968 of 971 JSON schemas are identical
+between this pin and main. The complete known 2168-to-2169 wire delta is:
 
-`crates/valentine_gen/overrides/bpd-fixer.json` is applied in memory before
-Mojang parsing. It records the source link and reason for requiredness fixes,
-legacy enum values, discriminator enum corrections, the known double-optional
-presence-byte fields, and the global compressed `oneOf` discriminator rule.
-`overrides/enum-ordinals.json` materializes 109 distinct string-enum ordinal
-maps used by 127 schema occurrences. The non-sequential baseline audit records
-its evidence in each affected operation: Animate preserves unnamed wire value
-2, InventorySourceType restores `CraftSlot = 100` and `Craft = 99999`,
-ContainerEnumName follows baseline ContainerSlotType's established values, and
-Interact preserves its legacy holes. Sequential mappings are retained where
-Mojang supplies names for slots that Prismarine leaves unnamed. Enum lowering
-therefore never silently invents a value. The parser recognizes
-`+double-optional` as two presence bytes. Add future schema corrections to a
-JSON file in this directory, with a `why` and source link; unmatched
-corrections fail generation. Never patch generated Rust output.
+- `RequestNetworkSettingsPacketPayload.json`: protocol constant 2168 becomes
+  2169.
+- `TextDataPayload.json`: 2169 adds `LineGapHeight` (`F32LE`) at ordinal 4 and
+  shifts the following field.
+- `persona__AnimatedTextureType.json`: 2169 adds a leading `None`, shifting all
+  following discriminants by one.
 
-Mojang definition IDs are global hashes. The r/26_u3 hash
-`#/definitions/3172631924` is the builtin `CompoundTag`, not a missing
-per-file definition; the parser maps it directly to Valentine’s
-`Primitive::Nbt`. Valentine currently exposes one NBT codec using its Network
-Little-Endian convention, so fixed-width LE NBT call sites share that IR alias
-until dialect-specific NBT types are added.
+Main also has `__protocoldoc.json`; this pin does not need it because its corpus
+has zero dangling references.
 
-Mojang fixed-width numeric schemas are little-endian by default; `Big Endian`
-is treated as the exception. `Compression` maps signed integers to zig-zag
-varints and unsigned integers to ordinary varints. `No size compression` on an
-array uses a fixed-width little-endian `u32` length, while equal `minItems` and
-`maxItems` become fixed arrays. `Enum-as-Value` is metadata for the enum's
-underlying scalar and does not replace the explicit ordinal map.
+## Mojang corrections and conformance
 
-The pinned snapshot has one untagged `Color255RGBA` alternation and one required
-dynamic Data Store field with no schema. Both are explicit correction/TODO
-cases: the former selects the fixed-array representation, and the latter is
-lowered to a zero-byte `()` placeholder with a warning. See
-[`MOJANG_PARITY.md`](MOJANG_PARITY.md) before treating the generated surface as
-wire-complete.
+`overrides/bpd-fixer.json` and `overrides/enum-ordinals.json` are applied in
+memory before lowering. Every operation is fail-closed and carries a `why`
+citing the protocol 2168 gophertunnel or Cloudburst source used to establish
+the correction. The 186 string-enum occurrences have explicit values; the
+generator never infers missing wire ordinals. Field-level `Enum-as-Value`
+metadata supplies the contextual scalar codec, including Compression, while
+the referenced enum supplies its members.
 
-## Usage
+Compression is normally signed zig-zag for signed integer types and ordinary
+varint for unsigned types. Eight-bit fields are deliberately not trusted to
+that mechanical rule: all 24 ambiguous occurrences in this corpus are pinned
+individually to their protocol 2168 oracle codec. See
+[`MOJANG_PARITY.md`](MOJANG_PARITY.md) for the evidence table and the
+gophertunnel/Cloudburst conformance inventory.
 
-Generate the default/latest Bedrock version:
+Mojang fixed-width numerics are little-endian unless marked `Big Endian`.
+`No size compression` arrays use `U32LE` lengths, and equal `minItems` and
+`maxItems` become fixed arrays. Mojang's global CompoundTag hash
+`3172631924` maps to Valentine's network little-endian NBT primitive.
+
+## Generator pipeline
+
+1. Parse the selected source into the IR in `src/ir.rs`.
+2. Analyze containers and codec arguments in `src/generator/resolver.rs`.
+3. Emit `proto.rs`, `types.rs`, `mcpe.rs`, `common.rs`, `borrowed.rs`, and the
+   version crate manifest.
+4. Register canonical definitions for reuse among versions generated in the
+   same invocation.
+
+The test suite generates Mojang output in a temporary directory and runs
+`cargo check` on the generated crate.
+
+## Common commands
 
 ```bash
 cargo run -p valentine_gen -- --latest
-```
-
-Generate specific versions:
-
-```bash
-cargo run -p valentine_gen -- --versions 1.21.120
-cargo run -p valentine_gen -- --versions 1.21.120,1.21.124,1.26.30
-```
-
-Generate only protocol code:
-
-```bash
+cargo run -p valentine_gen -- --versions 1.21.120,1.21.124
 cargo run -p valentine_gen -- --latest --proto
-```
-
-Generate everything:
-
-```bash
 cargo run -p valentine_gen -- --all
-```
-
-List supported Bedrock versions:
-
-```bash
 cargo run -p valentine_gen -- --list-versions
-```
-
-Enable debug logging:
-
-```bash
 cargo run -p valentine_gen -- --latest --log debug
 ```
 
-## Maintenance Notes
-
-- Cross-version dedup only applies to versions processed in the same generator invocation.
-- Bedrock strings intentionally use tolerant byte-to-string decoding to match protocol behavior seen in existing implementations.
-- When changing generated output shape, update the analysis phase first rather than patching generated files by hand.
-- Generated packet/controller args may be more strongly typed than the raw stored schema field. Keep those concerns separate when modifying discriminator logic.
+When behavior must survive regeneration, change the parser, IR analysis, or
+emitter rather than generated Rust.
