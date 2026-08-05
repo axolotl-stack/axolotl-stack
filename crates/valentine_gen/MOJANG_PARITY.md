@@ -9,19 +9,28 @@ after 1.26.30, so it cannot be a baseline for this target.
 | Input | Pin/version | Role |
 |---|---|---|
 | Mojang `bedrock-protocol-docs` | `0e00fe80f4f3c71572ff6429de40146d1f4412fc`, `automated/1.26.40` | Generated source; metadata says 1.26.40-beta.0 / 2168 |
-| gophertunnel | PR 481, `agent/protocol-1.26.40` @ `5189cf19`, `CurrentProtocol=2168` | Primary ordered-wire oracle |
+| gophertunnel | PR 481, `agent/protocol-1.26.40` @ `03397037`, `CurrentProtocol=2168` | Primary ordered-wire oracle |
 | Cloudburst | `Bedrock_v2168`, inheriting from `Bedrock_v1001` with overrides | Independent cross-check where the effective serializer could be resolved |
 
-The oracle is pinned to a commit, not just a branch, because PR 481 is still
-moving and its wire encodings have already been corrected in place. Re-running
-the extraction against `5189cf19` (which includes "Fix protocol 2168 field
-encodings") changed three packets' operations versus the earlier revision this
-report was first built against: `StartGame` (two fields), `MovePlayer` (a
-refactor of the teleport-data presence flag into an explicit bool — identical
-bytes), and `PlayerLocation` (a reserved field made explicit — also identical
-bytes, since the generated `CoordinatesLocationPacketType` already emitted the
-same `ZigZag32`). Only one of those was a real divergence for us, and it is
-corrected: see `LevelSettings.Player Permissions` below.
+The oracle is pinned to a commit, not just a branch, because PR 481 moved
+repeatedly while this report was being written and its wire encodings were
+corrected in place. The extraction has been re-run against each revision:
+
+- `5189cf19` ("Fix protocol 2168 field encodings") changed three packets
+  versus the revision the overrides were first built against. `MovePlayer`
+  (teleport-data presence flag made an explicit bool) and `PlayerLocation` (a
+  reserved field made explicit) were refactors with identical bytes — the
+  generated `CoordinatesLocationPacketType` already emitted the same
+  `ZigZag32`. The one real divergence was `LevelSettings.Player Permissions`,
+  corrected below.
+- `03397037` (current pin) changed four packets, none of them wire-affecting:
+  `ResourcePackClientResponse` and `MovePlayer` are renames/reversions, and
+  `SubChunk`/`SubChunkRequest` moved three `Int32` writes behind the
+  `SubChunkPos` helper, which writes the same three little-endian `i32`s.
+  Field order still matches Mojang's ordinals in both.
+
+The lesson is recorded rather than merely fixed: a branch-level oracle citation
+can silently rot, so re-extraction is required whenever the pin moves.
 
 The pinned corpus contains 971 JSON files, 229 cereal packets, 37 `oneOf`
 nodes, 186 string-enum occurrences without upstream wire values, and zero
