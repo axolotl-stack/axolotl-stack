@@ -10,6 +10,7 @@
 [submodule "crates/valentine_gen/bedrock-protocol-docs"]
 	path = crates/valentine_gen/bedrock-protocol-docs
 	url = git@github.com:Mojang/bedrock-protocol-docs.git
+	branch = automated/1.26.40
 [submodule "crates/valentine_gen/endstone-docs"]
 	path = crates/valentine_gen/endstone-docs
 	url = https://github.com/endstonemc/protocol-docs.git

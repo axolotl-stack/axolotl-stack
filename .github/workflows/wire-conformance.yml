@@ -1,0 +1,115 @@
+name: Wire conformance
+
+# Verifies that protocol code generated from Mojang's schemas puts the same
+# bytes on the wire as gophertunnel, a hand-written implementation validated
+# against real servers. Mojang's docs are a good skeleton but are wrong often
+# enough to matter: the 1.26.40 migration needed 147 corrections across 100+
+# schemas, including missing presence bytes and a missing leading string.
+# Without this gate those are only discovered by desyncing against a server.
+
+on:
+  pull_request:
+    paths:
+      - "crates/valentine_gen/**"
+      - "tools/wire-conformance/**"
+      - ".github/workflows/wire-conformance.yml"
+  push:
+    branches: [main]
+    paths:
+      - "crates/valentine_gen/**"
+      - "tools/wire-conformance/**"
+  workflow_dispatch:
+
+concurrency:
+  group: wire-conformance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Axolotl
+        uses: actions/checkout@v4
+
+      - name: Initialise the Mojang protocol docs submodule
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git submodule update --init --depth 1 crates/valentine_gen/bedrock-protocol-docs
+
+      - name: Read oracle pin
+        id: pins
+        run: |
+          set -euo pipefail
+          pins=tools/wire-conformance/oracle-pins.json
+          echo "gt_repo=$(jq -r .gophertunnel.repo "$pins")" >> "$GITHUB_OUTPUT"
+          echo "gt_ref=$(jq -r .gophertunnel.ref "$pins")" >> "$GITHUB_OUTPUT"
+          echo "protocol=$(jq -r .protocol_version "$pins")" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the gophertunnel oracle
+        run: |
+          set -euo pipefail
+          git init --quiet oracle-gophertunnel
+          cd oracle-gophertunnel
+          git remote add origin "${{ steps.pins.outputs.gt_repo }}"
+          git fetch --quiet --depth 1 origin "${{ steps.pins.outputs.gt_ref }}"
+          git checkout --quiet FETCH_HEAD
+
+      - name: Verify the oracle really is the pinned protocol
+        run: |
+          set -euo pipefail
+          want='${{ steps.pins.outputs.protocol }}'
+          got="$(grep -oP 'CurrentProtocol\s*=\s*\K[0-9]+' oracle-gophertunnel/minecraft/protocol/info.go)"
+          if [[ "$got" != "$want" ]]; then
+            echo "::error::oracle is protocol $got but the pin claims $want; comparing across versions is meaningless"
+            exit 1
+          fi
+          echo "oracle protocol $got matches the pin"
+
+      - name: Install Rust from rust-toolchain.toml
+        # Deliberately not pinning a toolchain here: rustup installs whatever
+        # rust-toolchain.toml asks for, so there is only one version to drift.
+        run: rustup show active-toolchain
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Emit the resolved wire manifest
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/conformance"
+          cd crates/valentine_gen
+          cargo run -p valentine_gen -- \
+            --source mojang --proto \
+            --output-dir "$RUNNER_TEMP/generated" \
+            --emit-wire-manifest "$RUNNER_TEMP/conformance/manifest.json"
+
+      - name: Extract gophertunnel wire operations
+        run: |
+          set -euo pipefail
+          cd tools/wire-conformance
+          go run . "$GITHUB_WORKSPACE/oracle-gophertunnel"
+          mv gophertunnel-flat.json gtx2-diagnostics.json "$RUNNER_TEMP/conformance/"
+
+      - name: Compare and gate
+        env:
+          WIRE_CONFORMANCE_DIR: ${{ runner.temp }}/conformance
+        run: node tools/wire-conformance/compare.mjs
+
+      - name: Upload conformance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wire-conformance-report
+          path: |
+            ${{ runner.temp }}/conformance/conformance-final.md
+            ${{ runner.temp }}/conformance/conformance-final.json
+            ${{ runner.temp }}/conformance/gtx2-diagnostics.json
+          if-no-files-found: warn

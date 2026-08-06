@@ -1,0 +1,32 @@
+{
+  "comment": "Divergences from the gophertunnel oracle that are reviewed and accepted. Anything NOT listed here fails the wire-conformance gate. Each entry must say why it is acceptable; 'we did not get to it' is not a reason to add one.",
+  "protocol_version": 2168,
+  "min_agreement": 170,
+  "packets": [
+    {
+      "id": 38,
+      "name": "HurtArmor",
+      "reason": "Genuine oracle conflict, not a generator defect. gophertunnel writes ArmourSlots as Varint64 (ZigZag64); Cloudburst writes VarInts.writeUnsignedLong. These produce different bytes for the same value, so one of the two implementations is wrong and the schema cannot settle it. Resolve with a packet capture against a live server, then delete this entry."
+    },
+    {
+      "id": 174,
+      "name": "SubChunk",
+      "reason": "False positive caused by comparison granularity, not a wire difference. Mojang documents Subchunk Height Map as a 2D [z][x] array (16 x 16 int8) and the generator emits exactly that nested shape; gophertunnel stores the same 256 bytes flat. Deliberately NOT 'fixed' in the generator: matching the documented shape is worth more than satisfying the comparator. Remove this entry once compare.mjs flattens nested fixed arrays before diffing."
+    },
+    {
+      "id": 122,
+      "name": "BiomeDefinitionList",
+      "reason": "Nested biome payload with remaining optional/array shape differences. Both BiomeDefinitionData optionals are already pinned against gophertunnel biome.go; what is left needs per-field adjudication rather than a blanket rule."
+    },
+    {
+      "id": 198,
+      "name": "CameraPresets",
+      "reason": "Deeply nested camera preset payload; remaining differences are in optional presence inside nested preset definitions and need per-field adjudication."
+    },
+    {
+      "id": 320,
+      "name": "CameraAimAssistPresets",
+      "reason": "Same class as CameraPresets: nested option/structure differences inside aim-assist preset definitions, pending per-field adjudication."
+    }
+  ]
+}

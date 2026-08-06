@@ -1,0 +1,157 @@
+name: Update Prismarine data
+
+# Keeps gameplay DATA (blocks, block states, items, entities, biomes) current
+# from PrismarineJS minecraft-data.
+#
+# Deliberately does NOT regenerate protocol code. Protocol comes from Mojang's
+# published schemas (see update-protocol-docs.yml) because Prismarine has no
+# Bedrock data after 1.26.30 and, in a head-to-head over the packets both
+# describe, was wrong more often than Mojang. Prismarine remains the better
+# source for gameplay data, which it maintains actively and in more depth.
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+  repository_dispatch:
+    types: [prismarine-data-updated]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: prismarine-data-update
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out Axolotl
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: false
+
+      - name: Initialise public data submodules
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git config --global --add url."https://github.com/".insteadOf "ssh://git@github.com/"
+          git submodule sync --recursive
+          git submodule update --init --recursive \
+            crates/valentine_gen/minecraft-data \
+            crates/valentine_gen/bedrock-data
+
+      - name: Check for Prismarine updates
+        id: prismarine
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          data_dir="crates/valentine_gen/minecraft-data"
+          repo_url="https://github.com/PrismarineJS/minecraft-data.git"
+          current="$(git -C "$data_dir" rev-parse HEAD)"
+          default_branch="$(git ls-remote --symref "$repo_url" HEAD \
+            | awk '/^ref:/ {sub("refs/heads/", "", $2); print $2; exit}')"
+
+          if [[ -z "$default_branch" ]]; then
+            echo "Could not determine Prismarine's default branch" >&2
+            exit 1
+          fi
+
+          git -C "$data_dir" remote set-url origin "$repo_url"
+          git -C "$data_dir" fetch --depth=1 origin "$default_branch"
+          git -C "$data_dir" checkout --detach FETCH_HEAD
+          latest="$(git -C "$data_dir" rev-parse HEAD)"
+
+          echo "current=$current"
+          echo "latest=$latest"
+          if [[ "$current" == "$latest" ]]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            git -C "$data_dir" checkout --detach "$current"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Rust from rust-toolchain.toml
+        if: steps.prismarine.outputs.changed == 'true'
+        # No second toolchain pin: rustup installs whatever rust-toolchain.toml
+        # asks for, so there is only one version that can drift.
+        run: rustup show active-toolchain
+
+      - name: Cache Cargo dependencies
+        if: steps.prismarine.outputs.changed == 'true'
+        uses: Swatinem/rust-cache@v2
+
+      - name: Record protocol checksums before regenerating
+        if: steps.prismarine.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          find crates/valentine/bedrock_versions -type f \
+            \( -name 'proto.rs' -o -name 'types.rs' -o -name 'borrowed.rs' -o -name 'mcpe.rs' -o -name 'common.rs' \) \
+            -print0 | sort -z | xargs -0 sha256sum > "$RUNNER_TEMP/protocol-before.sha"
+          wc -l < "$RUNNER_TEMP/protocol-before.sha"
+
+      - name: Regenerate gameplay data only
+        if: steps.prismarine.outputs.changed == 'true'
+        # Data flags only. Passing --latest alone would regenerate everything,
+        # protocol included, and drag it back to Prismarine's stale 1.26.30.
+        run: |
+          set -euo pipefail
+          cargo run -p valentine_gen -- --latest \
+            --items --blocks --block-states --entities --biomes
+          cargo fmt --all
+
+      - name: Fail if protocol code changed
+        if: steps.prismarine.outputs.changed == 'true'
+        # Defence in depth behind add-paths: if a data run ever starts writing
+        # protocol files, stop rather than quietly committing a Prismarine
+        # protocol over the Mojang-generated one.
+        run: |
+          set -euo pipefail
+          find crates/valentine/bedrock_versions -type f \
+            \( -name 'proto.rs' -o -name 'types.rs' -o -name 'borrowed.rs' -o -name 'mcpe.rs' -o -name 'common.rs' \) \
+            -print0 | sort -z | xargs -0 sha256sum > "$RUNNER_TEMP/protocol-after.sha"
+          if ! diff -q "$RUNNER_TEMP/protocol-before.sha" "$RUNNER_TEMP/protocol-after.sha" >/dev/null; then
+            echo "::error::Data regeneration modified protocol code. Protocol is generated from Mojang schemas, not Prismarine."
+            diff "$RUNNER_TEMP/protocol-before.sha" "$RUNNER_TEMP/protocol-after.sha" || true
+            exit 1
+          fi
+          echo "protocol files untouched, as expected"
+
+      - name: Open generated-data pull request
+        if: steps.prismarine.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: main
+          branch: automation/prismarine-data-update
+          delete-branch: true
+          # Narrowed to data artefacts. `crates/valentine` as a whole would
+          # sweep in protocol files.
+          add-paths: |
+            crates/valentine_gen/minecraft-data
+            crates/valentine/bedrock_versions/*/src/blocks.rs
+            crates/valentine/bedrock_versions/*/src/states.rs
+            crates/valentine/bedrock_versions/*/src/items.rs
+            crates/valentine/bedrock_versions/*/src/entities.rs
+            crates/valentine/bedrock_versions/*/src/biomes.rs
+            crates/valentine/bedrock_versions/*/src/block_palette.rs
+            crates/valentine/bedrock_versions/*/src/block_palette.bin
+          commit-message: "chore(data): update Prismarine gameplay data"
+          title: "chore(data): update Prismarine gameplay data"
+          body: |
+            This automated PR advances the PrismarineJS `minecraft-data` submodule and regenerates Valentine's gameplay data.
+
+            **Data only — no protocol.** Protocol code is generated from Mojang's published schemas
+            (`update-protocol-docs.yml`) and verified against gophertunnel by the wire-conformance gate.
+            Prismarine has no Bedrock data after 1.26.30, so it cannot describe the current protocol;
+            it remains the better source for blocks, items, entities and biomes.
+
+            The workflow fails rather than committing if a data run touches protocol files.
+
+      - name: Report no change
+        if: steps.prismarine.outputs.changed != 'true'
+        run: echo "Prismarine minecraft-data is unchanged; nothing to regenerate."

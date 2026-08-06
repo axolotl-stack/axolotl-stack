@@ -1,0 +1,16 @@
+{
+  "comment": "Hand-written implementations the generated protocol is verified against. Pin commits, never branches: a branch citation silently rots, which invalidated our overrides twice during the 1.26.40 migration. Bump deliberately and re-run the gate, never as a drive-by.",
+  "protocol_version": 2168,
+  "minecraft_version": "1.26.40",
+  "gophertunnel": {
+    "repo": "https://github.com/Sandertv/gophertunnel",
+    "ref": "4815aff7",
+    "note": "master with PR 481 (1.26.40 protocol) merged. Verified CurrentProtocol = 2168."
+  },
+  "cloudburst": {
+    "repo": "https://github.com/CloudburstMC/Protocol",
+    "ref": "19e31c33dc424b2b7e0098e0cbd9aae208705c2b",
+    "codec": "Bedrock_v2168",
+    "note": "Secondary cross-check only. Not fetched by CI; used locally when adjudicating a divergence. Stale for some packets (PlayerAuthInput still inherits v766's bitmask), so treat silence as no evidence rather than agreement."
+  }
+}
