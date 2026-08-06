@@ -1,3 +1,4 @@
+#![cfg(feature = "bedrock_1_26_30")]
 use bytes::{Buf, BytesMut};
 use valentine::bedrock::codec::BedrockCodec;
 use valentine::bedrock::protocol::v1_26_30::*;
