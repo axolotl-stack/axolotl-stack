@@ -31,10 +31,10 @@ jobs:
       - name: Check out Axolotl
         uses: actions/checkout@v4
 
-      - name: Initialise the Mojang protocol docs submodule
+      - name: Initialise the endstone protocol docs submodule
         run: |
           git config --global url."https://github.com/".insteadOf "git@github.com:"
-          git submodule update --init --depth 1 crates/valentine_gen/bedrock-protocol-docs
+          git submodule update --init --depth 1 crates/valentine_gen/endstone-docs
 
       - name: Read oracle pin
         id: pins
@@ -87,7 +87,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/conformance"
           cd crates/valentine_gen
           cargo run -p valentine_gen -- \
-            --source mojang --proto \
+            --proto \
             --output-dir "$RUNNER_TEMP/generated" \
             --emit-wire-manifest "$RUNNER_TEMP/conformance/manifest.json"
 

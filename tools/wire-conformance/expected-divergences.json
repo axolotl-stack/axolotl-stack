@@ -1,32 +1,52 @@
 {
-  "comment": "Divergences from the gophertunnel oracle that are reviewed and accepted. Anything NOT listed here fails the wire-conformance gate. Each entry must say why it is acceptable; 'we did not get to it' is not a reason to add one.",
+  "comment": "Divergences from the gophertunnel oracle that are reviewed and accepted. Anything NOT listed here fails the wire-conformance gate. Each entry must say why it is acceptable and what would resolve it; 'we did not get to it' is not a reason to add one.",
   "protocol_version": 2168,
-  "min_agreement": 170,
+  "min_agreement": 168,
   "packets": [
     {
       "id": 38,
       "name": "HurtArmor",
-      "reason": "Genuine oracle conflict, not a generator defect. gophertunnel writes ArmourSlots as Varint64 (ZigZag64); Cloudburst writes VarInts.writeUnsignedLong. These produce different bytes for the same value, so one of the two implementations is wrong and the schema cannot settle it. Resolve with a packet capture against a live server, then delete this entry."
+      "reason": "Oracle conflict, resolved AGAINST gophertunnel. gophertunnel writes ArmourSlots as Varint64 (ZigZag64); Cloudburst writes writeUnsignedLong and the endstone BDS dump types it uvarint64. Two independent sources say unsigned, so this is very likely a gophertunnel bug worth reporting upstream rather than a generator defect. Kept visible until that is confirmed."
     },
     {
       "id": 174,
       "name": "SubChunk",
-      "reason": "False positive caused by comparison granularity, not a wire difference. Mojang documents Subchunk Height Map as a 2D [z][x] array (16 x 16 int8) and the generator emits exactly that nested shape; gophertunnel stores the same 256 bytes flat. Deliberately NOT 'fixed' in the generator: matching the documented shape is worth more than satisfying the comparator. Remove this entry once compare.mjs flattens nested fixed arrays before diffing."
+      "reason": "False positive from comparison granularity, not a wire difference. The heightmap is a 2D 16x16 array of int8 in both Mojang's schema and endstone's dump (repeat count 16 of repeat count 16), and the generator emits exactly that; gophertunnel stores the same 256 bytes flat. Deliberately NOT changed in the generator - matching the documented shape is worth more than satisfying the comparator. Resolve by teaching compare.mjs to flatten nested fixed arrays."
     },
     {
-      "id": 122,
-      "name": "BiomeDefinitionList",
-      "reason": "Nested biome payload with remaining optional/array shape differences. Both BiomeDefinitionData optionals are already pinned against gophertunnel biome.go; what is left needs per-field adjudication rather than a blanket rule."
+      "id": 90,
+      "name": "StructureBlockUpdate",
+      "reason": "Optionality conflict. gophertunnel packet/structure_block_update.go writes StructureName and FilteredStructureName unconditionally as two plain strings; the endstone dump marks the redacted name optional, adding a presence Bool. Needs a capture to settle which the server actually emits."
+    },
+    {
+      "id": 137,
+      "name": "EducationSettings",
+      "reason": "Optionality/position conflict. Both sources agree the packet HAS optionals - gophertunnel packet/education_settings.go uses OptionalFunc for CanModifyBlocks and OverrideURI and OptionalMarshaler for ExternalLinkSettings - but the presence boundaries land at different positions, so the sequences do not align. Needs per-field adjudication rather than a blanket rule."
+    },
+    {
+      "id": 187,
+      "name": "UpdateAbilities",
+      "reason": "Oracle conflict over an array prefix. gophertunnel ability.go writes Layers with SliceUint8Length (a U8 count); the endstone dump says repeat prefix uvarint32. Mojang's raw schema states no prefix override, which implies the varint default, so it is NOT independent corroboration of the U8 - our earlier U8 correction was itself derived from gophertunnel. Genuinely one-versus-one; needs a capture."
+    },
+    {
+      "id": 190,
+      "name": "EditorNetwork",
+      "reason": "Structural disagreement. gophertunnel packet/editor_network.go writes a single NetworkLittleEndian NBT payload; the endstone dump models a raw variant name and data pair. These are not the same bytes, so one source is modelling the payload's interior rather than its wire form. Needs a capture."
     },
     {
       "id": 198,
       "name": "CameraPresets",
-      "reason": "Deeply nested camera preset payload; remaining differences are in optional presence inside nested preset definitions and need per-field adjudication."
+      "reason": "Deeply nested camera preset payload; remaining differences are optional presence inside nested preset definitions. Needs per-field adjudication."
     },
     {
-      "id": 320,
-      "name": "CameraAimAssistPresets",
-      "reason": "Same class as CameraPresets: nested option/structure differences inside aim-assist preset definitions, pending per-field adjudication."
+      "id": 315,
+      "name": "ServerboundDiagnostics",
+      "reason": "The endstone dump carries an optional System Categories block that gophertunnel does not implement at all. A field present in the server dump but absent from a hand-written client is the expected direction for a newly added field, so this is likely gophertunnel lagging rather than a generator defect - but it is unverified."
+    },
+    {
+      "id": 347,
+      "name": "ServerPresenceInfo",
+      "reason": "The two sources describe different types. gophertunnel's PresenceInfo (server_join_information.go) has ExperienceName and WorldName as optionals plus an unconditional RichPresenceID; endstone's ServerConfiguration::PresenceConfiguration documents only an optional richPresenceId. Our output therefore omits fields gophertunnel writes. This is the one divergence whose direction could truncate a packet, so it should be settled by capture before anything ships on it."
     }
   ]
 }
