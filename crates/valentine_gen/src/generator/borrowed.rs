@@ -162,7 +162,6 @@ impl BorrowedGenerator<'_, '_> {
                 enum_variants.push(quote! { #variant_ident(#view_ident) });
                 decode_arms.push(quote! {
                     crate::McpePacketName::#variant_ident => {
-                        let mut payload = payload;
                         Self::#variant_ident(
                             <#view_ident as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(
                                 &mut payload,
@@ -265,14 +264,24 @@ impl BorrowedGenerator<'_, '_> {
                     }
                 }
 
+                /// Decodes a borrowed payload and reports how many payload bytes
+                /// were left unconsumed by the packet's own decoder.
+                ///
+                /// The transport layer uses the remaining count to reject frames
+                /// with trailing bytes without having to materialise an owned
+                /// packet. `Raw` payloads are reported as fully consumed
+                /// (`0` remaining) because nothing has parsed them yet.
                 fn decode_payload(
                     name: crate::McpePacketName,
                     payload: bytes::Bytes,
-                ) -> Result<Self, crate::bedrock::error::DecodeError> {
-                    Ok(match name {
+                ) -> Result<(Self, usize), crate::bedrock::error::DecodeError> {
+                    let mut payload = payload;
+                    let data = match name {
                         #(#decode_arms),*,
-                        _ => Self::Raw { name, payload },
-                    })
+                        _ => return Ok((Self::Raw { name, payload }, 0)),
+                    };
+                    let remaining = bytes::Buf::remaining(&payload);
+                    Ok((data, remaining))
                 }
             }
 
@@ -286,11 +295,20 @@ impl BorrowedGenerator<'_, '_> {
                 pub fn decode_inner(
                     buf: &mut bytes::Bytes,
                 ) -> Result<Self, crate::bedrock::error::DecodeError> {
+                    Ok(Self::decode_inner_with_remaining(buf)?.0)
+                }
+
+                /// Decodes one length-prefixed inner frame and also returns the
+                /// number of declared payload bytes the packet decoder did not
+                /// consume, so callers can reject trailing-byte frames.
+                pub fn decode_inner_with_remaining(
+                    buf: &mut bytes::Bytes,
+                ) -> Result<(Self, usize), crate::bedrock::error::DecodeError> {
                     let mut frame = crate::bedrock::borrowed::take_var_u32_prefixed_bytes(buf)?;
                     let header_raw = crate::protocol::wire::read_var_u32(&mut frame)?;
                     let payload_len = bytes::Buf::remaining(&frame);
                     let payload = frame.split_to(payload_len);
-                    Self::from_raw_frame(crate::bedrock::borrowed::RawMcpeFrame {
+                    Self::from_raw_frame_with_remaining(crate::bedrock::borrowed::RawMcpeFrame {
                         header: crate::bedrock::borrowed::RawMcpeHeader {
                             id_raw: header_raw & 0x3ff,
                             from_subclient: (header_raw >> 10) & 0x3,
@@ -310,15 +328,26 @@ impl BorrowedGenerator<'_, '_> {
                 pub fn from_raw_frame(
                     frame: crate::bedrock::borrowed::RawMcpeFrame,
                 ) -> Result<Self, crate::bedrock::error::DecodeError> {
+                    Ok(Self::from_raw_frame_with_remaining(frame)?.0)
+                }
+
+                /// Like [`Self::from_raw_frame`], but also reports the number of
+                /// payload bytes left unconsumed inside the frame.
+                pub fn from_raw_frame_with_remaining(
+                    frame: crate::bedrock::borrowed::RawMcpeFrame,
+                ) -> Result<(Self, usize), crate::bedrock::error::DecodeError> {
                     let name = match frame.header.id_raw {
                         #(#id_arms),*,
                         id => return Err(crate::bedrock::error::DecodeError::InvalidPacketId { id }),
                     };
-                    let data = BorrowedMcpePacketData::decode_payload(name, frame.payload)?;
-                    Ok(Self {
-                        header: frame.header,
-                        data,
-                    })
+                    let (data, remaining) = BorrowedMcpePacketData::decode_payload(name, frame.payload)?;
+                    Ok((
+                        Self {
+                            header: frame.header,
+                            data,
+                        },
+                        remaining,
+                    ))
                 }
 
                 pub fn packet_id(&self) -> crate::McpePacketName {
