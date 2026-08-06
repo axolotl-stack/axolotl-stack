@@ -64,11 +64,26 @@ function flatten(operations) {
         out.push(atom(`STRING:${canonical(op.prefix)}`, field, `string(prefix=${op.prefix},encoding=${op.encoding ?? "unspecified"})`));
         break;
       }
-      case "array":
+      case "array": {
+        // A prefixed array of single bytes and a prefixed byte slice are the same
+        // write: the count is the byte length, and each element is one unmodified
+        // byte. gophertunnel's ByteSlice normalizes to STRING:<prefix>, so a
+        // Vec<u8> field has to reach the same atom or it reads as a divergence
+        // when the bytes are identical.
+        const element = op.element ?? [];
+        const loneByte =
+          element.length === 1 &&
+          element[0].kind === "primitive" &&
+          canonicalPrimitive(element[0].op, element[0].field ?? field) === "FIXED8";
+        if (loneByte) {
+          out.push(atom(`STRING:${canonical(op.prefix)}`, field, `array(prefix=${op.prefix},element=byte)`));
+          break;
+        }
         out.push(atom(`ARRAY<${canonical(op.prefix)}>`, field, `array(prefix=${op.prefix})`));
         pushOps(op.element);
         out.push(atom("/ARRAY", field, "/array"));
         break;
+      }
       case "fixed_array":
         out.push(atom(`FIXED_ARRAY<${op.length}>`, field, `fixed_array(length=${op.length})`));
         pushOps(op.element);
