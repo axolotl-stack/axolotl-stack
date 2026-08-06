@@ -1,4 +1,6 @@
 use crate::ir::{Container, Field, PackedField, Packet, Primitive, Type};
+pub mod mojang;
+
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;

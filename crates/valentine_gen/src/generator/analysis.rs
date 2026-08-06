@@ -113,6 +113,11 @@ fn collect_deps_recursive(
                 collect_deps_recursive(default, ctx, visited, deps);
             }
         }
+        Type::Union { variants, .. } => {
+            for variant in variants {
+                collect_deps_recursive(&variant.type_def, ctx, visited, deps);
+            }
+        }
         Type::Reference(r) => {
             if !visited.contains(r) {
                 visited.insert(r.clone());
@@ -195,6 +200,7 @@ pub fn should_box_variant(t: &Type, ctx: &Context, depth: usize) -> bool {
         }
         Type::Option(inner) => should_box_variant(inner, ctx, depth + 1),
         Type::Switch { .. } => true,
+        Type::Union { .. } => true,
         _ => false,
     }
 }
