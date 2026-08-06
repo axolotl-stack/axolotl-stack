@@ -808,6 +808,11 @@ impl BorrowedGenerator<'_, '_> {
                 let ident = format_ident!("{}View", owned_name);
                 quote! { #ident }
             }
+            Type::Union { .. } => {
+                let owned_name = self.resolved_owned_name(ty, hint)?;
+                let ident = format_ident!("{}", owned_name);
+                quote! { #ident }
+            }
             _ => {
                 let ident = format_ident!("{}", clean_type_name(hint));
                 quote! { #ident }
@@ -920,6 +925,12 @@ impl BorrowedGenerator<'_, '_> {
                 let ident = format_ident!("{}View", owned_name);
                 Ok(quote! {
                     <#ident as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(#buf_ident, ())?
+                })
+            }
+            Type::Union { .. } => {
+                let ident = format_ident!("{}", self.resolved_owned_name(ty, hint)?);
+                Ok(quote! {
+                    <#ident as crate::bedrock::codec::BedrockCodec>::decode(#buf_ident, ())?
                 })
             }
             Type::Switch {
@@ -1566,6 +1577,7 @@ impl BorrowedGenerator<'_, '_> {
             Type::FixedArray { .. } => false,
             Type::Option(inner) => self.is_borrowable_type(inner, visiting),
             Type::Switch { .. } => false,
+            Type::Union { .. } => false,
             Type::Enum { .. } => true,
             Type::Bitfield { .. } => true,
             Type::Packed { .. } => false,

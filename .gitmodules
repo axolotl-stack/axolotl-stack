@@ -7,3 +7,6 @@
 [submodule "crates/valentine_gen/bedrock-data"]
 	path = crates/valentine_gen/bedrock-data
 	url = git@github.com:pmmp/BedrockData.git
+[submodule "crates/valentine_gen/bedrock-protocol-docs"]
+	path = crates/valentine_gen/bedrock-protocol-docs
+	url = git@github.com:Mojang/bedrock-protocol-docs.git

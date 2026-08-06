@@ -26,7 +26,9 @@ use tracing_subscriber::{EnvFilter, fmt};
 mod data_generator;
 mod generator;
 mod ir;
+mod overrides;
 mod parser;
+mod wire_manifest;
 
 #[derive(Debug, Clone, Deserialize)]
 struct BedrockVersionJson {
@@ -50,6 +52,7 @@ struct VersionDecl {
 
 #[derive(Debug, Clone)]
 struct CliArgs {
+    source: ProtocolSource,
     versions: Vec<String>,
     all: bool,
     latest: bool,
@@ -57,6 +60,10 @@ struct CliArgs {
     log_filter: String,
     minecraft_data: Option<PathBuf>,
     bedrock_data: Option<PathBuf>,
+    mojang_docs: Option<PathBuf>,
+    overrides: Option<PathBuf>,
+    output_dir: Option<PathBuf>,
+    emit_wire_manifest: Option<PathBuf>,
     /// Generation targets (composable)
     gen_proto: bool,
     gen_items: bool,
@@ -64,6 +71,12 @@ struct CliArgs {
     gen_block_states: bool,
     gen_entities: bool,
     gen_biomes: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ProtocolSource {
+    Prismarine,
+    Mojang,
 }
 
 fn print_usage() {
@@ -88,8 +101,14 @@ GENERATION TARGETS (composable, default: all):
   --biomes                Generate biome data only
 
 OTHER OPTIONS:
+  --source <NAME>         Protocol source: prismarine (default) or mojang
   --minecraft-data <DIR>  Path to a minecraft-data checkout (defaults to ./minecraft-data)
   --bedrock-data <DIR>    Path to a pmmp/BedrockData checkout (defaults to ./bedrock-data)
+  --mojang-docs <DIR>     Path to a bedrock-protocol-docs checkout (defaults to ./bedrock-protocol-docs)
+  --overrides <DIR>       Mojang correction JSON directory (defaults to ./overrides)
+  --output-dir <DIR>      Valentine output root (Prismarine defaults to ../valentine; required for Mojang)
+  --emit-wire-manifest <FILE>
+                         Emit the selected version's fully resolved wire manifest as JSON
   --log <FILTER>          tracing filter (default: "info"), e.g. "debug" or "valentine_gen=debug"
   -h, --help              Print help and exit
 "#
@@ -102,8 +121,13 @@ fn parse_args() -> Result<CliArgs, String> {
     let mut latest = false;
     let mut list_versions = false;
     let mut log_filter = "info".to_string();
+    let mut source = ProtocolSource::Prismarine;
     let mut minecraft_data: Option<PathBuf> = None;
     let mut bedrock_data: Option<PathBuf> = None;
+    let mut mojang_docs: Option<PathBuf> = None;
+    let mut overrides: Option<PathBuf> = None;
+    let mut output_dir: Option<PathBuf> = None;
+    let mut emit_wire_manifest: Option<PathBuf> = None;
 
     // Generation targets - all false means "generate all"
     let mut gen_proto = false;
@@ -123,6 +147,12 @@ fn parse_args() -> Result<CliArgs, String> {
             "--all" => all = true,
             "--latest" => latest = true,
             "--list-versions" | "--list" => list_versions = true,
+            "--source" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--source expects prismarine or mojang".to_string())?;
+                source = parse_source(&raw)?;
+            }
             "--proto" | "--protocol" => gen_proto = true,
             "--items" => gen_items = true,
             "--blocks" => gen_blocks = true,
@@ -154,6 +184,30 @@ fn parse_args() -> Result<CliArgs, String> {
                     .ok_or_else(|| "--bedrock-data expects a path".to_string())?;
                 bedrock_data = Some(PathBuf::from(raw));
             }
+            "--mojang-docs" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--mojang-docs expects a path".to_string())?;
+                mojang_docs = Some(PathBuf::from(raw));
+            }
+            "--overrides" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--overrides expects a path".to_string())?;
+                overrides = Some(PathBuf::from(raw));
+            }
+            "--output-dir" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--output-dir expects a path".to_string())?;
+                output_dir = Some(PathBuf::from(raw));
+            }
+            "--emit-wire-manifest" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--emit-wire-manifest expects a path".to_string())?;
+                emit_wire_manifest = Some(PathBuf::from(raw));
+            }
             _ if arg.starts_with("--versions=") => {
                 let raw = arg.trim_start_matches("--versions=");
                 for v in raw.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {
@@ -168,6 +222,23 @@ fn parse_args() -> Result<CliArgs, String> {
             }
             _ if arg.starts_with("--bedrock-data=") => {
                 bedrock_data = Some(PathBuf::from(arg.trim_start_matches("--bedrock-data=")));
+            }
+            _ if arg.starts_with("--source=") => {
+                source = parse_source(arg.trim_start_matches("--source="))?;
+            }
+            _ if arg.starts_with("--mojang-docs=") => {
+                mojang_docs = Some(PathBuf::from(arg.trim_start_matches("--mojang-docs=")));
+            }
+            _ if arg.starts_with("--overrides=") => {
+                overrides = Some(PathBuf::from(arg.trim_start_matches("--overrides=")));
+            }
+            _ if arg.starts_with("--output-dir=") => {
+                output_dir = Some(PathBuf::from(arg.trim_start_matches("--output-dir=")));
+            }
+            _ if arg.starts_with("--emit-wire-manifest=") => {
+                emit_wire_manifest = Some(PathBuf::from(
+                    arg.trim_start_matches("--emit-wire-manifest="),
+                ));
             }
             _ => return Err(format!("Unknown argument: {arg}")),
         }
@@ -188,15 +259,23 @@ fn parse_args() -> Result<CliArgs, String> {
         && !gen_entities
         && !gen_biomes;
     if none_specified {
-        gen_proto = true;
-        gen_items = true;
-        gen_blocks = true;
-        gen_block_states = true;
-        gen_entities = true;
-        gen_biomes = true;
+        if source == ProtocolSource::Mojang {
+            // Mojang's repository is a protocol schema source; selecting it
+            // without an explicit target should therefore do the useful thing
+            // instead of attempting Prismarine data generation.
+            gen_proto = true;
+        } else {
+            gen_proto = true;
+            gen_items = true;
+            gen_blocks = true;
+            gen_block_states = true;
+            gen_entities = true;
+            gen_biomes = true;
+        }
     }
 
     Ok(CliArgs {
+        source,
         versions,
         all,
         latest,
@@ -204,6 +283,10 @@ fn parse_args() -> Result<CliArgs, String> {
         log_filter,
         minecraft_data,
         bedrock_data,
+        mojang_docs,
+        overrides,
+        output_dir,
+        emit_wire_manifest,
         gen_proto,
         gen_items,
         gen_blocks,
@@ -211,6 +294,16 @@ fn parse_args() -> Result<CliArgs, String> {
         gen_entities,
         gen_biomes,
     })
+}
+
+fn parse_source(value: &str) -> Result<ProtocolSource, String> {
+    match value {
+        "prismarine" => Ok(ProtocolSource::Prismarine),
+        "mojang" => Ok(ProtocolSource::Mojang),
+        other => Err(format!(
+            "unknown protocol source {other:?}; expected prismarine or mojang"
+        )),
+    }
 }
 
 fn init_tracing(filter: &str) {
@@ -263,6 +356,252 @@ fn read_bedrock_version_json(
     Ok(meta)
 }
 
+fn generate_mojang(
+    args: &CliArgs,
+    root: &Path,
+    valentine_root: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if args.gen_items
+        || args.gen_blocks
+        || args.gen_block_states
+        || args.gen_entities
+        || args.gen_biomes
+    {
+        return Err(
+            "--source mojang currently provides protocol schemas only; use --source prismarine for data generation"
+                .into(),
+        );
+    }
+
+    let docs_root = args
+        .mojang_docs
+        .clone()
+        .map(|path| {
+            if path.is_relative() {
+                root.join(path)
+            } else {
+                path
+            }
+        })
+        .unwrap_or_else(|| root.join("bedrock-protocol-docs"));
+    let override_root = args
+        .overrides
+        .clone()
+        .map(|path| {
+            if path.is_relative() {
+                root.join(path)
+            } else {
+                path
+            }
+        })
+        .unwrap_or_else(|| root.join("overrides"));
+
+    let available = parser::mojang::discover_versions(&docs_root)?;
+    if available.is_empty() {
+        return Err(format!(
+            "no Mojang schema version metadata found below {}",
+            docs_root.display()
+        )
+        .into());
+    }
+    if args.list_versions {
+        for version in &available {
+            println!(
+                "{} (protocol {})",
+                version.minecraft_version, version.protocol_version
+            );
+        }
+        return Ok(());
+    }
+
+    let selected = if args.all {
+        available.clone()
+    } else if !args.versions.is_empty() {
+        let mut selected = Vec::new();
+        for requested in &args.versions {
+            if let Some(version) = available
+                .iter()
+                .find(|version| version.minecraft_version == *requested)
+            {
+                selected.push(version.clone());
+            } else {
+                warn!(version = %requested, "Requested version is not present in the Mojang schema snapshot");
+            }
+        }
+        selected
+    } else {
+        vec![
+            available
+                .last()
+                .cloned()
+                .ok_or("No Mojang schema versions available")?,
+        ]
+    };
+    if selected.is_empty() {
+        return Err("No Mojang schema versions selected for generation".into());
+    }
+    if args.emit_wire_manifest.is_some() && selected.len() != 1 {
+        return Err("--emit-wire-manifest requires exactly one selected version".into());
+    }
+
+    let parse_result = if args.gen_proto {
+        Some(parser::mojang::parse(&docs_root, &override_root)?)
+    } else {
+        None
+    };
+    if let (Some(path), Some(parsed)) = (&args.emit_wire_manifest, &parse_result) {
+        let version = &selected[0];
+        let path = if path.is_relative() {
+            root.join(path)
+        } else {
+            path.clone()
+        };
+        let manifest = wire_manifest::build(
+            parsed,
+            "mojang",
+            Some(version.minecraft_version.clone()),
+            Some(version.protocol_version),
+        )?;
+        wire_manifest::write(&path, &manifest)?;
+        info!(path = %path.display(), "Emitted resolved wire manifest");
+    }
+    let mut version_decls = Vec::new();
+    let mut global_registry = GlobalRegistry::new();
+    let bedrock_versions_dir = valentine_root.join("bedrock_versions");
+    fs::create_dir_all(&bedrock_versions_dir)?;
+
+    for version in selected {
+        let module_name = version_to_module(&version.minecraft_version);
+        let feature = version_to_feature(&version.minecraft_version);
+        let crate_name = version_to_crate(&version.minecraft_version);
+        let crate_dir = bedrock_versions_dir.join(&module_name);
+        let crate_src_dir = crate_dir.join("src");
+        fs::create_dir_all(&crate_src_dir)?;
+
+        let mut crate_dependencies = HashSet::new();
+        if let Some(parse_result) = &parse_result {
+            info!(
+                minecraft_version = %version.minecraft_version,
+                protocol_version = version.protocol_version,
+                module = %module_name,
+                "Generating protocol from Mojang schemas"
+            );
+            let outcome = generator::generate_protocol_module(
+                &crate_name,
+                "",
+                parse_result,
+                &crate_src_dir,
+                &mut global_registry,
+            )?;
+            crate_dependencies.extend(outcome.crate_dependencies);
+        }
+        write_version_crate(&crate_dir, &crate_src_dir, &crate_name, &crate_dependencies)?;
+
+        let major_version = version
+            .minecraft_version
+            .split('.')
+            .take(2)
+            .collect::<Vec<_>>()
+            .join(".");
+        version_decls.push(VersionDecl {
+            module_name,
+            feature,
+            crate_name,
+            meta: BedrockVersionJson {
+                protocol_version: version.protocol_version,
+                minecraft_version: version.minecraft_version,
+                major_version,
+                release_type: "release".to_string(),
+            },
+        });
+    }
+
+    // A Mojang checkout contains one release, while the checked-in Valentine
+    // surface may intentionally retain older generated crates. Preserve those
+    // declarations when adding a new Mojang-generated version in place.
+    for existing in read_existing_version_decls(valentine_root)? {
+        if !version_decls
+            .iter()
+            .any(|decl| decl.module_name == existing.module_name)
+        {
+            version_decls.push(existing);
+        }
+    }
+
+    let default_version = latest_version(
+        &version_decls
+            .iter()
+            .map(|decl| decl.meta.minecraft_version.clone())
+            .collect::<Vec<_>>(),
+    )
+    .ok_or("No Mojang versions for default")?;
+    let default_feature = version_to_feature(&default_version);
+    version_decls.sort_by(|a, b| a.module_name.cmp(&b.module_name));
+    write_generated_surface(valentine_root, &version_decls, &default_feature)?;
+    Ok(())
+}
+
+fn read_existing_version_decls(
+    valentine_root: &Path,
+) -> Result<Vec<VersionDecl>, Box<dyn std::error::Error>> {
+    let path = valentine_root
+        .join("src")
+        .join("bedrock")
+        .join("version.rs");
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    let source = fs::read_to_string(path)?;
+    let mut declarations = Vec::new();
+    for block in source.split("#[cfg(feature = \"").skip(1) {
+        let Some((feature, block)) = block.split_once("\")]") else {
+            continue;
+        };
+        let Some(module_name) = quoted_after(block, "pub mod ", " {") else {
+            continue;
+        };
+        let Some(minecraft_version) = quoted_after(block, "GAME_VERSION: &str = \"", "\"") else {
+            continue;
+        };
+        let Some(protocol) = quoted_after(block, "PROTOCOL_VERSION: i32 = ", "i32") else {
+            continue;
+        };
+        let Some(major_version) = quoted_after(block, "MAJOR_VERSION: &str = \"", "\"") else {
+            continue;
+        };
+        let Some(release_type) = quoted_after(block, "RELEASE_TYPE: &str = \"", "\"") else {
+            continue;
+        };
+        let crate_name = module_name.replacen("v", "valentine_bedrock_", 1);
+        if !valentine_root
+            .join("bedrock_versions")
+            .join(&module_name)
+            .exists()
+        {
+            continue;
+        }
+        declarations.push(VersionDecl {
+            module_name,
+            feature: feature.to_string(),
+            crate_name,
+            meta: BedrockVersionJson {
+                protocol_version: protocol.parse()?,
+                minecraft_version,
+                major_version,
+                release_type,
+            },
+        });
+    }
+    Ok(declarations)
+}
+
+fn quoted_after(source: &str, prefix: &str, suffix: &str) -> Option<String> {
+    source
+        .split_once(prefix)
+        .and_then(|(_, rest)| rest.split_once(suffix))
+        .map(|(value, _)| value.to_string())
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = match parse_args() {
         Ok(args) => args,
@@ -290,10 +629,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map(|p| if p.is_relative() { root.join(p) } else { p })
         .unwrap_or_else(|| root.join("bedrock-data"));
 
-    let valentine_root = root
-        .parent()
-        .ok_or("CARGO_MANIFEST_DIR has no parent directory")?
-        .join("valentine");
+    let valentine_root = if let Some(path) = args.output_dir.clone() {
+        if path.is_relative() {
+            root.join(path)
+        } else {
+            path
+        }
+    } else if args.source == ProtocolSource::Mojang {
+        return Err(
+            "--source mojang requires an explicit --output-dir; generation is intentionally not allowed to overwrite the checked-in Valentine surface"
+                .into(),
+        );
+    } else {
+        root.parent()
+            .ok_or("CARGO_MANIFEST_DIR has no parent directory")?
+            .join("valentine")
+    };
+
+    if args.source == ProtocolSource::Mojang {
+        return generate_mojang(&args, root, &valentine_root);
+    }
+
     let bedrock_src_dir = valentine_root.join("src").join("bedrock");
     let protocol_mod_dir = bedrock_src_dir.join("protocol");
     let bedrock_versions_dir = valentine_root.join("bedrock_versions");
@@ -352,6 +708,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Default to generating only the latest Bedrock version.
         HashSet::from([latest_version(&supported_versions).ok_or("No versions available")?])
     };
+    if args.emit_wire_manifest.is_some() && generate_versions.len() != 1 {
+        return Err("--emit-wire-manifest requires exactly one selected version".into());
+    }
 
     if generate_versions.is_empty() {
         return Err("No versions selected for generation".into());
@@ -460,6 +819,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         continue;
                     }
                 };
+
+                if let Some(path) = &args.emit_wire_manifest {
+                    let path = if path.is_relative() {
+                        root.join(path)
+                    } else {
+                        path.clone()
+                    };
+                    let manifest = wire_manifest::build(
+                        &parse_result,
+                        "prismarine",
+                        Some(meta.minecraft_version.clone()),
+                        Some(meta.protocol_version),
+                    )?;
+                    wire_manifest::write(&path, &manifest)?;
+                    info!(path = %path.display(), "Emitted resolved wire manifest");
+                }
 
                 match generator::generate_protocol_module(
                     &crate_name,
@@ -691,21 +1066,152 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         version_formatted
     )?;
 
-    update_valentine_manifest(root, &default_feature, &version_decls)?;
+    update_valentine_manifest_at(&valentine_root, &default_feature, &version_decls)?;
 
     Ok(())
 }
 
-fn update_valentine_manifest(
-    root: &Path,
+fn write_generated_surface(
+    valentine_root: &Path,
+    version_decls: &[VersionDecl],
+    default_feature: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let bedrock_src_dir = valentine_root.join("src").join("bedrock");
+    let protocol_mod_dir = bedrock_src_dir.join("protocol");
+    fs::create_dir_all(&protocol_mod_dir)?;
+
+    let protocol_items: Vec<_> = version_decls
+        .iter()
+        .map(|version| {
+            let module_ident = syn::Ident::new(&version.module_name, Span::call_site());
+            let crate_ident = syn::Ident::new(&version.crate_name, Span::call_site());
+            let feature = LitStr::new(&version.feature, Span::call_site());
+            quote! {
+                #[cfg(feature = #feature)]
+                pub use #crate_ident as #module_ident;
+            }
+        })
+        .collect();
+    let version_items: Vec<_> = version_decls
+        .iter()
+        .map(|version| {
+            let module_ident = syn::Ident::new(&version.module_name, Span::call_site());
+            let feature = LitStr::new(&version.feature, Span::call_site());
+            let game_version = LitStr::new(&version.meta.minecraft_version, Span::call_site());
+            let major_version = LitStr::new(&version.meta.major_version, Span::call_site());
+            let release_type = LitStr::new(&version.meta.release_type, Span::call_site());
+            let protocol_version = version.meta.protocol_version;
+            quote! {
+                #[cfg(feature = #feature)]
+                pub mod #module_ident {
+                    pub use super::super::protocol::#module_ident::*;
+
+                    pub const GAME_VERSION: &str = #game_version;
+                    pub const PROTOCOL_VERSION: i32 = #protocol_version;
+                    pub const MAJOR_VERSION: &str = #major_version;
+                    pub const RELEASE_TYPE: &str = #release_type;
+
+                    pub const INFO: super::BedrockVersionInfo = super::BedrockVersionInfo {
+                        minecraft_version: GAME_VERSION,
+                        protocol_version: PROTOCOL_VERSION,
+                        major_version: MAJOR_VERSION,
+                        release_type: RELEASE_TYPE,
+                    };
+                }
+            }
+        })
+        .collect();
+    let reexport_items: Vec<_> = version_decls
+        .iter()
+        .map(|version| {
+            let module_ident = syn::Ident::new(&version.module_name, Span::call_site());
+            let feature = LitStr::new(&version.feature, Span::call_site());
+            quote! {
+                #[cfg(feature = #feature)]
+                pub use self::version::#module_ident;
+            }
+        })
+        .collect();
+
+    let bedrock_tokens = quote! {
+        #![allow(non_camel_case_types)]
+        #![allow(non_snake_case)]
+        #![allow(dead_code)]
+        #![allow(unused_imports)]
+        #![allow(clippy::redundant_field_names)]
+        #![allow(clippy::manual_flatten)]
+
+        pub mod codec;
+        pub mod error;
+        pub mod protocol;
+        pub mod version;
+        pub mod context;
+        pub mod borrowed;
+
+        #(#reexport_items)*
+    };
+    let bedrock_syntax = parse2(bedrock_tokens)?;
+    let bedrock_formatted = prettyplease::unparse(&bedrock_syntax);
+    fs::write(
+        bedrock_src_dir.join("mod.rs"),
+        format!(
+            "// Generated by valentine_gen\n// Do not edit: see crates/valentine_gen for generator.\n\n{}",
+            bedrock_formatted
+        ),
+    )?;
+
+    let protocol_tokens = quote! {
+        #![allow(non_camel_case_types)]
+        #![allow(non_snake_case)]
+        #![allow(dead_code)]
+        #![allow(unused_imports)]
+        #![allow(clippy::redundant_field_names)]
+        #![allow(clippy::manual_flatten)]
+
+        #(#protocol_items)*
+    };
+    let protocol_syntax = parse2(protocol_tokens)?;
+    fs::write(
+        protocol_mod_dir.join("mod.rs"),
+        format!(
+            "// Generated by valentine_gen\n// Do not edit: see crates/valentine_gen for generator.\n\n{}",
+            prettyplease::unparse(&protocol_syntax)
+        ),
+    )?;
+
+    let version_tokens = quote! {
+        #![allow(non_camel_case_types)]
+        #![allow(non_snake_case)]
+        #![allow(dead_code)]
+        #![allow(unused_imports)]
+
+        pub use valentine_bedrock_core::bedrock::version::BedrockVersionInfo;
+
+        #(#version_items)*
+    };
+    let version_syntax = parse2(version_tokens)?;
+    fs::write(
+        bedrock_src_dir.join("version.rs"),
+        format!(
+            "// Generated by valentine_gen\n// Do not edit: see crates/valentine_gen for generator.\n\n{}",
+            prettyplease::unparse(&version_syntax)
+        ),
+    )?;
+
+    update_valentine_manifest_at(valentine_root, default_feature, version_decls)
+}
+
+fn update_valentine_manifest_at(
+    valentine_root: &Path,
     default_feature: &str,
     versions: &[VersionDecl],
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let valentine_cargo = root
-        .parent()
-        .ok_or("CARGO_MANIFEST_DIR has no parent directory")?
-        .join("valentine")
-        .join("Cargo.toml");
+    let valentine_cargo = valentine_root.join("Cargo.toml");
+    if !valentine_cargo.exists() {
+        // `--output-dir` is also used for scratch generation/parity runs. Such
+        // directories intentionally contain generated sources only.
+        return Ok(());
+    }
     let mut contents = String::new();
     {
         let mut f = File::open(&valentine_cargo)?;
@@ -825,4 +1331,123 @@ valentine_bedrock_core = {{ path = "../../bedrock_core" }}
     cargo_file.write_all(cargo_toml.as_bytes())?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod generated_crate_tests {
+    use super::{CliArgs, ProtocolSource, generate_mojang};
+    use std::fs;
+    use std::path::Path;
+    use std::process::Command;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn copy_directory(source: &Path, destination: &Path) -> std::io::Result<()> {
+        fs::create_dir_all(destination)?;
+        for entry in fs::read_dir(source)? {
+            let entry = entry?;
+            let source_path = entry.path();
+            let destination_path = destination.join(entry.file_name());
+            if source_path.is_dir() {
+                copy_directory(&source_path, &destination_path)?;
+            } else {
+                fs::copy(source_path, destination_path)?;
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn real_mojang_generation_passes_cargo_check_in_a_temp_crate() {
+        let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let docs = manifest_dir.join("bedrock-protocol-docs");
+        assert!(
+            docs.join("json").is_dir(),
+            "the pinned bedrock-protocol-docs submodule is required for this gate"
+        );
+
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock before UNIX_EPOCH")
+            .as_nanos();
+        let output = std::env::temp_dir().join(format!(
+            "valentine-gen-cargo-check-{}-{nonce}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&output);
+        fs::create_dir_all(&output).expect("create generated crate directory");
+
+        let args = CliArgs {
+            source: ProtocolSource::Mojang,
+            versions: Vec::new(),
+            all: false,
+            latest: false,
+            list_versions: false,
+            log_filter: "error".to_string(),
+            minecraft_data: None,
+            bedrock_data: None,
+            mojang_docs: None,
+            overrides: None,
+            output_dir: Some(output.clone()),
+            emit_wire_manifest: None,
+            gen_proto: true,
+            gen_items: false,
+            gen_blocks: false,
+            gen_block_states: false,
+            gen_entities: false,
+            gen_biomes: false,
+        };
+        generate_mojang(&args, manifest_dir, &output).expect("generate Mojang temp crate");
+
+        let core_source = manifest_dir
+            .parent()
+            .expect("valentine_gen has a crate parent")
+            .join("valentine/bedrock_core");
+        copy_directory(&core_source, &output.join("bedrock_core"))
+            .expect("copy bedrock_core into generated temp crate");
+        // Derive members from what was actually generated: the module name
+        // tracks the pinned docs version, so hardcoding it breaks on a bump.
+        let mut members = vec!["\"bedrock_core\"".to_string()];
+        for entry in
+            fs::read_dir(output.join("bedrock_versions")).expect("read generated bedrock_versions")
+        {
+            let entry = entry.expect("read generated version entry");
+            if entry.path().join("Cargo.toml").is_file() {
+                members.push(format!(
+                    "\"bedrock_versions/{}\"",
+                    entry.file_name().to_string_lossy()
+                ));
+            }
+        }
+        assert!(
+            members.len() > 1,
+            "generation produced no version crates under bedrock_versions"
+        );
+        fs::write(
+            output.join("Cargo.toml"),
+            format!(
+                "[workspace]\nresolver = \"2\"\nmembers = [{}]\n[workspace.package]\nedition = \"2024\"\n[workspace.dependencies]\nbytes = \"1\"\nuuid = \"1.8.0\"\n",
+                members.join(", ")
+            ),
+        )
+        .expect("write temp workspace manifest");
+
+        let cargo = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
+        let check = Command::new(cargo)
+            .args([
+                "check",
+                "--offline",
+                "--manifest-path",
+                output.join("Cargo.toml").to_str().expect("UTF-8 temp path"),
+            ])
+            .env("RUSTC_WRAPPER", "")
+            .env("CARGO_NET_OFFLINE", "true")
+            .output()
+            .expect("run cargo check on generated temp crate");
+        let _ = fs::remove_dir_all(&output);
+        assert!(
+            check.status.success(),
+            "cargo check failed for generated crate:\n{}",
+            String::from_utf8_lossy(&check.stderr)
+        );
+    }
 }

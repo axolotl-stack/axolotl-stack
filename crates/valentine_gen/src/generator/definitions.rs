@@ -1,5 +1,7 @@
 use crate::generator::analysis::{get_deps, should_box_variant};
-use crate::generator::codec::{generate_codec_impl, generate_enum_type_codec};
+use crate::generator::codec::{
+    UnionVariantCodec, generate_codec_impl, generate_enum_type_codec, generate_union_type_codec,
+};
 use crate::generator::context::{Context, PacketSymbol, TypeCanonical};
 use crate::generator::primitives::{
     primitive_to_enum_repr_tokens, primitive_to_rust_tokens, primitive_to_unsigned_tokens,
@@ -60,6 +62,16 @@ fn emit_inline_types_for_dedup(
                 resolve_type_to_tokens(default.as_ref(), &format!("{parent_name}Default"), ctx)?;
             Ok(())
         }
+        Type::Union { variants, .. } => {
+            for variant in variants {
+                let _ = resolve_type_to_tokens(
+                    &variant.type_def,
+                    &format!("{parent_name}{}", camel_case(&variant.name)),
+                    ctx,
+                )?;
+            }
+            Ok(())
+        }
     }
 }
 
@@ -115,6 +127,24 @@ pub fn fingerprint_type(t: &Type) -> String {
                 s.push_str(&format!("{}=>{};", name, fingerprint_type(ty)));
             }
             s.push_str(&format!("D:{}]", fingerprint_type(default.as_ref())));
+            s
+        }
+        Type::Union {
+            control_type,
+            variants,
+        } => {
+            let mut s = format!("U:{:?}:[", control_type);
+            let mut sorted_variants: Vec<_> = variants.iter().collect();
+            sorted_variants.sort_by_key(|variant| variant.control_value);
+            for variant in sorted_variants {
+                s.push_str(&format!(
+                    "{}:{}=>{};",
+                    variant.control_value,
+                    variant.name,
+                    fingerprint_type(&variant.type_def)
+                ));
+            }
+            s.push(']');
             s
         }
         Type::Enum {
@@ -360,6 +390,14 @@ pub fn resolve_type_to_tokens(
             let ident = format_ident!("{}", name);
             quote! { #ident }
         }
+        Type::Union { .. } => {
+            let name = clean_type_name(hint);
+            if !ctx.emitted.contains(&name) && !ctx.in_progress.contains(&name) {
+                define_type(&name, t, ctx)?;
+            }
+            let ident = format_ident!("{}", name);
+            quote! { #ident }
+        }
         Type::Enum { variants, .. } => {
             let has_true = variants.iter().any(|(n, _)| n.eq_ignore_ascii_case("true"));
             let has_false = variants
@@ -416,7 +454,12 @@ pub fn define_type(
         ctx.argful_types.insert(safe_name_str.clone());
     }
 
-    let group = get_group_name(&safe_name_str);
+    // Only packet containers belong in proto.rs. Inline/container helper types
+    // are emitted from define_type and must remain in types.rs even when their
+    // generated name happens to end in `Packet` (for example
+    // `Vec3PrimitiveShapesPacket`). Keeping that distinction here prevents a
+    // type definition from being visible only through the packet module.
+    let group = "types".to_string();
     let fingerprint = compute_fingerprint(&safe_name_str, t, ctx);
 
     // Only attempt deduplication if there are NO arguments.
@@ -736,6 +779,75 @@ pub fn define_type(
                 }
             }
         }
+        Type::Union {
+            control_type,
+            variants: union_variants,
+        } => {
+            let mut enum_variants = Vec::new();
+            let mut codec_variants = Vec::new();
+            for variant in union_variants {
+                let variant_ident = format_ident!("{}", safe_camel_ident(&variant.name));
+                let variant_type = resolve_type_to_tokens(
+                    &variant.type_def,
+                    &format!("{}{}", safe_name_str, camel_case(&variant.name)),
+                    ctx,
+                )?;
+                let is_void = matches!(&variant.type_def, Type::Primitive(Primitive::Void));
+                let boxed = !is_void && should_box_variant(&variant.type_def, ctx, 0);
+                if is_void {
+                    enum_variants.push(quote! { #variant_ident });
+                } else if boxed {
+                    enum_variants.push(quote! { #variant_ident(Box<#variant_type>) });
+                } else {
+                    enum_variants.push(quote! { #variant_ident(#variant_type) });
+                }
+                // A fixed-size array payload (e.g. Color255RGBA's four I32LE
+                // components) is not a BedrockCodec, so the union codec has to
+                // encode it element-wise. Pass the shape down; the TokenStream
+                // alone cannot convey it.
+                let fixed = match &variant.type_def {
+                    Type::FixedArray { size, inner_type } => match inner_type.as_ref() {
+                        Type::Primitive(primitive) => Some((*size, primitive.clone())),
+                        _ => None,
+                    },
+                    _ => None,
+                };
+                codec_variants.push(UnionVariantCodec {
+                    name: safe_camel_ident(&variant.name),
+                    control_value: variant.control_value,
+                    type_tokens: variant_type,
+                    boxed,
+                    is_void,
+                    fixed,
+                });
+            }
+            let first = union_variants
+                .first()
+                .ok_or("union has no variants for default impl")?;
+            let first_ident = format_ident!("{}", safe_camel_ident(&first.name));
+            let first_is_void = matches!(&first.type_def, Type::Primitive(Primitive::Void));
+            let first_boxed = !first_is_void && should_box_variant(&first.type_def, ctx, 0);
+            let default_value = if first_is_void {
+                quote! { Self::#first_ident }
+            } else if first_boxed {
+                quote! { Self::#first_ident(Box::new(Default::default())) }
+            } else {
+                quote! { Self::#first_ident(Default::default()) }
+            };
+            let codec = generate_union_type_codec(&safe_name_str, control_type, &codec_variants)?;
+            quote! {
+                #[derive(Debug, Clone, PartialEq)]
+                pub enum #ident { #(#enum_variants),* }
+
+                impl Default for #ident {
+                    fn default() -> Self {
+                        #default_value
+                    }
+                }
+
+                #codec
+            }
+        }
         Type::Bitfield {
             storage_type,
             flags,
@@ -1050,7 +1162,10 @@ pub fn define_container(
         return Ok(());
     }
 
-    let group = get_group_name(&safe_name_str);
+    // Packet bodies are the only definitions emitted into proto.rs. Helper
+    // types reached while defining a packet are emitted by define_type and
+    // therefore use the `types` group above.
+    let group = "proto".to_string();
     let fingerprint = compute_packet_fingerprint(&safe_name_str, signature);
 
     if let Some(canonical) = ctx.global_registry.get_packet(&fingerprint).cloned() {

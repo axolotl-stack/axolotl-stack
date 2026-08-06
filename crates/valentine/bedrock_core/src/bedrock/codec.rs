@@ -19,6 +19,21 @@ pub trait BedrockSized {
     fn encoded_size(&self) -> usize;
 }
 
+// An explicitly corrected but still-untyped Mojang field can be represented
+// in the shared IR as `Void`/`()`. It consumes no bytes; the Mojang frontend
+// emits a warning and records the parity gap before reaching this fallback.
+impl BedrockCodec for () {
+    type Args = ();
+
+    fn encode<B: BufMut>(&self, _buf: &mut B) -> Result<(), std::io::Error> {
+        Ok(())
+    }
+
+    fn decode<B: Buf>(_buf: &mut B, _args: Self::Args) -> Result<Self, DecodeError> {
+        Ok(())
+    }
+}
+
 pub fn decode_utf8_lossy_owned(bytes: Vec<u8>) -> String {
     match String::from_utf8(bytes) {
         Ok(s) => s,

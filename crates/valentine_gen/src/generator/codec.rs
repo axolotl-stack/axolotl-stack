@@ -369,12 +369,14 @@ fn generate_field_decode_expr(
                 )?;
 
                 Ok(quote! {{
-                    let mut arr = std::mem::MaybeUninit::<[_; #size_lit]>::uninit();
-                    let ptr = arr.as_mut_ptr() as *mut _;
-                    for i in 0..#size_lit {
-                        unsafe { std::ptr::write(ptr.add(i), #inner_decode); }
+                    let mut values = Vec::with_capacity(#size_lit);
+                    for _ in 0..#size_lit {
+                        values.push(#inner_decode);
                     }
-                    unsafe { arr.assume_init() }
+                    match values.try_into() {
+                        Ok(array) => array,
+                        Err(_) => unreachable!("fixed-array decoder produced the wrong length"),
+                    }
                 }})
             }
         }
@@ -3256,6 +3258,323 @@ pub fn generate_enum_type_codec(
                     other => Ok(#struct_ident::#fallback_ident(other))
                 }
             }
+        }
+    })
+}
+
+/// One variant of a Mojang discriminated union, as the codec emitter needs it.
+pub struct UnionVariantCodec {
+    pub name: String,
+    pub control_value: i64,
+    pub type_tokens: TokenStream,
+    pub boxed: bool,
+    pub is_void: bool,
+    /// Set when the payload is a fixed-size numeric array. Such a payload is
+    /// not a `BedrockCodec`, so it is written element-wise with no length
+    /// prefix (e.g. `Color255RGBA`'s four little-endian components).
+    pub fixed: Option<(usize, Primitive)>,
+}
+
+/// Generate the codec for a Mojang `oneOf` with an explicit wire discriminator.
+///
+/// Union payloads currently use `Args = ()`. Mojang's discriminated payload
+/// definitions are self-contained in the published schemas; if a future
+/// schema makes a union branch depend on an enclosing container argument, the
+/// parity report should call that out before this assumption is broadened.
+pub fn generate_union_type_codec(
+    name: &str,
+    control_type: &Primitive,
+    variants: &[UnionVariantCodec],
+) -> Result<TokenStream, Box<dyn std::error::Error>> {
+    let struct_ident = format_ident!("{}", name);
+    let mut encode_arms = Vec::new();
+    let mut decode_arms = Vec::new();
+    let mut size_arms = Vec::new();
+
+    for UnionVariantCodec {
+        name: variant_name,
+        control_value,
+        type_tokens,
+        boxed,
+        is_void,
+        fixed,
+    } in variants
+    {
+        let variant_ident = format_ident!("{}", variant_name);
+        let control_literal = proc_macro2::Literal::i64_unsuffixed(*control_value);
+        let encode_control = union_control_encode(control_type, quote! { control_value })?;
+        let size_control = union_control_size(control_type, quote! { #control_literal })?;
+
+        if let Some((size, element)) = fixed {
+            // Fixed-size numeric array: no length prefix, each element written
+            // with its own wire encoding (little-endian by Bedrock default).
+            let len_lit = proc_macro2::Literal::usize_unsuffixed(*size);
+            let element_encode = union_control_encode(element, quote! { (*item) })?;
+            let element_decode = union_control_decode(element)?;
+            let element_size = union_control_size(element, quote! { (*item) })?;
+            encode_arms.push(quote! {
+                #struct_ident::#variant_ident(value) => {
+                    let control_value = #control_literal as i64;
+                    #encode_control?;
+                    for item in value.iter() {
+                        #element_encode?;
+                    }
+                    Ok(())
+                }
+            });
+            decode_arms.push(quote! {
+                #control_literal => {
+                    let mut array: #type_tokens = Default::default();
+                    for slot in array.iter_mut() {
+                        // union_control_decode emits `let control_value = ...;`
+                        #element_decode
+                        *slot = control_value as _;
+                    }
+                    Ok(#struct_ident::#variant_ident(array))
+                }
+            });
+            size_arms.push(quote! {
+                #struct_ident::#variant_ident(value) => {
+                    debug_assert_eq!(value.len(), #len_lit);
+                    #size_control
+                        + value
+                            .iter()
+                            .map(|item| {
+                                // Constant-width elements ignore `item`.
+                                let _ = item;
+                                #element_size
+                            })
+                            .sum::<usize>()
+                }
+            });
+        } else if *is_void {
+            encode_arms.push(quote! {
+                #struct_ident::#variant_ident => {
+                    let control_value = #control_literal as i64;
+                    #encode_control?;
+                    Ok(())
+                }
+            });
+            decode_arms.push(quote! {
+                #control_literal => Ok(#struct_ident::#variant_ident)
+            });
+            size_arms.push(quote! {
+                #struct_ident::#variant_ident => #size_control
+            });
+        } else if *boxed {
+            encode_arms.push(quote! {
+                #struct_ident::#variant_ident(value) => {
+                    let control_value = #control_literal as i64;
+                    #encode_control?;
+                    value.as_ref().encode(buf)?;
+                    Ok(())
+                }
+            });
+            decode_arms.push(quote! {
+                #control_literal => Ok(#struct_ident::#variant_ident(Box::new(
+                    <#type_tokens as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
+                )))
+            });
+            size_arms.push(quote! {
+                #struct_ident::#variant_ident(value) => {
+                    #size_control + crate::bedrock::codec::BedrockSized::encoded_size(value.as_ref())
+                }
+            });
+        } else {
+            encode_arms.push(quote! {
+                #struct_ident::#variant_ident(value) => {
+                    let control_value = #control_literal as i64;
+                    #encode_control?;
+                    value.encode(buf)?;
+                    Ok(())
+                }
+            });
+            decode_arms.push(quote! {
+                #control_literal => Ok(#struct_ident::#variant_ident(
+                    <#type_tokens as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
+                ))
+            });
+            size_arms.push(quote! {
+                #struct_ident::#variant_ident(value) => {
+                    #size_control + crate::bedrock::codec::BedrockSized::encoded_size(value)
+                }
+            });
+        }
+    }
+
+    let decode_control = union_control_decode(control_type)?;
+    Ok(quote! {
+        impl crate::bedrock::codec::BedrockSized for #struct_ident {
+            fn encoded_size(&self) -> usize {
+                match self {
+                    #(#size_arms),*
+                }
+            }
+        }
+
+        impl crate::bedrock::codec::BedrockCodec for #struct_ident {
+            type Args = ();
+
+            fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+                match self {
+                    #(#encode_arms),*
+                }
+            }
+
+            fn decode<B: bytes::Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, crate::bedrock::error::DecodeError> {
+                #decode_control
+                match control_value {
+                    #(#decode_arms),*,
+                    _ => Err(crate::bedrock::error::DecodeError::InvalidEnumValue {
+                        enum_name: stringify!(#struct_ident),
+                        value: control_value,
+                    }),
+                }
+            }
+        }
+    })
+}
+
+fn union_control_encode(
+    primitive: &Primitive,
+    value: TokenStream,
+) -> Result<TokenStream, Box<dyn std::error::Error>> {
+    Ok(match primitive {
+        Primitive::VarInt => quote! { crate::bedrock::codec::VarInt(#value as i32).encode(buf) },
+        Primitive::VarLong => quote! { crate::bedrock::codec::VarLong(#value as i64).encode(buf) },
+        Primitive::ZigZag32 => {
+            quote! { crate::bedrock::codec::ZigZag32(#value as i32).encode(buf) }
+        }
+        Primitive::ZigZag64 => {
+            quote! { crate::bedrock::codec::ZigZag64(#value as i64).encode(buf) }
+        }
+        Primitive::U16LE => quote! { crate::bedrock::codec::U16LE(#value as u16).encode(buf) },
+        Primitive::I16LE => quote! { crate::bedrock::codec::I16LE(#value as i16).encode(buf) },
+        Primitive::U32LE => quote! { crate::bedrock::codec::U32LE(#value as u32).encode(buf) },
+        Primitive::I32LE => quote! { crate::bedrock::codec::I32LE(#value as i32).encode(buf) },
+        Primitive::U64LE => quote! { crate::bedrock::codec::U64LE(#value as u64).encode(buf) },
+        Primitive::I64LE => quote! { crate::bedrock::codec::I64LE(#value as i64).encode(buf) },
+        Primitive::F32LE => quote! { crate::bedrock::codec::F32LE(#value as f32).encode(buf) },
+        Primitive::F64LE => quote! { crate::bedrock::codec::F64LE(#value as f64).encode(buf) },
+        Primitive::Bool => quote! { (#value != 0).encode(buf) },
+        Primitive::U8 => quote! { (#value as u8).encode(buf) },
+        Primitive::I8 => quote! { (#value as i8).encode(buf) },
+        Primitive::U16 => quote! { (#value as u16).encode(buf) },
+        Primitive::I16 => quote! { (#value as i16).encode(buf) },
+        Primitive::U32 => quote! { (#value as u32).encode(buf) },
+        Primitive::I32 => quote! { (#value as i32).encode(buf) },
+        Primitive::U64 => quote! { (#value as u64).encode(buf) },
+        Primitive::I64 => quote! { (#value as i64).encode(buf) },
+        other => {
+            return Err(format!("unsupported Mojang union control primitive {other:?}").into());
+        }
+    })
+}
+
+fn union_control_decode(primitive: &Primitive) -> Result<TokenStream, Box<dyn std::error::Error>> {
+    Ok(match primitive {
+        Primitive::VarInt => quote! {
+            let control_value = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 as i64;
+        },
+        Primitive::VarLong => quote! {
+            let control_value = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0;
+        },
+        Primitive::ZigZag32 => quote! {
+            let control_value = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 as i64;
+        },
+        Primitive::ZigZag64 => quote! {
+            let control_value = <crate::bedrock::codec::ZigZag64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0;
+        },
+        Primitive::U16LE => quote! {
+            let control_value = <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 as i64;
+        },
+        Primitive::I16LE => quote! {
+            let control_value = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 as i64;
+        },
+        Primitive::U32LE => quote! {
+            let control_value = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 as i64;
+        },
+        Primitive::I32LE => quote! {
+            let control_value = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 as i64;
+        },
+        Primitive::U64LE => quote! {
+            let control_value = <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 as i64;
+        },
+        Primitive::I64LE => quote! {
+            let control_value = <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0;
+        },
+        Primitive::F32LE => quote! {
+            let control_value = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 as i64;
+        },
+        Primitive::F64LE => quote! {
+            let control_value = <crate::bedrock::codec::F64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 as i64;
+        },
+        Primitive::Bool => quote! {
+            let control_value = if <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? { 1 } else { 0 };
+        },
+        Primitive::U8 => quote! {
+            let control_value = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? as i64;
+        },
+        Primitive::I8 => quote! {
+            let control_value = <i8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? as i64;
+        },
+        Primitive::U16 => quote! {
+            let control_value = <u16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? as i64;
+        },
+        Primitive::I16 => quote! {
+            let control_value = <i16 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? as i64;
+        },
+        Primitive::U32 => quote! {
+            let control_value = <u32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? as i64;
+        },
+        Primitive::I32 => quote! {
+            let control_value = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? as i64;
+        },
+        Primitive::U64 => quote! {
+            let control_value = <u64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? as i64;
+        },
+        Primitive::I64 => quote! {
+            let control_value = <i64 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        },
+        other => {
+            return Err(format!("unsupported Mojang union control primitive {other:?}").into());
+        }
+    })
+}
+
+fn union_control_size(
+    primitive: &Primitive,
+    value: TokenStream,
+) -> Result<TokenStream, Box<dyn std::error::Error>> {
+    Ok(match primitive {
+        Primitive::VarInt => {
+            quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(#value as i32)) }
+        }
+        Primitive::VarLong => {
+            quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarLong(#value as i64)) }
+        }
+        Primitive::ZigZag32 => {
+            quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::ZigZag32(#value as i32)) }
+        }
+        Primitive::ZigZag64 => {
+            quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::ZigZag64(#value as i64)) }
+        }
+        Primitive::U8 | Primitive::I8 | Primitive::Bool => quote! { 1usize },
+        Primitive::U16 | Primitive::U16LE | Primitive::I16 | Primitive::I16LE => quote! { 2usize },
+        Primitive::U32
+        | Primitive::U32LE
+        | Primitive::I32
+        | Primitive::I32LE
+        | Primitive::F32
+        | Primitive::F32LE => quote! { 4usize },
+        Primitive::U64
+        | Primitive::U64LE
+        | Primitive::I64
+        | Primitive::I64LE
+        | Primitive::F64
+        | Primitive::F64LE => quote! { 8usize },
+        other => {
+            return Err(format!("unsupported Mojang union control primitive {other:?}").into());
         }
     })
 }
