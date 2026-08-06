@@ -1261,19 +1261,26 @@ fn update_valentine_manifest_at(
             .ok_or("Cargo.toml missing [features] table")?;
 
         let existing_keys: Vec<String> = features_tbl.iter().map(|(k, _)| k.to_string()).collect();
+        let had_default = features_tbl.contains_key("default");
         for key in existing_keys {
-            if key == "default" || key.starts_with("bedrock_") {
+            if key.starts_with("bedrock_") {
                 features_tbl.remove(&key);
             }
         }
 
-        // Set default = [latest]
-        let mut default_arr = Array::new();
-        default_arr.push(default_feature);
-        features_tbl.insert(
-            "default",
-            toml_edit::Item::Value(toml_edit::Value::Array(default_arr)),
-        );
+        // Only seed a default when the manifest has none. Which protocol the
+        // workspace speaks by default is a deliberate decision - regenerating
+        // must never silently move it to whichever version was generated last,
+        // because that changes runtime behaviour and breaks every consumer
+        // pinned to the previous one.
+        if !had_default {
+            let mut default_arr = Array::new();
+            default_arr.push(default_feature);
+            features_tbl.insert(
+                "default",
+                toml_edit::Item::Value(toml_edit::Value::Array(default_arr)),
+            );
+        }
 
         for vd in versions {
             let mut arr = Array::new();
