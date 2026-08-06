@@ -7,12 +7,12 @@
 #![allow(unused_imports)]
 #![allow(clippy::redundant_field_names)]
 #![allow(clippy::manual_flatten)]
+pub mod borrowed;
 pub mod codec;
+pub mod context;
 pub mod error;
 pub mod protocol;
 pub mod version;
-pub mod context;
-pub mod borrowed;
 #[cfg(feature = "bedrock_1_26_0")]
 pub use self::version::v1_26_0;
 #[cfg(feature = "bedrock_1_26_30")]
