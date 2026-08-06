@@ -1,4 +1,5 @@
 use crate::ir::{Container, Field, PackedField, Packet, Primitive, Type};
+pub mod endstone;
 pub mod mojang;
 
 use serde::Deserialize;
