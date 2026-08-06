@@ -16540,6 +16540,7 @@ impl From<DebugRendererDataView> for DebugRendererData {
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct DimensionDefinitionView {
+    pub name: crate::bedrock::borrowed::BorrowedStr,
     pub height_maximum: i32,
     pub height_minimum: i32,
     pub generator_type: DimensionDefinitionGeneratorType,
@@ -16549,6 +16550,10 @@ pub struct DimensionDefinitionView {
 impl crate::bedrock::codec::BedrockSized for DimensionDefinitionView {
     fn encoded_size(&self) -> usize {
         0usize
+            + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
+                ((&self.name).as_bytes().len()) as i32,
+            ))
+            + (&self.name).as_bytes().len()
             + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::ZigZag32(
                 *&self.height_maximum,
             ))
@@ -16568,6 +16573,7 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for DimensionDefinitionView {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = &buf;
         let _ = _args;
+        let name = crate::bedrock::borrowed::take_varint_prefixed_string(buf)?;
         let height_maximum =
             <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
@@ -16592,6 +16598,7 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for DimensionDefinitionView {
             )?;
         let pack_id = <uuid::Uuid as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self {
+            name,
             height_maximum,
             height_minimum,
             generator_type,
@@ -16606,6 +16613,8 @@ impl DimensionDefinitionView {
     }
     pub fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
+        crate::bedrock::codec::VarInt(((&self.name).as_bytes().len()) as i32).encode(buf)?;
+        buf.put_slice((&self.name).as_bytes());
         crate::bedrock::codec::ZigZag32(*&self.height_maximum).encode(buf)?;
         crate::bedrock::codec::ZigZag32(*&self.height_minimum).encode(buf)?;
         (&self.generator_type).encode(buf)?;
@@ -16618,6 +16627,7 @@ impl From<DimensionDefinitionView> for DimensionDefinition {
     fn from(value: DimensionDefinitionView) -> Self {
         let _ = &value;
         Self {
+            name: (value.name).to_string_lossy().into_owned(),
             height_maximum: value.height_maximum,
             height_minimum: value.height_minimum,
             generator_type: value.generator_type,
@@ -18492,12 +18502,12 @@ impl From<GameTestResultsPacketPayloadView> for GameTestResultsPacketPayload {
 pub struct GatheringsConfigView {
     pub experience_id: uuid::Uuid,
     pub experience_name: crate::bedrock::borrowed::BorrowedStr,
-    pub world_id: uuid::Uuid,
-    pub world_name: crate::bedrock::borrowed::BorrowedStr,
+    pub world_id: Option<uuid::Uuid>,
+    pub world_name: Option<crate::bedrock::borrowed::BorrowedStr>,
     pub creator_id: crate::bedrock::borrowed::BorrowedStr,
-    pub target_id: uuid::Uuid,
-    pub scenario_id: crate::bedrock::borrowed::BorrowedStr,
-    pub server_id: crate::bedrock::borrowed::BorrowedStr,
+    pub target_id: Option<uuid::Uuid>,
+    pub scenario_id: Option<crate::bedrock::borrowed::BorrowedStr>,
+    pub server_id: Option<crate::bedrock::borrowed::BorrowedStr>,
 }
 impl crate::bedrock::codec::BedrockSized for GatheringsConfigView {
     fn encoded_size(&self) -> usize {
@@ -18507,24 +18517,36 @@ impl crate::bedrock::codec::BedrockSized for GatheringsConfigView {
                 ((&self.experience_name).as_bytes().len()) as i32,
             ))
             + (&self.experience_name).as_bytes().len()
-            + crate::bedrock::codec::BedrockSized::encoded_size(&self.world_id)
-            + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                ((&self.world_name).as_bytes().len()) as i32,
-            ))
-            + (&self.world_name).as_bytes().len()
+            + 1usize
+            + (&self.world_id).as_ref().map_or(0usize, |_value| {
+                crate::bedrock::codec::BedrockSized::encoded_size(_value)
+            })
+            + 1usize
+            + (&self.world_name).as_ref().map_or(0usize, |_value| {
+                crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
+                    ((_value).as_bytes().len()) as i32,
+                )) + (_value).as_bytes().len()
+            })
             + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
                 ((&self.creator_id).as_bytes().len()) as i32,
             ))
             + (&self.creator_id).as_bytes().len()
-            + crate::bedrock::codec::BedrockSized::encoded_size(&self.target_id)
-            + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                ((&self.scenario_id).as_bytes().len()) as i32,
-            ))
-            + (&self.scenario_id).as_bytes().len()
-            + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                ((&self.server_id).as_bytes().len()) as i32,
-            ))
-            + (&self.server_id).as_bytes().len()
+            + 1usize
+            + (&self.target_id).as_ref().map_or(0usize, |_value| {
+                crate::bedrock::codec::BedrockSized::encoded_size(_value)
+            })
+            + 1usize
+            + (&self.scenario_id).as_ref().map_or(0usize, |_value| {
+                crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
+                    ((_value).as_bytes().len()) as i32,
+                )) + (_value).as_bytes().len()
+            })
+            + 1usize
+            + (&self.server_id).as_ref().map_or(0usize, |_value| {
+                crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
+                    ((_value).as_bytes().len()) as i32,
+                )) + (_value).as_bytes().len()
+            })
     }
 }
 impl crate::bedrock::borrowed::BedrockBorrowDecode for GatheringsConfigView {
@@ -18537,12 +18559,38 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for GatheringsConfigView {
         let _ = _args;
         let experience_id = <uuid::Uuid as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let experience_name = crate::bedrock::borrowed::take_varint_prefixed_string(buf)?;
-        let world_id = <uuid::Uuid as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let world_name = crate::bedrock::borrowed::take_varint_prefixed_string(buf)?;
+        let world_id = if <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? {
+            Some(<uuid::Uuid as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?)
+        } else {
+            None
+        };
+        let world_name = if <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? {
+            Some(crate::bedrock::borrowed::take_varint_prefixed_string(buf)?)
+        } else {
+            None
+        };
         let creator_id = crate::bedrock::borrowed::take_varint_prefixed_string(buf)?;
-        let target_id = <uuid::Uuid as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let scenario_id = crate::bedrock::borrowed::take_varint_prefixed_string(buf)?;
-        let server_id = crate::bedrock::borrowed::take_varint_prefixed_string(buf)?;
+        let target_id = if <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? {
+            Some(<uuid::Uuid as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?)
+        } else {
+            None
+        };
+        let scenario_id = if <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? {
+            Some(crate::bedrock::borrowed::take_varint_prefixed_string(buf)?)
+        } else {
+            None
+        };
+        let server_id = if <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? {
+            Some(crate::bedrock::borrowed::take_varint_prefixed_string(buf)?)
+        } else {
+            None
+        };
         Ok(Self {
             experience_id,
             experience_name,
@@ -18565,16 +18613,31 @@ impl GatheringsConfigView {
         crate::bedrock::codec::VarInt(((&self.experience_name).as_bytes().len()) as i32)
             .encode(buf)?;
         buf.put_slice((&self.experience_name).as_bytes());
-        (&self.world_id).encode(buf)?;
-        crate::bedrock::codec::VarInt(((&self.world_name).as_bytes().len()) as i32).encode(buf)?;
-        buf.put_slice((&self.world_name).as_bytes());
+        (&self.world_id).is_some().encode(buf)?;
+        if let Some(value) = &self.world_id {
+            (value).encode(buf)?;
+        }
+        (&self.world_name).is_some().encode(buf)?;
+        if let Some(value) = &self.world_name {
+            crate::bedrock::codec::VarInt(((value).as_bytes().len()) as i32).encode(buf)?;
+            buf.put_slice((value).as_bytes());
+        }
         crate::bedrock::codec::VarInt(((&self.creator_id).as_bytes().len()) as i32).encode(buf)?;
         buf.put_slice((&self.creator_id).as_bytes());
-        (&self.target_id).encode(buf)?;
-        crate::bedrock::codec::VarInt(((&self.scenario_id).as_bytes().len()) as i32).encode(buf)?;
-        buf.put_slice((&self.scenario_id).as_bytes());
-        crate::bedrock::codec::VarInt(((&self.server_id).as_bytes().len()) as i32).encode(buf)?;
-        buf.put_slice((&self.server_id).as_bytes());
+        (&self.target_id).is_some().encode(buf)?;
+        if let Some(value) = &self.target_id {
+            (value).encode(buf)?;
+        }
+        (&self.scenario_id).is_some().encode(buf)?;
+        if let Some(value) = &self.scenario_id {
+            crate::bedrock::codec::VarInt(((value).as_bytes().len()) as i32).encode(buf)?;
+            buf.put_slice((value).as_bytes());
+        }
+        (&self.server_id).is_some().encode(buf)?;
+        if let Some(value) = &self.server_id {
+            crate::bedrock::codec::VarInt(((value).as_bytes().len()) as i32).encode(buf)?;
+            buf.put_slice((value).as_bytes());
+        }
         Ok(())
     }
 }
@@ -18584,12 +18647,12 @@ impl From<GatheringsConfigView> for GatheringsConfig {
         Self {
             experience_id: value.experience_id,
             experience_name: (value.experience_name).to_string_lossy().into_owned(),
-            world_id: value.world_id,
-            world_name: (value.world_name).to_string_lossy().into_owned(),
+            world_id: (value.world_id).map(|value| value),
+            world_name: (value.world_name).map(|value| (value).to_string_lossy().into_owned()),
             creator_id: (value.creator_id).to_string_lossy().into_owned(),
-            target_id: value.target_id,
-            scenario_id: (value.scenario_id).to_string_lossy().into_owned(),
-            server_id: (value.server_id).to_string_lossy().into_owned(),
+            target_id: (value.target_id).map(|value| value),
+            scenario_id: (value.scenario_id).map(|value| (value).to_string_lossy().into_owned()),
+            server_id: (value.server_id).map(|value| (value).to_string_lossy().into_owned()),
         }
     }
 }

@@ -1259,12 +1259,30 @@
                 "title": "CommandOriginData",
                 "type": "object",
                 "properties": {
-                    "Type": {"type": "string", "x-ordinal-index": 0},
-                    "UUID": {"$ref": "./mce__UUID.json", "x-ordinal-index": 1},
-                    "RequestId": {"type": "string", "x-ordinal-index": 2},
-                    "PlayerId": {"type": "integer", "x-underlying-type": "int64", "x-ordinal-index": 3}
+                    "Type": {
+                        "type": "string",
+                        "x-ordinal-index": 0
+                    },
+                    "UUID": {
+                        "$ref": "./mce__UUID.json",
+                        "x-ordinal-index": 1
+                    },
+                    "RequestId": {
+                        "type": "string",
+                        "x-ordinal-index": 2
+                    },
+                    "PlayerId": {
+                        "type": "integer",
+                        "x-underlying-type": "int64",
+                        "x-ordinal-index": 3
+                    }
                 },
-                "required": ["Type", "UUID", "RequestId", "PlayerId"]
+                "required": [
+                    "Type",
+                    "UUID",
+                    "RequestId",
+                    "PlayerId"
+                ]
             },
             "why": "Protocol 2168 gophertunnel master @58dd5f9 minecraft/protocol/command.go CommandOriginData writes String, UUID, String, Int64 unconditionally; Cloudburst v2168 CommandRequestSerializer_v898 delegates the same value to BedrockCodecHelper.writeCommandOrigin."
         },
@@ -1272,7 +1290,11 @@
             "op": "patch_property",
             "schema": "CommandRequestPacketPayload.json",
             "field": "Version",
-            "patch": {"type": "string", "$ref": null, "x-underlying-type": null},
+            "patch": {
+                "type": "string",
+                "$ref": null,
+                "x-underlying-type": null
+            },
             "why": "Protocol 2168 gophertunnel master @58dd5f9 minecraft/protocol/packet/command_request.go writes Version with io.String; Cloudburst CommandRequestSerializer_v898 writes the constant string latest."
         },
         {
@@ -1282,10 +1304,23 @@
                 "title": "DisconnectPacketPayload",
                 "type": "object",
                 "properties": {
-                    "Reason": {"$ref": "./DisconnectFailReason.json", "x-underlying-type": "int32", "x-serialization-options": ["Compression", "Enum-as-Value"], "x-ordinal-index": 0},
-                    "Messages": {"$ref": "./DisconnectPacketMessages.json", "x-ordinal-index": 1}
+                    "Reason": {
+                        "$ref": "./DisconnectFailReason.json",
+                        "x-underlying-type": "int32",
+                        "x-serialization-options": [
+                            "Compression",
+                            "Enum-as-Value"
+                        ],
+                        "x-ordinal-index": 0
+                    },
+                    "Messages": {
+                        "$ref": "./DisconnectPacketMessages.json",
+                        "x-ordinal-index": 1
+                    }
                 },
-                "required": ["Reason"]
+                "required": [
+                    "Reason"
+                ]
             },
             "why": "Protocol 2168 gophertunnel master @58dd5f9 minecraft/protocol/packet/disconnect.go writes Varint32 Reason followed by a Bool and two Strings only when the Bool denotes messages; Cloudburst DisconnectSerializer_v975 writes the equivalent 0/1 VarInt and the same two Strings."
         },
@@ -1293,14 +1328,19 @@
             "op": "patch_property",
             "schema": "CommandBlockUpdatePacketPayload.json",
             "field": "Target",
-            "patch": {"x-control-value-type": "boolean", "x-serialization-options": []},
+            "patch": {
+                "x-control-value-type": "boolean",
+                "x-serialization-options": []
+            },
             "why": "Protocol 2168 gophertunnel master @58dd5f9 minecraft/protocol/packet/command_block_update.go writes a Bool selecting block data versus minecart runtime ID; Cloudburst CommandBlockUpdateSerializer_v776 starts with buffer.writeBoolean(packet.isBlock())."
         },
         {
             "op": "patch_property",
             "schema": "CommandBlockUpdatePacketPayload.json",
             "field": "Tick Delay",
-            "patch": {"x-underlying-type": "uint32"},
+            "patch": {
+                "x-underlying-type": "uint32"
+            },
             "why": "Protocol 2168 gophertunnel master @58dd5f9 minecraft/protocol/packet/command_block_update.go writes TickDelay with io.Uint32; Cloudburst CommandBlockUpdateSerializer_v776 writes buffer.writeIntLE, which is byte-identical."
         },
         {
@@ -1320,18 +1360,166 @@
                         "type": "array",
                         "items": {
                             "oneOf": [
-                                {"type": "object", "x-ordinal-index": 0, "properties": {"Type Name": {"type": "string", "x-ordinal-index": 0}, "Entry ID": {"type": "integer", "x-underlying-type": "int64", "x-serialization-options": ["ZigZag64"], "x-ordinal-index": 1}, "Objective": {"type": "string", "x-ordinal-index": 2}}, "required": ["Type Name", "Entry ID"]},
-                                {"type": "object", "x-ordinal-index": 1, "properties": {"Type Name": {"type": "string", "x-ordinal-index": 0}, "Entry ID": {"type": "integer", "x-underlying-type": "int64", "x-serialization-options": ["ZigZag64"], "x-ordinal-index": 1}, "Objective": {"type": "string", "x-ordinal-index": 2}, "Score": {"type": "integer", "x-underlying-type": "int32", "x-ordinal-index": 3}, "Entity ID": {"type": "integer", "x-underlying-type": "int64", "x-serialization-options": ["ZigZag64"], "x-ordinal-index": 4}}, "required": ["Type Name", "Entry ID", "Objective", "Score", "Entity ID"]},
-                                {"type": "object", "x-ordinal-index": 2, "properties": {"Type Name": {"type": "string", "x-ordinal-index": 0}, "Entry ID": {"type": "integer", "x-underlying-type": "int64", "x-serialization-options": ["ZigZag64"], "x-ordinal-index": 1}, "Objective": {"type": "string", "x-ordinal-index": 2}, "Score": {"type": "integer", "x-underlying-type": "int32", "x-ordinal-index": 3}, "Entity ID": {"type": "integer", "x-underlying-type": "int64", "x-serialization-options": ["ZigZag64"], "x-ordinal-index": 4}}, "required": ["Type Name", "Entry ID", "Objective", "Score", "Entity ID"]},
-                                {"type": "object", "x-ordinal-index": 3, "properties": {"Type Name": {"type": "string", "x-ordinal-index": 0}, "Entry ID": {"type": "integer", "x-underlying-type": "int64", "x-serialization-options": ["ZigZag64"], "x-ordinal-index": 1}, "Objective": {"type": "string", "x-ordinal-index": 2}, "Score": {"type": "integer", "x-underlying-type": "int32", "x-ordinal-index": 3}, "Display Name": {"type": "string", "x-ordinal-index": 4}}, "required": ["Type Name", "Entry ID", "Objective", "Score", "Display Name"]}
+                                {
+                                    "type": "object",
+                                    "x-ordinal-index": 0,
+                                    "properties": {
+                                        "Type Name": {
+                                            "type": "string",
+                                            "x-ordinal-index": 0
+                                        },
+                                        "Entry ID": {
+                                            "type": "integer",
+                                            "x-underlying-type": "int64",
+                                            "x-serialization-options": [
+                                                "ZigZag64"
+                                            ],
+                                            "x-ordinal-index": 1
+                                        },
+                                        "Objective": {
+                                            "type": "string",
+                                            "x-ordinal-index": 2
+                                        }
+                                    },
+                                    "required": [
+                                        "Type Name",
+                                        "Entry ID"
+                                    ]
+                                },
+                                {
+                                    "type": "object",
+                                    "x-ordinal-index": 1,
+                                    "properties": {
+                                        "Type Name": {
+                                            "type": "string",
+                                            "x-ordinal-index": 0
+                                        },
+                                        "Entry ID": {
+                                            "type": "integer",
+                                            "x-underlying-type": "int64",
+                                            "x-serialization-options": [
+                                                "ZigZag64"
+                                            ],
+                                            "x-ordinal-index": 1
+                                        },
+                                        "Objective": {
+                                            "type": "string",
+                                            "x-ordinal-index": 2
+                                        },
+                                        "Score": {
+                                            "type": "integer",
+                                            "x-underlying-type": "int32",
+                                            "x-ordinal-index": 3
+                                        },
+                                        "Entity ID": {
+                                            "type": "integer",
+                                            "x-underlying-type": "int64",
+                                            "x-serialization-options": [
+                                                "ZigZag64"
+                                            ],
+                                            "x-ordinal-index": 4
+                                        }
+                                    },
+                                    "required": [
+                                        "Type Name",
+                                        "Entry ID",
+                                        "Objective",
+                                        "Score",
+                                        "Entity ID"
+                                    ]
+                                },
+                                {
+                                    "type": "object",
+                                    "x-ordinal-index": 2,
+                                    "properties": {
+                                        "Type Name": {
+                                            "type": "string",
+                                            "x-ordinal-index": 0
+                                        },
+                                        "Entry ID": {
+                                            "type": "integer",
+                                            "x-underlying-type": "int64",
+                                            "x-serialization-options": [
+                                                "ZigZag64"
+                                            ],
+                                            "x-ordinal-index": 1
+                                        },
+                                        "Objective": {
+                                            "type": "string",
+                                            "x-ordinal-index": 2
+                                        },
+                                        "Score": {
+                                            "type": "integer",
+                                            "x-underlying-type": "int32",
+                                            "x-ordinal-index": 3
+                                        },
+                                        "Entity ID": {
+                                            "type": "integer",
+                                            "x-underlying-type": "int64",
+                                            "x-serialization-options": [
+                                                "ZigZag64"
+                                            ],
+                                            "x-ordinal-index": 4
+                                        }
+                                    },
+                                    "required": [
+                                        "Type Name",
+                                        "Entry ID",
+                                        "Objective",
+                                        "Score",
+                                        "Entity ID"
+                                    ]
+                                },
+                                {
+                                    "type": "object",
+                                    "x-ordinal-index": 3,
+                                    "properties": {
+                                        "Type Name": {
+                                            "type": "string",
+                                            "x-ordinal-index": 0
+                                        },
+                                        "Entry ID": {
+                                            "type": "integer",
+                                            "x-underlying-type": "int64",
+                                            "x-serialization-options": [
+                                                "ZigZag64"
+                                            ],
+                                            "x-ordinal-index": 1
+                                        },
+                                        "Objective": {
+                                            "type": "string",
+                                            "x-ordinal-index": 2
+                                        },
+                                        "Score": {
+                                            "type": "integer",
+                                            "x-underlying-type": "int32",
+                                            "x-ordinal-index": 3
+                                        },
+                                        "Display Name": {
+                                            "type": "string",
+                                            "x-ordinal-index": 4
+                                        }
+                                    },
+                                    "required": [
+                                        "Type Name",
+                                        "Entry ID",
+                                        "Objective",
+                                        "Score",
+                                        "Display Name"
+                                    ]
+                                }
                             ],
                             "x-control-value-type": "uint32",
-                            "x-serialization-options": ["Compression"]
+                            "x-serialization-options": [
+                                "Compression"
+                            ]
                         },
                         "x-ordinal-index": 0
                     }
                 },
-                "required": ["Score Info"]
+                "required": [
+                    "Score Info"
+                ]
             },
             "why": "Protocol 2168 gophertunnel master @58dd5f9 minecraft/protocol/scoreboard.go ScoreboardEntry.Marshal writes Varuint32 variant, String type name, Varint64 entry ID and the variant payload; Cloudburst SetScoreSerializer_v291 independently writes its action byte and corresponding scoreboard entry branches."
         },
@@ -1342,11 +1530,28 @@
                 "title": "StructureTemplateDataResponsePacketPayload",
                 "type": "object",
                 "properties": {
-                    "Structure Name": {"type": "string", "x-ordinal-index": 0},
-                    "Structure's NBT": {"type": "integer", "x-underlying-type": "nbt", "x-ordinal-index": 1},
-                    "Response Type": {"$ref": "./StructureTemplateResponseType.json", "x-underlying-type": "uint8", "x-serialization-options": ["Enum-as-Value"], "x-ordinal-index": 2}
+                    "Structure Name": {
+                        "type": "string",
+                        "x-ordinal-index": 0
+                    },
+                    "Structure's NBT": {
+                        "type": "integer",
+                        "x-underlying-type": "nbt",
+                        "x-ordinal-index": 1
+                    },
+                    "Response Type": {
+                        "$ref": "./StructureTemplateResponseType.json",
+                        "x-underlying-type": "uint8",
+                        "x-serialization-options": [
+                            "Enum-as-Value"
+                        ],
+                        "x-ordinal-index": 2
+                    }
                 },
-                "required": ["Structure Name", "Response Type"]
+                "required": [
+                    "Structure Name",
+                    "Response Type"
+                ]
             },
             "why": "Protocol 2168 gophertunnel master @58dd5f9 minecraft/protocol/packet/structure_template_data_response.go writes String, Bool, conditional NBT, U8; Cloudburst StructureTemplateDataResponseSerializer_v388 writes the same sequence."
         },
@@ -1354,14 +1559,18 @@
             "op": "patch_property",
             "schema": "SerializedAbilitiesData.json",
             "field": "Player Permissions",
-            "patch": {"x-underlying-type": "uint8"},
+            "patch": {
+                "x-underlying-type": "uint8"
+            },
             "why": "Protocol 2168 gophertunnel master @58dd5f9 minecraft/protocol/ability.go AbilityData.Marshal writes PlayerPermissions with Uint8; Cloudburst v2168 BedrockCodecHelper.writePlayerAbilities writes the permission ordinal as a byte."
         },
         {
             "op": "patch_property",
             "schema": "SerializedAbilitiesData.json",
             "field": "Layers",
-            "patch": {"x-valentine-array-count-type": "uint8"},
+            "patch": {
+                "x-valentine-array-count-type": "uint8"
+            },
             "why": "Protocol 2168 gophertunnel master @58dd5f9 minecraft/protocol/ability.go AbilityData.Marshal uses SliceUint8Length for Layers; Cloudburst v2168 BedrockCodecHelper.writePlayerAbilities uses a byte-sized layer count."
         },
         {
@@ -1371,10 +1580,20 @@
                 "title": "EditorNetworkPacketVariantPayload",
                 "type": "object",
                 "properties": {
-                    "Route To Manager": {"type": "boolean", "x-ordinal-index": 0},
-                    "Payload": {"type": "integer", "x-underlying-type": "nbt", "x-ordinal-index": 1}
+                    "Route To Manager": {
+                        "type": "boolean",
+                        "x-ordinal-index": 0
+                    },
+                    "Payload": {
+                        "type": "integer",
+                        "x-underlying-type": "nbt",
+                        "x-ordinal-index": 1
+                    }
                 },
-                "required": ["Route To Manager", "Payload"]
+                "required": [
+                    "Route To Manager",
+                    "Payload"
+                ]
             },
             "why": "Protocol 2168 gophertunnel master @58dd5f9 minecraft/protocol/packet/editor_network.go writes Bool then NetworkLittleEndian NBT; Cloudburst EditorNetworkSerializer_v712 writes the Bool and its inherited v534 serializer writes the tag."
         },
@@ -1393,14 +1612,37 @@
                 "properties": {
                     "Action": {
                         "oneOf": [
-                            {"type": "null", "x-ordinal-index": 0},
-                            {"type": "object", "properties": {"FrameRate": {"type": "integer", "x-underlying-type": "int32", "x-ordinal-index": 0}, "FilePrefix": {"type": "string", "x-ordinal-index": 1}}, "required": ["FrameRate", "FilePrefix"], "x-ordinal-index": 1}
+                            {
+                                "type": "null",
+                                "x-ordinal-index": 0
+                            },
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "FrameRate": {
+                                        "type": "integer",
+                                        "x-underlying-type": "int32",
+                                        "x-ordinal-index": 0
+                                    },
+                                    "FilePrefix": {
+                                        "type": "string",
+                                        "x-ordinal-index": 1
+                                    }
+                                },
+                                "required": [
+                                    "FrameRate",
+                                    "FilePrefix"
+                                ],
+                                "x-ordinal-index": 1
+                            }
                         ],
                         "x-control-value-type": "uint8",
                         "x-ordinal-index": 0
                     }
                 },
-                "required": ["Action"]
+                "required": [
+                    "Action"
+                ]
             },
             "why": "Protocol 2168 gophertunnel master @58dd5f9 minecraft/protocol/packet/player_video_capture.go writes U8 action and the I32LE/String start payload only for action 1; Cloudburst PlayerVideoCaptureSerializer_v786 matches."
         },
@@ -1411,10 +1653,20 @@
                 "title": "ServerboundDataDrivenScreenClosedPacketPayload",
                 "type": "object",
                 "properties": {
-                    "FormId": {"type": "integer", "x-underlying-type": "uint32", "x-ordinal-index": 0},
-                    "CloseReason": {"type": "string", "x-ordinal-index": 1}
+                    "FormId": {
+                        "type": "integer",
+                        "x-underlying-type": "uint32",
+                        "x-ordinal-index": 0
+                    },
+                    "CloseReason": {
+                        "type": "string",
+                        "x-ordinal-index": 1
+                    }
                 },
-                "required": ["FormId", "CloseReason"]
+                "required": [
+                    "FormId",
+                    "CloseReason"
+                ]
             },
             "why": "Protocol 2168 gophertunnel master @58dd5f9 minecraft/protocol/packet/serverbound_data_driven_screen_closed.go writes Uint32 then String; Cloudburst ServerboundDataDrivenScreenClosedSerializer_v944 confirms I32LE plus String (its extracted duplicate optional FormId is an inheritance-extractor artifact)."
         },
@@ -1521,11 +1773,22 @@
                 "title": "presenceConfig",
                 "type": "object",
                 "properties": {
-                    "experienceName": {"type": "string", "x-ordinal-index": 0},
-                    "worldName": {"type": "string", "x-ordinal-index": 1},
-                    "richPresenceId": {"type": "string", "x-ordinal-index": 2}
+                    "experienceName": {
+                        "type": "string",
+                        "x-ordinal-index": 0
+                    },
+                    "worldName": {
+                        "type": "string",
+                        "x-ordinal-index": 1
+                    },
+                    "richPresenceId": {
+                        "type": "string",
+                        "x-ordinal-index": 2
+                    }
                 },
-                "required": ["richPresenceId"]
+                "required": [
+                    "richPresenceId"
+                ]
             },
             "why": "Protocol 2168 gophertunnel master @58dd5f9 minecraft/protocol/server_join_information.go:63-66 writes optional ExperienceName, optional WorldName, then required RichPresenceID; Mojang's presenceConfig omits the first two fields. Cloudburst v2168 delegates the optional object through BedrockCodecHelper.writePresenceConfiguration."
         },
@@ -1562,20 +1825,33 @@
         {
             "op": "patch_schema",
             "schema_title": "BiomeDefinitionChunkGenData",
-            "patch": {"required": []},
+            "patch": {
+                "required": []
+            },
             "why": "Protocol 2168 gophertunnel master @58dd5f9 minecraft/protocol/biome.go:224-243 writes all eleven chunk-generation members with OptionalFunc/OptionalMarshaler; the Mojang schema incorrectly marks all eleven required. Cloudburst v2168 models the same nullable members."
         },
         {
             "op": "patch_property",
             "schema": "CameraPresetsPacketPayload.json",
             "field": "Camera Presets",
-            "patch": {"$ref": null, "type": "array", "items": {"$ref": "./CameraPresets.json"}},
+            "patch": {
+                "$ref": null,
+                "type": "array",
+                "items": {
+                    "$ref": "./CameraPresets.json"
+                }
+            },
             "why": "Protocol 2168 gophertunnel master @58dd5f9 minecraft/protocol/packet/camera_presets.go:22 uses protocol.Slice for Presets; Cloudburst CameraPresetsSerializer writes an array with unsigned VarInt length. Mojang references one preset instead of the packet list."
         },
         {
             "op": "patch_schema",
             "schema_title": "CameraPresets",
-            "patch": {"required": ["Name", "Inherit From"]},
+            "patch": {
+                "required": [
+                    "Name",
+                    "Inherit From"
+                ]
+            },
             "why": "Protocol 2168 gophertunnel master @58dd5f9 minecraft/protocol/camera.go:389-411 writes Name and Parent directly and wraps every remaining CameraPreset field in OptionalFunc/OptionalMarshaler; Cloudburst's effective v2168 camera-preset helper follows the same presence layout."
         },
         {
@@ -1647,7 +1923,14 @@
         {
             "op": "patch_schema",
             "schema_title": "CameraAimAssistPresetExclusionDefinition",
-            "patch": {"required": ["blocks", "entities", "block_tags", "entity_type_families"]},
+            "patch": {
+                "required": [
+                    "blocks",
+                    "entities",
+                    "block_tags",
+                    "entity_type_families"
+                ]
+            },
             "why": "Protocol 2168 gophertunnel master @58dd5f9 minecraft/protocol/camera.go:521-524 writes all four exclusion lists with FuncSlice and no presence bytes; Cloudburst v2168's effective aim-assist helper matches."
         },
         {
@@ -1685,6 +1968,107 @@
             "schema": "VoxelShapesPacketPayload.json",
             "field": "value",
             "why": "Protocol 2168 gophertunnel master @58dd5f9 minecraft/protocol/voxel.go:31-34 writes every VoxelShapeNameEntry.ID directly as U16LE; Cloudburst's v2168 voxel helper has no value presence byte."
+        },
+        {
+            "op": "replace_schema",
+            "schema_title": "DimensionDefinition",
+            "replacement": {
+                "title": "DimensionDefinition",
+                "x-format-version": "MISSING VERSION",
+                "x-minecraft-version": "1.26.40-beta.0",
+                "x-protocol-version": 2168,
+                "type": "object",
+                "properties": {
+                    "Name": {
+                        "description": "Dimension definition identifier written before the documented fields.",
+                        "type": "string",
+                        "x-ordinal-index": 0
+                    },
+                    "Dimension Type": {
+                        "description": "Dimension runtime ID.",
+                        "$ref": "./DimensionType.json",
+                        "x-ordinal-index": 4
+                    },
+                    "Generator Type": {
+                        "type": "string",
+                        "enum": [
+                            "Legacy",
+                            "Overworld",
+                            "Flat",
+                            "Nether",
+                            "TheEnd",
+                            "Void",
+                            "Undefined"
+                        ],
+                        "x-underlying-type": "int32",
+                        "x-serialization-options": [
+                            "Compression",
+                            "Enum-as-Value"
+                        ],
+                        "x-ordinal-index": 3
+                    },
+                    "Height Maximum": {
+                        "type": "integer",
+                        "x-underlying-type": "int32",
+                        "x-serialization-options": [
+                            "Compression"
+                        ],
+                        "x-ordinal-index": 1
+                    },
+                    "Height Minimum": {
+                        "type": "integer",
+                        "x-underlying-type": "int32",
+                        "x-serialization-options": [
+                            "Compression"
+                        ],
+                        "x-ordinal-index": 2
+                    },
+                    "Pack Id": {
+                        "description": "UUID of the pack that registered this dimension.",
+                        "$ref": "./mce__UUID.json",
+                        "x-ordinal-index": 5
+                    }
+                },
+                "required": [
+                    "Dimension Type",
+                    "Generator Type",
+                    "Height Maximum",
+                    "Height Minimum",
+                    "Pack Id",
+                    "Name"
+                ]
+            },
+            "why": "Protocol 2168 gophertunnel master minecraft/protocol/world.go DimensionDefinition.Marshal writes r.String(&x.Name) BEFORE the documented fields; Cloudburst DimensionDataSerializer_v503.writeDefinition likewise starts with helper.writeString(definition.getId()). Mojang omits this leading identifier entirely, so DimensionData desynced. Documented ordinals are shifted by one; their relative order (height maximum, height minimum, generator, dimension type, pack id) already matches both implementations."
+        },
+        {
+            "op": "remove_required",
+            "schema": "gatheringsConfig.json",
+            "field": "worldId",
+            "why": "Protocol 2168 gophertunnel master minecraft/protocol/server_join_information.go GatheringJoinInfo.Marshal wraps ExperienceWorldID (r.UUID) in OptionalFunc, emitting a presence Bool. Mojang marks all eight gatheringsConfig fields required, so Transfer emitted no presence byte for this field and desynced. Only experienceId, experienceName and creatorId are written unconditionally."
+        },
+        {
+            "op": "remove_required",
+            "schema": "gatheringsConfig.json",
+            "field": "worldName",
+            "why": "Protocol 2168 gophertunnel master minecraft/protocol/server_join_information.go GatheringJoinInfo.Marshal wraps ExperienceWorldName (r.String) in OptionalFunc, emitting a presence Bool. Mojang marks all eight gatheringsConfig fields required, so Transfer emitted no presence byte for this field and desynced. Only experienceId, experienceName and creatorId are written unconditionally."
+        },
+        {
+            "op": "remove_required",
+            "schema": "gatheringsConfig.json",
+            "field": "targetId",
+            "why": "Protocol 2168 gophertunnel master minecraft/protocol/server_join_information.go GatheringJoinInfo.Marshal wraps TargetID (r.UUID) in OptionalFunc, emitting a presence Bool. Mojang marks all eight gatheringsConfig fields required, so Transfer emitted no presence byte for this field and desynced. Only experienceId, experienceName and creatorId are written unconditionally."
+        },
+        {
+            "op": "remove_required",
+            "schema": "gatheringsConfig.json",
+            "field": "scenarioId",
+            "why": "Protocol 2168 gophertunnel master minecraft/protocol/server_join_information.go GatheringJoinInfo.Marshal wraps ScenarioID (r.String) in OptionalFunc, emitting a presence Bool. Mojang marks all eight gatheringsConfig fields required, so Transfer emitted no presence byte for this field and desynced. Only experienceId, experienceName and creatorId are written unconditionally."
+        },
+        {
+            "op": "remove_required",
+            "schema": "gatheringsConfig.json",
+            "field": "serverId",
+            "why": "Protocol 2168 gophertunnel master minecraft/protocol/server_join_information.go GatheringJoinInfo.Marshal wraps ServerID (r.String) in OptionalFunc, emitting a presence Bool. Mojang marks all eight gatheringsConfig fields required, so Transfer emitted no presence byte for this field and desynced. Only experienceId, experienceName and creatorId are written unconditionally."
         }
     ]
 }

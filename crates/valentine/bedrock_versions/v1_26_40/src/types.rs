@@ -32278,6 +32278,7 @@ impl Default for DimensionDefinitionGeneratorType {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct DimensionDefinition {
+    pub name: String,
     pub height_maximum: i32,
     pub height_minimum: i32,
     pub generator_type: DimensionDefinitionGeneratorType,
@@ -32287,6 +32288,12 @@ pub struct DimensionDefinition {
 impl crate::bedrock::codec::BedrockSized for DimensionDefinition {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
+        size += {
+            let _len = (&self.name).as_bytes().len();
+            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
+                _len as i32,
+            )) + _len
+        };
         size += crate::bedrock::codec::BedrockSized::encoded_size(
             &crate::bedrock::codec::ZigZag32(self.height_maximum),
         );
@@ -32303,6 +32310,10 @@ impl crate::bedrock::codec::BedrockCodec for DimensionDefinition {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
+        let bytes = (&self.name).as_bytes();
+        let len = bytes.len();
+        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
+        buf.put_slice(bytes);
         crate::bedrock::codec::ZigZag32(self.height_maximum).encode(buf)?;
         crate::bedrock::codec::ZigZag32(self.height_minimum).encode(buf)?;
         self.generator_type.encode(buf)?;
@@ -32315,6 +32326,27 @@ impl crate::bedrock::codec::BedrockCodec for DimensionDefinition {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
+        let name = {
+            let len_raw =
+                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+                    buf,
+                    (),
+                )?
+                .0) as i64;
+            if len_raw < 0 {
+                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+            }
+            let len = len_raw as usize;
+            if buf.remaining() < len {
+                return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
+                    declared: len,
+                    available: buf.remaining(),
+                });
+            }
+            let mut bytes = vec![0u8; len];
+            buf.copy_to_slice(&mut bytes);
+            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+        };
         let height_maximum =
             <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
@@ -32336,6 +32368,7 @@ impl crate::bedrock::codec::BedrockCodec for DimensionDefinition {
             <DimensionType as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let pack_id = <MceUuid as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self {
+            name,
             height_maximum,
             height_minimum,
             generator_type,
@@ -36818,12 +36851,12 @@ impl Default for GameType {
 pub struct GatheringsConfig {
     pub experience_id: MceUuid,
     pub experience_name: String,
-    pub world_id: MceUuid,
-    pub world_name: String,
+    pub world_id: Option<MceUuid>,
+    pub world_name: Option<String>,
     pub creator_id: String,
-    pub target_id: MceUuid,
-    pub scenario_id: String,
-    pub server_id: String,
+    pub target_id: Option<MceUuid>,
+    pub scenario_id: Option<String>,
+    pub server_id: Option<String>,
 }
 impl crate::bedrock::codec::BedrockSized for GatheringsConfig {
     fn encoded_size(&self) -> usize {
@@ -36835,12 +36868,24 @@ impl crate::bedrock::codec::BedrockSized for GatheringsConfig {
                 _len as i32,
             )) + _len
         };
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.world_id);
         size += {
-            let _len = (&self.world_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
+            1usize
+                + match &self.world_id {
+                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
+                    None => 0usize,
+                }
+        };
+        size += {
+            1usize
+                + match &self.world_name {
+                    Some(_v) => {
+                        let _len = (_v).as_bytes().len();
+                        crate::bedrock::codec::BedrockSized::encoded_size(
+                            &crate::bedrock::codec::VarInt(_len as i32),
+                        ) + _len
+                    }
+                    None => 0usize,
+                }
         };
         size += {
             let _len = (&self.creator_id).as_bytes().len();
@@ -36848,18 +36893,36 @@ impl crate::bedrock::codec::BedrockSized for GatheringsConfig {
                 _len as i32,
             )) + _len
         };
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.target_id);
         size += {
-            let _len = (&self.scenario_id).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
+            1usize
+                + match &self.target_id {
+                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
+                    None => 0usize,
+                }
         };
         size += {
-            let _len = (&self.server_id).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
+            1usize
+                + match &self.scenario_id {
+                    Some(_v) => {
+                        let _len = (_v).as_bytes().len();
+                        crate::bedrock::codec::BedrockSized::encoded_size(
+                            &crate::bedrock::codec::VarInt(_len as i32),
+                        ) + _len
+                    }
+                    None => 0usize,
+                }
+        };
+        size += {
+            1usize
+                + match &self.server_id {
+                    Some(_v) => {
+                        let _len = (_v).as_bytes().len();
+                        crate::bedrock::codec::BedrockSized::encoded_size(
+                            &crate::bedrock::codec::VarInt(_len as i32),
+                        ) + _len
+                    }
+                    None => 0usize,
+                }
         };
         size
     }
@@ -36873,24 +36936,54 @@ impl crate::bedrock::codec::BedrockCodec for GatheringsConfig {
         let len = bytes.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         buf.put_slice(bytes);
-        self.world_id.encode(buf)?;
-        let bytes = (&self.world_name).as_bytes();
-        let len = bytes.len();
-        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
-        buf.put_slice(bytes);
+        match &self.world_id {
+            Some(v) => {
+                buf.put_u8(1);
+                v.encode(buf)?;
+            }
+            None => buf.put_u8(0),
+        }
+        match &self.world_name {
+            Some(v) => {
+                buf.put_u8(1);
+                let bytes = (v).as_bytes();
+                let len = bytes.len();
+                crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
+                buf.put_slice(bytes);
+            }
+            None => buf.put_u8(0),
+        }
         let bytes = (&self.creator_id).as_bytes();
         let len = bytes.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         buf.put_slice(bytes);
-        self.target_id.encode(buf)?;
-        let bytes = (&self.scenario_id).as_bytes();
-        let len = bytes.len();
-        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
-        buf.put_slice(bytes);
-        let bytes = (&self.server_id).as_bytes();
-        let len = bytes.len();
-        crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
-        buf.put_slice(bytes);
+        match &self.target_id {
+            Some(v) => {
+                buf.put_u8(1);
+                v.encode(buf)?;
+            }
+            None => buf.put_u8(0),
+        }
+        match &self.scenario_id {
+            Some(v) => {
+                buf.put_u8(1);
+                let bytes = (v).as_bytes();
+                let len = bytes.len();
+                crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
+                buf.put_slice(bytes);
+            }
+            None => buf.put_u8(0),
+        }
+        match &self.server_id {
+            Some(v) => {
+                buf.put_u8(1);
+                let bytes = (v).as_bytes();
+                let len = bytes.len();
+                crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
+                buf.put_slice(bytes);
+            }
+            None => buf.put_u8(0),
+        }
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -36920,27 +37013,45 @@ impl crate::bedrock::codec::BedrockCodec for GatheringsConfig {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let world_id = <MceUuid as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let world_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+        let world_id = {
+            let present = u8::decode(buf, ())?;
+            if present != 0 {
+                Some(<MceUuid as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
-                )?
-                .0) as i64;
-            if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                )?)
+            } else {
+                None
             }
-            let len = len_raw as usize;
-            if buf.remaining() < len {
-                return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
-                    declared: len,
-                    available: buf.remaining(),
-                });
+        };
+        let world_name = {
+            let present = u8::decode(buf, ())?;
+            if present != 0 {
+                Some({
+                    let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0) as i64;
+                    if len_raw < 0 {
+                        return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                            value: len_raw,
+                        });
+                    }
+                    let len = len_raw as usize;
+                    if buf.remaining() < len {
+                        return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
+                            declared: len,
+                            available: buf.remaining(),
+                        });
+                    }
+                    let mut bytes = vec![0u8; len];
+                    buf.copy_to_slice(&mut bytes);
+                    crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+                })
+            } else {
+                None
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let creator_id = {
             let len_raw =
@@ -36963,48 +37074,74 @@ impl crate::bedrock::codec::BedrockCodec for GatheringsConfig {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let target_id = <MceUuid as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let scenario_id = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+        let target_id = {
+            let present = u8::decode(buf, ())?;
+            if present != 0 {
+                Some(<MceUuid as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
-                )?
-                .0) as i64;
-            if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                )?)
+            } else {
+                None
             }
-            let len = len_raw as usize;
-            if buf.remaining() < len {
-                return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
-                    declared: len,
-                    available: buf.remaining(),
-                });
+        };
+        let scenario_id = {
+            let present = u8::decode(buf, ())?;
+            if present != 0 {
+                Some({
+                    let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0) as i64;
+                    if len_raw < 0 {
+                        return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                            value: len_raw,
+                        });
+                    }
+                    let len = len_raw as usize;
+                    if buf.remaining() < len {
+                        return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
+                            declared: len,
+                            available: buf.remaining(),
+                        });
+                    }
+                    let mut bytes = vec![0u8; len];
+                    buf.copy_to_slice(&mut bytes);
+                    crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+                })
+            } else {
+                None
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let server_id = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?
-                .0) as i64;
-            if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+            let present = u8::decode(buf, ())?;
+            if present != 0 {
+                Some({
+                    let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?
+                        .0) as i64;
+                    if len_raw < 0 {
+                        return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                            value: len_raw,
+                        });
+                    }
+                    let len = len_raw as usize;
+                    if buf.remaining() < len {
+                        return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
+                            declared: len,
+                            available: buf.remaining(),
+                        });
+                    }
+                    let mut bytes = vec![0u8; len];
+                    buf.copy_to_slice(&mut bytes);
+                    crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+                })
+            } else {
+                None
             }
-            let len = len_raw as usize;
-            if buf.remaining() < len {
-                return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
-                    declared: len,
-                    available: buf.remaining(),
-                });
-            }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         Ok(Self {
             experience_id,

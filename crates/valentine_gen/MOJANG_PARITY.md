@@ -8,7 +8,7 @@ parity report: PrismarineJS has no Bedrock data after 1.26.30.
 | Input | Pin | Role |
 |---|---|---|
 | Mojang `bedrock-protocol-docs` | `0e00fe80f4f3c71572ff6429de40146d1f4412fc`, `automated/1.26.40` | Generated source; schemas stamp 1.26.40-beta.0 / 2168 |
-| gophertunnel | master `58dd5f9`, `CurrentProtocol=2168` | Primary hand-written wire oracle |
+| gophertunnel | master `4815aff7`, `CurrentProtocol=2168` | Primary hand-written wire oracle |
 | Cloudburst | `Bedrock_v2168` effective serializers | Independent cross-check |
 
 The Mojang corpus has 971 JSON files, 229 cereal packets, 37 `oneOf` nodes,
@@ -28,18 +28,24 @@ manifest. They are reproducible, not hand-adjudicated:
 
 | Status | Before | After | Meaning |
 |---|---:|---:|---|
-| `AGREEMENT` | 85 | 166 | Both sides fully resolved and the primitive sequences match |
-| `DIVERGENCE` | not detectable | 4 | Both sides fully resolved and the sequences differ |
-| `UNRESOLVED` | 142 | 58 | At least one side could not be resolved without guessing |
+| `AGREEMENT` | 85 | 172 | Both sides fully resolved and the primitive sequences match |
+| `DIVERGENCE` | not detectable | 5 | Both sides fully resolved and the sequences differ |
+| `UNRESOLVED` | 142 | 51 | At least one side could not be resolved without guessing |
 | `NO_ORACLE_PACKET` | 1 | 1 | Packet 16 is absent from gophertunnel |
 
-The four remaining divergences are deliberately not "fixed" into agreement:
+The five remaining divergences are deliberately not "fixed" into agreement:
 
 - **38 `HurtArmor`** — a genuine oracle conflict. gophertunnel writes
   `Varint64` (ZigZag64) for `ArmourSlots`; Cloudburst writes
   `VarInts.writeUnsignedLong`. These produce different bytes for the same
   value, so one is wrong and the schema alone cannot settle it. Unadjudicated
   pending packet capture.
+- **174 `SubChunk`** — a false divergence kept visible rather than normalized
+  away. Mojang documents `Subchunk Height Map` as a 2D `[z][x]` array (16 x 16
+  of int8) and the generator faithfully emits that nested shape; gophertunnel
+  stores it flat as 256 values. Identical bytes. The generator is NOT changed
+  here: matching the documented shape is worth more than satisfying the
+  comparator, which should learn to flatten nested fixed arrays instead.
 - **122 `BiomeDefinitionList`, 198 `CameraPresets`, 320 `CameraAimAssistPresets`**
   — deeply nested structures where the remaining differences are in optional
   and array shape inside biome/camera payloads. Partially corrected (both
@@ -58,14 +64,12 @@ Vec2/Vec3, BlockPos, ChunkPos, SubChunkPos, and UUID expand to primitives.
 NBT and raw bytes remain distinct. Options, arrays, and union controls are not
 discarded.
 
-The 58 unresolved packets are IDs 5, 6, 8, 9, 11, 12, 13, 15, 30, 31, 32, 39,
-44, 49, 50, 52, 58, 63, 65, 67, 68, 72, 76, 77, 78, 79, 85, 91, 93, 97, 108,
-112, 121, 133, 144, 145, 146, 147, 148, 152, 164, 174, 180, 184, 300, 322,
-324, 325, 326, 328, 329, 330, 332, 338, 341, 344, 345, and 348. They are
-limited by closure data flow or by gophertunnel IO helpers the extractor
-cannot yet resolve — ItemInstance, EntityMetadata, ItemDescriptorCount,
-event/transaction switches, ShapeData, and PartyInfo. Packet 16
-(`ServerPlayerPostMovePosition`) is the separate no-oracle case.
+The 51 unresolved packets are IDs 5, 8, 9, 11, 12, 13, 15, 30, 31, 32, 39, 44, 49, 50, 52, 58, 63, 65, 67, 68, 72, 76, 77, 78, 79, 93, 97, 108, 112, 121, 133, 144, 145, 146, 147, 148, 164, 184, 300, 322, 324, 325, 326, 328, 329, 330, 332, 338, 344, 345, and 348. They are limited by closure data
+flow or by gophertunnel IO helpers the extractor cannot yet resolve — chiefly
+`ItemInstance` (14 sites), `BEARGB` and `ItemDescriptorCount` (6 each),
+`EntityMetadata` (4), plus transaction/event switches, `ShapeData` and
+`PartyInfo`. Packet 16 (`ServerPlayerPostMovePosition`) is the separate
+no-oracle case.
 
 **These are coverage gaps, not presumed agreements.** Notably packet 144
 (`PlayerAuthInput`) is in this list: its `Input Data` presence flag and
@@ -106,7 +110,7 @@ The resolved comparison found and corrected these real schema divergences:
 - packet 343 ServerboundDataDrivenScreenClosed: U32LE plus string reason;
 - packet 346 ServerStoreInfo: one optional boundary around both strings.
 
-Every fix is an override with a `why` citing gophertunnel master `58dd5f9` and
+Every fix is an override with a `why` citing gophertunnel master `4815aff7` and
 the Cloudburst effective serializer where resolvable. Generated Rust was not
 hand-edited.
 
