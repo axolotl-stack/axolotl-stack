@@ -61,6 +61,7 @@ struct CliArgs {
     minecraft_data: Option<PathBuf>,
     bedrock_data: Option<PathBuf>,
     mojang_docs: Option<PathBuf>,
+    endstone_docs: Option<PathBuf>,
     overrides: Option<PathBuf>,
     output_dir: Option<PathBuf>,
     emit_wire_manifest: Option<PathBuf>,
@@ -77,6 +78,7 @@ struct CliArgs {
 enum ProtocolSource {
     Prismarine,
     Mojang,
+    Endstone,
 }
 
 fn print_usage() {
@@ -101,10 +103,11 @@ GENERATION TARGETS (composable, default: all):
   --biomes                Generate biome data only
 
 OTHER OPTIONS:
-  --source <NAME>         Protocol source: prismarine (default) or mojang
+  --source <NAME>         Protocol source: endstone (default), mojang, or prismarine
   --minecraft-data <DIR>  Path to a minecraft-data checkout (defaults to ./minecraft-data)
   --bedrock-data <DIR>    Path to a pmmp/BedrockData checkout (defaults to ./bedrock-data)
   --mojang-docs <DIR>     Path to a bedrock-protocol-docs checkout (defaults to ./bedrock-protocol-docs)
+  --endstone-docs <DIR>   Path to an endstone protocol-docs checkout (defaults to ./endstone-docs)
   --overrides <DIR>       Mojang correction JSON directory (defaults to ./overrides)
   --output-dir <DIR>      Valentine output root (Prismarine defaults to ../valentine; required for Mojang)
   --emit-wire-manifest <FILE>
@@ -121,10 +124,11 @@ fn parse_args() -> Result<CliArgs, String> {
     let mut latest = false;
     let mut list_versions = false;
     let mut log_filter = "info".to_string();
-    let mut source = ProtocolSource::Prismarine;
+    let mut source = ProtocolSource::Endstone;
     let mut minecraft_data: Option<PathBuf> = None;
     let mut bedrock_data: Option<PathBuf> = None;
     let mut mojang_docs: Option<PathBuf> = None;
+    let mut endstone_docs: Option<PathBuf> = None;
     let mut overrides: Option<PathBuf> = None;
     let mut output_dir: Option<PathBuf> = None;
     let mut emit_wire_manifest: Option<PathBuf> = None;
@@ -184,6 +188,12 @@ fn parse_args() -> Result<CliArgs, String> {
                     .ok_or_else(|| "--bedrock-data expects a path".to_string())?;
                 bedrock_data = Some(PathBuf::from(raw));
             }
+            "--endstone-docs" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--endstone-docs expects a path".to_string())?;
+                endstone_docs = Some(PathBuf::from(raw));
+            }
             "--mojang-docs" => {
                 let raw = it
                     .next()
@@ -226,6 +236,9 @@ fn parse_args() -> Result<CliArgs, String> {
             _ if arg.starts_with("--source=") => {
                 source = parse_source(arg.trim_start_matches("--source="))?;
             }
+            _ if arg.starts_with("--endstone-docs=") => {
+                endstone_docs = Some(PathBuf::from(arg.trim_start_matches("--endstone-docs=")));
+            }
             _ if arg.starts_with("--mojang-docs=") => {
                 mojang_docs = Some(PathBuf::from(arg.trim_start_matches("--mojang-docs=")));
             }
@@ -259,7 +272,7 @@ fn parse_args() -> Result<CliArgs, String> {
         && !gen_entities
         && !gen_biomes;
     if none_specified {
-        if source == ProtocolSource::Mojang {
+        if source != ProtocolSource::Prismarine {
             // Mojang's repository is a protocol schema source; selecting it
             // without an explicit target should therefore do the useful thing
             // instead of attempting Prismarine data generation.
@@ -284,6 +297,7 @@ fn parse_args() -> Result<CliArgs, String> {
         minecraft_data,
         bedrock_data,
         mojang_docs,
+        endstone_docs,
         overrides,
         output_dir,
         emit_wire_manifest,
@@ -300,6 +314,7 @@ fn parse_source(value: &str) -> Result<ProtocolSource, String> {
     match value {
         "prismarine" => Ok(ProtocolSource::Prismarine),
         "mojang" => Ok(ProtocolSource::Mojang),
+        "endstone" => Ok(ProtocolSource::Endstone),
         other => Err(format!(
             "unknown protocol source {other:?}; expected prismarine or mojang"
         )),
@@ -356,7 +371,7 @@ fn read_bedrock_version_json(
     Ok(meta)
 }
 
-fn generate_mojang(
+fn generate_schema_source(
     args: &CliArgs,
     root: &Path,
     valentine_root: &Path,
@@ -368,13 +383,17 @@ fn generate_mojang(
         || args.gen_biomes
     {
         return Err(
-            "--source mojang currently provides protocol schemas only; use --source prismarine for data generation"
+            "this protocol source provides protocol schemas only; use --source prismarine for block, item, entity and biome data"
                 .into(),
         );
     }
 
-    let docs_root = args
-        .mojang_docs
+    let (docs_arg, default_dir) = if args.source == ProtocolSource::Endstone {
+        (args.endstone_docs.clone(), "endstone-docs")
+    } else {
+        (args.mojang_docs.clone(), "bedrock-protocol-docs")
+    };
+    let docs_root = docs_arg
         .clone()
         .map(|path| {
             if path.is_relative() {
@@ -383,7 +402,7 @@ fn generate_mojang(
                 path
             }
         })
-        .unwrap_or_else(|| root.join("bedrock-protocol-docs"));
+        .unwrap_or_else(|| root.join(default_dir));
     let override_root = args
         .overrides
         .clone()
@@ -394,12 +413,26 @@ fn generate_mojang(
                 path
             }
         })
-        .unwrap_or_else(|| root.join("overrides"));
+        .unwrap_or_else(|| {
+            // Each schema source gets its own correction set. Endstone's is
+            // expected to stay empty: the corpus is dumped from the server, so
+            // a needed correction means the dumper is wrong and belongs
+            // upstream rather than in a local patch.
+            root.join(if args.source == ProtocolSource::Endstone {
+                "overrides-endstone"
+            } else {
+                "overrides"
+            })
+        });
 
-    let available = parser::mojang::discover_versions(&docs_root)?;
+    let available = if args.source == ProtocolSource::Endstone {
+        parser::endstone::discover_versions(&docs_root)?
+    } else {
+        parser::mojang::discover_versions(&docs_root)?
+    };
     if available.is_empty() {
         return Err(format!(
-            "no Mojang schema version metadata found below {}",
+            "no protocol schema version metadata found below {}",
             docs_root.display()
         )
         .into());
@@ -445,7 +478,11 @@ fn generate_mojang(
     }
 
     let parse_result = if args.gen_proto {
-        Some(parser::mojang::parse(&docs_root, &override_root)?)
+        Some(if args.source == ProtocolSource::Endstone {
+            parser::endstone::parse(&docs_root, &override_root)?
+        } else {
+            parser::mojang::parse(&docs_root, &override_root)?
+        })
     } else {
         None
     };
@@ -484,7 +521,7 @@ fn generate_mojang(
                 minecraft_version = %version.minecraft_version,
                 protocol_version = version.protocol_version,
                 module = %module_name,
-                "Generating protocol from Mojang schemas"
+                "Generating protocol from schema source"
             );
             let outcome = generator::generate_protocol_module(
                 &crate_name,
@@ -646,8 +683,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .join("valentine")
     };
 
-    if args.source == ProtocolSource::Mojang {
-        return generate_mojang(&args, root, &valentine_root);
+    if args.source != ProtocolSource::Prismarine {
+        return generate_schema_source(&args, root, &valentine_root);
     }
 
     let bedrock_src_dir = valentine_root.join("src").join("bedrock");
@@ -1342,7 +1379,7 @@ valentine_bedrock_core = {{ path = "../../bedrock_core" }}
 
 #[cfg(test)]
 mod generated_crate_tests {
-    use super::{CliArgs, ProtocolSource, generate_mojang};
+    use super::{CliArgs, ProtocolSource, generate_schema_source};
     use std::fs;
     use std::path::Path;
     use std::process::Command;
@@ -1393,6 +1430,7 @@ mod generated_crate_tests {
             minecraft_data: None,
             bedrock_data: None,
             mojang_docs: None,
+            endstone_docs: None,
             overrides: None,
             output_dir: Some(output.clone()),
             emit_wire_manifest: None,
@@ -1403,7 +1441,7 @@ mod generated_crate_tests {
             gen_entities: false,
             gen_biomes: false,
         };
-        generate_mojang(&args, manifest_dir, &output).expect("generate Mojang temp crate");
+        generate_schema_source(&args, manifest_dir, &output).expect("generate Mojang temp crate");
 
         let core_source = manifest_dir
             .parent()
