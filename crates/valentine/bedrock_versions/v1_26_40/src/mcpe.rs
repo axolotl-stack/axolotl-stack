@@ -6,9 +6,9 @@
 #![allow(unused_parens)]
 #![allow(unused_variables)]
 #![allow(clippy::all)]
-use crate::bedrock::codec::BedrockCodec;
-use crate::proto::*;
 use bytes::Buf;
+use crate::proto::*;
+use crate::bedrock::codec::BedrockCodec;
 pub const GAME_PACKET_ID: u8 = 0xFE;
 #[inline]
 fn encode_var_u32_stack(mut value: u32, out: &mut [u8; 5]) -> usize {
@@ -495,7 +495,11 @@ impl McpePacketName {
             348u32 => Ok(McpePacketName::ClientboundUpdateSoundDataPacket),
             349u32 => Ok(McpePacketName::SendPartyDestinationCookiePacket),
             350u32 => Ok(McpePacketName::PartyDestinationCookieResponsePacket),
-            _ => Err(crate::bedrock::error::DecodeError::InvalidPacketId { id }),
+            _ => {
+                Err(crate::bedrock::error::DecodeError::InvalidPacketId {
+                    id,
+                })
+            }
         }
     }
 }
@@ -3062,8 +3066,12 @@ impl McpePacketData {
                 McpePacketName::ClientToServerHandshakePacket
             }
             McpePacketData::DisconnectPacket(_) => McpePacketName::DisconnectPacket,
-            McpePacketData::ResourcePacksInfoPacket(_) => McpePacketName::ResourcePacksInfoPacket,
-            McpePacketData::ResourcePackStackPacket(_) => McpePacketName::ResourcePackStackPacket,
+            McpePacketData::ResourcePacksInfoPacket(_) => {
+                McpePacketName::ResourcePacksInfoPacket
+            }
+            McpePacketData::ResourcePackStackPacket(_) => {
+                McpePacketName::ResourcePackStackPacket
+            }
             McpePacketData::ResourcePackClientResponsePacket(_) => {
                 McpePacketName::ResourcePackClientResponsePacket
             }
@@ -3078,7 +3086,9 @@ impl McpePacketData {
                 McpePacketName::ServerPlayerPostMovePositionPacket
             }
             McpePacketData::TakeItemActorPacket(_) => McpePacketName::TakeItemActorPacket,
-            McpePacketData::MoveActorAbsolutePacket(_) => McpePacketName::MoveActorAbsolutePacket,
+            McpePacketData::MoveActorAbsolutePacket(_) => {
+                McpePacketName::MoveActorAbsolutePacket
+            }
             McpePacketData::MovePlayerPacket(_) => McpePacketName::MovePlayerPacket,
             McpePacketData::UpdateBlockPacket(_) => McpePacketName::UpdateBlockPacket,
             McpePacketData::AddPaintingPacket(_) => McpePacketName::AddPaintingPacket,
@@ -3086,57 +3096,101 @@ impl McpePacketData {
             McpePacketData::BlockEventPacket(_) => McpePacketName::BlockEventPacket,
             McpePacketData::ActorEventPacket(_) => McpePacketName::ActorEventPacket,
             McpePacketData::MobEffectPacket(_) => McpePacketName::MobEffectPacket,
-            McpePacketData::UpdateAttributesPacket(_) => McpePacketName::UpdateAttributesPacket,
+            McpePacketData::UpdateAttributesPacket(_) => {
+                McpePacketName::UpdateAttributesPacket
+            }
             McpePacketData::InventoryTransactionPacket(_) => {
                 McpePacketName::InventoryTransactionPacket
             }
             McpePacketData::MobEquipmentPacket(_) => McpePacketName::MobEquipmentPacket,
-            McpePacketData::MobArmorEquipmentPacket(_) => McpePacketName::MobArmorEquipmentPacket,
+            McpePacketData::MobArmorEquipmentPacket(_) => {
+                McpePacketName::MobArmorEquipmentPacket
+            }
             McpePacketData::InteractPacket(_) => McpePacketName::InteractPacket,
-            McpePacketData::BlockPickRequestPacket(_) => McpePacketName::BlockPickRequestPacket,
-            McpePacketData::ActorPickRequestPacket(_) => McpePacketName::ActorPickRequestPacket,
+            McpePacketData::BlockPickRequestPacket(_) => {
+                McpePacketName::BlockPickRequestPacket
+            }
+            McpePacketData::ActorPickRequestPacket(_) => {
+                McpePacketName::ActorPickRequestPacket
+            }
             McpePacketData::PlayerActionPacket(_) => McpePacketName::PlayerActionPacket,
             McpePacketData::HurtArmorPacket(_) => McpePacketName::HurtArmorPacket,
             McpePacketData::SetActorDataPacket(_) => McpePacketName::SetActorDataPacket,
-            McpePacketData::SetActorMotionPacket(_) => McpePacketName::SetActorMotionPacket,
+            McpePacketData::SetActorMotionPacket(_) => {
+                McpePacketName::SetActorMotionPacket
+            }
             McpePacketData::SetActorLinkPacket(_) => McpePacketName::SetActorLinkPacket,
             McpePacketData::SetHealthPacket(_) => McpePacketName::SetHealthPacket,
-            McpePacketData::SetSpawnPositionPacket(_) => McpePacketName::SetSpawnPositionPacket,
+            McpePacketData::SetSpawnPositionPacket(_) => {
+                McpePacketName::SetSpawnPositionPacket
+            }
             McpePacketData::AnimatePacket(_) => McpePacketName::AnimatePacket,
             McpePacketData::RespawnPacket(_) => McpePacketName::RespawnPacket,
             McpePacketData::ContainerOpenPacket(_) => McpePacketName::ContainerOpenPacket,
-            McpePacketData::ContainerClosePacket(_) => McpePacketName::ContainerClosePacket,
+            McpePacketData::ContainerClosePacket(_) => {
+                McpePacketName::ContainerClosePacket
+            }
             McpePacketData::PlayerHotbarPacket(_) => McpePacketName::PlayerHotbarPacket,
-            McpePacketData::InventoryContentPacket(_) => McpePacketName::InventoryContentPacket,
+            McpePacketData::InventoryContentPacket(_) => {
+                McpePacketName::InventoryContentPacket
+            }
             McpePacketData::InventorySlotPacket(_) => McpePacketName::InventorySlotPacket,
-            McpePacketData::ContainerSetDataPacket(_) => McpePacketName::ContainerSetDataPacket,
+            McpePacketData::ContainerSetDataPacket(_) => {
+                McpePacketName::ContainerSetDataPacket
+            }
             McpePacketData::CraftingDataPacket(_) => McpePacketName::CraftingDataPacket,
-            McpePacketData::GuiDataPickItemPacket(_) => McpePacketName::GuiDataPickItemPacket,
-            McpePacketData::BlockActorDataPacket(_) => McpePacketName::BlockActorDataPacket,
+            McpePacketData::GuiDataPickItemPacket(_) => {
+                McpePacketName::GuiDataPickItemPacket
+            }
+            McpePacketData::BlockActorDataPacket(_) => {
+                McpePacketName::BlockActorDataPacket
+            }
             McpePacketData::LevelChunkPacket(_) => McpePacketName::LevelChunkPacket,
-            McpePacketData::SetCommandsEnabledPacket(_) => McpePacketName::SetCommandsEnabledPacket,
+            McpePacketData::SetCommandsEnabledPacket(_) => {
+                McpePacketName::SetCommandsEnabledPacket
+            }
             McpePacketData::SetDifficultyPacket(_) => McpePacketName::SetDifficultyPacket,
-            McpePacketData::ChangeDimensionPacket(_) => McpePacketName::ChangeDimensionPacket,
-            McpePacketData::SetPlayerGameTypePacket(_) => McpePacketName::SetPlayerGameTypePacket,
+            McpePacketData::ChangeDimensionPacket(_) => {
+                McpePacketName::ChangeDimensionPacket
+            }
+            McpePacketData::SetPlayerGameTypePacket(_) => {
+                McpePacketName::SetPlayerGameTypePacket
+            }
             McpePacketData::PlayerListPacket(_) => McpePacketName::PlayerListPacket,
             McpePacketData::SimpleEventPacket(_) => McpePacketName::SimpleEventPacket,
             McpePacketData::LegacyTelemetryEventPacket(_) => {
                 McpePacketName::LegacyTelemetryEventPacket
             }
-            McpePacketData::SpawnExperienceOrbPacket(_) => McpePacketName::SpawnExperienceOrbPacket,
+            McpePacketData::SpawnExperienceOrbPacket(_) => {
+                McpePacketName::SpawnExperienceOrbPacket
+            }
             McpePacketData::ClientboundMapItemDataPacket(_) => {
                 McpePacketName::ClientboundMapItemDataPacket
             }
-            McpePacketData::MapInfoRequestPacket(_) => McpePacketName::MapInfoRequestPacket,
-            McpePacketData::RequestChunkRadiusPacket(_) => McpePacketName::RequestChunkRadiusPacket,
-            McpePacketData::ChunkRadiusUpdatedPacket(_) => McpePacketName::ChunkRadiusUpdatedPacket,
-            McpePacketData::GameRulesChangedPacket(_) => McpePacketName::GameRulesChangedPacket,
+            McpePacketData::MapInfoRequestPacket(_) => {
+                McpePacketName::MapInfoRequestPacket
+            }
+            McpePacketData::RequestChunkRadiusPacket(_) => {
+                McpePacketName::RequestChunkRadiusPacket
+            }
+            McpePacketData::ChunkRadiusUpdatedPacket(_) => {
+                McpePacketName::ChunkRadiusUpdatedPacket
+            }
+            McpePacketData::GameRulesChangedPacket(_) => {
+                McpePacketName::GameRulesChangedPacket
+            }
             McpePacketData::CameraPacket(_) => McpePacketName::CameraPacket,
             McpePacketData::BossEventPacket(_) => McpePacketName::BossEventPacket,
             McpePacketData::ShowCreditsPacket(_) => McpePacketName::ShowCreditsPacket,
-            McpePacketData::AvailableCommandsPacket(_) => McpePacketName::AvailableCommandsPacket,
-            McpePacketData::CommandRequestPacket(_) => McpePacketName::CommandRequestPacket,
-            McpePacketData::CommandBlockUpdatePacket(_) => McpePacketName::CommandBlockUpdatePacket,
+            McpePacketData::AvailableCommandsPacket(_) => {
+                McpePacketName::AvailableCommandsPacket
+            }
+            McpePacketData::CommandRequestPacket(_) => {
+                McpePacketName::CommandRequestPacket
+            }
+            McpePacketData::CommandBlockUpdatePacket(_) => {
+                McpePacketName::CommandBlockUpdatePacket
+            }
             McpePacketData::CommandOutputPacket(_) => McpePacketName::CommandOutputPacket,
             McpePacketData::UpdateTradePacket(_) => McpePacketName::UpdateTradePacket,
             McpePacketData::UpdateEquipPacket(_) => McpePacketName::UpdateEquipPacket,
@@ -3153,14 +3207,22 @@ impl McpePacketData {
             McpePacketData::PlaySoundPacket(_) => McpePacketName::PlaySoundPacket,
             McpePacketData::StopSoundPacket(_) => McpePacketName::StopSoundPacket,
             McpePacketData::SetTitlePacket(_) => McpePacketName::SetTitlePacket,
-            McpePacketData::AddBehaviorTreePacket(_) => McpePacketName::AddBehaviorTreePacket,
+            McpePacketData::AddBehaviorTreePacket(_) => {
+                McpePacketName::AddBehaviorTreePacket
+            }
             McpePacketData::StructureBlockUpdatePacket(_) => {
                 McpePacketName::StructureBlockUpdatePacket
             }
-            McpePacketData::ShowStoreOfferPacket(_) => McpePacketName::ShowStoreOfferPacket,
-            McpePacketData::PurchaseReceiptPacket(_) => McpePacketName::PurchaseReceiptPacket,
+            McpePacketData::ShowStoreOfferPacket(_) => {
+                McpePacketName::ShowStoreOfferPacket
+            }
+            McpePacketData::PurchaseReceiptPacket(_) => {
+                McpePacketName::PurchaseReceiptPacket
+            }
             McpePacketData::PlayerSkinPacket(_) => McpePacketName::PlayerSkinPacket,
-            McpePacketData::SubClientLoginPacket(_) => McpePacketName::SubClientLoginPacket,
+            McpePacketData::SubClientLoginPacket(_) => {
+                McpePacketName::SubClientLoginPacket
+            }
             McpePacketData::AutomationClientConnectPacket(_) => {
                 McpePacketName::AutomationClientConnectPacket
             }
@@ -3168,8 +3230,12 @@ impl McpePacketData {
             McpePacketData::BookEditPacket(_) => McpePacketName::BookEditPacket,
             McpePacketData::NpcRequestPacket(_) => McpePacketName::NpcRequestPacket,
             McpePacketData::PhotoTransferPacket(_) => McpePacketName::PhotoTransferPacket,
-            McpePacketData::ModalFormRequestPacket(_) => McpePacketName::ModalFormRequestPacket,
-            McpePacketData::ModalFormResponsePacket(_) => McpePacketName::ModalFormResponsePacket,
+            McpePacketData::ModalFormRequestPacket(_) => {
+                McpePacketName::ModalFormRequestPacket
+            }
+            McpePacketData::ModalFormResponsePacket(_) => {
+                McpePacketName::ModalFormResponsePacket
+            }
             McpePacketData::ServerSettingsRequestPacket(_) => {
                 McpePacketName::ServerSettingsRequestPacket
             }
@@ -3177,22 +3243,32 @@ impl McpePacketData {
                 McpePacketName::ServerSettingsResponsePacket
             }
             McpePacketData::ShowProfilePacket(_) => McpePacketName::ShowProfilePacket,
-            McpePacketData::SetDefaultGameTypePacket(_) => McpePacketName::SetDefaultGameTypePacket,
-            McpePacketData::RemoveObjectivePacket(_) => McpePacketName::RemoveObjectivePacket,
+            McpePacketData::SetDefaultGameTypePacket(_) => {
+                McpePacketName::SetDefaultGameTypePacket
+            }
+            McpePacketData::RemoveObjectivePacket(_) => {
+                McpePacketName::RemoveObjectivePacket
+            }
             McpePacketData::SetDisplayObjectivePacket(_) => {
                 McpePacketName::SetDisplayObjectivePacket
             }
             McpePacketData::SetScorePacket(_) => McpePacketName::SetScorePacket,
             McpePacketData::LabTablePacket(_) => McpePacketName::LabTablePacket,
-            McpePacketData::UpdateBlockSyncedPacket(_) => McpePacketName::UpdateBlockSyncedPacket,
-            McpePacketData::MoveActorDeltaPacket(_) => McpePacketName::MoveActorDeltaPacket,
+            McpePacketData::UpdateBlockSyncedPacket(_) => {
+                McpePacketName::UpdateBlockSyncedPacket
+            }
+            McpePacketData::MoveActorDeltaPacket(_) => {
+                McpePacketName::MoveActorDeltaPacket
+            }
             McpePacketData::SetScoreboardIdentityPacket(_) => {
                 McpePacketName::SetScoreboardIdentityPacket
             }
             McpePacketData::SetLocalPlayerAsInitializedPacket(_) => {
                 McpePacketName::SetLocalPlayerAsInitializedPacket
             }
-            McpePacketData::UpdateSoftEnumPacket(_) => McpePacketName::UpdateSoftEnumPacket,
+            McpePacketData::UpdateSoftEnumPacket(_) => {
+                McpePacketName::UpdateSoftEnumPacket
+            }
             McpePacketData::NetworkStackLatencyPacket(_) => {
                 McpePacketName::NetworkStackLatencyPacket
             }
@@ -3208,10 +3284,16 @@ impl McpePacketData {
             McpePacketData::BiomeDefinitionListPacket(_) => {
                 McpePacketName::BiomeDefinitionListPacket
             }
-            McpePacketData::LevelSoundEventPacket(_) => McpePacketName::LevelSoundEventPacket,
-            McpePacketData::LevelEventGenericPacket(_) => McpePacketName::LevelEventGenericPacket,
+            McpePacketData::LevelSoundEventPacket(_) => {
+                McpePacketName::LevelSoundEventPacket
+            }
+            McpePacketData::LevelEventGenericPacket(_) => {
+                McpePacketName::LevelEventGenericPacket
+            }
             McpePacketData::LecternUpdatePacket(_) => McpePacketName::LecternUpdatePacket,
-            McpePacketData::ClientCacheStatusPacket(_) => McpePacketName::ClientCacheStatusPacket,
+            McpePacketData::ClientCacheStatusPacket(_) => {
+                McpePacketName::ClientCacheStatusPacket
+            }
             McpePacketData::OnScreenTextureAnimationPacket(_) => {
                 McpePacketName::OnScreenTextureAnimationPacket
             }
@@ -3230,23 +3312,41 @@ impl McpePacketData {
             McpePacketData::ClientCacheMissResponsePacket(_) => {
                 McpePacketName::ClientCacheMissResponsePacket
             }
-            McpePacketData::EducationSettingsPacket(_) => McpePacketName::EducationSettingsPacket,
+            McpePacketData::EducationSettingsPacket(_) => {
+                McpePacketName::EducationSettingsPacket
+            }
             McpePacketData::EmotePacket(_) => McpePacketName::EmotePacket,
             McpePacketData::MultiplayerSettingsPacket(_) => {
                 McpePacketName::MultiplayerSettingsPacket
             }
-            McpePacketData::SettingsCommandPacket(_) => McpePacketName::SettingsCommandPacket,
+            McpePacketData::SettingsCommandPacket(_) => {
+                McpePacketName::SettingsCommandPacket
+            }
             McpePacketData::AnvilDamagePacket(_) => McpePacketName::AnvilDamagePacket,
-            McpePacketData::CompletedUsingItemPacket(_) => McpePacketName::CompletedUsingItemPacket,
-            McpePacketData::NetworkSettingsPacket(_) => McpePacketName::NetworkSettingsPacket,
-            McpePacketData::PlayerAuthInputPacket(_) => McpePacketName::PlayerAuthInputPacket,
-            McpePacketData::CreativeContentPacket(_) => McpePacketName::CreativeContentPacket,
+            McpePacketData::CompletedUsingItemPacket(_) => {
+                McpePacketName::CompletedUsingItemPacket
+            }
+            McpePacketData::NetworkSettingsPacket(_) => {
+                McpePacketName::NetworkSettingsPacket
+            }
+            McpePacketData::PlayerAuthInputPacket(_) => {
+                McpePacketName::PlayerAuthInputPacket
+            }
+            McpePacketData::CreativeContentPacket(_) => {
+                McpePacketName::CreativeContentPacket
+            }
             McpePacketData::PlayerEnchantOptionsPacket(_) => {
                 McpePacketName::PlayerEnchantOptionsPacket
             }
-            McpePacketData::ItemStackRequestPacket(_) => McpePacketName::ItemStackRequestPacket,
-            McpePacketData::ItemStackResponsePacket(_) => McpePacketName::ItemStackResponsePacket,
-            McpePacketData::PlayerArmorDamagePacket(_) => McpePacketName::PlayerArmorDamagePacket,
+            McpePacketData::ItemStackRequestPacket(_) => {
+                McpePacketName::ItemStackRequestPacket
+            }
+            McpePacketData::ItemStackResponsePacket(_) => {
+                McpePacketName::ItemStackResponsePacket
+            }
+            McpePacketData::PlayerArmorDamagePacket(_) => {
+                McpePacketName::PlayerArmorDamagePacket
+            }
             McpePacketData::CodeBuilderPacket(_) => McpePacketName::CodeBuilderPacket,
             McpePacketData::UpdatePlayerGameTypePacket(_) => {
                 McpePacketName::UpdatePlayerGameTypePacket
@@ -3275,55 +3375,93 @@ impl McpePacketData {
             McpePacketData::ClientboundDebugRendererPacket(_) => {
                 McpePacketName::ClientboundDebugRendererPacket
             }
-            McpePacketData::SyncActorPropertyPacket(_) => McpePacketName::SyncActorPropertyPacket,
-            McpePacketData::AddVolumeEntityPacket(_) => McpePacketName::AddVolumeEntityPacket,
-            McpePacketData::RemoveVolumeEntityPacket(_) => McpePacketName::RemoveVolumeEntityPacket,
-            McpePacketData::SimulationTypePacket(_) => McpePacketName::SimulationTypePacket,
+            McpePacketData::SyncActorPropertyPacket(_) => {
+                McpePacketName::SyncActorPropertyPacket
+            }
+            McpePacketData::AddVolumeEntityPacket(_) => {
+                McpePacketName::AddVolumeEntityPacket
+            }
+            McpePacketData::RemoveVolumeEntityPacket(_) => {
+                McpePacketName::RemoveVolumeEntityPacket
+            }
+            McpePacketData::SimulationTypePacket(_) => {
+                McpePacketName::SimulationTypePacket
+            }
             McpePacketData::NpcDialoguePacket(_) => McpePacketName::NpcDialoguePacket,
-            McpePacketData::EduUriResourcePacket(_) => McpePacketName::EduUriResourcePacket,
+            McpePacketData::EduUriResourcePacket(_) => {
+                McpePacketName::EduUriResourcePacket
+            }
             McpePacketData::CreatePhotoPacket(_) => McpePacketName::CreatePhotoPacket,
             McpePacketData::UpdateSubChunkBlocksPacket(_) => {
                 McpePacketName::UpdateSubChunkBlocksPacket
             }
             McpePacketData::SubChunkPacket(_) => McpePacketName::SubChunkPacket,
-            McpePacketData::SubChunkRequestPacket(_) => McpePacketName::SubChunkRequestPacket,
+            McpePacketData::SubChunkRequestPacket(_) => {
+                McpePacketName::SubChunkRequestPacket
+            }
             McpePacketData::PlayerStartItemCooldownPacket(_) => {
                 McpePacketName::PlayerStartItemCooldownPacket
             }
             McpePacketData::ScriptMessagePacket(_) => McpePacketName::ScriptMessagePacket,
-            McpePacketData::CodeBuilderSourcePacket(_) => McpePacketName::CodeBuilderSourcePacket,
+            McpePacketData::CodeBuilderSourcePacket(_) => {
+                McpePacketName::CodeBuilderSourcePacket
+            }
             McpePacketData::TickingAreasLoadStatusPacket(_) => {
                 McpePacketName::TickingAreasLoadStatusPacket
             }
             McpePacketData::DimensionDataPacket(_) => McpePacketName::DimensionDataPacket,
-            McpePacketData::AgentActionEventPacket(_) => McpePacketName::AgentActionEventPacket,
-            McpePacketData::ChangeMobPropertyPacket(_) => McpePacketName::ChangeMobPropertyPacket,
-            McpePacketData::LessonProgressPacket(_) => McpePacketName::LessonProgressPacket,
-            McpePacketData::RequestAbilityPacket(_) => McpePacketName::RequestAbilityPacket,
-            McpePacketData::RequestPermissionsPacket(_) => McpePacketName::RequestPermissionsPacket,
+            McpePacketData::AgentActionEventPacket(_) => {
+                McpePacketName::AgentActionEventPacket
+            }
+            McpePacketData::ChangeMobPropertyPacket(_) => {
+                McpePacketName::ChangeMobPropertyPacket
+            }
+            McpePacketData::LessonProgressPacket(_) => {
+                McpePacketName::LessonProgressPacket
+            }
+            McpePacketData::RequestAbilityPacket(_) => {
+                McpePacketName::RequestAbilityPacket
+            }
+            McpePacketData::RequestPermissionsPacket(_) => {
+                McpePacketName::RequestPermissionsPacket
+            }
             McpePacketData::ToastRequestPacket(_) => McpePacketName::ToastRequestPacket,
-            McpePacketData::UpdateAbilitiesPacket(_) => McpePacketName::UpdateAbilitiesPacket,
+            McpePacketData::UpdateAbilitiesPacket(_) => {
+                McpePacketName::UpdateAbilitiesPacket
+            }
             McpePacketData::UpdateAdventureSettingsPacket(_) => {
                 McpePacketName::UpdateAdventureSettingsPacket
             }
             McpePacketData::DeathInfoPacket(_) => McpePacketName::DeathInfoPacket,
             McpePacketData::EditorNetworkPacket(_) => McpePacketName::EditorNetworkPacket,
-            McpePacketData::FeatureRegistryPacket(_) => McpePacketName::FeatureRegistryPacket,
+            McpePacketData::FeatureRegistryPacket(_) => {
+                McpePacketName::FeatureRegistryPacket
+            }
             McpePacketData::ServerStatsPacket(_) => McpePacketName::ServerStatsPacket,
             McpePacketData::RequestNetworkSettingsPacket(_) => {
                 McpePacketName::RequestNetworkSettingsPacket
             }
-            McpePacketData::GameTestRequestPacket(_) => McpePacketName::GameTestRequestPacket,
-            McpePacketData::GameTestResultsPacket(_) => McpePacketName::GameTestResultsPacket,
+            McpePacketData::GameTestRequestPacket(_) => {
+                McpePacketName::GameTestRequestPacket
+            }
+            McpePacketData::GameTestResultsPacket(_) => {
+                McpePacketName::GameTestResultsPacket
+            }
             McpePacketData::UpdateClientInputLocksPacket(_) => {
                 McpePacketName::UpdateClientInputLocksPacket
             }
             McpePacketData::CameraPresetsPacket(_) => McpePacketName::CameraPresetsPacket,
-            McpePacketData::UnlockedRecipesPacket(_) => McpePacketName::UnlockedRecipesPacket,
-            McpePacketData::CameraInstructionPacket(_) => McpePacketName::CameraInstructionPacket,
+            McpePacketData::UnlockedRecipesPacket(_) => {
+                McpePacketName::UnlockedRecipesPacket
+            }
+            McpePacketData::CameraInstructionPacket(_) => {
+                McpePacketName::CameraInstructionPacket
+            }
             McpePacketData::TrimDataPacket(_) => McpePacketName::TrimDataPacket,
             McpePacketData::OpenSignPacket(_) => McpePacketName::OpenSignPacket,
-            McpePacketData::AgentAnimationPacket(_) => McpePacketName::AgentAnimationPacket,
+            McpePacketData::AgentAnimationPacket(_) => {
+                McpePacketName::AgentAnimationPacket
+            }
             McpePacketData::RefreshEntitlementsPacket(_) => {
                 McpePacketName::RefreshEntitlementsPacket
             }
@@ -3334,7 +3472,9 @@ impl McpePacketData {
                 McpePacketName::SetPlayerInventoryOptionsPacket
             }
             McpePacketData::SetHudPacket(_) => McpePacketName::SetHudPacket,
-            McpePacketData::AwardAchievementPacket(_) => McpePacketName::AwardAchievementPacket,
+            McpePacketData::AwardAchievementPacket(_) => {
+                McpePacketName::AwardAchievementPacket
+            }
             McpePacketData::ClientboundCloseFormPacket(_) => {
                 McpePacketName::ClientboundCloseFormPacket
             }
@@ -3350,11 +3490,15 @@ impl McpePacketData {
             McpePacketData::ServerboundDiagnosticsPacket(_) => {
                 McpePacketName::ServerboundDiagnosticsPacket
             }
-            McpePacketData::CameraAimAssistPacket(_) => McpePacketName::CameraAimAssistPacket,
+            McpePacketData::CameraAimAssistPacket(_) => {
+                McpePacketName::CameraAimAssistPacket
+            }
             McpePacketData::ContainerRegistryCleanupPacket(_) => {
                 McpePacketName::ContainerRegistryCleanupPacket
             }
-            McpePacketData::MovementEffectPacket(_) => McpePacketName::MovementEffectPacket,
+            McpePacketData::MovementEffectPacket(_) => {
+                McpePacketName::MovementEffectPacket
+            }
             McpePacketData::CameraAimAssistPresetsPacket(_) => {
                 McpePacketName::CameraAimAssistPresetsPacket
             }
@@ -3367,15 +3511,21 @@ impl McpePacketData {
             McpePacketData::UpdateClientOptionsPacket(_) => {
                 McpePacketName::UpdateClientOptionsPacket
             }
-            McpePacketData::PlayerVideoCapturePacket(_) => McpePacketName::PlayerVideoCapturePacket,
+            McpePacketData::PlayerVideoCapturePacket(_) => {
+                McpePacketName::PlayerVideoCapturePacket
+            }
             McpePacketData::PlayerUpdateEntityOverridesPacket(_) => {
                 McpePacketName::PlayerUpdateEntityOverridesPacket
             }
-            McpePacketData::PlayerLocationPacket(_) => McpePacketName::PlayerLocationPacket,
+            McpePacketData::PlayerLocationPacket(_) => {
+                McpePacketName::PlayerLocationPacket
+            }
             McpePacketData::ClientboundControlSchemeSetPacket(_) => {
                 McpePacketName::ClientboundControlSchemeSetPacket
             }
-            McpePacketData::PrimitiveShapesPacket(_) => McpePacketName::PrimitiveShapesPacket,
+            McpePacketData::PrimitiveShapesPacket(_) => {
+                McpePacketName::PrimitiveShapesPacket
+            }
             McpePacketData::ServerboundPackSettingChangePacket(_) => {
                 McpePacketName::ServerboundPackSettingChangePacket
             }
@@ -3413,12 +3563,18 @@ impl McpePacketData {
             McpePacketData::ServerboundDataDrivenScreenClosedPacket(_) => {
                 McpePacketName::ServerboundDataDrivenScreenClosedPacket
             }
-            McpePacketData::SyncWorldClocksPacket(_) => McpePacketName::SyncWorldClocksPacket,
+            McpePacketData::SyncWorldClocksPacket(_) => {
+                McpePacketName::SyncWorldClocksPacket
+            }
             McpePacketData::ClientboundAttributeLayerSyncPacket(_) => {
                 McpePacketName::ClientboundAttributeLayerSyncPacket
             }
-            McpePacketData::ServerStoreInfoPacket(_) => McpePacketName::ServerStoreInfoPacket,
-            McpePacketData::ServerPresenceInfoPacket(_) => McpePacketName::ServerPresenceInfoPacket,
+            McpePacketData::ServerStoreInfoPacket(_) => {
+                McpePacketName::ServerStoreInfoPacket
+            }
+            McpePacketData::ServerPresenceInfoPacket(_) => {
+                McpePacketName::ServerPresenceInfoPacket
+            }
             McpePacketData::ClientboundUpdateSoundDataPacket(_) => {
                 McpePacketName::ClientboundUpdateSoundDataPacket
             }
@@ -3438,11 +3594,11 @@ impl McpePacketData {
         from_subclient: u32,
         to_subclient: u32,
     ) -> Result<(), std::io::Error> {
-        let header = (self.packet_id() as u32)
-            | ((from_subclient & 0x3) << 10)
+        let header = (self.packet_id() as u32) | ((from_subclient & 0x3) << 10)
             | ((to_subclient & 0x3) << 12);
         let header_len = wire::var_u32_len(header);
-        let total_len = header_len + crate::bedrock::codec::BedrockSized::encoded_size(self);
+        let total_len = header_len
+            + crate::bedrock::codec::BedrockSized::encoded_size(self);
         wire::write_var_u32(buf, total_len as u32);
         wire::write_var_u32(buf, header);
         match self {
@@ -4143,8 +4299,7 @@ impl McpePacketData {
         from_subclient: u32,
         to_subclient: u32,
     ) -> Result<(), std::io::Error> {
-        let header = (self.packet_id() as u32)
-            | ((from_subclient & 0x3) << 10)
+        let header = (self.packet_id() as u32) | ((from_subclient & 0x3) << 10)
             | ((to_subclient & 0x3) << 12);
         let prefix_start = buf.len();
         let reserved_prefix = 10usize;
@@ -4934,30 +5089,36 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::DisconnectPacket => {
-                let packet = McpePacketData::DisconnectPacket(Box::new(
-                    <DisconnectPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::DisconnectPacket(
+                    Box::new(
+                        <DisconnectPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::ResourcePacksInfoPacket => {
-                let packet = McpePacketData::ResourcePacksInfoPacket(Box::new(
-                    <ResourcePacksInfoPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::ResourcePacksInfoPacket(
+                    Box::new(
+                        <ResourcePacksInfoPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::ResourcePackStackPacket => {
-                let packet = McpePacketData::ResourcePackStackPacket(Box::new(
-                    <ResourcePackStackPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::ResourcePackStackPacket(
+                    Box::new(
+                        <ResourcePackStackPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::ResourcePackClientResponsePacket => {
@@ -4972,12 +5133,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::TextPacket => {
-                let packet = McpePacketData::TextPacket(Box::new(
-                    <TextPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::TextPacket(
+                    Box::new(
+                        <TextPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::SetTimePacket => {
@@ -4990,30 +5153,36 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::StartGamePacket => {
-                let packet = McpePacketData::StartGamePacket(Box::new(
-                    <StartGamePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::StartGamePacket(
+                    Box::new(
+                        <StartGamePacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::AddPlayerPacket => {
-                let packet = McpePacketData::AddPlayerPacket(Box::new(
-                    <AddPlayerPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::AddPlayerPacket(
+                    Box::new(
+                        <AddPlayerPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::AddActorPacket => {
-                let packet = McpePacketData::AddActorPacket(Box::new(
-                    <AddActorPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::AddActorPacket(
+                    Box::new(
+                        <AddActorPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::RemoveActorPacket => {
@@ -5026,12 +5195,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::AddItemActorPacket => {
-                let packet = McpePacketData::AddItemActorPacket(Box::new(
-                    <AddItemActorPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::AddItemActorPacket(
+                    Box::new(
+                        <AddItemActorPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::ServerPlayerPostMovePositionPacket => {
@@ -5053,39 +5224,47 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::MoveActorAbsolutePacket => {
-                let packet = McpePacketData::MoveActorAbsolutePacket(Box::new(
-                    <MoveActorAbsolutePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::MoveActorAbsolutePacket(
+                    Box::new(
+                        <MoveActorAbsolutePacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::MovePlayerPacket => {
-                let packet = McpePacketData::MovePlayerPacket(Box::new(
-                    <MovePlayerPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::MovePlayerPacket(
+                    Box::new(
+                        <MovePlayerPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::UpdateBlockPacket => {
-                let packet = McpePacketData::UpdateBlockPacket(Box::new(
-                    <UpdateBlockPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::UpdateBlockPacket(
+                    Box::new(
+                        <UpdateBlockPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::AddPaintingPacket => {
-                let packet = McpePacketData::AddPaintingPacket(Box::new(
-                    <AddPaintingPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::AddPaintingPacket(
+                    Box::new(
+                        <AddPaintingPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::LevelEventPacket => {
@@ -5107,21 +5286,25 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::ActorEventPacket => {
-                let packet = McpePacketData::ActorEventPacket(Box::new(
-                    <ActorEventPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::ActorEventPacket(
+                    Box::new(
+                        <ActorEventPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::MobEffectPacket => {
-                let packet = McpePacketData::MobEffectPacket(Box::new(
-                    <MobEffectPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::MobEffectPacket(
+                    Box::new(
+                        <MobEffectPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::UpdateAttributesPacket => {
@@ -5134,30 +5317,36 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::InventoryTransactionPacket => {
-                let packet = McpePacketData::InventoryTransactionPacket(Box::new(
-                    <InventoryTransactionPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::InventoryTransactionPacket(
+                    Box::new(
+                        <InventoryTransactionPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::MobEquipmentPacket => {
-                let packet = McpePacketData::MobEquipmentPacket(Box::new(
-                    <MobEquipmentPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::MobEquipmentPacket(
+                    Box::new(
+                        <MobEquipmentPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::MobArmorEquipmentPacket => {
-                let packet = McpePacketData::MobArmorEquipmentPacket(Box::new(
-                    <MobArmorEquipmentPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::MobArmorEquipmentPacket(
+                    Box::new(
+                        <MobArmorEquipmentPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::InteractPacket => {
@@ -5188,12 +5377,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::PlayerActionPacket => {
-                let packet = McpePacketData::PlayerActionPacket(Box::new(
-                    <PlayerActionPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::PlayerActionPacket(
+                    Box::new(
+                        <PlayerActionPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::HurtArmorPacket => {
@@ -5206,12 +5397,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::SetActorDataPacket => {
-                let packet = McpePacketData::SetActorDataPacket(Box::new(
-                    <SetActorDataPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::SetActorDataPacket(
+                    Box::new(
+                        <SetActorDataPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::SetActorMotionPacket => {
@@ -5224,12 +5417,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::SetActorLinkPacket => {
-                let packet = McpePacketData::SetActorLinkPacket(Box::new(
-                    <SetActorLinkPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::SetActorLinkPacket(
+                    Box::new(
+                        <SetActorLinkPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::SetHealthPacket => {
@@ -5242,21 +5437,25 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::SetSpawnPositionPacket => {
-                let packet = McpePacketData::SetSpawnPositionPacket(Box::new(
-                    <SetSpawnPositionPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::SetSpawnPositionPacket(
+                    Box::new(
+                        <SetSpawnPositionPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::AnimatePacket => {
-                let packet = McpePacketData::AnimatePacket(Box::new(
-                    <AnimatePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::AnimatePacket(
+                    Box::new(
+                        <AnimatePacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::RespawnPacket => {
@@ -5269,12 +5468,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::ContainerOpenPacket => {
-                let packet = McpePacketData::ContainerOpenPacket(Box::new(
-                    <ContainerOpenPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::ContainerOpenPacket(
+                    Box::new(
+                        <ContainerOpenPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::ContainerClosePacket => {
@@ -5296,21 +5497,25 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::InventoryContentPacket => {
-                let packet = McpePacketData::InventoryContentPacket(Box::new(
-                    <InventoryContentPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::InventoryContentPacket(
+                    Box::new(
+                        <InventoryContentPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::InventorySlotPacket => {
-                let packet = McpePacketData::InventorySlotPacket(Box::new(
-                    <InventorySlotPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::InventorySlotPacket(
+                    Box::new(
+                        <InventorySlotPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::ContainerSetDataPacket => {
@@ -5323,12 +5528,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::CraftingDataPacket => {
-                let packet = McpePacketData::CraftingDataPacket(Box::new(
-                    <CraftingDataPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::CraftingDataPacket(
+                    Box::new(
+                        <CraftingDataPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::GuiDataPickItemPacket => {
@@ -5350,12 +5557,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::LevelChunkPacket => {
-                let packet = McpePacketData::LevelChunkPacket(Box::new(
-                    <LevelChunkPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::LevelChunkPacket(
+                    Box::new(
+                        <LevelChunkPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::SetCommandsEnabledPacket => {
@@ -5377,12 +5586,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::ChangeDimensionPacket => {
-                let packet = McpePacketData::ChangeDimensionPacket(Box::new(
-                    <ChangeDimensionPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::ChangeDimensionPacket(
+                    Box::new(
+                        <ChangeDimensionPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::SetPlayerGameTypePacket => {
@@ -5413,12 +5624,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::LegacyTelemetryEventPacket => {
-                let packet = McpePacketData::LegacyTelemetryEventPacket(Box::new(
-                    <LegacyTelemetryEventPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::LegacyTelemetryEventPacket(
+                    Box::new(
+                        <LegacyTelemetryEventPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::SpawnExperienceOrbPacket => {
@@ -5431,12 +5644,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::ClientboundMapItemDataPacket => {
-                let packet = McpePacketData::ClientboundMapItemDataPacket(Box::new(
-                    <ClientboundMapItemDataPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::ClientboundMapItemDataPacket(
+                    Box::new(
+                        <ClientboundMapItemDataPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::MapInfoRequestPacket => {
@@ -5485,12 +5700,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::BossEventPacket => {
-                let packet = McpePacketData::BossEventPacket(Box::new(
-                    <BossEventPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::BossEventPacket(
+                    Box::new(
+                        <BossEventPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::ShowCreditsPacket => {
@@ -5503,75 +5720,91 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::AvailableCommandsPacket => {
-                let packet = McpePacketData::AvailableCommandsPacket(Box::new(
-                    <AvailableCommandsPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::AvailableCommandsPacket(
+                    Box::new(
+                        <AvailableCommandsPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::CommandRequestPacket => {
-                let packet = McpePacketData::CommandRequestPacket(Box::new(
-                    <CommandRequestPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::CommandRequestPacket(
+                    Box::new(
+                        <CommandRequestPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::CommandBlockUpdatePacket => {
-                let packet = McpePacketData::CommandBlockUpdatePacket(Box::new(
-                    <CommandBlockUpdatePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::CommandBlockUpdatePacket(
+                    Box::new(
+                        <CommandBlockUpdatePacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::CommandOutputPacket => {
-                let packet = McpePacketData::CommandOutputPacket(Box::new(
-                    <CommandOutputPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::CommandOutputPacket(
+                    Box::new(
+                        <CommandOutputPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::UpdateTradePacket => {
-                let packet = McpePacketData::UpdateTradePacket(Box::new(
-                    <UpdateTradePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::UpdateTradePacket(
+                    Box::new(
+                        <UpdateTradePacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::UpdateEquipPacket => {
-                let packet = McpePacketData::UpdateEquipPacket(Box::new(
-                    <UpdateEquipPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::UpdateEquipPacket(
+                    Box::new(
+                        <UpdateEquipPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::ResourcePackDataInfoPacket => {
-                let packet = McpePacketData::ResourcePackDataInfoPacket(Box::new(
-                    <ResourcePackDataInfoPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::ResourcePackDataInfoPacket(
+                    Box::new(
+                        <ResourcePackDataInfoPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::ResourcePackChunkDataPacket => {
-                let packet = McpePacketData::ResourcePackChunkDataPacket(Box::new(
-                    <ResourcePackChunkDataPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::ResourcePackChunkDataPacket(
+                    Box::new(
+                        <ResourcePackChunkDataPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::ResourcePackChunkRequestPacket => {
@@ -5584,21 +5817,25 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::TransferPacket => {
-                let packet = McpePacketData::TransferPacket(Box::new(
-                    <TransferPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::TransferPacket(
+                    Box::new(
+                        <TransferPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::PlaySoundPacket => {
-                let packet = McpePacketData::PlaySoundPacket(Box::new(
-                    <PlaySoundPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::PlaySoundPacket(
+                    Box::new(
+                        <PlaySoundPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::StopSoundPacket => {
@@ -5611,12 +5848,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::SetTitlePacket => {
-                let packet = McpePacketData::SetTitlePacket(Box::new(
-                    <SetTitlePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::SetTitlePacket(
+                    Box::new(
+                        <SetTitlePacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::AddBehaviorTreePacket => {
@@ -5629,12 +5868,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::StructureBlockUpdatePacket => {
-                let packet = McpePacketData::StructureBlockUpdatePacket(Box::new(
-                    <StructureBlockUpdatePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::StructureBlockUpdatePacket(
+                    Box::new(
+                        <StructureBlockUpdatePacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::ShowStoreOfferPacket => {
@@ -5656,12 +5897,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::PlayerSkinPacket => {
-                let packet = McpePacketData::PlayerSkinPacket(Box::new(
-                    <PlayerSkinPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::PlayerSkinPacket(
+                    Box::new(
+                        <PlayerSkinPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::SubClientLoginPacket => {
@@ -5692,30 +5935,36 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::BookEditPacket => {
-                let packet = McpePacketData::BookEditPacket(Box::new(
-                    <BookEditPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::BookEditPacket(
+                    Box::new(
+                        <BookEditPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::NpcRequestPacket => {
-                let packet = McpePacketData::NpcRequestPacket(Box::new(
-                    <NpcRequestPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::NpcRequestPacket(
+                    Box::new(
+                        <NpcRequestPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::PhotoTransferPacket => {
-                let packet = McpePacketData::PhotoTransferPacket(Box::new(
-                    <PhotoTransferPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::PhotoTransferPacket(
+                    Box::new(
+                        <PhotoTransferPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::ModalFormRequestPacket => {
@@ -5782,12 +6031,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::SetDisplayObjectivePacket => {
-                let packet = McpePacketData::SetDisplayObjectivePacket(Box::new(
-                    <SetDisplayObjectivePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::SetDisplayObjectivePacket(
+                    Box::new(
+                        <SetDisplayObjectivePacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::SetScorePacket => {
@@ -5809,21 +6060,25 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::UpdateBlockSyncedPacket => {
-                let packet = McpePacketData::UpdateBlockSyncedPacket(Box::new(
-                    <UpdateBlockSyncedPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::UpdateBlockSyncedPacket(
+                    Box::new(
+                        <UpdateBlockSyncedPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::MoveActorDeltaPacket => {
-                let packet = McpePacketData::MoveActorDeltaPacket(Box::new(
-                    <MoveActorDeltaPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::MoveActorDeltaPacket(
+                    Box::new(
+                        <MoveActorDeltaPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::SetScoreboardIdentityPacket => {
@@ -5863,12 +6118,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::SpawnParticleEffectPacket => {
-                let packet = McpePacketData::SpawnParticleEffectPacket(Box::new(
-                    <SpawnParticleEffectPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::SpawnParticleEffectPacket(
+                    Box::new(
+                        <SpawnParticleEffectPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::AvailableActorIdentifiersPacket => {
@@ -5899,12 +6156,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::LevelSoundEventPacket => {
-                let packet = McpePacketData::LevelSoundEventPacket(Box::new(
-                    <LevelSoundEventPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::LevelSoundEventPacket(
+                    Box::new(
+                        <LevelSoundEventPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::LevelEventGenericPacket => {
@@ -5991,21 +6250,25 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::EducationSettingsPacket => {
-                let packet = McpePacketData::EducationSettingsPacket(Box::new(
-                    <EducationSettingsPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::EducationSettingsPacket(
+                    Box::new(
+                        <EducationSettingsPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::EmotePacket => {
-                let packet = McpePacketData::EmotePacket(Box::new(
-                    <EmotePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::EmotePacket(
+                    Box::new(
+                        <EmotePacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::MultiplayerSettingsPacket => {
@@ -6045,21 +6308,25 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::NetworkSettingsPacket => {
-                let packet = McpePacketData::NetworkSettingsPacket(Box::new(
-                    <NetworkSettingsPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::NetworkSettingsPacket(
+                    Box::new(
+                        <NetworkSettingsPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::PlayerAuthInputPacket => {
-                let packet = McpePacketData::PlayerAuthInputPacket(Box::new(
-                    <PlayerAuthInputPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::PlayerAuthInputPacket(
+                    Box::new(
+                        <PlayerAuthInputPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::CreativeContentPacket => {
@@ -6162,12 +6429,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::PacketViolationWarningPacket => {
-                let packet = McpePacketData::PacketViolationWarningPacket(Box::new(
-                    <PacketViolationWarningPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::PacketViolationWarningPacket(
+                    Box::new(
+                        <PacketViolationWarningPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::MotionPredictionHintsPacket => {
@@ -6180,21 +6449,25 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::AnimateEntityPacket => {
-                let packet = McpePacketData::AnimateEntityPacket(Box::new(
-                    <AnimateEntityPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::AnimateEntityPacket(
+                    Box::new(
+                        <AnimateEntityPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::CameraShakePacket => {
-                let packet = McpePacketData::CameraShakePacket(Box::new(
-                    <CameraShakePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::CameraShakePacket(
+                    Box::new(
+                        <CameraShakePacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::PlayerFogPacket => {
@@ -6247,12 +6520,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::AddVolumeEntityPacket => {
-                let packet = McpePacketData::AddVolumeEntityPacket(Box::new(
-                    <AddVolumeEntityPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::AddVolumeEntityPacket(
+                    Box::new(
+                        <AddVolumeEntityPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::RemoveVolumeEntityPacket => {
@@ -6274,12 +6549,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::NpcDialoguePacket => {
-                let packet = McpePacketData::NpcDialoguePacket(Box::new(
-                    <NpcDialoguePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::NpcDialoguePacket(
+                    Box::new(
+                        <NpcDialoguePacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::EduUriResourcePacket => {
@@ -6310,12 +6587,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::SubChunkPacket => {
-                let packet = McpePacketData::SubChunkPacket(Box::new(
-                    <SubChunkPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::SubChunkPacket(
+                    Box::new(
+                        <SubChunkPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::SubChunkRequestPacket => {
@@ -6382,12 +6661,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::ChangeMobPropertyPacket => {
-                let packet = McpePacketData::ChangeMobPropertyPacket(Box::new(
-                    <ChangeMobPropertyPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::ChangeMobPropertyPacket(
+                    Box::new(
+                        <ChangeMobPropertyPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::LessonProgressPacket => {
@@ -6400,12 +6681,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::RequestAbilityPacket => {
-                let packet = McpePacketData::RequestAbilityPacket(Box::new(
-                    <RequestAbilityPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::RequestAbilityPacket(
+                    Box::new(
+                        <RequestAbilityPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::RequestPermissionsPacket => {
@@ -6427,21 +6710,25 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::UpdateAbilitiesPacket => {
-                let packet = McpePacketData::UpdateAbilitiesPacket(Box::new(
-                    <UpdateAbilitiesPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::UpdateAbilitiesPacket(
+                    Box::new(
+                        <UpdateAbilitiesPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::UpdateAdventureSettingsPacket => {
-                let packet = McpePacketData::UpdateAdventureSettingsPacket(Box::new(
-                    <UpdateAdventureSettingsPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::UpdateAdventureSettingsPacket(
+                    Box::new(
+                        <UpdateAdventureSettingsPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::DeathInfoPacket => {
@@ -6490,12 +6777,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::GameTestRequestPacket => {
-                let packet = McpePacketData::GameTestRequestPacket(Box::new(
-                    <GameTestRequestPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::GameTestRequestPacket(
+                    Box::new(
+                        <GameTestRequestPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::GameTestResultsPacket => {
@@ -6535,12 +6824,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::CameraInstructionPacket => {
-                let packet = McpePacketData::CameraInstructionPacket(Box::new(
-                    <CameraInstructionPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::CameraInstructionPacket(
+                    Box::new(
+                        <CameraInstructionPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::TrimDataPacket => {
@@ -6656,21 +6947,25 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::ServerboundDiagnosticsPacket => {
-                let packet = McpePacketData::ServerboundDiagnosticsPacket(Box::new(
-                    <ServerboundDiagnosticsPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::ServerboundDiagnosticsPacket(
+                    Box::new(
+                        <ServerboundDiagnosticsPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::CameraAimAssistPacket => {
-                let packet = McpePacketData::CameraAimAssistPacket(Box::new(
-                    <CameraAimAssistPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::CameraAimAssistPacket(
+                    Box::new(
+                        <CameraAimAssistPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::ContainerRegistryCleanupPacket => {
@@ -6683,12 +6978,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::MovementEffectPacket => {
-                let packet = McpePacketData::MovementEffectPacket(Box::new(
-                    <MovementEffectPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::MovementEffectPacket(
+                    Box::new(
+                        <MovementEffectPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::CameraAimAssistPresetsPacket => {
@@ -6730,12 +7027,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::PlayerVideoCapturePacket => {
-                let packet = McpePacketData::PlayerVideoCapturePacket(Box::new(
-                    <PlayerVideoCapturePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::PlayerVideoCapturePacket(
+                    Box::new(
+                        <PlayerVideoCapturePacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::PlayerUpdateEntityOverridesPacket => {
@@ -6750,12 +7049,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::PlayerLocationPacket => {
-                let packet = McpePacketData::PlayerLocationPacket(Box::new(
-                    <PlayerLocationPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::PlayerLocationPacket(
+                    Box::new(
+                        <PlayerLocationPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::ClientboundControlSchemeSetPacket => {
@@ -6808,12 +7109,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::ServerboundDataStorePacket => {
-                let packet = McpePacketData::ServerboundDataStorePacket(Box::new(
-                    <ServerboundDataStorePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::ServerboundDataStorePacket(
+                    Box::new(
+                        <ServerboundDataStorePacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::ClientboundDataDrivenUiShowScreenPacket => {
@@ -6844,12 +7147,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::ClientboundTextureShiftPacket => {
-                let packet = McpePacketData::ClientboundTextureShiftPacket(Box::new(
-                    <ClientboundTextureShiftPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::ClientboundTextureShiftPacket(
+                    Box::new(
+                        <ClientboundTextureShiftPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::VoxelShapesPacket => {
@@ -6916,12 +7221,14 @@ impl McpePacketData {
                 packet
             }
             McpePacketName::SyncWorldClocksPacket => {
-                let packet = McpePacketData::SyncWorldClocksPacket(Box::new(
-                    <SyncWorldClocksPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
+                let packet = McpePacketData::SyncWorldClocksPacket(
+                    Box::new(
+                        <SyncWorldClocksPacket as crate::bedrock::codec::BedrockCodec>::decode(
+                            &mut payload_buf,
+                            (),
+                        )?,
+                    ),
+                );
                 packet
             }
             McpePacketName::ClientboundAttributeLayerSyncPacket => {
@@ -7016,7 +7323,9 @@ impl McpePacketData {
 impl crate::bedrock::codec::BedrockSized for McpePacketData {
     fn encoded_size(&self) -> usize {
         match self {
-            McpePacketData::LoginPacket(v) => crate::bedrock::codec::BedrockSized::encoded_size(v),
+            McpePacketData::LoginPacket(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
             McpePacketData::PlayStatusPacket(v) => {
                 crate::bedrock::codec::BedrockSized::encoded_size(v)
             }
@@ -7038,7 +7347,9 @@ impl crate::bedrock::codec::BedrockSized for McpePacketData {
             McpePacketData::ResourcePackClientResponsePacket(v) => {
                 crate::bedrock::codec::BedrockSized::encoded_size(v)
             }
-            McpePacketData::TextPacket(v) => crate::bedrock::codec::BedrockSized::encoded_size(v),
+            McpePacketData::TextPacket(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
             McpePacketData::SetTimePacket(v) => {
                 crate::bedrock::codec::BedrockSized::encoded_size(v)
             }
@@ -7204,7 +7515,9 @@ impl crate::bedrock::codec::BedrockSized for McpePacketData {
             McpePacketData::GameRulesChangedPacket(v) => {
                 crate::bedrock::codec::BedrockSized::encoded_size(v)
             }
-            McpePacketData::CameraPacket(v) => crate::bedrock::codec::BedrockSized::encoded_size(v),
+            McpePacketData::CameraPacket(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
             McpePacketData::BossEventPacket(v) => {
                 crate::bedrock::codec::BedrockSized::encoded_size(v)
             }
@@ -7376,7 +7689,9 @@ impl crate::bedrock::codec::BedrockSized for McpePacketData {
             McpePacketData::EducationSettingsPacket(v) => {
                 crate::bedrock::codec::BedrockSized::encoded_size(v)
             }
-            McpePacketData::EmotePacket(v) => crate::bedrock::codec::BedrockSized::encoded_size(v),
+            McpePacketData::EmotePacket(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
             McpePacketData::MultiplayerSettingsPacket(v) => {
                 crate::bedrock::codec::BedrockSized::encoded_size(v)
             }
@@ -7572,7 +7887,9 @@ impl crate::bedrock::codec::BedrockSized for McpePacketData {
             McpePacketData::SetPlayerInventoryOptionsPacket(v) => {
                 crate::bedrock::codec::BedrockSized::encoded_size(v)
             }
-            McpePacketData::SetHudPacket(v) => crate::bedrock::codec::BedrockSized::encoded_size(v),
+            McpePacketData::SetHudPacket(v) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(v)
+            }
             McpePacketData::AwardAchievementPacket(v) => {
                 crate::bedrock::codec::BedrockSized::encoded_size(v)
             }
@@ -7707,12 +8024,16 @@ impl McpePacket {
         Self { header, data }
     }
     /// Fast path for encoding into `BytesMut`.
-    pub fn encode_bytes_mut(&self, buf: &mut bytes::BytesMut) -> Result<(), std::io::Error> {
-        self.data.encode_game_frame_bytes_mut(
-            buf,
-            self.header.from_subclient,
-            self.header.to_subclient,
-        )
+    pub fn encode_bytes_mut(
+        &self,
+        buf: &mut bytes::BytesMut,
+    ) -> Result<(), std::io::Error> {
+        self.data
+            .encode_game_frame_bytes_mut(
+                buf,
+                self.header.from_subclient,
+                self.header.to_subclient,
+            )
     }
     /// Creates a new `McpePacket` from a packet payload and explicit subclient IDs.
     ///

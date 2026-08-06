@@ -7,23 +7,28 @@
 #![allow(unused_parens)]
 #![allow(unused_variables)]
 #![allow(clippy::all)]
-use crate::types::*;
 use bytes::Buf;
+use crate::types::*;
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct LoginPacket {
     pub client_network_version: i32,
-    pub connection_request: String,
+    pub connection_request: Vec<u8>,
 }
 impl crate::bedrock::codec::BedrockSized for LoginPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += 4usize;
-        size += {
-            let _len = (&self.connection_request).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.connection_request).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.connection_request)
+                        .iter()
+                        .map(|_item| { 1usize })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -32,10 +37,11 @@ impl crate::bedrock::codec::BedrockCodec for LoginPacket {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
         self.client_network_version.encode(buf)?;
-        let bytes = (&self.connection_request).as_bytes();
-        let len = bytes.len();
+        let len = self.connection_request.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
-        buf.put_slice(bytes);
+        for item in &self.connection_request {
+            (*item).encode(buf)?;
+        }
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -43,27 +49,28 @@ impl crate::bedrock::codec::BedrockCodec for LoginPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let client_network_version = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let client_network_version = <i32 as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let connection_request = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
-                .0) as i64;
-            if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
-            }
-            let len = len_raw as usize;
-            if buf.remaining() < len {
-                return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
-                    declared: len,
-                    available: buf.remaining(),
+                .0 as i64;
+            if raw < 0 {
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
                 });
             }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            let len = raw as usize;
+            let mut tmp_vec = Vec::with_capacity(len);
+            for _ in 0..len {
+                tmp_vec
+                    .push(<u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?);
+            }
+            tmp_vec
         };
         Ok(Self {
             client_network_version,
@@ -94,8 +101,10 @@ impl crate::bedrock::codec::BedrockCodec for PlayStatusPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let status =
-            <PlayStatusPacketStatus as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let status = <PlayStatusPacketStatus as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { status })
     }
 }
@@ -106,12 +115,13 @@ pub struct ServerToClientHandshakePacket {
 impl crate::bedrock::codec::BedrockSized for ServerToClientHandshakePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.handshake_web_token).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.handshake_web_token).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -131,14 +141,15 @@ impl crate::bedrock::codec::BedrockCodec for ServerToClientHandshakePacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let handshake_web_token = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -151,9 +162,7 @@ impl crate::bedrock::codec::BedrockCodec for ServerToClientHandshakePacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        Ok(Self {
-            handshake_web_token,
-        })
+        Ok(Self { handshake_web_token })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -203,10 +212,14 @@ impl crate::bedrock::codec::BedrockCodec for DisconnectPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let reason =
-            <DisconnectPacketReason as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let messages =
-            <DisconnectPacketMessages as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let reason = <DisconnectPacketReason as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let messages = <DisconnectPacketMessages as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { reason, messages })
     }
 }
@@ -226,17 +239,23 @@ impl crate::bedrock::codec::BedrockSized for ResourcePacksInfoPacket {
         size += 1usize;
         size += 1usize;
         size += 1usize;
-        size +=
-            crate::bedrock::codec::BedrockSized::encoded_size(&self.world_template_id_and_version);
-        size += {
-            let _len = (&self.resource_packs).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.resource_packs)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.world_template_id_and_version,
+            );
+        size
+            += {
+                let _len = (&self.resource_packs).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.resource_packs)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -261,29 +280,47 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePacksInfoPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let resource_pack_required =
-            <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let has_addon_packs = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let has_scripts = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let force_disable_vibrant_visuals =
-            <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let world_template_id_and_version =
-            <PackIdVersion as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let resource_pack_required = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let has_addon_packs = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let has_scripts = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let force_disable_vibrant_visuals = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let world_template_id_and_version = <PackIdVersion as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let resource_packs = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec
-                    .push(<PackInfoData as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?);
+                    .push(
+                        <PackInfoData as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
@@ -309,21 +346,26 @@ impl crate::bedrock::codec::BedrockSized for ResourcePackStackPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += 1usize;
-        size += {
-            let _len = (&self.texture_pack_list).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.texture_pack_list)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.base_game_version).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.texture_pack_list).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.texture_pack_list)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.base_game_version).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.experiments);
         size += 1usize;
         size
@@ -352,35 +394,44 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackStackPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let texture_pack_required = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let texture_pack_required = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let texture_pack_list = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <PackInstanceId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
-                );
+                tmp_vec
+                    .push(
+                        <PackInstanceId as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
         let base_game_version = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -393,8 +444,14 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackStackPacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let experiments = <Experiments as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let include_editor_packs = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let experiments = <Experiments as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let include_editor_packs = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             texture_pack_required,
             texture_pack_list,
@@ -447,30 +504,33 @@ impl crate::bedrock::codec::BedrockSized for TextPacket {
         let mut size = 0usize;
         size += 1usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.body);
-        size += {
-            let _len = (&self.senders_xuid).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.platform_id).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            1usize
-                + match &self.filtered_message {
-                    Some(_v) => {
-                        let _len = (_v).as_bytes().len();
-                        crate::bedrock::codec::BedrockSized::encoded_size(
-                            &crate::bedrock::codec::VarInt(_len as i32),
-                        ) + _len
+        size
+            += {
+                let _len = (&self.senders_xuid).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.platform_id).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                1usize
+                    + match &self.filtered_message {
+                        Some(_v) => {
+                            let _len = (_v).as_bytes().len();
+                            crate::bedrock::codec::BedrockSized::encoded_size(
+                                &crate::bedrock::codec::VarInt(_len as i32),
+                            ) + _len
+                        }
+                        None => 0usize,
                     }
-                    None => 0usize,
-                }
-        };
+            };
         size
     }
 }
@@ -506,16 +566,20 @@ impl crate::bedrock::codec::BedrockCodec for TextPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let localize = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let body = <TextPacketBody as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let body = <TextPacketBody as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let senders_xuid = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -529,14 +593,15 @@ impl crate::bedrock::codec::BedrockCodec for TextPacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let platform_id = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -594,9 +659,10 @@ pub struct SetTimePacket {
 impl crate::bedrock::codec::BedrockSized for SetTimePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.time),
-        );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.time),
+            );
         size
     }
 }
@@ -612,8 +678,7 @@ impl crate::bedrock::codec::BedrockCodec for SetTimePacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let time =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let time = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
@@ -646,7 +711,9 @@ pub struct StartGamePacket {
     pub server_enabled_client_side_generation: bool,
     pub block_network_ids_are_hashes: bool,
     pub network_permissions: NetworkPermissions,
-    pub server_configuration_join_info: Option<ServerConfigurationServerConfigurationJoinInfo>,
+    pub server_configuration_join_info: Option<
+        ServerConfigurationServerConfigurationJoinInfo,
+    >,
     pub server_telemetry_data: SocialEventsServerTelemetryData,
 }
 impl crate::bedrock::codec::BedrockSized for StartGamePacket {
@@ -658,66 +725,89 @@ impl crate::bedrock::codec::BedrockSized for StartGamePacket {
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.position);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.rotation);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.settings);
-        size += {
-            let _len = (&self.level_id).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.level_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.template_content_identity).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.level_id).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.level_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.template_content_identity).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += 1usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.movement_settings);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.movement_settings,
+            );
         size += 8usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.enchantment_seed),
-        );
-        size += {
-            let _len = (&self.block_properties).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.block_properties)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.multiplayer_correlation_id).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.enchantment_seed),
+            );
+        size
+            += {
+                let _len = (&self.block_properties).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.block_properties)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.multiplayer_correlation_id).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += 1usize;
-        size += {
-            let _len = (&self.server_version).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.player_property_data);
+        size
+            += {
+                let _len = (&self.server_version).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.player_property_data,
+            );
         size += 8usize;
         size += 16usize;
         size += 1usize;
         size += 1usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.network_permissions);
-        size += {
-            1usize
-                + match &self.server_configuration_join_info {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.server_telemetry_data);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.network_permissions,
+            );
+        size
+            += {
+                1usize
+                    + match &self.server_configuration_join_info {
+                        Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
+                        None => 0usize,
+                    }
+            };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.server_telemetry_data,
+            );
         size
     }
 }
@@ -762,7 +852,8 @@ impl crate::bedrock::codec::BedrockCodec for StartGamePacket {
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         buf.put_slice(bytes);
         self.player_property_data.encode(buf)?;
-        crate::bedrock::codec::U64LE(self.server_block_type_registry_checksum).encode(buf)?;
+        crate::bedrock::codec::U64LE(self.server_block_type_registry_checksum)
+            .encode(buf)?;
         self.world_template_id.encode(buf)?;
         self.server_enabled_client_side_generation.encode(buf)?;
         self.block_network_ids_are_hashes.encode(buf)?;
@@ -782,22 +873,34 @@ impl crate::bedrock::codec::BedrockCodec for StartGamePacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let entity_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let game_type =
-            <StartGamePacketGameType as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let entity_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let game_type = <StartGamePacketGameType as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let position = <Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let rotation = <Vec2 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let settings = <LevelSettings as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let settings = <LevelSettings as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let level_id = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -811,14 +914,15 @@ impl crate::bedrock::codec::BedrockCodec for StartGamePacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let level_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -832,14 +936,15 @@ impl crate::bedrock::codec::BedrockCodec for StartGamePacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let template_content_identity = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -853,45 +958,54 @@ impl crate::bedrock::codec::BedrockCodec for StartGamePacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let is_trial = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let movement_settings =
-            <SyncedPlayerMovementSettings as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let level_current_time =
-            <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let enchantment_seed =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let movement_settings = <SyncedPlayerMovementSettings as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let level_current_time = <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let enchantment_seed = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
         let block_properties = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <ServerBlockProperty as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
-                );
+                tmp_vec
+                    .push(
+                        <ServerBlockProperty as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
         let multiplayer_correlation_id = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -904,17 +1018,20 @@ impl crate::bedrock::codec::BedrockCodec for StartGamePacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let enable_item_stack_net_manager =
-            <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let enable_item_stack_net_manager = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let server_version = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -927,19 +1044,31 @@ impl crate::bedrock::codec::BedrockCodec for StartGamePacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let player_property_data =
-            <crate::bedrock::codec::Nbt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let server_block_type_registry_checksum =
-            <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let world_template_id =
-            <uuid::Uuid as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let server_enabled_client_side_generation =
-            <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let block_network_ids_are_hashes =
-            <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let network_permissions =
-            <NetworkPermissions as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let player_property_data = <crate::bedrock::codec::Nbt as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let server_block_type_registry_checksum = <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let world_template_id = <uuid::Uuid as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let server_enabled_client_side_generation = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let block_network_ids_are_hashes = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let network_permissions = <NetworkPermissions as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let server_configuration_join_info = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
@@ -953,11 +1082,10 @@ impl crate::bedrock::codec::BedrockCodec for StartGamePacket {
                 None
             }
         };
-        let server_telemetry_data =
-            <SocialEventsServerTelemetryData as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
+        let server_telemetry_data = <SocialEventsServerTelemetryData as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             entity_id,
             runtime_id,
@@ -1010,43 +1138,57 @@ impl crate::bedrock::codec::BedrockSized for AddPlayerPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += 16usize;
-        size += {
-            let _len = (&self.player_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.target_runtime_id);
-        size += {
-            let _len = (&self.platform_chat_id).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.player_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.target_runtime_id,
+            );
+        size
+            += {
+                let _len = (&self.platform_chat_id).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.position);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.velocity);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.rotation);
         size += 4usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.carried_item);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.player_game_type);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(&self.player_game_type);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.entity_data);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.synched_properties);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.synched_properties,
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.abilities_data);
-        size += {
-            let _len = (&self.actor_links).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.actor_links)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.device_id).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.actor_links).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.actor_links)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.device_id).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.build_platform);
         size
     }
@@ -1093,14 +1235,15 @@ impl crate::bedrock::codec::BedrockCodec for AddPlayerPacket {
         let _ = buf;
         let uuid = <uuid::Uuid as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let player_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -1113,17 +1256,20 @@ impl crate::bedrock::codec::BedrockCodec for AddPlayerPacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let target_runtime_id =
-            <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let target_runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let platform_chat_id = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -1139,56 +1285,65 @@ impl crate::bedrock::codec::BedrockCodec for AddPlayerPacket {
         let position = <Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let velocity = <Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let rotation = <Vec2 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let y_head_rotation =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
+        let y_head_rotation = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let carried_item = <CerealizerNetworkItemStackDescriptorSerializedData as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
         )?;
-        let player_game_type =
-            <AddPlayerPacketPlayerGameType as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
-        let entity_data =
-            <SynchedActorDataCopyableDataList as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
-        let synched_properties =
-            <PropertySyncData as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let abilities_data =
-            <SerializedAbilitiesData as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let player_game_type = <AddPlayerPacketPlayerGameType as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let entity_data = <SynchedActorDataCopyableDataList as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let synched_properties = <PropertySyncData as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let abilities_data = <SerializedAbilitiesData as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let actor_links = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(<ActorLink as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?);
+                tmp_vec
+                    .push(
+                        <ActorLink as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
         let device_id = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -1201,8 +1356,10 @@ impl crate::bedrock::codec::BedrockCodec for AddPlayerPacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let build_platform =
-            <AddPlayerPacketBuildPlatform as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let build_platform = <AddPlayerPacketBuildPlatform as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             uuid,
             player_name,
@@ -1242,38 +1399,53 @@ impl crate::bedrock::codec::BedrockSized for AddActorPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.target_actor_id);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.target_runtime_id);
-        size += {
-            let _len = (&self.actor_type).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.target_runtime_id,
+            );
+        size
+            += {
+                let _len = (&self.actor_type).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.position);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.velocity);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.rotation);
         size += 4usize;
         size += 4usize;
-        size += {
-            let _len = (&self.attributes_list).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.attributes_list)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.attributes_list).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.attributes_list)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.actor_data);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.synched_properties);
-        size += {
-            let _len = (&self.actor_links).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.actor_links)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.synched_properties,
+            );
+        size
+            += {
+                let _len = (&self.actor_links).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.actor_links)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -1311,19 +1483,24 @@ impl crate::bedrock::codec::BedrockCodec for AddActorPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let target_actor_id =
-            <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let target_runtime_id =
-            <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let target_actor_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let target_runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let actor_type = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -1339,55 +1516,69 @@ impl crate::bedrock::codec::BedrockCodec for AddActorPacket {
         let position = <Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let velocity = <Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let rotation = <Vec2 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let y_head_rotation =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let y_body_rotation =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
+        let y_head_rotation = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let y_body_rotation = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let attributes_list = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <SyncedAttribute as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
-                );
+                tmp_vec
+                    .push(
+                        <SyncedAttribute as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
-        let actor_data =
-            <SynchedActorDataCopyableDataList as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
-        let synched_properties =
-            <PropertySyncData as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let actor_data = <SynchedActorDataCopyableDataList as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let synched_properties = <PropertySyncData as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let actor_links = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(<ActorLink as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?);
+                tmp_vec
+                    .push(
+                        <ActorLink as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
@@ -1430,8 +1621,10 @@ impl crate::bedrock::codec::BedrockCodec for RemoveActorPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let target_actor_id =
-            <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let target_actor_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { target_actor_id })
     }
 }
@@ -1449,7 +1642,10 @@ impl crate::bedrock::codec::BedrockSized for AddItemActorPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.target_actor_id);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.target_runtime_id);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.target_runtime_id,
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.item);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.position);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.velocity);
@@ -1476,22 +1672,28 @@ impl crate::bedrock::codec::BedrockCodec for AddItemActorPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let target_actor_id =
-            <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let target_runtime_id =
-            <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let target_actor_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let target_runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let item = <CerealizerNetworkItemStackDescriptorSerializedData as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
         )?;
         let position = <Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let velocity = <Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let entity_data =
-            <SynchedActorDataCopyableDataList as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
-        let is_from_fishing = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let entity_data = <SynchedActorDataCopyableDataList as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let is_from_fishing = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             target_actor_id,
             target_runtime_id,
@@ -1539,7 +1741,8 @@ impl crate::bedrock::codec::BedrockSized for TakeItemActorPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.item_runtime_id);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.actor_runtime_id);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(&self.actor_runtime_id);
         size
     }
 }
@@ -1556,10 +1759,14 @@ impl crate::bedrock::codec::BedrockCodec for TakeItemActorPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let item_runtime_id =
-            <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let actor_runtime_id =
-            <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let item_runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let actor_runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             item_runtime_id,
             actor_runtime_id,
@@ -1589,8 +1796,10 @@ impl crate::bedrock::codec::BedrockCodec for MoveActorAbsolutePacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let move_data =
-            <MoveActorAbsoluteData as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let move_data = <MoveActorAbsoluteData as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { move_data })
     }
 }
@@ -1609,20 +1818,27 @@ pub struct MovePlayerPacket {
 impl crate::bedrock::codec::BedrockSized for MovePlayerPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.player_runtime_id);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.player_runtime_id,
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.position);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.rotation);
         size += 4usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.position_mode);
         size += 1usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.riding_runtime_id);
-        size += {
-            1usize
-                + match &self.teleport_data {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.riding_runtime_id,
+            );
+        size
+            += {
+                1usize
+                    + match &self.teleport_data {
+                        Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
+                        None => 0usize,
+                    }
+            };
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.tick);
         size
     }
@@ -1653,18 +1869,26 @@ impl crate::bedrock::codec::BedrockCodec for MovePlayerPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let player_runtime_id =
-            <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let player_runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let position = <Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let rotation = <Vec2 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let y_head_rotation =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let position_mode =
-            <MovePlayerPacketPositionMode as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let y_head_rotation = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let position_mode = <MovePlayerPacketPositionMode as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let on_ground = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let riding_runtime_id =
-            <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let riding_runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let teleport_data = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
@@ -1678,7 +1902,10 @@ impl crate::bedrock::codec::BedrockCodec for MovePlayerPacket {
                 None
             }
         };
-        let tick = <PlayerInputTick as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let tick = <PlayerInputTick as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             player_runtime_id,
             position,
@@ -1703,15 +1930,18 @@ impl crate::bedrock::codec::BedrockSized for UpdateBlockPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.block_position);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-            self.block_runtime_id,
-        ));
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-            self.flags,
-        ));
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-            self.layer,
-        ));
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::VarInt(self.block_runtime_id),
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::VarInt(self.flags),
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::VarInt(self.layer),
+            );
         size
     }
 }
@@ -1730,23 +1960,25 @@ impl crate::bedrock::codec::BedrockCodec for UpdateBlockPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let block_position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let block_runtime_id =
-            <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+        let block_position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let block_runtime_id = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
         let flags = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?
-        .0;
+                buf,
+                (),
+            )?
+            .0;
         let layer = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?
-        .0;
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             block_position,
             block_runtime_id,
@@ -1767,17 +1999,22 @@ impl crate::bedrock::codec::BedrockSized for AddPaintingPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.target_actor_id);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.target_runtime_id);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.target_runtime_id,
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.position);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.direction),
-        );
-        size += {
-            let _len = (&self.motif).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.direction),
+            );
+        size
+            += {
+                let _len = (&self.motif).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -1800,26 +2037,30 @@ impl crate::bedrock::codec::BedrockCodec for AddPaintingPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let target_actor_id =
-            <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let target_runtime_id =
-            <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let target_actor_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let target_runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let position = <Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let direction =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let direction = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
         let motif = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -1850,13 +2091,15 @@ pub struct LevelEventPacket {
 impl crate::bedrock::codec::BedrockSized for LevelEventPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.event_id),
-        );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.event_id),
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.position);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.data),
-        );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.data),
+            );
         size
     }
 }
@@ -1874,24 +2117,18 @@ impl crate::bedrock::codec::BedrockCodec for LevelEventPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let event_id =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let event_id = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
         let position = <Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let data =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let data = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        Ok(Self {
-            event_id,
-            position,
-            data,
-        })
+        Ok(Self { event_id, position, data })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -1904,12 +2141,14 @@ impl crate::bedrock::codec::BedrockSized for BlockEventPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.block_position);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.event_type),
-        );
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.event_value),
-        );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.event_type),
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.event_value),
+            );
         size
     }
 }
@@ -1927,15 +2166,16 @@ impl crate::bedrock::codec::BedrockCodec for BlockEventPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let block_position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let event_type =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let block_position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let event_type = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let event_value =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let event_value = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
@@ -1957,18 +2197,23 @@ pub struct ActorEventPacket {
 impl crate::bedrock::codec::BedrockSized for ActorEventPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.target_runtime_id);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.target_runtime_id,
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.event_id);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.data),
-        );
-        size += {
-            1usize
-                + match &self.fire_at_position {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.data),
+            );
+        size
+            += {
+                1usize
+                    + match &self.fire_at_position {
+                        Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
+                        None => 0usize,
+                    }
+            };
         size
     }
 }
@@ -1993,12 +2238,15 @@ impl crate::bedrock::codec::BedrockCodec for ActorEventPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let target_runtime_id =
-            <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let event_id =
-            <ActorEventPacketEventId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let data =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let target_runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let event_id = <ActorEventPacketEventId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let data = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
@@ -2006,10 +2254,7 @@ impl crate::bedrock::codec::BedrockCodec for ActorEventPacket {
         let fire_at_position = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<Vec3 as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?)
+                Some(<Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
             } else {
                 None
             }
@@ -2036,18 +2281,24 @@ pub struct MobEffectPacket {
 impl crate::bedrock::codec::BedrockSized for MobEffectPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.target_runtime_id);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.target_runtime_id,
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.event_id);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.effect_id),
-        );
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.effect_amplifier),
-        );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.effect_id),
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.effect_amplifier),
+            );
         size += 1usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.effect_duration_ticks),
-        );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.effect_duration_ticks),
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.tick);
         size += 1usize;
         size
@@ -2072,30 +2323,37 @@ impl crate::bedrock::codec::BedrockCodec for MobEffectPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let target_runtime_id =
-            <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let event_id =
-            <MobEffectPacketEventId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let effect_id =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let target_runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let event_id = <MobEffectPacketEventId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let effect_id = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let effect_amplifier =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let effect_amplifier = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let show_particles = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let effect_duration_ticks =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let show_particles = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let effect_duration_ticks = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let tick = <PlayerInputTick as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let tick = <PlayerInputTick as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let ambient = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self {
             target_runtime_id,
@@ -2118,16 +2376,23 @@ pub struct UpdateAttributesPacket {
 impl crate::bedrock::codec::BedrockSized for UpdateAttributesPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.target_runtime_id);
-        size += {
-            let _len = (&self.attribute_list).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.attribute_list)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.target_runtime_id,
+            );
+        size
+            += {
+                let _len = (&self.attribute_list).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.attribute_list)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.tick);
         size
     }
@@ -2150,27 +2415,38 @@ impl crate::bedrock::codec::BedrockCodec for UpdateAttributesPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let target_runtime_id =
-            <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let target_runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let attribute_list = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec
-                    .push(<AttributeData as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?);
+                    .push(
+                        <AttributeData as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
-        let tick = <PlayerInputTick as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let tick = <PlayerInputTick as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             target_runtime_id,
             attribute_list,
@@ -2188,22 +2464,29 @@ pub struct InventoryTransactionPacket {
 impl crate::bedrock::codec::BedrockSized for InventoryTransactionPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.legacy_request_id);
-        size += {
-            1usize
-                + match &self.legacy_set_item_slots {
-                    Some(_v) => {
-                        let _len = (_v).len();
-                        crate::bedrock::codec::BedrockSized::encoded_size(
-                            &crate::bedrock::codec::VarInt(_len as i32),
-                        ) + (_v)
-                            .iter()
-                            .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                            .sum::<usize>()
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.legacy_request_id,
+            );
+        size
+            += {
+                1usize
+                    + match &self.legacy_set_item_slots {
+                        Some(_v) => {
+                            let _len = (_v).len();
+                            crate::bedrock::codec::BedrockSized::encoded_size(
+                                &crate::bedrock::codec::VarInt(_len as i32),
+                            )
+                                + (_v)
+                                    .iter()
+                                    .map(|_item| {
+                                        crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                                    })
+                                    .sum::<usize>()
+                        }
+                        None => 0usize,
                     }
-                    None => 0usize,
-                }
-        };
+            };
         size += 1usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.transaction);
         size
@@ -2255,12 +2538,13 @@ impl crate::bedrock::codec::BedrockCodec for InventoryTransactionPacket {
                     let len = raw as usize;
                     let mut tmp_vec = Vec::with_capacity(len);
                     for _ in 0..len {
-                        tmp_vec.push(
-                            <LegacySetSlot as crate::bedrock::codec::BedrockCodec>::decode(
-                                buf,
-                                (),
-                            )?,
-                        );
+                        tmp_vec
+                            .push(
+                                <LegacySetSlot as crate::bedrock::codec::BedrockCodec>::decode(
+                                    buf,
+                                    (),
+                                )?,
+                            );
                     }
                     tmp_vec
                 })
@@ -2269,11 +2553,10 @@ impl crate::bedrock::codec::BedrockCodec for InventoryTransactionPacket {
             }
         };
         let constant_2 = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let transaction =
-            <InventoryTransactionPacketTransaction as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
+        let transaction = <InventoryTransactionPacketTransaction as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             legacy_request_id,
             legacy_set_item_slots,
@@ -2293,7 +2576,10 @@ pub struct MobEquipmentPacket {
 impl crate::bedrock::codec::BedrockSized for MobEquipmentPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.target_runtime_id);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.target_runtime_id,
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.item);
         size += 1usize;
         size += 1usize;
@@ -2317,14 +2603,19 @@ impl crate::bedrock::codec::BedrockCodec for MobEquipmentPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let target_runtime_id =
-            <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let target_runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let item = <CerealizerNetworkItemStackDescriptorSerializedData as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
         )?;
         let slot = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let selected_slot = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let selected_slot = <u8 as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let container_id = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self {
             target_runtime_id,
@@ -2347,7 +2638,10 @@ pub struct MobArmorEquipmentPacket {
 impl crate::bedrock::codec::BedrockSized for MobArmorEquipmentPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.target_runtime_id);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.target_runtime_id,
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.head);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.torso);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.legs);
@@ -2373,8 +2667,10 @@ impl crate::bedrock::codec::BedrockCodec for MobArmorEquipmentPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let target_runtime_id =
-            <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let target_runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let head = <CerealizerNetworkItemStackDescriptorSerializedData as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -2415,14 +2711,18 @@ impl crate::bedrock::codec::BedrockSized for InteractPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.action);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.target_runtime_id);
-        size += {
-            1usize
-                + match &self.position {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.target_runtime_id,
+            );
+        size
+            += {
+                1usize
+                    + match &self.position {
+                        Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
+                        None => 0usize,
+                    }
+            };
         size
     }
 }
@@ -2446,17 +2746,18 @@ impl crate::bedrock::codec::BedrockCodec for InteractPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let action =
-            <InteractPacketAction as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let target_runtime_id =
-            <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let action = <InteractPacketAction as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let target_runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let position = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<Vec3 as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?)
+                Some(<Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
             } else {
                 None
             }
@@ -2497,7 +2798,10 @@ impl crate::bedrock::codec::BedrockCodec for BlockPickRequestPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let with_data = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let max_slots = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self {
@@ -2536,9 +2840,11 @@ impl crate::bedrock::codec::BedrockCodec for ActorPickRequestPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let actor_id =
-            <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
+        let actor_id = <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let max_slots = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let with_data = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self {
@@ -2559,13 +2865,17 @@ pub struct PlayerActionPacket {
 impl crate::bedrock::codec::BedrockSized for PlayerActionPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.player_runtime_id);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.player_runtime_id,
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.action);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.block_position);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.result_pos);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.face),
-        );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.face),
+            );
         size
     }
 }
@@ -2585,14 +2895,23 @@ impl crate::bedrock::codec::BedrockCodec for PlayerActionPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let player_runtime_id =
-            <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let action =
-            <PlayerActionPacketAction as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let block_position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let result_pos = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let face =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let player_runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let action = <PlayerActionPacketAction as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let block_position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let result_pos = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let face = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
@@ -2615,15 +2934,18 @@ pub struct HurtArmorPacket {
 impl crate::bedrock::codec::BedrockSized for HurtArmorPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.cause),
-        );
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.damage),
-        );
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarLong(
-            self.armor_slots,
-        ));
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.cause),
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.damage),
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::VarLong(self.armor_slots),
+            );
         size
     }
 }
@@ -2641,29 +2963,22 @@ impl crate::bedrock::codec::BedrockCodec for HurtArmorPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let cause =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let cause = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let damage =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let damage = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let armor_slots =
-            <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
+        let armor_slots = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        Ok(Self {
-            cause,
-            damage,
-            armor_slots,
-        })
+        Ok(Self { cause, damage, armor_slots })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -2676,9 +2991,15 @@ pub struct SetActorDataPacket {
 impl crate::bedrock::codec::BedrockSized for SetActorDataPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.target_runtime_id);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.target_runtime_id,
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.actor_data);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.synched_properties);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.synched_properties,
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.tick);
         size
     }
@@ -2698,16 +3019,22 @@ impl crate::bedrock::codec::BedrockCodec for SetActorDataPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let target_runtime_id =
-            <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let actor_data =
-            <SynchedActorDataCopyableDataList as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
-        let synched_properties =
-            <PropertySyncData as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let tick = <PlayerInputTick as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let target_runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let actor_data = <SynchedActorDataCopyableDataList as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let synched_properties = <PropertySyncData as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let tick = <PlayerInputTick as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             target_runtime_id,
             actor_data,
@@ -2725,7 +3052,10 @@ pub struct SetActorMotionPacket {
 impl crate::bedrock::codec::BedrockSized for SetActorMotionPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.target_runtime_id);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.target_runtime_id,
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.motion);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.tick);
         size
@@ -2745,10 +3075,15 @@ impl crate::bedrock::codec::BedrockCodec for SetActorMotionPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let target_runtime_id =
-            <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let target_runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let motion = <Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let tick = <PlayerInputTick as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let tick = <PlayerInputTick as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             target_runtime_id,
             motion,
@@ -2790,9 +3125,10 @@ pub struct SetHealthPacket {
 impl crate::bedrock::codec::BedrockSized for SetHealthPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.health),
-        );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.health),
+            );
         size
     }
 }
@@ -2808,8 +3144,7 @@ impl crate::bedrock::codec::BedrockCodec for SetHealthPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let health =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let health = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
@@ -2827,7 +3162,10 @@ pub struct SetSpawnPositionPacket {
 impl crate::bedrock::codec::BedrockSized for SetSpawnPositionPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.spawn_position_type);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.spawn_position_type,
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.block_position);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.dimensiontype);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.spawn_block_pos);
@@ -2853,10 +3191,18 @@ impl crate::bedrock::codec::BedrockCodec for SetSpawnPositionPacket {
             buf,
             (),
         )?;
-        let block_position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let dimensiontype =
-            <DimensionType as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let spawn_block_pos = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let block_position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let dimensiontype = <DimensionType as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let spawn_block_pos = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             spawn_position_type,
             block_position,
@@ -2876,20 +3222,24 @@ impl crate::bedrock::codec::BedrockSized for AnimatePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.action);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.target_actor_runtime_id);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.target_actor_runtime_id,
+            );
         size += 4usize;
-        size += {
-            1usize
-                + match &self.swing_source {
-                    Some(_v) => {
-                        let _len = (_v).as_bytes().len();
-                        crate::bedrock::codec::BedrockSized::encoded_size(
-                            &crate::bedrock::codec::VarInt(_len as i32),
-                        ) + _len
+        size
+            += {
+                1usize
+                    + match &self.swing_source {
+                        Some(_v) => {
+                            let _len = (_v).as_bytes().len();
+                            crate::bedrock::codec::BedrockSized::encoded_size(
+                                &crate::bedrock::codec::VarInt(_len as i32),
+                            ) + _len
+                        }
+                        None => 0usize,
                     }
-                    None => 0usize,
-                }
-        };
+            };
         size
     }
 }
@@ -2917,12 +3267,19 @@ impl crate::bedrock::codec::BedrockCodec for AnimatePacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let action = <AnimatePacketAction as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let target_actor_runtime_id =
-            <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let data =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
+        let action = <AnimatePacketAction as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let target_actor_runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let data = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let swing_source = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
@@ -2971,7 +3328,10 @@ impl crate::bedrock::codec::BedrockSized for RespawnPacket {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.position);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.state);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.player_runtime_id);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.player_runtime_id,
+            );
         size
     }
 }
@@ -2990,9 +3350,14 @@ impl crate::bedrock::codec::BedrockCodec for RespawnPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let position = <Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let state = <RespawnPacketState as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let player_runtime_id =
-            <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let state = <RespawnPacketState as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let player_runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             position,
             state,
@@ -3033,10 +3398,18 @@ impl crate::bedrock::codec::BedrockCodec for ContainerOpenPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let container_id = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let container_type = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let target_actor_id =
-            <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let container_type = <u8 as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let target_actor_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             container_id,
             container_type,
@@ -3075,9 +3448,14 @@ impl crate::bedrock::codec::BedrockCodec for ContainerClosePacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let container_id = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let container_type = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let server_initiated_close =
-            <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let container_type = <u8 as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let server_initiated_close = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             container_id,
             container_type,
@@ -3094,9 +3472,10 @@ pub struct PlayerHotbarPacket {
 impl crate::bedrock::codec::BedrockSized for PlayerHotbarPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-            self.selected_slot,
-        ));
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::VarInt(self.selected_slot),
+            );
         size += 1usize;
         size += 1usize;
         size
@@ -3116,14 +3495,16 @@ impl crate::bedrock::codec::BedrockCodec for PlayerHotbarPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let selected_slot =
-            <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+        let selected_slot = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
         let container_id = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let shouldselectslot = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let shouldselectslot = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             selected_slot,
             container_id,
@@ -3141,19 +3522,27 @@ pub struct InventoryContentPacket {
 impl crate::bedrock::codec::BedrockSized for InventoryContentPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-            self.container_id,
-        ));
-        size += {
-            let _len = (&self.slots).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.slots)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.full_container_name);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::VarInt(self.container_id),
+            );
+        size
+            += {
+                let _len = (&self.slots).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.slots)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.full_container_name,
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.storage_item);
         size
     }
@@ -3177,21 +3566,21 @@ impl crate::bedrock::codec::BedrockCodec for InventoryContentPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let container_id =
-            <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+        let container_id = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
         let slots = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -3206,8 +3595,10 @@ impl crate::bedrock::codec::BedrockCodec for InventoryContentPacket {
             }
             tmp_vec
         };
-        let full_container_name =
-            <FullContainerName as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let full_container_name = <FullContainerName as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let storage_item = <CerealizerNetworkItemStackDescriptorSerializedData as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -3232,23 +3623,26 @@ impl crate::bedrock::codec::BedrockSized for InventorySlotPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += 1usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-            self.slot,
-        ));
-        size += {
-            1usize
-                + match &self.full_container_name {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
-        size += {
-            1usize
-                + match &self.storage_item {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::VarInt(self.slot),
+            );
+        size
+            += {
+                1usize
+                    + match &self.full_container_name {
+                        Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
+                        None => 0usize,
+                    }
+            };
+        size
+            += {
+                1usize
+                    + match &self.storage_item {
+                        Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
+                        None => 0usize,
+                    }
+            };
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.item);
         size
     }
@@ -3283,14 +3677,19 @@ impl crate::bedrock::codec::BedrockCodec for InventorySlotPacket {
         let _ = buf;
         let container_id = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let slot = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?
-        .0;
+                buf,
+                (),
+            )?
+            .0;
         let full_container_name = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<FullContainerName as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <FullContainerName as crate::bedrock::codec::BedrockCodec>::decode(
+                        buf,
+                        (),
+                    )?,
+                )
             } else {
                 None
             }
@@ -3331,12 +3730,14 @@ impl crate::bedrock::codec::BedrockSized for ContainerSetDataPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += 1usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.id),
-        );
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.value),
-        );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.id),
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.value),
+            );
         size
     }
 }
@@ -3356,21 +3757,16 @@ impl crate::bedrock::codec::BedrockCodec for ContainerSetDataPacket {
         let _ = buf;
         let container_id = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let id = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?
-        .0;
-        let value =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        Ok(Self {
-            container_id,
-            id,
-            value,
-        })
+        let value = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        Ok(Self { container_id, id, value })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -3391,105 +3787,149 @@ pub struct CraftingDataPacket {
 impl crate::bedrock::codec::BedrockSized for CraftingDataPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.shaped_recipes).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.shaped_recipes)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.shapeless_recipes).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.shapeless_recipes)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.multi_recipes).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.multi_recipes)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.user_data_shapeless_recipes).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.user_data_shapeless_recipes)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.shapeless_chemistry_recipes).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.shapeless_chemistry_recipes)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.shaped_chemistry_recipes).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.shaped_chemistry_recipes)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.smithing_transform_recipes).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.smithing_transform_recipes)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.smithing_trim_recipes).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.smithing_trim_recipes)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.potion_mixes).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.potion_mixes)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.container_mixes).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.container_mixes)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.material_reducers).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.material_reducers)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.shaped_recipes).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.shaped_recipes)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.shapeless_recipes).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.shapeless_recipes)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.multi_recipes).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.multi_recipes)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.user_data_shapeless_recipes).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.user_data_shapeless_recipes)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.shapeless_chemistry_recipes).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.shapeless_chemistry_recipes)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.shaped_chemistry_recipes).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.shaped_chemistry_recipes)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.smithing_transform_recipes).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.smithing_transform_recipes)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.smithing_trim_recipes).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.smithing_trim_recipes)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.potion_mixes).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.potion_mixes)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.container_mixes).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.container_mixes)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.material_reducers).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.material_reducers)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size += 1usize;
         size
     }
@@ -3562,137 +4002,159 @@ impl crate::bedrock::codec::BedrockCodec for CraftingDataPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let shaped_recipes = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <ShapedRecipePayload as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
-                );
+                tmp_vec
+                    .push(
+                        <ShapedRecipePayload as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
         let shapeless_recipes = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <ShapelessRecipePayload as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                );
+                tmp_vec
+                    .push(
+                        <ShapelessRecipePayload as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
         let multi_recipes = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <MultiRecipePayload as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
-                );
+                tmp_vec
+                    .push(
+                        <MultiRecipePayload as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
         let user_data_shapeless_recipes = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <ShapelessRecipePayload as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                );
+                tmp_vec
+                    .push(
+                        <ShapelessRecipePayload as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
         let shapeless_chemistry_recipes = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <ShapelessRecipePayload as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                );
+                tmp_vec
+                    .push(
+                        <ShapelessRecipePayload as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
         let shaped_chemistry_recipes = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <ShapedRecipePayload as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
-                );
+                tmp_vec
+                    .push(
+                        <ShapedRecipePayload as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
         let smithing_transform_recipes = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -3708,91 +4170,105 @@ impl crate::bedrock::codec::BedrockCodec for CraftingDataPacket {
             tmp_vec
         };
         let smithing_trim_recipes = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <SmithingTrimRecipePayload as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                );
+                tmp_vec
+                    .push(
+                        <SmithingTrimRecipePayload as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
         let potion_mixes = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <PotionMixDataEntry as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
-                );
+                tmp_vec
+                    .push(
+                        <PotionMixDataEntry as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
         let container_mixes = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <ContainerMixDataEntry as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                );
+                tmp_vec
+                    .push(
+                        <ContainerMixDataEntry as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
         let material_reducers = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <MaterialReducerDataEntry as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                );
+                tmp_vec
+                    .push(
+                        <MaterialReducerDataEntry as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
-        let clear_recipes = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let clear_recipes = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             shaped_recipes,
             shapeless_recipes,
@@ -3818,18 +4294,20 @@ pub struct GuiDataPickItemPacket {
 impl crate::bedrock::codec::BedrockSized for GuiDataPickItemPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.item_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.item_effect_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.item_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.item_effect_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += 4usize;
         size
     }
@@ -3855,14 +4333,15 @@ impl crate::bedrock::codec::BedrockCodec for GuiDataPickItemPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let item_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -3876,14 +4355,15 @@ impl crate::bedrock::codec::BedrockCodec for GuiDataPickItemPacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let item_effect_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -3896,9 +4376,11 @@ impl crate::bedrock::codec::BedrockCodec for GuiDataPickItemPacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let slot =
-            <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
+        let slot = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             item_name,
             item_effect_name,
@@ -3932,9 +4414,14 @@ impl crate::bedrock::codec::BedrockCodec for BlockActorDataPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let block_position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let actor_data_tags =
-            <crate::bedrock::codec::Nbt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let block_position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let actor_data_tags = <crate::bedrock::codec::Nbt as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             block_position,
             actor_data_tags,
@@ -3956,34 +4443,43 @@ impl crate::bedrock::codec::BedrockSized for LevelChunkPacket {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.chunk_position);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.dimension_id);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-            self.subchunks_count,
-        ));
-        size += {
-            1usize
-                + match &self.client_request_sub_chunk_limit {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(
-                        &crate::bedrock::codec::ZigZag32(*_v),
-                    ),
-                    None => 0usize,
-                }
-        };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::VarInt(self.subchunks_count),
+            );
+        size
+            += {
+                1usize
+                    + match &self.client_request_sub_chunk_limit {
+                        Some(_v) => {
+                            crate::bedrock::codec::BedrockSized::encoded_size(
+                                &crate::bedrock::codec::ZigZag32(*_v),
+                            )
+                        }
+                        None => 0usize,
+                    }
+            };
         size += 1usize;
-        size += {
-            let _len = (&self.cache_metadata).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.cache_metadata)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.serialized_chunk_data).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.cache_metadata).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.cache_metadata)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.serialized_chunk_data).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -4018,10 +4514,15 @@ impl crate::bedrock::codec::BedrockCodec for LevelChunkPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let chunk_position = <ChunkPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let dimension_id = <DimensionType as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let subchunks_count =
-            <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+        let chunk_position = <ChunkPos as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let dimension_id = <DimensionType as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let subchunks_count = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
@@ -4040,16 +4541,20 @@ impl crate::bedrock::codec::BedrockCodec for LevelChunkPacket {
                 None
             }
         };
-        let cache_enabled = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let cache_enabled = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let cache_metadata = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -4065,14 +4570,15 @@ impl crate::bedrock::codec::BedrockCodec for LevelChunkPacket {
             tmp_vec
         };
         let serialized_chunk_data = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -4119,7 +4625,10 @@ impl crate::bedrock::codec::BedrockCodec for SetCommandsEnabledPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let commands_enabled = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let commands_enabled = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { commands_enabled })
     }
 }
@@ -4130,9 +4639,10 @@ pub struct SetDifficultyPacket {
 impl crate::bedrock::codec::BedrockSized for SetDifficultyPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-            self.difficulty,
-        ));
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::VarInt(self.difficulty),
+            );
         size
     }
 }
@@ -4148,8 +4658,7 @@ impl crate::bedrock::codec::BedrockCodec for SetDifficultyPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let difficulty =
-            <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+        let difficulty = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
@@ -4170,13 +4679,14 @@ impl crate::bedrock::codec::BedrockSized for ChangeDimensionPacket {
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.dimension_id);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.position);
         size += 1usize;
-        size += {
-            1usize
-                + match &self.loading_screen_id {
-                    Some(_v) => 4usize,
-                    None => 0usize,
-                }
-        };
+        size
+            += {
+                1usize
+                    + match &self.loading_screen_id {
+                        Some(_v) => 4usize,
+                        None => 0usize,
+                    }
+            };
         size
     }
 }
@@ -4201,7 +4711,10 @@ impl crate::bedrock::codec::BedrockCodec for ChangeDimensionPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let dimension_id = <DimensionType as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let dimension_id = <DimensionType as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let position = <Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let respawn = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let loading_screen_id = {
@@ -4209,10 +4722,10 @@ impl crate::bedrock::codec::BedrockCodec for ChangeDimensionPacket {
             if present != 0 {
                 Some(
                     <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?
-                    .0,
+                            buf,
+                            (),
+                        )?
+                        .0,
                 )
             } else {
                 None
@@ -4233,7 +4746,8 @@ pub struct SetPlayerGameTypePacket {
 impl crate::bedrock::codec::BedrockSized for SetPlayerGameTypePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.player_game_type);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(&self.player_game_type);
         size
     }
 }
@@ -4249,11 +4763,10 @@ impl crate::bedrock::codec::BedrockCodec for SetPlayerGameTypePacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let player_game_type =
-            <SetPlayerGameTypePacketPlayerGameType as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
+        let player_game_type = <SetPlayerGameTypePacketPlayerGameType as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { player_game_type })
     }
 }
@@ -4264,15 +4777,19 @@ pub struct PlayerListPacket {
 impl crate::bedrock::codec::BedrockSized for PlayerListPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.entries).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.entries)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.entries).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.entries)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -4293,24 +4810,26 @@ impl crate::bedrock::codec::BedrockCodec for PlayerListPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let entries = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <PlayerListPacketEntriesItem as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                );
+                tmp_vec
+                    .push(
+                        <PlayerListPacketEntriesItem as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
@@ -4340,8 +4859,10 @@ impl crate::bedrock::codec::BedrockCodec for SimpleEventPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let type_ =
-            <SimpleEventPacketType as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let type_ = <SimpleEventPacketType as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { type_ })
     }
 }
@@ -4377,19 +4898,22 @@ impl crate::bedrock::codec::BedrockCodec for LegacyTelemetryEventPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let target_actor_id =
-            <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let event_type =
-            <LegacyTelemetryEventPacketEventType as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
-        let use_player_id = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let event_data =
-            <LegacyTelemetryEventPacketEventData as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
+        let target_actor_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let event_type = <LegacyTelemetryEventPacketEventType as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let use_player_id = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let event_data = <LegacyTelemetryEventPacketEventData as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             target_actor_id,
             event_type,
@@ -4407,9 +4931,10 @@ impl crate::bedrock::codec::BedrockSized for SpawnExperienceOrbPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.position);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.xp_value),
-        );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.xp_value),
+            );
         size
     }
 }
@@ -4427,8 +4952,7 @@ impl crate::bedrock::codec::BedrockCodec for SpawnExperienceOrbPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let position = <Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let xp_value =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let xp_value = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
@@ -4459,106 +4983,132 @@ impl crate::bedrock::codec::BedrockSized for ClientboundMapItemDataPacket {
         size += 1usize;
         size += 1usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.map_origin);
-        size += {
-            1usize
-                + match &self.creation_map_i_ds {
-                    Some(_v) => {
-                        let _len = (_v).len();
-                        crate::bedrock::codec::BedrockSized::encoded_size(
-                            &crate::bedrock::codec::VarInt(_len as i32),
-                        ) + (_v)
-                            .iter()
-                            .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                            .sum::<usize>()
+        size
+            += {
+                1usize
+                    + match &self.creation_map_i_ds {
+                        Some(_v) => {
+                            let _len = (_v).len();
+                            crate::bedrock::codec::BedrockSized::encoded_size(
+                                &crate::bedrock::codec::VarInt(_len as i32),
+                            )
+                                + (_v)
+                                    .iter()
+                                    .map(|_item| {
+                                        crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                                    })
+                                    .sum::<usize>()
+                        }
+                        None => 0usize,
                     }
-                    None => 0usize,
-                }
-        };
-        size += {
-            1usize
-                + match &self.scale {
-                    Some(_v) => 1usize,
-                    None => 0usize,
-                }
-        };
-        size += {
-            1usize
-                + match &self.tracked_actor_i_ds {
-                    Some(_v) => {
-                        let _len = (_v).len();
-                        crate::bedrock::codec::BedrockSized::encoded_size(
-                            &crate::bedrock::codec::VarInt(_len as i32),
-                        ) + (_v)
-                            .iter()
-                            .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                            .sum::<usize>()
+            };
+        size
+            += {
+                1usize
+                    + match &self.scale {
+                        Some(_v) => 1usize,
+                        None => 0usize,
                     }
-                    None => 0usize,
-                }
-        };
-        size += {
-            1usize
-                + match &self.decorations {
-                    Some(_v) => {
-                        let _len = (_v).len();
-                        crate::bedrock::codec::BedrockSized::encoded_size(
-                            &crate::bedrock::codec::VarInt(_len as i32),
-                        ) + (_v)
-                            .iter()
-                            .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                            .sum::<usize>()
+            };
+        size
+            += {
+                1usize
+                    + match &self.tracked_actor_i_ds {
+                        Some(_v) => {
+                            let _len = (_v).len();
+                            crate::bedrock::codec::BedrockSized::encoded_size(
+                                &crate::bedrock::codec::VarInt(_len as i32),
+                            )
+                                + (_v)
+                                    .iter()
+                                    .map(|_item| {
+                                        crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                                    })
+                                    .sum::<usize>()
+                        }
+                        None => 0usize,
                     }
-                    None => 0usize,
-                }
-        };
-        size += {
-            1usize
-                + match &self.width {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(
-                        &crate::bedrock::codec::ZigZag32(*_v),
-                    ),
-                    None => 0usize,
-                }
-        };
-        size += {
-            1usize
-                + match &self.height {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(
-                        &crate::bedrock::codec::ZigZag32(*_v),
-                    ),
-                    None => 0usize,
-                }
-        };
-        size += {
-            1usize
-                + match &self.start_x {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(
-                        &crate::bedrock::codec::ZigZag32(*_v),
-                    ),
-                    None => 0usize,
-                }
-        };
-        size += {
-            1usize
-                + match &self.start_y {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(
-                        &crate::bedrock::codec::ZigZag32(*_v),
-                    ),
-                    None => 0usize,
-                }
-        };
-        size += {
-            1usize
-                + match &self.pixels {
-                    Some(_v) => {
-                        let _len = (_v).len();
-                        crate::bedrock::codec::BedrockSized::encoded_size(
-                            &crate::bedrock::codec::VarInt(_len as i32),
-                        ) + (_v).iter().map(|_item| 4usize).sum::<usize>()
+            };
+        size
+            += {
+                1usize
+                    + match &self.decorations {
+                        Some(_v) => {
+                            let _len = (_v).len();
+                            crate::bedrock::codec::BedrockSized::encoded_size(
+                                &crate::bedrock::codec::VarInt(_len as i32),
+                            )
+                                + (_v)
+                                    .iter()
+                                    .map(|_item| {
+                                        crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                                    })
+                                    .sum::<usize>()
+                        }
+                        None => 0usize,
                     }
-                    None => 0usize,
-                }
-        };
+            };
+        size
+            += {
+                1usize
+                    + match &self.width {
+                        Some(_v) => {
+                            crate::bedrock::codec::BedrockSized::encoded_size(
+                                &crate::bedrock::codec::ZigZag32(*_v),
+                            )
+                        }
+                        None => 0usize,
+                    }
+            };
+        size
+            += {
+                1usize
+                    + match &self.height {
+                        Some(_v) => {
+                            crate::bedrock::codec::BedrockSized::encoded_size(
+                                &crate::bedrock::codec::ZigZag32(*_v),
+                            )
+                        }
+                        None => 0usize,
+                    }
+            };
+        size
+            += {
+                1usize
+                    + match &self.start_x {
+                        Some(_v) => {
+                            crate::bedrock::codec::BedrockSized::encoded_size(
+                                &crate::bedrock::codec::ZigZag32(*_v),
+                            )
+                        }
+                        None => 0usize,
+                    }
+            };
+        size
+            += {
+                1usize
+                    + match &self.start_y {
+                        Some(_v) => {
+                            crate::bedrock::codec::BedrockSized::encoded_size(
+                                &crate::bedrock::codec::ZigZag32(*_v),
+                            )
+                        }
+                        None => 0usize,
+                    }
+            };
+        size
+            += {
+                1usize
+                    + match &self.pixels {
+                        Some(_v) => {
+                            let _len = (_v).len();
+                            crate::bedrock::codec::BedrockSized::encoded_size(
+                                &crate::bedrock::codec::VarInt(_len as i32),
+                            ) + (_v).iter().map(|_item| { 4usize }).sum::<usize>()
+                        }
+                        None => 0usize,
+                    }
+            };
         size
     }
 }
@@ -4656,10 +5206,16 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundMapItemDataPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let map_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let map_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let dimension = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let is_locked = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let map_origin = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let map_origin = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let creation_map_i_ds = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
@@ -4677,12 +5233,13 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundMapItemDataPacket {
                     let len = raw as usize;
                     let mut tmp_vec = Vec::with_capacity(len);
                     for _ in 0..len {
-                        tmp_vec.push(
-                            <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
-                                buf,
-                                (),
-                            )?,
-                        );
+                        tmp_vec
+                            .push(
+                                <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+                                    buf,
+                                    (),
+                                )?,
+                            );
                     }
                     tmp_vec
                 })
@@ -4693,10 +5250,7 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundMapItemDataPacket {
         let scale = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<i8 as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?)
+                Some(<i8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
             } else {
                 None
             }
@@ -4749,12 +5303,13 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundMapItemDataPacket {
                     let len = raw as usize;
                     let mut tmp_vec = Vec::with_capacity(len);
                     for _ in 0..len {
-                        tmp_vec.push(
-                            <MapDecoration as crate::bedrock::codec::BedrockCodec>::decode(
-                                buf,
-                                (),
-                            )?,
-                        );
+                        tmp_vec
+                            .push(
+                                <MapDecoration as crate::bedrock::codec::BedrockCodec>::decode(
+                                    buf,
+                                    (),
+                                )?,
+                            );
                     }
                     tmp_vec
                 })
@@ -4876,14 +5431,17 @@ impl crate::bedrock::codec::BedrockSized for MapInfoRequestPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.map_unique_id);
-        size += {
-            let _len = (&self.client_pixels_list).len();
-            4usize
-                + (&self.client_pixels_list)
-                    .iter()
-                    .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                    .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.client_pixels_list).len();
+                4usize
+                    + (&self.client_pixels_list)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -4904,11 +5462,12 @@ impl crate::bedrock::codec::BedrockCodec for MapInfoRequestPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let map_unique_id =
-            <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let map_unique_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let client_pixels_list = {
-            let len =
-                (<crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+            let len = (<crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
@@ -4939,9 +5498,10 @@ pub struct RequestChunkRadiusPacket {
 impl crate::bedrock::codec::BedrockSized for RequestChunkRadiusPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.chunk_radius),
-        );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.chunk_radius),
+            );
         size += 1usize;
         size
     }
@@ -4959,13 +5519,15 @@ impl crate::bedrock::codec::BedrockCodec for RequestChunkRadiusPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let chunk_radius =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let chunk_radius = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let max_chunk_radius = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let max_chunk_radius = <u8 as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             chunk_radius,
             max_chunk_radius,
@@ -4979,9 +5541,10 @@ pub struct ChunkRadiusUpdatedPacket {
 impl crate::bedrock::codec::BedrockSized for ChunkRadiusUpdatedPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.chunk_radius),
-        );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.chunk_radius),
+            );
         size
     }
 }
@@ -4997,8 +5560,7 @@ impl crate::bedrock::codec::BedrockCodec for ChunkRadiusUpdatedPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let chunk_radius =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let chunk_radius = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
@@ -5029,8 +5591,10 @@ impl crate::bedrock::codec::BedrockCodec for GameRulesChangedPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let rule_data =
-            <GameRulesChangedPacketData as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let rule_data = <GameRulesChangedPacketData as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { rule_data })
     }
 }
@@ -5043,7 +5607,8 @@ impl crate::bedrock::codec::BedrockSized for CameraPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.camera_id);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.target_player_id);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(&self.target_player_id);
         size
     }
 }
@@ -5060,9 +5625,14 @@ impl crate::bedrock::codec::BedrockCodec for CameraPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let camera_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let target_player_id =
-            <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let camera_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let target_player_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             camera_id,
             target_player_id,
@@ -5086,18 +5656,20 @@ impl crate::bedrock::codec::BedrockSized for BossEventPacket {
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.target_actor_id);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.player_id);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.event_type);
-        size += {
-            let _len = (&self.name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.filtered_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.filtered_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += 4usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.color);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.overlay);
@@ -5129,20 +5701,28 @@ impl crate::bedrock::codec::BedrockCodec for BossEventPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let target_actor_id =
-            <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let player_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let event_type =
-            <BossEventPacketEventType as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let target_actor_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let player_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let event_type = <BossEventPacketEventType as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -5156,14 +5736,15 @@ impl crate::bedrock::codec::BedrockCodec for BossEventPacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let filtered_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -5176,12 +5757,19 @@ impl crate::bedrock::codec::BedrockCodec for BossEventPacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let health_percent =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let color = <BossEventPacketColor as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let overlay =
-            <BossEventPacketOverlay as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let health_percent = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let color = <BossEventPacketColor as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let overlay = <BossEventPacketOverlay as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             target_actor_id,
             player_id,
@@ -5202,10 +5790,14 @@ pub struct ShowCreditsPacket {
 impl crate::bedrock::codec::BedrockSized for ShowCreditsPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.player_runtime_id);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.credits_state),
-        );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.player_runtime_id,
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.credits_state),
+            );
         size
     }
 }
@@ -5222,10 +5814,11 @@ impl crate::bedrock::codec::BedrockCodec for ShowCreditsPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let player_runtime_id =
-            <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let credits_state =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let player_runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let credits_state = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
@@ -5242,7 +5835,9 @@ pub struct AvailableCommandsPacket {
     pub chained_subcommand_values: Vec<String>,
     pub post_fixes: Vec<String>,
     pub enum_data: Vec<AvailableCommandsPacketPayloadEnumData>,
-    pub chained_subcommand_data: Vec<AvailableCommandsPacketPayloadChainedSubcommandData>,
+    pub chained_subcommand_data: Vec<
+        AvailableCommandsPacketPayloadChainedSubcommandData,
+    >,
     pub commands: Vec<AvailableCommandsPacketPayloadCommandData>,
     pub soft_enums: Vec<AvailableCommandsPacketPayloadSoftEnumData>,
     pub constraints: Vec<AvailableCommandsPacketPayloadConstrainedValueData>,
@@ -5250,93 +5845,125 @@ pub struct AvailableCommandsPacket {
 impl crate::bedrock::codec::BedrockSized for AvailableCommandsPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.enum_values).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.enum_values)
-                .iter()
-                .map(|_item| {
-                    let _len = (_item).as_bytes().len();
-                    crate::bedrock::codec::BedrockSized::encoded_size(
-                        &crate::bedrock::codec::VarInt(_len as i32),
-                    ) + _len
-                })
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.chained_subcommand_values).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.chained_subcommand_values)
-                .iter()
-                .map(|_item| {
-                    let _len = (_item).as_bytes().len();
-                    crate::bedrock::codec::BedrockSized::encoded_size(
-                        &crate::bedrock::codec::VarInt(_len as i32),
-                    ) + _len
-                })
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.post_fixes).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.post_fixes)
-                .iter()
-                .map(|_item| {
-                    let _len = (_item).as_bytes().len();
-                    crate::bedrock::codec::BedrockSized::encoded_size(
-                        &crate::bedrock::codec::VarInt(_len as i32),
-                    ) + _len
-                })
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.enum_data).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.enum_data)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.chained_subcommand_data).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.chained_subcommand_data)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.commands).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.commands)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.soft_enums).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.soft_enums)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.constraints).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.constraints)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.enum_values).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.enum_values)
+                        .iter()
+                        .map(|_item| {
+                            {
+                                let _len = (_item).as_bytes().len();
+                                crate::bedrock::codec::BedrockSized::encoded_size(
+                                    &crate::bedrock::codec::VarInt(_len as i32),
+                                ) + _len
+                            }
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.chained_subcommand_values).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.chained_subcommand_values)
+                        .iter()
+                        .map(|_item| {
+                            {
+                                let _len = (_item).as_bytes().len();
+                                crate::bedrock::codec::BedrockSized::encoded_size(
+                                    &crate::bedrock::codec::VarInt(_len as i32),
+                                ) + _len
+                            }
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.post_fixes).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.post_fixes)
+                        .iter()
+                        .map(|_item| {
+                            {
+                                let _len = (_item).as_bytes().len();
+                                crate::bedrock::codec::BedrockSized::encoded_size(
+                                    &crate::bedrock::codec::VarInt(_len as i32),
+                                ) + _len
+                            }
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.enum_data).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.enum_data)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.chained_subcommand_data).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.chained_subcommand_data)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.commands).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.commands)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.soft_enums).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.soft_enums)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.constraints).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.constraints)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -5401,14 +6028,15 @@ impl crate::bedrock::codec::BedrockCodec for AvailableCommandsPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let enum_values = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -5440,14 +6068,15 @@ impl crate::bedrock::codec::BedrockCodec for AvailableCommandsPacket {
             tmp_vec
         };
         let chained_subcommand_values = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -5479,14 +6108,15 @@ impl crate::bedrock::codec::BedrockCodec for AvailableCommandsPacket {
             tmp_vec
         };
         let post_fixes = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -5518,14 +6148,15 @@ impl crate::bedrock::codec::BedrockCodec for AvailableCommandsPacket {
             tmp_vec
         };
         let enum_data = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -5541,14 +6172,15 @@ impl crate::bedrock::codec::BedrockCodec for AvailableCommandsPacket {
             tmp_vec
         };
         let chained_subcommand_data = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -5564,14 +6196,15 @@ impl crate::bedrock::codec::BedrockCodec for AvailableCommandsPacket {
             tmp_vec
         };
         let commands = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -5587,14 +6220,15 @@ impl crate::bedrock::codec::BedrockCodec for AvailableCommandsPacket {
             tmp_vec
         };
         let soft_enums = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -5610,14 +6244,15 @@ impl crate::bedrock::codec::BedrockCodec for AvailableCommandsPacket {
             tmp_vec
         };
         let constraints = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -5654,20 +6289,22 @@ pub struct CommandRequestPacket {
 impl crate::bedrock::codec::BedrockSized for CommandRequestPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.command).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.command).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.origin);
         size += 1usize;
-        size += {
-            let _len = (&self.version).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.version).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -5693,14 +6330,15 @@ impl crate::bedrock::codec::BedrockCodec for CommandRequestPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let command = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -5713,17 +6351,24 @@ impl crate::bedrock::codec::BedrockCodec for CommandRequestPacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let origin = <CommandOriginData as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let is_internal = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let origin = <CommandOriginData as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let is_internal = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let version = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -5759,30 +6404,34 @@ impl crate::bedrock::codec::BedrockSized for CommandBlockUpdatePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.target);
-        size += {
-            let _len = (&self.command).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.last_output).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.filtered_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.command).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.last_output).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.filtered_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += 1usize;
         size += 4usize;
         size += 1usize;
@@ -5820,20 +6469,20 @@ impl crate::bedrock::codec::BedrockCodec for CommandBlockUpdatePacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let target =
-            <CommandBlockUpdatePacketTarget as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
+        let target = <CommandBlockUpdatePacketTarget as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let command = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -5847,14 +6496,15 @@ impl crate::bedrock::codec::BedrockCodec for CommandBlockUpdatePacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let last_output = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -5868,14 +6518,15 @@ impl crate::bedrock::codec::BedrockCodec for CommandBlockUpdatePacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -5889,14 +6540,15 @@ impl crate::bedrock::codec::BedrockCodec for CommandBlockUpdatePacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let filtered_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -5909,11 +6561,19 @@ impl crate::bedrock::codec::BedrockCodec for CommandBlockUpdatePacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let track_output = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let tick_delay =
-            <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let execute_on_first_tick = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let track_output = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let tick_delay = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let execute_on_first_tick = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             target,
             command,
@@ -5952,13 +6612,15 @@ impl crate::bedrock::codec::BedrockCodec for CommandOutputPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let origin_data =
-            <CommandOriginData as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let output = <CommandOutput as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        Ok(Self {
-            origin_data,
-            output,
-        })
+        let origin_data = <CommandOriginData as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let output = <CommandOutput as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        Ok(Self { origin_data, output })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -5979,20 +6641,27 @@ impl crate::bedrock::codec::BedrockSized for UpdateTradePacket {
         let mut size = 0usize;
         size += 1usize;
         size += 1usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.size),
-        );
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.trader_tier),
-        );
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.entity_unique_id);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.last_trading_player);
-        size += {
-            let _len = (&self.display_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.size),
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.trader_tier),
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(&self.entity_unique_id);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.last_trading_player,
+            );
+        size
+            += {
+                let _len = (&self.display_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += 1usize;
         size += 1usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.data);
@@ -6025,31 +6694,34 @@ impl crate::bedrock::codec::BedrockCodec for UpdateTradePacket {
         let _ = buf;
         let container_id = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let type_ = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let size =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let size = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let trader_tier =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let trader_tier = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let entity_unique_id =
-            <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let last_trading_player =
-            <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let entity_unique_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let last_trading_player = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let display_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -6062,10 +6734,18 @@ impl crate::bedrock::codec::BedrockCodec for UpdateTradePacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let use_new_trade_screen = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let using_economy_trade = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let data =
-            <crate::bedrock::codec::Nbt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let use_new_trade_screen = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let using_economy_trade = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let data = <crate::bedrock::codec::Nbt as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             container_id,
             type_,
@@ -6093,10 +6773,12 @@ impl crate::bedrock::codec::BedrockSized for UpdateEquipPacket {
         let mut size = 0usize;
         size += 1usize;
         size += 1usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.size),
-        );
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.entity_unique_id);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.size),
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(&self.entity_unique_id);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.data);
         size
     }
@@ -6119,16 +6801,19 @@ impl crate::bedrock::codec::BedrockCodec for UpdateEquipPacket {
         let _ = buf;
         let container_id = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let type_ = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let size =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let size = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let entity_unique_id =
-            <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let data =
-            <crate::bedrock::codec::Nbt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let entity_unique_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let data = <crate::bedrock::codec::Nbt as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             container_id,
             type_,
@@ -6151,21 +6836,23 @@ pub struct ResourcePackDataInfoPacket {
 impl crate::bedrock::codec::BedrockSized for ResourcePackDataInfoPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.resource_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.resource_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += 4usize;
         size += 4usize;
         size += 8usize;
-        size += {
-            let _len = (&self.file_hash).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.file_hash).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += 1usize;
         size += 1usize;
         size
@@ -6196,14 +6883,15 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackDataInfoPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let resource_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -6216,24 +6904,31 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackDataInfoPacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let chunk_size =
-            <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let numberof_chunks =
-            <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let file_size =
-            <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
+        let chunk_size = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let numberof_chunks = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let file_size = <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let file_hash = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -6246,7 +6941,10 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackDataInfoPacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let is_premium_pack = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let is_premium_pack = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let pack_type = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self {
             resource_name,
@@ -6269,20 +6967,22 @@ pub struct ResourcePackChunkDataPacket {
 impl crate::bedrock::codec::BedrockSized for ResourcePackChunkDataPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.resource_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.resource_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += 4usize;
         size += 8usize;
-        size += {
-            let _len = (&self.chunk_data).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.chunk_data).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -6308,14 +7008,15 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackChunkDataPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let resource_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -6328,21 +7029,26 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackChunkDataPacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let chunk_id =
-            <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let byte_offset =
-            <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
+        let chunk_id = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let byte_offset = <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let chunk_data = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -6371,12 +7077,13 @@ pub struct ResourcePackChunkRequestPacket {
 impl crate::bedrock::codec::BedrockSized for ResourcePackChunkRequestPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.resource_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.resource_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += 4usize;
         size
     }
@@ -6398,14 +7105,15 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackChunkRequestPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let resource_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -6418,13 +7126,12 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackChunkRequestPacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let chunk =
-            <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        Ok(Self {
-            resource_name,
-            chunk,
-        })
+        let chunk = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        Ok(Self { resource_name, chunk })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -6432,26 +7139,30 @@ pub struct TransferPacket {
     pub server_address: String,
     pub server_port: u16,
     pub reload_world: bool,
-    pub gatherings_configuration: Option<ServerConfigurationGatheringsConfigurationJoinInfo>,
+    pub gatherings_configuration: Option<
+        ServerConfigurationGatheringsConfigurationJoinInfo,
+    >,
 }
 impl crate::bedrock::codec::BedrockSized for TransferPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.server_address).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.server_address).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += 2usize;
         size += 1usize;
-        size += {
-            1usize
-                + match &self.gatherings_configuration {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
+        size
+            += {
+                1usize
+                    + match &self.gatherings_configuration {
+                        Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
+                        None => 0usize,
+                    }
+            };
         size
     }
 }
@@ -6480,14 +7191,15 @@ impl crate::bedrock::codec::BedrockCodec for TransferPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let server_address = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -6500,10 +7212,15 @@ impl crate::bedrock::codec::BedrockCodec for TransferPacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let server_port =
-            <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let reload_world = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let server_port = <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let reload_world = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let gatherings_configuration = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
@@ -6537,25 +7254,28 @@ pub struct PlaySoundPacket {
 impl crate::bedrock::codec::BedrockSized for PlaySoundPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.position);
         size += 4usize;
         size += 4usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.loop_count),
-        );
-        size += {
-            1usize
-                + match &self.server_sound_handle {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.loop_count),
+            );
+        size
+            += {
+                1usize
+                    + match &self.server_sound_handle {
+                        Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
+                        None => 0usize,
+                    }
+            };
         size
     }
 }
@@ -6586,14 +7306,15 @@ impl crate::bedrock::codec::BedrockCodec for PlaySoundPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -6606,15 +7327,21 @@ impl crate::bedrock::codec::BedrockCodec for PlaySoundPacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let volume =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let pitch =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let loop_count =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let volume = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let pitch = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let loop_count = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
@@ -6622,7 +7349,12 @@ impl crate::bedrock::codec::BedrockCodec for PlaySoundPacket {
         let server_sound_handle = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<ServerSoundHandle as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <ServerSoundHandle as crate::bedrock::codec::BedrockCodec>::decode(
+                        buf,
+                        (),
+                    )?,
+                )
             } else {
                 None
             }
@@ -6646,12 +7378,13 @@ pub struct StopSoundPacket {
 impl crate::bedrock::codec::BedrockSized for StopSoundPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.sound_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.sound_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += 1usize;
         size += 1usize;
         size
@@ -6675,14 +7408,15 @@ impl crate::bedrock::codec::BedrockCodec for StopSoundPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let sound_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -6695,8 +7429,14 @@ impl crate::bedrock::codec::BedrockCodec for StopSoundPacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let stop_all_sounds = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let stop_music_legacy = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let stop_all_sounds = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let stop_music_legacy = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             sound_name,
             stop_all_sounds,
@@ -6719,39 +7459,46 @@ impl crate::bedrock::codec::BedrockSized for SetTitlePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.title_type);
-        size += {
-            let _len = (&self.title_text).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.fade_in_time),
-        );
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.stay_time),
-        );
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.fade_out_time),
-        );
-        size += {
-            let _len = (&self.xuid).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.platform_online_id).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.filtered_title_message).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.title_text).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.fade_in_time),
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.stay_time),
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.fade_out_time),
+            );
+        size
+            += {
+                let _len = (&self.xuid).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.platform_online_id).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.filtered_title_message).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -6786,17 +7533,20 @@ impl crate::bedrock::codec::BedrockCodec for SetTitlePacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let title_type =
-            <SetTitlePacketTitleType as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let title_type = <SetTitlePacketTitleType as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let title_text = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -6809,33 +7559,31 @@ impl crate::bedrock::codec::BedrockCodec for SetTitlePacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let fade_in_time =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let fade_in_time = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let stay_time =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let stay_time = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let fade_out_time =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let fade_out_time = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
         let xuid = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -6849,14 +7597,15 @@ impl crate::bedrock::codec::BedrockCodec for SetTitlePacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let platform_online_id = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -6870,14 +7619,15 @@ impl crate::bedrock::codec::BedrockCodec for SetTitlePacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let filtered_title_message = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -6909,12 +7659,13 @@ pub struct AddBehaviorTreePacket {
 impl crate::bedrock::codec::BedrockSized for AddBehaviorTreePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.behavior_tree_structure_json).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.behavior_tree_structure_json).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -6934,14 +7685,15 @@ impl crate::bedrock::codec::BedrockCodec for AddBehaviorTreePacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let behavior_tree_structure_json = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -6991,11 +7743,19 @@ impl crate::bedrock::codec::BedrockCodec for StructureBlockUpdatePacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let block_position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let structure_data =
-            <StructureEditorData as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let block_position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let structure_data = <StructureEditorData as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let trigger = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let is_waterlogged = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let is_waterlogged = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             block_position,
             structure_data,
@@ -7030,16 +7790,15 @@ impl crate::bedrock::codec::BedrockCodec for ShowStoreOfferPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let offer_id = <uuid::Uuid as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let redirect_type =
-            <ShowStoreOfferPacketRedirectType as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
-        Ok(Self {
-            offer_id,
-            redirect_type,
-        })
+        let offer_id = <uuid::Uuid as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let redirect_type = <ShowStoreOfferPacketRedirectType as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        Ok(Self { offer_id, redirect_type })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -7049,20 +7808,24 @@ pub struct PurchaseReceiptPacket {
 impl crate::bedrock::codec::BedrockSized for PurchaseReceiptPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.purchase_receipts).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.purchase_receipts)
-                .iter()
-                .map(|_item| {
-                    let _len = (_item).as_bytes().len();
-                    crate::bedrock::codec::BedrockSized::encoded_size(
-                        &crate::bedrock::codec::VarInt(_len as i32),
-                    ) + _len
-                })
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.purchase_receipts).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.purchase_receipts)
+                        .iter()
+                        .map(|_item| {
+                            {
+                                let _len = (_item).as_bytes().len();
+                                crate::bedrock::codec::BedrockSized::encoded_size(
+                                    &crate::bedrock::codec::VarInt(_len as i32),
+                                ) + _len
+                            }
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -7086,14 +7849,15 @@ impl crate::bedrock::codec::BedrockCodec for PurchaseReceiptPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let purchase_receipts = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -7139,18 +7903,20 @@ impl crate::bedrock::codec::BedrockSized for PlayerSkinPacket {
         let mut size = 0usize;
         size += 16usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.serialized_skin);
-        size += {
-            let _len = (&self.localized_new_skin_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.localized_old_skin_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.localized_new_skin_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.localized_old_skin_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -7176,17 +7942,20 @@ impl crate::bedrock::codec::BedrockCodec for PlayerSkinPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let uuid = <uuid::Uuid as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let serialized_skin =
-            <SerializedSkinRef as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let serialized_skin = <SerializedSkinRef as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let localized_new_skin_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -7200,14 +7969,15 @@ impl crate::bedrock::codec::BedrockCodec for PlayerSkinPacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let localized_old_skin_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -7235,12 +8005,13 @@ pub struct SubClientLoginPacket {
 impl crate::bedrock::codec::BedrockSized for SubClientLoginPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.sub_client_connection_request).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.sub_client_connection_request).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -7260,14 +8031,15 @@ impl crate::bedrock::codec::BedrockCodec for SubClientLoginPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let sub_client_connection_request = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -7308,8 +8080,10 @@ impl crate::bedrock::codec::BedrockCodec for AutomationClientConnectPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let web_socket_data =
-            <WebSocketPacketData as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let web_socket_data = <WebSocketPacketData as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { web_socket_data })
     }
 }
@@ -7336,11 +8110,10 @@ impl crate::bedrock::codec::BedrockCodec for SetLastHurtByPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let last_hurt_by =
-            <SetLastHurtByPacketLastHurtBy as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
+        let last_hurt_by = <SetLastHurtByPacketLastHurtBy as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { last_hurt_by })
     }
 }
@@ -7352,9 +8125,10 @@ pub struct BookEditPacket {
 impl crate::bedrock::codec::BedrockSized for BookEditPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.book_slot),
-        );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.book_slot),
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.operation);
         size
     }
@@ -7372,18 +8146,16 @@ impl crate::bedrock::codec::BedrockCodec for BookEditPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let book_slot =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let book_slot = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let operation =
-            <BookEditPacketOperation as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        Ok(Self {
-            book_slot,
-            operation,
-        })
+        let operation = <BookEditPacketOperation as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        Ok(Self { book_slot, operation })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -7399,19 +8171,21 @@ impl crate::bedrock::codec::BedrockSized for NpcRequestPacket {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.npc_runtime_id);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.request_type);
-        size += {
-            let _len = (&self.actions).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.actions).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += 1usize;
-        size += {
-            let _len = (&self.scene_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.scene_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -7437,19 +8211,24 @@ impl crate::bedrock::codec::BedrockCodec for NpcRequestPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let npc_runtime_id =
-            <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let request_type =
-            <NpcRequestPacketRequestType as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let npc_runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let request_type = <NpcRequestPacketRequestType as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let actions = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -7464,14 +8243,15 @@ impl crate::bedrock::codec::BedrockCodec for NpcRequestPacket {
         };
         let action_index = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let scene_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -7506,33 +8286,37 @@ pub struct PhotoTransferPacket {
 impl crate::bedrock::codec::BedrockSized for PhotoTransferPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.photo_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.photo_data).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.book_id).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.photo_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.photo_data).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.book_id).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.type_);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.source_type);
         size += 8usize;
-        size += {
-            let _len = (&self.new_photo_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.new_photo_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -7567,14 +8351,15 @@ impl crate::bedrock::codec::BedrockCodec for PhotoTransferPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let photo_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -7588,14 +8373,15 @@ impl crate::bedrock::codec::BedrockCodec for PhotoTransferPacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let photo_data = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -7609,14 +8395,15 @@ impl crate::bedrock::codec::BedrockCodec for PhotoTransferPacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let book_id = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -7629,25 +8416,29 @@ impl crate::bedrock::codec::BedrockCodec for PhotoTransferPacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let type_ =
-            <PhotoTransferPacketType as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let source_type =
-            <PhotoTransferPacketSourceType as crate::bedrock::codec::BedrockCodec>::decode(
+        let type_ = <PhotoTransferPacketType as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let source_type = <PhotoTransferPacketSourceType as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let owner_id = <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
-            )?;
-        let owner_id =
-            <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
+            )?
+            .0;
         let new_photo_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -7679,15 +8470,17 @@ pub struct ModalFormRequestPacket {
 impl crate::bedrock::codec::BedrockSized for ModalFormRequestPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-            self.form_id,
-        ));
-        size += {
-            let _len = (&self.form_uijson).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::VarInt(self.form_id),
+            );
+        size
+            += {
+                let _len = (&self.form_uijson).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -7707,21 +8500,21 @@ impl crate::bedrock::codec::BedrockCodec for ModalFormRequestPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let form_id =
-            <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+        let form_id = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
         let form_uijson = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -7734,10 +8527,7 @@ impl crate::bedrock::codec::BedrockCodec for ModalFormRequestPacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        Ok(Self {
-            form_id,
-            form_uijson,
-        })
+        Ok(Self { form_id, form_uijson })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -7749,28 +8539,31 @@ pub struct ModalFormResponsePacket {
 impl crate::bedrock::codec::BedrockSized for ModalFormResponsePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-            self.form_id,
-        ));
-        size += {
-            1usize
-                + match &self.json_response {
-                    Some(_v) => {
-                        let _len = (_v).as_bytes().len();
-                        crate::bedrock::codec::BedrockSized::encoded_size(
-                            &crate::bedrock::codec::VarInt(_len as i32),
-                        ) + _len
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::VarInt(self.form_id),
+            );
+        size
+            += {
+                1usize
+                    + match &self.json_response {
+                        Some(_v) => {
+                            let _len = (_v).as_bytes().len();
+                            crate::bedrock::codec::BedrockSized::encoded_size(
+                                &crate::bedrock::codec::VarInt(_len as i32),
+                            ) + _len
+                        }
+                        None => 0usize,
                     }
-                    None => 0usize,
-                }
-        };
-        size += {
-            1usize
-                + match &self.form_cancel_reason {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
+            };
+        size
+            += {
+                1usize
+                    + match &self.form_cancel_reason {
+                        Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
+                        None => 0usize,
+                    }
+            };
         size
     }
 }
@@ -7803,8 +8596,7 @@ impl crate::bedrock::codec::BedrockCodec for ModalFormResponsePacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let form_id =
-            <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+        let form_id = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
@@ -7887,15 +8679,17 @@ pub struct ServerSettingsResponsePacket {
 impl crate::bedrock::codec::BedrockSized for ServerSettingsResponsePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-            self.form_id,
-        ));
-        size += {
-            let _len = (&self.form_uijson).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::VarInt(self.form_id),
+            );
+        size
+            += {
+                let _len = (&self.form_uijson).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -7915,21 +8709,21 @@ impl crate::bedrock::codec::BedrockCodec for ServerSettingsResponsePacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let form_id =
-            <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+        let form_id = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
         let form_uijson = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -7942,10 +8736,7 @@ impl crate::bedrock::codec::BedrockCodec for ServerSettingsResponsePacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        Ok(Self {
-            form_id,
-            form_uijson,
-        })
+        Ok(Self { form_id, form_uijson })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -7955,12 +8746,13 @@ pub struct ShowProfilePacket {
 impl crate::bedrock::codec::BedrockSized for ShowProfilePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.player_xuid).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.player_xuid).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -7980,14 +8772,15 @@ impl crate::bedrock::codec::BedrockCodec for ShowProfilePacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let player_xuid = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -8010,7 +8803,10 @@ pub struct SetDefaultGameTypePacket {
 impl crate::bedrock::codec::BedrockSized for SetDefaultGameTypePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.default_game_type);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.default_game_type,
+            );
         size
     }
 }
@@ -8040,12 +8836,13 @@ pub struct RemoveObjectivePacket {
 impl crate::bedrock::codec::BedrockSized for RemoveObjectivePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.objective_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.objective_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -8065,14 +8862,15 @@ impl crate::bedrock::codec::BedrockCodec for RemoveObjectivePacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let objective_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -8099,33 +8897,38 @@ pub struct SetDisplayObjectivePacket {
 impl crate::bedrock::codec::BedrockSized for SetDisplayObjectivePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.display_slot_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.objective_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.objective_display_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.criteria_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.sort_order),
-        );
+        size
+            += {
+                let _len = (&self.display_slot_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.objective_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.objective_display_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.criteria_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.sort_order),
+            );
         size
     }
 }
@@ -8158,14 +8961,15 @@ impl crate::bedrock::codec::BedrockCodec for SetDisplayObjectivePacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let display_slot_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -8179,14 +8983,15 @@ impl crate::bedrock::codec::BedrockCodec for SetDisplayObjectivePacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let objective_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -8200,14 +9005,15 @@ impl crate::bedrock::codec::BedrockCodec for SetDisplayObjectivePacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let objective_display_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -8221,14 +9027,15 @@ impl crate::bedrock::codec::BedrockCodec for SetDisplayObjectivePacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let criteria_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -8241,8 +9048,7 @@ impl crate::bedrock::codec::BedrockCodec for SetDisplayObjectivePacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let sort_order =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let sort_order = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
@@ -8263,15 +9069,19 @@ pub struct SetScorePacket {
 impl crate::bedrock::codec::BedrockSized for SetScorePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.score_info).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.score_info)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.score_info).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.score_info)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -8292,24 +9102,26 @@ impl crate::bedrock::codec::BedrockCodec for SetScorePacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let score_info = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <SetScorePacketScoreInfoItem as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                );
+                tmp_vec
+                    .push(
+                        <SetScorePacketScoreInfoItem as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
@@ -8345,15 +9157,19 @@ impl crate::bedrock::codec::BedrockCodec for LabTablePacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let type_ = <LabTablePacketType as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let reaction =
-            <LabTablePacketReaction as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        Ok(Self {
-            type_,
-            position,
-            reaction,
-        })
+        let type_ = <LabTablePacketType as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let reaction = <LabTablePacketReaction as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        Ok(Self { type_, position, reaction })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -8369,21 +9185,26 @@ impl crate::bedrock::codec::BedrockSized for UpdateBlockSyncedPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.block_position);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-            self.block_runtime_id,
-        ));
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-            self.flags,
-        ));
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-            self.layer,
-        ));
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarLong(
-            self.unique_actor_id,
-        ));
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarLong(
-            self.actor_sync_message,
-        ));
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::VarInt(self.block_runtime_id),
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::VarInt(self.flags),
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::VarInt(self.layer),
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::VarLong(self.unique_actor_id),
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::VarLong(self.actor_sync_message),
+            );
         size
     }
 }
@@ -8404,31 +9225,31 @@ impl crate::bedrock::codec::BedrockCodec for UpdateBlockSyncedPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let block_position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let block_runtime_id =
-            <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+        let block_position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let block_runtime_id = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
         let flags = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?
-        .0;
-        let layer = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
-            buf,
-            (),
-        )?
-        .0;
-        let unique_actor_id =
-            <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let actor_sync_message =
-            <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
+        let layer = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let unique_actor_id = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let actor_sync_message = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
@@ -8466,8 +9287,10 @@ impl crate::bedrock::codec::BedrockCodec for MoveActorDeltaPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let move_data =
-            <MoveActorDeltaData as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let move_data = <MoveActorDeltaData as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { move_data })
     }
 }
@@ -8479,18 +9302,23 @@ pub struct SetScoreboardIdentityPacket {
 impl crate::bedrock::codec::BedrockSized for SetScoreboardIdentityPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &self.scoreboard_identity_packet_type,
-        );
-        size += {
-            let _len = (&self.scoreboard_identity_info).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.scoreboard_identity_info)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.scoreboard_identity_packet_type,
+            );
+        size
+            += {
+                let _len = (&self.scoreboard_identity_info).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.scoreboard_identity_info)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -8516,24 +9344,26 @@ impl crate::bedrock::codec::BedrockCodec for SetScoreboardIdentityPacket {
             (),
         )?;
         let scoreboard_identity_info = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <ScoreboardIdentityPacketInfo as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                );
+                tmp_vec
+                    .push(
+                        <ScoreboardIdentityPacketInfo as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
@@ -8566,7 +9396,10 @@ impl crate::bedrock::codec::BedrockCodec for SetLocalPlayerAsInitializedPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let player_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let player_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { player_id })
     }
 }
@@ -8579,26 +9412,31 @@ pub struct UpdateSoftEnumPacket {
 impl crate::bedrock::codec::BedrockSized for UpdateSoftEnumPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.enum_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.values).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.values)
-                .iter()
-                .map(|_item| {
-                    let _len = (_item).as_bytes().len();
-                    crate::bedrock::codec::BedrockSized::encoded_size(
-                        &crate::bedrock::codec::VarInt(_len as i32),
-                    ) + _len
-                })
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.enum_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.values).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.values)
+                        .iter()
+                        .map(|_item| {
+                            {
+                                let _len = (_item).as_bytes().len();
+                                crate::bedrock::codec::BedrockSized::encoded_size(
+                                    &crate::bedrock::codec::VarInt(_len as i32),
+                                ) + _len
+                            }
+                        })
+                        .sum::<usize>()
+            };
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.update_type);
         size
     }
@@ -8628,14 +9466,15 @@ impl crate::bedrock::codec::BedrockCodec for UpdateSoftEnumPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let enum_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -8649,14 +9488,15 @@ impl crate::bedrock::codec::BedrockCodec for UpdateSoftEnumPacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let values = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -8687,11 +9527,10 @@ impl crate::bedrock::codec::BedrockCodec for UpdateSoftEnumPacket {
             }
             tmp_vec
         };
-        let update_type =
-            <UpdateSoftEnumPacketUpdateType as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
+        let update_type = <UpdateSoftEnumPacketUpdateType as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             enum_name,
             values,
@@ -8725,10 +9564,15 @@ impl crate::bedrock::codec::BedrockCodec for NetworkStackLatencyPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let creation_time =
-            <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let is_from_server = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let creation_time = <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let is_from_server = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             creation_time,
             is_from_server,
@@ -8749,24 +9593,26 @@ impl crate::bedrock::codec::BedrockSized for SpawnParticleEffectPacket {
         size += 1usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.actor_id);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.position);
-        size += {
-            let _len = (&self.effect_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            1usize
-                + match &self.molang_variables {
-                    Some(_v) => {
-                        let _len = (_v).as_bytes().len();
-                        crate::bedrock::codec::BedrockSized::encoded_size(
-                            &crate::bedrock::codec::VarInt(_len as i32),
-                        ) + _len
+        size
+            += {
+                let _len = (&self.effect_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                1usize
+                    + match &self.molang_variables {
+                        Some(_v) => {
+                            let _len = (_v).as_bytes().len();
+                            crate::bedrock::codec::BedrockSized::encoded_size(
+                                &crate::bedrock::codec::VarInt(_len as i32),
+                            ) + _len
+                        }
+                        None => 0usize,
                     }
-                    None => 0usize,
-                }
-        };
+            };
         size
     }
 }
@@ -8799,17 +9645,21 @@ impl crate::bedrock::codec::BedrockCodec for SpawnParticleEffectPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let dimension_id = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let actor_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let actor_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let position = <Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let effect_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -8883,8 +9733,10 @@ impl crate::bedrock::codec::BedrockCodec for AvailableActorIdentifiersPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let identifier_list =
-            <crate::bedrock::codec::Nbt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let identifier_list = <crate::bedrock::codec::Nbt as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { identifier_list })
     }
 }
@@ -8897,18 +9749,25 @@ pub struct NetworkChunkPublisherUpdatePacket {
 impl crate::bedrock::codec::BedrockSized for NetworkChunkPublisherUpdatePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.newpositionforview);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-            self.newradiusforview,
-        ));
-        size += {
-            let _len = (&self.server_built_chunks_list).len();
-            4usize
-                + (&self.server_built_chunks_list)
-                    .iter()
-                    .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                    .sum::<usize>()
-        };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.newpositionforview,
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::VarInt(self.newradiusforview),
+            );
+        size
+            += {
+                let _len = (&self.server_built_chunks_list).len();
+                4usize
+                    + (&self.server_built_chunks_list)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -8930,27 +9789,30 @@ impl crate::bedrock::codec::BedrockCodec for NetworkChunkPublisherUpdatePacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let newpositionforview =
-            <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let newradiusforview =
-            <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+        let newpositionforview = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let newradiusforview = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
         let server_built_chunks_list = {
-            let len =
-                (<crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+            let len = (<crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(<ChunkPos as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?);
+                tmp_vec
+                    .push(
+                        <ChunkPos as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
@@ -8969,15 +9831,19 @@ pub struct BiomeDefinitionListPacket {
 impl crate::bedrock::codec::BedrockSized for BiomeDefinitionListPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.mapof_biomenamestodata).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.mapof_biomenamestodata)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.mapof_biomenamestodata).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.mapof_biomenamestodata)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.stringlist);
         size
     }
@@ -9000,14 +9866,15 @@ impl crate::bedrock::codec::BedrockCodec for BiomeDefinitionListPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let mapof_biomenamestodata = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -9022,7 +9889,10 @@ impl crate::bedrock::codec::BedrockCodec for BiomeDefinitionListPacket {
             }
             tmp_vec
         };
-        let stringlist = <BiomeStringList as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let stringlist = <BiomeStringList as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             mapof_biomenamestodata,
             stringlist,
@@ -9043,32 +9913,36 @@ pub struct LevelSoundEventPacket {
 impl crate::bedrock::codec::BedrockSized for LevelSoundEventPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.sound_event).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.sound_event).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.position);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.data),
-        );
-        size += {
-            let _len = (&self.actor_identifier).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.data),
+            );
+        size
+            += {
+                let _len = (&self.actor_identifier).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += 1usize;
         size += 1usize;
         size += 8usize;
-        size += {
-            1usize
-                + match &self.fire_at_position {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
+        size
+            += {
+                1usize
+                    + match &self.fire_at_position {
+                        Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
+                        None => 0usize,
+                    }
+            };
         size
     }
 }
@@ -9104,14 +9978,15 @@ impl crate::bedrock::codec::BedrockCodec for LevelSoundEventPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let sound_event = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -9125,21 +10000,21 @@ impl crate::bedrock::codec::BedrockCodec for LevelSoundEventPacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let position = <Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let data =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let data = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
         let actor_identifier = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -9154,16 +10029,15 @@ impl crate::bedrock::codec::BedrockCodec for LevelSoundEventPacket {
         };
         let is_baby = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let is_global = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let actor_unique_id =
-            <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
+        let actor_unique_id = <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let fire_at_position = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<Vec3 as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?)
+                Some(<Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
             } else {
                 None
             }
@@ -9188,9 +10062,10 @@ pub struct LevelEventGenericPacket {
 impl crate::bedrock::codec::BedrockSized for LevelEventGenericPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.event_id),
-        );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.event_id),
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.__ctd__);
         size
     }
@@ -9208,14 +10083,15 @@ impl crate::bedrock::codec::BedrockCodec for LevelEventGenericPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let event_id =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let event_id = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let __ctd__ =
-            <crate::bedrock::codec::Nbt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let __ctd__ = <crate::bedrock::codec::Nbt as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { event_id, __ctd__ })
     }
 }
@@ -9230,7 +10106,10 @@ impl crate::bedrock::codec::BedrockSized for LecternUpdatePacket {
         let mut size = 0usize;
         size += 1usize;
         size += 1usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.positionof_lecterntoupdate);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.positionof_lecterntoupdate,
+            );
         size
     }
 }
@@ -9248,10 +10127,15 @@ impl crate::bedrock::codec::BedrockCodec for LecternUpdatePacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let newpagetoshow = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let newpagetoshow = <u8 as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let total_pages = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let positionof_lecterntoupdate =
-            <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let positionof_lecterntoupdate = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             newpagetoshow,
             total_pages,
@@ -9282,7 +10166,10 @@ impl crate::bedrock::codec::BedrockCodec for ClientCacheStatusPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let iscachesupported = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let iscachesupported = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { iscachesupported })
     }
 }
@@ -9309,9 +10196,11 @@ impl crate::bedrock::codec::BedrockCodec for OnScreenTextureAnimationPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let effect_id =
-            <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
+        let effect_id = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self { effect_id })
     }
 }
@@ -9341,9 +10230,14 @@ impl crate::bedrock::codec::BedrockCodec for MapCreateLockedCopyPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let original_map_id =
-            <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let new_map_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let original_map_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let new_map_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             original_map_id,
             new_map_id,
@@ -9360,15 +10254,25 @@ pub struct StructureTemplateDataRequestPacket {
 impl crate::bedrock::codec::BedrockSized for StructureTemplateDataRequestPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.structure_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.structure_position);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.structure_settings);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.requested_operation);
+        size
+            += {
+                let _len = (&self.structure_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.structure_position,
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.structure_settings,
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.requested_operation,
+            );
         size
     }
 }
@@ -9391,14 +10295,15 @@ impl crate::bedrock::codec::BedrockCodec for StructureTemplateDataRequestPacket 
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let structure_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -9411,10 +10316,14 @@ impl crate::bedrock::codec::BedrockCodec for StructureTemplateDataRequestPacket 
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let structure_position =
-            <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let structure_settings =
-            <StructureSettings as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let structure_position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let structure_settings = <StructureSettings as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let requested_operation = <StructureTemplateDataRequestPacketRequestedOperation as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -9436,12 +10345,13 @@ pub struct StructureTemplateDataResponsePacket {
 impl crate::bedrock::codec::BedrockSized for StructureTemplateDataResponsePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.structure_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.structure_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.structures_nbt);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.response_type);
         size
@@ -9465,14 +10375,15 @@ impl crate::bedrock::codec::BedrockCodec for StructureTemplateDataResponsePacket
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let structure_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -9485,8 +10396,10 @@ impl crate::bedrock::codec::BedrockCodec for StructureTemplateDataResponsePacket
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let structures_nbt =
-            <crate::bedrock::codec::Nbt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let structures_nbt = <crate::bedrock::codec::Nbt as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let response_type = <StructureTemplateDataResponsePacketResponseType as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -9506,21 +10419,20 @@ pub struct ClientCacheBlobStatusPacket {
 impl crate::bedrock::codec::BedrockSized for ClientCacheBlobStatusPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.missing_ids).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.missing_ids)
-                .iter()
-                .map(|_item| 8usize)
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.found_ids).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.found_ids).iter().map(|_item| 8usize).sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.missing_ids).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + (&self.missing_ids).iter().map(|_item| { 8usize }).sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.found_ids).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + (&self.found_ids).iter().map(|_item| { 8usize }).sum::<usize>()
+            };
         size
     }
 }
@@ -9546,55 +10458,56 @@ impl crate::bedrock::codec::BedrockCodec for ClientCacheBlobStatusPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let missing_ids = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?
-                    .0,
-                );
+                tmp_vec
+                    .push(
+                        <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                                buf,
+                                (),
+                            )?
+                            .0,
+                    );
             }
             tmp_vec
         };
         let found_ids = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?
-                    .0,
-                );
+                tmp_vec
+                    .push(
+                        <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                                buf,
+                                (),
+                            )?
+                            .0,
+                    );
             }
             tmp_vec
         };
-        Ok(Self {
-            missing_ids,
-            found_ids,
-        })
+        Ok(Self { missing_ids, found_ids })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -9604,15 +10517,19 @@ pub struct ClientCacheMissResponsePacket {
 impl crate::bedrock::codec::BedrockSized for ClientCacheMissResponsePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.missing_blobs).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.missing_blobs)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.missing_blobs).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.missing_blobs)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -9633,21 +10550,26 @@ impl crate::bedrock::codec::BedrockCodec for ClientCacheMissResponsePacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let missing_blobs = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <MissingBlobData as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
-                );
+                tmp_vec
+                    .push(
+                        <MissingBlobData as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
@@ -9661,7 +10583,10 @@ pub struct EducationSettingsPacket {
 impl crate::bedrock::codec::BedrockSized for EducationSettingsPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.education_level_settings);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.education_level_settings,
+            );
         size
     }
 }
@@ -9677,11 +10602,11 @@ impl crate::bedrock::codec::BedrockCodec for EducationSettingsPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let education_level_settings =
-            <EducationLevelSettings as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        Ok(Self {
-            education_level_settings,
-        })
+        let education_level_settings = <EducationLevelSettings as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        Ok(Self { education_level_settings })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -9696,28 +10621,33 @@ pub struct EmotePacket {
 impl crate::bedrock::codec::BedrockSized for EmotePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.actor_runtime_id);
-        size += {
-            let _len = (&self.emote_id).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-            self.emote_length_ticks,
-        ));
-        size += {
-            let _len = (&self.xuid).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.platform_id).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(&self.actor_runtime_id);
+        size
+            += {
+                let _len = (&self.emote_id).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::VarInt(self.emote_length_ticks),
+            );
+        size
+            += {
+                let _len = (&self.xuid).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.platform_id).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += 1usize;
         size
     }
@@ -9748,17 +10678,20 @@ impl crate::bedrock::codec::BedrockCodec for EmotePacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let actor_runtime_id =
-            <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let actor_runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let emote_id = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -9771,21 +10704,21 @@ impl crate::bedrock::codec::BedrockCodec for EmotePacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let emote_length_ticks =
-            <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+        let emote_length_ticks = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
         let xuid = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -9799,14 +10732,15 @@ impl crate::bedrock::codec::BedrockCodec for EmotePacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let platform_id = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -9853,11 +10787,10 @@ impl crate::bedrock::codec::BedrockCodec for MultiplayerSettingsPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let packet_type =
-            <MultiplayerSettingsPacketPacketType as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
+        let packet_type = <MultiplayerSettingsPacketPacketType as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { packet_type })
     }
 }
@@ -9869,12 +10802,13 @@ pub struct SettingsCommandPacket {
 impl crate::bedrock::codec::BedrockSized for SettingsCommandPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.command).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.command).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += 1usize;
         size
     }
@@ -9896,14 +10830,15 @@ impl crate::bedrock::codec::BedrockCodec for SettingsCommandPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let command = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -9916,11 +10851,11 @@ impl crate::bedrock::codec::BedrockCodec for SettingsCommandPacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let suppress_output = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        Ok(Self {
-            command,
-            suppress_output,
-        })
+        let suppress_output = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        Ok(Self { command, suppress_output })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -9946,7 +10881,10 @@ impl crate::bedrock::codec::BedrockCodec for AnvilDamagePacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let block_position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let block_position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { block_position })
     }
 }
@@ -9976,16 +10914,17 @@ impl crate::bedrock::codec::BedrockCodec for CompletedUsingItemPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let item_id =
-            <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let item_use_method =
-            <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        Ok(Self {
-            item_id,
-            item_use_method,
-        })
+        let item_id = <crate::bedrock::codec::I16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let item_use_method = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        Ok(Self { item_id, item_use_method })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -10000,7 +10939,10 @@ impl crate::bedrock::codec::BedrockSized for NetworkSettingsPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += 2usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.compression_algorithm);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.compression_algorithm,
+            );
         size += 1usize;
         size += 1usize;
         size += 4usize;
@@ -10023,20 +10965,28 @@ impl crate::bedrock::codec::BedrockCodec for NetworkSettingsPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let compression_threshold =
-            <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
+        let compression_threshold = <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let compression_algorithm = <NetworkSettingsPacketCompressionAlgorithm as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
         )?;
-        let client_throttle_enabled =
-            <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let client_throttle_threshold =
-            <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let client_throttle_scalar =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
+        let client_throttle_enabled = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let client_throttle_threshold = <u8 as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let client_throttle_scalar = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             compression_threshold,
             compression_algorithm,
@@ -10082,71 +11032,95 @@ impl crate::bedrock::codec::BedrockSized for PlayerAuthInputPacket {
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.move_vector);
         size += 4usize;
         size += 1usize;
-        size += {
-            let _len = (&self.input_data).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.input_data)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.input_data).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.input_data)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.input_mode);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.play_mode);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.new_interaction_model);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.interact_rotation);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.new_interaction_model,
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.interact_rotation,
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.client_tick);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.pos_delta);
         size += 1usize;
-        size += {
-            1usize
-                + match &self.item_use_transaction {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
-        size += 1usize;
-        size += {
-            1usize
-                + match &self.item_stack_request {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
-        size += 1usize;
-        size += {
-            1usize
-                + match &self.player_block_actions {
-                    Some(_v) => {
-                        let _len = (_v).len();
-                        crate::bedrock::codec::BedrockSized::encoded_size(
-                            &crate::bedrock::codec::VarInt(_len as i32),
-                        ) + (_v)
-                            .iter()
-                            .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                            .sum::<usize>()
+        size
+            += {
+                1usize
+                    + match &self.item_use_transaction {
+                        Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
+                        None => 0usize,
                     }
-                    None => 0usize,
-                }
-        };
+            };
         size += 1usize;
-        size += {
-            1usize
-                + match &self.vehicle_rotation {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
+        size
+            += {
+                1usize
+                    + match &self.item_stack_request {
+                        Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
+                        None => 0usize,
+                    }
+            };
         size += 1usize;
-        size += {
-            1usize
-                + match &self.client_predicted_vehicle {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.analog_move_vector);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.camera_orientation);
+        size
+            += {
+                1usize
+                    + match &self.player_block_actions {
+                        Some(_v) => {
+                            let _len = (_v).len();
+                            crate::bedrock::codec::BedrockSized::encoded_size(
+                                &crate::bedrock::codec::VarInt(_len as i32),
+                            )
+                                + (_v)
+                                    .iter()
+                                    .map(|_item| {
+                                        crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                                    })
+                                    .sum::<usize>()
+                        }
+                        None => 0usize,
+                    }
+            };
+        size += 1usize;
+        size
+            += {
+                1usize
+                    + match &self.vehicle_rotation {
+                        Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
+                        None => 0usize,
+                    }
+            };
+        size += 1usize;
+        size
+            += {
+                1usize
+                    + match &self.client_predicted_vehicle {
+                        Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
+                        None => 0usize,
+                    }
+            };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.analog_move_vector,
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.camera_orientation,
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.raw_move_vector);
         size
     }
@@ -10225,22 +11199,31 @@ impl crate::bedrock::codec::BedrockCodec for PlayerAuthInputPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let player_rotation = <Vec2 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let player_rotation = <Vec2 as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let position = <Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let move_vector = <Vec2 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let player_head_rotation =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
+        let move_vector = <Vec2 as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let player_head_rotation = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let constant_4 = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let input_data = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -10255,25 +11238,31 @@ impl crate::bedrock::codec::BedrockCodec for PlayerAuthInputPacket {
             }
             tmp_vec
         };
-        let input_mode =
-            <PlayerAuthInputPacketInputMode as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
-        let play_mode =
-            <PlayerAuthInputPacketPlayMode as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
+        let input_mode = <PlayerAuthInputPacketInputMode as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let play_mode = <PlayerAuthInputPacketPlayMode as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let new_interaction_model = <PlayerAuthInputPacketNewInteractionModel as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
         )?;
-        let interact_rotation = <Vec2 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let client_tick =
-            <PlayerInputTick as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let interact_rotation = <Vec2 as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let client_tick = <PlayerInputTick as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let pos_delta = <Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let constant_12 = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let constant_12 = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let item_use_transaction = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
@@ -10287,7 +11276,10 @@ impl crate::bedrock::codec::BedrockCodec for PlayerAuthInputPacket {
                 None
             }
         };
-        let constant_14 = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let constant_14 = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let item_stack_request = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
@@ -10301,7 +11293,10 @@ impl crate::bedrock::codec::BedrockCodec for PlayerAuthInputPacket {
                 None
             }
         };
-        let constant_16 = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let constant_16 = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let player_block_actions = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
@@ -10319,12 +11314,13 @@ impl crate::bedrock::codec::BedrockCodec for PlayerAuthInputPacket {
                     let len = raw as usize;
                     let mut tmp_vec = Vec::with_capacity(len);
                     for _ in 0..len {
-                        tmp_vec.push(
-                            <PlayerBlockActionData as crate::bedrock::codec::BedrockCodec>::decode(
-                                buf,
-                                (),
-                            )?,
-                        );
+                        tmp_vec
+                            .push(
+                                <PlayerBlockActionData as crate::bedrock::codec::BedrockCodec>::decode(
+                                    buf,
+                                    (),
+                                )?,
+                            );
                     }
                     tmp_vec
                 })
@@ -10332,30 +11328,47 @@ impl crate::bedrock::codec::BedrockCodec for PlayerAuthInputPacket {
                 None
             }
         };
-        let constant_18 = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let constant_18 = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let vehicle_rotation = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<Vec2 as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?)
+                Some(<Vec2 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
             } else {
                 None
             }
         };
-        let constant_20 = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let constant_20 = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let client_predicted_vehicle = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+                        buf,
+                        (),
+                    )?,
+                )
             } else {
                 None
             }
         };
-        let analog_move_vector = <Vec2 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let camera_orientation = <Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let raw_move_vector = <Vec2 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let analog_move_vector = <Vec2 as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let camera_orientation = <Vec3 as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let raw_move_vector = <Vec2 as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             player_rotation,
             position,
@@ -10393,24 +11406,32 @@ pub struct CreativeContentPacket {
 impl crate::bedrock::codec::BedrockSized for CreativeContentPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.groups).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.groups)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.entries).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.entries)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.groups).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.groups)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.entries).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.entries)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -10436,46 +11457,50 @@ impl crate::bedrock::codec::BedrockCodec for CreativeContentPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let groups = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <CreativeGroupInfoPayload as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                );
+                tmp_vec
+                    .push(
+                        <CreativeGroupInfoPayload as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
         let entries = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <CreativeItemEntryPayload as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                );
+                tmp_vec
+                    .push(
+                        <CreativeItemEntryPayload as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
@@ -10489,15 +11514,19 @@ pub struct PlayerEnchantOptionsPacket {
 impl crate::bedrock::codec::BedrockSized for PlayerEnchantOptionsPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.options).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.options)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.options).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.options)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -10518,21 +11547,26 @@ impl crate::bedrock::codec::BedrockCodec for PlayerEnchantOptionsPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let options = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <ItemEnchantOption as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
-                );
+                tmp_vec
+                    .push(
+                        <ItemEnchantOption as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
@@ -10546,15 +11580,19 @@ pub struct ItemStackRequestPacket {
 impl crate::bedrock::codec::BedrockSized for ItemStackRequestPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.requests).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.requests)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.requests).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.requests)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -10575,14 +11613,15 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackRequestPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let requests = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -10607,15 +11646,19 @@ pub struct ItemStackResponsePacket {
 impl crate::bedrock::codec::BedrockSized for ItemStackResponsePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.responses).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.responses)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.responses).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.responses)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -10636,24 +11679,26 @@ impl crate::bedrock::codec::BedrockCodec for ItemStackResponsePacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let responses = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <ItemStackResponseInfo as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                );
+                tmp_vec
+                    .push(
+                        <ItemStackResponseInfo as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
@@ -10667,15 +11712,19 @@ pub struct PlayerArmorDamagePacket {
 impl crate::bedrock::codec::BedrockSized for PlayerArmorDamagePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.armor_slotand_damage_pairs).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.armor_slotand_damage_pairs)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.armor_slotand_damage_pairs).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.armor_slotand_damage_pairs)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -10696,30 +11745,30 @@ impl crate::bedrock::codec::BedrockCodec for PlayerArmorDamagePacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let armor_slotand_damage_pairs = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <ArmorSlotAndDamagePair as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                );
+                tmp_vec
+                    .push(
+                        <ArmorSlotAndDamagePair as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
-        Ok(Self {
-            armor_slotand_damage_pairs,
-        })
+        Ok(Self { armor_slotand_damage_pairs })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -10730,12 +11779,13 @@ pub struct CodeBuilderPacket {
 impl crate::bedrock::codec::BedrockSized for CodeBuilderPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.url).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.url).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += 1usize;
         size
     }
@@ -10757,14 +11807,15 @@ impl crate::bedrock::codec::BedrockCodec for CodeBuilderPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let url = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -10777,11 +11828,11 @@ impl crate::bedrock::codec::BedrockCodec for CodeBuilderPacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let shouldopencodebuilder = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        Ok(Self {
-            url,
-            shouldopencodebuilder,
-        })
+        let shouldopencodebuilder = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        Ok(Self { url, shouldopencodebuilder })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -10793,7 +11844,8 @@ pub struct UpdatePlayerGameTypePacket {
 impl crate::bedrock::codec::BedrockSized for UpdatePlayerGameTypePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.player_game_type);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(&self.player_game_type);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.targetplayer);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.tick);
         size
@@ -10817,8 +11869,14 @@ impl crate::bedrock::codec::BedrockCodec for UpdatePlayerGameTypePacket {
             buf,
             (),
         )?;
-        let targetplayer = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let tick = <PlayerInputTick as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let targetplayer = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let tick = <PlayerInputTick as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             player_game_type,
             targetplayer,
@@ -10835,15 +11893,13 @@ impl crate::bedrock::codec::BedrockSized for EmoteListPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.runtimeid);
-        size += {
-            let _len = (&self.emotepieceids).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.emotepieceids)
-                .iter()
-                .map(|_item| 16usize)
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.emotepieceids).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + (&self.emotepieceids).iter().map(|_item| { 16usize }).sum::<usize>()
+            };
         size
     }
 }
@@ -10864,31 +11920,35 @@ impl crate::bedrock::codec::BedrockCodec for EmoteListPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let runtimeid = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let runtimeid = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let emotepieceids = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(<uuid::Uuid as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?);
+                tmp_vec
+                    .push(
+                        <uuid::Uuid as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
-        Ok(Self {
-            runtimeid,
-            emotepieceids,
-        })
+        Ok(Self { runtimeid, emotepieceids })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -10902,7 +11962,10 @@ impl crate::bedrock::codec::BedrockSized for PositionTrackingDbServerBroadcastPa
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.action);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.id);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.positiontrackingdata);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.positiontrackingdata,
+            );
         size
     }
 }
@@ -10924,9 +11987,14 @@ impl crate::bedrock::codec::BedrockCodec for PositionTrackingDbServerBroadcastPa
             buf,
             (),
         )?;
-        let id = <PositionTrackingId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let positiontrackingdata =
-            <crate::bedrock::codec::Nbt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let id = <PositionTrackingId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let positiontrackingdata = <crate::bedrock::codec::Nbt as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             action,
             id,
@@ -10964,7 +12032,10 @@ impl crate::bedrock::codec::BedrockCodec for PositionTrackingDbClientRequestPack
             buf,
             (),
         )?;
-        let id = <PositionTrackingId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let id = <PositionTrackingId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { action, id })
     }
 }
@@ -10977,12 +12048,13 @@ impl crate::bedrock::codec::BedrockSized for DebugInfoPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.actor_id);
-        size += {
-            let _len = (&self.data).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.data).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -11002,16 +12074,20 @@ impl crate::bedrock::codec::BedrockCodec for DebugInfoPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let actor_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let actor_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let data = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -11038,16 +12114,21 @@ impl crate::bedrock::codec::BedrockSized for PacketViolationWarningPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.violation_type);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.violation_severity);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.violation_packet_id),
-        );
-        size += {
-            let _len = (&self.violation_context).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.violation_severity,
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.violation_packet_id),
+            );
+        size
+            += {
+                let _len = (&self.violation_context).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -11077,21 +12158,21 @@ impl crate::bedrock::codec::BedrockCodec for PacketViolationWarningPacket {
             buf,
             (),
         )?;
-        let violation_packet_id =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let violation_packet_id = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
         let violation_context = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -11141,10 +12222,15 @@ impl crate::bedrock::codec::BedrockCodec for MotionPredictionHintsPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let m_runtime_id =
-            <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let m_runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let m_motion = <Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let m_on_ground = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let m_on_ground = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             m_runtime_id,
             m_motion,
@@ -11165,41 +12251,49 @@ pub struct AnimateEntityPacket {
 impl crate::bedrock::codec::BedrockSized for AnimateEntityPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.m_animation).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.m_next_state).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.m_stop_expression).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.m_animation).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.m_next_state).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.m_stop_expression).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += 4usize;
-        size += {
-            let _len = (&self.m_controller).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.m_controller).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += 4usize;
-        size += {
-            let _len = (&self.m_runtime_ids).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.m_runtime_ids)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.m_runtime_ids).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.m_runtime_ids)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -11238,14 +12332,15 @@ impl crate::bedrock::codec::BedrockCodec for AnimateEntityPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let m_animation = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -11259,14 +12354,15 @@ impl crate::bedrock::codec::BedrockCodec for AnimateEntityPacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let m_next_state = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -11280,14 +12376,15 @@ impl crate::bedrock::codec::BedrockCodec for AnimateEntityPacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let m_stop_expression = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -11300,18 +12397,21 @@ impl crate::bedrock::codec::BedrockCodec for AnimateEntityPacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let m_stop_expression_version =
-            <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
+        let m_stop_expression_version = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let m_controller = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -11324,25 +12424,32 @@ impl crate::bedrock::codec::BedrockCodec for AnimateEntityPacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let m_blend_out_time =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
+        let m_blend_out_time = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let m_runtime_ids = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
-                );
+                tmp_vec
+                    .push(
+                        <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
@@ -11389,16 +12496,24 @@ impl crate::bedrock::codec::BedrockCodec for CameraShakePacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let intensity =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let seconds =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let shake_type =
-            <CameraShakePacketShakeType as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let shake_action =
-            <CameraShakePacketShakeAction as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let intensity = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let seconds = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let shake_type = <CameraShakePacketShakeType as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let shake_action = <CameraShakePacketShakeAction as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             intensity,
             seconds,
@@ -11414,20 +12529,24 @@ pub struct PlayerFogPacket {
 impl crate::bedrock::codec::BedrockSized for PlayerFogPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.fog_stack).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.fog_stack)
-                .iter()
-                .map(|_item| {
-                    let _len = (_item).as_bytes().len();
-                    crate::bedrock::codec::BedrockSized::encoded_size(
-                        &crate::bedrock::codec::VarInt(_len as i32),
-                    ) + _len
-                })
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.fog_stack).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.fog_stack)
+                        .iter()
+                        .map(|_item| {
+                            {
+                                let _len = (_item).as_bytes().len();
+                                crate::bedrock::codec::BedrockSized::encoded_size(
+                                    &crate::bedrock::codec::VarInt(_len as i32),
+                                ) + _len
+                            }
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -11451,14 +12570,15 @@ impl crate::bedrock::codec::BedrockCodec for PlayerFogPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let fog_stack = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -11509,13 +12629,14 @@ impl crate::bedrock::codec::BedrockSized for CorrectPlayerMovePredictionPacket {
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.pos);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.pos_delta);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.rotation);
-        size += {
-            1usize
-                + match &self.vehicle_angular_velocity {
-                    Some(_v) => 4usize,
-                    None => 0usize,
-                }
-        };
+        size
+            += {
+                1usize
+                    + match &self.vehicle_angular_velocity {
+                        Some(_v) => 4usize,
+                        None => 0usize,
+                    }
+            };
         size += 1usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.tick);
         size
@@ -11557,17 +12678,20 @@ impl crate::bedrock::codec::BedrockCodec for CorrectPlayerMovePredictionPacket {
             if present != 0 {
                 Some(
                     <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?
-                    .0,
+                            buf,
+                            (),
+                        )?
+                        .0,
                 )
             } else {
                 None
             }
         };
         let on_ground = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let tick = <PlayerInputTick as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let tick = <PlayerInputTick as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             prediction_type,
             pos,
@@ -11586,15 +12710,19 @@ pub struct ItemRegistryPacket {
 impl crate::bedrock::codec::BedrockSized for ItemRegistryPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.item_data).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.item_data)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.item_data).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.item_data)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -11615,22 +12743,26 @@ impl crate::bedrock::codec::BedrockCodec for ItemRegistryPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let item_data = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(<ItemData as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?);
+                tmp_vec
+                    .push(
+                        <ItemData as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
@@ -11645,19 +12777,21 @@ pub struct ClientboundDebugRendererPacket {
 impl crate::bedrock::codec::BedrockSized for ClientboundDebugRendererPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.type_).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            1usize
-                + match &self.debug_marker_data {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
+        size
+            += {
+                let _len = (&self.type_).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                1usize
+                    + match &self.debug_marker_data {
+                        Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
+                        None => 0usize,
+                    }
+            };
         size
     }
 }
@@ -11684,14 +12818,15 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundDebugRendererPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let type_ = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -11717,10 +12852,7 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundDebugRendererPacket {
                 None
             }
         };
-        Ok(Self {
-            type_,
-            debug_marker_data,
-        })
+        Ok(Self { type_, debug_marker_data })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -11746,8 +12878,10 @@ impl crate::bedrock::codec::BedrockCodec for SyncActorPropertyPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let property_data =
-            <crate::bedrock::codec::Nbt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let property_data = <crate::bedrock::codec::Nbt as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { property_data })
     }
 }
@@ -11765,29 +12899,35 @@ pub struct AddVolumeEntityPacket {
 impl crate::bedrock::codec::BedrockSized for AddVolumeEntityPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.entity_network_id);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.entity_network_id,
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.components);
-        size += {
-            let _len = (&self.json_identifier).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.instance_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.json_identifier).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.instance_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.min_bounds);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.max_bounds);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.dimension_type);
-        size += {
-            let _len = (&self.engine_version).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.engine_version).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -11819,19 +12959,24 @@ impl crate::bedrock::codec::BedrockCodec for AddVolumeEntityPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let entity_network_id =
-            <EntityNetId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let components =
-            <crate::bedrock::codec::Nbt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let entity_network_id = <EntityNetId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let components = <crate::bedrock::codec::Nbt as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let json_identifier = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -11845,14 +12990,15 @@ impl crate::bedrock::codec::BedrockCodec for AddVolumeEntityPacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let instance_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -11865,19 +13011,28 @@ impl crate::bedrock::codec::BedrockCodec for AddVolumeEntityPacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let min_bounds = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let max_bounds = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let dimension_type =
-            <DimensionType as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let min_bounds = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let max_bounds = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let dimension_type = <DimensionType as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let engine_version = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -11910,7 +13065,10 @@ pub struct RemoveVolumeEntityPacket {
 impl crate::bedrock::codec::BedrockSized for RemoveVolumeEntityPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.entity_network_id);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.entity_network_id,
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.dimension_type);
         size
     }
@@ -11928,10 +13086,14 @@ impl crate::bedrock::codec::BedrockCodec for RemoveVolumeEntityPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let entity_network_id =
-            <EntityNetId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let dimension_type =
-            <DimensionType as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let entity_network_id = <EntityNetId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let dimension_type = <DimensionType as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             entity_network_id,
             dimension_type,
@@ -11961,8 +13123,10 @@ impl crate::bedrock::codec::BedrockCodec for SimulationTypePacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let sim_type =
-            <SimulationTypePacketSimType as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let sim_type = <SimulationTypePacketSimType as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { sim_type })
     }
 }
@@ -11979,31 +13143,38 @@ impl crate::bedrock::codec::BedrockSized for NpcDialoguePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += 8usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.npc_dialogue_action_type);
-        size += {
-            let _len = (&self.dialogue).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.scene_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.npc_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.action_json).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.npc_dialogue_action_type,
+            );
+        size
+            += {
+                let _len = (&self.dialogue).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.scene_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.npc_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.action_json).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -12036,22 +13207,25 @@ impl crate::bedrock::codec::BedrockCodec for NpcDialoguePacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let npc_id_raw_id =
-            <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
+        let npc_id_raw_id = <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let npc_dialogue_action_type = <NpcDialoguePacketNpcDialogueActionType as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
         )?;
         let dialogue = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -12065,14 +13239,15 @@ impl crate::bedrock::codec::BedrockCodec for NpcDialoguePacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let scene_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -12086,14 +13261,15 @@ impl crate::bedrock::codec::BedrockCodec for NpcDialoguePacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let npc_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -12107,14 +13283,15 @@ impl crate::bedrock::codec::BedrockCodec for NpcDialoguePacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let action_json = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -12144,7 +13321,10 @@ pub struct EduUriResourcePacket {
 impl crate::bedrock::codec::BedrockSized for EduUriResourcePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.edu_shared_uri_resource);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.edu_shared_uri_resource,
+            );
         size
     }
 }
@@ -12160,11 +13340,11 @@ impl crate::bedrock::codec::BedrockCodec for EduUriResourcePacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let edu_shared_uri_resource =
-            <EduSharedUriResource as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        Ok(Self {
-            edu_shared_uri_resource,
-        })
+        let edu_shared_uri_resource = <EduSharedUriResource as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        Ok(Self { edu_shared_uri_resource })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -12177,18 +13357,20 @@ impl crate::bedrock::codec::BedrockSized for CreatePhotoPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += 8usize;
-        size += {
-            let _len = (&self.photo_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.photo_item_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.photo_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.photo_item_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -12212,18 +13394,21 @@ impl crate::bedrock::codec::BedrockCodec for CreatePhotoPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let raw_id =
-            <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
+        let raw_id = <crate::bedrock::codec::U64LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let photo_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -12237,14 +13422,15 @@ impl crate::bedrock::codec::BedrockCodec for CreatePhotoPacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let photo_item_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -12272,7 +13458,10 @@ pub struct UpdateSubChunkBlocksPacket {
 impl crate::bedrock::codec::BedrockSized for UpdateSubChunkBlocksPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.sub_chunk_block_position);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.sub_chunk_block_position,
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.blocks_changed);
         size
     }
@@ -12290,13 +13479,14 @@ impl crate::bedrock::codec::BedrockCodec for UpdateSubChunkBlocksPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let sub_chunk_block_position =
-            <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let blocks_changed =
-            <UpdateSubChunkBlocksChangedInfo as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
+        let sub_chunk_block_position = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let blocks_changed = <UpdateSubChunkBlocksChangedInfo as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             sub_chunk_block_position,
             blocks_changed,
@@ -12316,15 +13506,19 @@ impl crate::bedrock::codec::BedrockSized for SubChunkPacket {
         size += 1usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.dimension_type);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.center_pos);
-        size += {
-            let _len = (&self.sub_chunk_data).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.sub_chunk_data)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.sub_chunk_data).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.sub_chunk_data)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -12347,19 +13541,28 @@ impl crate::bedrock::codec::BedrockCodec for SubChunkPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let cache_enabled = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let dimension_type =
-            <DimensionType as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let center_pos = <SubChunkPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let cache_enabled = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let dimension_type = <DimensionType as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let center_pos = <SubChunkPos as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let sub_chunk_data = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -12392,15 +13595,19 @@ impl crate::bedrock::codec::BedrockSized for SubChunkRequestPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.dimension_type);
-        size += {
-            let _len = (&self.sub_chunk_position_offset_list).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.sub_chunk_position_offset_list)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.sub_chunk_position_offset_list).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.sub_chunk_position_offset_list)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.center_pos);
         size
     }
@@ -12423,17 +13630,20 @@ impl crate::bedrock::codec::BedrockCodec for SubChunkRequestPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let dimension_type =
-            <DimensionType as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let dimension_type = <DimensionType as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let sub_chunk_position_offset_list = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -12448,7 +13658,10 @@ impl crate::bedrock::codec::BedrockCodec for SubChunkRequestPacket {
             }
             tmp_vec
         };
-        let center_pos = <SubChunkPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let center_pos = <SubChunkPos as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             dimension_type,
             sub_chunk_position_offset_list,
@@ -12464,15 +13677,17 @@ pub struct PlayerStartItemCooldownPacket {
 impl crate::bedrock::codec::BedrockSized for PlayerStartItemCooldownPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.item_category).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.duration_ticks),
-        );
+        size
+            += {
+                let _len = (&self.item_category).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.duration_ticks),
+            );
         size
     }
 }
@@ -12493,14 +13708,15 @@ impl crate::bedrock::codec::BedrockCodec for PlayerStartItemCooldownPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let item_category = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -12513,8 +13729,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerStartItemCooldownPacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let duration_ticks =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let duration_ticks = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
@@ -12533,18 +13748,20 @@ pub struct ScriptMessagePacket {
 impl crate::bedrock::codec::BedrockSized for ScriptMessagePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.message_id).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.message_value).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.message_id).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.message_value).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -12568,14 +13785,15 @@ impl crate::bedrock::codec::BedrockCodec for ScriptMessagePacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let message_id = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -12589,14 +13807,15 @@ impl crate::bedrock::codec::BedrockCodec for ScriptMessagePacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let message_value = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -12609,10 +13828,7 @@ impl crate::bedrock::codec::BedrockCodec for ScriptMessagePacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        Ok(Self {
-            message_id,
-            message_value,
-        })
+        Ok(Self { message_id, message_value })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -12644,21 +13860,18 @@ impl crate::bedrock::codec::BedrockCodec for CodeBuilderSourcePacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let operation =
-            <CodeBuilderSourcePacketOperation as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
-        let category =
-            <CodeBuilderSourcePacketCategory as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
-        let code_status =
-            <CodeBuilderSourcePacketCodeStatus as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
+        let operation = <CodeBuilderSourcePacketOperation as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let category = <CodeBuilderSourcePacketCategory as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let code_status = <CodeBuilderSourcePacketCodeStatus as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             operation,
             category,
@@ -12689,10 +13902,11 @@ impl crate::bedrock::codec::BedrockCodec for TickingAreasLoadStatusPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let waiting_for_preload = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        Ok(Self {
-            waiting_for_preload,
-        })
+        let waiting_for_preload = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        Ok(Self { waiting_for_preload })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -12702,15 +13916,19 @@ pub struct DimensionDataPacket {
 impl crate::bedrock::codec::BedrockSized for DimensionDataPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.definitions).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.definitions)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.definitions).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.definitions)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -12731,14 +13949,15 @@ impl crate::bedrock::codec::BedrockCodec for DimensionDataPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let definitions = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -12765,19 +13984,21 @@ pub struct AgentActionEventPacket {
 impl crate::bedrock::codec::BedrockSized for AgentActionEventPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.request_id).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.request_id).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.action);
-        size += {
-            let _len = (&self.response).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.response).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -12802,14 +14023,15 @@ impl crate::bedrock::codec::BedrockCodec for AgentActionEventPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let request_id = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -12822,17 +14044,20 @@ impl crate::bedrock::codec::BedrockCodec for AgentActionEventPacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let action =
-            <AgentActionEventPacketAction as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let action = <AgentActionEventPacketAction as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let response = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -12865,22 +14090,25 @@ impl crate::bedrock::codec::BedrockSized for ChangeMobPropertyPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.actor_id);
-        size += {
-            let _len = (&self.property_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.property_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += 1usize;
-        size += {
-            let _len = (&self.string_component_value).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.int_component_value),
-        );
+        size
+            += {
+                let _len = (&self.string_component_value).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.int_component_value),
+            );
         size += 4usize;
         size
     }
@@ -12908,16 +14136,20 @@ impl crate::bedrock::codec::BedrockCodec for ChangeMobPropertyPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let actor_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let actor_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let property_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -12930,16 +14162,20 @@ impl crate::bedrock::codec::BedrockCodec for ChangeMobPropertyPacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let bool_component_value = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let bool_component_value = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let string_component_value = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -12952,15 +14188,16 @@ impl crate::bedrock::codec::BedrockCodec for ChangeMobPropertyPacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let int_component_value =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let int_component_value = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let float_component_value =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
+        let float_component_value = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             actor_id,
             property_name,
@@ -12980,18 +14217,21 @@ pub struct LessonProgressPacket {
 impl crate::bedrock::codec::BedrockSized for LessonProgressPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.lesson_action),
-        );
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.score),
-        );
-        size += {
-            let _len = (&self.activity_id).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.lesson_action),
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.score),
+            );
+        size
+            += {
+                let _len = (&self.activity_id).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -13012,27 +14252,26 @@ impl crate::bedrock::codec::BedrockCodec for LessonProgressPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let lesson_action =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let lesson_action = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let score =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let score = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
         let activity_id = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -13062,9 +14301,10 @@ pub struct RequestAbilityPacket {
 impl crate::bedrock::codec::BedrockSized for RequestAbilityPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.ability),
-        );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.ability),
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.value_type);
         size += 1usize;
         size += 4usize;
@@ -13086,21 +14326,21 @@ impl crate::bedrock::codec::BedrockCodec for RequestAbilityPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let ability =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let ability = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let value_type =
-            <RequestAbilityPacketValueType as crate::bedrock::codec::BedrockCodec>::decode(
+        let value_type = <RequestAbilityPacketValueType as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let bool = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let float = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
-            )?;
-        let bool = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let float =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
+            )?
+            .0;
         Ok(Self {
             ability,
             value_type,
@@ -13119,9 +14359,10 @@ impl crate::bedrock::codec::BedrockSized for RequestPermissionsPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += 8usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.player_permission_level),
-        );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.player_permission_level),
+            );
         size += 2usize;
         size
     }
@@ -13140,18 +14381,21 @@ impl crate::bedrock::codec::BedrockCodec for RequestPermissionsPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let target_player_ids_raw_id =
-            <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let player_permission_level =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let target_player_ids_raw_id = <crate::bedrock::codec::I64LE as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let custom_permission_flags =
-            <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
+        let player_permission_level = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let custom_permission_flags = <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             target_player_ids_raw_id,
             player_permission_level,
@@ -13167,18 +14411,20 @@ pub struct ToastRequestPacket {
 impl crate::bedrock::codec::BedrockSized for ToastRequestPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.title).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.content).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.title).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.content).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -13202,14 +14448,15 @@ impl crate::bedrock::codec::BedrockCodec for ToastRequestPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let title = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -13223,14 +14470,15 @@ impl crate::bedrock::codec::BedrockCodec for ToastRequestPacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let content = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -13269,8 +14517,10 @@ impl crate::bedrock::codec::BedrockCodec for UpdateAbilitiesPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let data =
-            <SerializedAbilitiesData as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let data = <SerializedAbilitiesData as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { data })
     }
 }
@@ -13281,7 +14531,10 @@ pub struct UpdateAdventureSettingsPacket {
 impl crate::bedrock::codec::BedrockSized for UpdateAdventureSettingsPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.adventure_settings);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.adventure_settings,
+            );
         size
     }
 }
@@ -13297,8 +14550,10 @@ impl crate::bedrock::codec::BedrockCodec for UpdateAdventureSettingsPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let adventure_settings =
-            <AdventureSettings as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let adventure_settings = <AdventureSettings as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { adventure_settings })
     }
 }
@@ -13310,26 +14565,31 @@ pub struct DeathInfoPacket {
 impl crate::bedrock::codec::BedrockSized for DeathInfoPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.death_cause_attack_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.death_cause_message_list).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.death_cause_message_list)
-                .iter()
-                .map(|_item| {
-                    let _len = (_item).as_bytes().len();
-                    crate::bedrock::codec::BedrockSized::encoded_size(
-                        &crate::bedrock::codec::VarInt(_len as i32),
-                    ) + _len
-                })
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.death_cause_attack_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.death_cause_message_list).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.death_cause_message_list)
+                        .iter()
+                        .map(|_item| {
+                            {
+                                let _len = (_item).as_bytes().len();
+                                crate::bedrock::codec::BedrockSized::encoded_size(
+                                    &crate::bedrock::codec::VarInt(_len as i32),
+                                ) + _len
+                            }
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -13357,14 +14617,15 @@ impl crate::bedrock::codec::BedrockCodec for DeathInfoPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let death_cause_attack_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -13378,14 +14639,15 @@ impl crate::bedrock::codec::BedrockCodec for DeathInfoPacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let death_cause_message_list = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -13432,18 +14694,20 @@ impl crate::bedrock::codec::BedrockSized for EditorNetworkPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += 1usize;
-        size += {
-            let _len = (&self.raw_variant_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.raw_variant_data).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.raw_variant_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.raw_variant_data).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -13467,16 +14731,20 @@ impl crate::bedrock::codec::BedrockCodec for EditorNetworkPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let route_to_manager = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let route_to_manager = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let raw_variant_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -13490,14 +14758,15 @@ impl crate::bedrock::codec::BedrockCodec for EditorNetworkPacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let raw_variant_data = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -13524,15 +14793,19 @@ pub struct FeatureRegistryPacket {
 impl crate::bedrock::codec::BedrockSized for FeatureRegistryPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.features_data_list).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.features_data_list)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.features_data_list).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.features_data_list)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -13553,14 +14826,15 @@ impl crate::bedrock::codec::BedrockCodec for FeatureRegistryPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let features_data_list = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -13604,16 +14878,17 @@ impl crate::bedrock::codec::BedrockCodec for ServerStatsPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let server_time =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let network_time =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        Ok(Self {
-            server_time,
-            network_time,
-        })
+        let server_time = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let network_time = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        Ok(Self { server_time, network_time })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -13639,10 +14914,11 @@ impl crate::bedrock::codec::BedrockCodec for RequestNetworkSettingsPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let client_network_version = <i32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        Ok(Self {
-            client_network_version,
-        })
+        let client_network_version = <i32 as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        Ok(Self { client_network_version })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -13658,24 +14934,28 @@ pub struct GameTestRequestPacket {
 impl crate::bedrock::codec::BedrockSized for GameTestRequestPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.max_tests_per_batch),
-        );
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.repeat_count),
-        );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.max_tests_per_batch),
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.repeat_count),
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.rotation);
         size += 1usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.test_pos);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.tests_per_row),
-        );
-        size += {
-            let _len = (&self.test_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.tests_per_row),
+            );
+        size
+            += {
+                let _len = (&self.test_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -13700,40 +14980,43 @@ impl crate::bedrock::codec::BedrockCodec for GameTestRequestPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let max_tests_per_batch =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let max_tests_per_batch = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let repeat_count =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let repeat_count = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let rotation =
-            <GameTestRequestPacketRotation as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
-        let stop_on_failure = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let test_pos = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let tests_per_row =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let rotation = <GameTestRequestPacketRotation as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let stop_on_failure = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let test_pos = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let tests_per_row = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
         let test_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -13767,18 +15050,20 @@ impl crate::bedrock::codec::BedrockSized for GameTestResultsPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += 1usize;
-        size += {
-            let _len = (&self.error).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.test_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.error).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.test_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -13804,14 +15089,15 @@ impl crate::bedrock::codec::BedrockCodec for GameTestResultsPacket {
         let _ = buf;
         let succeeded = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let error = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -13825,14 +15111,15 @@ impl crate::bedrock::codec::BedrockCodec for GameTestResultsPacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let test_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -13859,9 +15146,10 @@ pub struct UpdateClientInputLocksPacket {
 impl crate::bedrock::codec::BedrockSized for UpdateClientInputLocksPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-            self.input_lock_component_data,
-        ));
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::VarInt(self.input_lock_component_data),
+            );
         size
     }
 }
@@ -13877,15 +15165,12 @@ impl crate::bedrock::codec::BedrockCodec for UpdateClientInputLocksPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let input_lock_component_data =
-            <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+        let input_lock_component_data = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        Ok(Self {
-            input_lock_component_data,
-        })
+        Ok(Self { input_lock_component_data })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -13911,8 +15196,10 @@ impl crate::bedrock::codec::BedrockCodec for CameraPresetsPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let camera_presets =
-            <CameraPresets as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let camera_presets = <CameraPresets as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { camera_presets })
     }
 }
@@ -13925,20 +15212,24 @@ impl crate::bedrock::codec::BedrockSized for UnlockedRecipesPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.packet_type);
-        size += {
-            let _len = (&self.unlocked_recipes_list).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.unlocked_recipes_list)
-                .iter()
-                .map(|_item| {
-                    let _len = (_item).as_bytes().len();
-                    crate::bedrock::codec::BedrockSized::encoded_size(
-                        &crate::bedrock::codec::VarInt(_len as i32),
-                    ) + _len
-                })
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.unlocked_recipes_list).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.unlocked_recipes_list)
+                        .iter()
+                        .map(|_item| {
+                            {
+                                let _len = (_item).as_bytes().len();
+                                crate::bedrock::codec::BedrockSized::encoded_size(
+                                    &crate::bedrock::codec::VarInt(_len as i32),
+                                ) + _len
+                            }
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -13962,20 +15253,20 @@ impl crate::bedrock::codec::BedrockCodec for UnlockedRecipesPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let packet_type =
-            <UnlockedRecipesPacketPacketType as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
+        let packet_type = <UnlockedRecipesPacketPacketType as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let unlocked_recipes_list = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -14019,7 +15310,10 @@ pub struct CameraInstructionPacket {
 impl crate::bedrock::codec::BedrockSized for CameraInstructionPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.camera_instruction);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.camera_instruction,
+            );
         size
     }
 }
@@ -14035,8 +15329,10 @@ impl crate::bedrock::codec::BedrockCodec for CameraInstructionPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let camera_instruction =
-            <CameraInstruction as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let camera_instruction = <CameraInstruction as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { camera_instruction })
     }
 }
@@ -14048,24 +15344,32 @@ pub struct TrimDataPacket {
 impl crate::bedrock::codec::BedrockSized for TrimDataPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.trim_pattern_list).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.trim_pattern_list)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.trim_material_list).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.trim_material_list)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.trim_pattern_list).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.trim_pattern_list)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.trim_material_list).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.trim_material_list)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -14091,38 +15395,50 @@ impl crate::bedrock::codec::BedrockCodec for TrimDataPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let trim_pattern_list = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec
-                    .push(<TrimPattern as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?);
+                    .push(
+                        <TrimPattern as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
         let trim_material_list = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
                 tmp_vec
-                    .push(<TrimMaterial as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?);
+                    .push(
+                        <TrimMaterial as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
@@ -14159,7 +15475,10 @@ impl crate::bedrock::codec::BedrockCodec for OpenSignPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let pos = <BlockPos as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let is_front_side = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let is_front_side = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { pos, is_front_side })
     }
 }
@@ -14189,12 +15508,14 @@ impl crate::bedrock::codec::BedrockCodec for AgentAnimationPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let agent_animation =
-            <AgentAnimationPacketAgentAnimation as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
-        let runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let agent_animation = <AgentAnimationPacketAgentAnimation as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             agent_animation,
             runtime_id,
@@ -14257,17 +15578,26 @@ impl crate::bedrock::codec::BedrockCodec for PlayerToggleCrafterSlotRequestPacke
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let pos_x =
-            <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let pos_y =
-            <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let pos_z =
-            <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
+        let pos_x = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let pos_y = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let pos_z = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let slot_index = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let is_disabled = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let is_disabled = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             pos_x,
             pos_y,
@@ -14284,7 +15614,10 @@ pub struct SetPlayerInventoryOptionsPacket {
 impl crate::bedrock::codec::BedrockSized for SetPlayerInventoryOptionsPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.inventory_options);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.inventory_options,
+            );
         size
     }
 }
@@ -14300,8 +15633,10 @@ impl crate::bedrock::codec::BedrockCodec for SetPlayerInventoryOptionsPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let inventory_options =
-            <InventoryOptions as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let inventory_options = <InventoryOptions as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { inventory_options })
     }
 }
@@ -14313,15 +15648,19 @@ pub struct SetHudPacket {
 impl crate::bedrock::codec::BedrockSized for SetHudPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.hud_element).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.hud_element)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.hud_element).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.hud_element)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.hud_visible);
         size
     }
@@ -14344,33 +15683,34 @@ impl crate::bedrock::codec::BedrockCodec for SetHudPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let hud_element = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <SetHudPacketHudElementItem as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                );
+                tmp_vec
+                    .push(
+                        <SetHudPacketHudElementItem as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
-        let hud_visible =
-            <SetHudPacketHudVisible as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        Ok(Self {
-            hud_element,
-            hud_visible,
-        })
+        let hud_visible = <SetHudPacketHudVisible as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        Ok(Self { hud_element, hud_visible })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -14396,9 +15736,11 @@ impl crate::bedrock::codec::BedrockCodec for AwardAchievementPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let achievement_id =
-            <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
+        let achievement_id = <crate::bedrock::codec::I32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self { achievement_id })
     }
 }
@@ -14431,14 +15773,18 @@ pub struct ServerboundLoadingScreenPacket {
 impl crate::bedrock::codec::BedrockSized for ServerboundLoadingScreenPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.loading_screen_packet_type);
-        size += {
-            1usize
-                + match &self.loading_screen_id {
-                    Some(_v) => 4usize,
-                    None => 0usize,
-                }
-        };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.loading_screen_packet_type,
+            );
+        size
+            += {
+                1usize
+                    + match &self.loading_screen_id {
+                        Some(_v) => 4usize,
+                        None => 0usize,
+                    }
+            };
         size
     }
 }
@@ -14470,10 +15816,10 @@ impl crate::bedrock::codec::BedrockCodec for ServerboundLoadingScreenPacket {
             if present != 0 {
                 Some(
                     <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?
-                    .0,
+                            buf,
+                            (),
+                        )?
+                        .0,
                 )
             } else {
                 None
@@ -14492,7 +15838,10 @@ pub struct JigsawStructureDataPacket {
 impl crate::bedrock::codec::BedrockSized for JigsawStructureDataPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.jigsaw_structure_data_tag);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.jigsaw_structure_data_tag,
+            );
         size
     }
 }
@@ -14508,11 +15857,11 @@ impl crate::bedrock::codec::BedrockCodec for JigsawStructureDataPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let jigsaw_structure_data_tag =
-            <crate::bedrock::codec::Nbt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        Ok(Self {
-            jigsaw_structure_data_tag,
-        })
+        let jigsaw_structure_data_tag = <crate::bedrock::codec::Nbt as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        Ok(Self { jigsaw_structure_data_tag })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -14522,12 +15871,13 @@ pub struct CurrentStructureFeaturePacket {
 impl crate::bedrock::codec::BedrockSized for CurrentStructureFeaturePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.current_structure_feature).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.current_structure_feature).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -14547,14 +15897,15 @@ impl crate::bedrock::codec::BedrockCodec for CurrentStructureFeaturePacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let current_structure_feature = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -14567,9 +15918,7 @@ impl crate::bedrock::codec::BedrockCodec for CurrentStructureFeaturePacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        Ok(Self {
-            current_structure_feature,
-        })
+        Ok(Self { current_structure_feature })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -14601,57 +15950,77 @@ impl crate::bedrock::codec::BedrockSized for ServerboundDiagnosticsPacket {
         size += 4usize;
         size += 4usize;
         size += 4usize;
-        size += {
-            let _len = (&self.memory_category_values).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.memory_category_values)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.entity_diagnostics).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.entity_diagnostics)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.system_diagnostics).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.system_diagnostics)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            1usize
-                + match &self.system_categories {
-                    Some(_v) => {
-                        let _len = (_v).len();
-                        crate::bedrock::codec::BedrockSized::encoded_size(
-                            &crate::bedrock::codec::VarInt(_len as i32),
-                        ) + (_v)
-                            .iter()
-                            .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                            .sum::<usize>()
+        size
+            += {
+                let _len = (&self.memory_category_values).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.memory_category_values)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.entity_diagnostics).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.entity_diagnostics)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.system_diagnostics).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.system_diagnostics)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                1usize
+                    + match &self.system_categories {
+                        Some(_v) => {
+                            let _len = (_v).len();
+                            crate::bedrock::codec::BedrockSized::encoded_size(
+                                &crate::bedrock::codec::VarInt(_len as i32),
+                            )
+                                + (_v)
+                                    .iter()
+                                    .map(|_item| {
+                                        crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                                    })
+                                    .sum::<usize>()
+                        }
+                        None => 0usize,
                     }
-                    None => 0usize,
-                }
-        };
-        size += {
-            let _len = (&self.whisker_scopes).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.whisker_scopes)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+            };
+        size
+            += {
+                let _len = (&self.whisker_scopes).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.whisker_scopes)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -14706,64 +16075,85 @@ impl crate::bedrock::codec::BedrockCodec for ServerboundDiagnosticsPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let avg_fps =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let avg_server_sim_tick_time_ms =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let avg_client_sim_tick_time_ms =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let avg_begin_frame_time_ms =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let avg_input_time_ms =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let avg_render_time_ms =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let avg_end_frame_time_ms =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let avg_remainder_time_percent =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let avg_unaccounted_time_percent =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
+        let avg_fps = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let avg_server_sim_tick_time_ms = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let avg_client_sim_tick_time_ms = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let avg_begin_frame_time_ms = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let avg_input_time_ms = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let avg_render_time_ms = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let avg_end_frame_time_ms = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let avg_remainder_time_percent = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
+        let avg_unaccounted_time_percent = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let memory_category_values = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <MemoryMemoryCategoryCounter as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                );
+                tmp_vec
+                    .push(
+                        <MemoryMemoryCategoryCounter as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
         let entity_diagnostics = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -14779,14 +16169,15 @@ impl crate::bedrock::codec::BedrockCodec for ServerboundDiagnosticsPacket {
             tmp_vec
         };
         let system_diagnostics = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -14833,14 +16224,15 @@ impl crate::bedrock::codec::BedrockCodec for ServerboundDiagnosticsPacket {
             }
         };
         let whisker_scopes = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -14885,12 +16277,13 @@ pub struct CameraAimAssistPacket {
 impl crate::bedrock::codec::BedrockSized for CameraAimAssistPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.preset_id).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.preset_id).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.view_angle);
         size += 4usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.target_mode);
@@ -14920,14 +16313,15 @@ impl crate::bedrock::codec::BedrockCodec for CameraAimAssistPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let preset_id = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -14941,17 +16335,23 @@ impl crate::bedrock::codec::BedrockCodec for CameraAimAssistPacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let view_angle = <Vec2 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let distance =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let target_mode =
-            <CameraAimAssistPacketTargetMode as crate::bedrock::codec::BedrockCodec>::decode(
+        let distance = <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
-            )?;
-        let action =
-            <CameraAimAssistPacketAction as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let show_debug_render = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+            )?
+            .0;
+        let target_mode = <CameraAimAssistPacketTargetMode as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let action = <CameraAimAssistPacketAction as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let show_debug_render = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             preset_id,
             view_angle,
@@ -14969,15 +16369,19 @@ pub struct ContainerRegistryCleanupPacket {
 impl crate::bedrock::codec::BedrockSized for ContainerRegistryCleanupPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.removed_containers).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.removed_containers)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.removed_containers).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.removed_containers)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -14998,21 +16402,26 @@ impl crate::bedrock::codec::BedrockCodec for ContainerRegistryCleanupPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let removed_containers = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <FullContainerName as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
-                );
+                tmp_vec
+                    .push(
+                        <FullContainerName as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
@@ -15029,11 +16438,15 @@ pub struct MovementEffectPacket {
 impl crate::bedrock::codec::BedrockSized for MovementEffectPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.target_runtime_id);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.target_runtime_id,
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.effect_id);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(
-            &crate::bedrock::codec::ZigZag32(self.effect_duration),
-        );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::ZigZag32(self.effect_duration),
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.tick);
         size
     }
@@ -15053,17 +16466,23 @@ impl crate::bedrock::codec::BedrockCodec for MovementEffectPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let target_runtime_id =
-            <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let effect_id =
-            <MovementEffectPacketEffectId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let effect_duration =
-            <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
+        let target_runtime_id = <ActorRuntimeId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let effect_id = <MovementEffectPacketEffectId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let effect_duration = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let tick = <PlayerInputTick as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let tick = <PlayerInputTick as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             target_runtime_id,
             effect_id,
@@ -15074,31 +16493,43 @@ impl crate::bedrock::codec::BedrockCodec for MovementEffectPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct CameraAimAssistPresetsPacket {
-    pub camera_aim_assist_presets: Vec<SharedTypesV12150CameraAimAssistCategoryDefinition>,
-    pub camera_aim_assist_categories: Vec<SharedTypesV121120CameraAimAssistPresetDefinition>,
+    pub camera_aim_assist_presets: Vec<
+        SharedTypesV12150CameraAimAssistCategoryDefinition,
+    >,
+    pub camera_aim_assist_categories: Vec<
+        SharedTypesV121120CameraAimAssistPresetDefinition,
+    >,
     pub operation: CameraAimAssistPresetsPacketOperation,
 }
 impl crate::bedrock::codec::BedrockSized for CameraAimAssistPresetsPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.camera_aim_assist_presets).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.camera_aim_assist_presets)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.camera_aim_assist_categories).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.camera_aim_assist_categories)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.camera_aim_assist_presets).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.camera_aim_assist_presets)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.camera_aim_assist_categories).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.camera_aim_assist_categories)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.operation);
         size
     }
@@ -15126,14 +16557,15 @@ impl crate::bedrock::codec::BedrockCodec for CameraAimAssistPresetsPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let camera_aim_assist_presets = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -15149,14 +16581,15 @@ impl crate::bedrock::codec::BedrockCodec for CameraAimAssistPresetsPacket {
             tmp_vec
         };
         let camera_aim_assist_categories = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -15171,11 +16604,10 @@ impl crate::bedrock::codec::BedrockCodec for CameraAimAssistPresetsPacket {
             }
             tmp_vec
         };
-        let operation =
-            <CameraAimAssistPresetsPacketOperation as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
+        let operation = <CameraAimAssistPresetsPacketOperation as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             camera_aim_assist_presets,
             camera_aim_assist_categories,
@@ -15192,12 +16624,13 @@ pub struct ClientCameraAimAssistPacket {
 impl crate::bedrock::codec::BedrockSized for ClientCameraAimAssistPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.camera_preset_id).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.camera_preset_id).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.action);
         size += 1usize;
         size
@@ -15221,14 +16654,15 @@ impl crate::bedrock::codec::BedrockCodec for ClientCameraAimAssistPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let camera_preset_id = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -15241,12 +16675,14 @@ impl crate::bedrock::codec::BedrockCodec for ClientCameraAimAssistPacket {
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let action =
-            <ClientCameraAimAssistPacketAction as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
-        let allowaimassist = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let action = <ClientCameraAimAssistPacketAction as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let allowaimassist = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             camera_preset_id,
             action,
@@ -15266,11 +16702,12 @@ impl crate::bedrock::codec::BedrockSized for ClientMovementPredictionSyncPacket 
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.actor_data_flag);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.actor_bounding_box);
-        size += (&self.movement_attributes)
-            .iter()
-            .map(|_item| 4usize)
-            .sum::<usize>();
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.actor_bounding_box,
+            );
+        size
+            += (&self.movement_attributes).iter().map(|_item| { 4usize }).sum::<usize>();
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.actor_unique_id);
         size += 1usize;
         size
@@ -15294,32 +16731,39 @@ impl crate::bedrock::codec::BedrockCodec for ClientMovementPredictionSyncPacket 
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let actor_data_flag =
-            <ActorDataFlagComponent as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let actor_bounding_box =
-            <ActorDataBoundingBoxComponent as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
+        let actor_data_flag = <ActorDataFlagComponent as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let actor_bounding_box = <ActorDataBoundingBoxComponent as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let movement_attributes = {
             let mut values = Vec::with_capacity(9);
             for _ in 0..9 {
-                values.push(
-                    <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?
-                    .0,
-                );
+                values
+                    .push(
+                        <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                                buf,
+                                (),
+                            )?
+                            .0,
+                    );
             }
             match values.try_into() {
                 Ok(array) => array,
                 Err(_) => unreachable!("fixed-array decoder produced the wrong length"),
             }
         };
-        let actor_unique_id =
-            <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let actor_flying_state = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let actor_unique_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let actor_flying_state = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             actor_data_flag,
             actor_bounding_box,
@@ -15337,20 +16781,22 @@ pub struct UpdateClientOptionsPacket {
 impl crate::bedrock::codec::BedrockSized for UpdateClientOptionsPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            1usize
-                + match &self.graphics_mode_change {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
-        size += {
-            1usize
-                + match &self.filter_profanity_change {
-                    Some(_v) => 1usize,
-                    None => 0usize,
-                }
-        };
+        size
+            += {
+                1usize
+                    + match &self.graphics_mode_change {
+                        Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
+                        None => 0usize,
+                    }
+            };
+        size
+            += {
+                1usize
+                    + match &self.filter_profanity_change {
+                        Some(_v) => 1usize,
+                        None => 0usize,
+                    }
+            };
         size
     }
 }
@@ -15395,10 +16841,7 @@ impl crate::bedrock::codec::BedrockCodec for UpdateClientOptionsPacket {
         let filter_profanity_change = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<bool as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?)
+                Some(<bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
             } else {
                 None
             }
@@ -15417,8 +16860,14 @@ pub struct PlayerVideoCapturePacket {
 impl crate::bedrock::codec::BedrockSized for PlayerVideoCapturePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.start_video_capture);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.stop_video_capture);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.start_video_capture,
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.stop_video_capture,
+            );
         size
     }
 }
@@ -15459,9 +16908,10 @@ impl crate::bedrock::codec::BedrockSized for PlayerUpdateEntityOverridesPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.target_id);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-            self.property_index,
-        ));
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::VarInt(self.property_index),
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.update);
         size
     }
@@ -15480,9 +16930,11 @@ impl crate::bedrock::codec::BedrockCodec for PlayerUpdateEntityOverridesPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let target_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let property_index =
-            <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+        let target_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let property_index = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
@@ -15524,14 +16976,15 @@ impl crate::bedrock::codec::BedrockCodec for PlayerLocationPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let target_actor_id =
-            <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let location =
-            <PlayerLocationPacketLocation as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        Ok(Self {
-            target_actor_id,
-            location,
-        })
+        let target_actor_id = <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let location = <PlayerLocationPacketLocation as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        Ok(Self { target_actor_id, location })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -15566,20 +17019,27 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundControlSchemeSetPacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct PrimitiveShapesPacket {
-    pub arrayofprimitiveshapescanbeamixofnewupdatedorremoved: Vec<PrimitiveShapeDataPayload>,
+    pub arrayofprimitiveshapescanbeamixofnewupdatedorremoved: Vec<
+        PrimitiveShapeDataPayload,
+    >,
 }
 impl crate::bedrock::codec::BedrockSized for PrimitiveShapesPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.arrayofprimitiveshapescanbeamixofnewupdatedorremoved).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.arrayofprimitiveshapescanbeamixofnewupdatedorremoved)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.arrayofprimitiveshapescanbeamixofnewupdatedorremoved)
+                    .len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.arrayofprimitiveshapescanbeamixofnewupdatedorremoved)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -15587,9 +17047,7 @@ impl crate::bedrock::codec::BedrockCodec for PrimitiveShapesPacket {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
-        let len = self
-            .arrayofprimitiveshapescanbeamixofnewupdatedorremoved
-            .len();
+        let len = self.arrayofprimitiveshapescanbeamixofnewupdatedorremoved.len();
         crate::bedrock::codec::VarInt(len as i32).encode(buf)?;
         for item in &self.arrayofprimitiveshapescanbeamixofnewupdatedorremoved {
             item.encode(buf)?;
@@ -15602,24 +17060,26 @@ impl crate::bedrock::codec::BedrockCodec for PrimitiveShapesPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let arrayofprimitiveshapescanbeamixofnewupdatedorremoved = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <PrimitiveShapeDataPayload as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                );
+                tmp_vec
+                    .push(
+                        <PrimitiveShapeDataPayload as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
@@ -15638,13 +17098,17 @@ impl crate::bedrock::codec::BedrockSized for ServerboundPackSettingChangePacket 
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += 16usize;
-        size += {
-            let _len = (&self.pack_setting_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.pack_setting_value);
+        size
+            += {
+                let _len = (&self.pack_setting_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.pack_setting_value,
+            );
         size
     }
 }
@@ -15665,16 +17129,20 @@ impl crate::bedrock::codec::BedrockCodec for ServerboundPackSettingChangePacket 
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let pack_id = <uuid::Uuid as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let pack_id = <uuid::Uuid as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let pack_setting_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -15705,15 +17173,19 @@ pub struct ClientboundDataStorePacket {
 impl crate::bedrock::codec::BedrockSized for ClientboundDataStorePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.updates).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.updates)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.updates).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.updates)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -15734,14 +17206,15 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundDataStorePacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let updates = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -15761,7 +17234,9 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundDataStorePacket {
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct GraphicsOverrideParameterPacket {
-    pub parameter_keyframe_values: Vec<GraphicsOverrideParameterPacketParameterKeyframeValuesItem>,
+    pub parameter_keyframe_values: Vec<
+        GraphicsOverrideParameterPacketParameterKeyframeValuesItem,
+    >,
     pub float_value: Option<f32>,
     pub vec_3_value: Option<Vec3>,
     pub biome_identifier: String,
@@ -15772,48 +17247,59 @@ pub struct GraphicsOverrideParameterPacket {
 impl crate::bedrock::codec::BedrockSized for GraphicsOverrideParameterPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.parameter_keyframe_values).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.parameter_keyframe_values)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            1usize
-                + match &self.float_value {
-                    Some(_v) => 4usize,
-                    None => 0usize,
-                }
-        };
-        size += {
-            1usize
-                + match &self.vec_3_value {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
-        size += {
-            let _len = (&self.biome_identifier).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            1usize
-                + match &self.player_identifier {
-                    Some(_v) => {
-                        let _len = (_v).as_bytes().len();
-                        crate::bedrock::codec::BedrockSized::encoded_size(
-                            &crate::bedrock::codec::VarInt(_len as i32),
-                        ) + _len
+        size
+            += {
+                let _len = (&self.parameter_keyframe_values).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.parameter_keyframe_values)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                1usize
+                    + match &self.float_value {
+                        Some(_v) => 4usize,
+                        None => 0usize,
                     }
-                    None => 0usize,
-                }
-        };
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.identifierfor_parameter);
+            };
+        size
+            += {
+                1usize
+                    + match &self.vec_3_value {
+                        Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
+                        None => 0usize,
+                    }
+            };
+        size
+            += {
+                let _len = (&self.biome_identifier).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                1usize
+                    + match &self.player_identifier {
+                        Some(_v) => {
+                            let _len = (_v).as_bytes().len();
+                            crate::bedrock::codec::BedrockSized::encoded_size(
+                                &crate::bedrock::codec::VarInt(_len as i32),
+                            ) + _len
+                        }
+                        None => 0usize,
+                    }
+            };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.identifierfor_parameter,
+            );
         size += 1usize;
         size
     }
@@ -15865,14 +17351,15 @@ impl crate::bedrock::codec::BedrockCodec for GraphicsOverrideParameterPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let parameter_keyframe_values = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -15892,10 +17379,10 @@ impl crate::bedrock::codec::BedrockCodec for GraphicsOverrideParameterPacket {
             if present != 0 {
                 Some(
                     <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?
-                    .0,
+                            buf,
+                            (),
+                        )?
+                        .0,
                 )
             } else {
                 None
@@ -15904,23 +17391,21 @@ impl crate::bedrock::codec::BedrockCodec for GraphicsOverrideParameterPacket {
         let vec_3_value = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<Vec3 as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?)
+                Some(<Vec3 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
             } else {
                 None
             }
         };
         let biome_identifier = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -15966,7 +17451,10 @@ impl crate::bedrock::codec::BedrockCodec for GraphicsOverrideParameterPacket {
             buf,
             (),
         )?;
-        let reset_parameter = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let reset_parameter = <bool as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             parameter_keyframe_values,
             float_value,
@@ -16001,8 +17489,10 @@ impl crate::bedrock::codec::BedrockCodec for ServerboundDataStorePacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let update =
-            <BedrockDduiDataStoreUpdate as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let update = <BedrockDduiDataStoreUpdate as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { update })
     }
 }
@@ -16015,20 +17505,22 @@ pub struct ClientboundDataDrivenUiShowScreenPacket {
 impl crate::bedrock::codec::BedrockSized for ClientboundDataDrivenUiShowScreenPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.screen_id).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.screen_id).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += 4usize;
-        size += {
-            1usize
-                + match &self.data_instance_id {
-                    Some(_v) => 4usize,
-                    None => 0usize,
-                }
-        };
+        size
+            += {
+                1usize
+                    + match &self.data_instance_id {
+                        Some(_v) => 4usize,
+                        None => 0usize,
+                    }
+            };
         size
     }
 }
@@ -16056,14 +17548,15 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundDataDrivenUiShowScreenPa
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let screen_id = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -16076,18 +17569,20 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundDataDrivenUiShowScreenPa
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        let form_id =
-            <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
+        let form_id = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let data_instance_id = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
                 Some(
                     <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?
-                    .0,
+                            buf,
+                            (),
+                        )?
+                        .0,
                 )
             } else {
                 None
@@ -16107,13 +17602,14 @@ pub struct ClientboundDataDrivenUiCloseScreenPacket {
 impl crate::bedrock::codec::BedrockSized for ClientboundDataDrivenUiCloseScreenPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            1usize
-                + match &self.form_id {
-                    Some(_v) => 4usize,
-                    None => 0usize,
-                }
-        };
+        size
+            += {
+                1usize
+                    + match &self.form_id {
+                        Some(_v) => 4usize,
+                        None => 0usize,
+                    }
+            };
         size
     }
 }
@@ -16140,10 +17636,10 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundDataDrivenUiCloseScreenP
             if present != 0 {
                 Some(
                     <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?
-                    .0,
+                            buf,
+                            (),
+                        )?
+                        .0,
                 )
             } else {
                 None
@@ -16188,44 +17684,53 @@ impl crate::bedrock::codec::BedrockSized for ClientboundTextureShiftPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.action_id);
-        size += {
-            let _len = (&self.collection_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.from_step).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.to_step).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.all_steps).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.all_steps)
-                .iter()
-                .map(|_item| {
-                    let _len = (_item).as_bytes().len();
-                    crate::bedrock::codec::BedrockSized::encoded_size(
-                        &crate::bedrock::codec::VarInt(_len as i32),
-                    ) + _len
-                })
-                .sum::<usize>()
-        };
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarLong(
-            self.current_length_in_ticks,
-        ));
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarLong(
-            self.total_length_in_ticks,
-        ));
+        size
+            += {
+                let _len = (&self.collection_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.from_step).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.to_step).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.all_steps).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.all_steps)
+                        .iter()
+                        .map(|_item| {
+                            {
+                                let _len = (_item).as_bytes().len();
+                                crate::bedrock::codec::BedrockSized::encoded_size(
+                                    &crate::bedrock::codec::VarInt(_len as i32),
+                                ) + _len
+                            }
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::VarLong(self.current_length_in_ticks),
+            );
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &crate::bedrock::codec::VarLong(self.total_length_in_ticks),
+            );
         size += 1usize;
         size
     }
@@ -16265,20 +17770,20 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundTextureShiftPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let action_id =
-            <ClientboundTextureShiftPacketActionId as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
+        let action_id = <ClientboundTextureShiftPacketActionId as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let collection_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -16292,14 +17797,15 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundTextureShiftPacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let from_step = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -16313,14 +17819,15 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundTextureShiftPacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let to_step = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -16334,14 +17841,15 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundTextureShiftPacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let all_steps = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -16372,14 +17880,12 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundTextureShiftPacket {
             }
             tmp_vec
         };
-        let current_length_in_ticks =
-            <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
+        let current_length_in_ticks = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
             .0;
-        let total_length_in_ticks =
-            <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
+        let total_length_in_ticks = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?
@@ -16406,24 +17912,32 @@ pub struct VoxelShapesPacket {
 impl crate::bedrock::codec::BedrockSized for VoxelShapesPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.shapes).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.shapes)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.name_map).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.name_map)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.shapes).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.shapes)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
+        size
+            += {
+                let _len = (&self.name_map).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.name_map)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size += 2usize;
         size
     }
@@ -16451,14 +17965,15 @@ impl crate::bedrock::codec::BedrockCodec for VoxelShapesPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let shapes = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -16474,30 +17989,34 @@ impl crate::bedrock::codec::BedrockCodec for VoxelShapesPacket {
             tmp_vec
         };
         let name_map = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <VoxelShapesPacketNameMapItem as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                );
+                tmp_vec
+                    .push(
+                        <VoxelShapesPacketNameMapItem as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
-        let custom_shape_count =
-            <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
+        let custom_shape_count = <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         Ok(Self {
             shapes,
             name_map,
@@ -16512,15 +18031,19 @@ pub struct CameraSplinePacket {
 impl crate::bedrock::codec::BedrockSized for CameraSplinePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.camera_data_splines).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.camera_data_splines)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.camera_data_splines).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.camera_data_splines)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -16541,14 +18064,15 @@ impl crate::bedrock::codec::BedrockCodec for CameraSplinePacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let camera_data_splines = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -16563,27 +18087,31 @@ impl crate::bedrock::codec::BedrockCodec for CameraSplinePacket {
             }
             tmp_vec
         };
-        Ok(Self {
-            camera_data_splines,
-        })
+        Ok(Self { camera_data_splines })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct CameraAimAssistActorPriorityPacket {
-    pub camera_aim_assist_actor_priority_list: Vec<CameraAimAssistActorPriorityPriorityData>,
+    pub camera_aim_assist_actor_priority_list: Vec<
+        CameraAimAssistActorPriorityPriorityData,
+    >,
 }
 impl crate::bedrock::codec::BedrockSized for CameraAimAssistActorPriorityPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.camera_aim_assist_actor_priority_list).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.camera_aim_assist_actor_priority_list)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.camera_aim_assist_actor_priority_list).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.camera_aim_assist_actor_priority_list)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -16604,14 +18132,15 @@ impl crate::bedrock::codec::BedrockCodec for CameraAimAssistActorPriorityPacket 
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let camera_aim_assist_actor_priority_list = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
@@ -16659,15 +18188,19 @@ pub struct LocatorBarPacket {
 impl crate::bedrock::codec::BedrockSized for LocatorBarPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.waypoints).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + (&self.waypoints)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
+        size
+            += {
+                let _len = (&self.waypoints).len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                )
+                    + (&self.waypoints)
+                        .iter()
+                        .map(|_item| {
+                            crate::bedrock::codec::BedrockSized::encoded_size(_item)
+                        })
+                        .sum::<usize>()
+            };
         size
     }
 }
@@ -16688,24 +18221,26 @@ impl crate::bedrock::codec::BedrockCodec for LocatorBarPacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let waypoints = {
-            let raw =
-                <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0 as i64;
             if raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: raw,
+                });
             }
             let len = raw as usize;
             let mut tmp_vec = Vec::with_capacity(len);
             for _ in 0..len {
-                tmp_vec.push(
-                    <LocatorBarWaypointPayload as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                );
+                tmp_vec
+                    .push(
+                        <LocatorBarWaypointPayload as crate::bedrock::codec::BedrockCodec>::decode(
+                            buf,
+                            (),
+                        )?,
+                    );
             }
             tmp_vec
         };
@@ -16719,13 +18254,14 @@ pub struct PartyChangedPacket {
 impl crate::bedrock::codec::BedrockSized for PartyChangedPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            1usize
-                + match &self.party_info {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
+        size
+            += {
+                1usize
+                    + match &self.party_info {
+                        Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
+                        None => 0usize,
+                    }
+            };
         size
     }
 }
@@ -16750,7 +18286,12 @@ impl crate::bedrock::codec::BedrockCodec for PartyChangedPacket {
         let party_info = {
             let present = u8::decode(buf, ())?;
             if present != 0 {
-                Some(<PlayerPartyInfo as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?)
+                Some(
+                    <PlayerPartyInfo as crate::bedrock::codec::BedrockCodec>::decode(
+                        buf,
+                        (),
+                    )?,
+                )
             } else {
                 None
             }
@@ -16767,12 +18308,13 @@ impl crate::bedrock::codec::BedrockSized for ServerboundDataDrivenScreenClosedPa
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += 4usize;
-        size += {
-            let _len = (&self.close_reason).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.close_reason).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -16792,18 +18334,21 @@ impl crate::bedrock::codec::BedrockCodec for ServerboundDataDrivenScreenClosedPa
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let form_id =
-            <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
+        let form_id = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0;
         let close_reason = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -16816,10 +18361,7 @@ impl crate::bedrock::codec::BedrockCodec for ServerboundDataDrivenScreenClosedPa
             buf.copy_to_slice(&mut bytes);
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
-        Ok(Self {
-            form_id,
-            close_reason,
-        })
+        Ok(Self { form_id, close_reason })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -16845,8 +18387,10 @@ impl crate::bedrock::codec::BedrockCodec for SyncWorldClocksPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let data =
-            <SyncWorldClocksPacketData as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let data = <SyncWorldClocksPacketData as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { data })
     }
 }
@@ -16882,19 +18426,21 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundAttributeLayerSyncPacket
 }
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ServerStoreInfoPacket {
-    pub client_store_entry_point_configuration:
-        Option<ServerConfigurationClientStoreEntryPointConfiguration>,
+    pub client_store_entry_point_configuration: Option<
+        ServerConfigurationClientStoreEntryPointConfiguration,
+    >,
 }
 impl crate::bedrock::codec::BedrockSized for ServerStoreInfoPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            1usize
-                + match &self.client_store_entry_point_configuration {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
+        size
+            += {
+                1usize
+                    + match &self.client_store_entry_point_configuration {
+                        Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
+                        None => 0usize,
+                    }
+            };
         size
     }
 }
@@ -16941,13 +18487,14 @@ pub struct ServerPresenceInfoPacket {
 impl crate::bedrock::codec::BedrockSized for ServerPresenceInfoPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            1usize
-                + match &self.presence_configuration {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
+        size
+            += {
+                1usize
+                    + match &self.presence_configuration {
+                        Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
+                        None => 0usize,
+                    }
+            };
         size
     }
 }
@@ -16982,9 +18529,7 @@ impl crate::bedrock::codec::BedrockCodec for ServerPresenceInfoPacket {
                 None
             }
         };
-        Ok(Self {
-            presence_configuration,
-        })
+        Ok(Self { presence_configuration })
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -17001,7 +18546,10 @@ pub struct ClientboundUpdateSoundDataPacket {
 impl crate::bedrock::codec::BedrockSized for ClientboundUpdateSoundDataPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.server_sound_handle);
+        size
+            += crate::bedrock::codec::BedrockSized::encoded_size(
+                &self.server_sound_handle,
+            );
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.stop);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.set_volume);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.set_pitch);
@@ -17031,13 +18579,14 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundUpdateSoundDataPacket {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
-        let server_sound_handle =
-            <ServerSoundHandle as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let stop =
-            <ClientboundUpdateSoundDataPacketStop as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
+        let server_sound_handle = <ServerSoundHandle as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let stop = <ClientboundUpdateSoundDataPacketStop as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let set_volume = <ClientboundUpdateSoundDataPacketSetVolume as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -17046,20 +18595,18 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundUpdateSoundDataPacket {
             buf,
             (),
         )?;
-        let fade =
-            <ClientboundUpdateSoundDataPacketFade as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
+        let fade = <ClientboundUpdateSoundDataPacketFade as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let seek_to = <ClientboundUpdateSoundDataPacketSeekTo as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
         )?;
-        let pause =
-            <ClientboundUpdateSoundDataPacketPause as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
+        let pause = <ClientboundUpdateSoundDataPacketPause as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         let resume = <ClientboundUpdateSoundDataPacketResume as crate::bedrock::codec::BedrockCodec>::decode(
             buf,
             (),
@@ -17085,24 +18632,27 @@ pub struct SendPartyDestinationCookiePacket {
 impl crate::bedrock::codec::BedrockSized for SendPartyDestinationCookiePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.cookie).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.intent).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.destination_name).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.cookie).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.intent).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
+        size
+            += {
+                let _len = (&self.destination_name).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size
     }
 }
@@ -17130,14 +18680,15 @@ impl crate::bedrock::codec::BedrockCodec for SendPartyDestinationCookiePacket {
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let cookie = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -17151,14 +18702,15 @@ impl crate::bedrock::codec::BedrockCodec for SendPartyDestinationCookiePacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let intent = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -17172,14 +18724,15 @@ impl crate::bedrock::codec::BedrockCodec for SendPartyDestinationCookiePacket {
             crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
         };
         let destination_name = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
@@ -17207,12 +18760,13 @@ pub struct PartyDestinationCookieResponsePacket {
 impl crate::bedrock::codec::BedrockSized for PartyDestinationCookieResponsePacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
-        size += {
-            let _len = (&self.cookie).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(
-                _len as i32,
-            )) + _len
-        };
+        size
+            += {
+                let _len = (&self.cookie).as_bytes().len();
+                crate::bedrock::codec::BedrockSized::encoded_size(
+                    &crate::bedrock::codec::VarInt(_len as i32),
+                ) + _len
+            };
         size += 1usize;
         size
     }
@@ -17234,14 +18788,15 @@ impl crate::bedrock::codec::BedrockCodec for PartyDestinationCookieResponsePacke
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let _ = buf;
         let cookie = {
-            let len_raw =
-                (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
+            let len_raw = (<crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(
                     buf,
                     (),
                 )?
                 .0) as i64;
             if len_raw < 0 {
-                return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
+                return Err(crate::bedrock::error::DecodeError::NegativeLength {
+                    value: len_raw,
+                });
             }
             let len = len_raw as usize;
             if buf.remaining() < len {
