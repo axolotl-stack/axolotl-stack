@@ -89,6 +89,32 @@ Mojang fixed-width numerics are little-endian unless marked `Big Endian`.
 `maxItems` become fixed arrays. Mojang's global CompoundTag hash
 `3172631924` maps to Valentine's network little-endian NBT primitive.
 
+## Endstone corrections
+
+`overrides-endstone/` is the correction set for the Endstone dumps and is
+expected to stay small: that corpus is extracted from a running server, so a
+needed correction usually means the dumper is wrong and is worth reporting
+upstream. The corrections are applied over `packets/`, `types/` and `enums/`
+together, keyed `<directory>/<document name>`, because a shared type such as the
+item `User Data Buffer` is described once under `types/` and reached by every
+packet that embeds it.
+
+The one systematic correction is binary buffers. BDS declares a byte buffer as a
+C++ `std::string`, which has no encoding guarantee, and the dumper reports that
+faithfully as `string`. Valentine decodes strings lossily for gophertunnel
+parity, so a `String` turns every non-UTF-8 byte into U+FFFD and re-encodes it as
+`EF BF BD`. Encode and decode corrupt symmetrically, so a value round-trip still
+passes while the wire is wrong. `overrides-endstone/binary-buffers.json` retypes
+each such field as `uint8` with a `uvarint32` repeat prefix, which is byte-for-
+byte the same framing and matches gophertunnel's `io.ByteSlice`. Fields that
+genuinely carry text stay strings; the file lists both sets with citations.
+
+Corrections against this corpus use `patch_field`, which edits one entry of a
+document's `fields` array in place. Mojang's `patch_property` cannot reach them
+(these documents use an ordered array, not a `properties` map), and restating a
+whole document with `replace_schema` would silently freeze its other fields at
+today's dump.
+
 ## Generator pipeline
 
 1. Parse the selected source into the IR in `src/ir.rs`.

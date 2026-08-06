@@ -1,0 +1,194 @@
+{
+    "source": "gophertunnel minecraft/protocol at be6713da4dc051a4197f897d04835e89e9c54321: every field it marshals with io.ByteSlice (writer.go:94-98, a varuint32 length followed by raw bytes) cross-checked against the Endstone dump's typing",
+    "notes": [
+        "BDS declares a byte buffer as a C++ std::string, and the dumper reports that faithfully as `string`. A C++ std::string is a byte string with no encoding guarantee; a Rust String is UTF-8. Valentine decodes strings lossily for gophertunnel parity, so every byte that is not valid UTF-8 becomes U+FFFD on decode and is re-encoded as EF BF BD. Encode and decode corrupt symmetrically, so round-trip tests pass while the wire is wrong.",
+        "The correction is wire-neutral: `uint8` with a `uvarint32` repeat prefix is byte-for-byte the same framing as `string`, and the same framing as gophertunnel's io.ByteSlice. Only the Rust surface changes, from String to Vec<u8>.",
+        "Fields that carry text stay strings even where gophertunnel types them []byte, because a String is the more useful surface and UTF-8 is guaranteed in practice: the modal form payloads (packet/modal_form_request.go:25, modal_form_response.go:34), ServerSettingsResponse.FormData (server_settings_response.go:28), AgentAction.Response (agent_action.go:47, documented as `a JSON string`), ScriptCustomEvent.EventData, SpawnParticleEffect.MoLangVariables (spawn_particle_effect.go:41), ServerToClientHandshake.JWT (server_to_client_handshake.go:22), and the skin JSON blobs SkinResourcePatch / SkinGeometry / GeometryDataEngineVersion / AnimationData (skin.go:88-98).",
+        "gophertunnel's five io.Bytes (unprefixed, rest-of-buffer) sites need no correction here: AvailableActorIdentifiers, LevelEventGeneric, UpdateEquip and UpdateTrade are all already typed `CompoundTag` in the dump, which Valentine lowers to an NBT primitive, and packet/unknown.go is not a real packet. No endstone field carries unprefixed trailing bytes, so nothing in this corpus needs a representation the generator cannot express.",
+        "The raw skin and cape pixel buffers are also already correct: types/SkinImage.json types `ImageBytes` as uint8 with a uvarint32 prefix, matching skin.go:93/96 and skin.go:177."
+    ],
+    "operations": [
+        {
+            "op": "patch_field",
+            "schema": "packets/LevelChunkPacket",
+            "schema_title": "LevelChunkPacket",
+            "field": "Serialized Chunk Data",
+            "why": "gophertunnel minecraft/protocol/packet/level_chunk.go:35 declares `RawPayload []byte` and level_chunk.go:53 writes it with io.ByteSlice. It is the palettised sub-chunk blob plus biome data; arbitrary bytes by construction, and the first byte of a paletted storage header is routinely >= 0x80.",
+            "patch": {
+                "type": "uint8",
+                "repeat": {
+                    "prefix": "uvarint32"
+                }
+            }
+        },
+        {
+            "op": "patch_field",
+            "schema": "types/SubChunkPacketPayload::SubChunkPacketData",
+            "schema_title": "SubChunkPacketPayload::SubChunkPacketData",
+            "field": "Serialized Sub Chunk",
+            "why": "gophertunnel minecraft/protocol/sub_chunk.go:29 declares `RawPayload Optional[[]byte]` and sub_chunk.go:46 writes it with OptionalFunc(r, &x.RawPayload, r.ByteSlice). Same sub-chunk blob as LevelChunk, delivered per sub-chunk. `optional` is preserved, so the presence byte still precedes the length prefix.",
+            "patch": {
+                "type": "uint8",
+                "repeat": {
+                    "prefix": "uvarint32"
+                }
+            }
+        },
+        {
+            "op": "patch_field",
+            "schema": "types/MissingBlobData",
+            "schema_title": "MissingBlobData",
+            "field": "Blob Data",
+            "why": "gophertunnel minecraft/protocol/blob_cache.go:11 declares `Payload []byte` on CacheBlob and blob_cache.go:17 writes it with r.ByteSlice. The payload is the sub-chunk or biome blob the client is missing from its cache, keyed by an xxHash; it is the same binary chunk data as LevelChunk.",
+            "patch": {
+                "type": "uint8",
+                "repeat": {
+                    "prefix": "uvarint32"
+                }
+            }
+        },
+        {
+            "op": "patch_field",
+            "schema": "packets/ResourcePackChunkDataPacket",
+            "schema_title": "ResourcePackChunkDataPacket",
+            "field": "Chunk Data",
+            "why": "gophertunnel minecraft/protocol/packet/resource_pack_chunk_data.go:21 declares `Data []byte` and resource_pack_chunk_data.go:33 writes it with io.ByteSlice. It is a slice of a zip archive, so almost no chunk is valid UTF-8 (a zip local file header starts 50 4B 03 04 and the deflate stream after it is arbitrary).",
+            "patch": {
+                "type": "uint8",
+                "repeat": {
+                    "prefix": "uvarint32"
+                }
+            }
+        },
+        {
+            "op": "patch_field",
+            "schema": "packets/ResourcePackDataInfoPacket",
+            "schema_title": "ResourcePackDataInfoPacket",
+            "field": "File Hash",
+            "why": "gophertunnel minecraft/protocol/packet/resource_pack_data_info.go:37 declares `Hash []byte`, documented as `a SHA256 hash of the content of the resource pack`, and resource_pack_data_info.go:56 writes it with io.ByteSlice. A raw 32-byte digest is valid UTF-8 with probability near zero, and a corrupted hash makes the client re-download or reject the pack.",
+            "patch": {
+                "type": "uint8",
+                "repeat": {
+                    "prefix": "uvarint32"
+                }
+            }
+        },
+        {
+            "op": "patch_field",
+            "schema": "packets/PhotoTransferPacket",
+            "schema_title": "PhotoTransferPacket",
+            "field": "Photo Data",
+            "why": "gophertunnel minecraft/protocol/packet/photo_transfer.go:23 declares `PhotoData []byte`, documented as `the raw data of the photo image ... Formats such as JPEG or PNG`, and photo_transfer.go:45 writes it with io.ByteSlice. A JPEG begins FF D8 FF, which is not valid UTF-8 in its first byte.",
+            "patch": {
+                "type": "uint8",
+                "repeat": {
+                    "prefix": "uvarint32"
+                }
+            }
+        },
+        {
+            "op": "patch_field",
+            "schema": "packets/DebugInfoPacket",
+            "schema_title": "DebugInfoPacket",
+            "field": "Data",
+            "why": "gophertunnel minecraft/protocol/packet/debug_info.go:13 declares `Data []byte` and debug_info.go:23 writes it with io.ByteSlice. The contents are opaque server debug data with no documented encoding, so it cannot be assumed to be text.",
+            "patch": {
+                "type": "uint8",
+                "repeat": {
+                    "prefix": "uvarint32"
+                }
+            }
+        },
+        {
+            "op": "patch_field",
+            "schema": "packets/ScriptMessagePacket",
+            "schema_title": "ScriptMessagePacket",
+            "field": "Message Value",
+            "why": "gophertunnel minecraft/protocol/packet/script_message.go:14 declares `Data []byte` and script_message.go:24 writes it with io.ByteSlice, while the sibling `Identifier` on line 12 is a `string` written with io.String. The pairing is deliberate: the identifier is text and the value is an opaque GameTest payload chosen by the script author.",
+            "patch": {
+                "type": "uint8",
+                "repeat": {
+                    "prefix": "uvarint32"
+                }
+            }
+        },
+        {
+            "op": "patch_field",
+            "schema": "packets/SubClientLoginPacket",
+            "schema_title": "SubClientLoginPacket",
+            "field": "Sub Client Connection Request",
+            "why": "gophertunnel minecraft/protocol/packet/sub_client_login.go:16 declares `ConnectionRequest []byte` and sub_client_login.go:25 writes it with io.ByteSlice. It is the identical payload LoginPacket carries and that d11ca37 already corrected there: two little-endian int32 length prefixes around JSON and a JWT, so any chain length whose low byte is >= 0x80 corrupts.",
+            "patch": {
+                "type": "uint8",
+                "repeat": {
+                    "prefix": "uvarint32"
+                }
+            }
+        },
+        {
+            "op": "patch_field",
+            "schema": "packets/EditorNetworkPacket",
+            "schema_title": "EditorNetworkPacket",
+            "field": "Raw Variant Data",
+            "why": "gophertunnel minecraft/protocol/packet/editor_network.go:14 models the whole editor payload as `Payload map[string]any` and editor_network.go:24 writes it with io.NBT(&pk.Payload, nbt.NetworkLittleEndian). BDS actually frames it as a name plus a serialised blob, which is what the dump reports; either way the blob is network-little-endian NBT, whose tag ids and little-endian numerics are arbitrary bytes. The sibling `Raw Variant Name` stays a string.",
+            "patch": {
+                "type": "uint8",
+                "repeat": {
+                    "prefix": "uvarint32"
+                }
+            }
+        },
+        {
+            "op": "patch_field",
+            "schema": "types/ItemStackRequestCereal::NetworkItemInstanceDescriptorData",
+            "schema_title": "ItemStackRequestCereal::NetworkItemInstanceDescriptorData",
+            "field": "User Data Buffer",
+            "why": "gophertunnel builds this buffer in minecraft/protocol/writer.go:369-390 and reads it in reader.go:446-449: an int16 length sentinel, a version byte, a little-endian NBT compound, then two uint32-length-prefixed string lists, all captured with buf.Bytes() and written as w.ByteSlice(&extraData). The leading sentinel for an item carrying NBT is FF FF (int16 -1), which is not valid UTF-8, so every item with custom NBT is corrupted today.",
+            "patch": {
+                "type": "uint8",
+                "repeat": {
+                    "prefix": "uvarint32"
+                }
+            }
+        },
+        {
+            "op": "patch_field",
+            "schema": "types/cerealizer<NetworkItemInstanceDescriptor>::SerializedData",
+            "schema_title": "cerealizer<NetworkItemInstanceDescriptor>::SerializedData",
+            "field": "User Data Buffer",
+            "why": "Same buffer as above, reached through the other item descriptor spelling. gophertunnel writer.go:389-390 w.ByteSlice(&extraData) after writer.go:369-388 assembles the int16 sentinel, version byte, little-endian NBT and can-place-on / can-break lists.",
+            "patch": {
+                "type": "uint8",
+                "repeat": {
+                    "prefix": "uvarint32"
+                }
+            }
+        },
+        {
+            "op": "patch_field",
+            "schema": "types/cerealizer<NetworkItemStackDescriptor>::SerializedData",
+            "schema_title": "cerealizer<NetworkItemStackDescriptor>::SerializedData",
+            "field": "User Data Buffer",
+            "why": "Same buffer again, on the stack descriptor that carries a net id. gophertunnel reader.go:449 r.ByteSlice(&extraData) / writer.go:390 w.ByteSlice(&extraData). This is the descriptor most inventory packets embed, so leaving it a String corrupts NBT on every shaped item in a container.",
+            "patch": {
+                "type": "uint8",
+                "repeat": {
+                    "prefix": "uvarint32"
+                }
+            }
+        },
+        {
+            "op": "patch_field",
+            "schema": "types/FeatureRegistry::FeatureBinaryJsonFormat",
+            "schema_title": "FeatureRegistry::FeatureBinaryJsonFormat",
+            "field": "Binary Json Output",
+            "why": "gophertunnel minecraft/protocol/world.go:46 declares `JSON []byte` on GenerationFeature and world.go:52 writes it with r.ByteSlice, while the sibling `Name` on line 44 is a `string` written with r.String. BDS names the field `Binary Json Output`, i.e. Mojang's binary JSON encoding rather than the text form, so the bytes are not UTF-8 text despite the `JSON` name gophertunnel gives the Go field.",
+            "patch": {
+                "type": "uint8",
+                "repeat": {
+                    "prefix": "uvarint32"
+                }
+            }
+        }
+    ]
+}

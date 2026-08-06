@@ -3273,6 +3273,12 @@ pub struct UnionVariantCodec {
     /// not a `BedrockCodec`, so it is written element-wise with no length
     /// prefix (e.g. `Color255RGBA`'s four little-endian components).
     pub fixed: Option<(usize, Primitive)>,
+    /// Set when the payload is a bare scalar rather than a struct with its own
+    /// codec. The Rust type token cannot carry the wire encoding — `I32LE` and
+    /// `I32` both lower to `i32` — so the primitive has to travel alongside it
+    /// or the variant silently falls back on `bedrock_core`'s big-endian
+    /// blanket impl for the bare Rust type.
+    pub scalar: Option<Primitive>,
 }
 
 /// Generate the codec for a Mojang `oneOf` with an explicit wire discriminator.
@@ -3298,6 +3304,7 @@ pub fn generate_union_type_codec(
         boxed,
         is_void,
         fixed,
+        scalar,
     } in variants
     {
         let variant_ident = format_ident!("{}", variant_name);
@@ -3360,6 +3367,32 @@ pub fn generate_union_type_codec(
             });
             size_arms.push(quote! {
                 #struct_ident::#variant_ident => #size_control
+            });
+        } else if let Some(primitive) = scalar {
+            // Bare scalar payload. It has no codec of its own, so the encoding
+            // has to be chosen here from the IR primitive; leaving it to the
+            // generic arm below picks up `bedrock_core`'s big-endian blanket
+            // impl for `i32`/`f32`/... and silently writes the wrong bytes.
+            let scalar_encode = union_scalar_payload_encode(primitive, quote! { value })?;
+            let scalar_decode = union_scalar_payload_decode(primitive)?;
+            let scalar_size = union_control_size(primitive, quote! { (*value) })?;
+            encode_arms.push(quote! {
+                #struct_ident::#variant_ident(value) => {
+                    let control_value = #control_literal as i64;
+                    #encode_control?;
+                    #scalar_encode?;
+                    Ok(())
+                }
+            });
+            decode_arms.push(quote! {
+                #control_literal => Ok(#struct_ident::#variant_ident(#scalar_decode))
+            });
+            size_arms.push(quote! {
+                #struct_ident::#variant_ident(value) => {
+                    // Constant-width payloads ignore `value`.
+                    let _ = value;
+                    #size_control + #scalar_size
+                }
             });
         } else if *boxed {
             encode_arms.push(quote! {
@@ -3538,6 +3571,104 @@ fn union_control_decode(primitive: &Primitive) -> Result<TokenStream, Box<dyn st
         },
         other => {
             return Err(format!("unsupported Mojang union control primitive {other:?}").into());
+        }
+    })
+}
+
+/// True when a union variant's payload is a bare scalar whose wire encoding the
+/// union codec has to choose itself.
+///
+/// `Uuid`, `Nbt` and `ByteArray` lower to Rust types that carry a correct
+/// `BedrockCodec` of their own, so they stay on the generic path; `Void` is not
+/// a payload at all. Everything else lowers to a bare Rust primitive
+/// (`i32`, `f32`, ...) whose blanket impl in `bedrock_core` is big-endian.
+pub fn is_union_scalar_payload(primitive: &Primitive) -> bool {
+    !matches!(
+        primitive,
+        Primitive::Void | Primitive::Uuid | Primitive::Nbt | Primitive::ByteArray
+    )
+}
+
+/// Encode a union variant whose payload is a bare scalar.
+///
+/// This cannot reuse `union_control_encode`: a discriminant is always integral,
+/// so that helper normalises through `as i64`/`as i32`, which would truncate a
+/// `float` payload. A payload keeps its own Rust type, so the value is wrapped
+/// in the matching little-endian newtype instead of cast.
+fn union_scalar_payload_encode(
+    primitive: &Primitive,
+    value: TokenStream,
+) -> Result<TokenStream, Box<dyn std::error::Error>> {
+    Ok(match primitive {
+        Primitive::VarInt => quote! { crate::bedrock::codec::VarInt(*#value).encode(buf) },
+        Primitive::VarLong => quote! { crate::bedrock::codec::VarLong(*#value).encode(buf) },
+        Primitive::ZigZag32 => quote! { crate::bedrock::codec::ZigZag32(*#value).encode(buf) },
+        Primitive::ZigZag64 => quote! { crate::bedrock::codec::ZigZag64(*#value).encode(buf) },
+        Primitive::U16LE => quote! { crate::bedrock::codec::U16LE(*#value).encode(buf) },
+        Primitive::I16LE => quote! { crate::bedrock::codec::I16LE(*#value).encode(buf) },
+        Primitive::U32LE => quote! { crate::bedrock::codec::U32LE(*#value).encode(buf) },
+        Primitive::I32LE => quote! { crate::bedrock::codec::I32LE(*#value).encode(buf) },
+        Primitive::U64LE => quote! { crate::bedrock::codec::U64LE(*#value).encode(buf) },
+        Primitive::I64LE => quote! { crate::bedrock::codec::I64LE(*#value).encode(buf) },
+        Primitive::F32LE => quote! { crate::bedrock::codec::F32LE(*#value).encode(buf) },
+        Primitive::F64LE => quote! { crate::bedrock::codec::F64LE(*#value).encode(buf) },
+        // Single-byte or genuinely big-endian on the wire. The bare impl is the
+        // right one here: `int32_be` is a real Bedrock spelling (LoginPacket's
+        // client network version).
+        Primitive::Bool
+        | Primitive::U8
+        | Primitive::I8
+        | Primitive::U16
+        | Primitive::I16
+        | Primitive::U32
+        | Primitive::I32
+        | Primitive::U64
+        | Primitive::I64
+        | Primitive::F32
+        | Primitive::F64 => quote! { #value.encode(buf) },
+        other => {
+            return Err(format!("union payload primitive {other:?} is not a scalar").into());
+        }
+    })
+}
+
+/// Decode a union variant whose payload is a bare scalar. Yields an expression
+/// of the payload's own Rust type, not the `i64` a discriminant decodes to.
+fn union_scalar_payload_decode(
+    primitive: &Primitive,
+) -> Result<TokenStream, Box<dyn std::error::Error>> {
+    let newtype = |wrapper: TokenStream| {
+        quote! { <#wrapper as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+    };
+    Ok(match primitive {
+        Primitive::VarInt => newtype(quote! { crate::bedrock::codec::VarInt }),
+        Primitive::VarLong => newtype(quote! { crate::bedrock::codec::VarLong }),
+        Primitive::ZigZag32 => newtype(quote! { crate::bedrock::codec::ZigZag32 }),
+        Primitive::ZigZag64 => newtype(quote! { crate::bedrock::codec::ZigZag64 }),
+        Primitive::U16LE => newtype(quote! { crate::bedrock::codec::U16LE }),
+        Primitive::I16LE => newtype(quote! { crate::bedrock::codec::I16LE }),
+        Primitive::U32LE => newtype(quote! { crate::bedrock::codec::U32LE }),
+        Primitive::I32LE => newtype(quote! { crate::bedrock::codec::I32LE }),
+        Primitive::U64LE => newtype(quote! { crate::bedrock::codec::U64LE }),
+        Primitive::I64LE => newtype(quote! { crate::bedrock::codec::I64LE }),
+        Primitive::F32LE => newtype(quote! { crate::bedrock::codec::F32LE }),
+        Primitive::F64LE => newtype(quote! { crate::bedrock::codec::F64LE }),
+        Primitive::Bool
+        | Primitive::U8
+        | Primitive::I8
+        | Primitive::U16
+        | Primitive::I16
+        | Primitive::U32
+        | Primitive::I32
+        | Primitive::U64
+        | Primitive::I64
+        | Primitive::F32
+        | Primitive::F64 => {
+            let rust = primitive_to_rust_tokens(primitive);
+            quote! { <#rust as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? }
+        }
+        other => {
+            return Err(format!("union payload primitive {other:?} is not a scalar").into());
         }
     })
 }
