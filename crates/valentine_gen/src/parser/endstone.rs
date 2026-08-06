@@ -293,7 +293,7 @@ impl Lowerer {
             .get("values")
             .and_then(Value::as_array)
             .ok_or_else(|| format!("{ctx}: enum {name} has no values"))?;
-        let mut variants = Vec::with_capacity(values.len());
+        let mut variants: Vec<(String, i64)> = Vec::with_capacity(values.len());
         for value in values {
             let variant = value
                 .get("name")
@@ -303,6 +303,17 @@ impl Lowerer {
                 .get("value")
                 .and_then(Value::as_i64)
                 .ok_or_else(|| format!("{ctx}: enum {name} value {variant} has no value"))?;
+            // Nine enums in the corpus alias a discriminant under two names
+            // (GameType Survival and WorldDefault are both 0, MolangVersion
+            // Latest and HardcodedMolang are both 13). Emitting both produces
+            // a second, unreachable match arm. Keep the first spelling: an
+            // alias decodes to the same value either way.
+            if variants
+                .iter()
+                .any(|(_, existing)| *existing == discriminant)
+            {
+                continue;
+            }
             variants.push((variant.to_string(), discriminant));
         }
         Ok(Type::Enum {
