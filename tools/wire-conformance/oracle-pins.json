@@ -4,8 +4,8 @@
   "minecraft_version": "1.26.40",
   "gophertunnel": {
     "repo": "https://github.com/Sandertv/gophertunnel",
-    "ref": "4815aff7",
-    "note": "master with PR 481 (1.26.40 protocol) merged. Verified CurrentProtocol = 2168."
+    "ref": "4815aff79dd2873e826b942da026861b5073b4dd",
+    "note": "master with PR 481 (1.26.40 protocol) merged. Verified CurrentProtocol = 2168. Must be the full 40-character SHA: a shallow fetch of an abbreviated hash fails with \"couldn t find remote ref\"."
   },
   "cloudburst": {
     "repo": "https://github.com/CloudburstMC/Protocol",
