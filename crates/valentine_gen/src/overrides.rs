@@ -378,7 +378,15 @@ fn matches_schema(
         .or_else(|| operation.get("title"))
         .and_then(Value::as_str);
     if let Some(selector) = title_selector {
-        if node.get("title").and_then(Value::as_str) != Some(selector) {
+        // Mojang's JSON Schema documents identify a node with `title`; the Endstone
+        // dumps use `name`. Without the second key a selector can only narrow to a
+        // file, which matches every object inside it — enough for `replace_schema`
+        // to recurse into its own replacement.
+        let node_title = node
+            .get("title")
+            .or_else(|| node.get("name"))
+            .and_then(Value::as_str);
+        if node_title != Some(selector) {
             return false;
         }
     }

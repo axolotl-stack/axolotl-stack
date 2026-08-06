@@ -1,0 +1,28 @@
+{
+    "source": "gophertunnel minecraft/protocol/login/request.go encodeRequest, and minecraft/protocol/packet/login.go Login.Marshal (io.ByteSlice)",
+    "operations": [
+        {
+            "op": "replace_schema",
+            "schema": "LoginPacket",
+            "schema_title": "LoginPacket",
+            "why": "The dumper is not wrong here: BDS really does declare Connection Request as a C++ std::string, which is a byte string with no encoding guarantee. The mismatch is that a Rust String cannot represent one. The payload is binary: encodeRequest writes a little-endian int32 length, the chain JSON, another little-endian int32 length, then the raw JWT. Generating a Rust `String` runs those length prefixes through lossy UTF-8 decoding, and any chain length whose low byte is >= 0x80 is not valid UTF-8 (0xD2 0x04 0x00 0x00 is a two-byte lead followed by a non-continuation byte), so the prefix is replaced with U+FFFD and the login is corrupted. It fails for roughly half of all payload sizes and survives round-trip tests because encode and decode corrupt symmetrically. A varint-prefixed byte vector is the same wire framing as gophertunnel's io.ByteSlice and carries the bytes intact.",
+            "replacement": {
+                "id": 1,
+                "name": "LoginPacket",
+                "fields": [
+                    {
+                        "name": "Client Network Version",
+                        "type": "int32_be"
+                    },
+                    {
+                        "name": "Connection Request",
+                        "type": "uint8",
+                        "repeat": {
+                            "prefix": "uvarint32"
+                        }
+                    }
+                ]
+            }
+        }
+    ]
+}
