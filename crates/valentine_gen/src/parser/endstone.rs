@@ -553,21 +553,55 @@ pub fn parse(
         )
         .into());
     }
-    let mut documents = packets_src.clone();
-    // The correction layer is shared with the Mojang frontend but is expected
-    // to stay empty here: this corpus is dumped from the server, so a needed
+    // The correction layer is shared with the Mojang frontend. It is expected to
+    // stay small here: this corpus is dumped from the server, so a needed
     // correction means the dumper is wrong and is worth reporting upstream.
+    //
+    // All three directories go through it as one map. A shared type such as the
+    // item `User Data Buffer` is described once in `types/` and reached by every
+    // packet that embeds it, so a correction has to be able to target that
+    // document; patching only `packets/` would leave the shared structs alone.
+    // Keys are namespaced by directory because `matches_schema` matches a
+    // selector against the end of the key, which keeps `"schema": "LoginPacket"`
+    // working while letting a correction disambiguate with `"types/Foo"` if a
+    // packet and a type ever share a name.
+    let types_src = load_dir(source_root, "types")?;
+    let enums_src = load_dir(source_root, "enums")?;
+    let mut documents = HashMap::new();
+    for (directory, source) in [
+        ("packets", &packets_src),
+        ("types", &types_src),
+        ("enums", &enums_src),
+    ] {
+        for (name, document) in source {
+            documents.insert(format!("{directory}/{name}"), document.clone());
+        }
+    }
     overrides::apply(&mut documents, override_dir)?;
 
+    let mut packets_src = HashMap::new();
+    let mut types_src = HashMap::new();
+    let mut enums_src = HashMap::new();
+    for (key, document) in documents {
+        let (directory, name) = key
+            .split_once('/')
+            .ok_or_else(|| format!("corrected document {key} lost its directory prefix"))?;
+        match directory {
+            "packets" => packets_src.insert(name.to_string(), document),
+            "types" => types_src.insert(name.to_string(), document),
+            _ => enums_src.insert(name.to_string(), document),
+        };
+    }
+
     let mut lowerer = Lowerer {
-        types_src: load_dir(source_root, "types")?,
-        enums_src: load_dir(source_root, "enums")?,
+        types_src,
+        enums_src,
         out: HashMap::new(),
         active: HashSet::new(),
     };
 
-    let mut packets = Vec::with_capacity(documents.len());
-    for (name, document) in &documents {
+    let mut packets = Vec::with_capacity(packets_src.len());
+    for (name, document) in &packets_src {
         let id = document
             .get("id")
             .and_then(Value::as_u64)

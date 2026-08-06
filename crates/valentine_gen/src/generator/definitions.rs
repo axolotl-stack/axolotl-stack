@@ -1,4 +1,5 @@
 use crate::generator::analysis::{get_deps, should_box_variant};
+use crate::generator::codec;
 use crate::generator::codec::{
     UnionVariantCodec, generate_codec_impl, generate_enum_type_codec, generate_union_type_codec,
 };
@@ -812,6 +813,20 @@ pub fn define_type(
                     },
                     _ => None,
                 };
+                // A bare scalar payload is not a struct with its own codec
+                // either. `I32LE` and `I32` both lower to the token `i32`, so
+                // without the primitive the union codec cannot tell little- from
+                // big-endian and falls back on `bedrock_core`'s big-endian
+                // blanket impl. That is how GameRule's int and float arms came
+                // out reversed against gophertunnel's `w.Uint32`/`w.Float32`.
+                let scalar = match &variant.type_def {
+                    Type::Primitive(primitive)
+                        if !boxed && codec::is_union_scalar_payload(primitive) =>
+                    {
+                        Some(primitive.clone())
+                    }
+                    _ => None,
+                };
                 codec_variants.push(UnionVariantCodec {
                     name: safe_camel_ident(&variant.name),
                     control_value: variant.control_value,
@@ -819,6 +834,7 @@ pub fn define_type(
                     boxed,
                     is_void,
                     fixed,
+                    scalar,
                 });
             }
             let first = union_variants

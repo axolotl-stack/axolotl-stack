@@ -210,6 +210,45 @@ fn apply_operation(
                         changed = true;
                     }
                 }
+                // The Endstone dumps describe a container as an ordered `fields`
+                // array of `{name, type, ...}` objects rather than Mojang's
+                // `properties` map, so `patch_property` cannot reach them.
+                // Retyping one field of a 30-field packet through
+                // `replace_schema` would mean restating the whole document and
+                // silently freezing the other 29 fields at today's dump, so
+                // corrections against this corpus edit the field in place.
+                "patch_field" => {
+                    if !schema_matches {
+                        return;
+                    }
+                    let Some(field) = object.get("field").and_then(Value::as_str) else {
+                        invalid = Some("patch_field is missing field".to_string());
+                        return;
+                    };
+                    let Some(patch) = object.get("patch").and_then(Value::as_object).cloned()
+                    else {
+                        invalid = Some("patch_field is missing patch".to_string());
+                        return;
+                    };
+                    let Some(fields) = node.get_mut("fields").and_then(Value::as_array_mut) else {
+                        return;
+                    };
+                    for entry in fields.iter_mut() {
+                        let Some(entry) = entry.as_object_mut() else {
+                            continue;
+                        };
+                        if entry.get("name").and_then(Value::as_str) != Some(field) {
+                            continue;
+                        }
+                        matched = true;
+                        for (key, value) in &patch {
+                            if entry.get(key) != Some(value) {
+                                entry.insert(key.clone(), value.clone());
+                                changed = true;
+                            }
+                        }
+                    }
+                }
                 "patch_property" | "double_optional" | "select_one_of_branch" => {
                     if !schema_matches {
                         return;
@@ -492,6 +531,62 @@ mod tests {
         assert_eq!(document["ref"]["$ref"], "Added.json");
         assert_eq!(document["x-fixture"], "patched");
         assert_eq!(documents["Added.json"]["title"], "Added");
+
+        let _ = fs::remove_dir_all(directory);
+    }
+
+    #[test]
+    fn retypes_a_named_field_in_an_endstone_fields_array() {
+        let directory = std::env::temp_dir().join(format!(
+            "valentine-gen-overrides-patch-field-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&directory);
+        fs::create_dir_all(&directory).expect("create patch_field override fixture");
+        fs::write(
+            directory.join("fixture.json"),
+            serde_json::to_vec(&json!({
+                "source": "https://example.invalid/fixture",
+                "operations": [{
+                    "op": "patch_field",
+                    "schema": "packets/ExamplePacket",
+                    "schema_title": "ExamplePacket",
+                    "field": "Payload",
+                    "patch": {"type": "uint8", "repeat": {"prefix": "uvarint32"}},
+                    "why": "test byte-buffer retyping"
+                }]
+            }))
+            .expect("serialize patch_field override"),
+        )
+        .expect("write patch_field override");
+
+        let mut documents = HashMap::from([(
+            "packets/ExamplePacket".to_string(),
+            json!({
+                "id": 1,
+                "name": "ExamplePacket",
+                "fields": [
+                    {"name": "Name", "type": "string"},
+                    {"name": "Payload", "type": "string", "optional": true}
+                ]
+            }),
+        )]);
+        apply(&mut documents, &directory).expect("apply patch_field override");
+
+        let fields = &documents["packets/ExamplePacket"]["fields"];
+        // The sibling text field is untouched, and the retyped field keeps the
+        // keys the patch does not mention — `optional` in particular, because
+        // presence is framed outside the length prefix.
+        assert_eq!(fields[0], json!({"name": "Name", "type": "string"}));
+        assert_eq!(
+            fields[1],
+            json!({
+                "name": "Payload",
+                "type": "uint8",
+                "optional": true,
+                "repeat": {"prefix": "uvarint32"}
+            })
+        );
 
         let _ = fs::remove_dir_all(directory);
     }
