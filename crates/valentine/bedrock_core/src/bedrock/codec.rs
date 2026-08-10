@@ -12,6 +12,16 @@ pub trait BedrockCodec: Sized {
 
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error>;
     fn decode<B: Buf>(buf: &mut B, args: Self::Args) -> Result<Self, DecodeError>;
+
+    /// Opts an intentional zero-width codec into efficient repeated decoding.
+    /// Other codecs use the default progress-checked element loop.
+    fn decode_repeated<B: Buf>(
+        _buf: &mut B,
+        _len: usize,
+        _args: Self::Args,
+    ) -> Option<Result<Vec<Self>, DecodeError>> {
+        None
+    }
 }
 
 /// Computes the exact encoded wire size for a value without writing it.
@@ -108,6 +118,14 @@ impl BedrockCodec for () {
 
     fn decode<B: Buf>(_buf: &mut B, _args: Self::Args) -> Result<Self, DecodeError> {
         Ok(())
+    }
+
+    fn decode_repeated<B: Buf>(
+        _buf: &mut B,
+        len: usize,
+        _args: Self::Args,
+    ) -> Option<Result<Vec<Self>, DecodeError>> {
+        Some(Ok(vec![(); len]))
     }
 }
 
@@ -554,10 +572,21 @@ where
     }
     fn decode<B: Buf>(buf: &mut B, args: Self::Args) -> Result<Self, DecodeError> {
         let len = checked_unsigned_len(crate::protocol::wire::read_var_u32(buf)? as u128)?;
+        if let Some(values) = T::decode_repeated(buf, len, args.clone()) {
+            return values;
+        }
         let mut v = prepare_decode_vec(len, buf.remaining(), None)?;
         for _ in 0..len {
+            let remaining_before = buf.remaining();
+            let value = T::decode(buf, args.clone())?;
+            if buf.remaining() == remaining_before {
+                return Err(DecodeError::ArrayLengthExceeded {
+                    declared: len,
+                    available: remaining_before,
+                });
+            }
             reserve_decode_item(&mut v)?;
-            v.push(T::decode(buf, args.clone())?);
+            v.push(value);
         }
         Ok(v)
     }
@@ -980,6 +1009,42 @@ fn skip(cursor: &mut Cursor<&[u8]>, n: usize) -> Result<(), DecodeError> {
 mod tests {
     use super::*;
     use bytes::BytesMut;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    struct ConsumingZst;
+
+    impl BedrockCodec for ConsumingZst {
+        type Args = ();
+
+        fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+            buf.put_u8(0);
+            Ok(())
+        }
+
+        fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, DecodeError> {
+            u8::decode(buf, ())?;
+            Ok(Self)
+        }
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    struct ZeroProgress;
+
+    static ZERO_PROGRESS_DECODE_CALLS: AtomicUsize = AtomicUsize::new(0);
+
+    impl BedrockCodec for ZeroProgress {
+        type Args = ();
+
+        fn encode<B: BufMut>(&self, _buf: &mut B) -> Result<(), std::io::Error> {
+            Ok(())
+        }
+
+        fn decode<B: Buf>(_buf: &mut B, _args: Self::Args) -> Result<Self, DecodeError> {
+            ZERO_PROGRESS_DECODE_CALLS.fetch_add(1, Ordering::Relaxed);
+            Ok(Self)
+        }
+    }
 
     /// Helper to assert roundtrip encoding/decoding for BedrockCodec types
     fn assert_codec_roundtrip<T>(value: T, args: T::Args)
@@ -1049,6 +1114,37 @@ mod tests {
     fn strings_and_vectors_larger_than_four_kib_roundtrip() {
         assert_codec_roundtrip("x".repeat(8_192), ());
         assert_codec_roundtrip(vec![7u16; 4_097], ());
+        assert_codec_roundtrip(vec![ConsumingZst; 4_097], ());
+        assert_codec_roundtrip(vec![(); 100_000], ());
+    }
+
+    #[test]
+    fn unit_vectors_use_the_explicit_zero_width_fast_path() {
+        let len = u32::MAX as usize;
+        let mut encoded = BytesMut::new();
+        crate::protocol::wire::write_var_u32(&mut encoded, len as u32);
+        let mut encoded = encoded.freeze();
+
+        let decoded = Vec::<()>::decode(&mut encoded, ()).expect("unit vector");
+        assert_eq!(decoded.len(), len);
+        assert!(encoded.is_empty());
+    }
+
+    #[test]
+    fn unregistered_zero_progress_codec_fails_after_one_decode() {
+        ZERO_PROGRESS_DECODE_CALLS.store(0, Ordering::Relaxed);
+        let mut encoded = BytesMut::new();
+        crate::protocol::wire::write_var_u32(&mut encoded, 1_000_000_000);
+        let mut encoded = encoded.freeze();
+
+        assert!(matches!(
+            Vec::<ZeroProgress>::decode(&mut encoded, ()),
+            Err(DecodeError::ArrayLengthExceeded {
+                declared: 1_000_000_000,
+                available: 0,
+            })
+        ));
+        assert_eq!(ZERO_PROGRESS_DECODE_CALLS.load(Ordering::Relaxed), 1);
     }
 
     #[test]
