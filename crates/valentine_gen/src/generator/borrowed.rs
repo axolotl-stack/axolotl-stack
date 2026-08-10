@@ -823,7 +823,13 @@ impl BorrowedGenerator<'_, '_> {
                     quote! { #ident }
                 }
             }
-            Type::Array { inner_type, .. } => {
+            Type::Array {
+                count_type,
+                inner_type,
+            } => {
+                if self.is_varint_prefixed_u8_array(count_type, inner_type) {
+                    return Ok(quote! { bytes::Bytes });
+                }
                 let inner = self.borrowed_type_tokens(inner_type, &format!("{hint}Item"))?;
                 quote! { Vec<#inner> }
             }
@@ -919,6 +925,11 @@ impl BorrowedGenerator<'_, '_> {
                 count_type,
                 inner_type,
             } => {
+                if self.is_varint_prefixed_u8_array(count_type, inner_type) {
+                    return Ok(quote! {
+                        crate::bedrock::borrowed::take_varint_prefixed_bytes(#buf_ident)?
+                    });
+                }
                 let len_decode = self.decode_length_expr(count_type, buf_ident.clone())?;
                 let inner_decode = self.decode_expr(
                     inner_type,
@@ -1183,6 +1194,12 @@ impl BorrowedGenerator<'_, '_> {
                 inner_type,
             } => {
                 let encode_len = self.encode_length_stmt(count_type, quote! { (#access).len() })?;
+                if self.is_varint_prefixed_u8_array(count_type, inner_type) {
+                    return Ok(quote! {
+                        #encode_len
+                        buf.put_slice((#access).as_ref());
+                    });
+                }
                 let item_encode =
                     self.encode_stmt(inner_type, quote! { item }, &format!("{hint}Item"))?;
                 Ok(quote! {
@@ -1275,6 +1292,9 @@ impl BorrowedGenerator<'_, '_> {
                 inner_type,
             } => {
                 let prefix = self.length_size_expr(count_type, quote! { (#access).len() })?;
+                if self.is_varint_prefixed_u8_array(count_type, inner_type) {
+                    return Ok(quote! { #prefix + (#access).len() });
+                }
                 let item_size =
                     self.size_expr(inner_type, quote! { _item }, &format!("{hint}Item"))?;
                 Ok(quote! {
@@ -1340,7 +1360,13 @@ impl BorrowedGenerator<'_, '_> {
                 }
                 Ok(expr)
             }
-            Type::Array { inner_type, .. } => {
+            Type::Array {
+                count_type,
+                inner_type,
+            } => {
+                if self.is_varint_prefixed_u8_array(count_type, inner_type) {
+                    return Ok(quote! { (#expr).to_vec() });
+                }
                 let item = self.owned_expr(inner_type, quote! { item }, &format!("{hint}Item"))?;
                 Ok(quote! { (#expr).into_iter().map(|item| { #item }).collect() })
             }
@@ -1517,6 +1543,11 @@ impl BorrowedGenerator<'_, '_> {
         }
     }
 
+    fn is_varint_prefixed_u8_array(&self, count_type: &Type, inner_type: &Type) -> bool {
+        matches!(self.prefix_kind(count_type), Some(PrefixKind::VarInt))
+            && matches!(inner_type, Type::Primitive(Primitive::U8))
+    }
+
     fn decode_length_expr(
         &self,
         count_type: &Type,
@@ -1631,5 +1662,71 @@ impl BorrowedGenerator<'_, '_> {
             Type::Bitfield { .. } => true,
             Type::Packed { .. } => false,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::generator::context::{Context, GlobalRegistry};
+    use crate::ir::{Field, Packet};
+    use crate::parser::ParseResult;
+
+    fn varint_array(inner: Primitive) -> Type {
+        Type::Array {
+            count_type: Box::new(Type::Primitive(Primitive::VarInt)),
+            inner_type: Box::new(Type::Primitive(inner)),
+        }
+    }
+
+    #[test]
+    fn varint_prefixed_u8_arrays_generate_bytes_without_affecting_other_vectors() {
+        let parse_result = ParseResult {
+            packets: vec![Packet {
+                id: 1,
+                name: "neutral_buffer".into(),
+                body: Container {
+                    name: "neutral_buffer".into(),
+                    fields: vec![
+                        Field {
+                            name: "payload".into(),
+                            type_def: varint_array(Primitive::U8),
+                        },
+                        Field {
+                            name: "metadata".into(),
+                            type_def: varint_array(Primitive::U16LE),
+                        },
+                    ],
+                },
+            }],
+            types: HashMap::new(),
+        };
+        let mut registry = GlobalRegistry::new();
+        let mut ctx = Context {
+            definitions_by_group: HashMap::new(),
+            emitted: HashSet::new(),
+            in_progress: HashSet::new(),
+            aliases_emitted: HashSet::new(),
+            inline_cache: HashMap::new(),
+            type_lookup: HashMap::new(),
+            global_registry: &mut registry,
+            current_crate_name: "test".into(),
+            current_local_path: "crate".into(),
+            current_external_path: "test".into(),
+            crate_dependencies: HashSet::new(),
+            argful_types: HashSet::new(),
+        };
+
+        let generated = generate_borrowed_module(&parse_result, &mut ctx)
+            .expect("borrowed generation")
+            .expect("borrowed module")
+            .to_string();
+
+        assert!(generated.contains("pub payload : bytes :: Bytes"));
+        assert!(generated.contains("pub metadata : Vec < u16 >"));
+        assert!(generated.contains("take_varint_prefixed_bytes (buf)"));
+        assert!(generated.contains("buf . put_slice ((& self . payload) . as_ref ())"));
+        assert!(generated.contains("payload : (value . payload) . to_vec ()"));
+        assert!(generated.contains("metadata : (value . metadata) . into_iter ()"));
     }
 }

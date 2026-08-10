@@ -1381,7 +1381,7 @@ valentine_bedrock_core = {{ path = "../../bedrock_core" }}
 mod generated_crate_tests {
     use super::{CliArgs, ProtocolSource, generate_schema_source};
     use std::fs;
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
     use std::process::Command;
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -1400,29 +1400,24 @@ mod generated_crate_tests {
         Ok(())
     }
 
-    #[test]
-    fn real_mojang_generation_passes_cargo_check_in_a_temp_crate() {
-        let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let docs = manifest_dir.join("bedrock-protocol-docs");
-        assert!(
-            docs.join("json").is_dir(),
-            "the pinned bedrock-protocol-docs submodule is required for this gate"
-        );
-
+    fn temporary_output(label: &str) -> PathBuf {
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("system clock before UNIX_EPOCH")
             .as_nanos();
         let output = std::env::temp_dir().join(format!(
-            "valentine-gen-cargo-check-{}-{nonce}",
+            "valentine-gen-{label}-{}-{nonce}",
             std::process::id()
         ));
         let _ = fs::remove_dir_all(&output);
         fs::create_dir_all(&output).expect("create generated crate directory");
+        output
+    }
 
-        let args = CliArgs {
-            source: ProtocolSource::Mojang,
-            versions: Vec::new(),
+    fn schema_args(source: ProtocolSource, versions: Vec<String>, output: &Path) -> CliArgs {
+        CliArgs {
+            source,
+            versions,
             all: false,
             latest: false,
             list_versions: false,
@@ -1432,7 +1427,7 @@ mod generated_crate_tests {
             mojang_docs: None,
             endstone_docs: None,
             overrides: None,
-            output_dir: Some(output.clone()),
+            output_dir: Some(output.to_path_buf()),
             emit_wire_manifest: None,
             gen_proto: true,
             gen_items: false,
@@ -1440,17 +1435,17 @@ mod generated_crate_tests {
             gen_block_states: false,
             gen_entities: false,
             gen_biomes: false,
-        };
-        generate_schema_source(&args, manifest_dir, &output).expect("generate Mojang temp crate");
+        }
+    }
 
+    fn install_generated_workspace(manifest_dir: &Path, output: &Path) -> PathBuf {
         let core_source = manifest_dir
             .parent()
             .expect("valentine_gen has a crate parent")
             .join("valentine/bedrock_core");
         copy_directory(&core_source, &output.join("bedrock_core"))
             .expect("copy bedrock_core into generated temp crate");
-        // Derive members from what was actually generated: the module name
-        // tracks the pinned docs version, so hardcoding it breaks on a bump.
+
         let mut members = vec!["\"bedrock_core\"".to_string()];
         for entry in
             fs::read_dir(output.join("bedrock_versions")).expect("read generated bedrock_versions")
@@ -1467,32 +1462,198 @@ mod generated_crate_tests {
             members.len() > 1,
             "generation produced no version crates under bedrock_versions"
         );
+        let workspace_manifest = output.join("Cargo.toml");
         fs::write(
-            output.join("Cargo.toml"),
+            &workspace_manifest,
             format!(
                 "[workspace]\nresolver = \"2\"\nmembers = [{}]\n[workspace.package]\nedition = \"2024\"\n[workspace.dependencies]\nbytes = \"1\"\nuuid = \"1.8.0\"\n",
                 members.join(", ")
             ),
         )
         .expect("write temp workspace manifest");
+        workspace_manifest
+    }
 
+    fn run_cargo(manifest: &Path, args: &[&str]) -> std::process::Output {
         let cargo = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
-        let check = Command::new(cargo)
+        Command::new(cargo)
+            .args(args)
             .args([
-                "check",
                 "--offline",
                 "--manifest-path",
-                output.join("Cargo.toml").to_str().expect("UTF-8 temp path"),
+                manifest.to_str().expect("UTF-8 temp path"),
             ])
             .env("RUSTC_WRAPPER", "")
             .env("CARGO_NET_OFFLINE", "true")
             .output()
-            .expect("run cargo check on generated temp crate");
+            .expect("run cargo against generated temp crate")
+    }
+
+    #[test]
+    fn real_mojang_generation_passes_cargo_check_in_a_temp_crate() {
+        let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let docs = manifest_dir.join("bedrock-protocol-docs");
+        assert!(
+            docs.join("json").is_dir(),
+            "the pinned bedrock-protocol-docs submodule is required for this gate"
+        );
+        let output = temporary_output("mojang-cargo-check");
+        let args = schema_args(ProtocolSource::Mojang, Vec::new(), &output);
+        generate_schema_source(&args, manifest_dir, &output).expect("generate Mojang temp crate");
+        let manifest = install_generated_workspace(manifest_dir, &output);
+        let check = run_cargo(&manifest, &["check"]);
         let _ = fs::remove_dir_all(&output);
         assert!(
             check.status.success(),
             "cargo check failed for generated crate:\n{}",
             String::from_utf8_lossy(&check.stderr)
+        );
+    }
+
+    #[test]
+    fn generated_level_chunk_view_borrows_bytes_and_rejects_bad_lengths() {
+        let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let docs = manifest_dir.join("endstone-docs");
+        assert!(
+            docs.join("packets").is_dir(),
+            "the pinned endstone-docs submodule is required for this gate"
+        );
+
+        let output = temporary_output("endstone-level-chunk");
+        let args = schema_args(
+            ProtocolSource::Endstone,
+            vec!["1.26.40".to_string()],
+            &output,
+        );
+        generate_schema_source(&args, manifest_dir, &output).expect("generate Endstone temp crate");
+        let manifest = install_generated_workspace(manifest_dir, &output);
+        let tests_dir = output.join("bedrock_versions/v1_26_40/tests");
+        fs::create_dir_all(&tests_dir).expect("create generated integration test directory");
+        fs::write(
+            tests_dir.join("level_chunk_borrowed_bytes.rs"),
+            r#"use bytes::{Bytes, BytesMut};
+use valentine_bedrock_1_26_40::bedrock::codec::{BedrockCodec, BedrockSized, VarInt};
+use valentine_bedrock_1_26_40::bedrock::error::DecodeError;
+use valentine_bedrock_1_26_40::{
+    LevelChunkPacket, LevelChunkPacketPayloadSubChunkMetadata, LevelChunkPacketView,
+};
+
+fn packet(payload_len: usize) -> LevelChunkPacket {
+    let mut packet = LevelChunkPacket::default();
+    packet.cache_enabled = true;
+    packet.cache_metadata = vec![
+        LevelChunkPacketPayloadSubChunkMetadata { blob_id: 0x1122_3344_5566_7788 },
+        LevelChunkPacketPayloadSubChunkMetadata { blob_id: 0x8877_6655_4433_2211 },
+    ];
+    packet.serialized_chunk_data = (0..payload_len).map(|index| index as u8).collect();
+    packet
+}
+
+fn encode(packet: &LevelChunkPacket) -> Bytes {
+    let mut wire = BytesMut::with_capacity(packet.encoded_size());
+    packet.encode(&mut wire).expect("encode LevelChunk");
+    assert_eq!(wire.len(), packet.encoded_size());
+    wire.freeze()
+}
+
+#[test]
+fn view_aliases_wire_round_trips_and_converts_to_owned() {
+    let packet = packet(4097);
+    let wire = encode(&packet);
+    let wire_start = wire.as_ptr() as usize;
+    let wire_end = wire_start + wire.len();
+    let mut input = wire.clone();
+    let view = LevelChunkPacketView::decode(&mut input).expect("decode LevelChunk view");
+
+    assert!(input.is_empty());
+    assert_eq!(view.serialized_chunk_data.as_ref(), packet.serialized_chunk_data);
+    let payload_pointer = view.serialized_chunk_data.as_ptr() as usize;
+    assert!((wire_start..wire_end).contains(&payload_pointer));
+    assert_eq!(
+        view.cache_metadata.iter().map(|item| item.blob_id).collect::<Vec<_>>(),
+        packet.cache_metadata.iter().map(|item| item.blob_id).collect::<Vec<_>>(),
+    );
+
+    let mut reencoded = BytesMut::new();
+    view.encode(&mut reencoded).expect("encode LevelChunk view");
+    assert_eq!(view.encoded_size(), wire.len());
+    assert_eq!(reencoded.as_ref(), wire.as_ref());
+
+    let owned: LevelChunkPacket = view.into();
+    assert_eq!(owned, packet);
+    assert_ne!(owned.serialized_chunk_data.as_ptr() as usize, payload_pointer);
+}
+
+#[test]
+fn view_accepts_payload_near_the_transport_envelope_without_a_global_cap() {
+    const NEAR_TRANSPORT_ENVELOPE: usize = 16 * 1024 * 1024 - 1024;
+    let packet = packet(NEAR_TRANSPORT_ENVELOPE);
+    let wire = encode(&packet);
+    let wire_start = wire.as_ptr() as usize;
+    let wire_end = wire_start + wire.len();
+    let mut input = wire.clone();
+    let view = LevelChunkPacketView::decode(&mut input).expect("decode near-envelope LevelChunk");
+
+    assert_eq!(view.serialized_chunk_data.len(), NEAR_TRANSPORT_ENVELOPE);
+    assert!((wire_start..wire_end).contains(&(view.serialized_chunk_data.as_ptr() as usize)));
+    assert!(input.is_empty());
+}
+
+#[test]
+fn view_rejects_adversarial_payload_and_metadata_lengths() {
+    let mut negative_payload = encode(&packet(0)).to_vec();
+    assert_eq!(negative_payload.pop(), Some(0));
+    VarInt(-1).encode(&mut negative_payload).expect("encode negative length");
+    let error = LevelChunkPacketView::decode(&mut Bytes::from(negative_payload))
+        .expect_err("negative payload length must fail");
+    assert!(matches!(error, DecodeError::NegativeLength { value: -1 }));
+
+    let mut truncated_payload = encode(&packet(0)).to_vec();
+    assert_eq!(truncated_payload.pop(), Some(0));
+    VarInt(1024).encode(&mut truncated_payload).expect("encode declared length");
+    truncated_payload.extend_from_slice(&[1, 2, 3]);
+    let error = LevelChunkPacketView::decode(&mut Bytes::from(truncated_payload))
+        .expect_err("payload length beyond remaining bytes must fail");
+    assert!(matches!(
+        error,
+        DecodeError::ArrayLengthExceeded { declared: 1024, available: 3 }
+    ));
+
+    let mut packet = LevelChunkPacket::default();
+    packet.cache_enabled = true;
+    let mut oversized_metadata = encode(&packet).to_vec();
+    assert_eq!(oversized_metadata.pop(), Some(0));
+    assert_eq!(oversized_metadata.pop(), Some(0));
+    VarInt(i32::MAX)
+        .encode(&mut oversized_metadata)
+        .expect("encode oversized metadata length");
+    let error = LevelChunkPacketView::decode(&mut Bytes::from(oversized_metadata))
+        .expect_err("metadata length beyond remaining bytes must fail");
+    assert!(matches!(
+        error,
+        DecodeError::ArrayLengthExceeded { declared, available: 0 }
+            if declared == i32::MAX as usize
+    ));
+}
+"#,
+        )
+        .expect("write generated LevelChunk integration tests");
+
+        let test = run_cargo(
+            &manifest,
+            &[
+                "test",
+                "-p",
+                "valentine_bedrock_1_26_40",
+                "--test",
+                "level_chunk_borrowed_bytes",
+            ],
+        );
+        let _ = fs::remove_dir_all(&output);
+        assert!(
+            test.status.success(),
+            "generated LevelChunk tests failed:\n{}",
+            String::from_utf8_lossy(&test.stderr)
         );
     }
 }
