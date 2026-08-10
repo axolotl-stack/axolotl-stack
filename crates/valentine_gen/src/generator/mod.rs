@@ -1,3 +1,4 @@
+pub mod allocation;
 pub mod analysis;
 pub mod borrowed;
 pub mod codec;
@@ -691,7 +692,9 @@ fn generate_mcpe_packet_module(
                 buf: &mut B,
                 _args: McpePacketArgs,
             ) -> Result<(GameHeader, Self), crate::bedrock::error::DecodeError> {
-                let declared_len = wire::read_var_u32(buf)? as usize;
+                let declared_len = crate::bedrock::codec::checked_unsigned_len(
+                    wire::read_var_u32(buf)? as u128,
+                )?;
                 if buf.remaining() < declared_len {
                     return Err(crate::bedrock::error::DecodeError::PacketLengthExceeded {
                         declared: declared_len,

@@ -1,4 +1,4 @@
-use bytes::{BufMut, Bytes};
+use bytes::{Buf, BufMut, Bytes};
 
 pub use valentine_bedrock_core::bedrock::borrowed::{
     BedrockBorrowDecode, BorrowedStr, GAME_PACKET_ID, RawMcpeFrame, RawMcpeHeader,
@@ -380,13 +380,12 @@ impl BedrockBorrowDecode for TextPacketContentJukeboxPopupView {
         _args: Self::Args,
     ) -> Result<Self, crate::bedrock::error::DecodeError> {
         let message = take_varint_prefixed_string(buf)?;
-        let len_raw = VarInt::decode(buf, ())?.0 as i64;
-        if len_raw < 0 {
-            return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
-        }
-        let len = len_raw as usize;
-        let mut parameters = Vec::with_capacity(len);
+        let len = crate::bedrock::codec::checked_signed_len(VarInt::decode(buf, ())?.0 as i128)?;
+        // Each entry has at least its one-byte length prefix.
+        let mut parameters =
+            crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(1))?;
         for _ in 0..len {
+            crate::bedrock::codec::reserve_decode_item(&mut parameters)?;
             parameters.push(take_varint_prefixed_string(buf)?);
         }
         Ok(Self {

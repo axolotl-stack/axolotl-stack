@@ -543,16 +543,16 @@ pub fn define_type(
 
                 fn decode<B: bytes::Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, crate::bedrock::error::DecodeError> {
                     let len_raw = <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0;
-                    let len = len_raw as usize;
+                    let len = crate::bedrock::codec::checked_unsigned_len(len_raw as u128)?;
                     if buf.remaining() < len {
                         return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
                             declared: len,
                             available: buf.remaining(),
                         });
                     }
-                    let mut v = vec![0u8; len];
+                    let mut v = crate::bedrock::codec::allocate_decode_bytes(len)?;
                     buf.copy_to_slice(&mut v);
-                    Ok(LittleString(crate::bedrock::codec::decode_utf8_lossy_owned(v)))
+                    Ok(LittleString(crate::bedrock::codec::try_decode_utf8_lossy_owned(v)?))
                 }
             }
         };

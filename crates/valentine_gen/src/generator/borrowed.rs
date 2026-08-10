@@ -1,3 +1,4 @@
+use crate::generator::allocation::minimum_encoded_size;
 use crate::generator::analysis::{find_redundant_fields, should_box_variant};
 use crate::generator::context::Context;
 use crate::generator::definitions::resolve_type_to_tokens;
@@ -923,14 +924,27 @@ impl BorrowedGenerator<'_, '_> {
                     inner_type,
                     field_name,
                     &format!("{hint}Item"),
-                    buf_ident,
+                    buf_ident.clone(),
                     resolved,
                 )?;
+                let minimum_element_size = minimum_encoded_size(inner_type, self.ctx);
+                let minimum_element_size = match minimum_element_size {
+                    Some(size) => {
+                        let size = proc_macro2::Literal::usize_unsuffixed(size);
+                        quote! { Some(#size) }
+                    }
+                    None => quote! { None },
+                };
                 Ok(quote! {
                     {
                         let len = #len_decode;
-                        let mut values = Vec::with_capacity(len);
+                        let mut values = crate::bedrock::codec::prepare_decode_vec(
+                            len,
+                            bytes::Buf::remaining(&*(#buf_ident)),
+                            #minimum_element_size,
+                        )?;
                         for _ in 0..len {
+                            crate::bedrock::codec::reserve_decode_item(&mut values)?;
                             values.push(#inner_decode);
                         }
                         values
@@ -1515,17 +1529,23 @@ impl BorrowedGenerator<'_, '_> {
                     if raw < 0 {
                         return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
                     }
-                    raw as usize
+                    crate::bedrock::codec::checked_signed_len(raw as i128)?
                 }
             },
             Some(PrefixKind::U32LE) => quote! {
-                <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(#buf_ident, ())?.0 as usize
+                crate::bedrock::codec::checked_unsigned_len(
+                    <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(#buf_ident, ())?.0 as u128
+                )?
             },
             Some(PrefixKind::U16LE) => quote! {
-                <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(#buf_ident, ())?.0 as usize
+                crate::bedrock::codec::checked_unsigned_len(
+                    <crate::bedrock::codec::U16LE as crate::bedrock::codec::BedrockCodec>::decode(#buf_ident, ())?.0 as u128
+                )?
             },
             Some(PrefixKind::U8) => quote! {
-                <u8 as crate::bedrock::codec::BedrockCodec>::decode(#buf_ident, ())? as usize
+                crate::bedrock::codec::checked_unsigned_len(
+                    <u8 as crate::bedrock::codec::BedrockCodec>::decode(#buf_ident, ())? as u128
+                )?
             },
             None => return Err("unsupported borrowed array length prefix".into()),
         })

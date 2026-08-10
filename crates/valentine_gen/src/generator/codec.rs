@@ -1,3 +1,4 @@
+use crate::generator::allocation::minimum_encoded_size;
 use crate::generator::analysis::{find_redundant_fields, should_box_variant};
 use crate::generator::context::Context;
 use crate::generator::definitions::resolve_type_to_tokens;
@@ -176,6 +177,36 @@ fn generate_container_decode_stmts(
     Ok((stmts, result_fields))
 }
 
+fn length_type_is_signed(ty: &Type, context: &str) -> Result<bool, Box<dyn std::error::Error>> {
+    match ty {
+        Type::Primitive(
+            Primitive::VarInt
+            | Primitive::VarLong
+            | Primitive::ZigZag32
+            | Primitive::ZigZag64
+            | Primitive::I8
+            | Primitive::I16
+            | Primitive::I16LE
+            | Primitive::I32
+            | Primitive::I32LE
+            | Primitive::I64
+            | Primitive::I64LE,
+        ) => Ok(true),
+        Type::Primitive(
+            Primitive::U8
+            | Primitive::U16
+            | Primitive::U16LE
+            | Primitive::U32
+            | Primitive::U32LE
+            | Primitive::U64
+            | Primitive::U64LE,
+        ) => Ok(false),
+        other => {
+            Err(format!("{context} length must use an integer primitive, got {other:?}").into())
+        }
+    }
+}
+
 fn generate_field_decode_expr(
     container_name: &str,
     var_name: &str,
@@ -246,6 +277,7 @@ fn generate_field_decode_expr(
             count_type,
             inner_type,
         } => {
+            let array_len_signed = length_type_is_signed(count_type, "array")?;
             let count_read = match count_type.as_ref() {
                 Type::Primitive(p) => match p {
                     Primitive::VarInt => {
@@ -289,7 +321,7 @@ fn generate_field_decode_expr(
                         quote! { <#t as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? }
                     }
                 },
-                _ => quote! { 0 },
+                _ => unreachable!("length_type_is_signed accepted a non-primitive array length"),
             };
 
             let inner_var_name = format!("{}Item", var_name);
@@ -303,36 +335,38 @@ fn generate_field_decode_expr(
                 arg_idents,
             )?;
 
-            let array_len_signed = matches!(
-                count_type.as_ref(),
-                Type::Primitive(
-                    Primitive::VarInt
-                        | Primitive::VarLong
-                        | Primitive::ZigZag32
-                        | Primitive::ZigZag64
-                        | Primitive::I16LE
-                        | Primitive::I32LE
-                        | Primitive::I64LE
-                )
-            );
+            let minimum_element_size = minimum_encoded_size(inner_type, ctx);
+            let minimum_element_size = match minimum_element_size {
+                Some(size) => {
+                    let size = proc_macro2::Literal::usize_unsuffixed(size);
+                    quote! { Some(#size) }
+                }
+                None => quote! { None },
+            };
+
             let len_logic = if array_len_signed {
                 quote! {
                     let raw = #count_read as i64;
                     if raw < 0 {
                         return Err(crate::bedrock::error::DecodeError::NegativeLength { value: raw });
                     }
-                    let len = raw as usize;
+                    let len = crate::bedrock::codec::checked_signed_len(raw as i128)?;
                 }
             } else {
                 quote! {
-                    let len = (#count_read) as usize;
+                    let len = crate::bedrock::codec::checked_unsigned_len((#count_read) as u128)?;
                 }
             };
 
             Ok(quote! {{
                 #len_logic
-                let mut tmp_vec = Vec::with_capacity(len);
+                let mut tmp_vec = crate::bedrock::codec::prepare_decode_vec(
+                    len,
+                    buf.remaining(),
+                    #minimum_element_size,
+                )?;
                 for _ in 0..len {
+                    crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                     tmp_vec.push(#inner_decode);
                 }
                 tmp_vec
@@ -384,6 +418,7 @@ fn generate_field_decode_expr(
             count_type,
             encoding,
         } => {
+            let string_len_signed = length_type_is_signed(count_type, "string")?;
             let len_read = match count_type.as_ref() {
                 Type::Primitive(p) => match p {
                     Primitive::VarInt => {
@@ -427,36 +462,24 @@ fn generate_field_decode_expr(
                         quote! { <#t as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? }
                     }
                 },
-                _ => quote! { 0 },
+                _ => unreachable!("length_type_is_signed accepted a non-primitive string length"),
             };
 
             let is_latin1 = encoding
                 .as_deref()
                 .map(|value| value.eq_ignore_ascii_case("latin1"))
                 .unwrap_or(false);
-            let string_len_signed = matches!(
-                count_type.as_ref(),
-                Type::Primitive(
-                    Primitive::VarInt
-                        | Primitive::VarLong
-                        | Primitive::ZigZag32
-                        | Primitive::ZigZag64
-                        | Primitive::I16LE
-                        | Primitive::I32LE
-                        | Primitive::I64LE
-                )
-            );
             let len_logic = if string_len_signed {
                 quote! {
                     let len_raw = (#len_read) as i64;
                     if len_raw < 0 {
                         return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
                     }
-                    let len = len_raw as usize;
+                    let len = crate::bedrock::codec::checked_signed_len(len_raw as i128)?;
                 }
             } else {
                 quote! {
-                    let len = (#len_read) as usize;
+                    let len = crate::bedrock::codec::checked_unsigned_len((#len_read) as u128)?;
                 }
             };
 
@@ -469,9 +492,9 @@ fn generate_field_decode_expr(
                             available: buf.remaining(),
                         });
                     }
-                    let mut bytes = vec![0u8; len];
+                    let mut bytes = crate::bedrock::codec::allocate_decode_bytes(len)?;
                     buf.copy_to_slice(&mut bytes);
-                    bytes.into_iter().map(|b| b as char).collect::<String>()
+                    crate::bedrock::codec::decode_latin1_owned(bytes)?
                 }})
             } else {
                 Ok(quote! {{
@@ -482,13 +505,14 @@ fn generate_field_decode_expr(
                             available: buf.remaining(),
                         });
                     }
-                    let mut bytes = vec![0u8; len];
+                    let mut bytes = crate::bedrock::codec::allocate_decode_bytes(len)?;
                     buf.copy_to_slice(&mut bytes);
-                    crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+                    crate::bedrock::codec::try_decode_utf8_lossy_owned(bytes)?
                 }})
             }
         }
         Type::Encapsulated { length_type, inner } => {
+            let encap_len_signed = length_type_is_signed(length_type, "encapsulated")?;
             let len_read = match length_type.as_ref() {
                 Type::Primitive(p) => match p {
                     Primitive::VarInt => {
@@ -532,32 +556,22 @@ fn generate_field_decode_expr(
                         quote! { <#t as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? }
                     }
                 },
-                _ => quote! { 0 },
+                _ => unreachable!(
+                    "length_type_is_signed accepted a non-primitive encapsulated length"
+                ),
             };
 
-            let encap_len_signed = matches!(
-                length_type.as_ref(),
-                Type::Primitive(
-                    Primitive::VarInt
-                        | Primitive::VarLong
-                        | Primitive::ZigZag32
-                        | Primitive::ZigZag64
-                        | Primitive::I16LE
-                        | Primitive::I32LE
-                        | Primitive::I64LE
-                )
-            );
             let len_logic = if encap_len_signed {
                 quote! {
                     let len_raw = (#len_read) as i64;
                     if len_raw < 0 {
                         return Err(crate::bedrock::error::DecodeError::NegativeLength { value: len_raw });
                     }
-                    let len = len_raw as usize;
+                    let len = crate::bedrock::codec::checked_signed_len(len_raw as i128)?;
                 }
             } else {
                 quote! {
-                    let len = (#len_read) as usize;
+                    let len = crate::bedrock::codec::checked_unsigned_len((#len_read) as u128)?;
                 }
             };
 
