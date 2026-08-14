@@ -62,6 +62,7 @@ struct CliArgs {
     bedrock_data: Option<PathBuf>,
     mojang_docs: Option<PathBuf>,
     endstone_docs: Option<PathBuf>,
+    protocolgen_manifest: Option<PathBuf>,
     overrides: Option<PathBuf>,
     output_dir: Option<PathBuf>,
     emit_wire_manifest: Option<PathBuf>,
@@ -79,6 +80,7 @@ enum ProtocolSource {
     Prismarine,
     Mojang,
     Endstone,
+    Protocolgen,
 }
 
 fn print_usage() {
@@ -103,11 +105,13 @@ GENERATION TARGETS (composable, default: all):
   --biomes                Generate biome data only
 
 OTHER OPTIONS:
-  --source <NAME>         Protocol source: endstone (default), mojang, or prismarine
+  --source <NAME>         Protocol source: endstone (default), mojang, protocolgen, or prismarine
   --minecraft-data <DIR>  Path to a minecraft-data checkout (defaults to ./minecraft-data)
   --bedrock-data <DIR>    Path to a pmmp/BedrockData checkout (defaults to ./bedrock-data)
   --mojang-docs <DIR>     Path to a bedrock-protocol-docs checkout (defaults to ./bedrock-protocol-docs)
   --endstone-docs <DIR>   Path to an endstone protocol-docs checkout (defaults to ./endstone-docs)
+  --protocolgen-manifest <FILE>
+                         Path to a protocolgen canonical manifest v2
   --overrides <DIR>       Mojang correction JSON directory (defaults to ./overrides)
   --output-dir <DIR>      Valentine output root (Prismarine defaults to ../valentine; required for Mojang)
   --emit-wire-manifest <FILE>
@@ -129,6 +133,7 @@ fn parse_args() -> Result<CliArgs, String> {
     let mut bedrock_data: Option<PathBuf> = None;
     let mut mojang_docs: Option<PathBuf> = None;
     let mut endstone_docs: Option<PathBuf> = None;
+    let mut protocolgen_manifest: Option<PathBuf> = None;
     let mut overrides: Option<PathBuf> = None;
     let mut output_dir: Option<PathBuf> = None;
     let mut emit_wire_manifest: Option<PathBuf> = None;
@@ -200,6 +205,12 @@ fn parse_args() -> Result<CliArgs, String> {
                     .ok_or_else(|| "--mojang-docs expects a path".to_string())?;
                 mojang_docs = Some(PathBuf::from(raw));
             }
+            "--protocolgen-manifest" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--protocolgen-manifest expects a path".to_string())?;
+                protocolgen_manifest = Some(PathBuf::from(raw));
+            }
             "--overrides" => {
                 let raw = it
                     .next()
@@ -241,6 +252,11 @@ fn parse_args() -> Result<CliArgs, String> {
             }
             _ if arg.starts_with("--mojang-docs=") => {
                 mojang_docs = Some(PathBuf::from(arg.trim_start_matches("--mojang-docs=")));
+            }
+            _ if arg.starts_with("--protocolgen-manifest=") => {
+                protocolgen_manifest = Some(PathBuf::from(
+                    arg.trim_start_matches("--protocolgen-manifest="),
+                ));
             }
             _ if arg.starts_with("--overrides=") => {
                 overrides = Some(PathBuf::from(arg.trim_start_matches("--overrides=")));
@@ -298,6 +314,7 @@ fn parse_args() -> Result<CliArgs, String> {
         bedrock_data,
         mojang_docs,
         endstone_docs,
+        protocolgen_manifest,
         overrides,
         output_dir,
         emit_wire_manifest,
@@ -315,8 +332,9 @@ fn parse_source(value: &str) -> Result<ProtocolSource, String> {
         "prismarine" => Ok(ProtocolSource::Prismarine),
         "mojang" => Ok(ProtocolSource::Mojang),
         "endstone" => Ok(ProtocolSource::Endstone),
+        "protocolgen" => Ok(ProtocolSource::Protocolgen),
         other => Err(format!(
-            "unknown protocol source {other:?}; expected prismarine or mojang"
+            "unknown protocol source {other:?}; expected prismarine, mojang, endstone, or protocolgen"
         )),
     }
 }
@@ -371,11 +389,124 @@ fn read_bedrock_version_json(
     Ok(meta)
 }
 
+fn generate_protocolgen_source(
+    args: &CliArgs,
+    root: &Path,
+    valentine_root: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if args.gen_items
+        || args.gen_blocks
+        || args.gen_block_states
+        || args.gen_entities
+        || args.gen_biomes
+    {
+        return Err(
+            "protocolgen provides protocol schemas only; use --source prismarine for block, item, entity and biome data"
+                .into(),
+        );
+    }
+    if args.emit_wire_manifest.is_some() {
+        return Err(
+            "--emit-wire-manifest is redundant for --source protocolgen because its input is already the canonical wire manifest"
+                .into(),
+        );
+    }
+
+    let manifest_path = args
+        .protocolgen_manifest
+        .as_ref()
+        .ok_or("--source protocolgen requires --protocolgen-manifest <FILE>")?;
+    let manifest_path = if manifest_path.is_relative() {
+        root.join(manifest_path)
+    } else {
+        manifest_path.clone()
+    };
+    let parsed = parser::protocolgen::parse(&manifest_path)?;
+
+    if args.list_versions {
+        println!(
+            "{} (protocol {})",
+            parsed.minecraft_version, parsed.protocol_version
+        );
+        return Ok(());
+    }
+    if args.all {
+        return Err("--all is not meaningful for a single protocolgen manifest".into());
+    }
+    if !args.versions.is_empty()
+        && !args
+            .versions
+            .iter()
+            .any(|version| version == &parsed.minecraft_version)
+    {
+        return Err(format!(
+            "protocolgen manifest is for {}, not requested version(s) {}",
+            parsed.minecraft_version,
+            args.versions.join(", ")
+        )
+        .into());
+    }
+
+    let module_name = version_to_module(&parsed.minecraft_version);
+    let feature = version_to_feature(&parsed.minecraft_version);
+    let crate_name = version_to_crate(&parsed.minecraft_version);
+    let crate_dir = valentine_root.join("bedrock_versions").join(&module_name);
+    let crate_src_dir = crate_dir.join("src");
+    fs::create_dir_all(&crate_src_dir)?;
+
+    let mut global_registry = GlobalRegistry::new();
+    let mut crate_dependencies = HashSet::new();
+    if args.gen_proto {
+        let outcome = generator::generate_protocol_module(
+            &crate_name,
+            "",
+            &parsed.result,
+            &crate_src_dir,
+            &mut global_registry,
+        )?;
+        crate_dependencies.extend(outcome.crate_dependencies);
+    }
+    write_version_crate(&crate_dir, &crate_src_dir, &crate_name, &crate_dependencies)?;
+
+    let mut version_decls = vec![VersionDecl {
+        module_name,
+        feature: feature.clone(),
+        crate_name,
+        meta: BedrockVersionJson {
+            protocol_version: parsed.protocol_version,
+            minecraft_version: parsed.minecraft_version,
+            major_version: String::new(),
+            release_type: "release".to_string(),
+        },
+    }];
+    version_decls[0].meta.major_version = version_decls[0]
+        .meta
+        .minecraft_version
+        .split('.')
+        .take(2)
+        .collect::<Vec<_>>()
+        .join(".");
+    for existing in read_existing_version_decls(valentine_root)? {
+        if !version_decls
+            .iter()
+            .any(|decl| decl.module_name == existing.module_name)
+        {
+            version_decls.push(existing);
+        }
+    }
+    version_decls.sort_by(|a, b| a.module_name.cmp(&b.module_name));
+    write_generated_surface(valentine_root, &version_decls, &feature)?;
+    Ok(())
+}
+
 fn generate_schema_source(
     args: &CliArgs,
     root: &Path,
     valentine_root: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    if args.source == ProtocolSource::Protocolgen {
+        return generate_protocolgen_source(args, root, valentine_root);
+    }
     if args.gen_items
         || args.gen_blocks
         || args.gen_block_states
@@ -1431,6 +1562,7 @@ mod generated_crate_tests {
             bedrock_data: None,
             mojang_docs: None,
             endstone_docs: None,
+            protocolgen_manifest: None,
             overrides: None,
             output_dir: Some(output.clone()),
             emit_wire_manifest: None,
