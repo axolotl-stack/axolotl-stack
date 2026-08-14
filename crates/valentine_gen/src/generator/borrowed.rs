@@ -135,6 +135,7 @@ struct BorrowedPacketMeta {
 #[derive(Clone, Copy)]
 enum PrefixKind {
     VarInt,
+    VarUInt,
     U32LE,
     U16LE,
     U8,
@@ -786,7 +787,9 @@ impl BorrowedGenerator<'_, '_> {
         Ok(match ty {
             Type::Primitive(primitive) => match primitive {
                 Primitive::VarInt | Primitive::ZigZag32 => quote! { i32 },
+                Primitive::VarUInt => quote! { u32 },
                 Primitive::VarLong | Primitive::ZigZag64 => quote! { i64 },
+                Primitive::VarULong => quote! { u64 },
                 Primitive::Nbt => quote! { crate::bedrock::codec::Nbt },
                 _ => primitive_to_rust_tokens(primitive),
             },
@@ -1369,8 +1372,14 @@ impl BorrowedGenerator<'_, '_> {
             Primitive::VarInt => {
                 quote! { <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(#buf_ident, ())?.0 }
             }
+            Primitive::VarUInt => {
+                quote! { <crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(#buf_ident, ())?.0 }
+            }
             Primitive::VarLong => {
                 quote! { <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(#buf_ident, ())?.0 }
+            }
+            Primitive::VarULong => {
+                quote! { <crate::bedrock::codec::VarULong as crate::bedrock::codec::BedrockCodec>::decode(#buf_ident, ())?.0 }
             }
             Primitive::ZigZag32 => {
                 quote! { <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(#buf_ident, ())?.0 }
@@ -1412,7 +1421,11 @@ impl BorrowedGenerator<'_, '_> {
     fn encode_primitive_stmt(&self, primitive: Primitive, access: TokenStream) -> TokenStream {
         match primitive {
             Primitive::VarInt => quote! { crate::bedrock::codec::VarInt(*#access).encode(buf)?; },
+            Primitive::VarUInt => quote! { crate::bedrock::codec::VarUInt(*#access).encode(buf)?; },
             Primitive::VarLong => quote! { crate::bedrock::codec::VarLong(*#access).encode(buf)?; },
+            Primitive::VarULong => {
+                quote! { crate::bedrock::codec::VarULong(*#access).encode(buf)?; }
+            }
             Primitive::ZigZag32 => {
                 quote! { crate::bedrock::codec::ZigZag32(*#access).encode(buf)?; }
             }
@@ -1436,8 +1449,14 @@ impl BorrowedGenerator<'_, '_> {
             Primitive::VarInt => {
                 quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(*#access)) }
             }
+            Primitive::VarUInt => {
+                quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(*#access)) }
+            }
             Primitive::VarLong => {
                 quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarLong(*#access)) }
+            }
+            Primitive::VarULong => {
+                quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarULong(*#access)) }
             }
             Primitive::ZigZag32 => {
                 quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::ZigZag32(*#access)) }
@@ -1474,6 +1493,9 @@ impl BorrowedGenerator<'_, '_> {
             Some(PrefixKind::VarInt) => {
                 Ok(quote! { crate::bedrock::borrowed::take_varint_prefixed_string })
             }
+            Some(PrefixKind::VarUInt) => {
+                Ok(quote! { crate::bedrock::borrowed::take_var_u32_prefixed_string })
+            }
             Some(PrefixKind::U32LE) => {
                 Ok(quote! { crate::bedrock::borrowed::take_u32le_prefixed_string })
             }
@@ -1489,6 +1511,9 @@ impl BorrowedGenerator<'_, '_> {
             Some(PrefixKind::VarInt) => {
                 Ok(quote! { crate::bedrock::borrowed::take_varint_prefixed_bytes })
             }
+            Some(PrefixKind::VarUInt) => {
+                Ok(quote! { crate::bedrock::borrowed::take_var_u32_prefixed_bytes })
+            }
             _ => Err("unsupported borrowed encapsulated length prefix".into()),
         }
     }
@@ -1496,6 +1521,7 @@ impl BorrowedGenerator<'_, '_> {
     fn prefix_kind(&self, count_type: &Type) -> Option<PrefixKind> {
         match count_type {
             Type::Primitive(Primitive::VarInt) => Some(PrefixKind::VarInt),
+            Type::Primitive(Primitive::VarUInt) => Some(PrefixKind::VarUInt),
             Type::Primitive(Primitive::U32LE) => Some(PrefixKind::U32LE),
             Type::Primitive(Primitive::U16LE) => Some(PrefixKind::U16LE),
             Type::Primitive(Primitive::U8) => Some(PrefixKind::U8),
@@ -1517,6 +1543,9 @@ impl BorrowedGenerator<'_, '_> {
                     }
                     raw as usize
                 }
+            },
+            Some(PrefixKind::VarUInt) => quote! {
+                <crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(#buf_ident, ())?.0 as usize
             },
             Some(PrefixKind::U32LE) => quote! {
                 <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(#buf_ident, ())?.0 as usize
@@ -1540,6 +1569,9 @@ impl BorrowedGenerator<'_, '_> {
             Some(PrefixKind::VarInt) => {
                 quote! { crate::bedrock::codec::VarInt((#len_expr) as i32).encode(buf)?; }
             }
+            Some(PrefixKind::VarUInt) => {
+                quote! { crate::bedrock::codec::VarUInt((#len_expr) as u32).encode(buf)?; }
+            }
             Some(PrefixKind::U32LE) => {
                 quote! { crate::bedrock::codec::U32LE((#len_expr) as u32).encode(buf)?; }
             }
@@ -1561,6 +1593,9 @@ impl BorrowedGenerator<'_, '_> {
         Ok(match self.prefix_kind(count_type) {
             Some(PrefixKind::VarInt) => {
                 quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt((#len_expr) as i32)) }
+            }
+            Some(PrefixKind::VarUInt) => {
+                quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt((#len_expr) as u32)) }
             }
             Some(PrefixKind::U32LE) => quote! { 4usize },
             Some(PrefixKind::U16LE) => quote! { 2usize },
@@ -1604,6 +1639,7 @@ impl BorrowedGenerator<'_, '_> {
                     && self.is_borrowable_type(inner_type, visiting)
             }
             Type::FixedArray { .. } => false,
+            Type::Bitset { .. } => false,
             Type::Option(inner) => self.is_borrowable_type(inner, visiting),
             Type::Switch { .. } => false,
             Type::Union { .. } => false,

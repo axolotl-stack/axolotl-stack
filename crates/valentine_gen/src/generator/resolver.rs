@@ -633,6 +633,7 @@ fn canonical_type_signature_inner(ty: &Type, ctx: &Context, seen: &mut HashSet<S
             size,
             canonical_type_signature_inner(inner_type, ctx, seen)
         ),
+        Type::Bitset { bits } => format!("BS:{bits}"),
         Type::Option(inner) => format!("O:{}", canonical_type_signature_inner(inner, ctx, seen)),
         Type::Switch {
             compare_to,

@@ -22,6 +22,8 @@ pub enum Primitive {
     F64LE,
     VarInt,    // Maps to i32, encoded as varint
     VarLong,   // Maps to i64, encoded as varlong
+    VarUInt,   // Maps to u32, encoded as unsigned varint
+    VarULong,  // Maps to u64, encoded as unsigned varlong
     ZigZag32,  // i32 encoded via zigzag varint
     ZigZag64,  // i64 encoded via zigzag varlong
     Uuid,      // mcpe_uuid
@@ -67,6 +69,9 @@ pub enum Type {
         size: usize,           // The fixed number of elements
         inner_type: Box<Type>, // Usually Type::Primitive(U8) for byte buffers
     },
+
+    /// A bounded continuation-encoded bitset with seven payload bits per byte.
+    Bitset { bits: usize },
 
     /// Optional value
     Option(Box<Type>),

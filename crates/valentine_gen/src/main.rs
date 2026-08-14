@@ -1627,4 +1627,157 @@ mod generated_crate_tests {
             String::from_utf8_lossy(&check.stderr)
         );
     }
+
+    #[test]
+    fn protocolgen_generation_compiles_and_preserves_resource_pack_wire_shape() {
+        let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock before UNIX_EPOCH")
+            .as_nanos();
+        let output = std::env::temp_dir().join(format!(
+            "valentine-protocolgen-wire-{}-{nonce}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&output);
+        fs::create_dir_all(&output).expect("create generated crate directory");
+
+        let manifest = output.join("canonical.json");
+        fs::write(
+            &manifest,
+            r#"{
+              "schema_version": 2,
+              "target": {"minecraft_version": "1.26.40", "protocol_version": 2168},
+              "packets": [
+                {
+                  "id": 0,
+                  "name": "LoginPacket",
+                  "fields": [{
+                    "ordinal": 0,
+                    "name": "Marker",
+                    "symmetry": "symmetric",
+                    "encode": {"kind": "primitive", "primitive": {"code": "u8"}}
+                  }]
+                },
+                {
+                "id": 8,
+                "name": "ResourcePackClientResponsePacket",
+                "fields": [{
+                  "ordinal": 0,
+                  "name": "Response",
+                  "symmetry": "symmetric",
+                  "encode": {
+                    "kind": "union",
+                    "control": {"kind": "primitive", "primitive": {"code": "i8"}},
+                    "variants": [
+                      {"value": 0, "name": "ResourcePackClientResponsePacketPayload::Cancel", "encode": {"kind": "struct", "type_id": "ResourcePackClientResponsePacketPayload::Cancel", "fields": [
+                        {"ordinal": 0, "name": "Response Type", "symmetry": "symmetric", "encode": {"kind": "string", "prefix": {"kind": "primitive", "primitive": {"code": "var_u32"}}, "encoding": "utf8"}}
+                      ]}},
+                      {"value": 1, "name": "ResourcePackClientResponsePacketPayload::Downloading", "encode": {"kind": "struct", "type_id": "ResourcePackClientResponsePacketPayload::Downloading", "fields": [
+                        {"ordinal": 0, "name": "Response Type", "symmetry": "symmetric", "encode": {"kind": "string", "prefix": {"kind": "primitive", "primitive": {"code": "var_u32"}}, "encoding": "utf8"}},
+                        {"ordinal": 1, "name": "Downloading Packs", "symmetry": "symmetric", "encode": {"kind": "array", "prefix": {"kind": "primitive", "primitive": {"code": "var_u32"}}, "element": {"kind": "string", "prefix": {"kind": "primitive", "primitive": {"code": "var_u32"}}, "encoding": "utf8"}}}
+                      ]}},
+                      {"value": 2, "name": "ResourcePackClientResponsePacketPayload::DownloadingFinished", "encode": {"kind": "struct", "type_id": "ResourcePackClientResponsePacketPayload::DownloadingFinished", "fields": [
+                        {"ordinal": 0, "name": "Response Type", "symmetry": "symmetric", "encode": {"kind": "string", "prefix": {"kind": "primitive", "primitive": {"code": "var_u32"}}, "encoding": "utf8"}}
+                      ]}},
+                      {"value": 3, "name": "ResourcePackClientResponsePacketPayload::ResourcePackStackFinished", "encode": {"kind": "struct", "type_id": "ResourcePackClientResponsePacketPayload::ResourcePackStackFinished", "fields": [
+                        {"ordinal": 0, "name": "Response Type", "symmetry": "symmetric", "encode": {"kind": "string", "prefix": {"kind": "primitive", "primitive": {"code": "var_u32"}}, "encoding": "utf8"}}
+                      ]}}
+                    ]
+                  }
+                }]
+              }]
+            }"#,
+        )
+        .expect("write canonical fixture");
+
+        let args = CliArgs {
+            source: ProtocolSource::Protocolgen,
+            versions: vec!["1.26.40".to_string()],
+            all: false,
+            latest: false,
+            list_versions: false,
+            log_filter: "error".to_string(),
+            minecraft_data: None,
+            bedrock_data: None,
+            mojang_docs: None,
+            endstone_docs: None,
+            protocolgen_manifest: Some(manifest),
+            overrides: None,
+            output_dir: Some(output.clone()),
+            emit_wire_manifest: None,
+            gen_proto: true,
+            gen_items: false,
+            gen_blocks: false,
+            gen_block_states: false,
+            gen_entities: false,
+            gen_biomes: false,
+        };
+        generate_schema_source(&args, manifest_dir, &output)
+            .expect("generate protocolgen temp crate");
+
+        let core_source = manifest_dir
+            .parent()
+            .expect("valentine_gen has a crate parent")
+            .join("valentine/bedrock_core");
+        copy_directory(&core_source, &output.join("bedrock_core"))
+            .expect("copy bedrock_core into generated temp crate");
+        fs::write(
+            output.join("Cargo.toml"),
+            "[workspace]\nresolver = \"2\"\nmembers = [\"bedrock_core\", \"bedrock_versions/v1_26_40\"]\n[workspace.package]\nedition = \"2024\"\n[workspace.dependencies]\nbytes = \"1\"\nuuid = { version = \"1.8.0\", features = [\"v4\"] }\n",
+        )
+        .expect("write temp workspace manifest");
+
+        let tests = output.join("bedrock_versions/v1_26_40/tests");
+        fs::create_dir_all(&tests).expect("create generated integration test directory");
+        fs::write(
+            tests.join("resource_pack_wire.rs"),
+            r#"use valentine_bedrock_1_26_40::{
+    ResourcePackClientResponsePacket,
+    ResourcePackClientResponsePacketResponse,
+    bedrock::codec::BedrockCodec,
+};
+
+#[test]
+fn packet_eight_consumes_and_reencodes_the_exact_wire_shape() {
+    let bytes = [
+        1, 11, b'd', b'o', b'w', b'n', b'l', b'o', b'a', b'd', b'i', b'n', b'g',
+        2, 1, b'a', 1, b'b',
+    ];
+    let mut input = bytes.as_slice();
+    let packet = ResourcePackClientResponsePacket::decode(&mut input, ())
+        .expect("decode packet eight");
+    assert!(input.is_empty(), "{} trailing bytes", input.len());
+    let ResourcePackClientResponsePacketResponse::Downloading(payload) = &packet.response else {
+        panic!("expected downloading response");
+    };
+    assert_eq!(payload.response_type, "downloading");
+    assert_eq!(payload.downloading_packs, ["a", "b"]);
+    let mut encoded = Vec::new();
+    packet.encode(&mut encoded).expect("re-encode packet eight");
+    assert_eq!(encoded, bytes);
+}
+"#,
+        )
+        .expect("write generated integration test");
+
+        let cargo = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
+        let test = Command::new(cargo)
+            .args([
+                "test",
+                "--offline",
+                "--manifest-path",
+                output.join("Cargo.toml").to_str().expect("UTF-8 temp path"),
+            ])
+            .env("RUSTC_WRAPPER", "")
+            .env("CARGO_NET_OFFLINE", "true")
+            .output()
+            .expect("run cargo test on generated protocolgen crate");
+        let _ = fs::remove_dir_all(&output);
+        assert!(
+            test.status.success(),
+            "generated protocolgen crate tests failed:\n{}",
+            String::from_utf8_lossy(&test.stderr)
+        );
+    }
 }

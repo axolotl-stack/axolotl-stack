@@ -34,19 +34,16 @@ fn parse_manifest(reader: impl Read) -> Result<ParsedManifest, Box<dyn std::erro
         .into());
     }
 
-    let mut packets = manifest
-        .packets
-        .into_iter()
-        .map(lower_packet)
-        .collect::<Result<Vec<_>, String>>()?;
+    let mut types = HashMap::new();
+    let mut packets = Vec::with_capacity(manifest.packets.len());
+    for packet in manifest.packets {
+        packets.push(lower_packet(packet, &mut types)?);
+    }
     packets.sort_by_key(|packet| packet.id);
     Ok(ParsedManifest {
         minecraft_version: manifest.target.minecraft_version,
         protocol_version: manifest.target.protocol_version,
-        result: ParseResult {
-            packets,
-            types: HashMap::new(),
-        },
+        result: ParseResult { packets, types },
     })
 }
 
@@ -111,7 +108,10 @@ struct CanonicalNode {
     variants: Option<Vec<CanonicalVariant>>,
 }
 
-fn lower_packet(packet: CanonicalPacket) -> Result<Packet, String> {
+fn lower_packet(
+    packet: CanonicalPacket,
+    types: &mut HashMap<String, Type>,
+) -> Result<Packet, String> {
     let mut fields = packet.fields.unwrap_or_default();
     fields.sort_by_key(|field| field.ordinal);
     Ok(Packet {
@@ -121,13 +121,13 @@ fn lower_packet(packet: CanonicalPacket) -> Result<Packet, String> {
             name: packet.name,
             fields: fields
                 .into_iter()
-                .map(lower_field)
+                .map(|field| lower_field(field, types))
                 .collect::<Result<_, _>>()?,
         },
     })
 }
 
-fn lower_field(field: CanonicalField) -> Result<Field, String> {
+fn lower_field(field: CanonicalField, types: &mut HashMap<String, Type>) -> Result<Field, String> {
     if field.symmetry != "symmetric" || field.decode.is_some() {
         return Err(format!(
             "protocolgen field {:?} has an asymmetric decode layout, which Valentine cannot represent",
@@ -136,77 +136,88 @@ fn lower_field(field: CanonicalField) -> Result<Field, String> {
     }
     Ok(Field {
         name: field.name,
-        type_def: lower_node(field.encode)?,
+        type_def: lower_node(field.encode, types)?,
     })
 }
 
-fn lower_node(node: CanonicalNode) -> Result<Type, String> {
-    match node.kind.as_str() {
-        "primitive" => Ok(Type::Primitive(lower_primitive(
+fn lower_node(node: CanonicalNode, types: &mut HashMap<String, Type>) -> Result<Type, String> {
+    let kind = node.kind.clone();
+    let type_id = node.type_id.clone().filter(|type_id| !type_id.is_empty());
+    let lowered = match kind.as_str() {
+        "primitive" => Type::Primitive(lower_primitive(
             node.primitive
                 .ok_or("protocolgen primitive node has no primitive shape")?
                 .code
                 .as_str(),
-        )?)),
-        "void" => Ok(Type::Primitive(Primitive::Void)),
-        "string" => Ok(Type::String {
+        )?),
+        "void" => Type::Primitive(Primitive::Void),
+        "string" => Type::String {
             count_type: Box::new(lower_node(
                 *node.prefix.ok_or("protocolgen string node has no prefix")?,
+                types,
             )?),
             encoding: Some(
                 node.encoding
                     .filter(|encoding| encoding == "utf8")
                     .ok_or("protocolgen string is not explicitly UTF-8")?,
             ),
-        }),
-        "array" => Ok(Type::Array {
+        },
+        "array" => Type::Array {
             count_type: Box::new(lower_node(
                 *node.prefix.ok_or("protocolgen array node has no prefix")?,
+                types,
             )?),
             inner_type: Box::new(lower_node(
                 *node
                     .element
                     .ok_or("protocolgen array node has no element")?,
+                types,
             )?),
-        }),
-        "map" => Ok(Type::Array {
+        },
+        "map" => Type::Array {
             count_type: Box::new(lower_node(
                 *node.prefix.ok_or("protocolgen map node has no prefix")?,
+                types,
             )?),
             inner_type: Box::new(Type::Container(Container {
                 name: String::new(),
                 fields: vec![
                     Field {
                         name: "Key".to_string(),
-                        type_def: lower_node(*node.key.ok_or("protocolgen map node has no key")?)?,
+                        type_def: lower_node(
+                            *node.key.ok_or("protocolgen map node has no key")?,
+                            types,
+                        )?,
                     },
                     Field {
                         name: "Value".to_string(),
                         type_def: lower_node(
                             *node.value.ok_or("protocolgen map node has no value")?,
+                            types,
                         )?,
                     },
                 ],
             })),
-        }),
+        },
         "struct" => {
             let mut fields = node.fields.unwrap_or_default();
             fields.sort_by_key(|field| field.ordinal);
-            Ok(Type::Container(Container {
-                name: String::new(),
+            Type::Container(Container {
+                name: type_id.clone().unwrap_or_default(),
                 fields: fields
                     .into_iter()
-                    .map(lower_field)
+                    .map(|field| lower_field(field, types))
                     .collect::<Result<_, _>>()?,
-            }))
+            })
         }
-        "bytes" => Ok(Type::Array {
+        "bytes" => Type::Array {
             count_type: Box::new(lower_node(
                 *node.prefix.ok_or("protocolgen bytes node has no prefix")?,
+                types,
             )?),
             inner_type: Box::new(Type::Primitive(Primitive::U8)),
-        }),
-        "fixed_array" => Ok(Type::FixedArray {
+        },
+        "fixed_array" => Type::FixedArray {
             size: node
                 .length
                 .ok_or("protocolgen fixed-array node has no length")?,
@@ -214,18 +225,26 @@ fn lower_node(node: CanonicalNode) -> Result<Type, String> {
                 *node
                     .element
                     .ok_or("protocolgen fixed-array node has no element")?,
+                types,
             )?),
-        }),
-        "optional" => Ok(Type::Option(Box::new(lower_node(
+        },
+        "bitset" => Type::Bitset {
+            bits: node
+                .length
+                .filter(|bits| *bits > 0)
+                .ok_or("protocolgen bitset node has no positive bit length")?,
+        },
+        "optional" => Type::Option(Box::new(lower_node(
             *node.value.ok_or("protocolgen optional node has no value")?,
-        )?))),
-        "recursive" => Ok(Type::Reference(
+            types,
+        )?)),
+        "recursive" => Type::Reference(
             node.target
                 .or(node.type_id)
                 .filter(|target| !target.is_empty())
                 .ok_or("protocolgen recursive node has no target")?,
-        )),
-        "enum" => Ok(Type::Enum {
+        ),
+        "enum" => Type::Enum {
             underlying: lower_primitive(
                 node.primitive
                     .ok_or("protocolgen enum node has no primitive shape")?
@@ -248,17 +267,18 @@ fn lower_node(node: CanonicalNode) -> Result<Type, String> {
                     )
                 })
                 .collect(),
-        }),
+        },
         "union" => {
             let control = lower_node(
                 *node
                     .control
                     .ok_or("protocolgen union node has no control")?,
+                types,
             )?;
             let Type::Primitive(control_type) = control else {
                 return Err("protocolgen union control is not primitive".to_string());
             };
-            Ok(Type::Union {
+            Type::Union {
                 control_type,
                 variants: node
                     .variants
@@ -273,19 +293,36 @@ fn lower_node(node: CanonicalNode) -> Result<Type, String> {
                                 .next()
                                 .unwrap_or(&variant.name)
                                 .to_string(),
-                            type_def: lower_node(variant.encode)?,
+                            type_def: lower_node(variant.encode, types)?,
                         })
                     })
                     .collect::<Result<_, String>>()?,
-            })
+            }
         }
-        "opaque" | "unresolved" if node.reachable.unwrap_or(true) => Err(format!(
-            "reachable protocolgen {} node cannot be generated: {}",
-            node.kind,
-            node.reason
-                .unwrap_or_else(|| "no reason supplied".to_string())
-        )),
-        other => Err(format!("unsupported protocolgen node kind {other:?}")),
+        "opaque" | "unresolved" if node.reachable.unwrap_or(true) => {
+            return Err(format!(
+                "reachable protocolgen {} node cannot be generated: {}",
+                node.kind,
+                node.reason
+                    .unwrap_or_else(|| "no reason supplied".to_string())
+            ));
+        }
+        other => return Err(format!("unsupported protocolgen node kind {other:?}")),
+    };
+
+    if kind != "recursive"
+        && let Some(type_id) = type_id
+    {
+        if let Some(existing) = types.get(&type_id) {
+            if existing != &lowered {
+                return Ok(lowered);
+            }
+        } else {
+            types.insert(type_id.clone(), lowered);
+        }
+        Ok(Type::Reference(type_id))
+    } else {
+        Ok(lowered)
     }
 }
 
@@ -305,8 +342,9 @@ fn lower_primitive(code: &str) -> Result<Primitive, String> {
         "f32le" => Ok(Primitive::F32LE),
         "f64le" => Ok(Primitive::F64LE),
         "var_i32" => Ok(Primitive::VarInt),
-        "var_u32" => Ok(Primitive::VarInt),
-        "var_i64" | "var_u64" => Ok(Primitive::VarLong),
+        "var_u32" => Ok(Primitive::VarUInt),
+        "var_i64" => Ok(Primitive::VarLong),
+        "var_u64" => Ok(Primitive::VarULong),
         "zigzag_i32" => Ok(Primitive::ZigZag32),
         "zigzag_i64" => Ok(Primitive::ZigZag64),
         "uuid" => Ok(Primitive::Uuid),
@@ -390,6 +428,31 @@ mod tests {
         }"#;
         let error = parse_reader(fixture.as_bytes()).expect_err("asymmetry must fail closed");
         assert!(error.to_string().contains("asymmetric decode layout"));
+    }
+
+    #[test]
+    fn preserves_distinct_named_types_with_identical_wire_shapes() {
+        let fixture = r#"{
+          "schema_version": 2,
+          "target": {"minecraft_version":"1.26.40","protocol_version":2168},
+          "packets": [{"id":8,"name":"Packet","fields":[{
+            "ordinal":0,"name":"Value","symmetry":"symmetric",
+            "encode":{"kind":"union","control":{"kind":"primitive","primitive":{"code":"i8"}},"variants":[
+              {"value":0,"name":"Payload::First","encode":{"kind":"struct","type_id":"Payload::First","fields":[]}},
+              {"value":1,"name":"Payload::Second","encode":{"kind":"struct","type_id":"Payload::Second","fields":[]}}
+            ]}
+          }]}]
+        }"#;
+        let parsed = parse_reader(fixture.as_bytes()).expect("parse named payloads");
+        assert!(parsed.types.contains_key("Payload::First"));
+        assert!(parsed.types.contains_key("Payload::Second"));
+        let Type::Union { variants, .. } = &parsed.packets[0].body.fields[0].type_def else {
+            panic!("expected union");
+        };
+        assert!(matches!(&variants[0].type_def, Type::Reference(name) if name == "Payload::First"));
+        assert!(
+            matches!(&variants[1].type_def, Type::Reference(name) if name == "Payload::Second")
+        );
     }
 
     #[test]
