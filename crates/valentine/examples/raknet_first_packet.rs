@@ -8,9 +8,10 @@ use tokio::time::sleep;
 use tokio_raknet::transport::RaknetStream;
 use valentine::bedrock::{
     codec::BedrockCodec,
-    context::BedrockSession,
-    protocol::v1_26_30::{McpePacket, McpePacketData, RequestNetworkSettingsPacket},
-    version::v1_26_30,
+    protocol::v1_26_40::{
+        McpePacket, McpePacketArgs, McpePacketData, RequestNetworkSettingsPacket,
+    },
+    version::v1_26_40,
 };
 
 #[tokio::main]
@@ -40,7 +41,7 @@ async fn main() -> Result<()> {
     // Use McpePacket::from_payload_with_subclients for explicit header control.
     let network_settings_req = McpePacket::from_payload_with_subclients(
         RequestNetworkSettingsPacket {
-            client_protocol: v1_26_30::PROTOCOL_VERSION,
+            client_network_version: v1_26_40::PROTOCOL_VERSION,
         },
         0, // from_subclient
         0, // to_subclient
@@ -54,9 +55,6 @@ async fn main() -> Result<()> {
     }
     println!("Waiting for NetworkSettings response (15s timeout)...");
 
-    // Create a default session for decoding args
-    let session = BedrockSession { shield_item_id: 0 };
-
     tokio::select! {
         _ = sleep(Duration::from_secs(15)) => {
             println!("Timeout waiting for packets (expected if server drops handshake).");
@@ -67,16 +65,16 @@ async fn main() -> Result<()> {
                     Ok(bytes) => {
                         let mut buf = bytes;
                         // Decode into McpePacket struct which contains header + data
-                        match McpePacket::decode(&mut buf, (&session).into()) {
+                        match McpePacket::decode(&mut buf, McpePacketArgs) {
                             Ok(packet) => {
                                 // Match on packet.data which is the enum
                                 match packet.data {
-                                    McpePacketData::PacketNetworkSettings(settings) => {
+                                    McpePacketData::NetworkSettingsPacket(settings) => {
                                         println!(
                                             "NetworkSettings: threshold={}, algo={:?}, throttle={}, thresh={}, scalar={}",
                                             settings.compression_threshold,
                                             settings.compression_algorithm,
-                                            settings.client_throttle,
+                                            settings.client_throttle_enabled,
                                             settings.client_throttle_threshold,
                                             settings.client_throttle_scalar
                                         );
