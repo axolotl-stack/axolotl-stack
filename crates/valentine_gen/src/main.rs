@@ -1777,6 +1777,17 @@ fn packet_eight_consumes_and_reencodes_the_exact_wire_shape() {
 #[test]
 fn length_prefixed_bytes_decode_as_a_zero_copy_view() {
     let source = bytes::Bytes::from_static(&[3, 0xaa, 0xbb, 0xcc]);
+    let mut owned_input = source.as_ref();
+    let decoded_owned = BorrowedPayloadPacket::decode(&mut owned_input, ())
+        .expect("decode owned payload");
+    assert!(owned_input.is_empty());
+    assert_eq!(decoded_owned.payload, vec![0xaa, 0xbb, 0xcc]);
+    let mut owned_encoded = Vec::new();
+    decoded_owned
+        .encode(&mut owned_encoded)
+        .expect("re-encode owned payload");
+    assert_eq!(owned_encoded, source.as_ref());
+
     let mut input = source.clone();
     let packet = BorrowedPayloadPacketView::decode(&mut input)
         .expect("decode borrowed payload");

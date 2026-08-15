@@ -593,6 +593,21 @@ fn generate_field_decode_expr(
                 }
             };
 
+            if matches!(inner.as_ref(), Type::Primitive(Primitive::ByteArray)) {
+                return Ok(quote! {{
+                    #len_logic
+                    if buf.remaining() < len {
+                        return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                            declared: len,
+                            available: buf.remaining(),
+                        });
+                    }
+                    let mut value = vec![0u8; len];
+                    buf.copy_to_slice(&mut value);
+                    value
+                }});
+            }
+
             let inner_var_name = format!("{}Inner", var_name);
             let inner_decode = generate_field_decode_expr(
                 container_name,
@@ -1126,6 +1141,19 @@ fn generate_field_size_expr(
             }
         }
         Type::Encapsulated { length_type, inner } => {
+            if matches!(inner.as_ref(), Type::Primitive(Primitive::ByteArray)) {
+                let value_expr = if is_ref {
+                    quote! { #access_expr }
+                } else {
+                    quote! { &#access_expr }
+                };
+                let len_size =
+                    generate_length_prefix_size_expr(length_type.as_ref(), quote! { _len });
+                return Ok(quote! {{
+                    let _len = (#value_expr).len();
+                    #len_size + _len
+                }});
+            }
             let inner_expr = generate_field_size_expr(
                 container_name,
                 &format!("{var_name}Encap"),
@@ -1740,6 +1768,20 @@ fn generate_field_encode(
                 },
                 _ => quote! { (len as u32).encode(buf)?; },
             };
+
+            if matches!(inner.as_ref(), Type::Primitive(Primitive::ByteArray)) {
+                let value_expr = if is_ref {
+                    quote! { #access_expr }
+                } else {
+                    quote! { &#access_expr }
+                };
+                return Ok(quote! {
+                    let bytes = (#value_expr).as_slice();
+                    let len = bytes.len();
+                    #len_encode
+                    buf.put_slice(bytes);
+                });
+            }
 
             let inner_name = format!("{}Encap", var_name);
             let inner_body = generate_field_encode(
