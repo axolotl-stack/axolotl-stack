@@ -1686,7 +1686,21 @@ mod generated_crate_tests {
                     ]
                   }
                 }]
-              }]
+              },
+                {
+                  "id": 9,
+                  "name": "BorrowedPayloadPacket",
+                  "fields": [{
+                    "ordinal": 0,
+                    "name": "Payload",
+                    "symmetry": "symmetric",
+                    "encode": {
+                      "kind": "bytes",
+                      "prefix": {"kind": "primitive", "primitive": {"code": "var_u32"}},
+                      "representation": "bytes"
+                    }
+                  }]
+                }]
             }"#,
         )
         .expect("write canonical fixture");
@@ -1733,6 +1747,8 @@ mod generated_crate_tests {
         fs::write(
             tests.join("resource_pack_wire.rs"),
             r#"use valentine_bedrock_1_26_40::{
+    BorrowedPayloadPacket,
+    BorrowedPayloadPacketView,
     ResourcePackClientResponsePacket,
     ResourcePackClientResponsePacketResponse,
     bedrock::codec::BedrockCodec,
@@ -1756,6 +1772,25 @@ fn packet_eight_consumes_and_reencodes_the_exact_wire_shape() {
     let mut encoded = Vec::new();
     packet.encode(&mut encoded).expect("re-encode packet eight");
     assert_eq!(encoded, bytes);
+}
+
+#[test]
+fn length_prefixed_bytes_decode_as_a_zero_copy_view() {
+    let source = bytes::Bytes::from_static(&[3, 0xaa, 0xbb, 0xcc]);
+    let mut input = source.clone();
+    let packet = BorrowedPayloadPacketView::decode(&mut input)
+        .expect("decode borrowed payload");
+
+    assert!(input.is_empty());
+    assert_eq!(packet.payload.as_ref(), &[0xaa, 0xbb, 0xcc]);
+    assert_eq!(packet.payload.as_ptr(), source.as_ptr().wrapping_add(1));
+
+    let mut encoded = Vec::new();
+    packet.encode(&mut encoded).expect("re-encode borrowed payload");
+    assert_eq!(encoded, source.as_ref());
+
+    let owned: BorrowedPayloadPacket = packet.into();
+    assert_eq!(owned.payload, vec![0xaa, 0xbb, 0xcc]);
 }
 "#,
         )

@@ -798,6 +798,11 @@ impl BorrowedGenerator<'_, '_> {
                 quote! { #ident }
             }
             Type::String { .. } => quote! { crate::bedrock::borrowed::BorrowedStr },
+            Type::Encapsulated { inner, .. }
+                if matches!(inner.as_ref(), Type::Primitive(Primitive::ByteArray)) =>
+            {
+                quote! { bytes::Bytes }
+            }
             Type::Encapsulated { inner, .. } => self.borrowed_type_tokens(inner, hint)?,
             Type::Reference(name) => {
                 if name == "LittleString" {
@@ -867,6 +872,9 @@ impl BorrowedGenerator<'_, '_> {
             Type::String { count_type, .. } => self.decode_prefixed_string(count_type, buf_ident),
             Type::Encapsulated { length_type, inner } => {
                 let take_bytes = self.take_prefixed_bytes_fn(length_type)?;
+                if matches!(inner.as_ref(), Type::Primitive(Primitive::ByteArray)) {
+                    return Ok(quote! { #take_bytes(#buf_ident)? });
+                }
                 let inner_decode =
                     self.decode_expr(inner, field_name, hint, quote! { &mut nested }, resolved)?;
                 Ok(quote! {
@@ -1147,6 +1155,14 @@ impl BorrowedGenerator<'_, '_> {
                 })
             }
             Type::Encapsulated { length_type, inner } => {
+                if matches!(inner.as_ref(), Type::Primitive(Primitive::ByteArray)) {
+                    let encode_len =
+                        self.encode_length_stmt(length_type, quote! { (#access).len() })?;
+                    return Ok(quote! {
+                        #encode_len
+                        buf.put_slice((#access).as_ref());
+                    });
+                }
                 let inner_size = self.size_expr(inner, access.clone(), hint)?;
                 let encode_len = self.encode_length_stmt(length_type, quote! { #inner_size })?;
                 let inner_encode = self.encode_stmt(inner, access, hint)?;
@@ -1246,6 +1262,11 @@ impl BorrowedGenerator<'_, '_> {
                 Ok(quote! { #prefix + #len_expr })
             }
             Type::Encapsulated { length_type, inner } => {
+                if matches!(inner.as_ref(), Type::Primitive(Primitive::ByteArray)) {
+                    let len_expr = quote! { (#access).len() };
+                    let prefix = self.length_size_expr(length_type, len_expr.clone())?;
+                    return Ok(quote! { #prefix + #len_expr });
+                }
                 let inner_size = self.size_expr(inner, access, hint)?;
                 let prefix = self.length_size_expr(length_type, inner_size.clone())?;
                 Ok(quote! { #prefix + #inner_size })
@@ -1319,6 +1340,11 @@ impl BorrowedGenerator<'_, '_> {
     ) -> Result<TokenStream, Box<dyn std::error::Error>> {
         match ty {
             Type::String { .. } => Ok(quote! { (#expr).to_string_lossy().into_owned() }),
+            Type::Encapsulated { inner, .. }
+                if matches!(inner.as_ref(), Type::Primitive(Primitive::ByteArray)) =>
+            {
+                Ok(quote! { (#expr).to_vec() })
+            }
             Type::Encapsulated { inner, .. } => self.owned_expr(inner, expr, hint),
             Type::Reference(name) if name == "LittleString" => {
                 Ok(quote! { (#expr).to_string_lossy().into_owned() })
@@ -1610,7 +1636,9 @@ impl BorrowedGenerator<'_, '_> {
             Type::Primitive(_) => true,
             Type::String { count_type, .. } => self.prefix_kind(count_type).is_some(),
             Type::Encapsulated { length_type, inner } => {
-                self.prefix_kind(length_type).is_some() && self.is_borrowable_type(inner, visiting)
+                self.prefix_kind(length_type).is_some()
+                    && (matches!(inner.as_ref(), Type::Primitive(Primitive::ByteArray))
+                        || self.is_borrowable_type(inner, visiting))
             }
             Type::Reference(name) => {
                 if name == "LittleString" {
