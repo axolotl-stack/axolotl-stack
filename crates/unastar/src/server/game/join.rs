@@ -6,7 +6,7 @@ use super::GameServer;
 use crate::entity::components::{GameMode, PlayerSession, RuntimeEntityId};
 use jolyne::valentine::types::{
     AbilityLayers, AbilityLayersType, AbilitySet, CommandPermissionLevel, ContainerSlotType,
-    EntityProperties, FullContainerName, GameMode as ProtocolGameMode, Item, MetadataDictionary,
+    EntityProperties, FullContainerName, GameMode as ProtocolGameMode, ItemV4, MetadataDictionary,
     MetadataDictionaryItem, MetadataDictionaryItemKey, MetadataDictionaryItemType,
     MetadataDictionaryItemValue, MetadataDictionaryItemValueDefault, MetadataFlags1,
     PermissionLevel, PlayerAttributesItem, WindowIdVarint,
@@ -244,7 +244,7 @@ impl GameServer {
         debug!("Sending inventory contents to client");
 
         // Helper to create an empty item
-        let empty_item = Item::default(); // content: None = empty/air
+        let empty_item = ItemV4::default();
 
         // Helper to create FullContainerName for inventory slots
         let container_name = FullContainerName {

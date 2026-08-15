@@ -160,6 +160,11 @@ fn windows_timestamp() -> i64 {
 
     // Apply server time offset if we have one
     let offset = SERVER_TIME_OFFSET.read().ok().and_then(|g| *g).unwrap_or(0);
+
+    windows_timestamp_from_unix(local_unix, offset)
+}
+
+fn windows_timestamp_from_unix(local_unix: i64, offset: i64) -> i64 {
     let adjusted_unix = local_unix + offset;
 
     // Windows epoch offset: seconds between 1601-01-01 and 1970-01-01
@@ -363,12 +368,7 @@ mod tests {
 
     #[test]
     fn test_windows_timestamp_format() {
-        // Reset server time offset to avoid interference from other tests
-        if let Ok(mut guard) = SERVER_TIME_OFFSET.write() {
-            *guard = None;
-        }
-
-        let ts = windows_timestamp();
+        let ts = windows_timestamp_from_unix(1_767_225_600, 0);
 
         // Windows timestamp is 100-nanosecond intervals since 1601-01-01
         // Should be a large positive number
@@ -383,14 +383,8 @@ mod tests {
 
     #[test]
     fn test_windows_timestamp_increases() {
-        // Reset server time offset to avoid interference from other tests
-        if let Ok(mut guard) = SERVER_TIME_OFFSET.write() {
-            *guard = None;
-        }
-
-        let ts1 = windows_timestamp();
-        std::thread::sleep(std::time::Duration::from_millis(10));
-        let ts2 = windows_timestamp();
+        let ts1 = windows_timestamp_from_unix(1_767_225_600, 0);
+        let ts2 = windows_timestamp_from_unix(1_767_225_601, 0);
 
         // Second timestamp should be greater (or at least equal if very fast)
         assert!(ts2 >= ts1, "ts2 {} should be >= ts1 {}", ts2, ts1);
