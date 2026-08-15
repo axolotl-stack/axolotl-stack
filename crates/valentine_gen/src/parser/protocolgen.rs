@@ -82,6 +82,8 @@ struct CanonicalVariant {
     value: i64,
     name: String,
     encode: CanonicalNode,
+    #[serde(default)]
+    decode: Option<CanonicalNode>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
@@ -256,7 +258,13 @@ fn lower_node(node: CanonicalNode, types: &mut HashMap<String, Type>) -> Result<
                 .unwrap_or_default()
                 .into_iter()
                 .map(|variant| {
-                    (
+                    if variant.decode.is_some() || variant.encode.kind != "void" {
+                        return Err(format!(
+                            "protocolgen enum variant {:?} has a payload or asymmetric decode layout, which Valentine cannot represent",
+                            variant.name
+                        ));
+                    }
+                    Ok((
                         variant
                             .name
                             .rsplit("::")
@@ -264,9 +272,9 @@ fn lower_node(node: CanonicalNode, types: &mut HashMap<String, Type>) -> Result<
                             .unwrap_or(&variant.name)
                             .to_string(),
                         variant.value,
-                    )
+                    ))
                 })
-                .collect(),
+                .collect::<Result<_, String>>()?,
         },
         "union" => {
             let control = lower_node(
@@ -285,6 +293,12 @@ fn lower_node(node: CanonicalNode, types: &mut HashMap<String, Type>) -> Result<
                     .unwrap_or_default()
                     .into_iter()
                     .map(|variant| {
+                        if variant.decode.is_some() {
+                            return Err(format!(
+                                "protocolgen union variant {:?} has an asymmetric decode layout, which Valentine cannot represent",
+                                variant.name
+                            ));
+                        }
                         Ok(UnionVariant {
                             control_value: variant.value,
                             name: variant
@@ -428,6 +442,44 @@ mod tests {
         }"#;
         let error = parse_reader(fixture.as_bytes()).expect_err("asymmetry must fail closed");
         assert!(error.to_string().contains("asymmetric decode layout"));
+    }
+
+    #[test]
+    fn rejects_asymmetric_union_variants() {
+        let fixture = r#"{
+          "schema_version": 2,
+          "target": {"minecraft_version":"1.26.40","protocol_version":2168},
+          "packets": [{"id":1,"name":"Packet","fields":[{
+            "ordinal":0,"name":"Value","symmetry":"symmetric",
+            "encode":{"kind":"union","control":{"kind":"primitive","primitive":{"code":"u8"}},"variants":[{
+              "value":0,"name":"Payload::Value",
+              "encode":{"kind":"primitive","primitive":{"code":"u8"}},
+              "decode":{"kind":"primitive","primitive":{"code":"u16le"}}
+            }]}
+          }]}]
+        }"#;
+        let error =
+            parse_reader(fixture.as_bytes()).expect_err("nested union asymmetry must fail closed");
+        assert!(error.to_string().contains("union variant"));
+        assert!(error.to_string().contains("asymmetric decode layout"));
+    }
+
+    #[test]
+    fn rejects_enum_variants_with_ignored_payloads() {
+        let fixture = r#"{
+          "schema_version": 2,
+          "target": {"minecraft_version":"1.26.40","protocol_version":2168},
+          "packets": [{"id":1,"name":"Packet","fields":[{
+            "ordinal":0,"name":"Value","symmetry":"symmetric",
+            "encode":{"kind":"enum","primitive":{"code":"u8"},"variants":[{
+              "value":0,"name":"Mode::Value",
+              "encode":{"kind":"primitive","primitive":{"code":"u8"}}
+            }]}
+          }]}]
+        }"#;
+        let error = parse_reader(fixture.as_bytes()).expect_err("enum payloads must fail closed");
+        assert!(error.to_string().contains("enum variant"));
+        assert!(error.to_string().contains("payload"));
     }
 
     #[test]
