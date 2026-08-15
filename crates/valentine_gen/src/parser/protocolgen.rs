@@ -91,7 +91,7 @@ struct PrimitiveShape {
     code: String,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 struct CanonicalNode {
     kind: String,
     primitive: Option<PrimitiveShape>,
@@ -246,25 +246,31 @@ fn lower_node(node: CanonicalNode, types: &mut HashMap<String, Type>) -> Result<
                 .filter(|target| !target.is_empty())
                 .ok_or("protocolgen recursive node has no target")?,
         ),
-        "enum" => Type::Enum {
-            underlying: lower_primitive(
+        "enum" => {
+            let underlying = lower_primitive(
                 node.primitive
                     .ok_or("protocolgen enum node has no primitive shape")?
                     .code
                     .as_str(),
-            )?,
-            variants: node
-                .variants
-                .unwrap_or_default()
-                .into_iter()
-                .map(|variant| {
+            )?;
+            let variants = node
+				.variants
+				.unwrap_or_default()
+				.into_iter()
+				.map(|variant| {
                     if variant.decode.is_some() || variant.encode.kind != "void" {
                         return Err(format!(
                             "protocolgen enum variant {:?} has a payload or asymmetric decode layout, which Valentine cannot represent",
                             variant.name
-                        ));
-                    }
-                    Ok((
+						));
+					}
+					if !primitive_accepts_i64(&underlying, variant.value) {
+						return Err(format!(
+							"protocolgen enum variant {:?} value {} does not fit {:?}",
+							variant.name, variant.value, underlying
+						));
+					}
+					Ok((
                         variant
                             .name
                             .rsplit("::")
@@ -274,8 +280,12 @@ fn lower_node(node: CanonicalNode, types: &mut HashMap<String, Type>) -> Result<
                         variant.value,
                     ))
                 })
-                .collect::<Result<_, String>>()?,
-        },
+				.collect::<Result<_, String>>()?;
+            Type::Enum {
+                underlying,
+                variants,
+            }
+        }
         "union" => {
             let control = lower_node(
                 *node
@@ -286,19 +296,23 @@ fn lower_node(node: CanonicalNode, types: &mut HashMap<String, Type>) -> Result<
             let Type::Primitive(control_type) = control else {
                 return Err("protocolgen union control is not primitive".to_string());
             };
-            Type::Union {
-                control_type,
-                variants: node
-                    .variants
+            let variants = node
+					.variants
                     .unwrap_or_default()
                     .into_iter()
-                    .map(|variant| {
+					.map(|variant| {
                         if variant.decode.is_some() {
                             return Err(format!(
                                 "protocolgen union variant {:?} has an asymmetric decode layout, which Valentine cannot represent",
                                 variant.name
-                            ));
-                        }
+							));
+						}
+						if !primitive_accepts_i64(&control_type, variant.value) {
+							return Err(format!(
+								"protocolgen union variant {:?} value {} does not fit {:?}",
+								variant.name, variant.value, control_type
+							));
+						}
                         Ok(UnionVariant {
                             control_value: variant.value,
                             name: variant
@@ -310,7 +324,10 @@ fn lower_node(node: CanonicalNode, types: &mut HashMap<String, Type>) -> Result<
                             type_def: lower_node(variant.encode, types)?,
                         })
                     })
-                    .collect::<Result<_, String>>()?,
+					.collect::<Result<_, String>>()?;
+            Type::Union {
+                control_type,
+                variants,
             }
         }
         "opaque" | "unresolved" if node.reachable.unwrap_or(true) => {
@@ -364,6 +381,30 @@ fn lower_primitive(code: &str) -> Result<Primitive, String> {
         "uuid" => Ok(Primitive::Uuid),
         "nbt_le" => Ok(Primitive::Nbt),
         other => Err(format!("unsupported protocolgen primitive {other:?}")),
+    }
+}
+
+fn primitive_accepts_i64(primitive: &Primitive, value: i64) -> bool {
+    match primitive {
+        Primitive::Bool => matches!(value, 0 | 1),
+        Primitive::U8 => u8::try_from(value).is_ok(),
+        Primitive::I8 => i8::try_from(value).is_ok(),
+        Primitive::U16 | Primitive::U16LE => u16::try_from(value).is_ok(),
+        Primitive::I16 | Primitive::I16LE => i16::try_from(value).is_ok(),
+        Primitive::U32 | Primitive::U32LE | Primitive::VarUInt => u32::try_from(value).is_ok(),
+        Primitive::I32 | Primitive::I32LE | Primitive::VarInt | Primitive::ZigZag32 => {
+            i32::try_from(value).is_ok()
+        }
+        Primitive::U64 | Primitive::U64LE | Primitive::VarULong => value >= 0,
+        Primitive::I64 | Primitive::I64LE | Primitive::VarLong | Primitive::ZigZag64 => true,
+        Primitive::F32
+        | Primitive::F32LE
+        | Primitive::F64
+        | Primitive::F64LE
+        | Primitive::Uuid
+        | Primitive::Void
+        | Primitive::ByteArray
+        | Primitive::Nbt => false,
     }
 }
 
@@ -480,6 +521,28 @@ mod tests {
         let error = parse_reader(fixture.as_bytes()).expect_err("enum payloads must fail closed");
         assert!(error.to_string().contains("enum variant"));
         assert!(error.to_string().contains("payload"));
+    }
+
+    #[test]
+    fn rejects_discriminants_outside_the_declared_primitive_range() {
+        let invalid_enum = CanonicalNode {
+            kind: "enum".to_string(),
+            primitive: Some(PrimitiveShape {
+                code: "u8".to_string(),
+            }),
+            variants: Some(vec![CanonicalVariant {
+                value: -1,
+                name: "Negative".to_string(),
+                encode: CanonicalNode {
+                    kind: "void".to_string(),
+                    ..Default::default()
+                },
+                decode: None,
+            }]),
+            ..Default::default()
+        };
+        let error = lower_node(invalid_enum, &mut HashMap::new()).unwrap_err();
+        assert!(error.contains("does not fit U8"), "{error}");
     }
 
     #[test]
