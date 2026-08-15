@@ -343,6 +343,12 @@ fn generate_field_decode_expr(
 
             Ok(quote! {{
                 #len_logic
+                if len > buf.remaining() {
+                    return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                        declared: len,
+                        available: buf.remaining(),
+                    });
+                }
                 let mut tmp_vec = Vec::with_capacity(len);
                 for _ in 0..len {
                     tmp_vec.push(#inner_decode);
