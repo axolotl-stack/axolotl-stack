@@ -1,7 +1,7 @@
 use bytes::{Buf, Bytes};
 use std::borrow::Cow;
 
-use crate::bedrock::codec::{BedrockCodec, BedrockSized, U32LE, VarInt};
+use crate::bedrock::codec::{BedrockCodec, BedrockSized, U32LE, VarInt, VarUInt};
 use crate::bedrock::error::DecodeError;
 use crate::protocol::wire;
 
@@ -102,7 +102,7 @@ impl RawMcpeFrame {
 }
 
 pub fn take_var_u32_prefixed_bytes(buf: &mut Bytes) -> Result<Bytes, DecodeError> {
-    let len = wire::read_var_u32(buf)? as usize;
+    let len = VarUInt::decode(buf, ())?.0 as usize;
     take_exact_array_bytes(buf, len)
 }
 
