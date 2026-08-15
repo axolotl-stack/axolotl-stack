@@ -940,15 +940,9 @@ impl BorrowedGenerator<'_, '_> {
                 Ok(quote! {
                     {
                         let len = #len_decode;
-                        let available = bytes::Buf::remaining(&*#buf_ident);
-                        if len > available {
-                            return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
-                                declared: len,
-                                available,
-                            });
-                        }
-                        let mut values = Vec::with_capacity(len);
+                        let mut values = crate::bedrock::codec::prepare_decode_vec();
                         for _ in 0..len {
+                            crate::bedrock::codec::reserve_decode_item(&mut values)?;
                             values.push(#inner_decode);
                         }
                         values

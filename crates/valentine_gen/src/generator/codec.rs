@@ -343,14 +343,9 @@ fn generate_field_decode_expr(
 
             Ok(quote! {{
                 #len_logic
-                if len > buf.remaining() {
-                    return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
-                        declared: len,
-                        available: buf.remaining(),
-                    });
-                }
-                let mut tmp_vec = Vec::with_capacity(len);
+                let mut tmp_vec = crate::bedrock::codec::prepare_decode_vec();
                 for _ in 0..len {
+                    crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                     tmp_vec.push(#inner_decode);
                 }
                 tmp_vec

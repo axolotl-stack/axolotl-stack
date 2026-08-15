@@ -19,6 +19,29 @@ pub trait BedrockSized {
     fn encoded_size(&self) -> usize;
 }
 
+fn allocation_failed(requested: usize) -> DecodeError {
+    DecodeError::Io(std::io::Error::new(
+        std::io::ErrorKind::OutOfMemory,
+        format!("failed to reserve storage for {requested} decoded items"),
+    ))
+}
+
+/// Creates lazy storage for a decoded collection without trusting an
+/// untrusted wire count for eager allocation.
+pub fn prepare_decode_vec<T>() -> Vec<T> {
+    Vec::new()
+}
+
+/// Ensures one more decoded item can be pushed without an infallible allocator path.
+pub fn reserve_decode_item<T>(values: &mut Vec<T>) -> Result<(), DecodeError> {
+    if values.len() == values.capacity() {
+        values
+            .try_reserve(1)
+            .map_err(|_| allocation_failed(values.len().saturating_add(1)))?;
+    }
+    Ok(())
+}
+
 // An explicitly corrected but still-untyped Mojang field can be represented
 // in the shared IR as `Void`/`()`. It consumes no bytes; the Mojang frontend
 // emits a warning and records the parity gap before reaching this fallback.
@@ -1065,6 +1088,16 @@ mod tests {
         let decoded = T::decode(&mut reader, args).expect("decode should succeed");
         assert_eq!(value, decoded);
         assert!(!reader.has_remaining(), "should consume all bytes");
+    }
+
+    #[test]
+    fn decoded_collections_do_not_eagerly_trust_wire_counts() {
+        let mut values: Vec<u64> = prepare_decode_vec();
+        assert_eq!(values.capacity(), 0);
+
+        reserve_decode_item(&mut values).expect("reserve first decoded item");
+        values.push(42);
+        assert_eq!(values, [42]);
     }
 
     // ========== Primitive Tests ==========
