@@ -34,6 +34,15 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
+      - name: Verify checked-in protocolgen output
+        run: |
+          cargo run -p valentine_gen -- --latest
+          cargo fmt --all
+          git diff --exit-code -- \
+            crates/valentine/bedrock_versions/v1_26_40 \
+            crates/valentine/src/bedrock \
+            crates/valentine/Cargo.toml
+
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
         continue-on-error: true  # Don't fail on warnings for now

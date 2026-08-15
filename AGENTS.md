@@ -47,7 +47,8 @@
 
 ## Protocol And Codegen Notes
 - Primary protocol work lives in `crates/valentine` and `crates/valentine_gen`.
-- Generator inputs live under `crates/valentine_gen/minecraft-data` and `crates/valentine_gen/bedrock-data`.
+- The default protocol input is the pinned protocolgen canonical manifest under `crates/valentine_gen/protocolgen/generated/1.26.40/manifest.json`.
+- Legacy protocol and data inputs live under `crates/valentine_gen/minecraft-data`, `crates/valentine_gen/bedrock-data`, `crates/valentine_gen/bedrock-protocol-docs`, and `crates/valentine_gen/endstone-docs`.
 - The generator should have distinct phases:
   - parse schema input into IR
   - analyze containers, discriminators, and arguments
@@ -86,7 +87,7 @@
 - Lint workspace: `cargo clippy --workspace --all-targets`
 - Lint a crate: `cargo clippy -p valentine_gen --all-targets`
 - Run `valentine` tests: `cargo test -p valentine --tests`
-- Generate latest Bedrock protocol: `cargo run -p valentine_gen -- --latest`
+- Generate latest Bedrock protocol from protocolgen: `cargo run -p valentine_gen -- --latest`
 - Generate only protocol code: `cargo run -p valentine_gen -- --latest --proto`
 - Generate specific versions together for dedup consideration: `cargo run -p valentine_gen -- --versions 1.21.120,1.21.124,1.26.0`
 

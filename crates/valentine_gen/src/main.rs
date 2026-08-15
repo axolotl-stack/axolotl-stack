@@ -105,13 +105,14 @@ GENERATION TARGETS (composable, default: all):
   --biomes                Generate biome data only
 
 OTHER OPTIONS:
-  --source <NAME>         Protocol source: endstone (default), mojang, protocolgen, or prismarine
+  --source <NAME>         Protocol source: protocolgen (default), endstone, mojang, or prismarine
   --minecraft-data <DIR>  Path to a minecraft-data checkout (defaults to ./minecraft-data)
   --bedrock-data <DIR>    Path to a pmmp/BedrockData checkout (defaults to ./bedrock-data)
   --mojang-docs <DIR>     Path to a bedrock-protocol-docs checkout (defaults to ./bedrock-protocol-docs)
   --endstone-docs <DIR>   Path to an endstone protocol-docs checkout (defaults to ./endstone-docs)
   --protocolgen-manifest <FILE>
                          Path to a protocolgen canonical manifest v2
+                         (defaults to ./protocolgen/generated/1.26.40/manifest.json)
   --overrides <DIR>       Mojang correction JSON directory (defaults to ./overrides)
   --output-dir <DIR>      Valentine output root (Prismarine defaults to ../valentine; required for Mojang)
   --emit-wire-manifest <FILE>
@@ -128,7 +129,7 @@ fn parse_args() -> Result<CliArgs, String> {
     let mut latest = false;
     let mut list_versions = false;
     let mut log_filter = "info".to_string();
-    let mut source = ProtocolSource::Endstone;
+    let mut source = ProtocolSource::Protocolgen;
     let mut minecraft_data: Option<PathBuf> = None;
     let mut bedrock_data: Option<PathBuf> = None;
     let mut mojang_docs: Option<PathBuf> = None;
@@ -157,9 +158,9 @@ fn parse_args() -> Result<CliArgs, String> {
             "--latest" => latest = true,
             "--list-versions" | "--list" => list_versions = true,
             "--source" => {
-                let raw = it
-                    .next()
-                    .ok_or_else(|| "--source expects prismarine or mojang".to_string())?;
+                let raw = it.next().ok_or_else(|| {
+                    "--source expects protocolgen, endstone, mojang, or prismarine".to_string()
+                })?;
                 source = parse_source(&raw)?;
             }
             "--proto" | "--protocol" => gen_proto = true,
@@ -414,12 +415,12 @@ fn generate_protocolgen_source(
 
     let manifest_path = args
         .protocolgen_manifest
-        .as_ref()
-        .ok_or("--source protocolgen requires --protocolgen-manifest <FILE>")?;
+        .clone()
+        .unwrap_or_else(|| PathBuf::from("protocolgen/generated/1.26.40/manifest.json"));
     let manifest_path = if manifest_path.is_relative() {
-        root.join(manifest_path)
+        root.join(&manifest_path)
     } else {
-        manifest_path.clone()
+        manifest_path
     };
     let parsed = parser::protocolgen::parse(&manifest_path)?;
 

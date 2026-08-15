@@ -96,11 +96,11 @@ jobs:
 
       - name: Regenerate gameplay data only
         if: steps.prismarine.outputs.changed == 'true'
-        # Data flags only. Passing --latest alone would regenerate everything,
-        # protocol included, and drag it back to Prismarine's stale 1.26.30.
+        # Data flags only. Prismarine is selected explicitly and must not write
+        # protocol code over the protocolgen-generated 1.26.40 surface.
         run: |
           set -euo pipefail
-          cargo run -p valentine_gen -- --latest \
+          cargo run -p valentine_gen -- --source prismarine --latest \
             --items --blocks --block-states --entities --biomes
           cargo fmt --all
 
@@ -108,14 +108,14 @@ jobs:
         if: steps.prismarine.outputs.changed == 'true'
         # Defence in depth behind add-paths: if a data run ever starts writing
         # protocol files, stop rather than quietly committing a Prismarine
-        # protocol over the Mojang-generated one.
+        # protocol over the protocolgen-generated one.
         run: |
           set -euo pipefail
           find crates/valentine/bedrock_versions -type f \
             \( -name 'proto.rs' -o -name 'types.rs' -o -name 'borrowed.rs' -o -name 'mcpe.rs' -o -name 'common.rs' \) \
             -print0 | sort -z | xargs -0 sha256sum > "$RUNNER_TEMP/protocol-after.sha"
           if ! diff -q "$RUNNER_TEMP/protocol-before.sha" "$RUNNER_TEMP/protocol-after.sha" >/dev/null; then
-            echo "::error::Data regeneration modified protocol code. Protocol is generated from Mojang schemas, not Prismarine."
+            echo "::error::Data regeneration modified protocol code. Protocol is generated from protocolgen, not Prismarine."
             diff "$RUNNER_TEMP/protocol-before.sha" "$RUNNER_TEMP/protocol-after.sha" || true
             exit 1
           fi

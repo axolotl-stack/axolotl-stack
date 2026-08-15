@@ -8,32 +8,32 @@ It re-exports generated version crates behind feature flags and keeps the shared
 
 The checked-in workspace currently exposes:
 
-- `bedrock_1_26_30`
-- `valentine::bedrock::protocol::v1_26_30::*`
-- `valentine::bedrock::version::v1_26_30::*`
-- `valentine::bedrock::v1_26_30::*` (compatibility alias)
+- `bedrock_1_26_40`
+- `valentine::bedrock::protocol::v1_26_40::*`
+- `valentine::bedrock::version::v1_26_40::*`
+- `valentine::bedrock::v1_26_40::*` (compatibility alias)
 
-`bedrock_1_26_30` is also the default feature in [Cargo.toml](/C:/Users/jvigu/OneDrive/Documents/rust/jyuggers/axolotl-stack/crates/valentine/Cargo.toml).
+`bedrock_1_26_40` is also the default feature in [`Cargo.toml`](Cargo.toml).
 
 ## Layout
 
 - `src/bedrock/`: shared Bedrock-facing API, version aliases, codec/context/error re-exports
 - `bedrock_core/`: shared codec/runtime primitives used by every generated version crate
-- `bedrock_versions/v1_26_30/`: generated protocol/data crate for the checked-in version
+- `bedrock_versions/v1_26_40/`: generated protocol crate for the current version
 
 ## Import Paths
 
 Prefer:
 
 ```rust
-use valentine::bedrock::version::v1_26_30::*;
+use valentine::bedrock::version::v1_26_40::*;
 ```
 
 Compatibility aliases still exist:
 
 ```rust
-use valentine::bedrock::v1_26_30::*;
-use valentine::bedrock::protocol::v1_26_30::*;
+use valentine::bedrock::v1_26_40::*;
+use valentine::bedrock::protocol::v1_26_40::*;
 ```
 
 Use `protocol::vX_Y_Z` when you explicitly want the raw generated version crate/module layout.
@@ -45,7 +45,22 @@ From the repo root:
 ```bash
 git submodule update --init --recursive
 cargo run -p valentine_gen -- --latest
+cargo fmt --all
 ```
+
+Protocol code is generated from the pinned
+[`bedrock-mc/protocolgen`](../valentine_gen/protocolgen) canonical manifest by
+default. The checked-in protocolgen submodule and generated Valentine sources
+must be advanced together. To use a different canonical manifest explicitly:
+
+```bash
+cargo run -p valentine_gen -- --latest --protocolgen-manifest /path/to/manifest.json
+```
+
+The legacy schema frontends remain available through `--source endstone`,
+`--source mojang`, and `--source prismarine`. Protocolgen only supplies protocol
+schemas, so block, item, entity, and biome data generation must still select the
+appropriate data source explicitly.
 
 Generate multiple versions when you want cross-version type/packet dedup to be considered in a single run:
 

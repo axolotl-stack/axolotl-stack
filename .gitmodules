@@ -15,3 +15,6 @@
 	path = crates/valentine_gen/endstone-docs
 	url = https://github.com/endstonemc/protocol-docs.git
 	branch = r26_u4
+[submodule "crates/valentine_gen/protocolgen"]
+	path = crates/valentine_gen/protocolgen
+	url = https://github.com/bedrock-mc/protocolgen.git

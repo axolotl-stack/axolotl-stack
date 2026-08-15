@@ -1,0 +1,97 @@
+name: Update protocolgen
+
+# Advances the pinned protocolgen source, verifies its canonical manifest against
+# the pinned gophertunnel oracle, regenerates Valentine, and opens a reviewable PR.
+
+on:
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: protocolgen-update
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Axolotl
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Initialise protocolgen
+        run: git submodule update --init crates/valentine_gen/protocolgen
+
+      - name: Check for a protocolgen update
+        id: protocolgen
+        run: |
+          set -euo pipefail
+          dir=crates/valentine_gen/protocolgen
+          current="$(git -C "$dir" rev-parse HEAD)"
+          git -C "$dir" fetch --quiet --depth 1 origin main
+          latest="$(git -C "$dir" rev-parse FETCH_HEAD)"
+          echo "current=$current latest=$latest"
+
+          if [[ "$current" == "$latest" ]]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git -C "$dir" checkout --quiet "$latest"
+          fi
+
+      - uses: actions/setup-go@v5
+        if: steps.protocolgen.outputs.changed == 'true'
+        with:
+          go-version: "1.26.x"
+          cache: true
+          cache-dependency-path: crates/valentine_gen/protocolgen/go.sum
+
+      - name: Install Rust from rust-toolchain.toml
+        if: steps.protocolgen.outputs.changed == 'true'
+        run: rustup show active-toolchain
+
+      - uses: Swatinem/rust-cache@v2
+        if: steps.protocolgen.outputs.changed == 'true'
+
+      - name: Verify protocolgen against gophertunnel
+        if: steps.protocolgen.outputs.changed == 'true'
+        working-directory: crates/valentine_gen/protocolgen
+        run: |
+          go run ./cmd/protocolgen verify-gophertunnel \
+            -manifest generated/1.26.40/manifest.json \
+            -report "$RUNNER_TEMP/protocolgen-gophertunnel-report.json"
+
+      - name: Regenerate Valentine
+        if: steps.protocolgen.outputs.changed == 'true'
+        run: |
+          cargo run -p valentine_gen -- --latest
+          cargo fmt --all
+          cargo check -p valentine --no-default-features --features bedrock_1_26_40
+
+      - name: Open the regenerated protocol pull request
+        if: steps.protocolgen.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: main
+          branch: automation/protocolgen-update
+          delete-branch: true
+          add-paths: |
+            crates/valentine_gen/protocolgen
+            crates/valentine
+          commit-message: "chore(protocol): regenerate from updated protocolgen"
+          title: "chore(protocol): regenerate from updated protocolgen"
+          body: |
+            The pinned protocolgen revision moved, so Valentine was regenerated from its updated canonical manifest.
+
+            The protocolgen gophertunnel oracle gate and the generated Valentine crate check passed. Review the protocolgen manifest and generated Rust changes together before merging.
+
+      - name: Report no change
+        if: steps.protocolgen.outputs.changed != 'true'
+        run: echo "The pinned protocolgen revision is current; nothing to regenerate."
