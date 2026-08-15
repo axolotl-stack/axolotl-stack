@@ -135,6 +135,7 @@ struct BorrowedPacketMeta {
 #[derive(Clone, Copy)]
 enum PrefixKind {
     VarInt,
+    VarUInt,
     U32LE,
     U16LE,
     U8,
@@ -786,7 +787,9 @@ impl BorrowedGenerator<'_, '_> {
         Ok(match ty {
             Type::Primitive(primitive) => match primitive {
                 Primitive::VarInt | Primitive::ZigZag32 => quote! { i32 },
+                Primitive::VarUInt => quote! { u32 },
                 Primitive::VarLong | Primitive::ZigZag64 => quote! { i64 },
+                Primitive::VarULong => quote! { u64 },
                 Primitive::Nbt => quote! { crate::bedrock::codec::Nbt },
                 _ => primitive_to_rust_tokens(primitive),
             },
@@ -795,6 +798,11 @@ impl BorrowedGenerator<'_, '_> {
                 quote! { #ident }
             }
             Type::String { .. } => quote! { crate::bedrock::borrowed::BorrowedStr },
+            Type::Encapsulated { inner, .. }
+                if matches!(inner.as_ref(), Type::Primitive(Primitive::ByteArray)) =>
+            {
+                quote! { bytes::Bytes }
+            }
             Type::Encapsulated { inner, .. } => self.borrowed_type_tokens(inner, hint)?,
             Type::Reference(name) => {
                 if name == "LittleString" {
@@ -864,6 +872,9 @@ impl BorrowedGenerator<'_, '_> {
             Type::String { count_type, .. } => self.decode_prefixed_string(count_type, buf_ident),
             Type::Encapsulated { length_type, inner } => {
                 let take_bytes = self.take_prefixed_bytes_fn(length_type)?;
+                if matches!(inner.as_ref(), Type::Primitive(Primitive::ByteArray)) {
+                    return Ok(quote! { #take_bytes(#buf_ident)? });
+                }
                 let inner_decode =
                     self.decode_expr(inner, field_name, hint, quote! { &mut nested }, resolved)?;
                 Ok(quote! {
@@ -923,14 +934,19 @@ impl BorrowedGenerator<'_, '_> {
                     inner_type,
                     field_name,
                     &format!("{hint}Item"),
-                    buf_ident,
+                    buf_ident.clone(),
                     resolved,
                 )?;
                 Ok(quote! {
                     {
                         let len = #len_decode;
-                        let mut values = Vec::with_capacity(len);
+                        let mut values = crate::bedrock::codec::prepare_decode_vec(
+                            len,
+                            bytes::Buf::remaining(&*#buf_ident),
+                            None,
+                        )?;
                         for _ in 0..len {
+                            crate::bedrock::codec::reserve_decode_item(&mut values)?;
                             values.push(#inner_decode);
                         }
                         values
@@ -1144,6 +1160,14 @@ impl BorrowedGenerator<'_, '_> {
                 })
             }
             Type::Encapsulated { length_type, inner } => {
+                if matches!(inner.as_ref(), Type::Primitive(Primitive::ByteArray)) {
+                    let encode_len =
+                        self.encode_length_stmt(length_type, quote! { (#access).len() })?;
+                    return Ok(quote! {
+                        #encode_len
+                        buf.put_slice((#access).as_ref());
+                    });
+                }
                 let inner_size = self.size_expr(inner, access.clone(), hint)?;
                 let encode_len = self.encode_length_stmt(length_type, quote! { #inner_size })?;
                 let inner_encode = self.encode_stmt(inner, access, hint)?;
@@ -1243,6 +1267,11 @@ impl BorrowedGenerator<'_, '_> {
                 Ok(quote! { #prefix + #len_expr })
             }
             Type::Encapsulated { length_type, inner } => {
+                if matches!(inner.as_ref(), Type::Primitive(Primitive::ByteArray)) {
+                    let len_expr = quote! { (#access).len() };
+                    let prefix = self.length_size_expr(length_type, len_expr.clone())?;
+                    return Ok(quote! { #prefix + #len_expr });
+                }
                 let inner_size = self.size_expr(inner, access, hint)?;
                 let prefix = self.length_size_expr(length_type, inner_size.clone())?;
                 Ok(quote! { #prefix + #inner_size })
@@ -1316,6 +1345,11 @@ impl BorrowedGenerator<'_, '_> {
     ) -> Result<TokenStream, Box<dyn std::error::Error>> {
         match ty {
             Type::String { .. } => Ok(quote! { (#expr).to_string_lossy().into_owned() }),
+            Type::Encapsulated { inner, .. }
+                if matches!(inner.as_ref(), Type::Primitive(Primitive::ByteArray)) =>
+            {
+                Ok(quote! { (#expr).to_vec() })
+            }
             Type::Encapsulated { inner, .. } => self.owned_expr(inner, expr, hint),
             Type::Reference(name) if name == "LittleString" => {
                 Ok(quote! { (#expr).to_string_lossy().into_owned() })
@@ -1369,8 +1403,14 @@ impl BorrowedGenerator<'_, '_> {
             Primitive::VarInt => {
                 quote! { <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(#buf_ident, ())?.0 }
             }
+            Primitive::VarUInt => {
+                quote! { <crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(#buf_ident, ())?.0 }
+            }
             Primitive::VarLong => {
                 quote! { <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(#buf_ident, ())?.0 }
+            }
+            Primitive::VarULong => {
+                quote! { <crate::bedrock::codec::VarULong as crate::bedrock::codec::BedrockCodec>::decode(#buf_ident, ())?.0 }
             }
             Primitive::ZigZag32 => {
                 quote! { <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(#buf_ident, ())?.0 }
@@ -1412,7 +1452,11 @@ impl BorrowedGenerator<'_, '_> {
     fn encode_primitive_stmt(&self, primitive: Primitive, access: TokenStream) -> TokenStream {
         match primitive {
             Primitive::VarInt => quote! { crate::bedrock::codec::VarInt(*#access).encode(buf)?; },
+            Primitive::VarUInt => quote! { crate::bedrock::codec::VarUInt(*#access).encode(buf)?; },
             Primitive::VarLong => quote! { crate::bedrock::codec::VarLong(*#access).encode(buf)?; },
+            Primitive::VarULong => {
+                quote! { crate::bedrock::codec::VarULong(*#access).encode(buf)?; }
+            }
             Primitive::ZigZag32 => {
                 quote! { crate::bedrock::codec::ZigZag32(*#access).encode(buf)?; }
             }
@@ -1436,8 +1480,14 @@ impl BorrowedGenerator<'_, '_> {
             Primitive::VarInt => {
                 quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(*#access)) }
             }
+            Primitive::VarUInt => {
+                quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(*#access)) }
+            }
             Primitive::VarLong => {
                 quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarLong(*#access)) }
+            }
+            Primitive::VarULong => {
+                quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarULong(*#access)) }
             }
             Primitive::ZigZag32 => {
                 quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::ZigZag32(*#access)) }
@@ -1474,6 +1524,9 @@ impl BorrowedGenerator<'_, '_> {
             Some(PrefixKind::VarInt) => {
                 Ok(quote! { crate::bedrock::borrowed::take_varint_prefixed_string })
             }
+            Some(PrefixKind::VarUInt) => {
+                Ok(quote! { crate::bedrock::borrowed::take_var_u32_prefixed_string })
+            }
             Some(PrefixKind::U32LE) => {
                 Ok(quote! { crate::bedrock::borrowed::take_u32le_prefixed_string })
             }
@@ -1489,6 +1542,9 @@ impl BorrowedGenerator<'_, '_> {
             Some(PrefixKind::VarInt) => {
                 Ok(quote! { crate::bedrock::borrowed::take_varint_prefixed_bytes })
             }
+            Some(PrefixKind::VarUInt) => {
+                Ok(quote! { crate::bedrock::borrowed::take_var_u32_prefixed_bytes })
+            }
             _ => Err("unsupported borrowed encapsulated length prefix".into()),
         }
     }
@@ -1496,6 +1552,7 @@ impl BorrowedGenerator<'_, '_> {
     fn prefix_kind(&self, count_type: &Type) -> Option<PrefixKind> {
         match count_type {
             Type::Primitive(Primitive::VarInt) => Some(PrefixKind::VarInt),
+            Type::Primitive(Primitive::VarUInt) => Some(PrefixKind::VarUInt),
             Type::Primitive(Primitive::U32LE) => Some(PrefixKind::U32LE),
             Type::Primitive(Primitive::U16LE) => Some(PrefixKind::U16LE),
             Type::Primitive(Primitive::U8) => Some(PrefixKind::U8),
@@ -1517,6 +1574,9 @@ impl BorrowedGenerator<'_, '_> {
                     }
                     raw as usize
                 }
+            },
+            Some(PrefixKind::VarUInt) => quote! {
+                <crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(#buf_ident, ())?.0 as usize
             },
             Some(PrefixKind::U32LE) => quote! {
                 <crate::bedrock::codec::U32LE as crate::bedrock::codec::BedrockCodec>::decode(#buf_ident, ())?.0 as usize
@@ -1540,6 +1600,9 @@ impl BorrowedGenerator<'_, '_> {
             Some(PrefixKind::VarInt) => {
                 quote! { crate::bedrock::codec::VarInt((#len_expr) as i32).encode(buf)?; }
             }
+            Some(PrefixKind::VarUInt) => {
+                quote! { crate::bedrock::codec::VarUInt((#len_expr) as u32).encode(buf)?; }
+            }
             Some(PrefixKind::U32LE) => {
                 quote! { crate::bedrock::codec::U32LE((#len_expr) as u32).encode(buf)?; }
             }
@@ -1562,6 +1625,9 @@ impl BorrowedGenerator<'_, '_> {
             Some(PrefixKind::VarInt) => {
                 quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt((#len_expr) as i32)) }
             }
+            Some(PrefixKind::VarUInt) => {
+                quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt((#len_expr) as u32)) }
+            }
             Some(PrefixKind::U32LE) => quote! { 4usize },
             Some(PrefixKind::U16LE) => quote! { 2usize },
             Some(PrefixKind::U8) => quote! { 1usize },
@@ -1575,7 +1641,9 @@ impl BorrowedGenerator<'_, '_> {
             Type::Primitive(_) => true,
             Type::String { count_type, .. } => self.prefix_kind(count_type).is_some(),
             Type::Encapsulated { length_type, inner } => {
-                self.prefix_kind(length_type).is_some() && self.is_borrowable_type(inner, visiting)
+                self.prefix_kind(length_type).is_some()
+                    && (matches!(inner.as_ref(), Type::Primitive(Primitive::ByteArray))
+                        || self.is_borrowable_type(inner, visiting))
             }
             Type::Reference(name) => {
                 if name == "LittleString" {
@@ -1604,6 +1672,7 @@ impl BorrowedGenerator<'_, '_> {
                     && self.is_borrowable_type(inner_type, visiting)
             }
             Type::FixedArray { .. } => false,
+            Type::Bitset { .. } => false,
             Type::Option(inner) => self.is_borrowable_type(inner, visiting),
             Type::Switch { .. } => false,
             Type::Union { .. } => false,

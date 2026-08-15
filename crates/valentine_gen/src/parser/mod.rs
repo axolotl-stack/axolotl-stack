@@ -1,6 +1,7 @@
 use crate::ir::{Container, Field, PackedField, Packet, Primitive, Type};
 pub mod endstone;
 pub mod mojang;
+pub mod protocolgen;
 
 use serde::Deserialize;
 use serde_json::Value;
@@ -23,6 +24,7 @@ enum JsonTypeDef {
     Object(serde_json::Map<String, Value>), // { "type": "kind", ... }
 }
 
+#[derive(Debug)]
 pub struct ParseResult {
     pub packets: Vec<Packet>,
     pub types: HashMap<String, Type>,

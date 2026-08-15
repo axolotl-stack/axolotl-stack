@@ -1,9 +1,9 @@
 # `valentine_gen`
 
 `valentine_gen` generates the Bedrock protocol crates consumed by `valentine`.
-It accepts either PrismarineJS `minecraft-data` or Mojang's official
-`bedrock-protocol-docs`, lowers the selected source into a shared IR, and emits
-the version crate and Valentine workspace wiring.
+It lowers protocolgen's reconciled canonical manifest into a shared IR by
+default, then emits the version crate and Valentine workspace wiring. Legacy
+PrismarineJS, Mojang, and Endstone frontends remain available explicitly.
 
 ## Setup and sources
 
@@ -11,9 +11,20 @@ the version crate and Valentine workspace wiring.
 git submodule update --init --recursive
 ```
 
-Prismarine remains the default source. Mojang generation is selected explicitly
-and requires a scratch output directory, so it cannot overwrite the checked-in
-version crates:
+The pinned protocolgen submodule is the default source. This command regenerates
+the checked-in 1.26.40 protocol crate from its canonical manifest:
+
+```bash
+cargo run -p valentine_gen -- --latest
+cargo fmt --all
+```
+
+An alternate canonical manifest may be selected with
+`--protocolgen-manifest <FILE>`. Protocolgen provides protocol schemas only.
+Prismarine remains the source for block, item, entity, and biome data.
+
+Legacy protocol frontends are selected explicitly. Mojang generation requires a
+scratch output directory, so it cannot overwrite the checked-in version crates:
 
 ```bash
 cargo run -p valentine_gen -- --source prismarine --latest --proto
@@ -31,6 +42,9 @@ Bool presence boundary, unions record their control codec and per-value payload,
 and recursive references become explicit cycle markers. This makes conformance
 comparison independent of generated Rust syntax and is suitable for a future CI
 gate.
+
+Protocolgen input is already a canonical wire manifest, so
+`--emit-wire-manifest` is intentionally rejected with the default source.
 
 `--mojang-docs <DIR>` selects any other docs checkout without changing the
 submodule pin. For example, maintainers can inspect Mojang main/protocol 2169 in
@@ -132,9 +146,9 @@ The test suite generates Mojang output in a temporary directory and runs
 
 ```bash
 cargo run -p valentine_gen -- --latest
-cargo run -p valentine_gen -- --versions 1.21.120,1.21.124
-cargo run -p valentine_gen -- --latest --proto
-cargo run -p valentine_gen -- --all
+cargo run -p valentine_gen -- --protocolgen-manifest /path/to/manifest.json
+cargo run -p valentine_gen -- --source endstone --latest --proto
+cargo run -p valentine_gen -- --source prismarine --latest --items --blocks
 cargo run -p valentine_gen -- --list-versions
 cargo run -p valentine_gen -- --latest --log debug
 ```

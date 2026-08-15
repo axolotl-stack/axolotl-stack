@@ -62,6 +62,7 @@ struct CliArgs {
     bedrock_data: Option<PathBuf>,
     mojang_docs: Option<PathBuf>,
     endstone_docs: Option<PathBuf>,
+    protocolgen_manifest: Option<PathBuf>,
     overrides: Option<PathBuf>,
     output_dir: Option<PathBuf>,
     emit_wire_manifest: Option<PathBuf>,
@@ -79,6 +80,7 @@ enum ProtocolSource {
     Prismarine,
     Mojang,
     Endstone,
+    Protocolgen,
 }
 
 fn print_usage() {
@@ -103,11 +105,14 @@ GENERATION TARGETS (composable, default: all):
   --biomes                Generate biome data only
 
 OTHER OPTIONS:
-  --source <NAME>         Protocol source: endstone (default), mojang, or prismarine
+  --source <NAME>         Protocol source: protocolgen (default), endstone, mojang, or prismarine
   --minecraft-data <DIR>  Path to a minecraft-data checkout (defaults to ./minecraft-data)
   --bedrock-data <DIR>    Path to a pmmp/BedrockData checkout (defaults to ./bedrock-data)
   --mojang-docs <DIR>     Path to a bedrock-protocol-docs checkout (defaults to ./bedrock-protocol-docs)
   --endstone-docs <DIR>   Path to an endstone protocol-docs checkout (defaults to ./endstone-docs)
+  --protocolgen-manifest <FILE>
+                         Path to a protocolgen canonical manifest v2
+                         (defaults to ./protocolgen/generated/1.26.40/manifest.json)
   --overrides <DIR>       Mojang correction JSON directory (defaults to ./overrides)
   --output-dir <DIR>      Valentine output root (Prismarine defaults to ../valentine; required for Mojang)
   --emit-wire-manifest <FILE>
@@ -124,11 +129,12 @@ fn parse_args() -> Result<CliArgs, String> {
     let mut latest = false;
     let mut list_versions = false;
     let mut log_filter = "info".to_string();
-    let mut source = ProtocolSource::Endstone;
+    let mut source = ProtocolSource::Protocolgen;
     let mut minecraft_data: Option<PathBuf> = None;
     let mut bedrock_data: Option<PathBuf> = None;
     let mut mojang_docs: Option<PathBuf> = None;
     let mut endstone_docs: Option<PathBuf> = None;
+    let mut protocolgen_manifest: Option<PathBuf> = None;
     let mut overrides: Option<PathBuf> = None;
     let mut output_dir: Option<PathBuf> = None;
     let mut emit_wire_manifest: Option<PathBuf> = None;
@@ -152,9 +158,9 @@ fn parse_args() -> Result<CliArgs, String> {
             "--latest" => latest = true,
             "--list-versions" | "--list" => list_versions = true,
             "--source" => {
-                let raw = it
-                    .next()
-                    .ok_or_else(|| "--source expects prismarine or mojang".to_string())?;
+                let raw = it.next().ok_or_else(|| {
+                    "--source expects protocolgen, endstone, mojang, or prismarine".to_string()
+                })?;
                 source = parse_source(&raw)?;
             }
             "--proto" | "--protocol" => gen_proto = true,
@@ -200,6 +206,12 @@ fn parse_args() -> Result<CliArgs, String> {
                     .ok_or_else(|| "--mojang-docs expects a path".to_string())?;
                 mojang_docs = Some(PathBuf::from(raw));
             }
+            "--protocolgen-manifest" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--protocolgen-manifest expects a path".to_string())?;
+                protocolgen_manifest = Some(PathBuf::from(raw));
+            }
             "--overrides" => {
                 let raw = it
                     .next()
@@ -241,6 +253,11 @@ fn parse_args() -> Result<CliArgs, String> {
             }
             _ if arg.starts_with("--mojang-docs=") => {
                 mojang_docs = Some(PathBuf::from(arg.trim_start_matches("--mojang-docs=")));
+            }
+            _ if arg.starts_with("--protocolgen-manifest=") => {
+                protocolgen_manifest = Some(PathBuf::from(
+                    arg.trim_start_matches("--protocolgen-manifest="),
+                ));
             }
             _ if arg.starts_with("--overrides=") => {
                 overrides = Some(PathBuf::from(arg.trim_start_matches("--overrides=")));
@@ -298,6 +315,7 @@ fn parse_args() -> Result<CliArgs, String> {
         bedrock_data,
         mojang_docs,
         endstone_docs,
+        protocolgen_manifest,
         overrides,
         output_dir,
         emit_wire_manifest,
@@ -315,8 +333,9 @@ fn parse_source(value: &str) -> Result<ProtocolSource, String> {
         "prismarine" => Ok(ProtocolSource::Prismarine),
         "mojang" => Ok(ProtocolSource::Mojang),
         "endstone" => Ok(ProtocolSource::Endstone),
+        "protocolgen" => Ok(ProtocolSource::Protocolgen),
         other => Err(format!(
-            "unknown protocol source {other:?}; expected prismarine or mojang"
+            "unknown protocol source {other:?}; expected prismarine, mojang, endstone, or protocolgen"
         )),
     }
 }
@@ -371,11 +390,124 @@ fn read_bedrock_version_json(
     Ok(meta)
 }
 
+fn generate_protocolgen_source(
+    args: &CliArgs,
+    root: &Path,
+    valentine_root: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if args.gen_items
+        || args.gen_blocks
+        || args.gen_block_states
+        || args.gen_entities
+        || args.gen_biomes
+    {
+        return Err(
+            "protocolgen provides protocol schemas only; use --source prismarine for block, item, entity and biome data"
+                .into(),
+        );
+    }
+    if args.emit_wire_manifest.is_some() {
+        return Err(
+            "--emit-wire-manifest is redundant for --source protocolgen because its input is already the canonical wire manifest"
+                .into(),
+        );
+    }
+
+    let manifest_path = args
+        .protocolgen_manifest
+        .clone()
+        .unwrap_or_else(|| PathBuf::from("protocolgen/generated/1.26.40/manifest.json"));
+    let manifest_path = if manifest_path.is_relative() {
+        root.join(&manifest_path)
+    } else {
+        manifest_path
+    };
+    let parsed = parser::protocolgen::parse(&manifest_path)?;
+
+    if args.list_versions {
+        println!(
+            "{} (protocol {})",
+            parsed.minecraft_version, parsed.protocol_version
+        );
+        return Ok(());
+    }
+    if args.all {
+        return Err("--all is not meaningful for a single protocolgen manifest".into());
+    }
+    if !args.versions.is_empty()
+        && !args
+            .versions
+            .iter()
+            .any(|version| version == &parsed.minecraft_version)
+    {
+        return Err(format!(
+            "protocolgen manifest is for {}, not requested version(s) {}",
+            parsed.minecraft_version,
+            args.versions.join(", ")
+        )
+        .into());
+    }
+
+    let module_name = version_to_module(&parsed.minecraft_version);
+    let feature = version_to_feature(&parsed.minecraft_version);
+    let crate_name = version_to_crate(&parsed.minecraft_version);
+    let crate_dir = valentine_root.join("bedrock_versions").join(&module_name);
+    let crate_src_dir = crate_dir.join("src");
+    fs::create_dir_all(&crate_src_dir)?;
+
+    let mut global_registry = GlobalRegistry::new();
+    let mut crate_dependencies = HashSet::new();
+    if args.gen_proto {
+        let outcome = generator::generate_protocol_module(
+            &crate_name,
+            "",
+            &parsed.result,
+            &crate_src_dir,
+            &mut global_registry,
+        )?;
+        crate_dependencies.extend(outcome.crate_dependencies);
+    }
+    write_version_crate(&crate_dir, &crate_src_dir, &crate_name, &crate_dependencies)?;
+
+    let mut version_decls = vec![VersionDecl {
+        module_name,
+        feature: feature.clone(),
+        crate_name,
+        meta: BedrockVersionJson {
+            protocol_version: parsed.protocol_version,
+            minecraft_version: parsed.minecraft_version,
+            major_version: String::new(),
+            release_type: "release".to_string(),
+        },
+    }];
+    version_decls[0].meta.major_version = version_decls[0]
+        .meta
+        .minecraft_version
+        .split('.')
+        .take(2)
+        .collect::<Vec<_>>()
+        .join(".");
+    for existing in read_existing_version_decls(valentine_root)? {
+        if !version_decls
+            .iter()
+            .any(|decl| decl.module_name == existing.module_name)
+        {
+            version_decls.push(existing);
+        }
+    }
+    version_decls.sort_by(|a, b| a.module_name.cmp(&b.module_name));
+    write_generated_surface(valentine_root, &version_decls, &feature)?;
+    Ok(())
+}
+
 fn generate_schema_source(
     args: &CliArgs,
     root: &Path,
     valentine_root: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    if args.source == ProtocolSource::Protocolgen {
+        return generate_protocolgen_source(args, root, valentine_root);
+    }
     if args.gen_items
         || args.gen_blocks
         || args.gen_block_states
@@ -1431,6 +1563,7 @@ mod generated_crate_tests {
             bedrock_data: None,
             mojang_docs: None,
             endstone_docs: None,
+            protocolgen_manifest: None,
             overrides: None,
             output_dir: Some(output.clone()),
             emit_wire_manifest: None,
@@ -1493,6 +1626,205 @@ mod generated_crate_tests {
             check.status.success(),
             "cargo check failed for generated crate:\n{}",
             String::from_utf8_lossy(&check.stderr)
+        );
+    }
+
+    #[test]
+    fn protocolgen_generation_compiles_and_preserves_resource_pack_wire_shape() {
+        let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock before UNIX_EPOCH")
+            .as_nanos();
+        let output = std::env::temp_dir().join(format!(
+            "valentine-protocolgen-wire-{}-{nonce}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&output);
+        fs::create_dir_all(&output).expect("create generated crate directory");
+
+        let manifest = output.join("canonical.json");
+        fs::write(
+            &manifest,
+            r#"{
+              "schema_version": 2,
+              "target": {"minecraft_version": "1.26.40", "protocol_version": 2168},
+              "packets": [
+                {
+                  "id": 0,
+                  "name": "LoginPacket",
+                  "fields": [{
+                    "ordinal": 0,
+                    "name": "Marker",
+                    "symmetry": "symmetric",
+                    "encode": {"kind": "primitive", "primitive": {"code": "u8"}}
+                  }]
+                },
+                {
+                "id": 8,
+                "name": "ResourcePackClientResponsePacket",
+                "fields": [{
+                  "ordinal": 0,
+                  "name": "Response",
+                  "symmetry": "symmetric",
+                  "encode": {
+                    "kind": "union",
+                    "control": {"kind": "primitive", "primitive": {"code": "i8"}},
+                    "variants": [
+                      {"value": 0, "name": "ResourcePackClientResponsePacketPayload::Cancel", "encode": {"kind": "struct", "type_id": "ResourcePackClientResponsePacketPayload::Cancel", "fields": [
+                        {"ordinal": 0, "name": "Response Type", "symmetry": "symmetric", "encode": {"kind": "string", "prefix": {"kind": "primitive", "primitive": {"code": "var_u32"}}, "encoding": "utf8"}}
+                      ]}},
+                      {"value": 1, "name": "ResourcePackClientResponsePacketPayload::Downloading", "encode": {"kind": "struct", "type_id": "ResourcePackClientResponsePacketPayload::Downloading", "fields": [
+                        {"ordinal": 0, "name": "Response Type", "symmetry": "symmetric", "encode": {"kind": "string", "prefix": {"kind": "primitive", "primitive": {"code": "var_u32"}}, "encoding": "utf8"}},
+                        {"ordinal": 1, "name": "Downloading Packs", "symmetry": "symmetric", "encode": {"kind": "array", "prefix": {"kind": "primitive", "primitive": {"code": "var_u32"}}, "element": {"kind": "string", "prefix": {"kind": "primitive", "primitive": {"code": "var_u32"}}, "encoding": "utf8"}}}
+                      ]}},
+                      {"value": 2, "name": "ResourcePackClientResponsePacketPayload::DownloadingFinished", "encode": {"kind": "struct", "type_id": "ResourcePackClientResponsePacketPayload::DownloadingFinished", "fields": [
+                        {"ordinal": 0, "name": "Response Type", "symmetry": "symmetric", "encode": {"kind": "string", "prefix": {"kind": "primitive", "primitive": {"code": "var_u32"}}, "encoding": "utf8"}}
+                      ]}},
+                      {"value": 3, "name": "ResourcePackClientResponsePacketPayload::ResourcePackStackFinished", "encode": {"kind": "struct", "type_id": "ResourcePackClientResponsePacketPayload::ResourcePackStackFinished", "fields": [
+                        {"ordinal": 0, "name": "Response Type", "symmetry": "symmetric", "encode": {"kind": "string", "prefix": {"kind": "primitive", "primitive": {"code": "var_u32"}}, "encoding": "utf8"}}
+                      ]}}
+                    ]
+                  }
+                }]
+              },
+                {
+                  "id": 9,
+                  "name": "BorrowedPayloadPacket",
+                  "fields": [{
+                    "ordinal": 0,
+                    "name": "Payload",
+                    "symmetry": "symmetric",
+                    "encode": {
+                      "kind": "bytes",
+                      "prefix": {"kind": "primitive", "primitive": {"code": "var_u32"}},
+                      "representation": "bytes"
+                    }
+                  }]
+                }]
+            }"#,
+        )
+        .expect("write canonical fixture");
+
+        let args = CliArgs {
+            source: ProtocolSource::Protocolgen,
+            versions: vec!["1.26.40".to_string()],
+            all: false,
+            latest: false,
+            list_versions: false,
+            log_filter: "error".to_string(),
+            minecraft_data: None,
+            bedrock_data: None,
+            mojang_docs: None,
+            endstone_docs: None,
+            protocolgen_manifest: Some(manifest),
+            overrides: None,
+            output_dir: Some(output.clone()),
+            emit_wire_manifest: None,
+            gen_proto: true,
+            gen_items: false,
+            gen_blocks: false,
+            gen_block_states: false,
+            gen_entities: false,
+            gen_biomes: false,
+        };
+        generate_schema_source(&args, manifest_dir, &output)
+            .expect("generate protocolgen temp crate");
+
+        let core_source = manifest_dir
+            .parent()
+            .expect("valentine_gen has a crate parent")
+            .join("valentine/bedrock_core");
+        copy_directory(&core_source, &output.join("bedrock_core"))
+            .expect("copy bedrock_core into generated temp crate");
+        fs::write(
+            output.join("Cargo.toml"),
+            "[workspace]\nresolver = \"2\"\nmembers = [\"bedrock_core\", \"bedrock_versions/v1_26_40\"]\n[workspace.package]\nedition = \"2024\"\n[workspace.dependencies]\nbytes = \"1\"\nuuid = { version = \"1.8.0\", features = [\"v4\"] }\n",
+        )
+        .expect("write temp workspace manifest");
+
+        let tests = output.join("bedrock_versions/v1_26_40/tests");
+        fs::create_dir_all(&tests).expect("create generated integration test directory");
+        fs::write(
+            tests.join("resource_pack_wire.rs"),
+            r#"use valentine_bedrock_1_26_40::{
+    BorrowedPayloadPacket,
+    BorrowedPayloadPacketView,
+    ResourcePackClientResponsePacket,
+    ResourcePackClientResponsePacketResponse,
+    bedrock::codec::BedrockCodec,
+};
+
+#[test]
+fn packet_eight_consumes_and_reencodes_the_exact_wire_shape() {
+    let bytes = [
+        1, 11, b'd', b'o', b'w', b'n', b'l', b'o', b'a', b'd', b'i', b'n', b'g',
+        2, 1, b'a', 1, b'b',
+    ];
+    let mut input = bytes.as_slice();
+    let packet = ResourcePackClientResponsePacket::decode(&mut input, ())
+        .expect("decode packet eight");
+    assert!(input.is_empty(), "{} trailing bytes", input.len());
+    let ResourcePackClientResponsePacketResponse::Downloading(payload) = &packet.response else {
+        panic!("expected downloading response");
+    };
+    assert_eq!(payload.response_type, "downloading");
+    assert_eq!(payload.downloading_packs, ["a", "b"]);
+    let mut encoded = Vec::new();
+    packet.encode(&mut encoded).expect("re-encode packet eight");
+    assert_eq!(encoded, bytes);
+}
+
+#[test]
+fn length_prefixed_bytes_decode_as_a_zero_copy_view() {
+    let source = bytes::Bytes::from_static(&[3, 0xaa, 0xbb, 0xcc]);
+    let mut owned_input = source.as_ref();
+    let decoded_owned = BorrowedPayloadPacket::decode(&mut owned_input, ())
+        .expect("decode owned payload");
+    assert!(owned_input.is_empty());
+    assert_eq!(decoded_owned.payload, vec![0xaa, 0xbb, 0xcc]);
+    let mut owned_encoded = Vec::new();
+    decoded_owned
+        .encode(&mut owned_encoded)
+        .expect("re-encode owned payload");
+    assert_eq!(owned_encoded, source.as_ref());
+
+    let mut input = source.clone();
+    let packet = BorrowedPayloadPacketView::decode(&mut input)
+        .expect("decode borrowed payload");
+
+    assert!(input.is_empty());
+    assert_eq!(packet.payload.as_ref(), &[0xaa, 0xbb, 0xcc]);
+    assert_eq!(packet.payload.as_ptr(), source.as_ptr().wrapping_add(1));
+
+    let mut encoded = Vec::new();
+    packet.encode(&mut encoded).expect("re-encode borrowed payload");
+    assert_eq!(encoded, source.as_ref());
+
+    let owned: BorrowedPayloadPacket = packet.into();
+    assert_eq!(owned.payload, vec![0xaa, 0xbb, 0xcc]);
+}
+"#,
+        )
+        .expect("write generated integration test");
+
+        let cargo = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
+        let test = Command::new(cargo)
+            .args([
+                "test",
+                "--offline",
+                "--manifest-path",
+                output.join("Cargo.toml").to_str().expect("UTF-8 temp path"),
+            ])
+            .env("RUSTC_WRAPPER", "")
+            .env("CARGO_NET_OFFLINE", "true")
+            .output()
+            .expect("run cargo test on generated protocolgen crate");
+        let _ = fs::remove_dir_all(&output);
+        assert!(
+            test.status.success(),
+            "generated protocolgen crate tests failed:\n{}",
+            String::from_utf8_lossy(&test.stderr)
         );
     }
 }

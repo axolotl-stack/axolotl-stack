@@ -190,8 +190,14 @@ fn generate_field_decode_expr(
             Primitive::VarInt => Ok(
                 quote! { <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 },
             ),
+            Primitive::VarUInt => Ok(
+                quote! { <crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 },
+            ),
             Primitive::VarLong => Ok(
                 quote! { <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 },
+            ),
+            Primitive::VarULong => Ok(
+                quote! { <crate::bedrock::codec::VarULong as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 },
             ),
             Primitive::ZigZag32 => Ok(
                 quote! { <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 },
@@ -251,8 +257,14 @@ fn generate_field_decode_expr(
                     Primitive::VarInt => {
                         quote! { <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
                     }
+                    Primitive::VarUInt => {
+                        quote! { <crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
                     Primitive::VarLong => {
                         quote! { <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::VarULong => {
+                        quote! { <crate::bedrock::codec::VarULong as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
                     }
                     Primitive::ZigZag32 => {
                         quote! { <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
@@ -331,8 +343,13 @@ fn generate_field_decode_expr(
 
             Ok(quote! {{
                 #len_logic
-                let mut tmp_vec = Vec::with_capacity(len);
+                let mut tmp_vec = crate::bedrock::codec::prepare_decode_vec(
+                    len,
+                    buf.remaining(),
+                    None,
+                )?;
                 for _ in 0..len {
+                    crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                     tmp_vec.push(#inner_decode);
                 }
                 tmp_vec
@@ -380,6 +397,14 @@ fn generate_field_decode_expr(
                 }})
             }
         }
+        Type::Bitset { bits } => {
+            let words = bits.div_ceil(64);
+            let words_lit = proc_macro2::Literal::usize_unsuffixed(words);
+            let bits_lit = proc_macro2::Literal::usize_unsuffixed(*bits);
+            Ok(quote! {
+                crate::bedrock::codec::decode_bitset::<_, #words_lit>(buf, #bits_lit)?
+            })
+        }
         Type::String {
             count_type,
             encoding,
@@ -389,8 +414,14 @@ fn generate_field_decode_expr(
                     Primitive::VarInt => {
                         quote! { <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
                     }
+                    Primitive::VarUInt => {
+                        quote! { <crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
                     Primitive::VarLong => {
                         quote! { <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::VarULong => {
+                        quote! { <crate::bedrock::codec::VarULong as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
                     }
                     Primitive::ZigZag32 => {
                         quote! { <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
@@ -494,8 +525,14 @@ fn generate_field_decode_expr(
                     Primitive::VarInt => {
                         quote! { <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
                     }
+                    Primitive::VarUInt => {
+                        quote! { <crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
                     Primitive::VarLong => {
                         quote! { <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
+                    }
+                    Primitive::VarULong => {
+                        quote! { <crate::bedrock::codec::VarULong as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
                     }
                     Primitive::ZigZag32 => {
                         quote! { <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 }
@@ -560,6 +597,21 @@ fn generate_field_decode_expr(
                     let len = (#len_read) as usize;
                 }
             };
+
+            if matches!(inner.as_ref(), Type::Primitive(Primitive::ByteArray)) {
+                return Ok(quote! {{
+                    #len_logic
+                    if buf.remaining() < len {
+                        return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                            declared: len,
+                            available: buf.remaining(),
+                        });
+                    }
+                    let mut value = vec![0u8; len];
+                    buf.copy_to_slice(&mut value);
+                    value
+                }});
+            }
 
             let inner_var_name = format!("{}Inner", var_name);
             let inner_decode = generate_field_decode_expr(
@@ -913,8 +965,14 @@ fn generate_length_prefix_size_expr(length_type: &Type, len_expr: TokenStream) -
             Primitive::VarInt => {
                 quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(#len_expr as i32)) }
             }
+            Primitive::VarUInt => {
+                quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(#len_expr as u32)) }
+            }
             Primitive::VarLong => {
                 quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarLong(#len_expr as i64)) }
+            }
+            Primitive::VarULong => {
+                quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarULong(#len_expr as u64)) }
             }
             Primitive::ZigZag32 => {
                 quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::ZigZag32(#len_expr as i32)) }
@@ -1050,6 +1108,17 @@ fn generate_field_size_expr(
                 Ok(quote! { (#items_expr).iter().map(|_item| { #inner_expr }).sum::<usize>() })
             }
         }
+        Type::Bitset { bits } => {
+            let bits_lit = proc_macro2::Literal::usize_unsuffixed(*bits);
+            let value_expr = if is_ref {
+                quote! { #access_expr }
+            } else {
+                quote! { &#access_expr }
+            };
+            Ok(quote! {
+                crate::bedrock::codec::bitset_encoded_size(#value_expr, #bits_lit)
+            })
+        }
         Type::String {
             count_type,
             encoding,
@@ -1077,6 +1146,19 @@ fn generate_field_size_expr(
             }
         }
         Type::Encapsulated { length_type, inner } => {
+            if matches!(inner.as_ref(), Type::Primitive(Primitive::ByteArray)) {
+                let value_expr = if is_ref {
+                    quote! { #access_expr }
+                } else {
+                    quote! { &#access_expr }
+                };
+                let len_size =
+                    generate_length_prefix_size_expr(length_type.as_ref(), quote! { _len });
+                return Ok(quote! {{
+                    let _len = (#value_expr).len();
+                    #len_size + _len
+                }});
+            }
             let inner_expr = generate_field_size_expr(
                 container_name,
                 &format!("{var_name}Encap"),
@@ -1124,8 +1206,14 @@ fn generate_field_size_expr(
                 Primitive::VarInt => {
                     quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(#owned_expr)) }
                 }
+                Primitive::VarUInt => {
+                    quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(#owned_expr)) }
+                }
                 Primitive::VarLong => {
                     quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarLong(#owned_expr)) }
+                }
+                Primitive::VarULong => {
+                    quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarULong(#owned_expr)) }
                 }
                 Primitive::ZigZag32 => {
                     quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::ZigZag32(#owned_expr)) }
@@ -1422,8 +1510,14 @@ fn generate_field_encode(
                     Primitive::VarInt => {
                         quote! { crate::bedrock::codec::VarInt(len as i32).encode(buf)?; }
                     }
+                    Primitive::VarUInt => {
+                        quote! { crate::bedrock::codec::VarUInt(len as u32).encode(buf)?; }
+                    }
                     Primitive::VarLong => {
                         quote! { crate::bedrock::codec::VarLong(len as i64).encode(buf)?; }
+                    }
+                    Primitive::VarULong => {
+                        quote! { crate::bedrock::codec::VarULong(len as u64).encode(buf)?; }
                     }
                     Primitive::ZigZag32 => {
                         quote! { crate::bedrock::codec::ZigZag32(len as i32).encode(buf)?; }
@@ -1528,6 +1622,17 @@ fn generate_field_encode(
                 })
             }
         }
+        Type::Bitset { bits } => {
+            let bits_lit = proc_macro2::Literal::usize_unsuffixed(*bits);
+            let value_expr = if is_ref {
+                quote! { #access_expr }
+            } else {
+                quote! { &#access_expr }
+            };
+            Ok(quote! {
+                crate::bedrock::codec::encode_bitset(#value_expr, #bits_lit, buf)?;
+            })
+        }
         Type::String {
             count_type,
             encoding,
@@ -1537,8 +1642,14 @@ fn generate_field_encode(
                     Primitive::VarInt => {
                         quote! { crate::bedrock::codec::VarInt(len as i32).encode(buf)?; }
                     }
+                    Primitive::VarUInt => {
+                        quote! { crate::bedrock::codec::VarUInt(len as u32).encode(buf)?; }
+                    }
                     Primitive::VarLong => {
                         quote! { crate::bedrock::codec::VarLong(len as i64).encode(buf)?; }
+                    }
+                    Primitive::VarULong => {
+                        quote! { crate::bedrock::codec::VarULong(len as u64).encode(buf)?; }
                     }
                     Primitive::ZigZag32 => {
                         quote! { crate::bedrock::codec::ZigZag32(len as i32).encode(buf)?; }
@@ -1616,8 +1727,14 @@ fn generate_field_encode(
                     Primitive::VarInt => {
                         quote! { crate::bedrock::codec::VarInt(len as i32).encode(buf)?; }
                     }
+                    Primitive::VarUInt => {
+                        quote! { crate::bedrock::codec::VarUInt(len as u32).encode(buf)?; }
+                    }
                     Primitive::VarLong => {
                         quote! { crate::bedrock::codec::VarLong(len as i64).encode(buf)?; }
+                    }
+                    Primitive::VarULong => {
+                        quote! { crate::bedrock::codec::VarULong(len as u64).encode(buf)?; }
                     }
                     Primitive::ZigZag32 => {
                         quote! { crate::bedrock::codec::ZigZag32(len as i32).encode(buf)?; }
@@ -1656,6 +1773,20 @@ fn generate_field_encode(
                 },
                 _ => quote! { (len as u32).encode(buf)?; },
             };
+
+            if matches!(inner.as_ref(), Type::Primitive(Primitive::ByteArray)) {
+                let value_expr = if is_ref {
+                    quote! { #access_expr }
+                } else {
+                    quote! { &#access_expr }
+                };
+                return Ok(quote! {
+                    let bytes = (#value_expr).as_slice();
+                    let len = bytes.len();
+                    #len_encode
+                    buf.put_slice(bytes);
+                });
+            }
 
             let inner_name = format!("{}Encap", var_name);
             let inner_body = generate_field_encode(
@@ -1721,8 +1852,14 @@ fn generate_field_encode(
                 Primitive::VarInt => {
                     Ok(quote! { crate::bedrock::codec::VarInt(#access_expr).encode(buf)?; })
                 }
+                Primitive::VarUInt => {
+                    Ok(quote! { crate::bedrock::codec::VarUInt(#access_expr).encode(buf)?; })
+                }
                 Primitive::VarLong => {
                     Ok(quote! { crate::bedrock::codec::VarLong(#access_expr).encode(buf)?; })
+                }
+                Primitive::VarULong => {
+                    Ok(quote! { crate::bedrock::codec::VarULong(#access_expr).encode(buf)?; })
                 }
                 Primitive::ZigZag32 => {
                     Ok(quote! { crate::bedrock::codec::ZigZag32(#access_expr).encode(buf)?; })
@@ -3121,7 +3258,9 @@ pub fn generate_enum_type_codec(
 
     let encode_logic = match underlying {
         Primitive::VarInt => quote! { crate::bedrock::codec::VarInt(val as i32).encode(buf) },
+        Primitive::VarUInt => quote! { crate::bedrock::codec::VarUInt(val as u32).encode(buf) },
         Primitive::VarLong => quote! { crate::bedrock::codec::VarLong(val as i64).encode(buf) },
+        Primitive::VarULong => quote! { crate::bedrock::codec::VarULong(val as u64).encode(buf) },
         Primitive::ZigZag32 => quote! { crate::bedrock::codec::ZigZag32(val as i32).encode(buf) },
         Primitive::ZigZag64 => quote! { crate::bedrock::codec::ZigZag64(val as i64).encode(buf) },
         Primitive::U16LE => quote! { crate::bedrock::codec::U16LE(val as u16).encode(buf) },
@@ -3140,8 +3279,16 @@ pub fn generate_enum_type_codec(
             let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
             let val = raw.0 as #repr_ty;
         },
+        Primitive::VarUInt => quote! {
+            let raw = <crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+            let val = raw.0 as #repr_ty;
+        },
         Primitive::VarLong => quote! {
             let raw = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+            let val = raw.0 as #repr_ty;
+        },
+        Primitive::VarULong => quote! {
+            let raw = <crate::bedrock::codec::VarULong as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
             let val = raw.0 as #repr_ty;
         },
         Primitive::ZigZag32 => quote! {
@@ -3202,8 +3349,14 @@ pub fn generate_enum_type_codec(
         Primitive::VarInt => {
             quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(_val as i32)) }
         }
+        Primitive::VarUInt => {
+            quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(_val as u32)) }
+        }
         Primitive::VarLong => {
             quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarLong(_val as i64)) }
+        }
+        Primitive::VarULong => {
+            quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarULong(_val as u64)) }
         }
         Primitive::ZigZag32 => {
             quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::ZigZag32(_val as i32)) }
@@ -3474,7 +3627,11 @@ fn union_control_encode(
 ) -> Result<TokenStream, Box<dyn std::error::Error>> {
     Ok(match primitive {
         Primitive::VarInt => quote! { crate::bedrock::codec::VarInt(#value as i32).encode(buf) },
+        Primitive::VarUInt => quote! { crate::bedrock::codec::VarUInt(#value as u32).encode(buf) },
         Primitive::VarLong => quote! { crate::bedrock::codec::VarLong(#value as i64).encode(buf) },
+        Primitive::VarULong => {
+            quote! { crate::bedrock::codec::VarULong(#value as u64).encode(buf) }
+        }
         Primitive::ZigZag32 => {
             quote! { crate::bedrock::codec::ZigZag32(#value as i32).encode(buf) }
         }
@@ -3509,8 +3666,14 @@ fn union_control_decode(primitive: &Primitive) -> Result<TokenStream, Box<dyn st
         Primitive::VarInt => quote! {
             let control_value = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 as i64;
         },
+        Primitive::VarUInt => quote! {
+            let control_value = <crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 as i64;
+        },
         Primitive::VarLong => quote! {
             let control_value = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0;
+        },
+        Primitive::VarULong => quote! {
+            let control_value = <crate::bedrock::codec::VarULong as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 as i64;
         },
         Primitive::ZigZag32 => quote! {
             let control_value = <crate::bedrock::codec::ZigZag32 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 as i64;
@@ -3601,7 +3764,9 @@ fn union_scalar_payload_encode(
 ) -> Result<TokenStream, Box<dyn std::error::Error>> {
     Ok(match primitive {
         Primitive::VarInt => quote! { crate::bedrock::codec::VarInt(*#value).encode(buf) },
+        Primitive::VarUInt => quote! { crate::bedrock::codec::VarUInt(*#value).encode(buf) },
         Primitive::VarLong => quote! { crate::bedrock::codec::VarLong(*#value).encode(buf) },
+        Primitive::VarULong => quote! { crate::bedrock::codec::VarULong(*#value).encode(buf) },
         Primitive::ZigZag32 => quote! { crate::bedrock::codec::ZigZag32(*#value).encode(buf) },
         Primitive::ZigZag64 => quote! { crate::bedrock::codec::ZigZag64(*#value).encode(buf) },
         Primitive::U16LE => quote! { crate::bedrock::codec::U16LE(*#value).encode(buf) },
@@ -3642,7 +3807,9 @@ fn union_scalar_payload_decode(
     };
     Ok(match primitive {
         Primitive::VarInt => newtype(quote! { crate::bedrock::codec::VarInt }),
+        Primitive::VarUInt => newtype(quote! { crate::bedrock::codec::VarUInt }),
         Primitive::VarLong => newtype(quote! { crate::bedrock::codec::VarLong }),
+        Primitive::VarULong => newtype(quote! { crate::bedrock::codec::VarULong }),
         Primitive::ZigZag32 => newtype(quote! { crate::bedrock::codec::ZigZag32 }),
         Primitive::ZigZag64 => newtype(quote! { crate::bedrock::codec::ZigZag64 }),
         Primitive::U16LE => newtype(quote! { crate::bedrock::codec::U16LE }),
@@ -3681,8 +3848,14 @@ fn union_control_size(
         Primitive::VarInt => {
             quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(#value as i32)) }
         }
+        Primitive::VarUInt => {
+            quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(#value as u32)) }
+        }
         Primitive::VarLong => {
             quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarLong(#value as i64)) }
+        }
+        Primitive::VarULong => {
+            quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarULong(#value as u64)) }
         }
         Primitive::ZigZag32 => {
             quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::ZigZag32(#value as i32)) }

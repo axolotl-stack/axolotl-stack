@@ -27,6 +27,7 @@ fn emit_inline_types_for_dedup(
         Type::Primitive(_)
         | Type::Reference(_)
         | Type::Enum { .. }
+        | Type::Bitset { .. }
         | Type::Bitfield { .. }
         | Type::Packed { .. } => Ok(()),
         Type::String { .. } => Ok(()),
@@ -114,6 +115,7 @@ pub fn fingerprint_type(t: &Type) -> String {
         Type::FixedArray { size, inner_type } => {
             format!("FA:{}:{}", size, fingerprint_type(inner_type.as_ref()))
         }
+        Type::Bitset { bits } => format!("BS:{bits}"),
         Type::Option(inner) => format!("O:({})", fingerprint_type(inner.as_ref())),
         Type::Switch {
             compare_to,
@@ -322,6 +324,11 @@ pub fn resolve_type_to_tokens(
                 resolve_type_to_tokens(inner_type, &format!("{}Item", clean_type_name(hint)), ctx)?;
             let size_lit = proc_macro2::Literal::usize_unsuffixed(*size);
             quote! { [#inner; #size_lit] }
+        }
+        Type::Bitset { bits } => {
+            let words = bits.div_ceil(64);
+            let words_lit = proc_macro2::Literal::usize_unsuffixed(words);
+            quote! { [u64; #words_lit] }
         }
         Type::Option(inner) => {
             let inner = resolve_type_to_tokens(inner, &clean_type_name(hint), ctx)?;
@@ -617,6 +624,11 @@ pub fn define_type(
             let size_lit = proc_macro2::Literal::usize_unsuffixed(*size);
             quote! { pub type #ident = [#inner_tokens; #size_lit]; }
         }
+        Type::Bitset { bits } => {
+            let words = bits.div_ceil(64);
+            let words_lit = proc_macro2::Literal::usize_unsuffixed(words);
+            quote! { pub type #ident = [u64; #words_lit]; }
+        }
         Type::Option(inner) => {
             let inner_tokens = resolve_type_to_tokens(inner, &safe_name_str, ctx)?;
             quote! { pub type #ident = Option<#inner_tokens>; }
@@ -889,8 +901,16 @@ pub fn define_type(
                      let raw = <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
                      let bits = raw.0 as #backing_type;
                 },
+                Primitive::VarUInt => quote! {
+                     let raw = <crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+                     let bits = raw.0 as #backing_type;
+                },
                 Primitive::VarLong => quote! {
                      let raw = <crate::bedrock::codec::VarLong as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+                     let bits = raw.0 as #backing_type;
+                },
+                Primitive::VarULong => quote! {
+                     let raw = <crate::bedrock::codec::VarULong as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
                      let bits = raw.0 as #backing_type;
                 },
                 Primitive::ZigZag32 => quote! {
@@ -943,8 +963,14 @@ pub fn define_type(
                 Primitive::VarInt => quote! {
                     crate::bedrock::codec::VarInt(val as i32).encode(buf)
                 },
+                Primitive::VarUInt => quote! {
+                    crate::bedrock::codec::VarUInt(val as u32).encode(buf)
+                },
                 Primitive::VarLong => quote! {
                     crate::bedrock::codec::VarLong(val as i64).encode(buf)
+                },
+                Primitive::VarULong => quote! {
+                    crate::bedrock::codec::VarULong(val as u64).encode(buf)
                 },
                 Primitive::ZigZag32 => quote! {
                     crate::bedrock::codec::ZigZag32(val as i32).encode(buf)
@@ -982,8 +1008,14 @@ pub fn define_type(
                 Primitive::VarInt => quote! {
                     crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(_val as i32))
                 },
+                Primitive::VarUInt => quote! {
+                    crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(_val as u32))
+                },
                 Primitive::VarLong => quote! {
                     crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarLong(_val as i64))
+                },
+                Primitive::VarULong => quote! {
+                    crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarULong(_val as u64))
                 },
                 Primitive::ZigZag32 => quote! {
                     crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::ZigZag32(_val as i32))

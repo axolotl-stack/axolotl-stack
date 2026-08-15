@@ -142,6 +142,7 @@ fn collect_deps_recursive(
         Type::FixedArray { inner_type, .. } => {
             collect_deps_recursive(inner_type, ctx, visited, deps);
         }
+        Type::Bitset { .. } => {}
         Type::String { count_type, .. } => {
             if let Type::Container(_) = count_type.as_ref() {
                 let mut tmp = DepMap::new();
@@ -175,6 +176,7 @@ pub fn should_box_variant(t: &Type, ctx: &Context, depth: usize) -> bool {
         },
         Type::Array { .. } => false,
         Type::FixedArray { .. } => false,
+        Type::Bitset { .. } => false,
         Type::String { .. } => false,
         Type::Encapsulated { .. } => false,
         Type::Reference(r) => {

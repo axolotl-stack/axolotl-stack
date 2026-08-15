@@ -56,6 +56,10 @@ pub enum WireOperation {
         length: usize,
         element: Vec<WireOperation>,
     },
+    Bitset {
+        field: String,
+        bits: usize,
+    },
     Option {
         field: String,
         /// Valentine options use a one-byte 0/1 presence marker. `Bool` is the
@@ -197,6 +201,10 @@ impl Expander<'_> {
                 length: *size,
                 element: self.ty(inner_type, &format!("{field}[]"))?,
             }]),
+            Type::Bitset { bits } => Ok(vec![WireOperation::Bitset {
+                field: field.to_string(),
+                bits: *bits,
+            }]),
             Type::Option(inner) => Ok(vec![WireOperation::Option {
                 field: field.to_string(),
                 presence: "Bool".to_string(),
@@ -335,6 +343,8 @@ fn primitive_name(primitive: &Primitive) -> &'static str {
         Primitive::F64LE => "F64LE",
         Primitive::VarInt => "VarInt",
         Primitive::VarLong => "VarLong",
+        Primitive::VarUInt => "VarUInt",
+        Primitive::VarULong => "VarULong",
         Primitive::ZigZag32 => "ZigZag32",
         Primitive::ZigZag64 => "ZigZag64",
         Primitive::Uuid => "Uuid",
