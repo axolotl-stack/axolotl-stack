@@ -606,11 +606,39 @@ impl BedrockCodec for VarUInt {
     type Args = ();
 
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        VarInt(self.0 as i32).encode(buf)
+        let mut value = self.0;
+        loop {
+            let mut byte = (value & 0x7f) as u8;
+            value >>= 7;
+            if value != 0 {
+                byte |= 0x80;
+            }
+            buf.put_u8(byte);
+            if value == 0 {
+                return Ok(());
+            }
+        }
     }
 
     fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, DecodeError> {
-        Ok(Self(VarInt::decode(buf, ())?.0 as u32))
+        let mut result = 0u32;
+        for shift in (0..35).step_by(7) {
+            if !buf.has_remaining() {
+                return Err(DecodeError::UnexpectedEof {
+                    needed: 1,
+                    available: 0,
+                });
+            }
+            let byte = buf.get_u8();
+            if shift == 28 && byte & 0xf0 != 0 {
+                return Err(DecodeError::VarIntTooLarge);
+            }
+            result |= u32::from(byte & 0x7f) << shift;
+            if byte & 0x80 == 0 {
+                return Ok(Self(result));
+            }
+        }
+        Err(DecodeError::VarIntTooLarge)
     }
 }
 
@@ -627,11 +655,39 @@ impl BedrockCodec for VarULong {
     type Args = ();
 
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        VarLong(self.0 as i64).encode(buf)
+        let mut value = self.0;
+        loop {
+            let mut byte = (value & 0x7f) as u8;
+            value >>= 7;
+            if value != 0 {
+                byte |= 0x80;
+            }
+            buf.put_u8(byte);
+            if value == 0 {
+                return Ok(());
+            }
+        }
     }
 
     fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, DecodeError> {
-        Ok(Self(VarLong::decode(buf, ())?.0 as u64))
+        let mut result = 0u64;
+        for shift in (0..70).step_by(7) {
+            if !buf.has_remaining() {
+                return Err(DecodeError::UnexpectedEof {
+                    needed: 1,
+                    available: 0,
+                });
+            }
+            let byte = buf.get_u8();
+            if shift == 63 && byte & 0xfe != 0 {
+                return Err(DecodeError::VarLongTooLarge);
+            }
+            result |= u64::from(byte & 0x7f) << shift;
+            if byte & 0x80 == 0 {
+                return Ok(Self(result));
+            }
+        }
+        Err(DecodeError::VarLongTooLarge)
     }
 }
 
@@ -1258,6 +1314,21 @@ mod tests {
             VarULong(u64::MAX)
         );
         assert!(!u64_input.has_remaining());
+    }
+
+    #[test]
+    fn unsigned_varints_reject_payload_bits_beyond_their_width() {
+        let mut u32_input = &[0xff, 0xff, 0xff, 0xff, 0x7f][..];
+        assert!(matches!(
+            VarUInt::decode(&mut u32_input, ()),
+            Err(DecodeError::VarIntTooLarge)
+        ));
+
+        let mut u64_input = &[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f][..];
+        assert!(matches!(
+            VarULong::decode(&mut u64_input, ()),
+            Err(DecodeError::VarLongTooLarge)
+        ));
     }
 
     // ========== String Tests ==========
