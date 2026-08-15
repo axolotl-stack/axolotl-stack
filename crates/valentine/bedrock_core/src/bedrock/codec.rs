@@ -683,6 +683,9 @@ impl BedrockCodec for VarUInt {
             }
             result |= u32::from(byte & 0x7f) << shift;
             if byte & 0x80 == 0 {
+                if shift > 0 && byte & 0x7f == 0 {
+                    return Err(DecodeError::VarIntTooLarge);
+                }
                 return Ok(Self(result));
             }
         }
@@ -732,6 +735,9 @@ impl BedrockCodec for VarULong {
             }
             result |= u64::from(byte & 0x7f) << shift;
             if byte & 0x80 == 0 {
+                if shift > 0 && byte & 0x7f == 0 {
+                    return Err(DecodeError::VarLongTooLarge);
+                }
                 return Ok(Self(result));
             }
         }
@@ -1383,6 +1389,21 @@ mod tests {
         ));
 
         let mut u64_input = &[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f][..];
+        assert!(matches!(
+            VarULong::decode(&mut u64_input, ()),
+            Err(DecodeError::VarLongTooLarge)
+        ));
+    }
+
+    #[test]
+    fn unsigned_varints_reject_noncanonical_overlong_encodings() {
+        let mut u32_input = &[0x80, 0x00][..];
+        assert!(matches!(
+            VarUInt::decode(&mut u32_input, ()),
+            Err(DecodeError::VarIntTooLarge)
+        ));
+
+        let mut u64_input = &[0x80, 0x00][..];
         assert!(matches!(
             VarULong::decode(&mut u64_input, ()),
             Err(DecodeError::VarLongTooLarge)
