@@ -212,12 +212,12 @@ fn lower_node(node: CanonicalNode, types: &mut HashMap<String, Type>) -> Result<
                     .collect::<Result<_, _>>()?,
             })
         }
-        "bytes" => Type::Array {
-            count_type: Box::new(lower_node(
+        "bytes" => Type::Encapsulated {
+            length_type: Box::new(lower_node(
                 *node.prefix.ok_or("protocolgen bytes node has no prefix")?,
                 types,
             )?),
-            inner_type: Box::new(Type::Primitive(Primitive::U8)),
+            inner: Box::new(Type::Primitive(Primitive::ByteArray)),
         },
         "fixed_array" => Type::FixedArray {
             size: node
@@ -543,6 +543,29 @@ mod tests {
         };
         let error = lower_node(invalid_enum, &mut HashMap::new()).unwrap_err();
         assert!(error.contains("does not fit U8"), "{error}");
+    }
+
+    #[test]
+    fn lowers_prefixed_bytes_as_an_encapsulated_raw_buffer() {
+        let bytes = CanonicalNode {
+            kind: "bytes".to_string(),
+            prefix: Some(Box::new(CanonicalNode {
+                kind: "primitive".to_string(),
+                primitive: Some(PrimitiveShape {
+                    code: "var_u32".to_string(),
+                }),
+                ..Default::default()
+            })),
+            ..Default::default()
+        };
+
+        assert_eq!(
+            lower_node(bytes, &mut HashMap::new()).unwrap(),
+            Type::Encapsulated {
+                length_type: Box::new(Type::Primitive(Primitive::VarUInt)),
+                inner: Box::new(Type::Primitive(Primitive::ByteArray)),
+            }
+        );
     }
 
     #[test]
