@@ -940,7 +940,11 @@ impl BorrowedGenerator<'_, '_> {
                 Ok(quote! {
                     {
                         let len = #len_decode;
-                        let mut values = crate::bedrock::codec::prepare_decode_vec();
+                        let mut values = crate::bedrock::codec::prepare_decode_vec(
+                            len,
+                            bytes::Buf::remaining(&*#buf_ident),
+                            None,
+                        )?;
                         for _ in 0..len {
                             crate::bedrock::codec::reserve_decode_item(&mut values)?;
                             values.push(#inner_decode);

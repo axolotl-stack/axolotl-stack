@@ -26,10 +26,35 @@ fn allocation_failed(requested: usize) -> DecodeError {
     ))
 }
 
-/// Creates lazy storage for a decoded collection without trusting an
-/// untrusted wire count for eager allocation.
-pub fn prepare_decode_vec<T>() -> Vec<T> {
-    Vec::new()
+/// Creates storage for a decoded collection after applying any statically known
+/// lower bound on the encoded size of each item.
+pub fn prepare_decode_vec<T>(
+    len: usize,
+    remaining: usize,
+    minimum_element_size: Option<usize>,
+) -> Result<Vec<T>, DecodeError> {
+    if let Some(minimum_element_size) = minimum_element_size.filter(|size| *size > 0) {
+        let required =
+            len.checked_mul(minimum_element_size)
+                .ok_or(DecodeError::ArrayLengthExceeded {
+                    declared: len,
+                    available: remaining,
+                })?;
+        if required > remaining {
+            return Err(DecodeError::ArrayLengthExceeded {
+                declared: len,
+                available: remaining,
+            });
+        }
+
+        let mut values = Vec::new();
+        values
+            .try_reserve_exact(len)
+            .map_err(|_| allocation_failed(len))?;
+        return Ok(values);
+    }
+
+    Ok(Vec::new())
 }
 
 /// Ensures one more decoded item can be pushed without an infallible allocator path.
@@ -1092,7 +1117,7 @@ mod tests {
 
     #[test]
     fn decoded_collections_do_not_eagerly_trust_wire_counts() {
-        let mut values: Vec<u64> = prepare_decode_vec();
+        let mut values: Vec<u64> = prepare_decode_vec(1_000_000, 0, None).expect("lazy storage");
         assert_eq!(values.capacity(), 0);
 
         reserve_decode_item(&mut values).expect("reserve first decoded item");

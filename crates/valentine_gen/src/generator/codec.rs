@@ -343,7 +343,11 @@ fn generate_field_decode_expr(
 
             Ok(quote! {{
                 #len_logic
-                let mut tmp_vec = crate::bedrock::codec::prepare_decode_vec();
+                let mut tmp_vec = crate::bedrock::codec::prepare_decode_vec(
+                    len,
+                    buf.remaining(),
+                    None,
+                )?;
                 for _ in 0..len {
                     crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                     tmp_vec.push(#inner_decode);
