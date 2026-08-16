@@ -6,12 +6,12 @@
 //! on decode and is re-encoded as `EF BF BD`; encode and decode corrupt
 //! symmetrically and `assert_eq!(value, decoded)` still passes. The assertions
 //! below therefore check the *encoded bytes*, not just the round-trip.
-#![cfg(feature = "bedrock_1_26_40")]
+#![cfg(feature = "bedrock_1_26_44")]
 
 use bytes::{Buf, BytesMut};
 
 use valentine::bedrock::codec::BedrockCodec;
-use valentine::bedrock::protocol::v1_26_40::{
+use valentine::bedrock::protocol::v1_26_44::{
     ChunkPos, DimensionType, GameRule, GameRuleRuleValue, LevelChunkPacket,
 };
 

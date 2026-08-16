@@ -9,14 +9,14 @@ on:
   pull_request:
     paths:
       - "crates/valentine_gen/**"
-      - "crates/valentine/bedrock_versions/v1_26_40/**"
+      - "crates/valentine/bedrock_versions/v1_26_44/**"
       - "crates/valentine/src/bedrock/**"
       - ".github/workflows/wire-conformance.yml"
   push:
     branches: [main]
     paths:
       - "crates/valentine_gen/**"
-      - "crates/valentine/bedrock_versions/v1_26_40/**"
+      - "crates/valentine/bedrock_versions/v1_26_44/**"
       - "crates/valentine/src/bedrock/**"
   workflow_dispatch:
 
@@ -57,12 +57,12 @@ jobs:
           cargo run -p valentine_gen -- --latest
           cargo fmt --all
           git diff --exit-code -- \
-            crates/valentine/bedrock_versions/v1_26_40 \
+            crates/valentine/bedrock_versions/v1_26_44 \
             crates/valentine/src/bedrock \
             crates/valentine/Cargo.toml
 
       - name: Verify generated protocol crate
-        run: cargo check -p valentine --no-default-features --features bedrock_1_26_40
+        run: cargo check -p valentine --no-default-features --features bedrock_1_26_44
 
       - name: Upload oracle report
         if: always()

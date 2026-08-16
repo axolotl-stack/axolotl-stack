@@ -3,7 +3,7 @@ use criterion::{BatchSize, Criterion, black_box, criterion_group, criterion_main
 
 use valentine::bedrock::borrowed::RawMcpeFrame;
 use valentine::bedrock::codec::{BedrockCodec, BedrockSized};
-use valentine::bedrock::version::v1_26_40::*;
+use valentine::bedrock::version::v1_26_44::*;
 use valentine_bedrock_core::bedrock::codec::Nbt;
 
 fn sample_disconnect_packet() -> DisconnectPacket {
@@ -64,7 +64,7 @@ fn sample_start_game_packet() -> StartGamePacket {
             block_definition: Nbt::default(),
         }],
         multiplayer_correlation_id: "".to_string(),
-        server_version: "1.26.40".to_string(),
+        server_version: "1.26.44".to_string(),
         world_template_id: uuid::Uuid::nil(),
         ..Default::default()
     }

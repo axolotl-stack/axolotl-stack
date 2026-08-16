@@ -12,7 +12,7 @@ git submodule update --init --recursive
 ```
 
 The pinned protocolgen submodule is the default source. This command regenerates
-the checked-in 1.26.40 protocol crate from its canonical manifest:
+the checked-in 1.26.44 protocol crate from its canonical manifest:
 
 ```bash
 cargo run -p valentine_gen -- --latest
@@ -53,7 +53,14 @@ target. `--overrides <DIR>` similarly selects an alternate correction set.
 
 ## Mojang version mapping and pin policy
 
-The `bedrock-protocol-docs` gitlink is
+The 1.26.44 protocolgen manifest is a fingerprinted same-protocol hotfix derived
+from the reconciled 1.26.40 manifest. Both versions use protocol 2168; 1.26.44
+adds one outer presence marker around `RemoveScore.objective_name`, producing a
+Rust `Option<Option<String>>`. The hotfix pins exact Mojang, Cloudburst, and
+Lunar evidence in protocolgen rather than guessing from the unchanged protocol
+number.
+
+The legacy `bedrock-protocol-docs` gitlink used to build the 1.26.40 base is
 `0e00fe80f4f3c71572ff6429de40146d1f4412fc` (`automated/1.26.40`). Its schemas
 stamp `x-minecraft-version: 1.26.40-beta.0` and `x-protocol-version: 2168`;
 Valentine normalizes the prerelease metadata suffix to crate/module version
@@ -61,7 +68,7 @@ Valentine normalizes the prerelease metadata suffix to crate/module version
 
 This is intentionally not Mojang main/`r/26_u4` (1.26.50/protocol 2169).
 Cinnabar is a client and must advertise the protocol accepted by live 1.26.40
-servers. A 1.26.40 server rejects RequestNetworkSettings advertising 2169, and
+through 1.26.44 servers. Those servers reject RequestNetworkSettings advertising 2169, and
 using the newer layouts would also misparse TextData and persona animated
 texture enums. Cinnabar's preceding target is protocol 1001, verified against
 live BDS 1.26.32.2; protocol 2168 is its next interoperable target. Both

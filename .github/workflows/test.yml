@@ -39,7 +39,7 @@ jobs:
           cargo run -p valentine_gen -- --latest
           cargo fmt --all
           git diff --exit-code -- \
-            crates/valentine/bedrock_versions/v1_26_40 \
+            crates/valentine/bedrock_versions/v1_26_44 \
             crates/valentine/src/bedrock \
             crates/valentine/Cargo.toml
 

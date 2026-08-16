@@ -15,7 +15,7 @@ use jolyne::valentine::{
 };
 use tracing::{info, warn};
 
-// The generated 1.26.40 MovePlayer payload exposes these legacy enum fields as
+// The generated 1.26.44 MovePlayer payload exposes these legacy enum fields as
 // raw i32 values. These are the wire values of Command and Player from the
 // previous pre-generated facade.
 const MOVE_PLAYER_TELEPORT_CAUSE_COMMAND: i32 = 3;

@@ -112,7 +112,7 @@ OTHER OPTIONS:
   --endstone-docs <DIR>   Path to an endstone protocol-docs checkout (defaults to ./endstone-docs)
   --protocolgen-manifest <FILE>
                          Path to a protocolgen canonical manifest v2
-                         (defaults to ./protocolgen/generated/1.26.40/manifest.json)
+                         (defaults to ./protocolgen/generated/1.26.44/manifest.json)
   --overrides <DIR>       Mojang correction JSON directory (defaults to ./overrides)
   --output-dir <DIR>      Valentine output root (Prismarine defaults to ../valentine; required for Mojang)
   --emit-wire-manifest <FILE>
@@ -416,7 +416,7 @@ fn generate_protocolgen_source(
     let manifest_path = args
         .protocolgen_manifest
         .clone()
-        .unwrap_or_else(|| PathBuf::from("protocolgen/generated/1.26.40/manifest.json"));
+        .unwrap_or_else(|| PathBuf::from("protocolgen/generated/1.26.44/manifest.json"));
     let manifest_path = if manifest_path.is_relative() {
         root.join(&manifest_path)
     } else {

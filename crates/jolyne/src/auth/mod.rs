@@ -30,7 +30,7 @@ use types::{AuthInfo, AuthenticationType};
 use tracing::instrument;
 
 /// Decodes the length-prefixed authentication payload carried by the
-/// protocolgen 1.26.40 `LoginPacket.connection_request` field.
+/// protocolgen 1.26.44 `LoginPacket.connection_request` field.
 #[cfg(feature = "server")]
 pub fn decode_login_request(payload: &[u8]) -> Result<(String, String), JolyneError> {
     fn read_i32(payload: &[u8], offset: &mut usize) -> Result<i32, JolyneError> {

@@ -97,7 +97,7 @@ jobs:
       - name: Regenerate gameplay data only
         if: steps.prismarine.outputs.changed == 'true'
         # Data flags only. Prismarine is selected explicitly and must not write
-        # protocol code over the protocolgen-generated 1.26.40 surface.
+        # protocol code over the protocolgen-generated 1.26.44 surface.
         run: |
           set -euo pipefail
           cargo run -p valentine_gen -- --source prismarine --latest \

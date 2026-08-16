@@ -72,7 +72,7 @@ jobs:
         run: |
           cargo run -p valentine_gen -- --latest
           cargo fmt --all
-          cargo check -p valentine --no-default-features --features bedrock_1_26_40
+          cargo check -p valentine --no-default-features --features bedrock_1_26_44
 
       - name: Open the regenerated protocol pull request
         if: steps.protocolgen.outputs.changed == 'true'

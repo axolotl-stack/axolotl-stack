@@ -450,7 +450,7 @@ use crate::world::ecs::{ChunkData, ChunkViewers};
 use jolyne::valentine::{LevelEventPacket, LevelSoundEventPacket};
 
 // Level event identifiers are the protocol constants used by Dragonfly and
-// gophertunnel. Protocolgen 1.26.40 intentionally exposes this packet's event
+// gophertunnel. Protocolgen 1.26.44 intentionally exposes this packet's event
 // field as the canonical i32 rather than carrying the legacy enum wrapper.
 const LEVEL_EVENT_BLOCK_BREAK_SPEED: i32 = 3602;
 const LEVEL_EVENT_PARTICLE_PUNCH_BLOCK: i32 = 2014;

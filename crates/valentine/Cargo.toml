@@ -12,6 +12,7 @@ valentine_bedrock_core.workspace = true
 valentine_bedrock_1_26_0 = { path = "bedrock_versions/v1_26_0", optional = true }
 valentine_bedrock_1_26_30 = { path = "bedrock_versions/v1_26_30", optional = true }
 valentine_bedrock_1_26_40 = { path = "bedrock_versions/v1_26_40", optional = true }
+valentine_bedrock_1_26_44 = { path = "bedrock_versions/v1_26_44", optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "time"] }
@@ -23,16 +24,17 @@ anyhow.workspace = true
 criterion.workspace = true
 
 [features]
-default = ["bedrock_1_26_40"]
+default = ["bedrock_1_26_44"]
 bedrock_1_26_0 = ["dep:valentine_bedrock_1_26_0"]
 bedrock_1_26_30 = ["dep:valentine_bedrock_1_26_30"]
 bedrock_1_26_40 = ["dep:valentine_bedrock_1_26_40"]
+bedrock_1_26_44 = ["dep:valentine_bedrock_1_26_44"]
 
 [[bench]]
 name = "codec"
 harness = false
-required-features = ["bedrock_1_26_40"]
+required-features = ["bedrock_1_26_44"]
 
 [[example]]
 name = "raknet_first_packet"
-required-features = ["bedrock_1_26_40"]
+required-features = ["bedrock_1_26_44"]

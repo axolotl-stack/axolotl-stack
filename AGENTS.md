@@ -31,7 +31,7 @@
 ## Workspace Map
 - `crates/valentine`: Bedrock protocol surface used by the rest of the workspace.
 - `crates/valentine/bedrock_core`: Shared Bedrock codec/runtime primitives and errors.
-- `crates/valentine/bedrock_versions/v1_26_0`: Checked-in generated protocol/data crate for the current version.
+- `crates/valentine/bedrock_versions/v1_26_44`: Checked-in generated protocol/data crate for the current version.
 - `crates/valentine_gen`: Bedrock protocol/data generator.
 - `crates/jolyne`: Higher-level protocol engine/state handling.
 - `crates/tokio-raknet`: Async RakNet transport.
@@ -47,7 +47,7 @@
 
 ## Protocol And Codegen Notes
 - Primary protocol work lives in `crates/valentine` and `crates/valentine_gen`.
-- The default protocol input is the pinned protocolgen canonical manifest under `crates/valentine_gen/protocolgen/generated/1.26.40/manifest.json`.
+- The default protocol input is the pinned protocolgen canonical manifest under `crates/valentine_gen/protocolgen/generated/1.26.44/manifest.json`.
 - Legacy protocol and data inputs live under `crates/valentine_gen/minecraft-data`, `crates/valentine_gen/bedrock-data`, `crates/valentine_gen/bedrock-protocol-docs`, and `crates/valentine_gen/endstone-docs`.
 - The generator should have distinct phases:
   - parse schema input into IR
@@ -61,7 +61,7 @@
 
 ## Valentine Notes
 - `valentine` re-exports generated version crates behind feature flags.
-- The checked-in workspace currently exposes `bedrock_1_26_0`.
+- The checked-in workspace currently defaults to `bedrock_1_26_44`.
 - Prefer importing from `valentine::bedrock::version::vX_Y_Z` in application code unless the raw generated crate is specifically needed.
 - Bedrock strings are intentionally decoded lossily for wire compatibility with existing ecosystem behavior such as `gophertunnel`.
 

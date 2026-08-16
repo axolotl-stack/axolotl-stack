@@ -228,7 +228,7 @@ pub fn generate_self_signed_chain(
 }
 
 /// Encodes the authentication JSON and client-data JWT into the raw
-/// `LoginPacket.connection_request` wire payload used by Bedrock 1.26.40.
+/// `LoginPacket.connection_request` wire payload used by Bedrock 1.26.44.
 ///
 /// The protocol prefixes both values with little-endian signed 32-bit byte
 /// lengths. The authentication JSON bytes are preserved exactly, matching

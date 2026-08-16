@@ -13,3 +13,5 @@ pub use valentine_bedrock_1_26_0 as v1_26_0;
 pub use valentine_bedrock_1_26_30 as v1_26_30;
 #[cfg(feature = "bedrock_1_26_40")]
 pub use valentine_bedrock_1_26_40 as v1_26_40;
+#[cfg(feature = "bedrock_1_26_44")]
+pub use valentine_bedrock_1_26_44 as v1_26_44;
