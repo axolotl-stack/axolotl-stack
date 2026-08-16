@@ -89,7 +89,7 @@ fn main() {
                 .display()
         );
 
-        println!("cargo:rustc-link-lib=static=zlib");
+        println!("cargo:rustc-link-lib=static=zs");
         println!("cargo:rustc-link-lib=static=snappy");
     } else if cfg!(target_os = "linux") {
         // Add multiarch lib path (e.g. /usr/lib/x86_64-linux-gnu) where

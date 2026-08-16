@@ -152,7 +152,7 @@ impl GameServer {
                 };
 
                 let is_click_block = pk.transaction.transaction_type
-                    == TransactionTransactionType::ItemUse
+                    == Some(TransactionTransactionType::ItemUse)
                     && matches!(
                         &pk.transaction.transaction_data,
                         Some(TransactionTransactionData::ItemUse(use_item))

@@ -103,9 +103,9 @@ fn handle_subchunk_request(
     let mut entries = Vec::with_capacity(req.requests.len().min(MAX_SUBCHUNK_REQUESTS));
 
     for offset in req.requests.iter().take(MAX_SUBCHUNK_REQUESTS) {
-        let sub_y = origin.y + offset.dy as i32;
-        let target_chunk_x = chunk_x + offset.dx as i32;
-        let target_chunk_z = chunk_z + offset.dz as i32;
+        let sub_y = origin.y + offset.y as i32;
+        let target_chunk_x = chunk_x + offset.x as i32;
+        let target_chunk_z = chunk_z + offset.z as i32;
 
         served_chunks.insert((target_chunk_x, target_chunk_z));
 
@@ -114,9 +114,9 @@ fn handle_subchunk_request(
 
         if sub_y < min_sub_y || sub_y > max_sub_y {
             entries.push(SubChunkEntryWithoutCachingItem {
-                dx: offset.dx,
-                dy: offset.dy,
-                dz: offset.dz,
+                dx: offset.x,
+                dy: offset.y,
+                dz: offset.z,
                 result: SubChunkEntryWithoutCachingItemResult::YIndexOutOfBounds,
                 payload: vec![],
                 heightmap_type: HeightMapDataType::TooLow,
@@ -131,9 +131,9 @@ fn handle_subchunk_request(
 
         let Some(chunk_entity) = chunk_entity else {
             entries.push(SubChunkEntryWithoutCachingItem {
-                dx: offset.dx,
-                dy: offset.dy,
-                dz: offset.dz,
+                dx: offset.x,
+                dy: offset.y,
+                dz: offset.z,
                 result: SubChunkEntryWithoutCachingItemResult::SuccessAllAir,
                 payload: vec![],
                 heightmap_type: HeightMapDataType::TooLow,
@@ -147,9 +147,9 @@ fn handle_subchunk_request(
         let Ok(chunk_data) = chunk_data_q.get(chunk_entity) else {
             trace!(chunk = ?(target_chunk_x, target_chunk_z), "SubChunkRequest for loading chunk");
             entries.push(SubChunkEntryWithoutCachingItem {
-                dx: offset.dx,
-                dy: offset.dy,
-                dz: offset.dz,
+                dx: offset.x,
+                dy: offset.y,
+                dz: offset.z,
                 result: SubChunkEntryWithoutCachingItemResult::ChunkNotFound,
                 payload: vec![],
                 heightmap_type: HeightMapDataType::TooLow,
@@ -196,9 +196,9 @@ fn handle_subchunk_request(
         };
 
         entries.push(SubChunkEntryWithoutCachingItem {
-            dx: offset.dx,
-            dy: offset.dy,
-            dz: offset.dz,
+            dx: offset.x,
+            dy: offset.y,
+            dz: offset.z,
             result,
             payload: subchunk_data,
             heightmap_type: hm_type,

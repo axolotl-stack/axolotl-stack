@@ -19,7 +19,7 @@ bytes.workspace = true
 thiserror = "1.0"  # Keep at 1.0 for now - jolyne uses thiserror 1.x API
 tokio-raknet = { workspace = true, optional = true }
 tokio-nethernet = { workspace = true, optional = true }
-valentine = { workspace = true, features = ["bedrock_1_26_30"] }
+valentine = { workspace = true, default-features = false, features = ["bedrock_1_26_30"] }
 flate2.workspace = true
 snap.workspace = true
 futures.workspace = true

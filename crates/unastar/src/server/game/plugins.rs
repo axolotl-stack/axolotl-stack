@@ -52,7 +52,7 @@ pub fn process_plugin_actions(
                     player_pos.0 = new_pos;
 
                     let packet = MovePlayerPacket {
-                        runtime_id: rid.0 as i32,
+                        runtime_id: rid.0 as u64,
                         position: Vec3F {
                             x: pos.0 as f32,
                             y: pos.1 as f32,
@@ -81,9 +81,7 @@ pub fn process_plugin_actions(
                 count,
             } => {
                 use crate::item::ItemStack;
-                use jolyne::valentine::types::{
-                    ContainerSlotType, FullContainerName, Item, ItemContent, ItemContentExtra,
-                };
+                use jolyne::valentine::types::{ContainerSlotType, FullContainerName, ItemNew};
                 use jolyne::valentine::{InventorySlotPacket, WindowIdVarint};
 
                 if let Ok((_, _, _, session, mut inv)) = players.get_mut(entity) {
@@ -116,26 +114,30 @@ pub fn process_plugin_actions(
                                 0
                             };
 
-                        let protocol_item = Item {
+                        let Ok(network_id) = i16::try_from(network_id) else {
+                            warn!(
+                                item_id,
+                                network_id, "Item network ID exceeds protocol range"
+                            );
+                            continue;
+                        };
+                        let protocol_item = ItemNew {
                             network_id,
-                            content: Some(Box::new(ItemContent {
-                                count: effective_count as u16,
-                                metadata: 0,
-                                has_stack_id: 0,
-                                stack_id: None,
-                                block_runtime_id,
-                                extra: ItemContentExtra::Default(Default::default()),
-                            })),
+                            count: effective_count as u16,
+                            metadata: 0,
+                            stack_id: None,
+                            block_runtime_id,
+                            extra: Default::default(),
                         };
 
                         let slot_packet = InventorySlotPacket {
                             window_id: WindowIdVarint::Inventory,
                             slot: empty_slot as i32,
-                            container: FullContainerName {
+                            container: Some(FullContainerName {
                                 container_id: ContainerSlotType::HotbarAndInventory,
                                 dynamic_container_id: None,
-                            },
-                            storage_item: protocol_item.clone(),
+                            }),
+                            storage_item: Some(protocol_item.clone()),
                             item: protocol_item,
                         };
                         let _ = session.send(McpePacket::from(slot_packet));
@@ -245,12 +247,7 @@ mod tests {
         let McpePacketData::PacketInventorySlot(slot_packet) = packet.data else {
             panic!("expected inventory slot packet");
         };
-        let content = slot_packet
-            .item
-            .content
-            .as_ref()
-            .expect("packet item content");
-        assert_eq!(content.count, 16);
+        assert_eq!(slot_packet.item.count, 16);
     }
 
     fn limited_item_registry() -> ItemRegistry {

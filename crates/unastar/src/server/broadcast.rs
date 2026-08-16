@@ -119,7 +119,7 @@ fn build_move_player_packet(
     on_ground: bool,
 ) -> MovePlayerPacket {
     MovePlayerPacket {
-        runtime_id: runtime_id as i32,
+        runtime_id: runtime_id as u64,
         position: Vec3F {
             x: position.0.x as f32,
             y: position.0.y as f32,
@@ -421,7 +421,6 @@ pub fn cleanup_despawned_entities(
 use crate::entity::components::BreakingState;
 use crate::world::ChunkManager;
 use crate::world::ecs::{ChunkData, ChunkViewers};
-use jolyne::valentine::types::SoundType;
 use jolyne::valentine::{LevelEventPacket, LevelEventPacketEvent, LevelSoundEventPacket};
 
 /// System: Tick block breaking state for all players.
@@ -502,7 +501,7 @@ pub fn tick_block_breaking(
 
             // Build breaking sound (SoundType::Hit with block data)
             let sound_event = LevelSoundEventPacket {
-                sound_id: SoundType::Hit,
+                sound_id: "hit".to_owned(),
                 position: Vec3F {
                     x: x as f32 + 0.5,
                     y: y as f32 + 0.5,
@@ -513,6 +512,7 @@ pub fn tick_block_breaking(
                 is_baby_mob: false,
                 is_global: false,
                 entity_unique_id: 0,
+                fire_at_position: None,
             };
 
             // Broadcast to all chunk viewers including breaking player

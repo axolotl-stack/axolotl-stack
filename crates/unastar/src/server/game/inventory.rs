@@ -306,13 +306,15 @@ fn handle_inventory_transaction(
     info!(transaction_type = ?transaction.transaction_type, "InventoryTransaction");
 
     match transaction.transaction_type {
-        TransactionTransactionType::Normal => {
-            handle_normal_transaction(entity, &transaction.actions, items, players);
+        Some(TransactionTransactionType::Normal) => {
+            if let Some(actions) = transaction.actions.as_deref() {
+                handle_normal_transaction(entity, actions, items, players);
+            }
         }
-        TransactionTransactionType::InventoryMismatch => {
+        Some(TransactionTransactionType::InventoryMismatch) => {
             debug!("Inventory mismatch - should resend inventory");
         }
-        TransactionTransactionType::ItemUse => {
+        Some(TransactionTransactionType::ItemUse) => {
             if let Some(TransactionTransactionData::ItemUse(use_item)) =
                 &transaction.transaction_data
             {
@@ -326,10 +328,10 @@ fn handle_inventory_transaction(
                 }
             }
         }
-        TransactionTransactionType::ItemUseOnEntity => {
+        Some(TransactionTransactionType::ItemUseOnEntity) => {
             debug!("ItemUseOnEntity transaction");
         }
-        TransactionTransactionType::ItemRelease => {
+        Some(TransactionTransactionType::ItemRelease) => {
             debug!("ItemRelease transaction");
         }
         other => {
@@ -356,12 +358,7 @@ fn handle_normal_transaction(
         match action.source_type {
             TransactionActionsItemSourceType::Creative => {
                 if action.new_item.network_id != 0 {
-                    let count = action
-                        .new_item
-                        .content
-                        .as_ref()
-                        .map(|c| c.count)
-                        .unwrap_or(1);
+                    let count = action.new_item.count;
                     info!(
                         network_id = action.new_item.network_id,
                         count, "Creative inventory pick"
@@ -370,36 +367,25 @@ fn handle_normal_transaction(
             }
             TransactionActionsItemSourceType::WorldInteraction => {}
             TransactionActionsItemSourceType::Container => {
-                if let Some(content) = &action.content {
-                    use jolyne::valentine::types::TransactionActionsItemContent;
-                    if let TransactionActionsItemContent::Container(container) = content {
-                        let slot = action.slot as usize;
+                let slot = action.slot as usize;
 
-                        if action.new_item.network_id != 0 {
-                            let count = action
-                                .new_item
-                                .content
-                                .as_ref()
-                                .map(|c| c.count as u8)
-                                .unwrap_or(1);
+                if action.new_item.network_id != 0 {
+                    let count = action.new_item.count as u8;
+                    let item = item_stack_from_network_id(
+                        &items.0,
+                        i32::from(action.new_item.network_id),
+                        count,
+                    );
 
-                            let item = item_stack_from_network_id(
-                                &items.0,
-                                action.new_item.network_id,
-                                count,
-                            );
-
-                            if let Ok((mut inv, _, _, _, _)) = players.get_mut(entity) {
-                                let _ = inv.0.set_item(slot, item);
-                                info!(
-                                    slot,
-                                    network_id = action.new_item.network_id,
-                                    count,
-                                    window = ?container.inventory_id,
-                                    "Placed item in inventory from creative"
-                                );
-                            }
-                        }
+                    if let Ok((mut inv, _, _, _, _)) = players.get_mut(entity) {
+                        let _ = inv.0.set_item(slot, item);
+                        info!(
+                            slot,
+                            network_id = action.new_item.network_id,
+                            count,
+                            window = ?action.window_id,
+                            "Placed item in inventory from creative"
+                        );
                     }
                 }
             }

@@ -439,7 +439,7 @@ fn broadcast_block_break(
     z: i32,
     original_block_id: u32,
 ) {
-    use jolyne::valentine::types::{SoundType, UpdateBlockFlags};
+    use jolyne::valentine::types::UpdateBlockFlags;
     use jolyne::valentine::{LevelSoundEventPacket, UpdateBlockPacket};
 
     let update_packet = UpdateBlockPacket {
@@ -460,7 +460,7 @@ fn broadcast_block_break(
     };
 
     let sound_packet = LevelSoundEventPacket {
-        sound_id: SoundType::BreakBlock,
+        sound_id: "break.block".to_owned(),
         position: Vec3F {
             x: x as f32 + 0.5,
             y: y as f32 + 0.5,
@@ -471,6 +471,7 @@ fn broadcast_block_break(
         is_baby_mob: false,
         is_global: false,
         entity_unique_id: 0,
+        fire_at_position: None,
     };
 
     if let Some(chunk_viewers) = world.get::<ChunkViewers>(chunk_entity) {
@@ -547,7 +548,7 @@ fn handle_block_click(
                 data.block_position.y,
                 data.block_position.z,
             ),
-            face: data.face as u8,
+            face: data.face,
         });
     }
 
@@ -667,7 +668,7 @@ fn place_block(world: &mut World, x: i32, y: i32, z: i32, block_runtime_id: u32)
 
     // Broadcast to viewers
     if let Some(chunk_viewers) = world.get::<ChunkViewers>(chunk_entity) {
-        use jolyne::valentine::types::{SoundType, UpdateBlockFlags};
+        use jolyne::valentine::types::UpdateBlockFlags;
         use jolyne::valentine::{LevelSoundEventPacket, UpdateBlockPacket};
 
         let update_packet = UpdateBlockPacket {
@@ -678,7 +679,7 @@ fn place_block(world: &mut World, x: i32, y: i32, z: i32, block_runtime_id: u32)
         };
 
         let sound_packet = LevelSoundEventPacket {
-            sound_id: SoundType::Place,
+            sound_id: "place".to_owned(),
             position: Vec3F {
                 x: x as f32 + 0.5,
                 y: y as f32 + 0.5,
@@ -689,6 +690,7 @@ fn place_block(world: &mut World, x: i32, y: i32, z: i32, block_runtime_id: u32)
             is_baby_mob: false,
             is_global: false,
             entity_unique_id: 0,
+            fire_at_position: None,
         };
 
         for viewer_entity in chunk_viewers.iter() {

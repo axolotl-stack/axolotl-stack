@@ -271,7 +271,7 @@ fn handle_teleport_command(
 
     // Send teleport packet
     let packet = MovePlayerPacket {
-        runtime_id: runtime_id as i32,
+        runtime_id: runtime_id as u64,
         position: Vec3F {
             x: x as f32,
             y: y as f32,
