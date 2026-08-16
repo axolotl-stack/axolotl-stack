@@ -19,6 +19,8 @@ fn source_boundaries_reject_direct_valentine_block_registry_loads() {
             "jolyne::valentine::blocks::BLOCKS",
             "valentine::bedrock::version::v1_26_30::blocks::BLOCKS",
             "valentine_bedrock_1_26_30::blocks::BLOCKS",
+            "valentine::bedrock::version::v1_26_40::blocks::BLOCKS",
+            "valentine_bedrock_1_26_40::blocks::BLOCKS",
         ],
         "runtime block registry code should consume unastar_data::blocks, not direct Valentine block constants",
     );

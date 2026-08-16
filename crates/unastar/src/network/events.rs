@@ -30,7 +30,7 @@ pub enum NetworkEvent {
     Packet {
         session_id: SessionId,
         packet_args: McpePacketArgs,
-        packet: BorrowedMcpePacket,
+        packet: Box<BorrowedMcpePacket>,
     },
 
     /// Player disconnected (network task exiting).

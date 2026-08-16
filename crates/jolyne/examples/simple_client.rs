@@ -66,14 +66,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // The join() helper handles settings, auth, encryption, packs, and start game.
     let (mut play_stream, game_data) = handshake_stream.join(config).await?;
     println!("Joined Game!");
-    println!("  World: {}", game_data.start_game.world_name);
-    println!("  Items: {}", game_data.item_registry.itemstates.len());
+    println!("  World: {}", game_data.start_game.level_name);
+    println!("  Items: {}", game_data.item_registry.item_data.len());
     println!("  Blocks: {}", game_data.start_game.block_properties.len());
 
     // Send a chunk radius request
     let req = jolyne::valentine::proto::RequestChunkRadiusPacket {
         chunk_radius: 8,
-        max_radius: 8,
+        max_chunk_radius: 8,
     };
     play_stream.send_packet(McpePacket::from(req)).await?;
 

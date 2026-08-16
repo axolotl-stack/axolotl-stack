@@ -31,3 +31,8 @@ bedrock_1_26_40 = ["dep:valentine_bedrock_1_26_40"]
 [[bench]]
 name = "codec"
 harness = false
+required-features = ["bedrock_1_26_40"]
+
+[[example]]
+name = "raknet_first_packet"
+required-features = ["bedrock_1_26_40"]

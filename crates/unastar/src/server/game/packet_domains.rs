@@ -17,7 +17,7 @@ pub enum MovementPacket {
     MovePlayer(MovePlayerPacket),
 
     /// Server-authoritative movement input from the client
-    AuthInput(PlayerAuthInputPacket),
+    AuthInput(Box<PlayerAuthInputPacket>),
 
     /// Movement-related player actions (sprinting, sneaking, jumping, etc.)
     Action(PlayerActionPacket),
@@ -71,7 +71,7 @@ pub enum InventoryPacket {
 #[derive(Debug, Clone)]
 pub enum ChunkPacket {
     /// Subchunk request for loading world data
-    SubchunkRequest(SubchunkRequestPacket),
+    SubchunkRequest(SubChunkRequestPacket),
 
     /// Chunk radius change request
     RadiusRequest(RequestChunkRadiusPacket),

@@ -29,9 +29,51 @@ use types::{AuthInfo, AuthenticationType};
 #[cfg(feature = "server")]
 use tracing::instrument;
 
-/// Parse the Bedrock `LoginPacket` authentication fields.
-/// `auth_info_json` is the LoginPacket.identity field (AuthenticationInfo JSON).
-/// `client_data_jwt` is the LoginPacket.client field.
+/// Decodes the length-prefixed authentication payload carried by the
+/// protocolgen 1.26.40 `LoginPacket.connection_request` field.
+#[cfg(feature = "server")]
+pub fn decode_login_request(payload: &[u8]) -> Result<(String, String), JolyneError> {
+    fn read_i32(payload: &[u8], offset: &mut usize) -> Result<i32, JolyneError> {
+        let end = offset.checked_add(4).ok_or(AuthError::InvalidJson)?;
+        let bytes = payload.get(*offset..end).ok_or(AuthError::InvalidJson)?;
+        *offset = end;
+        Ok(i32::from_le_bytes(
+            bytes.try_into().expect("four-byte slice"),
+        ))
+    }
+
+    fn read_bytes<'a>(
+        payload: &'a [u8],
+        offset: &mut usize,
+        length: i32,
+    ) -> Result<&'a [u8], JolyneError> {
+        if length < 0 {
+            return Err(AuthError::InvalidJson.into());
+        }
+        let length = usize::try_from(length).map_err(|_| AuthError::InvalidJson)?;
+        let end = offset.checked_add(length).ok_or(AuthError::InvalidJson)?;
+        let bytes = payload.get(*offset..end).ok_or(AuthError::InvalidJson)?;
+        *offset = end;
+        Ok(bytes)
+    }
+
+    let mut offset = 0;
+    let auth_len = read_i32(payload, &mut offset)?;
+    let auth_bytes = read_bytes(payload, &mut offset, auth_len)?;
+    let client_len = read_i32(payload, &mut offset)?;
+    let client_bytes = read_bytes(payload, &mut offset, client_len)?;
+    if offset != payload.len() {
+        return Err(AuthError::InvalidJson.into());
+    }
+
+    let auth_info = std::str::from_utf8(auth_bytes).map_err(|_| AuthError::InvalidUtf8)?;
+    let client_data = std::str::from_utf8(client_bytes).map_err(|_| AuthError::InvalidUtf8)?;
+    Ok((auth_info.to_owned(), client_data.to_owned()))
+}
+
+/// Authenticate the two decoded values from a Bedrock `LoginPacket` request.
+/// `auth_info_json` is the AuthenticationInfo JSON and `client_data_jwt` is
+/// the raw ClientData JWT from `connection_request`.
 #[cfg(feature = "server")]
 #[instrument(skip_all, level = "trace")]
 pub async fn authenticate_login(
@@ -124,6 +166,15 @@ mod tests {
         let payload = br#"{"nope":["token"]}"#;
         let err = parse_login_chain(payload).expect_err("should fail");
         assert!(matches!(err, JolyneError::Auth(AuthError::MissingChain)));
+    }
+
+    #[cfg(feature = "client")]
+    #[test]
+    fn login_request_round_trip_preserves_length_prefixed_values() {
+        let request = client::encode_login_request(r#"{"chain":["identity"]}"#, "client.jwt");
+        let (auth_info, client_data) = decode_login_request(&request).expect("valid request");
+        assert_eq!(auth_info, r#"{"chain":["identity"]}"#);
+        assert_eq!(client_data, "client.jwt");
     }
 
     #[tokio::test]

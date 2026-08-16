@@ -68,7 +68,7 @@ pub async fn run_network_loop(
                         if let Err(e) = event_tx.try_send(NetworkEvent::Packet {
                             session_id,
                             packet_args,
-                            packet,
+                            packet: Box::new(packet),
                         }) {
                             match e {
                                 mpsc::error::TrySendError::Full(_) => {

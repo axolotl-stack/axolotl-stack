@@ -8,11 +8,18 @@ use crate::world::ecs::{
 use bevy_ecs::prelude::*;
 use glam::DVec3;
 use jolyne::valentine::{
-    DisconnectFailReason, DisconnectPacket, DisconnectPacketContent, LegacyEntityType, McpePacket,
-    MovePlayerPacket, MovePlayerPacketMode, MovePlayerPacketTeleport,
-    MovePlayerPacketTeleportCause, Vec3F,
+    ActorRuntimeId, CerealizerNetworkItemStackDescriptorSerializedData, DisconnectPacket,
+    DisconnectPacketMessages, EnumsConnectionDisconnectFailReason, EnumsContainerEnumName,
+    EnumsPlayerPositionModeComponentPositionMode, FullContainerName, InventorySlotPacket,
+    McpePacket, MovePlayerPacket, MovePlayerTeleportData, PlayerInputTick, Vec2, Vec3,
 };
 use tracing::{info, warn};
+
+// The generated 1.26.40 MovePlayer payload exposes these legacy enum fields as
+// raw i32 values. These are the wire values of Command and Player from the
+// previous pre-generated facade.
+const MOVE_PLAYER_TELEPORT_CAUSE_COMMAND: i32 = 3;
+const MOVE_PLAYER_SOURCE_ACTOR_TYPE_PLAYER: i32 = 63;
 
 /// System to handle actions requested by plugins via API.
 ///
@@ -52,23 +59,29 @@ pub fn process_plugin_actions(
                     player_pos.0 = new_pos;
 
                     let packet = MovePlayerPacket {
-                        runtime_id: rid.0 as u64,
-                        position: Vec3F {
+                        player_runtime_id: ActorRuntimeId {
+                            actor_runtime_id: rid.0 as u64,
+                        },
+                        position: Vec3 {
                             x: pos.0 as f32,
                             y: pos.1 as f32,
                             z: pos.2 as f32,
                         },
-                        pitch: rot.pitch,
-                        yaw: rot.yaw,
-                        head_yaw: rot.yaw,
-                        mode: MovePlayerPacketMode::Teleport,
+                        rotation: Vec2 {
+                            x: rot.pitch,
+                            y: rot.yaw,
+                        },
+                        y_head_rotation: rot.yaw,
+                        position_mode: EnumsPlayerPositionModeComponentPositionMode::Teleport,
                         on_ground: false,
-                        ridden_runtime_id: 0,
-                        teleport: Some(MovePlayerPacketTeleport {
-                            cause: MovePlayerPacketTeleportCause::Command,
-                            source_entity_type: LegacyEntityType::Player,
+                        riding_runtime_id: ActorRuntimeId {
+                            actor_runtime_id: 0,
+                        },
+                        teleport_data: Some(MovePlayerTeleportData {
+                            teleportation_cause: MOVE_PLAYER_TELEPORT_CAUSE_COMMAND,
+                            source_actor_type: MOVE_PLAYER_SOURCE_ACTOR_TYPE_PLAYER,
                         }),
-                        tick: 0,
+                        tick: PlayerInputTick { inputtick: 0 },
                     };
                     let _ = session.send(McpePacket::from(packet));
 
@@ -81,8 +94,6 @@ pub fn process_plugin_actions(
                 count,
             } => {
                 use crate::item::ItemStack;
-                use jolyne::valentine::types::{ContainerSlotType, FullContainerName, ItemNew};
-                use jolyne::valentine::{InventorySlotPacket, WindowIdVarint};
 
                 if let Ok((_, _, _, session, mut inv)) = players.get_mut(entity) {
                     let item_stack = if let Some(entry) = item_registry.0.get_by_name(&item_id) {
@@ -109,7 +120,7 @@ pub fn process_plugin_actions(
 
                         let block_runtime_id =
                             if let Some(entry) = block_registry.0.get_by_name(&item_id) {
-                                entry.min_state_id as i32
+                                entry.min_state_id
                             } else {
                                 0
                             };
@@ -121,21 +132,22 @@ pub fn process_plugin_actions(
                             );
                             continue;
                         };
-                        let protocol_item = ItemNew {
-                            network_id,
-                            count: effective_count as u16,
-                            metadata: 0,
-                            stack_id: None,
+                        let protocol_item = CerealizerNetworkItemStackDescriptorSerializedData {
+                            id: network_id,
+                            stacksize: effective_count as u16,
+                            auxvalue: 0,
+                            net_id_variant: None,
                             block_runtime_id,
-                            extra: Default::default(),
+                            user_data_buffer: Vec::new(),
                         };
 
                         let slot_packet = InventorySlotPacket {
-                            window_id: WindowIdVarint::Inventory,
-                            slot: empty_slot as i32,
-                            container: Some(FullContainerName {
-                                container_id: ContainerSlotType::HotbarAndInventory,
-                                dynamic_container_id: None,
+                            container_id: 0,
+                            slot: empty_slot as u32,
+                            full_container_name: Some(FullContainerName {
+                                container_name:
+                                    EnumsContainerEnumName::CombinedHotbarAndInventoryContainer,
+                                dynamic_id: None,
                             }),
                             storage_item: Some(protocol_item.clone()),
                             item: protocol_item,
@@ -153,12 +165,11 @@ pub fn process_plugin_actions(
             PluginAction::Kick { entity, reason } => {
                 if let Ok((_, _, _, session, _)) = players.get(entity) {
                     let packet = DisconnectPacket {
-                        reason: DisconnectFailReason::Disconnected,
-                        hide_disconnect_reason: false,
-                        content: Some(DisconnectPacketContent {
+                        reason: EnumsConnectionDisconnectFailReason::Disconnected,
+                        messages: DisconnectPacketMessages {
                             message: reason.clone(),
                             filtered_message: reason.clone(),
-                        }),
+                        },
                     };
                     let _ = session.send(McpePacket::from(packet));
                     info!(entity=?entity, reason=%reason, "Plugin kicked player");
@@ -244,10 +255,10 @@ mod tests {
         assert_eq!(stack.max_stack_size(), 16);
 
         let packet = outbound_rx.try_recv().expect("inventory slot packet");
-        let McpePacketData::PacketInventorySlot(slot_packet) = packet.data else {
+        let McpePacketData::InventorySlotPacket(slot_packet) = packet.data else {
             panic!("expected inventory slot packet");
         };
-        assert_eq!(slot_packet.item.count, 16);
+        assert_eq!(slot_packet.item.stacksize, 16);
     }
 
     fn limited_item_registry() -> ItemRegistry {

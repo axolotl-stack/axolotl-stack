@@ -11,12 +11,11 @@ use crate::entity::components::{ChunkRadius, PlayerSession};
 use crate::world::chunk::HeightMapType;
 use crate::world::ecs::{ChunkData, ChunkManager, ChunkViewers};
 use jolyne::valentine::types::{
-    HeightMapDataType, SubChunkEntryWithoutCachingItem, SubChunkEntryWithoutCachingItemResult,
-    Vec3I,
+    EnumsSubChunkPacketPayloadHeightMapDataType, EnumsSubChunkPacketPayloadSubChunkRequestResult,
+    SubChunkPacketPayloadHeightmapData, SubChunkPacketPayloadHeightmapDataRenderHeightMapType,
+    SubChunkPacketPayloadSubChunkPacketData, SubChunkPos,
 };
-use jolyne::valentine::{
-    ChunkRadiusUpdatePacket, McpePacket, SubchunkPacket, SubchunkPacketEntries,
-};
+use jolyne::valentine::{ChunkRadiusUpdatedPacket, McpePacket, SubChunkPacket};
 
 /// Maximum subchunk requests per packet (DoS protection).
 const MAX_SUBCHUNK_REQUESTS: usize = 1024;
@@ -62,7 +61,7 @@ fn handle_chunk_radius_request(
     chunk_radii: &mut Query<&mut ChunkRadius>,
 ) {
     let server_max = config.0.max_chunk_radius.max(1);
-    let client_max = i32::from(req.max_radius).max(1);
+    let client_max = i32::from(req.max_chunk_radius).max(1);
     let effective_max = server_max.min(client_max);
     let requested = req.chunk_radius.max(1);
     let radius = requested.min(effective_max);
@@ -72,7 +71,7 @@ fn handle_chunk_radius_request(
     }
 
     if let Ok(session) = sessions.get(entity) {
-        let _ = session.send(McpePacket::from(ChunkRadiusUpdatePacket {
+        let _ = session.send(McpePacket::from(ChunkRadiusUpdatedPacket {
             chunk_radius: radius,
         }));
     }
@@ -80,7 +79,7 @@ fn handle_chunk_radius_request(
 
 fn handle_subchunk_request(
     entity: Entity,
-    req: &jolyne::valentine::SubchunkRequestPacket,
+    req: &jolyne::valentine::SubChunkRequestPacket,
     chunk_manager: &Res<ChunkManager>,
     sessions: &Query<&PlayerSession>,
     chunk_data_q: &Query<&ChunkData>,
@@ -88,24 +87,32 @@ fn handle_subchunk_request(
 ) {
     let session_id = sessions.get(entity).map(|s| s.session_id).unwrap_or(0);
 
-    let origin = &req.origin;
-    let chunk_x = origin.x;
-    let chunk_z = origin.z;
+    let origin = &req.center_pos;
+    let chunk_x = origin.subchunk_position_x;
+    let chunk_z = origin.subchunk_position_z;
 
     trace!(
         session_id,
         origin = ?origin,
-        request_count = req.requests.len(),
+        request_count = req.sub_chunk_position_offset_list.len(),
         "SubChunkRequest received"
     );
 
     let mut served_chunks: std::collections::HashSet<(i32, i32)> = std::collections::HashSet::new();
-    let mut entries = Vec::with_capacity(req.requests.len().min(MAX_SUBCHUNK_REQUESTS));
+    let mut entries = Vec::with_capacity(
+        req.sub_chunk_position_offset_list
+            .len()
+            .min(MAX_SUBCHUNK_REQUESTS),
+    );
 
-    for offset in req.requests.iter().take(MAX_SUBCHUNK_REQUESTS) {
-        let sub_y = origin.y + offset.y as i32;
-        let target_chunk_x = chunk_x + offset.x as i32;
-        let target_chunk_z = chunk_z + offset.z as i32;
+    for offset in req
+        .sub_chunk_position_offset_list
+        .iter()
+        .take(MAX_SUBCHUNK_REQUESTS)
+    {
+        let sub_y = origin.subchunk_position_y + offset.subchunk_offset_y as i32;
+        let target_chunk_x = chunk_x + offset.subchunk_offset_x as i32;
+        let target_chunk_z = chunk_z + offset.subchunk_offset_z as i32;
 
         served_chunks.insert((target_chunk_x, target_chunk_z));
 
@@ -113,16 +120,13 @@ fn handle_subchunk_request(
         let max_sub_y = min_sub_y + (crate::world::SUBCHUNK_COUNT as i32) - 1;
 
         if sub_y < min_sub_y || sub_y > max_sub_y {
-            entries.push(SubChunkEntryWithoutCachingItem {
-                dx: offset.x,
-                dy: offset.y,
-                dz: offset.z,
-                result: SubChunkEntryWithoutCachingItemResult::YIndexOutOfBounds,
-                payload: vec![],
-                heightmap_type: HeightMapDataType::TooLow,
-                heightmap: None,
-                render_heightmap_type: HeightMapDataType::TooLow,
-                render_heightmap: None,
+            entries.push(SubChunkPacketPayloadSubChunkPacketData {
+                sub_chunk_pos_offset: offset.clone(),
+                sub_chunk_request_result:
+                    EnumsSubChunkPacketPayloadSubChunkRequestResult::IndexOutOfBounds,
+                serialized_sub_chunk: None,
+                height_map_data: empty_height_map_data(),
+                blob_id: None,
             });
             continue;
         }
@@ -130,32 +134,26 @@ fn handle_subchunk_request(
         let chunk_entity = chunk_manager.get_by_coords(target_chunk_x, target_chunk_z);
 
         let Some(chunk_entity) = chunk_entity else {
-            entries.push(SubChunkEntryWithoutCachingItem {
-                dx: offset.x,
-                dy: offset.y,
-                dz: offset.z,
-                result: SubChunkEntryWithoutCachingItemResult::SuccessAllAir,
-                payload: vec![],
-                heightmap_type: HeightMapDataType::TooLow,
-                heightmap: None,
-                render_heightmap_type: HeightMapDataType::TooLow,
-                render_heightmap: None,
+            entries.push(SubChunkPacketPayloadSubChunkPacketData {
+                sub_chunk_pos_offset: offset.clone(),
+                sub_chunk_request_result:
+                    EnumsSubChunkPacketPayloadSubChunkRequestResult::SuccessAllAir,
+                serialized_sub_chunk: None,
+                height_map_data: empty_height_map_data(),
+                blob_id: None,
             });
             continue;
         };
 
         let Ok(chunk_data) = chunk_data_q.get(chunk_entity) else {
             trace!(chunk = ?(target_chunk_x, target_chunk_z), "SubChunkRequest for loading chunk");
-            entries.push(SubChunkEntryWithoutCachingItem {
-                dx: offset.x,
-                dy: offset.y,
-                dz: offset.z,
-                result: SubChunkEntryWithoutCachingItemResult::ChunkNotFound,
-                payload: vec![],
-                heightmap_type: HeightMapDataType::TooLow,
-                heightmap: None,
-                render_heightmap_type: HeightMapDataType::TooLow,
-                render_heightmap: None,
+            entries.push(SubChunkPacketPayloadSubChunkPacketData {
+                sub_chunk_pos_offset: offset.clone(),
+                sub_chunk_request_result:
+                    EnumsSubChunkPacketPayloadSubChunkRequestResult::LevelChunkDoesntExist,
+                serialized_sub_chunk: None,
+                height_map_data: empty_height_map_data(),
+                blob_id: None,
             });
             continue;
         };
@@ -184,27 +182,40 @@ fn handle_subchunk_request(
 
         let (ht, hm) = chunk_data.inner.get_subchunk_heightmap(sub_y);
         let hm_type = match ht {
-            HeightMapType::TooHigh => HeightMapDataType::TooHigh,
-            HeightMapType::TooLow => HeightMapDataType::TooLow,
-            HeightMapType::HasData => HeightMapDataType::HasData,
+            HeightMapType::TooHigh => EnumsSubChunkPacketPayloadHeightMapDataType::AllTooHigh,
+            HeightMapType::TooLow => EnumsSubChunkPacketPayloadHeightMapDataType::AllTooLow,
+            HeightMapType::HasData => EnumsSubChunkPacketPayloadHeightMapDataType::HasData,
+        };
+        let render_hm_type = match ht {
+            HeightMapType::TooHigh => {
+                SubChunkPacketPayloadHeightmapDataRenderHeightMapType::AllTooHigh
+            }
+            HeightMapType::TooLow => {
+                SubChunkPacketPayloadHeightmapDataRenderHeightMapType::AllTooLow
+            }
+            HeightMapType::HasData => {
+                SubChunkPacketPayloadHeightmapDataRenderHeightMapType::HasData
+            }
+        };
+        let height_map_data = SubChunkPacketPayloadHeightmapData {
+            height_map_type: hm_type,
+            subchunk_height_map: hm.map(height_map),
+            render_height_map_type: render_hm_type,
+            subchunk_render_height_map: hm.map(height_map),
         };
 
         let result = if is_empty {
-            SubChunkEntryWithoutCachingItemResult::SuccessAllAir
+            EnumsSubChunkPacketPayloadSubChunkRequestResult::SuccessAllAir
         } else {
-            SubChunkEntryWithoutCachingItemResult::Success
+            EnumsSubChunkPacketPayloadSubChunkRequestResult::Success
         };
 
-        entries.push(SubChunkEntryWithoutCachingItem {
-            dx: offset.x,
-            dy: offset.y,
-            dz: offset.z,
-            result,
-            payload: subchunk_data,
-            heightmap_type: hm_type,
-            heightmap: hm,
-            render_heightmap_type: hm_type,
-            render_heightmap: hm,
+        entries.push(SubChunkPacketPayloadSubChunkPacketData {
+            sub_chunk_pos_offset: offset.clone(),
+            sub_chunk_request_result: result,
+            serialized_sub_chunk: if is_empty { None } else { Some(subchunk_data) },
+            height_map_data,
+            blob_id: None,
         });
     }
 
@@ -217,14 +228,15 @@ fn handle_subchunk_request(
         }
     }
 
-    let response = SubchunkPacket {
-        dimension: req.dimension,
-        origin: Vec3I {
-            x: origin.x,
-            y: origin.y,
-            z: origin.z,
+    let response = SubChunkPacket {
+        cache_enabled: false,
+        dimension_type: req.dimension_type.clone(),
+        center_pos: SubChunkPos {
+            subchunk_position_x: origin.subchunk_position_x,
+            subchunk_position_y: origin.subchunk_position_y,
+            subchunk_position_z: origin.subchunk_position_z,
         },
-        entries: SubchunkPacketEntries::SubChunkEntryWithoutCaching(entries),
+        sub_chunk_data: entries,
     };
 
     if let Ok(session) = sessions.get(entity)
@@ -232,4 +244,17 @@ fn handle_subchunk_request(
     {
         debug!(session_id, "Failed to send SubChunk response");
     }
+}
+
+fn empty_height_map_data() -> SubChunkPacketPayloadHeightmapData {
+    SubChunkPacketPayloadHeightmapData {
+        height_map_type: EnumsSubChunkPacketPayloadHeightMapDataType::AllTooLow,
+        subchunk_height_map: None,
+        render_height_map_type: SubChunkPacketPayloadHeightmapDataRenderHeightMapType::AllTooLow,
+        subchunk_render_height_map: None,
+    }
+}
+
+fn height_map(map: [u8; 256]) -> [[i8; 16]; 16] {
+    std::array::from_fn(|z| std::array::from_fn(|x| map[(z << 4) | x] as i8))
 }

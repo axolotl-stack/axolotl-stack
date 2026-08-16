@@ -9,7 +9,7 @@ See `LONGTERM.md` for the architectural vision (WASM plugins, tick phases, API d
 
 ## Vanilla Compatibility Definition & Evidence Gates
 
-Unastar should not claim broad vanilla compatibility until the gates below pass on the pinned Bedrock protocol version exposed through `jolyne::valentine` (`bedrock_1_26_30` today). The near-term target is **vanilla-compatible join, spawn, and basic creative interaction**, not full survival parity.
+Unastar should not claim broad vanilla compatibility until the gates below pass on the pinned Bedrock protocol version exposed through `jolyne::valentine` (`bedrock_1_26_40` today). The near-term target is **vanilla-compatible join, spawn, and basic creative interaction**, not full survival parity.
 
 ### Evidence Matrix
 

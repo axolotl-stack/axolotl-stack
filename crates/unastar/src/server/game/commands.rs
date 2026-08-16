@@ -14,12 +14,11 @@ use crate::ecs::events::ServerEvent;
 use crate::entity::components::transform::Position;
 use crate::entity::components::{PlayerName, PlayerSession, PlayerUuid, RuntimeEntityId};
 use crate::world::ecs::ChunkLoader;
-use jolyne::valentine::types::{LegacyEntityType, Vec3F};
-use jolyne::valentine::{
-    McpePacket, MovePlayerPacket, MovePlayerPacketMode, MovePlayerPacketTeleport,
-    MovePlayerPacketTeleportCause, TextPacket, TextPacketCategory, TextPacketContent,
-    TextPacketContentAnnouncement, TextPacketType,
+use jolyne::valentine::types::{
+    ActorRuntimeId, EnumsPlayerPositionModeComponentPositionMode, PlayerInputTick, TextPacketBody,
+    TextPacketPayloadAuthorAndMessage, Vec2, Vec3,
 };
+use jolyne::valentine::{McpePacket, MovePlayerPacket, MovePlayerTeleportData, TextPacket};
 
 /// ECS system: drain chat/command packet queue and process.
 ///
@@ -66,14 +65,14 @@ fn handle_text(
     names: &Query<(&PlayerName, &PlayerUuid)>,
     events: &mut ResMut<ChatEvents>,
 ) {
-    let (_source_name, message) = match &pk.content {
-        Some(TextPacketContent::Chat(ann))
-        | Some(TextPacketContent::Announcement(ann))
-        | Some(TextPacketContent::Whisper(ann)) => (ann.source_name.clone(), ann.message.clone()),
-        Some(TextPacketContent::Raw(json)) | Some(TextPacketContent::System(json)) => {
-            (String::new(), json.message.clone())
+    let message = match &pk.body {
+        TextPacketBody::Chat(ann)
+        | TextPacketBody::Announcement(ann)
+        | TextPacketBody::Whisper(ann) => ann.message.clone(),
+        TextPacketBody::Raw(message) | TextPacketBody::SystemMessage(message) => {
+            message.message.clone()
         }
-        _ => (String::new(), String::new()),
+        _ => String::new(),
     };
 
     if message.is_empty() {
@@ -86,8 +85,8 @@ fn handle_text(
         .map(|(n, u)| (n.0.clone(), u.0.to_string()))
         .unwrap_or_else(|_| ("Unknown".to_string(), String::new()));
 
-    match pk.type_ {
-        TextPacketType::Chat => {
+    match &pk.body {
+        TextPacketBody::Chat(_) => {
             info!(sender = %sender_name, message = %message, "Chat message");
 
             events.0.push(ServerEvent::PlayerChat {
@@ -97,15 +96,14 @@ fn handle_text(
             });
 
             let broadcast_packet = TextPacket {
-                type_: TextPacketType::Chat,
-                needs_translation: false,
-                category: TextPacketCategory::Authored,
-                content: Some(TextPacketContent::Chat(TextPacketContentAnnouncement {
-                    source_name: sender_name,
+                localize: false,
+                message_category: 1,
+                body: TextPacketBody::Chat(TextPacketPayloadAuthorAndMessage {
+                    player_name: sender_name,
                     message,
-                })),
-                xuid: String::new(),
-                platform_chat_id: String::new(),
+                }),
+                senders_xuid: String::new(),
+                platform_id: String::new(),
                 filtered_message: None,
             };
 
@@ -115,11 +113,11 @@ fn handle_text(
                 }
             }
         }
-        TextPacketType::Whisper => {
+        TextPacketBody::Whisper(_) => {
             debug!(sender = %sender_name, message = %message, "Whisper (not fully implemented)");
         }
         _ => {
-            trace!(text_type = ?pk.type_, "Unhandled text type");
+            trace!(text_body = ?pk.body, "Unhandled text type");
         }
     }
 }
@@ -133,7 +131,7 @@ fn handle_command_request(
     runtime_ids: &Query<&RuntimeEntityId>,
     tp_targets: &mut Query<(&mut Position, Option<&mut ChunkLoader>)>,
 ) {
-    if req.internal {
+    if req.is_internal {
         trace!("Ignoring internal CommandRequest");
         return;
     }
@@ -271,23 +269,28 @@ fn handle_teleport_command(
 
     // Send teleport packet
     let packet = MovePlayerPacket {
-        runtime_id: runtime_id as u64,
-        position: Vec3F {
+        player_runtime_id: ActorRuntimeId {
+            actor_runtime_id: runtime_id as u64,
+        },
+        position: Vec3 {
             x: x as f32,
             y: y as f32,
             z: z as f32,
         },
-        pitch: 0.0,
-        yaw: 0.0,
-        head_yaw: 0.0,
-        mode: MovePlayerPacketMode::Teleport,
+        rotation: Vec2 { x: 0.0, y: 0.0 },
+        y_head_rotation: 0.0,
+        position_mode: EnumsPlayerPositionModeComponentPositionMode::Teleport,
         on_ground: false,
-        ridden_runtime_id: 0,
-        teleport: Some(MovePlayerPacketTeleport {
-            cause: MovePlayerPacketTeleportCause::Command,
-            source_entity_type: LegacyEntityType::Player,
+        riding_runtime_id: ActorRuntimeId {
+            actor_runtime_id: 0,
+        },
+        teleport_data: Some(MovePlayerTeleportData {
+            teleportation_cause: 3,
+            source_actor_type: 63,
         }),
-        tick: tick_counter.current as i64,
+        tick: PlayerInputTick {
+            inputtick: tick_counter.current,
+        },
     };
 
     if let Ok(session) = sessions.get(entity) {

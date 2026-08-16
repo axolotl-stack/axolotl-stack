@@ -1,18 +1,19 @@
 //! Chunk data structures and encoding - Bedrock protocol format.
 //!
-//! Uses SubChunkRequestModeLimited (-2) to let clients request sub-chunks on demand.
-//! This is the modern approach used by all major Bedrock servers (Dragonfly, etc.).
+//! Uses protocol 2168's request mode (`subchunks_count = 0` with an optional
+//! sub-chunk limit) to let clients request sub-chunks on demand.
 
 use bytes::{BufMut, BytesMut};
 
-/// Constants for sub-chunk request modes.
+/// Legacy sub-chunk request-mode sentinels retained for callers targeting
+/// older Valentine protocol versions. Protocol 2168 no longer encodes these
+/// negative values in `LevelChunkPacket`; its request mode is represented by
+/// `subchunks_count = 0` and `client_request_sub_chunk_limit`.
 pub mod request_mode {
-    /// Client requests sub-chunks on demand via SubChunkRequest packet.
-    /// LevelChunk payload contains only biome data + border blocks.
+    /// Client requests sub-chunks on demand via `SubChunkRequest`.
     pub const LIMITED: i32 = -2;
 
-    /// Legacy mode: all sub-chunks sent inline (not recommended).
-    #[allow(dead_code)]
+    /// Legacy mode: all sub-chunks sent inline.
     pub const LEGACY: i32 = -1;
 }
 
@@ -534,8 +535,9 @@ impl Chunk {
         }
     }
 
-    /// Encode biome data only (for SubChunkRequestModeLimited).
-    /// This is the payload format when sub_chunk_count = -2.
+    /// Encode biome data only for protocol 2168 request-mode LevelChunk
+    /// packets. The caller supplies the zero sub-chunk count and optional
+    /// limit; this payload contains the biome sections and border count.
     pub fn encode_biomes(&self) -> Vec<u8> {
         let mut buf = BytesMut::with_capacity(SUBCHUNK_COUNT as usize * 2 + 1);
 

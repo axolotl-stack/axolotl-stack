@@ -103,11 +103,12 @@ async fn main() -> anyhow::Result<()> {
         display_name: "NetherNet Client".to_string(),
         uuid: Uuid::new_v4(),
         identity_key: SecretKey::random(&mut thread_rng()),
+        xbl_credentials: None,
     };
 
     // Join the server
     info!("Starting Jolyne handshake...");
-    let mut play_stream = handshake_stream.join(client_config).await?;
+    let (mut play_stream, _game_data) = handshake_stream.join(client_config).await?;
     println!("✓ Joined game!\n");
 
     // Play loop

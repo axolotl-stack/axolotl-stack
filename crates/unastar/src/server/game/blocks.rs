@@ -14,8 +14,16 @@ use crate::entity::components::{BreakingState, PlayerSession, PlayerUuid};
 use crate::world::chunk::blocks;
 use crate::world::ecs::{BlockBroadcastEvent, BlockChanged, ChunkManager, ChunkViewers};
 use crate::world::ecs::{world_to_chunk_coords, world_to_local_coords};
-use jolyne::valentine::types::{Action, BlockCoordinates, Vec3F};
-use jolyne::valentine::{LevelEventPacket, LevelEventPacketEvent, McpePacket};
+use jolyne::valentine::types::{BlockPos, EnumsPlayerActionType, Vec3};
+use jolyne::valentine::{LevelEventPacket, McpePacket};
+
+// Protocol 2168 carries these event IDs as canonical i32 values. The values
+// are the LevelEvent constants used by Dragonfly/gophertunnel.
+const LEVEL_EVENT_BLOCK_START_BREAK: i32 = 3600;
+const LEVEL_EVENT_BLOCK_STOP_BREAK: i32 = 3601;
+const LEVEL_EVENT_PARTICLES_DESTROY_BLOCK: i32 = 2001;
+const BLOCK_UPDATE_NEIGHBOURS: u32 = 1;
+const BLOCK_UPDATE_NETWORK: u32 = 1 << 1;
 
 /// Maximum block actions per PlayerAuthInput packet.
 const MAX_BLOCK_ACTIONS: usize = 64;
@@ -50,7 +58,7 @@ pub fn apply_block_actions(world: &mut World) {
 fn process_auth_input_block_actions(
     world: &mut World,
     player_entity: Entity,
-    block_actions: &[jolyne::valentine::PlayerAuthInputPacketBlockActionItem],
+    block_actions: &[jolyne::valentine::PlayerBlockActionData],
 ) {
     let current_tick = world
         .get_resource::<crate::ecs::resources::TickCounter>()
@@ -58,34 +66,57 @@ fn process_auth_input_block_actions(
         .current;
 
     for action_item in block_actions.iter().take(MAX_BLOCK_ACTIONS) {
-        let get_pos = |content: &Option<
-            jolyne::valentine::PlayerAuthInputPacketBlockActionItemContent,
-        >|
-         -> Option<(i32, i32, i32)> {
-            content.as_ref().map(|c| {
-                let pos = match c {
-                    jolyne::valentine::PlayerAuthInputPacketBlockActionItemContent::PredictBreak(b) => &b.position,
-                    jolyne::valentine::PlayerAuthInputPacketBlockActionItemContent::StartBreak(b) => &b.position,
-                    jolyne::valentine::PlayerAuthInputPacketBlockActionItemContent::ContinueBreak(b) => &b.position,
-                    jolyne::valentine::PlayerAuthInputPacketBlockActionItemContent::AbortBreak(b) => &b.position,
-                    jolyne::valentine::PlayerAuthInputPacketBlockActionItemContent::CrackBreak(b) => &b.position,
+        let (x, y, z) = (
+            action_item.position.x,
+            action_item.position.y,
+            action_item.position.z,
+        );
+
+        trace!(action = ?action_item.player_action_type, pos = ?(x, y, z), "Block action received");
+
+        match action_item.player_action_type {
+            EnumsPlayerActionType::PredictDestroyBlock
+            | EnumsPlayerActionType::CreativeDestroyBlock => {
+                trace!(pos = ?(x, y, z), "Creative/Predict block break");
+                break_block(world, player_entity, x, y, z);
+            }
+            EnumsPlayerActionType::StartDestroyBlock => {
+                let is_creative = world
+                    .get::<crate::entity::components::GameMode>(player_entity)
+                    .map(|gm| gm.instant_break())
+                    .unwrap_or(false);
+
+                let break_time_ticks = if is_creative {
+                    0
+                } else {
+                    get_block_break_time(world, x, y, z)
                 };
-                (pos.x, pos.y, pos.z)
-            })
-        };
 
-        trace!(?action_item.action, "Block action received");
+                trace!(pos = ?(x, y, z), is_creative, break_time_ticks, "StartBreak");
 
-        match action_item.action {
-            Action::PredictBreak | Action::CreativePlayerDestroyBlock => {
-                if let Some((x, y, z)) = get_pos(&action_item.content) {
-                    trace!(pos = ?(x, y, z), "Creative/Predict block break");
-                    break_block(world, player_entity, x, y, z);
+                if let Some(mut event_buffer) = world.get_resource_mut::<EventBuffer>() {
+                    event_buffer.push(ServerEvent::PlayerStartBreak {
+                        entity: player_entity,
+                        position: (x, y, z),
+                        face: 0,
+                    });
+                }
+
+                if let Some(mut breaking) = world.get_mut::<BreakingState>(player_entity) {
+                    breaking.start(x, y, z, current_tick, break_time_ticks);
+                }
+
+                if !is_creative {
+                    broadcast_block_crack_start(world, x, y, z, break_time_ticks);
                 }
             }
-            Action::StartBreak => {
-                let pos = get_pos(&action_item.content);
-                if let Some((x, y, z)) = pos {
+            EnumsPlayerActionType::CrackBlock | EnumsPlayerActionType::ContinueDestroyBlock => {
+                let needs_start = world
+                    .get::<BreakingState>(player_entity)
+                    .map(|b| b.position.is_none())
+                    .unwrap_or(true);
+
+                if needs_start {
                     let is_creative = world
                         .get::<crate::entity::components::GameMode>(player_entity)
                         .map(|gm| gm.instant_break())
@@ -97,53 +128,14 @@ fn process_auth_input_block_actions(
                         get_block_break_time(world, x, y, z)
                     };
 
-                    trace!(pos = ?(x, y, z), is_creative, break_time_ticks, "StartBreak");
-
-                    if let Some(mut event_buffer) = world.get_resource_mut::<EventBuffer>() {
-                        event_buffer.push(ServerEvent::PlayerStartBreak {
-                            entity: player_entity,
-                            position: (x, y, z),
-                            face: 0,
-                        });
-                    }
+                    trace!(pos = ?(x, y, z), is_creative, break_time_ticks, "CrackBreak: starting break");
 
                     if let Some(mut breaking) = world.get_mut::<BreakingState>(player_entity) {
                         breaking.start(x, y, z, current_tick, break_time_ticks);
                     }
-
-                    if !is_creative {
-                        broadcast_block_crack_start(world, x, y, z, break_time_ticks);
-                    }
                 }
             }
-            Action::CrackBreak | Action::ContinueBreak => {
-                if let Some((x, y, z)) = get_pos(&action_item.content) {
-                    let needs_start = world
-                        .get::<BreakingState>(player_entity)
-                        .map(|b| b.position.is_none())
-                        .unwrap_or(true);
-
-                    if needs_start {
-                        let is_creative = world
-                            .get::<crate::entity::components::GameMode>(player_entity)
-                            .map(|gm| gm.instant_break())
-                            .unwrap_or(false);
-
-                        let break_time_ticks = if is_creative {
-                            0
-                        } else {
-                            get_block_break_time(world, x, y, z)
-                        };
-
-                        trace!(pos = ?(x, y, z), is_creative, break_time_ticks, "CrackBreak: starting break");
-
-                        if let Some(mut breaking) = world.get_mut::<BreakingState>(player_entity) {
-                            breaking.start(x, y, z, current_tick, break_time_ticks);
-                        }
-                    }
-                }
-            }
-            Action::StopBreak => {
+            EnumsPlayerActionType::StopDestroyBlock => {
                 trace!("StopBreak received");
                 let instant_break = world
                     .get::<crate::entity::components::GameMode>(player_entity)
@@ -179,16 +171,14 @@ fn process_auth_input_block_actions(
                     broadcast_block_crack_stop(world, x, y, z);
                 }
             }
-            Action::AbortBreak => {
-                if let Some((x, y, z)) = get_pos(&action_item.content) {
-                    debug!(pos = ?(x, y, z), "AbortBreak");
+            EnumsPlayerActionType::AbortDestroyBlock => {
+                debug!(pos = ?(x, y, z), "AbortBreak");
 
-                    if let Some(mut breaking) = world.get_mut::<BreakingState>(player_entity) {
-                        breaking.stop();
-                    }
-
-                    broadcast_block_crack_stop(world, x, y, z);
+                if let Some(mut breaking) = world.get_mut::<BreakingState>(player_entity) {
+                    breaking.stop();
                 }
+
+                broadcast_block_crack_stop(world, x, y, z);
             }
             _ => {}
         }
@@ -209,8 +199,8 @@ fn broadcast_block_crack_start(world: &World, x: i32, y: i32, z: i32, break_time
     let break_data = 65535u32.checked_div(break_time_ticks).unwrap_or(65535) as i32;
 
     let packet = LevelEventPacket {
-        event: LevelEventPacketEvent::BlockStartBreak,
-        position: Vec3F {
+        event_id: LEVEL_EVENT_BLOCK_START_BREAK,
+        position: Vec3 {
             x: x as f32,
             y: y as f32,
             z: z as f32,
@@ -239,8 +229,8 @@ fn broadcast_block_crack_stop(world: &World, x: i32, y: i32, z: i32) {
     };
 
     let packet = LevelEventPacket {
-        event: LevelEventPacketEvent::BlockStopBreak,
-        position: Vec3F {
+        event_id: LEVEL_EVENT_BLOCK_STOP_BREAK,
+        position: Vec3 {
             x: x as f32,
             y: y as f32,
             z: z as f32,
@@ -364,52 +354,64 @@ fn break_block(world: &mut World, breaking_player: Entity, x: i32, y: i32, z: i3
                     id
                 };
 
-                use jolyne::valentine::AddItemEntityPacket;
+                use jolyne::valentine::AddItemActorPacket;
                 use jolyne::valentine::types::{
-                    Item, ItemContent, ItemContentExtra, ItemExtraDataWithoutBlockingTick,
+                    ActorRuntimeId, ActorUniqueId,
+                    CerealizerNetworkItemStackDescriptorSerializedData,
+                    SynchedActorDataCopyableDataList, Vec3,
                 };
 
-                let item_packet = AddItemEntityPacket {
-                    entity_id_self: item_entity_id,
-                    runtime_entity_id: item_entity_id,
-                    item: Item {
-                        network_id: item_network_id,
-                        content: Some(Box::new(ItemContent {
-                            count: 1,
-                            metadata: 0,
-                            has_stack_id: 0,
-                            stack_id: None,
-                            block_runtime_id: original_block_id as i32,
-                            extra: ItemContentExtra::Default(
-                                ItemExtraDataWithoutBlockingTick::default(),
-                            ),
-                        })),
-                    },
-                    position: Vec3F {
-                        x: x as f32 + 0.5,
-                        y: y as f32 + 0.25,
-                        z: z as f32 + 0.5,
-                    },
-                    velocity: Vec3F {
-                        x: 0.0,
-                        y: 0.1,
-                        z: 0.0,
-                    },
-                    metadata: vec![],
-                    is_from_fishing: false,
+                let item_packet = match i16::try_from(item_network_id) {
+                    Ok(network_id) => Some(AddItemActorPacket {
+                        target_actor_id: ActorUniqueId {
+                            actor_unique_id: item_entity_id,
+                        },
+                        target_runtime_id: ActorRuntimeId {
+                            actor_runtime_id: item_entity_id as u64,
+                        },
+                        item: CerealizerNetworkItemStackDescriptorSerializedData {
+                            id: network_id,
+                            stacksize: 1,
+                            auxvalue: 0,
+                            net_id_variant: None,
+                            block_runtime_id: original_block_id,
+                            user_data_buffer: vec![],
+                        },
+                        position: Vec3 {
+                            x: x as f32 + 0.5,
+                            y: y as f32 + 0.25,
+                            z: z as f32 + 0.5,
+                        },
+                        velocity: Vec3 {
+                            x: 0.0,
+                            y: 0.1,
+                            z: 0.0,
+                        },
+                        entity_data: SynchedActorDataCopyableDataList::default(),
+                        is_from_fishing: false,
+                    }),
+                    Err(_) => {
+                        warn!(
+                            item_network_id,
+                            "Skipping item drop outside protocol ID range"
+                        );
+                        None
+                    }
                 };
 
-                if let Some(session) = world.get::<PlayerSession>(breaking_player) {
-                    let _ = session.send(McpePacket::from(item_packet.clone()));
-                    info!(pos = ?(x, y, z), item_network_id, entity_id = item_entity_id, "Spawned item drop");
-                }
+                if let Some(item_packet) = item_packet {
+                    if let Some(session) = world.get::<PlayerSession>(breaking_player) {
+                        let _ = session.send(McpePacket::from(item_packet.clone()));
+                        info!(pos = ?(x, y, z), item_network_id, entity_id = item_entity_id, "Spawned item drop");
+                    }
 
-                if let Some(chunk_viewers) = world.get::<ChunkViewers>(chunk_entity) {
-                    for viewer in chunk_viewers.iter() {
-                        if viewer != breaking_player
-                            && let Some(viewer_session) = world.get::<PlayerSession>(viewer)
-                        {
-                            let _ = viewer_session.send(McpePacket::from(item_packet.clone()));
+                    if let Some(chunk_viewers) = world.get::<ChunkViewers>(chunk_entity) {
+                        for viewer in chunk_viewers.iter() {
+                            if viewer != breaking_player
+                                && let Some(viewer_session) = world.get::<PlayerSession>(viewer)
+                            {
+                                let _ = viewer_session.send(McpePacket::from(item_packet.clone()));
+                            }
                         }
                     }
                 }
@@ -439,19 +441,18 @@ fn broadcast_block_break(
     z: i32,
     original_block_id: u32,
 ) {
-    use jolyne::valentine::types::UpdateBlockFlags;
     use jolyne::valentine::{LevelSoundEventPacket, UpdateBlockPacket};
 
     let update_packet = UpdateBlockPacket {
-        position: BlockCoordinates { x, y, z },
-        block_runtime_id: *blocks::AIR as i32,
-        flags: UpdateBlockFlags::NEIGHBORS | UpdateBlockFlags::NETWORK,
+        block_position: BlockPos { x, y, z },
+        block_runtime_id: *blocks::AIR,
+        flags: BLOCK_UPDATE_NEIGHBOURS | BLOCK_UPDATE_NETWORK,
         layer: 0,
     };
 
     let particle_packet = LevelEventPacket {
-        event: LevelEventPacketEvent::ParticleDestroy,
-        position: Vec3F {
+        event_id: LEVEL_EVENT_PARTICLES_DESTROY_BLOCK,
+        position: Vec3 {
             x: x as f32 + 0.5,
             y: y as f32 + 0.5,
             z: z as f32 + 0.5,
@@ -460,17 +461,17 @@ fn broadcast_block_break(
     };
 
     let sound_packet = LevelSoundEventPacket {
-        sound_id: "break.block".to_owned(),
-        position: Vec3F {
+        sound_event: "break.block".to_owned(),
+        position: Vec3 {
             x: x as f32 + 0.5,
             y: y as f32 + 0.5,
             z: z as f32 + 0.5,
         },
-        extra_data: original_block_id as i32,
-        entity_type: String::new(),
-        is_baby_mob: false,
+        data: original_block_id as i32,
+        actor_identifier: String::new(),
+        is_baby: false,
         is_global: false,
-        entity_unique_id: 0,
+        actor_unique_id: 0,
         fire_at_position: None,
     };
 
@@ -537,22 +538,18 @@ fn get_block_break_time(world: &World, x: i32, y: i32, z: i32) -> u32 {
 fn handle_block_click(
     world: &mut World,
     entity: Entity,
-    data: &jolyne::valentine::types::TransactionUseItem,
+    data: &jolyne::valentine::types::ItemUseInventoryTransaction,
 ) {
     // Emit PlayerInteractBlock event
     if let Some(mut event_buffer) = world.get_resource_mut::<EventBuffer>() {
         event_buffer.push(ServerEvent::PlayerInteractBlock {
             entity,
-            position: (
-                data.block_position.x,
-                data.block_position.y,
-                data.block_position.z,
-            ),
+            position: (data.position.x, data.position.y, data.position.z),
             face: data.face,
         });
     }
 
-    let network_id = data.held_item.network_id;
+    let network_id = data.item.id as i32;
     if network_id == 0 {
         return;
     }
@@ -585,9 +582,9 @@ fn handle_block_click(
     };
 
     // Calculate placement position
-    let mut x = data.block_position.x;
-    let mut y = data.block_position.y;
-    let mut z = data.block_position.z;
+    let mut x = data.position.x;
+    let mut y = data.position.y;
+    let mut z = data.position.z;
 
     match data.face {
         0 => y -= 1,
@@ -668,28 +665,27 @@ fn place_block(world: &mut World, x: i32, y: i32, z: i32, block_runtime_id: u32)
 
     // Broadcast to viewers
     if let Some(chunk_viewers) = world.get::<ChunkViewers>(chunk_entity) {
-        use jolyne::valentine::types::UpdateBlockFlags;
         use jolyne::valentine::{LevelSoundEventPacket, UpdateBlockPacket};
 
         let update_packet = UpdateBlockPacket {
-            position: BlockCoordinates { x, y, z },
-            block_runtime_id: block_runtime_id as i32,
-            flags: UpdateBlockFlags::NEIGHBORS | UpdateBlockFlags::NETWORK,
+            block_position: BlockPos { x, y, z },
+            block_runtime_id,
+            flags: BLOCK_UPDATE_NEIGHBOURS | BLOCK_UPDATE_NETWORK,
             layer: 0,
         };
 
         let sound_packet = LevelSoundEventPacket {
-            sound_id: "place".to_owned(),
-            position: Vec3F {
+            sound_event: "place".to_owned(),
+            position: Vec3 {
                 x: x as f32 + 0.5,
                 y: y as f32 + 0.5,
                 z: z as f32 + 0.5,
             },
-            extra_data: block_runtime_id as i32,
-            entity_type: String::new(),
-            is_baby_mob: false,
+            data: block_runtime_id as i32,
+            actor_identifier: String::new(),
+            is_baby: false,
             is_global: false,
-            entity_unique_id: 0,
+            actor_unique_id: 0,
             fire_at_position: None,
         };
 

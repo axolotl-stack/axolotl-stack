@@ -76,9 +76,14 @@ impl BiomeRegistry {
     }
 
     /// Convert registry to protocol packet with string interning.
-    /// Match Go format: -1 for vanilla biome IDs, proper string interning
+    /// Match the 1.26.40 map-of-biome-names-to-data wire shape with string
+    /// interning. Vanilla IDs remain the protocol sentinel when no sourced
+    /// numeric ID is available.
     pub fn to_packet(&self) -> jolyne::valentine::BiomeDefinitionListPacket {
-        use jolyne::valentine::BiomeDefinition;
+        use jolyne::valentine::{
+            BiomeDefinitionData, BiomeDefinitionListPacketMapofBiomenamestodataItem,
+            BiomeStringList,
+        };
         use std::collections::HashMap;
 
         let mut string_list: Vec<String> = Vec::new();
@@ -97,10 +102,10 @@ impl BiomeRegistry {
 
         const VANILLA_BIOME_PACKET_SENTINEL: u16 = (-1i16) as u16;
 
-        let biome_definitions: Vec<BiomeDefinition> = self
+        let biome_definitions = self
             .iter()
             .map(|biome| {
-                let name_index = intern(&biome.string_id) as i16;
+                let name_index = intern(&biome.string_id) as u16;
                 let biome_id = biome.packet_id.unwrap_or(VANILLA_BIOME_PACKET_SENTINEL);
 
                 // Water color: ARGB packed into i32 (big endian)
@@ -108,25 +113,29 @@ impl BiomeRegistry {
                 let color_bytes = biome.color.to_be_bytes();
                 let map_water_colour = i32::from_be_bytes(color_bytes);
 
-                BiomeDefinition {
-                    name_index,
-                    biome_id,
-                    temperature: biome.temperature,
-                    downfall: biome.downfall,
-                    snow_foliage: 0.0,
-                    depth: 0.0,
-                    scale: 0.0,
-                    map_water_colour,
-                    rain: biome.has_precipitation,
-                    tags: None, // TODO: Add tags when available
-                    chunk_generation: None,
+                BiomeDefinitionListPacketMapofBiomenamestodataItem {
+                    key: name_index,
+                    value: BiomeDefinitionData {
+                        id: biome_id,
+                        temperature: biome.temperature,
+                        downfall: biome.downfall,
+                        foliagesnow: 0.0,
+                        depth: 0.0,
+                        scale: 0.0,
+                        mapwatercolor_argb: map_water_colour,
+                        rain: biome.has_precipitation,
+                        tags: None, // TODO: Add tags when available
+                        chunkgendata: None,
+                    },
                 }
             })
             .collect();
 
         jolyne::valentine::BiomeDefinitionListPacket {
-            biome_definitions,
-            string_list,
+            mapof_biomenamestodata: biome_definitions,
+            stringlist: BiomeStringList {
+                strings: string_list,
+            },
         }
     }
 }
@@ -202,28 +211,29 @@ mod tests {
         let packet = registry.to_packet();
 
         assert_eq!(
-            packet.biome_definitions.len(),
+            packet.mapof_biomenamestodata.len(),
             unastar_data::biomes::ALL_BIOMES.len()
         );
         assert!(
             packet
-                .biome_definitions
+                .mapof_biomenamestodata
                 .iter()
-                .all(|definition| definition.biome_id == (-1i16) as u16)
+                .all(|definition| definition.value.id == (-1i16) as u16)
         );
         let plains_index = packet
-            .string_list
+            .stringlist
+            .strings
             .iter()
             .position(|name| name == "minecraft:plains")
             .expect("plains string");
         let plains_packet = packet
-            .biome_definitions
+            .mapof_biomenamestodata
             .iter()
-            .find(|definition| definition.name_index as usize == plains_index)
+            .find(|definition| definition.key as usize == plains_index)
             .expect("plains packet definition");
         let plains_source = unastar_data::biomes::get("minecraft:plains")
             .and_then(|biome| biome.climate)
             .expect("plains climate");
-        assert_eq!(plains_packet.downfall, plains_source.downfall);
+        assert_eq!(plains_packet.value.downfall, plains_source.downfall);
     }
 }

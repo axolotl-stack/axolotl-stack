@@ -5,8 +5,9 @@ use std::time::Duration;
 use crate::config::BedrockListenerConfig;
 
 use crate::valentine::{
-    ChunkRadiusUpdatePacket, NetworkChunkPublisherUpdatePacket, PlayStatusPacket,
-    PlayStatusPacketStatus, ResourcePackStackPacket, ResourcePacksInfoPacket,
+    ChunkRadiusUpdatePacket, EnumsServerboundLoadingScreenPacketType, Experiments,
+    NetworkChunkPublisherUpdatePacket, PlayStatusPacket, PlayStatusPacketStatus,
+    ResourcePackClientResponsePacketResponse, ResourcePackStackPacket, ResourcePacksInfoPacket,
     ServerToClientHandshakePacket,
 };
 use aes_gcm::Aes256Gcm;
@@ -22,14 +23,12 @@ use sha2::{Digest, Sha256};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::auth::{ValidatedIdentity, authenticate_login};
-use crate::error::{AuthError, JolyneError, ProtocolError};
+use crate::auth::{ValidatedIdentity, authenticate_login, decode_login_request};
+use crate::error::{JolyneError, ProtocolError};
 use crate::stream::{
     BedrockStream, Handshake, Login, Play, ResourcePacks, SecurePending, Server, StartGame,
     transport::{BedrockTransport, Transport},
 };
-use crate::valentine::types::Experiments;
-use crate::valentine::types::ResourcePackIdVersions;
 use crate::valentine::{BorrowedMcpePacketData, BorrowedRequestNetworkSettingsPacket};
 use crate::valentine::{McpePacket, McpePacketData};
 use crate::valentine::{NetworkSettingsPacket, NetworkSettingsPacketCompressionAlgorithm};
@@ -74,11 +73,11 @@ impl<T: Transport> BedrockStream<Handshake, Server, T> {
         let packet = self.transport.recv_packet_borrowed().await?;
 
         match packet.data {
-            BorrowedMcpePacketData::PacketRequestNetworkSettings(req) => {
+            BorrowedMcpePacketData::RequestNetworkSettingsPacket(req) => {
                 let req: BorrowedRequestNetworkSettingsPacket = req;
                 let server_protocol = crate::valentine::PROTOCOL_VERSION;
 
-                let client_protocol = req.client_protocol;
+                let client_protocol = req.client_network_version;
 
                 // Add protocol version context to the current span
 
@@ -86,9 +85,9 @@ impl<T: Transport> BedrockStream<Handshake, Server, T> {
 
                 if client_protocol != server_protocol {
                     let status = if client_protocol < server_protocol {
-                        PlayStatusPacketStatus::FailedClient
+                        PlayStatusPacketStatus::LoginFailedClientOld
                     } else {
-                        PlayStatusPacketStatus::FailedSpawn
+                        PlayStatusPacketStatus::LoginFailedServerOld
                     };
 
                     self.transport
@@ -108,8 +107,8 @@ impl<T: Transport> BedrockStream<Handshake, Server, T> {
 
                 let settings = NetworkSettingsPacket {
                     compression_threshold: listener_config.compression_threshold,
-                    compression_algorithm: NetworkSettingsPacketCompressionAlgorithm::Deflate,
-                    client_throttle: false,
+                    compression_algorithm: NetworkSettingsPacketCompressionAlgorithm::ZLib,
+                    client_throttle_enabled: false,
                     client_throttle_threshold: 0,
                     client_throttle_scalar: 0.0,
                 };
@@ -191,20 +190,11 @@ impl<T: Transport> BedrockStream<Login, Server, T> {
         let login_data = self.recv_expect_login().await?;
 
         let listener_config = self.state.config.as_ref().expect("config");
-        let identity = login_data
-            .tokens
-            .identity
-            .as_str()
-            .map_err(|_| AuthError::InvalidUtf8)?;
-        let client = login_data
-            .tokens
-            .client
-            .as_str()
-            .map_err(|_| AuthError::InvalidUtf8)?;
+        let (identity, client) = decode_login_request(login_data.connection_request.as_ref())?;
 
         let identity = authenticate_login(
-            identity,
-            client,
+            &identity,
+            &client,
             listener_config.online_mode,
             listener_config.allow_legacy_auth,
         )
@@ -230,7 +220,7 @@ impl<T: Transport> BedrockStream<Login, Server, T> {
         let packet = self.transport.recv_packet_borrowed().await?;
 
         match packet.data {
-            BorrowedMcpePacketData::PacketLogin(login) => Ok(login),
+            BorrowedMcpePacketData::LoginPacket(login) => Ok(login),
             _ => Err(ProtocolError::MissingLoginPacket.into()),
         }
     }
@@ -317,7 +307,9 @@ impl<T: Transport> BedrockStream<SecurePending, Server, T> {
 
         let token = encode(&header, &claims, &encoding_key).unwrap();
 
-        let handshake_pkt = ServerToClientHandshakePacket { token };
+        let handshake_pkt = ServerToClientHandshakePacket {
+            handshake_web_token: token,
+        };
 
         self.transport
             .send_batch(&[McpePacket::from(handshake_pkt)])
@@ -326,7 +318,7 @@ impl<T: Transport> BedrockStream<SecurePending, Server, T> {
         self.transport.enable_encryption(*key, iv);
 
         let packet = self.transport.recv_packet_raw().await?;
-        if packet.id != crate::valentine::McpePacketName::PacketClientToServerHandshake {
+        if packet.id != crate::valentine::McpePacketName::ClientToServerHandshakePacket {
             return Err(ProtocolError::UnexpectedHandshake(
                 "Expected ClientToServerHandshake".into(),
             )
@@ -350,24 +342,28 @@ impl<T: Transport> BedrockStream<ResourcePacks, Server, T> {
         required: bool,
     ) -> Result<BedrockStream<StartGame, Server, T>, JolyneError> {
         let info = ResourcePacksInfoPacket {
-            must_accept: required,
-            has_addons: false,
+            resource_pack_required: required,
+            has_addon_packs: false,
             has_scripts: false,
-            disable_vibrant_visuals: false,
-            world_template: crate::valentine::types::ResourcePacksInfoPacketWorldTemplate {
-                uuid: Uuid::nil(),
-                version: "1.0.0".to_string(),
+            force_disable_vibrant_visuals: false,
+            world_template_id_and_version: crate::valentine::PackIdVersionjson {
+                pack_uuid: Uuid::nil(),
+                pack_version: crate::valentine::SemVersionjson {
+                    version: "1.0.0".into(),
+                },
             },
-            texture_packs: vec![],
+            resource_packs: vec![],
         };
 
         let stack = ResourcePackStackPacket {
-            must_accept: required,
-            resource_packs: ResourcePackIdVersions::new(),
-            game_version: crate::valentine::GAME_VERSION.to_string(),
-            experiments: Experiments::new(),
-            experiments_previously_used: false,
-            has_editor_packs: false,
+            texture_pack_required: required,
+            texture_pack_list: vec![],
+            base_game_version: crate::valentine::GAME_VERSION.to_string(),
+            experiments: Experiments {
+                toggles: vec![],
+                experiments_ever_toggled: false,
+            },
+            include_editor_packs: false,
         };
 
         self.transport
@@ -378,10 +374,9 @@ impl<T: Transport> BedrockStream<ResourcePacks, Server, T> {
             loop {
                 let packets = self.transport.recv_batch().await?;
                 for pkt in packets {
-                    if let McpePacketData::PacketResourcePackClientResponse(resp) = pkt.data {
-                        use crate::valentine::ResourcePackClientResponsePacketResponseStatus as Status;
-                        match resp.response_status {
-                            Status::Refused if required => {
+                    if let McpePacketData::ResourcePackClientResponsePacket(resp) = pkt.data {
+                        match resp.response {
+                            ResourcePackClientResponsePacketResponse::Cancel(_) if required => {
                                 tracing::warn!("Client refused required resource packs");
                                 return Err(ProtocolError::UnexpectedHandshake(
                                     "Client refused required packs".into(),
@@ -389,7 +384,7 @@ impl<T: Transport> BedrockStream<ResourcePacks, Server, T> {
                                 .into());
                             }
 
-                            Status::Refused => {
+                            ResourcePackClientResponsePacketResponse::Cancel(_) => {
                                 tracing::debug!("Client refused optional resource packs");
 
                                 return Ok(BedrockStream {
@@ -399,12 +394,14 @@ impl<T: Transport> BedrockStream<ResourcePacks, Server, T> {
                                 });
                             }
 
-                            Status::SendPacks => {}
+                            ResourcePackClientResponsePacketResponse::Downloading(_) => {}
 
-                            Status::HaveAllPacks => {
+                            ResourcePackClientResponsePacketResponse::DownloadingFinished(_) => {
                                 tracing::debug!("Client has all resource packs");
                             }
-                            Status::Completed => {
+                            ResourcePackClientResponsePacketResponse::ResourcePackStackFinished(
+                                _,
+                            ) => {
                                 tracing::debug!("Client completed resource pack negotiation");
 
                                 return Ok(BedrockStream {
@@ -413,7 +410,6 @@ impl<T: Transport> BedrockStream<ResourcePacks, Server, T> {
                                     _role: PhantomData,
                                 });
                             }
-                            _ => {}
                         }
                     }
                 }
@@ -436,7 +432,11 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
         params: WorldJoinParams,
     ) -> Result<BedrockStream<Play, Server, T>, JolyneError> {
         // 1. Send StartGame Packet & ItemRegistry
-        let publisher_position = params.start_game.spawn_position.clone();
+        let publisher_position = params
+            .start_game
+            .settings
+            .default_spawn_block_position
+            .clone();
         self.transport
             .send_batch(&[
                 McpePacket::from(params.start_game),
@@ -451,7 +451,7 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
             loop {
                 let pkt = self.transport.recv_packet().await?;
 
-                if let McpePacketData::PacketRequestChunkRadius(req) = pkt.data {
+                if let McpePacketData::RequestChunkRadiusPacket(req) = pkt.data {
                     return Ok::<_, JolyneError>(req.chunk_radius);
                 }
                 // ignore all other packets. Maybe add a configable logging here?
@@ -474,9 +474,9 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
                     chunk_radius: radius,
                 }),
                 McpePacket::from(NetworkChunkPublisherUpdatePacket {
-                    coordinates: publisher_position,
-                    radius,
-                    saved_chunks: vec![],
+                    newpositionforview: publisher_position,
+                    newradiusforview: radius as u32,
+                    server_built_chunks_list: vec![],
                 }),
                 McpePacket::from(params.biome_definitions.as_ref().clone()),
                 McpePacket::from(params.available_entities.as_ref().clone()),
@@ -494,8 +494,9 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
             loop {
                 let pkt = self.transport.recv_packet().await?;
 
-                if let McpePacketData::PacketServerboundLoadingScreen(pk) = pkt.data
-                    && pk.type_ == 1
+                if let McpePacketData::ServerboundLoadingScreenPacket(pk) = pkt.data
+                    && pk.loading_screen_packet_type
+                        == EnumsServerboundLoadingScreenPacketType::StartLoadingScreen
                 {
                     return Ok::<_, JolyneError>(());
                 }
@@ -510,8 +511,9 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
             loop {
                 let pkt = self.transport.recv_packet().await?;
 
-                if let McpePacketData::PacketServerboundLoadingScreen(pk) = pkt.data
-                    && pk.type_ == 2
+                if let McpePacketData::ServerboundLoadingScreenPacket(pk) = pkt.data
+                    && pk.loading_screen_packet_type
+                        == EnumsServerboundLoadingScreenPacketType::EndLoadingScreen
                 {
                     return Ok::<_, JolyneError>(());
                 }
@@ -538,7 +540,7 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
 
                 if matches!(
                     pkt.data,
-                    McpePacketData::PacketSetLocalPlayerAsInitialized(_)
+                    McpePacketData::SetLocalPlayerAsInitializedPacket(_)
                 ) {
                     return Ok::<_, JolyneError>(());
                 } else {
@@ -596,7 +598,9 @@ mod tests {
     use crate::stream::transport::{BedrockTransport, TransportMessage, TransportRecvMessage};
     use crate::valentine::{
         ClientCacheStatusPacket, ResourcePackClientResponsePacket,
-        ResourcePackClientResponsePacketResponseStatus,
+        ResourcePackClientResponsePacketPayloadDownloadingFinished,
+        ResourcePackClientResponsePacketPayloadResourcePackStackFinished,
+        ResourcePackClientResponsePacketResponse,
     };
     use bytes::Bytes;
     use std::collections::VecDeque;
@@ -669,14 +673,22 @@ mod tests {
         let sent = Arc::new(Mutex::new(Vec::new()));
         let received = Arc::new(Mutex::new(0usize));
         let inbound = vec![
-            compressed_frame(McpePacket::from(ClientCacheStatusPacket { enabled: false })),
-            compressed_frame(McpePacket::from(ResourcePackClientResponsePacket {
-                response_status: ResourcePackClientResponsePacketResponseStatus::HaveAllPacks,
-                resourcepackids: vec![],
+            compressed_frame(McpePacket::from(ClientCacheStatusPacket {
+                iscachesupported: false,
             })),
             compressed_frame(McpePacket::from(ResourcePackClientResponsePacket {
-                response_status: ResourcePackClientResponsePacketResponseStatus::Completed,
-                resourcepackids: vec![],
+                response: ResourcePackClientResponsePacketResponse::DownloadingFinished(
+                    ResourcePackClientResponsePacketPayloadDownloadingFinished {
+                        response_type: "downloadingfinished".into(),
+                    },
+                ),
+            })),
+            compressed_frame(McpePacket::from(ResourcePackClientResponsePacket {
+                response: ResourcePackClientResponsePacketResponse::ResourcePackStackFinished(
+                    ResourcePackClientResponsePacketPayloadResourcePackStackFinished {
+                        response_type: "resourcepackstackfinished".into(),
+                    },
+                ),
             })),
         ];
 
@@ -717,11 +729,11 @@ mod tests {
             decoded.as_slice(),
             [
                 McpePacket {
-                    data: McpePacketData::PacketResourcePacksInfo(_),
+                    data: McpePacketData::ResourcePacksInfoPacket(_),
                     ..
                 },
                 McpePacket {
-                    data: McpePacketData::PacketResourcePackStack(_),
+                    data: McpePacketData::ResourcePackStackPacket(_),
                     ..
                 }
             ]

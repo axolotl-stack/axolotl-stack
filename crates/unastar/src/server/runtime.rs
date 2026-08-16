@@ -302,7 +302,7 @@ impl UnastarServer {
                                     );
                                     continue;
                                 }
-                                self.server.route_packet(session_id, packet_args, packet);
+                                self.server.route_packet(session_id, packet_args, *packet);
                             }
                             NetworkEvent::Disconnected { session_id } => {
                                 if self.config.players.save_on_disconnect {

@@ -121,8 +121,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn spawn_client(addr: SocketAddr, name: &str, duration: u64) -> anyhow::Result<()> {
-    use jolyne::valentine::PlayerAuthInputPacket;
-    use jolyne::valentine::types::{InputFlag, Vec2F, Vec3F};
+    use jolyne::valentine::{PlayerAuthInputPacket, PlayerInputTick, Vec2, Vec3};
 
     // Connect
     let handshake = BedrockStream::connect(addr).await?;
@@ -158,36 +157,41 @@ async fn spawn_client(addr: SocketAddr, name: &str, duration: u64) -> anyhow::Re
         let delta_z = angle.cos() * walk_radius * rotation_speed;
 
         let input_packet = PlayerAuthInputPacket {
-            pitch: 0.0,
-            yaw: angle.to_degrees(),
-            position: Vec3F {
+            player_rotation: Vec2 {
+                x: 0.0,
+                y: angle.to_degrees(),
+            },
+            position: Vec3 {
                 x: pos_x,
                 y: 17.62, // Eye level (ground Y=16 + 1.62 eye height)
                 z: pos_z,
             },
-            move_vector: Vec2F {
+            move_vector: Vec2 {
                 x: angle.cos(),
-                z: angle.sin(),
+                y: angle.sin(),
             },
-            head_yaw: angle.to_degrees(),
-            input_data: InputFlag::empty(),
+            player_head_rotation: angle.to_degrees(),
+            input_data: None,
             input_mode: Default::default(),
             play_mode: Default::default(),
-            interaction_model: Default::default(),
-            interact_rotation: Vec2F::default(),
-            tick,
-            delta: Vec3F {
+            new_interaction_model: Default::default(),
+            interact_rotation: Vec2::default(),
+            client_tick: PlayerInputTick {
+                inputtick: tick as u64,
+            },
+            pos_delta: Vec3 {
                 x: delta_x,
                 y: 0.0,
                 z: delta_z,
             },
-            transaction: None,
+            item_use_transaction: None,
             item_stack_request: None,
-            content: None,
-            block_action: None,
-            analogue_move_vector: Vec2F::default(),
-            camera_orientation: Vec3F::default(),
-            raw_move_vector: Vec2F::default(),
+            player_block_actions: None,
+            vehicle_rotation: None,
+            client_predicted_vehicle: None,
+            analog_move_vector: Vec2::default(),
+            camera_orientation: Vec3::default(),
+            raw_move_vector: Vec2::default(),
         };
 
         if let Err(e) = play.send_packet(input_packet.into()).await {
@@ -211,13 +215,13 @@ async fn spawn_client(addr: SocketAddr, name: &str, duration: u64) -> anyhow::Re
     info!("[{}] Duration complete, sending disconnect", name);
 
     // Send a clean disconnect packet
-    use jolyne::valentine::DisconnectPacket;
-    use jolyne::valentine::types::DisconnectFailReason;
+    use jolyne::valentine::{
+        DisconnectPacket, DisconnectPacketMessages, EnumsConnectionDisconnectFailReason,
+    };
 
     let disconnect = DisconnectPacket {
-        hide_disconnect_reason: false,
-        reason: DisconnectFailReason::Unknown,
-        content: None, // No message needed
+        reason: EnumsConnectionDisconnectFailReason::Unknown,
+        messages: DisconnectPacketMessages::default(),
     };
 
     let _ = play.send_packet(disconnect.into()).await;
