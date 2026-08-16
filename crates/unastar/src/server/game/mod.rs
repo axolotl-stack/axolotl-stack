@@ -17,8 +17,8 @@ pub mod types;
 
 use bevy_ecs::prelude::*;
 use jolyne::WorldTemplate;
-use jolyne::valentine::StartGamePacketDimension;
-use jolyne::valentine::types::{BlockCoordinates, Vec3F};
+use jolyne::valentine::EnumsGameType;
+use jolyne::valentine::types::{BlockPos, Vec3};
 use std::sync::Arc;
 use tracing::{info, warn};
 
@@ -93,22 +93,28 @@ impl GameServer {
         blocks.load_vanilla();
 
         let mut world_template = WorldTemplate::default();
-        world_template.start_game_template.player_position = Vec3F {
+        world_template.start_game_template.position = Vec3 {
             x: 0.5,
             y: 17.0,
             z: 0.5,
         };
-        world_template.start_game_template.spawn_position = BlockCoordinates { x: 0, y: 17, z: 0 };
-        world_template.start_game_template.dimension = match config.world.dimension {
-            1 => StartGamePacketDimension::Nether,
-            2 => StartGamePacketDimension::End,
-            _ => StartGamePacketDimension::Overworld,
-        };
         world_template
             .start_game_template
-            .server_authoritative_inventory = true;
+            .settings
+            .default_spawn_block_position = BlockPos { x: 0, y: 17, z: 0 };
         world_template
             .start_game_template
+            .settings
+            .spawn_settings
+            .dimension = config.world.dimension;
+        world_template.start_game_template.game_type = EnumsGameType::Survival;
+        world_template.start_game_template.settings.game_type = EnumsGameType::Survival;
+        world_template
+            .start_game_template
+            .enable_item_stack_net_manager = true;
+        world_template
+            .start_game_template
+            .movement_settings
             .server_authoritative_block_breaking = true;
         world_template.item_registry = Arc::new(items.to_packet());
         world_template.biome_definitions = Arc::new(biomes.to_packet());
@@ -503,32 +509,33 @@ impl GameServer {
     ) -> jolyne::valentine::CreativeContentPacket {
         use crate::registry::CreativeInventoryData;
         use jolyne::valentine::{
-            CreativeContentPacket, CreativeContentPacketGroupsItem,
-            CreativeContentPacketGroupsItemCategory, CreativeContentPacketItemsItem, ItemLegacy,
-            ItemLegacyContent, ItemLegacyContentExtra,
+            CerealizerNetworkItemInstanceDescriptorSerializedData, CreativeContentPacket,
+            CreativeGroupInfoPayload, CreativeItemEntryPayload,
+            EnumsSharedTypesCreativeItemCategory, TypedServerNetIdstructCreativeItemNetIdTag,
         };
 
         let creative_data = CreativeInventoryData::load();
 
         let mut protocol_groups = Vec::new();
         let mut items_list = Vec::new();
-        let mut entry_id_counter = 1i32;
-        let mut global_group_index = 0i32;
+        let mut entry_id_counter = 1u32;
+        let mut global_group_index = 0u32;
 
         for (tab_name, tab_groups) in creative_data.all_groups_ordered() {
             let category_map = |tab_name: &str| match tab_name {
-                "Construction" => CreativeContentPacketGroupsItemCategory::Construction,
-                "Nature" => CreativeContentPacketGroupsItemCategory::Nature,
-                "Equipment" => CreativeContentPacketGroupsItemCategory::Equipment,
-                _ => CreativeContentPacketGroupsItemCategory::Items,
+                "Construction" => EnumsSharedTypesCreativeItemCategory::Construction,
+                "Nature" => EnumsSharedTypesCreativeItemCategory::Nature,
+                "Equipment" => EnumsSharedTypesCreativeItemCategory::Equipment,
+                _ => EnumsSharedTypesCreativeItemCategory::Items,
             };
             let category = category_map(tab_name);
 
             for group in tab_groups {
-                protocol_groups.push(CreativeContentPacketGroupsItem {
-                    category,
+                protocol_groups.push(CreativeGroupInfoPayload {
+                    creative_category: category,
                     name: group.group_name.to_string(),
-                    icon_item: ItemLegacy::default(),
+                    group_icon_item: CerealizerNetworkItemInstanceDescriptorSerializedData::default(
+                    ),
                 });
 
                 for creative_item in group.items {
@@ -542,16 +549,16 @@ impl GameServer {
                         .get_by_name(creative_item.item_id())
                         .map_or(0, |b| b.default_state_id as i32);
 
-                    items_list.push(CreativeContentPacketItemsItem {
-                        entry_id: entry_id_counter,
-                        item: ItemLegacy {
-                            network_id: item_network_id,
-                            content: Some(Box::new(ItemLegacyContent {
-                                count: 1,
-                                metadata: creative_item.damage().into(),
-                                block_runtime_id,
-                                extra: ItemLegacyContentExtra::default(),
-                            })),
+                    items_list.push(CreativeItemEntryPayload {
+                        creative_net_id: TypedServerNetIdstructCreativeItemNetIdTag {
+                            id: entry_id_counter,
+                        },
+                        item_instance: CerealizerNetworkItemInstanceDescriptorSerializedData {
+                            id: item_network_id,
+                            stacksize: 1,
+                            auxvalue: creative_item.damage() as u32,
+                            block_runtime_id,
+                            user_data_buffer: Vec::new(),
                         },
                         group_index: global_group_index,
                     });
@@ -562,7 +569,7 @@ impl GameServer {
         }
         CreativeContentPacket {
             groups: protocol_groups,
-            items: items_list,
+            entries: items_list,
         }
     }
 }
@@ -669,7 +676,7 @@ mod tests {
 
         let first_packet = outbound_rx.try_recv().expect("initial join packet");
         match first_packet.data {
-            McpePacketData::PacketChunkRadiusUpdate(packet) => {
+            McpePacketData::ChunkRadiusUpdatedPacket(packet) => {
                 assert_eq!(packet.chunk_radius, 2);
             }
             other => panic!("expected ChunkRadiusUpdate first, got {other:?}"),

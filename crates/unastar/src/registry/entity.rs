@@ -2,7 +2,7 @@
 
 use super::{Registry, RegistryEntry};
 use bytes::BytesMut;
-use jolyne::valentine::AvailableEntityIdentifiersPacket;
+use jolyne::valentine::AvailableActorIdentifiersPacket;
 use jolyne::valentine::bedrock::codec::Nbt;
 
 /// Runtime entity entry in the registry.
@@ -67,11 +67,11 @@ impl EntityRegistry {
         }
     }
 
-    /// Convert registry to an `AvailableEntityIdentifiers` packet.
+    /// Convert registry to an `AvailableActorIdentifiers` packet.
     ///
     /// This matches Dragonfly's `AvailableActorIdentifiers` payload: an NBT compound containing an
     /// `idlist` list of compounds, each with a single string field `id`.
-    pub fn to_available_entity_identifiers_packet(&self) -> AvailableEntityIdentifiersPacket {
+    pub fn to_available_entity_identifiers_packet(&self) -> AvailableActorIdentifiersPacket {
         fn write_var_u32(buf: &mut BytesMut, mut v: u32) {
             while v >= 0x80 {
                 buf.extend_from_slice(&[(v as u8) | 0x80]);
@@ -115,8 +115,8 @@ impl EntityRegistry {
         // End root compound
         buf.extend_from_slice(&[0x00]);
 
-        AvailableEntityIdentifiersPacket {
-            nbt: Nbt(buf.freeze()),
+        AvailableActorIdentifiersPacket {
+            identifier_list: Nbt(buf.freeze()),
         }
     }
 }
@@ -164,7 +164,7 @@ mod tests {
 
         let packet = registry.to_available_entity_identifiers_packet();
 
-        assert!(!packet.nbt.0.is_empty());
+        assert!(!packet.identifier_list.0.is_empty());
         assert_eq!(
             registry.len(),
             unastar_data::entities::definitions::ALL_ENTITIES.len()

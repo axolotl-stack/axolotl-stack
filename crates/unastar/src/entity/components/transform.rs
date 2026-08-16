@@ -12,17 +12,17 @@ impl Position {
         Self(DVec3::new(x, y, z))
     }
 
-    /// Convert to protocol Vec3F.
-    pub fn to_protocol(&self) -> jolyne::valentine::types::Vec3F {
-        jolyne::valentine::types::Vec3F {
+    /// Convert to the protocol's 1.26.40 `Vec3`.
+    pub fn to_protocol(&self) -> jolyne::valentine::types::Vec3 {
+        jolyne::valentine::types::Vec3 {
             x: self.0.x as f32,
             y: self.0.y as f32,
             z: self.0.z as f32,
         }
     }
 
-    /// Create from protocol Vec3F.
-    pub fn from_protocol(v: &jolyne::valentine::types::Vec3F) -> Self {
+    /// Create from the protocol's 1.26.40 `Vec3`.
+    pub fn from_protocol(v: &jolyne::valentine::types::Vec3) -> Self {
         Self(DVec3::new(v.x as f64, v.y as f64, v.z as f64))
     }
 }

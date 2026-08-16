@@ -14,7 +14,9 @@ use valentine::protocol::wire;
 
 use crate::error::{JolyneError, ProtocolError};
 use crate::valentine::BorrowedMcpePacket;
-use crate::valentine::mcpe::{GameHeader, McpePacket, McpePacketData, McpePacketName};
+use crate::valentine::mcpe::{
+    GameHeader, McpePacket, McpePacketArgs, McpePacketData, McpePacketName,
+};
 
 pub(crate) const MAX_RAW_BATCH_PACKETS: usize = 1_600;
 
@@ -27,7 +29,7 @@ pub(crate) const MAX_RAW_BATCH_PACKETS: usize = 1_600;
 /// # Example
 /// ```ignore
 /// match stream.recv_packet_raw().await?.id {
-///     McpePacketName::PacketText => { /* snoop on chat */ },
+///     McpePacketName::TextPacket => { /* snoop on chat */ },
 ///     _ => stream.send_packet_raw(raw).await?, // forward as-is
 /// }
 /// ```
@@ -50,13 +52,13 @@ impl RawPacket {
     ///
     /// This is useful when you decide you need the full packet contents
     /// after initially receiving it as raw bytes.
-    pub fn decode(self, session: &BedrockSession) -> Result<McpePacket, JolyneError> {
+    pub fn decode(self, _session: &BedrockSession) -> Result<McpePacket, JolyneError> {
         let packet_id = self.id;
         let body_len = self.body.len();
         let body_preview = self.body.iter().take(32).copied().collect::<Vec<_>>();
         let mut buf = self.inner_frame;
         let (header, data) =
-            McpePacketData::decode_inner(&mut buf, session.into()).map_err(|source| {
+            McpePacketData::decode_inner(&mut buf, McpePacketArgs).map_err(|source| {
                 JolyneError::PacketDecode {
                     packet_id,
                     body_len,
@@ -365,7 +367,7 @@ mod tests {
 
         let raw = decode_packet_raw(&mut cursor).expect("decode");
 
-        assert_eq!(raw.id, McpePacketName::PacketPlayStatus);
+        assert_eq!(raw.id, McpePacketName::PlayStatusPacket);
         assert_eq!(raw.header.from_subclient, 1);
         assert_eq!(raw.header.to_subclient, 2);
     }
@@ -377,7 +379,7 @@ mod tests {
 
         let raw = decode_packet_raw(&mut cursor).expect("decode");
 
-        assert_eq!(raw.id, McpePacketName::PacketRequestNetworkSettings);
+        assert_eq!(raw.id, McpePacketName::RequestNetworkSettingsPacket);
     }
 
     #[test]
@@ -422,14 +424,14 @@ mod tests {
                 body_preview,
                 ..
             } => {
-                assert_eq!(*packet_id, McpePacketName::PacketText);
+                assert_eq!(*packet_id, McpePacketName::TextPacket);
                 assert_eq!(*body_len, body.len());
                 assert_eq!(body_preview, &body[..32]);
             }
             other => panic!("expected packet-aware decode error, got {other:?}"),
         }
         let message = error.to_string();
-        assert!(message.contains("PacketText"));
+        assert!(message.contains("TextPacket"));
         assert!(message.contains("body_len=40"));
         assert!(message.contains("7f"));
     }
@@ -626,9 +628,9 @@ mod tests {
         // Test a few known packet IDs
         // PacketLogin = 1, PacketPlayStatus = 2, PacketDisconnect = 5
         let known_ids: [(u32, McpePacketName); 3] = [
-            (0x01, McpePacketName::PacketLogin),
-            (0x02, McpePacketName::PacketPlayStatus),
-            (0x05, McpePacketName::PacketDisconnect),
+            (0x01, McpePacketName::LoginPacket),
+            (0x02, McpePacketName::PlayStatusPacket),
+            (0x05, McpePacketName::DisconnectPacket),
         ];
 
         for (id, expected_name) in known_ids {

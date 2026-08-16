@@ -20,10 +20,17 @@ use crate::world::ecs::{
     ChunkData, ChunkEntities, ChunkLoader, ChunkManager, ChunkPendingUnload, ChunkPosition,
     ChunkState, ChunkStateFlags, ChunkTickingState, ChunkViewers, PendingChunkGenerations,
 };
-use jolyne::valentine::types::{BlockCoordinates, UpdateBlockFlags};
+use jolyne::valentine::types::{BlockPos, ChunkPos, DimensionType};
 use jolyne::valentine::{
     LevelChunkPacket, McpePacket, NetworkChunkPublisherUpdatePacket, UpdateBlockPacket,
 };
+
+// Protocol 2168 replaced the legacy negative LevelChunk request-mode sentinel
+// with `SubChunksCount = 0` and an optional sub-chunk limit. These are the
+// canonical values used by protocolgen and Dragonfly for the same on-demand
+// loading behavior.
+const BLOCK_UPDATE_NEIGHBOURS: u32 = 1;
+const BLOCK_UPDATE_NETWORK: u32 = 1 << 1;
 
 /// Configuration for chunk loading behavior.
 #[derive(Resource, Debug, Clone)]
@@ -205,13 +212,13 @@ pub fn process_chunk_load_queues(
             let block_z = position.0.z.floor() as i32;
 
             if !session.send(McpePacket::from(NetworkChunkPublisherUpdatePacket {
-                coordinates: BlockCoordinates {
+                newpositionforview: BlockPos {
                     x: block_x,
                     y: block_y,
                     z: block_z,
                 },
-                radius: publisher_radius,
-                saved_chunks: vec![],
+                newradiusforview: publisher_radius as u32,
+                server_built_chunks_list: vec![],
             })) {
                 debug!(player = ?player_entity, "Failed to send NetworkChunkPublisherUpdate (channel full or closed)");
                 continue;
@@ -299,13 +306,15 @@ pub fn process_chunk_load_queues(
 
             // Send LevelChunk packet
             let send_result = session.send(McpePacket::from(LevelChunkPacket {
-                x: cx,
-                z: cz,
-                dimension: config.dimension,
-                sub_chunk_count: crate::world::request_mode::LIMITED,
-                highest_subchunk_count: Some(highest_subchunk),
-                blobs: None,
-                payload,
+                chunk_position: ChunkPos { x: cx, z: cz },
+                dimension_id: DimensionType {
+                    value: config.dimension,
+                },
+                subchunks_count: 0,
+                client_request_sub_chunk_limit: Some(highest_subchunk as i32),
+                cache_enabled: false,
+                cache_metadata: vec![],
+                serialized_chunk_data: payload,
             }));
 
             if !send_result {
@@ -409,13 +418,15 @@ pub fn request_chunk_generation(
                     let highest_subchunk = chunk_data.inner.highest_subchunk();
 
                     let packet = LevelChunkPacket {
-                        x: cx,
-                        z: cz,
-                        dimension: config.dimension,
-                        sub_chunk_count: crate::world::request_mode::LIMITED,
-                        highest_subchunk_count: Some(highest_subchunk),
-                        blobs: None,
-                        payload,
+                        chunk_position: ChunkPos { x: cx, z: cz },
+                        dimension_id: DimensionType {
+                            value: config.dimension,
+                        },
+                        subchunks_count: 0,
+                        client_request_sub_chunk_limit: Some(highest_subchunk as i32),
+                        cache_enabled: false,
+                        cache_metadata: vec![],
+                        serialized_chunk_data: payload,
                     };
 
                     if session.send(McpePacket::from(packet)) {
@@ -527,13 +538,15 @@ pub fn process_completed_generations(
         for viewer_entity in viewers {
             if let Ok(session) = sessions.get(viewer_entity) {
                 let packet = LevelChunkPacket {
-                    x,
-                    z,
-                    dimension: config.dimension,
-                    sub_chunk_count: crate::world::request_mode::LIMITED,
-                    highest_subchunk_count: Some(highest_subchunk),
-                    blobs: None,
-                    payload: biome_data.clone(),
+                    chunk_position: ChunkPos { x, z },
+                    dimension_id: DimensionType {
+                        value: config.dimension,
+                    },
+                    subchunks_count: 0,
+                    client_request_sub_chunk_limit: Some(highest_subchunk as i32),
+                    cache_enabled: false,
+                    cache_metadata: vec![],
+                    serialized_chunk_data: biome_data.clone(),
                 };
 
                 if session.send(McpePacket::from(packet)) {
@@ -827,14 +840,14 @@ pub fn broadcast_block_update(
     };
 
     let packet = UpdateBlockPacket {
-        position: BlockCoordinates {
+        block_position: BlockPos {
             x: world_x,
             y: world_y,
             z: world_z,
         },
-        block_runtime_id,
-        flags: UpdateBlockFlags::NEIGHBORS | UpdateBlockFlags::NETWORK,
-        layer: 0,
+        block_runtime_id: block_runtime_id as u32,
+        flags: BLOCK_UPDATE_NEIGHBOURS | BLOCK_UPDATE_NETWORK,
+        layer: 0u32,
     };
 
     for viewer_entity in chunk_viewers.iter() {

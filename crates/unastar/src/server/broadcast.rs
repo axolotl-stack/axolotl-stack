@@ -7,14 +7,24 @@
 
 use bevy_ecs::prelude::*;
 use jolyne::valentine::types::{
-    AbilityLayers, AbilityLayersType, AbilitySet, CommandPermissionLevel, DeviceOs,
-    EntityProperties, GameMode as ProtocolGameMode, Item, Links, MetadataDictionary,
-    PermissionLevel, Vec3F,
+    ActorRuntimeId, ActorUniqueId, CerealizerNetworkItemStackDescriptorSerializedData,
+    EnumsBuildPlatform, EnumsCommandPermissionLevel, EnumsGameType, EnumsPlayerPermissionLevel,
+    EnumsPlayerPositionModeComponentPositionMode, PlayerInputTick, PropertySyncData,
+    SerializedAbilitiesData, SerializedAbilitiesDataSerializedLayer,
+    SynchedActorDataCopyableDataList, Vec2, Vec3,
 };
-use jolyne::valentine::{AddPlayerPacket, MovePlayerPacketMode, RemoveEntityPacket};
-use jolyne::valentine::{McpePacket, MovePlayerPacket};
+use jolyne::valentine::{AddPlayerPacket, McpePacket, MovePlayerPacket, RemoveActorPacket};
 use std::collections::HashMap;
 use uuid::Uuid;
+
+// Ability bit values and the base-layer ordinal are the protocol values used
+// by Dragonfly/gophertunnel. Protocolgen exposes the generated fields but not
+// these shared constants.
+const ABILITY_BUILD: u32 = 1 << 0;
+const ABILITY_MINE: u32 = 1 << 1;
+const ABILITY_DOORS_AND_SWITCHES: u32 = 1 << 2;
+const ABILITY_COUNT: u32 = 1 << 20;
+const ABILITY_LAYER_BASE: u16 = 1;
 
 use crate::entity::components::{
     GameMode, LastBroadcastPosition, Player, PlayerName, PlayerSession, PlayerUuid, Position,
@@ -70,44 +80,52 @@ fn build_add_player_packet(
     game_mode: GameMode,
 ) -> AddPlayerPacket {
     let protocol_gamemode = match game_mode {
-        GameMode::Survival => ProtocolGameMode::Survival,
-        GameMode::Creative => ProtocolGameMode::Creative,
-        GameMode::Adventure => ProtocolGameMode::Adventure,
-        GameMode::Spectator => ProtocolGameMode::Creative, // No spectator in protocol
+        GameMode::Survival => EnumsGameType::Survival,
+        GameMode::Creative => EnumsGameType::Creative,
+        GameMode::Adventure => EnumsGameType::Adventure,
+        GameMode::Spectator => EnumsGameType::Creative, // No spectator in protocol
     };
 
     AddPlayerPacket {
         uuid,
-        username: name.to_string(),
-        runtime_id,
+        player_name: name.to_string(),
+        target_runtime_id: ActorRuntimeId {
+            actor_runtime_id: runtime_id as u64,
+        },
         platform_chat_id: String::new(),
-        position: Vec3F {
+        position: Vec3 {
             x: position.0.x as f32,
             y: position.0.y as f32,
             z: position.0.z as f32,
         },
-        velocity: Vec3F::default(),
-        pitch: rotation.pitch,
-        yaw: rotation.yaw,
-        head_yaw: rotation.yaw,
-        held_item: Item::default(),
-        gamemode: protocol_gamemode,
-        metadata: MetadataDictionary::default(),
-        properties: EntityProperties::default(),
-        unique_id: runtime_id,
-        permission_level: PermissionLevel::Member,
-        command_permission: CommandPermissionLevel::Normal,
-        abilities: vec![AbilityLayers {
-            type_: AbilityLayersType::Base,
-            allowed: AbilitySet::all(),
-            enabled: AbilitySet::BUILD | AbilitySet::MINE | AbilitySet::DOORS_AND_SWITCHES,
-            fly_speed: 0.05,
-            vertical_fly_speed: 0.05,
-            walk_speed: 0.1,
-        }],
-        links: Links::default(),
+        velocity: Vec3::default(),
+        rotation: Vec2 {
+            x: rotation.pitch,
+            y: rotation.yaw,
+        },
+        y_head_rotation: rotation.yaw,
+        carried_item: CerealizerNetworkItemStackDescriptorSerializedData::default(),
+        player_game_type: protocol_gamemode,
+        entity_data: SynchedActorDataCopyableDataList::default(),
+        synched_properties: PropertySyncData::default(),
+        abilities_data: SerializedAbilitiesData {
+            target_player_raw_id: runtime_id,
+            player_permissions: EnumsPlayerPermissionLevel::Member,
+            command_permissions: EnumsCommandPermissionLevel::Any,
+            layers: vec![SerializedAbilitiesDataSerializedLayer {
+                serialized_layer: ABILITY_LAYER_BASE,
+                // AbilityCount - 1 from Dragonfly/gophertunnel: all defined
+                // ability bits except the sentinel COUNT value.
+                abilities_set: ABILITY_COUNT - 1,
+                ability_values: ABILITY_BUILD | ABILITY_MINE | ABILITY_DOORS_AND_SWITCHES,
+                fly_speed: 0.05,
+                vertical_fly_speed: 0.05,
+                walk_speed: 0.1,
+            }],
+        },
+        actor_links: vec![],
         device_id: String::new(),
-        device_os: DeviceOs::Undefined,
+        build_platform: EnumsBuildPlatform::Unknown,
     }
 }
 
@@ -119,27 +137,35 @@ fn build_move_player_packet(
     on_ground: bool,
 ) -> MovePlayerPacket {
     MovePlayerPacket {
-        runtime_id: runtime_id as u64,
-        position: Vec3F {
+        player_runtime_id: ActorRuntimeId {
+            actor_runtime_id: runtime_id as u64,
+        },
+        position: Vec3 {
             x: position.0.x as f32,
             y: position.0.y as f32,
             z: position.0.z as f32,
         },
-        pitch: rotation.pitch,
-        yaw: rotation.yaw,
-        head_yaw: rotation.yaw,
-        mode: MovePlayerPacketMode::Normal,
+        rotation: Vec2 {
+            x: rotation.pitch,
+            y: rotation.yaw,
+        },
+        y_head_rotation: rotation.yaw,
+        position_mode: EnumsPlayerPositionModeComponentPositionMode::Normal,
         on_ground,
-        ridden_runtime_id: 0,
-        teleport: None,
-        tick: 0,
+        riding_runtime_id: ActorRuntimeId {
+            actor_runtime_id: 0,
+        },
+        teleport_data: None,
+        tick: PlayerInputTick { inputtick: 0 },
     }
 }
 
-/// Builds a RemoveEntity packet for despawn broadcasting.
-fn build_remove_entity_packet(runtime_id: i64) -> RemoveEntityPacket {
-    RemoveEntityPacket {
-        entity_id_self: runtime_id,
+/// Builds a RemoveActor packet for despawn broadcasting.
+fn build_remove_actor_packet(runtime_id: i64) -> RemoveActorPacket {
+    RemoveActorPacket {
+        target_actor_id: ActorUniqueId {
+            actor_unique_id: runtime_id,
+        },
     }
 }
 
@@ -386,7 +412,7 @@ pub fn broadcast_despawn_system(
         // Note: EntityGrid removal handled by SpatialChunk on_remove hook
         // Note: ChunkViewers removal handled by ChunkLoader on_remove hook
 
-        let remove_packet = build_remove_entity_packet(runtime_id);
+        let remove_packet = build_remove_actor_packet(runtime_id);
 
         // Send to all OTHER players
         for (other_entity, other_session) in all_sessions.iter() {
@@ -421,7 +447,15 @@ pub fn cleanup_despawned_entities(
 use crate::entity::components::BreakingState;
 use crate::world::ChunkManager;
 use crate::world::ecs::{ChunkData, ChunkViewers};
-use jolyne::valentine::{LevelEventPacket, LevelEventPacketEvent, LevelSoundEventPacket};
+use jolyne::valentine::{LevelEventPacket, LevelSoundEventPacket};
+
+// Level event identifiers are the protocol constants used by Dragonfly and
+// gophertunnel. Protocolgen 1.26.40 intentionally exposes this packet's event
+// field as the canonical i32 rather than carrying the legacy enum wrapper.
+const LEVEL_EVENT_BLOCK_BREAK_SPEED: i32 = 3602;
+const LEVEL_EVENT_PARTICLE_PUNCH_BLOCK: i32 = 2014;
+const BLOCK_UPDATE_NEIGHBOURS: u32 = 1;
+const BLOCK_UPDATE_NETWORK: u32 = 1 << 1;
 
 /// System: Tick block breaking state for all players.
 ///
@@ -467,8 +501,8 @@ pub fn tick_block_breaking(
             };
 
             let crack_event = LevelEventPacket {
-                event: LevelEventPacketEvent::BlockBreakSpeed,
-                position: Vec3F {
+                event_id: LEVEL_EVENT_BLOCK_BREAK_SPEED,
+                position: Vec3 {
                     x: x as f32,
                     y: y as f32,
                     z: z as f32,
@@ -490,8 +524,8 @@ pub fn tick_block_breaking(
 
             // Build punch particles with block runtime ID
             let particle_event = LevelEventPacket {
-                event: LevelEventPacketEvent::ParticlePunchBlock,
-                position: Vec3F {
+                event_id: LEVEL_EVENT_PARTICLE_PUNCH_BLOCK,
+                position: Vec3 {
                     x: x as f32 + 0.5,
                     y: y as f32 + 0.5,
                     z: z as f32 + 0.5,
@@ -501,17 +535,17 @@ pub fn tick_block_breaking(
 
             // Build breaking sound (SoundType::Hit with block data)
             let sound_event = LevelSoundEventPacket {
-                sound_id: "hit".to_owned(),
-                position: Vec3F {
+                sound_event: "hit".to_owned(),
+                position: Vec3 {
                     x: x as f32 + 0.5,
                     y: y as f32 + 0.5,
                     z: z as f32 + 0.5,
                 },
-                extra_data: block_runtime_id as i32,
-                entity_type: String::new(),
-                is_baby_mob: false,
+                data: block_runtime_id as i32,
+                actor_identifier: String::new(),
+                is_baby: false,
                 is_global: false,
-                entity_unique_id: 0,
+                actor_unique_id: 0,
                 fire_at_position: None,
             };
 
@@ -541,7 +575,6 @@ pub fn tick_block_breaking(
 
 use crate::world::ecs::BlockBroadcastEvent;
 use jolyne::valentine::UpdateBlockPacket;
-use jolyne::valentine::types::UpdateBlockFlags;
 
 /// System: Batch block updates and broadcast to chunk viewers.
 ///
@@ -583,13 +616,13 @@ pub fn broadcast_block_updates(
         let packets: Vec<UpdateBlockPacket> = updates
             .iter()
             .map(|update| UpdateBlockPacket {
-                position: jolyne::valentine::types::BlockCoordinates {
+                block_position: jolyne::valentine::types::BlockPos {
                     x: update.block_pos.x,
                     y: update.block_pos.y,
                     z: update.block_pos.z,
                 },
-                block_runtime_id: update.new_block as i32,
-                flags: UpdateBlockFlags::NEIGHBORS | UpdateBlockFlags::NETWORK,
+                block_runtime_id: update.new_block,
+                flags: BLOCK_UPDATE_NEIGHBOURS | BLOCK_UPDATE_NETWORK,
                 layer: 0,
             })
             .collect();

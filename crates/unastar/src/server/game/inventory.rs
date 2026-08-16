@@ -13,9 +13,12 @@ use crate::entity::components::{
 };
 use crate::item::ItemStack;
 use crate::registry::ItemRegistry;
-use jolyne::valentine::types::{BlockCoordinates, ContainerSlotType, WindowId, WindowType};
 use jolyne::valentine::{
-    ContainerClosePacket, ContainerOpenPacket, InteractPacket, InteractPacketActionId, McpePacket,
+    ActorUniqueId, BlockPos, ContainerClosePacket, ContainerOpenPacket, EnumsContainerEnumName,
+    EnumsInteractPacketPayloadAction, EnumsInventorySourceType, EnumsItemStackNetResult,
+    EnumsItemUseInventoryTransactionActionType, InteractPacket,
+    InventoryTransactionPacketTransaction, ItemStackRequestPacketDataRequestDataActionsItem,
+    McpePacket,
 };
 
 /// ECS system: drain inventory packet queue and apply state changes.
@@ -71,15 +74,15 @@ fn handle_item_stack_request(
         &PlayerSession,
     )>,
 ) {
-    use jolyne::valentine::ItemStackResponsePacket;
-    use jolyne::valentine::types::{
-        FullContainerName, ItemStackRequestActionsItemContent, ItemStackResponsesItem,
-        ItemStackResponsesItemContent, ItemStackResponsesItemContentContainersItem,
-        ItemStackResponsesItemContentContainersItemSlotsItem, ItemStackResponsesItemStatus,
+    use jolyne::valentine::{
+        BedrockSafetyRedactableString, FullContainerName, ItemStackResponseContainerInfo,
+        ItemStackResponseInfo, ItemStackResponsePacket, ItemStackResponseSlotInfo,
+        TypedClientNetIdstructItemStackRequestIdTagint32T0,
+        TypedServerNetIdstructItemStackNetIdTagint32T0,
     };
 
     for request in &pk.requests {
-        let request_id = request.request_id;
+        let request_id = request.client_request_id.id;
         info!(
             request_id,
             actions = request.actions.len(),
@@ -87,36 +90,52 @@ fn handle_item_stack_request(
         );
 
         let mut pending_item: Option<ItemStack> = None;
-        let mut response_containers: Vec<ItemStackResponsesItemContentContainersItem> = vec![];
+        let mut response_containers: Vec<ItemStackResponseContainerInfo> = vec![];
 
         for action in &request.actions {
-            match &action.content {
-                Some(ItemStackRequestActionsItemContent::CraftCreative(craft)) => {
-                    let index = (craft.item_id - 1) as usize;
+            match action {
+                ItemStackRequestPacketDataRequestDataActionsItem::CraftCreativeActionData(
+                    craft,
+                ) => {
+                    let Some(index) = craft
+                        .creative_item_net_id
+                        .checked_sub(1)
+                        .and_then(|value| usize::try_from(value).ok())
+                    else {
+                        debug!(
+                            item_id = craft.creative_item_net_id,
+                            "Creative item request has no valid index"
+                        );
+                        continue;
+                    };
                     info!(
                         "CraftCreative: client requested item_id={}, index={}, total_items={}",
-                        craft.item_id,
+                        craft.creative_item_net_id,
                         index,
-                        world_template.0.creative_content.items.len()
+                        world_template.0.creative_content.entries.len()
                     );
 
-                    if let Some(entry) = world_template.0.creative_content.items.get(index) {
-                        let item = item_stack_from_network_id(&items.0, entry.item.network_id, 64);
+                    if let Some(entry) = world_template.0.creative_content.entries.get(index) {
+                        let item = item_stack_from_network_id(&items.0, entry.item_instance.id, 64);
                         info!(
-                            item_id = craft.item_id,
-                            network_id = entry.item.network_id,
+                            item_id = craft.creative_item_net_id,
+                            network_id = entry.item_instance.id,
                             string_id = %item.item_id,
                             "Creative craft request"
                         );
                         pending_item = Some(item);
                     } else {
-                        debug!(item_id = craft.item_id, "Creative item not found");
+                        debug!(
+                            item_id = craft.creative_item_net_id,
+                            "Creative item not found"
+                        );
                     }
                 }
-                Some(ItemStackRequestActionsItemContent::Place(place)) => {
+                ItemStackRequestPacketDataRequestDataActionsItem::PlaceActionData(place) => {
                     if let Some(item) = pending_item.take() {
                         let dest_slot = place.destination.slot as usize;
-                        let dest_container = place.destination.slot_type.container_id;
+                        let dest_container = place.destination.fullcontainername.container_name;
+                        let dynamic_id = place.destination.fullcontainername.dynamic_id;
 
                         let stack_id = if let Ok((_, _, _, mut state, _)) = players.get_mut(entity)
                         {
@@ -125,46 +144,48 @@ fn handle_item_stack_request(
                             1
                         };
 
-                        if dest_container == ContainerSlotType::HotbarAndInventory
+                        if dest_container
+                            == EnumsContainerEnumName::CombinedHotbarAndInventoryContainer
                             && let Ok((mut inv, _, _, _, _)) = players.get_mut(entity)
                         {
                             let _ = inv.0.set_item(dest_slot, item.clone());
                             info!(slot = dest_slot, item_id = %item.item_id, stack_id, "Placed item in inventory");
                         }
 
-                        response_containers.push(ItemStackResponsesItemContentContainersItem {
-                            slot_type: FullContainerName {
-                                container_id: dest_container,
-                                dynamic_container_id: place
-                                    .destination
-                                    .slot_type
-                                    .dynamic_container_id,
+                        response_containers.push(ItemStackResponseContainerInfo {
+                            full_container_name: FullContainerName {
+                                container_name: dest_container,
+                                dynamic_id,
                             },
-                            slots: vec![ItemStackResponsesItemContentContainersItemSlotsItem {
+                            slots: vec![ItemStackResponseSlotInfo {
+                                requested_slot: dest_slot as u8,
                                 slot: dest_slot as u8,
-                                hotbar_slot: dest_slot as u8,
-                                count: item.count,
-                                item_stack_id: stack_id,
-                                custom_name: String::new(),
-                                filtered_custom_name: String::new(),
+                                amount: item.count,
+                                item_stack_net_id: Some(Some(
+                                    TypedServerNetIdstructItemStackNetIdTagint32T0 { id: stack_id },
+                                )),
+                                custom_name: BedrockSafetyRedactableString {
+                                    unredacted: String::new(),
+                                    redacted: String::new(),
+                                },
                                 durability_correction: 0,
                             }],
                         });
                     }
                 }
-                Some(ItemStackRequestActionsItemContent::Take(take)) => {
+                ItemStackRequestPacketDataRequestDataActionsItem::TakeActionData(take) => {
                     debug!(
                         source_slot = take.source.slot,
                         dest_slot = take.destination.slot,
-                        count = take.count,
+                        count = take.amount,
                         "Take action (not fully implemented)"
                     );
                 }
-                Some(ItemStackRequestActionsItemContent::Destroy(_)) => {
+                ItemStackRequestPacketDataRequestDataActionsItem::DestroyActionData(_) => {
                     debug!("Destroy action - item deleted");
                 }
                 _ => {
-                    trace!(type_id = ?action.type_id, "Unhandled ItemStackRequest action type");
+                    trace!(action = ?action, "Unhandled ItemStackRequest action type");
                 }
             }
         }
@@ -172,12 +193,12 @@ fn handle_item_stack_request(
         // Send response
         if let Ok((_, _, _, _, session)) = players.get(entity) {
             let response = ItemStackResponsePacket {
-                responses: vec![ItemStackResponsesItem {
-                    status: ItemStackResponsesItemStatus::Ok,
-                    request_id,
-                    content: Some(ItemStackResponsesItemContent {
-                        containers: response_containers,
-                    }),
+                responses: vec![ItemStackResponseInfo {
+                    result: EnumsItemStackNetResult::Success,
+                    client_request_id: TypedClientNetIdstructItemStackRequestIdTagint32T0 {
+                        id: request_id,
+                    },
+                    containers: Some(Some(response_containers)),
                 }],
             };
             let _ = session.send(McpePacket::from(response));
@@ -197,14 +218,14 @@ fn handle_container_close(
         &PlayerSession,
     )>,
 ) {
-    debug!(entity = ?entity, window_id = ?pk.window_id, "ContainerClose");
+    debug!(entity = ?entity, container_id = pk.container_id, "ContainerClose");
 
-    if pk.window_id == WindowId::Inventory {
+    if pk.container_id == 0 {
         if let Ok((_, _, _, _, session)) = players.get(entity) {
             let _ = session.send(McpePacket::from(ContainerClosePacket {
-                window_id: WindowId::Inventory,
-                window_type: WindowType::Inventory,
-                server: false,
+                container_id: 0,
+                container_type: u8::MAX,
+                server_initiated_close: false,
             }));
         }
         if let Ok((_, _, mut opened, _, _)) = players.get_mut(entity) {
@@ -251,10 +272,10 @@ fn handle_interact(
         &PlayerSession,
     )>,
 ) {
-    debug!(entity = ?entity, action = ?pk.action_id, "Interact packet");
+    debug!(entity = ?entity, action = ?pk.action, "Interact packet");
 
-    match pk.action_id {
-        InteractPacketActionId::OpenInventory => {
+    match pk.action {
+        EnumsInteractPacketPayloadAction::OpenInventory => {
             // Check if already open
             if let Ok((_, _, opened, _, _)) = players.get(entity)
                 && opened.0
@@ -266,10 +287,12 @@ fn handle_interact(
             // Send ContainerOpen
             if let Ok((_, _, _, _, session)) = players.get(entity) {
                 let _ = session.send(McpePacket::from(ContainerOpenPacket {
-                    window_id: WindowId::Inventory,
-                    window_type: WindowType::Inventory,
-                    coordinates: BlockCoordinates { x: 0, y: 0, z: 0 },
-                    runtime_entity_id: -1,
+                    container_id: 0,
+                    container_type: u8::MAX,
+                    position: BlockPos { x: 0, y: 0, z: 0 },
+                    target_actor_id: ActorUniqueId {
+                        actor_unique_id: -1,
+                    },
                 }));
             }
 
@@ -278,9 +301,9 @@ fn handle_interact(
                 opened.0 = true;
             }
         }
-        InteractPacketActionId::MouseOverEntity => {}
+        EnumsInteractPacketPayloadAction::InteractUpdate => {}
         _ => {
-            debug!(entity = ?entity, action = ?pk.action_id, "Unhandled Interact action");
+            debug!(entity = ?entity, action = ?pk.action, "Unhandled Interact action");
         }
     }
 }
@@ -298,51 +321,44 @@ fn handle_inventory_transaction(
     )>,
     events: &mut ResMut<InventoryEvents>,
 ) {
-    use jolyne::valentine::types::{
-        TransactionTransactionData, TransactionTransactionType, TransactionUseItemActionType,
+    let Some(transaction) = &pk.transaction else {
+        debug!("InventoryTransaction without transaction data");
+        return;
     };
 
-    let transaction = &pk.transaction;
-    info!(transaction_type = ?transaction.transaction_type, "InventoryTransaction");
+    info!(transaction = ?transaction, "InventoryTransaction");
 
-    match transaction.transaction_type {
-        Some(TransactionTransactionType::Normal) => {
-            if let Some(actions) = transaction.actions.as_deref() {
+    match transaction {
+        InventoryTransactionPacketTransaction::NormalTransactionData(normal) => {
+            if let Some(actions) = normal.actions.actions.as_deref() {
                 handle_normal_transaction(entity, actions, items, players);
             }
         }
-        Some(TransactionTransactionType::InventoryMismatch) => {
+        InventoryTransactionPacketTransaction::InventoryMismatchData(_) => {
             debug!("Inventory mismatch - should resend inventory");
         }
-        Some(TransactionTransactionType::ItemUse) => {
-            if let Some(TransactionTransactionData::ItemUse(use_item)) =
-                &transaction.transaction_data
-            {
-                match use_item.action_type {
-                    TransactionUseItemActionType::ClickAir => {
-                        events.0.push(ServerEvent::PlayerItemUse { entity });
-                    }
-                    _ => {
-                        debug!(action = ?use_item.action_type, "Unhandled ItemUse action in inventory system");
-                    }
+        InventoryTransactionPacketTransaction::ItemUseInventoryTransaction(use_item) => {
+            match use_item.action_type {
+                EnumsItemUseInventoryTransactionActionType::Use => {
+                    events.0.push(ServerEvent::PlayerItemUse { entity });
+                }
+                _ => {
+                    debug!(action = ?use_item.action_type, "Unhandled ItemUse action in inventory system");
                 }
             }
         }
-        Some(TransactionTransactionType::ItemUseOnEntity) => {
+        InventoryTransactionPacketTransaction::ItemUseOnActorInventoryTransaction(_) => {
             debug!("ItemUseOnEntity transaction");
         }
-        Some(TransactionTransactionType::ItemRelease) => {
+        InventoryTransactionPacketTransaction::ItemReleaseInventoryTransaction(_) => {
             debug!("ItemRelease transaction");
-        }
-        other => {
-            debug!(transaction_type = ?other, "Unhandled transaction type");
         }
     }
 }
 
 fn handle_normal_transaction(
     entity: Entity,
-    actions: &[jolyne::valentine::types::TransactionActionsItem],
+    actions: &[jolyne::valentine::InventoryAction],
     items: &Res<super::types::ItemRegistryResource>,
     players: &mut Query<(
         &mut MainInventory,
@@ -352,38 +368,33 @@ fn handle_normal_transaction(
         &PlayerSession,
     )>,
 ) {
-    use jolyne::valentine::types::TransactionActionsItemSourceType;
-
     for action in actions {
-        match action.source_type {
-            TransactionActionsItemSourceType::Creative => {
-                if action.new_item.network_id != 0 {
-                    let count = action.new_item.count;
+        match action.source.source_type {
+            EnumsInventorySourceType::CreativeInventory => {
+                if action.to_item.id != 0 {
+                    let count = action.to_item.stacksize;
                     info!(
-                        network_id = action.new_item.network_id,
+                        network_id = action.to_item.id,
                         count, "Creative inventory pick"
                     );
                 }
             }
-            TransactionActionsItemSourceType::WorldInteraction => {}
-            TransactionActionsItemSourceType::Container => {
+            EnumsInventorySourceType::WorldInteraction => {}
+            EnumsInventorySourceType::ContainerInventory => {
                 let slot = action.slot as usize;
 
-                if action.new_item.network_id != 0 {
-                    let count = action.new_item.count as u8;
-                    let item = item_stack_from_network_id(
-                        &items.0,
-                        i32::from(action.new_item.network_id),
-                        count,
-                    );
+                if action.to_item.id != 0 {
+                    let count = action.to_item.stacksize as u8;
+                    let item =
+                        item_stack_from_network_id(&items.0, i32::from(action.to_item.id), count);
 
                     if let Ok((mut inv, _, _, _, _)) = players.get_mut(entity) {
                         let _ = inv.0.set_item(slot, item);
                         info!(
                             slot,
-                            network_id = action.new_item.network_id,
+                            network_id = action.to_item.id,
                             count,
-                            window = ?action.window_id,
+                            window = ?action.source.container_id,
                             "Placed item in inventory from creative"
                         );
                     }

@@ -227,6 +227,27 @@ pub fn generate_self_signed_chain(
     generate_chain_internal(key, display_name, uuid, None)
 }
 
+/// Encodes the authentication JSON and client-data JWT into the raw
+/// `LoginPacket.connection_request` wire payload used by Bedrock 1.26.40.
+///
+/// The protocol prefixes both values with little-endian signed 32-bit byte
+/// lengths. The authentication JSON bytes are preserved exactly, matching
+/// the pinned gophertunnel login encoder.
+pub fn encode_login_request(auth_info_json: &str, client_data_jwt: &str) -> Vec<u8> {
+    let auth_info = auth_info_json.as_bytes();
+
+    let auth_len = i32::try_from(auth_info.len()).expect("login auth JSON exceeds i32 length");
+    let client_len =
+        i32::try_from(client_data_jwt.len()).expect("login client token exceeds i32 length");
+
+    let mut request = Vec::with_capacity(8 + auth_info.len() + client_data_jwt.len());
+    request.extend_from_slice(&auth_len.to_le_bytes());
+    request.extend_from_slice(auth_info);
+    request.extend_from_slice(&client_len.to_le_bytes());
+    request.extend_from_slice(client_data_jwt.as_bytes());
+    request
+}
+
 /// Response structure from Mojang authentication
 #[derive(Debug, Deserialize)]
 struct MojangChainResponse {

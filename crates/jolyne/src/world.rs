@@ -1,20 +1,25 @@
 use crate::valentine::GAME_VERSION;
-use crate::valentine::types::{BlockCoordinates, Experiments, GameMode, Vec2F, Vec3F};
 use crate::valentine::{
-    AvailableEntityIdentifiersPacket, BiomeDefinitionListPacket, CreativeContentPacket,
-    EducationSharedResourceUri, ItemRegistryPacket, PermissionLevel, StartGamePacket,
-    StartGamePacketChatRestrictionLevel, StartGamePacketDimension, StartGamePacketEditorWorldType,
+    ActorRuntimeId, ActorUniqueId, AvailableActorIdentifiersPacket, BiomeDefinitionListPacket,
+    BlockPos, CreativeContentPacket, EduSharedUriResource, EnumsChatRestrictionLevel,
+    EnumsEditorWorldType, EnumsEducationEditionOffer, EnumsGameType, EnumsGeneratorType,
+    EnumsPlayerPermissionLevel, EnumsServerEditorConnectionPolicy,
+    EnumsSharedTypesLegacyDifficulty, EnumsSocialGamePublishSetting, Experiments,
+    GameRulesChangedPacketData, ItemRegistryPacket, LevelSettings, NetworkPermissions,
+    SocialEventsServerTelemetryData, SpawnSettings, StartGamePacket, SyncedPlayerMovementSettings,
+    Vec2, Vec3,
 };
 use std::sync::Arc;
 use uuid::Uuid;
 use valentine::bedrock::codec::Nbt;
 
+/// The public packet bundle sent during the Bedrock world-join sequence.
 #[derive(Clone, Debug)]
 pub struct WorldTemplate {
     pub start_game_template: StartGamePacket,
     pub item_registry: Arc<ItemRegistryPacket>,
     pub biome_definitions: Arc<BiomeDefinitionListPacket>,
-    pub available_entities: Arc<AvailableEntityIdentifiersPacket>,
+    pub available_entities: Arc<AvailableActorIdentifiersPacket>,
     pub creative_content: Arc<CreativeContentPacket>,
 }
 
@@ -23,15 +28,19 @@ pub struct WorldJoinParams {
     pub start_game: StartGamePacket,
     pub item_registry: Arc<ItemRegistryPacket>,
     pub biome_definitions: Arc<BiomeDefinitionListPacket>,
-    pub available_entities: Arc<AvailableEntityIdentifiersPacket>,
+    pub available_entities: Arc<AvailableActorIdentifiersPacket>,
     pub creative_content: Arc<CreativeContentPacket>,
 }
 
 impl WorldTemplate {
     pub fn to_join_params(&self, entity_id: i64) -> WorldJoinParams {
         let mut start = self.start_game_template.clone();
-        start.entity_id = entity_id;
-        start.runtime_entity_id = entity_id;
+        start.entity_id = ActorUniqueId {
+            actor_unique_id: entity_id,
+        };
+        start.runtime_id = ActorRuntimeId {
+            actor_runtime_id: entity_id as u64,
+        };
 
         WorldJoinParams {
             start_game: start,
@@ -45,112 +54,111 @@ impl WorldTemplate {
 
 impl Default for WorldTemplate {
     fn default() -> Self {
-        let start_game_template = StartGamePacket {
-            entity_id: 0,
-            runtime_entity_id: 0,
-            player_gamemode: GameMode::Survival,
-            player_position: Vec3F {
-                x: 0.0,
-                y: 0.0,
-                z: 0.0,
-            },
-            rotation: Vec2F { x: 0.0, z: 0.0 },
+        let settings = LevelSettings {
             seed: 0,
-            dimension: StartGamePacketDimension::Overworld,
-            generator: 1,
-            world_gamemode: GameMode::Survival,
-            difficulty: 0,
-            spawn_position: BlockCoordinates { x: 0, y: 0, z: 0 },
-            game_version: GAME_VERSION.into(),
-            level_id: "".into(),
-            world_name: "Jolyne Server".into(),
-            world_identifier: "".into(),
-            server_authoritative_inventory: false,
-            server_authoritative_block_breaking: false,
-            block_network_ids_are_hashes: false,
-            block_pallette_checksum: 0,
-            biome_type: 0,
-            biome_name: "minecraft:plains".into(),
-            hardcore: false,
+            spawn_settings: SpawnSettings {
+                user_defined_biome_name: "minecraft:plains".into(),
+                dimension: 0,
+                ..Default::default()
+            },
+            generator_type: EnumsGeneratorType::Overworld,
+            game_type: EnumsGameType::Survival,
+            game_difficulty: EnumsSharedTypesLegacyDifficulty::Peaceful,
+            default_spawn_block_position: BlockPos { x: 0, y: 0, z: 0 },
             achievements_disabled: true,
-            editor_world_type: StartGamePacketEditorWorldType::NotEditor,
-            created_in_editor: false,
-            exported_from_editor: false,
-            day_cycle_stop_time: 0,
-            edu_offer: 0,
-            edu_features_enabled: false,
-            edu_product_uuid: "".into(),
+            editor_world_type: EnumsEditorWorldType::NonEditor,
+            education_edition_offer: EnumsEducationEditionOffer::None,
+            education_features_enabled: false,
+            education_product_id: String::new(),
             rain_level: 0.0,
             lightning_level: 0.0,
-            has_confirmed_platform_locked_content: false,
-            is_multiplayer: true,
-            broadcast_to_lan: false,
-            xbox_live_broadcast_mode: 0,
-            platform_broadcast_mode: 0,
-            enable_commands: true,
-            is_texturepacks_required: false,
-            gamerules: vec![],
-            experiments: Experiments::new(),
-            experiments_previously_used: false,
-            bonus_chest: false,
-            map_enabled: false,
-            permission_level: PermissionLevel::Member,
+            multiplayer_game_intent: true,
+            lan_broadcast_intent: false,
+            xbox_live_broadcast_setting: EnumsSocialGamePublishSetting::NoMultiPlay,
+            platform_broadcast_setting: EnumsSocialGamePublishSetting::NoMultiPlay,
+            commands_enabled: true,
+            texture_packs_required: false,
+            rule_data: GameRulesChangedPacketData { rules_list: vec![] },
+            experiments: Experiments {
+                toggles: vec![],
+                experiments_ever_toggled: false,
+            },
+            has_bonus_chest_enabled: false,
+            start_with_map_enabled: false,
+            player_permissions: EnumsPlayerPermissionLevel::Member,
             server_chunk_tick_range: 4,
             has_locked_behavior_pack: false,
             has_locked_resource_pack: false,
-            is_from_locked_world_template: false,
-            msa_gamertags_only: false,
+            is_from_locked_template: false,
+            use_msa_gamertags_only: false,
             is_from_world_template: false,
             is_world_template_option_locked: false,
             only_spawn_v_1_villagers: false,
             persona_disabled: false,
             custom_skins_disabled: false,
             emote_chat_muted: false,
+            base_game_version: GAME_VERSION.into(),
             limited_world_width: 0,
-            limited_world_length: 0,
-            is_new_nether: true,
-            edu_resource_uri: EducationSharedResourceUri {
-                button_name: "".into(),
-                link_uri: "".into(),
+            limited_world_depth: 0,
+            nether_type: true,
+            edu_shared_uri_resource: EduSharedUriResource {
+                button_name: String::new(),
+                link_uri: String::new(),
             },
-            experimental_gameplay_override: false,
-            chat_restriction_level: StartGamePacketChatRestrictionLevel::None,
+            // Servers should leave the experimental-gameplay override unset.
+            override_force_experimental_gameplay: None,
+            chat_restriction_level: EnumsChatRestrictionLevel::None,
             disable_player_interactions: false,
-            server_editor_connection_policy: 0,
+            server_editor_connection_policy: EnumsServerEditorConnectionPolicy::MatchWorldType,
             allow_anonymous_block_drops_in_editor_worlds: false,
-            server_identifier: "".into(),
-            scenario_identifier: "".into(),
-            owner_identifier: "".into(),
-            premium_world_template_id: "".into(),
+            ..Default::default()
+        };
+
+        let start_game_template = StartGamePacket {
+            entity_id: ActorUniqueId { actor_unique_id: 0 },
+            runtime_id: ActorRuntimeId {
+                actor_runtime_id: 0,
+            },
+            game_type: EnumsGameType::Survival,
+            position: Vec3 {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+            },
+            rotation: Vec2 { x: 0.0, y: 0.0 },
+            settings,
+            level_id: String::new(),
+            level_name: "Jolyne Server".into(),
+            template_content_identity: String::new(),
             is_trial: false,
-            rewind_history_size: 0,
-            current_tick: 0,
+            movement_settings: SyncedPlayerMovementSettings {
+                rewind_history_size: 0,
+                server_authoritative_block_breaking: false,
+            },
+            level_current_time: 0,
             enchantment_seed: 0,
             block_properties: vec![],
             multiplayer_correlation_id: Uuid::new_v4().to_string(),
-            engine: GAME_VERSION.into(),
-            property_data: Nbt::default(),
+            enable_item_stack_net_manager: false,
+            server_version: GAME_VERSION.into(),
+            player_property_data: Nbt::default(),
+            server_block_type_registry_checksum: 0,
             world_template_id: Uuid::nil(),
-            client_side_generation: false,
-            server_controlled_sound: false,
-            is_chat_logging: false,
-            server_join_info: None,
+            server_enabled_client_side_generation: false,
+            block_network_ids_are_hashes: false,
+            network_permissions: NetworkPermissions {
+                server_auth_sound_enabled: false,
+            },
+            server_configuration_join_info: None,
+            server_telemetry_data: SocialEventsServerTelemetryData::default(),
         };
 
         Self {
             start_game_template,
-            item_registry: Arc::new(ItemRegistryPacket { itemstates: vec![] }),
-            biome_definitions: Arc::new(BiomeDefinitionListPacket {
-                biome_definitions: vec![],
-                string_list: vec![],
-            }),
-            available_entities: Arc::new(AvailableEntityIdentifiersPacket {
-                nbt: Nbt::default(),
-            }),
-            creative_content: Arc::new(CreativeContentPacket {
-                groups: vec![],
-                items: vec![],
-            }),
+            item_registry: Arc::new(ItemRegistryPacket::default()),
+            biome_definitions: Arc::new(BiomeDefinitionListPacket::default()),
+            available_entities: Arc::new(AvailableActorIdentifiersPacket::default()),
+            creative_content: Arc::new(CreativeContentPacket::default()),
         }
     }
 }

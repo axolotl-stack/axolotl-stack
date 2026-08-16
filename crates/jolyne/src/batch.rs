@@ -1,18 +1,20 @@
-#[instrument(skip(cursor, session), level = "trace")]
+#[instrument(skip(cursor, _session), level = "trace")]
 fn decode_packets(
     mut cursor: Bytes,
-    session: &BedrockSession,
+    _session: &BedrockSession,
 ) -> Result<Vec<McpePacket>, JolyneError> {
     let mut packets = Vec::new();
     while cursor.has_remaining() {
-        let (header, data) = McpePacketData::decode_inner(&mut cursor, session.into())?;
+        let (header, data) = McpePacketData::decode_inner(&mut cursor, McpePacketArgs)?;
         packets.push(McpePacket { header, data });
     }
     Ok(packets)
 }
 
 use crate::error::{JolyneError, ProtocolError};
-use crate::valentine::mcpe::{GAME_PACKET_ID as GAME_FRAME_ID, McpePacket, McpePacketData};
+use crate::valentine::mcpe::{
+    GAME_PACKET_ID as GAME_FRAME_ID, McpePacket, McpePacketArgs, McpePacketData,
+};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use flate2::Compression;
 use flate2::read::DeflateDecoder;
@@ -121,7 +123,7 @@ fn decode_payload(
 ) -> Result<Vec<McpePacket>, JolyneError> {
     if payload.first().copied() == Some(GAME_FRAME_ID) {
         let mut buf = payload.clone();
-        let (header, data) = McpePacketData::decode_game_frame(&mut buf, session.into())?;
+        let (header, data) = McpePacketData::decode_game_frame(&mut buf, McpePacketArgs)?;
         return Ok(vec![McpePacket { header, data }]);
     }
     decode_packets(payload, session)
@@ -711,7 +713,7 @@ mod tests {
         assert_eq!(decoded.len(), 1);
         assert!(matches!(
             decoded[0].data,
-            McpePacketData::PacketPlayStatus(ref s) if s.status == PlayStatusPacketStatus::LoginSuccess
+            McpePacketData::PlayStatusPacket(ref s) if s.status == PlayStatusPacketStatus::LoginSuccess
         ));
     }
 
@@ -760,7 +762,7 @@ mod tests {
         assert_eq!(decoded.len(), 1);
         assert!(matches!(
             decoded[0].data,
-            McpePacketData::PacketPlayStatus(ref s) if s.status == PlayStatusPacketStatus::PlayerSpawn
+            McpePacketData::PlayStatusPacket(ref s) if s.status == PlayStatusPacketStatus::PlayerSpawn
         ));
     }
 
@@ -833,11 +835,11 @@ mod tests {
 
         assert!(matches!(
             decoded[0].data,
-            McpePacketData::PacketPlayStatus(ref s) if s.status == PlayStatusPacketStatus::LoginSuccess
+            McpePacketData::PlayStatusPacket(ref s) if s.status == PlayStatusPacketStatus::LoginSuccess
         ));
         assert!(matches!(
             decoded[1].data,
-            McpePacketData::PacketPlayStatus(ref s) if s.status == PlayStatusPacketStatus::PlayerSpawn
+            McpePacketData::PlayStatusPacket(ref s) if s.status == PlayStatusPacketStatus::PlayerSpawn
         ));
     }
 
@@ -936,7 +938,7 @@ mod tests {
         assert_eq!(decoded.len(), 1);
         assert!(matches!(
             decoded[0].data,
-            McpePacketData::PacketPlayStatus(ref s) if s.status == PlayStatusPacketStatus::LoginSuccess
+            McpePacketData::PlayStatusPacket(ref s) if s.status == PlayStatusPacketStatus::LoginSuccess
         ));
     }
 
@@ -969,7 +971,7 @@ mod tests {
         assert_eq!(decoded.len(), 1);
         assert!(matches!(
             decoded[0].data,
-            McpePacketData::PacketPlayStatus(ref s) if s.status == PlayStatusPacketStatus::LoginSuccess
+            McpePacketData::PlayStatusPacket(ref s) if s.status == PlayStatusPacketStatus::LoginSuccess
         ));
     }
 

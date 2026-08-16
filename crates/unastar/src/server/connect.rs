@@ -6,8 +6,7 @@ use glam::DVec3;
 use jolyne::auth::ValidatedIdentity;
 use jolyne::stream::raknet_types::{ServerLogin, ServerPlay};
 use jolyne::stream::server::ServerHandshakeConfig;
-use jolyne::valentine::BlockCoordinates;
-use jolyne::valentine::types::Vec3F;
+use jolyne::valentine::types::{BlockPos, Vec2, Vec3};
 use jolyne::{JolyneError, WorldTemplate};
 use p384::SecretKey;
 
@@ -29,7 +28,7 @@ pub async fn accept_join_sequence(
     player_data_store: &PlayerDataStore,
     session_id: u64,
     handshake_stream: ServerLogin,
-) -> Result<(ServerPlay, ValidatedIdentity, Vec3F), JolyneError> {
+) -> Result<(ServerPlay, ValidatedIdentity, Vec3), JolyneError> {
     // 1. Network Settings
     let login = handshake_stream.accept_network_settings().await?;
 
@@ -53,7 +52,7 @@ pub async fn accept_join_sequence(
 
     // 5. Resolve spawn before StartGame.
     let spawn = resolve_spawn_location(config, &identity, template, player_data_store).await;
-    let initial_position = Vec3F {
+    let initial_position = Vec3 {
         x: spawn.x,
         y: spawn.y,
         z: spawn.z,
@@ -61,15 +60,15 @@ pub async fn accept_join_sequence(
 
     // 6. Build join params (use session_id as entity/runtime ID for now).
     let mut join_params = template.to_join_params(session_id as i64);
-    join_params.start_game.player_position = initial_position.clone();
-    join_params.start_game.spawn_position = BlockCoordinates {
+    join_params.start_game.position = initial_position.clone();
+    join_params.start_game.settings.default_spawn_block_position = BlockPos {
         x: spawn.x.floor() as i32,
         y: spawn.y.floor() as i32,
         z: spawn.z.floor() as i32,
     };
-    join_params.start_game.rotation = jolyne::valentine::Vec2F {
+    join_params.start_game.rotation = Vec2 {
         x: spawn.pitch,
-        z: spawn.yaw,
+        y: spawn.yaw,
     };
 
     // 7. Join.
@@ -89,15 +88,12 @@ pub async fn resolve_spawn_location(
     template: &WorldTemplate,
     player_data_store: &PlayerDataStore,
 ) -> SpawnLocation {
-    use jolyne::valentine::StartGamePacketDimension;
-
     let uuid = identity.uuid.as_deref();
-    let world_dimension = match template.start_game_template.dimension {
-        StartGamePacketDimension::Overworld => 0,
-        StartGamePacketDimension::Nether => 1,
-        StartGamePacketDimension::End => 2,
-        _ => 0, // Unknown dimensions default to Overworld
-    };
+    let world_dimension = template
+        .start_game_template
+        .settings
+        .spawn_settings
+        .dimension;
 
     // Check spawn rules in order
     for rule in &config.spawn_rules {
@@ -142,15 +138,15 @@ pub async fn resolve_spawn_location(
     }
 
     SpawnLocation {
-        x: template.start_game_template.player_position.x,
-        y: template.start_game_template.player_position.y,
-        z: template.start_game_template.player_position.z,
-        yaw: template.start_game_template.rotation.z,
+        x: template.start_game_template.position.x,
+        y: template.start_game_template.position.y,
+        z: template.start_game_template.position.z,
+        yaw: template.start_game_template.rotation.y,
         pitch: template.start_game_template.rotation.x,
     }
 }
 
 /// Convert a spawn location to a DVec3 position.
-pub fn spawn_to_dvec3(pos: &Vec3F) -> DVec3 {
+pub fn spawn_to_dvec3(pos: &Vec3) -> DVec3 {
     DVec3::new(pos.x as f64, pos.y as f64, pos.z as f64)
 }

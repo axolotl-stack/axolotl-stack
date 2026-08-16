@@ -1,144 +1,72 @@
 use bytes::{Buf, Bytes, BytesMut};
 use criterion::{BatchSize, Criterion, black_box, criterion_group, criterion_main};
 
-use valentine::bedrock::borrowed::{
-    BorrowedDisconnectPacket, BorrowedLoginPacket, BorrowedTextPacket, RawMcpeFrame,
-};
+use valentine::bedrock::borrowed::RawMcpeFrame;
 use valentine::bedrock::codec::{BedrockCodec, BedrockSized};
-use valentine::bedrock::context::BedrockSession;
-use valentine::bedrock::version::v1_26_30::*;
+use valentine::bedrock::version::v1_26_40::*;
 use valentine_bedrock_core::bedrock::codec::Nbt;
 
 fn sample_disconnect_packet() -> DisconnectPacket {
     DisconnectPacket {
-        reason: DisconnectFailReason::Timeout,
-        hide_disconnect_reason: false,
-        content: Some(DisconnectPacketContent {
+        reason: EnumsConnectionDisconnectFailReason::Timeout,
+        messages: DisconnectPacketMessages {
             message: "Server maintenance in 5 minutes".to_string(),
             filtered_message: "Server maintenance".to_string(),
-        }),
+        },
     }
 }
 
 fn sample_login_packet() -> LoginPacket {
     LoginPacket {
-        protocol_version: 776,
-        tokens: LoginTokens {
-            identity: "{\"chain\":[{\"extraData\":{\"displayName\":\"Player\"}}]}".repeat(4),
-            client: "{\"ClientRandomId\":1,\"ServerAddress\":\"127.0.0.1:19132\"}".repeat(3),
-        },
+        client_network_version: PROTOCOL_VERSION,
+        connection_request: br#"{\"chain\":[{\"extraData\":{\"displayName\":\"Player\"}}]}"#
+            .repeat(4),
     }
 }
 
 fn sample_text_packet() -> TextPacket {
     TextPacket {
-        type_: TextPacketType::Chat,
-        needs_translation: false,
-        category: TextPacketCategory::Authored,
-        content: Some(TextPacketContent::Chat(TextPacketContentAnnouncement {
-            source_name: "PlayerName".to_string(),
+        localize: false,
+        message_category: 0,
+        body: TextPacketBody::Chat(TextPacketPayloadAuthorAndMessage {
+            player_name: "PlayerName".to_string(),
             message: "Hello, world!".repeat(8),
-        })),
-        xuid: "1234567890123456".to_string(),
-        platform_chat_id: "platform-chat-id".to_string(),
+        }),
+        senders_xuid: "1234567890123456".to_string(),
+        platform_id: "platform-chat-id".to_string(),
         filtered_message: Some("Hello, world!".repeat(8)),
     }
 }
 
 fn sample_start_game_packet() -> StartGamePacket {
     StartGamePacket {
-        entity_id: 1,
-        runtime_entity_id: 2,
-        player_gamemode: GameMode::Creative,
-        player_position: Vec3F {
+        entity_id: ActorUniqueId { actor_unique_id: 1 },
+        runtime_id: ActorRuntimeId {
+            actor_runtime_id: 2,
+        },
+        game_type: EnumsGameType::Creative,
+        position: Vec3 {
             x: 0.0,
             y: 0.0,
             z: 0.0,
         },
-        rotation: Vec2F { x: 0.0, z: 0.0 },
-        seed: 12345,
-        biome_type: 0,
-        biome_name: "plains".to_string(),
-        dimension: StartGamePacketDimension::Overworld,
-        generator: 1,
-        world_gamemode: GameMode::Survival,
-        hardcore: false,
-        difficulty: 1,
-        spawn_position: BlockCoordinates { x: 0, y: 0, z: 0 },
-        achievements_disabled: false,
-        editor_world_type: StartGamePacketEditorWorldType::NotEditor,
-        created_in_editor: false,
-        exported_from_editor: false,
-        day_cycle_stop_time: 0,
-        edu_offer: 0,
-        edu_features_enabled: false,
-        edu_product_uuid: "".to_string(),
-        rain_level: 0.0,
-        lightning_level: 0.0,
-        has_confirmed_platform_locked_content: false,
-        is_multiplayer: true,
-        broadcast_to_lan: true,
-        xbox_live_broadcast_mode: 0,
-        platform_broadcast_mode: 0,
-        enable_commands: true,
-        is_texturepacks_required: false,
-        gamerules: vec![],
-        experiments: vec![],
-        experiments_previously_used: false,
-        bonus_chest: false,
-        map_enabled: false,
-        permission_level: PermissionLevel::Member,
-        server_chunk_tick_range: 4,
-        has_locked_behavior_pack: false,
-        has_locked_resource_pack: false,
-        is_from_locked_world_template: false,
-        msa_gamertags_only: false,
-        is_from_world_template: false,
-        is_world_template_option_locked: false,
-        only_spawn_v_1_villagers: false,
-        persona_disabled: false,
-        custom_skins_disabled: false,
-        emote_chat_muted: false,
-        game_version: "1.26.30".to_string(),
-        limited_world_width: 0,
-        limited_world_length: 0,
-        is_new_nether: true,
-        edu_resource_uri: EducationSharedResourceUri {
-            button_name: "".to_string(),
-            link_uri: "".to_string(),
+        rotation: Vec2 { x: 0.0, y: 0.0 },
+        settings: LevelSettings {
+            seed: 12345,
+            game_type: EnumsGameType::Creative,
+            ..Default::default()
         },
-        experimental_gameplay_override: false,
-        chat_restriction_level: StartGamePacketChatRestrictionLevel::None,
-        disable_player_interactions: false,
-        server_editor_connection_policy: 0,
-        allow_anonymous_block_drops_in_editor_worlds: false,
-        server_identifier: "".to_string(),
-        world_identifier: "".to_string(),
-        scenario_identifier: "".to_string(),
-        owner_identifier: "".to_string(),
-        level_id: "".to_string(),
-        world_name: "World".to_string(),
-        premium_world_template_id: "".to_string(),
-        is_trial: false,
-        rewind_history_size: 0,
-        server_authoritative_block_breaking: false,
-        current_tick: 0,
+        level_name: "World".to_string(),
+        level_current_time: 0,
         enchantment_seed: 0,
-        block_properties: vec![BlockPropertiesItem {
-            name: "minecraft:stone".to_string(),
-            state: Nbt::default(),
+        block_properties: vec![ServerBlockProperty {
+            block_name: "minecraft:stone".to_string(),
+            block_definition: Nbt::default(),
         }],
         multiplayer_correlation_id: "".to_string(),
-        server_authoritative_inventory: false,
-        engine: "".to_string(),
-        property_data: Nbt::default(),
-        block_pallette_checksum: 0,
+        server_version: "1.26.40".to_string(),
         world_template_id: uuid::Uuid::nil(),
-        client_side_generation: false,
-        block_network_ids_are_hashes: false,
-        server_controlled_sound: false,
-        is_chat_logging: false,
-        server_join_info: None,
+        ..Default::default()
     }
 }
 
@@ -204,8 +132,9 @@ fn bench_disconnect(c: &mut Criterion) {
         b.iter_batched(
             || encoded.clone(),
             |mut reader| {
-                let decoded = BorrowedDisconnectPacket::decode(&mut reader).unwrap();
-                black_box(decoded);
+                let reason = EnumsConnectionDisconnectFailReason::decode(&mut reader, ()).unwrap();
+                let messages = DisconnectPacketMessagesView::decode(&mut reader).unwrap();
+                black_box((reason, messages));
                 assert!(!reader.has_remaining());
             },
             BatchSize::SmallInput,
@@ -313,9 +242,8 @@ fn bench_start_game(c: &mut Criterion) {
 }
 
 fn bench_mcpe_frame(c: &mut Criterion) {
-    let session = BedrockSession { shield_item_id: 0 };
     let packet = McpePacket::from(sample_text_packet());
-    let args = McpePacketArgs::from(&session);
+    let args = McpePacketArgs;
     let encoded = encode_to_bytes(&packet);
     let borrowed_login = McpePacket::from(sample_login_packet());
     let borrowed_login_encoded = encode_to_bytes(&borrowed_login);

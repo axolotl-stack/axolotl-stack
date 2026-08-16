@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 
+use jolyne::valentine::EnumsItemVersion;
 use tracing::info;
 
 use super::{Registry, RegistryEntry, RegistryError};
@@ -199,32 +200,30 @@ impl ItemRegistry {
 
     /// Convert registry to protocol packet.
     pub fn to_packet(&self) -> jolyne::valentine::ItemRegistryPacket {
+        use jolyne::valentine::ItemData;
         use jolyne::valentine::bedrock::codec::Nbt;
-        use jolyne::valentine::types::ItemstatesItem;
 
-        let itemstates: Vec<ItemstatesItem> = self
+        let item_data: Vec<ItemData> = self
             .iter()
-            .map(|item| ItemstatesItem {
-                name: item.string_id.clone(),
-                runtime_id: item.network_id as i16,
-                component_based: item.component_based,
-                version: itemstate_version(item.version),
-                nbt: Nbt::default(),
+            .map(|item| ItemData {
+                item_name: item.string_id.clone(),
+                item_id: item.network_id as i16,
+                is_component_based: item.component_based,
+                item_version: itemstate_version(item.version),
+                item_component_data: Nbt::default(),
             })
             .collect();
 
-        jolyne::valentine::ItemRegistryPacket { itemstates }
+        jolyne::valentine::ItemRegistryPacket { item_data }
     }
 }
 
-fn itemstate_version(version: i32) -> jolyne::valentine::types::ItemstatesItemVersion {
-    use jolyne::valentine::types::ItemstatesItemVersion;
-
+fn itemstate_version(version: i32) -> jolyne::valentine::EnumsItemVersion {
     match version {
-        0 => ItemstatesItemVersion::Legacy,
-        1 => ItemstatesItemVersion::DataDriven,
-        2 => ItemstatesItemVersion::None,
-        other => ItemstatesItemVersion::Unknown(other),
+        0 => EnumsItemVersion::Legacy,
+        1 => EnumsItemVersion::DataDriven,
+        2 => EnumsItemVersion::None,
+        other => EnumsItemVersion::Unknown(other),
     }
 }
 
@@ -256,15 +255,15 @@ mod tests {
 
         let packet = registry.to_packet();
         let item = packet
-            .itemstates
+            .item_data
             .iter()
-            .find(|item| item.name == "minecraft:test_component_item")
+            .find(|item| item.item_name == "minecraft:test_component_item")
             .expect("packet item present");
 
-        assert!(item.component_based);
+        assert!(item.is_component_based);
         assert_eq!(
-            item.version,
-            jolyne::valentine::types::ItemstatesItemVersion::DataDriven
+            item.item_version,
+            jolyne::valentine::EnumsItemVersion::DataDriven
         );
     }
 

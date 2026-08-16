@@ -250,33 +250,31 @@ impl ExtractedData {
         let items = ItemData {
             registry: data
                 .item_registry
-                .itemstates
+                .item_data
                 .into_iter()
                 .map(|item| {
-                    let version_str = match item.version {
-                        jolyne::valentine::types::ItemstatesItemVersion::Legacy => {
-                            "legacy".to_string()
-                        }
-                        jolyne::valentine::types::ItemstatesItemVersion::DataDriven => {
+                    let version_str = match item.item_version {
+                        jolyne::valentine::types::EnumsItemVersion::Legacy => "legacy".to_string(),
+                        jolyne::valentine::types::EnumsItemVersion::DataDriven => {
                             "data_driven".to_string()
                         }
-                        jolyne::valentine::types::ItemstatesItemVersion::None => "none".to_string(),
-                        jolyne::valentine::types::ItemstatesItemVersion::Unknown(v) => {
+                        jolyne::valentine::types::EnumsItemVersion::None => "none".to_string(),
+                        jolyne::valentine::types::EnumsItemVersion::Unknown(v) => {
                             format!("unknown({v})")
                         }
                     };
 
                     // Encode NBT to base64 if present
-                    let nbt_base64 = if !item.nbt.0.is_empty() {
-                        Some(b64.encode(&item.nbt.0))
+                    let nbt_base64 = if !item.item_component_data.0.is_empty() {
+                        Some(b64.encode(&item.item_component_data.0))
                     } else {
                         None
                     };
 
                     ItemEntry {
-                        name: item.name,
-                        runtime_id: item.runtime_id,
-                        component_based: item.component_based,
+                        name: item.item_name,
+                        runtime_id: item.item_id,
+                        component_based: item.is_component_based,
                         version: version_str,
                         nbt_base64,
                     }
@@ -291,8 +289,8 @@ impl ExtractedData {
                 .block_properties
                 .into_iter()
                 .map(|block| BlockEntry {
-                    name: block.name,
-                    state_nbt_base64: b64.encode(&block.state.0),
+                    name: block.block_name,
+                    state_nbt_base64: b64.encode(&block.block_definition.0),
                 })
                 .collect(),
         };
@@ -306,33 +304,23 @@ impl ExtractedData {
                     category: {
                         use valentine::bedrock::codec::BedrockCodec;
                         let mut buf = Vec::new();
-                        let _ = g.category.encode(&mut buf);
+                        let _ = g.creative_category.encode(&mut buf);
                         buf.first().copied().unwrap_or(0) as i32
                     },
                     name: g.name,
-                    icon_item_id: g.icon_item.network_id,
+                    icon_item_id: g.group_icon_item.id,
                 })
                 .collect(),
             items: cc
-                .items
+                .entries
                 .into_iter()
-                .map(|i| {
-                    // Extract count/metadata from content if present
-                    let (count, metadata, block_runtime_id) =
-                        if let Some(ref content) = i.item.content {
-                            (content.count, content.metadata, content.block_runtime_id)
-                        } else {
-                            (1, 0, 0)
-                        };
-
-                    CreativeItem {
-                        entry_id: i.entry_id,
-                        item_id: i.item.network_id,
-                        count,
-                        metadata,
-                        block_runtime_id,
-                        group_index: i.group_index,
-                    }
+                .map(|i| CreativeItem {
+                    entry_id: i.creative_net_id.id as i32,
+                    item_id: i.item_instance.id,
+                    count: i.item_instance.stacksize,
+                    metadata: i.item_instance.auxvalue as i32,
+                    block_runtime_id: i.item_instance.block_runtime_id,
+                    group_index: i.group_index as i32,
                 })
                 .collect(),
         });
@@ -340,28 +328,28 @@ impl ExtractedData {
         // Extract biome definitions if available
         let biomes = data.biome_definitions.map(|bd| BiomeData {
             definitions: bd
-                .biome_definitions
+                .mapof_biomenamestodata
                 .into_iter()
                 .map(|b| BiomeEntry {
-                    name_index: b.name_index,
-                    biome_id: b.biome_id,
-                    temperature: b.temperature,
-                    downfall: b.downfall,
+                    name_index: b.key as i16,
+                    biome_id: b.value.id,
+                    temperature: b.value.temperature,
+                    downfall: b.value.downfall,
                 })
                 .collect(),
-            string_list: bd.string_list,
+            string_list: bd.stringlist.strings,
         });
 
         // Extract entity identifiers if available
         let entities = data.entity_identifiers.map(|ei| EntityData {
-            identifiers_nbt_base64: b64.encode(&ei.nbt.0),
+            identifiers_nbt_base64: b64.encode(&ei.identifier_list.0),
         });
 
         // Build metadata
         let metadata = Metadata {
             extraction_date: chrono_lite_now(),
-            game_version: data.start_game.game_version,
-            engine: data.start_game.engine,
+            game_version: data.start_game.settings.base_game_version,
+            engine: data.start_game.server_version,
         };
 
         Self {
@@ -502,5 +490,56 @@ mod tests {
         let decoded: ExtractedData = serde_json::from_str(&json).unwrap();
         decoded.validate().unwrap();
         assert_eq!(decoded.items.registry[0].name, "minecraft:stone");
+    }
+
+    #[test]
+    fn from_game_data_maps_1_26_40_item_and_block_fields() {
+        use jolyne::valentine::bedrock::codec::Nbt;
+        use jolyne::valentine::types::EnumsItemVersion;
+        use jolyne::valentine::{
+            ItemData as ProtocolItemData, ItemRegistryPacket, ServerBlockProperty, StartGamePacket,
+        };
+
+        let data = GameData {
+            start_game: StartGamePacket {
+                server_version: "1.26.40".to_string(),
+                settings: jolyne::valentine::LevelSettings {
+                    base_game_version: "1.26.20".to_string(),
+                    ..Default::default()
+                },
+                block_properties: vec![ServerBlockProperty {
+                    block_name: "minecraft:stone".to_string(),
+                    block_definition: Nbt::default(),
+                }],
+                ..Default::default()
+            },
+            item_registry: ItemRegistryPacket {
+                item_data: vec![ProtocolItemData {
+                    item_name: "minecraft:stone".to_string(),
+                    item_id: 42,
+                    is_component_based: true,
+                    item_version: EnumsItemVersion::DataDriven,
+                    item_component_data: Nbt::default(),
+                }],
+            },
+            biome_definitions: None,
+            entity_identifiers: None,
+            creative_content: None,
+        };
+
+        let extracted = ExtractedData::from_game_data(data);
+
+        assert_eq!(extracted.metadata.game_version, "1.26.20");
+        assert_eq!(extracted.metadata.engine, "1.26.40");
+        assert_eq!(extracted.items.registry[0].name, "minecraft:stone");
+        assert_eq!(extracted.items.registry[0].runtime_id, 42);
+        assert!(extracted.items.registry[0].component_based);
+        assert_eq!(extracted.items.registry[0].version, "data_driven");
+        assert_eq!(
+            extracted.items.registry[0].nbt_base64.as_deref(),
+            Some("CgAA")
+        );
+        assert_eq!(extracted.blocks.properties[0].name, "minecraft:stone");
+        assert_eq!(extracted.blocks.properties[0].state_nbt_base64, "CgAA");
     }
 }

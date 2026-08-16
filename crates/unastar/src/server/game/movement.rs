@@ -16,7 +16,7 @@ use super::packet_queues::{
 use crate::ecs::events::ServerEvent;
 use crate::entity::components::transform::{Position, Rotation};
 use crate::entity::components::{PlayerInput, PlayerState};
-use jolyne::valentine::types::{Action, InputFlag};
+use jolyne::valentine::types::{EnumsPlayerActionType, EnumsPlayerAuthInputPacketPayloadInputData};
 
 /// ECS system: drain movement packet queue and apply state changes.
 ///
@@ -40,7 +40,7 @@ pub fn apply_movement(
                 process_auth_input(entity, &pk, &mut players, &mut events);
 
                 // Forward block actions to block queue
-                if let Some(block_actions) = pk.block_action
+                if let Some(Some(block_actions)) = pk.player_block_actions
                     && !block_actions.is_empty()
                 {
                     block_queue
@@ -90,58 +90,60 @@ fn process_auth_input(
     pos.0 = new_pos;
 
     // Update rotation
-    rot.pitch = pk.pitch;
-    rot.yaw = pk.yaw;
-    rot.head_yaw = pk.head_yaw;
+    rot.pitch = pk.player_rotation.x;
+    rot.yaw = pk.player_rotation.y;
+    rot.head_yaw = pk.player_head_rotation;
 
     // Update input
+    let input_data = pk.input_data.as_deref().unwrap_or_default();
     let was_jumping = input.jumping;
     input.move_x = pk.move_vector.x;
-    input.move_z = pk.move_vector.z;
-    input.jumping = pk.input_data.contains(InputFlag::JUMPING)
-        || pk.input_data.contains(InputFlag::START_JUMPING);
+    input.move_z = pk.move_vector.y;
+    input.jumping = input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::Jumping)
+        || input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::StartJumping);
     let jumped = input.jumping && !was_jumping;
-    input.sneaking = pk.input_data.contains(InputFlag::SNEAKING);
-    input.sprinting = pk.input_data.contains(InputFlag::SPRINTING);
-    input.tick = pk.tick;
-    input.on_ground = !pk.input_data.contains(InputFlag::VERTICAL_COLLISION);
+    input.sneaking = input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::Sneaking);
+    input.sprinting = input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::Sprinting);
+    input.tick = pk.client_tick.inputtick as i64;
+    input.on_ground =
+        !input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::VerticalCollision);
 
     // Update persistent state flags
     let mut toggle_sneak = None;
     let mut toggle_sprint = None;
 
-    if pk.input_data.contains(InputFlag::START_SNEAKING) {
+    if input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::StartSneaking) {
         state.sneaking = true;
         toggle_sneak = Some(true);
     }
-    if pk.input_data.contains(InputFlag::STOP_SNEAKING) {
+    if input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::StopSneaking) {
         state.sneaking = false;
         toggle_sneak = Some(false);
     }
-    if pk.input_data.contains(InputFlag::START_SPRINTING) {
+    if input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::StartSprinting) {
         state.sprinting = true;
         toggle_sprint = Some(true);
     }
-    if pk.input_data.contains(InputFlag::STOP_SPRINTING) {
+    if input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::StopSprinting) {
         state.sprinting = false;
         toggle_sprint = Some(false);
     }
-    if pk.input_data.contains(InputFlag::START_SWIMMING) {
+    if input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::StartSwimming) {
         state.swimming = true;
     }
-    if pk.input_data.contains(InputFlag::STOP_SWIMMING) {
+    if input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::StopSwimming) {
         state.swimming = false;
     }
-    if pk.input_data.contains(InputFlag::START_GLIDING) {
+    if input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::StartGliding) {
         state.gliding = true;
     }
-    if pk.input_data.contains(InputFlag::STOP_GLIDING) {
+    if input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::StopGliding) {
         state.gliding = false;
     }
-    if pk.input_data.contains(InputFlag::START_FLYING) {
+    if input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::StartFlying) {
         state.flying = true;
     }
-    if pk.input_data.contains(InputFlag::STOP_FLYING) {
+    if input_data.contains(&EnumsPlayerAuthInputPacketPayloadInputData::StopFlying) {
         state.flying = false;
     }
 
@@ -185,43 +187,47 @@ fn process_player_action(
     trace!(action = ?pk.action, "PlayerAction received");
 
     match pk.action {
-        Action::Jump => {
+        EnumsPlayerActionType::StartJump => {
             trace!("Player jumped");
         }
-        Action::StartBreak => {
+        EnumsPlayerActionType::StartDestroyBlock => {
             events.0.push(ServerEvent::PlayerStartBreak {
                 entity,
-                position: (pk.position.x, pk.position.y, pk.position.z),
+                position: (
+                    pk.block_position.x,
+                    pk.block_position.y,
+                    pk.block_position.z,
+                ),
                 face: pk.face as u8,
             });
         }
-        Action::StartSprint => {
+        EnumsPlayerActionType::StartSprinting => {
             if let Ok((_, _, mut state, _)) = players.get_mut(entity) {
                 state.sprinting = true;
             }
         }
-        Action::StopSprint => {
+        EnumsPlayerActionType::StopSprinting => {
             if let Ok((_, _, mut state, _)) = players.get_mut(entity) {
                 state.sprinting = false;
             }
         }
-        Action::StartSneak => {
+        EnumsPlayerActionType::StartSneaking => {
             if let Ok((_, _, mut state, _)) = players.get_mut(entity) {
                 state.sneaking = true;
             }
         }
-        Action::StopSneak => {
+        EnumsPlayerActionType::StopSneaking => {
             if let Ok((_, _, mut state, _)) = players.get_mut(entity) {
                 state.sneaking = false;
             }
         }
-        Action::Respawn => {
+        EnumsPlayerActionType::Respawn => {
             trace!("Player requested respawn");
         }
-        Action::DimensionChangeAck => {
+        EnumsPlayerActionType::ChangeDimensionAck => {
             trace!("Player acknowledged dimension change");
         }
-        Action::HandledTeleport => {
+        EnumsPlayerActionType::HandledTeleport => {
             trace!("Player handled teleport");
         }
         _ => {

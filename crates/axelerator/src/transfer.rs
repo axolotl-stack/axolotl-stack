@@ -394,8 +394,9 @@ async fn send_transfer_packet<T: jolyne::stream::transport::Transport>(
 ) -> anyhow::Result<()> {
     let transfer = TransferPacket {
         server_address: addr_str.to_string(),
-        port,
+        server_port: port,
         reload_world: false,
+        gatherings_configuration: None,
     };
 
     let packet = McpePacket::from(transfer);

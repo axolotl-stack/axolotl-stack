@@ -17,7 +17,7 @@ pub struct MovementPacketQueue(pub Vec<(Entity, MovementInput)>);
 /// Discriminated movement input.
 pub enum MovementInput {
     /// Server-authoritative movement from PlayerAuthInput.
-    AuthInput(jolyne::valentine::PlayerAuthInputPacket),
+    AuthInput(Box<jolyne::valentine::PlayerAuthInputPacket>),
     /// Discrete player actions (sprint, sneak, jump, etc.).
     PlayerAction(jolyne::valentine::PlayerActionPacket),
 }
@@ -35,9 +35,9 @@ pub struct BlockPacketQueue(pub Vec<(Entity, BlockAction)>);
 /// Block action types.
 pub enum BlockAction {
     /// Block actions extracted from PlayerAuthInput (break start/stop/crack/abort/predict).
-    AuthInputActions(Vec<jolyne::valentine::PlayerAuthInputPacketBlockActionItem>),
+    AuthInputActions(Vec<jolyne::valentine::PlayerBlockActionData>),
     /// Block placement from InventoryTransaction ItemUse::ClickBlock.
-    BlockClick(jolyne::valentine::types::TransactionUseItem),
+    BlockClick(jolyne::valentine::types::ItemUseInventoryTransaction),
 }
 
 // ── Inventory ───────────────────────────────────────────────────────────────
@@ -83,7 +83,7 @@ pub struct ChunkPacketQueue(pub Vec<(Entity, ChunkAction)>);
 
 /// Chunk action types.
 pub enum ChunkAction {
-    SubchunkRequest(jolyne::valentine::SubchunkRequestPacket),
+    SubchunkRequest(jolyne::valentine::SubChunkRequestPacket),
     RadiusRequest(jolyne::valentine::RequestChunkRadiusPacket),
 }
 

@@ -40,7 +40,7 @@ impl GameServer {
         };
 
         // Disconnect is immediate (not queued) — despawn must happen now
-        if packet.packet_id() == McpePacketName::PacketDisconnect {
+        if packet.packet_id() == McpePacketName::DisconnectPacket {
             info!(session_id, "Client sent disconnect packet");
             if let Some(mut event_buffer) = self
                 .ecs
@@ -59,7 +59,7 @@ impl GameServer {
         match packet {
             // ── Movement ──────────────────────────────────────────────────
             BorrowedMcpePacket {
-                data: BorrowedMcpePacketData::PacketPlayerAction(pk),
+                data: BorrowedMcpePacketData::PlayerActionPacket(pk),
                 ..
             } => {
                 if let Some(mut q) = world.get_resource_mut::<MovementPacketQueue>() {
@@ -69,7 +69,7 @@ impl GameServer {
 
             // ── Chat & Commands ───────────────────────────────────────────
             BorrowedMcpePacket {
-                data: BorrowedMcpePacketData::PacketCommandRequest(pk),
+                data: BorrowedMcpePacketData::CommandRequestPacket(pk),
                 ..
             } => {
                 if let Some(mut q) = world.get_resource_mut::<ChatPacketQueue>() {
@@ -79,7 +79,7 @@ impl GameServer {
 
             // ── Chunks ────────────────────────────────────────────────────
             BorrowedMcpePacket {
-                data: BorrowedMcpePacketData::PacketRequestChunkRadius(req),
+                data: BorrowedMcpePacketData::RequestChunkRadiusPacket(req),
                 ..
             } => {
                 if let Some(mut q) = world.get_resource_mut::<ChunkPacketQueue>() {
@@ -87,7 +87,7 @@ impl GameServer {
                 }
             }
             BorrowedMcpePacket {
-                data: BorrowedMcpePacketData::PacketSubchunkRequest(req),
+                data: BorrowedMcpePacketData::SubChunkRequestPacket(req),
                 ..
             } => {
                 if let Some(mut q) = world.get_resource_mut::<ChunkPacketQueue>() {
@@ -97,7 +97,7 @@ impl GameServer {
 
             // ── Inventory ─────────────────────────────────────────────────
             BorrowedMcpePacket {
-                data: BorrowedMcpePacketData::PacketContainerClose(pk),
+                data: BorrowedMcpePacketData::ContainerClosePacket(pk),
                 ..
             } => {
                 if let Some(mut q) = world.get_resource_mut::<InventoryPacketQueue>() {
@@ -120,48 +120,48 @@ impl GameServer {
         packet: McpePacket,
     ) {
         match packet.data {
-            McpePacketData::PacketPlayerAuthInput(pk) => {
+            McpePacketData::PlayerAuthInputPacket(pk) => {
                 if let Some(mut q) = world.get_resource_mut::<MovementPacketQueue>() {
-                    q.0.push((entity, MovementInput::AuthInput(*pk)));
+                    q.0.push((entity, MovementInput::AuthInput(pk)));
                 }
             }
-            McpePacketData::PacketText(pk) => {
+            McpePacketData::TextPacket(pk) => {
                 if let Some(mut q) = world.get_resource_mut::<ChatPacketQueue>() {
                     q.0.push((entity, session_id, ChatAction::Text(*pk)));
                 }
             }
-            McpePacketData::PacketMobEquipment(pk) => {
+            McpePacketData::MobEquipmentPacket(pk) => {
                 if let Some(mut q) = world.get_resource_mut::<InventoryPacketQueue>() {
                     q.0.push((entity, InventoryAction::MobEquipment(*pk)));
                 }
             }
-            McpePacketData::PacketItemStackRequest(pk) => {
+            McpePacketData::ItemStackRequestPacket(pk) => {
                 if let Some(mut q) = world.get_resource_mut::<InventoryPacketQueue>() {
                     q.0.push((entity, InventoryAction::ItemStackRequest(pk)));
                 }
             }
-            McpePacketData::PacketInteract(pk) => {
+            McpePacketData::InteractPacket(pk) => {
                 if let Some(mut q) = world.get_resource_mut::<InventoryPacketQueue>() {
-                    q.0.push((entity, InventoryAction::Interact(*pk)));
+                    q.0.push((entity, InventoryAction::Interact(pk)));
                 }
             }
-            McpePacketData::PacketInventoryTransaction(mut pk) => {
+            McpePacketData::InventoryTransactionPacket(mut pk) => {
                 use jolyne::valentine::types::{
-                    TransactionTransactionData, TransactionTransactionType,
-                    TransactionUseItemActionType,
+                    EnumsItemUseInventoryTransactionActionType,
+                    InventoryTransactionPacketTransaction,
                 };
 
-                let is_click_block = pk.transaction.transaction_type
-                    == Some(TransactionTransactionType::ItemUse)
-                    && matches!(
-                        &pk.transaction.transaction_data,
-                        Some(TransactionTransactionData::ItemUse(use_item))
-                            if use_item.action_type == TransactionUseItemActionType::ClickBlock
-                    );
+                let is_click_block = matches!(
+                    pk.transaction.as_ref(),
+                    Some(InventoryTransactionPacketTransaction::ItemUseInventoryTransaction(
+                        use_item,
+                    )) if use_item.action_type == EnumsItemUseInventoryTransactionActionType::Place
+                );
 
                 if is_click_block {
-                    if let Some(TransactionTransactionData::ItemUse(use_item)) =
-                        pk.transaction.transaction_data.take()
+                    if let Some(InventoryTransactionPacketTransaction::ItemUseInventoryTransaction(
+                        use_item,
+                    )) = pk.transaction.take()
                         && let Some(mut q) = world.get_resource_mut::<BlockPacketQueue>()
                     {
                         q.0.push((entity, BlockAction::BlockClick(*use_item)));
@@ -170,7 +170,7 @@ impl GameServer {
                     q.0.push((entity, InventoryAction::Transaction(*pk)));
                 }
             }
-            McpePacketData::PacketMovePlayer(_) => {
+            McpePacketData::MovePlayerPacket(_) => {
                 // Intentionally ignored — use PlayerAuthInput instead
             }
             _other => {

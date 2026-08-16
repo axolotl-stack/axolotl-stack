@@ -235,7 +235,7 @@ impl wit_bindings::unastar::plugin::host::Host for HostContext {
         if let Some(wrapper) =
             world.get_resource::<crate::server::game::types::ServerWorldTemplate>()
         {
-            let coords = &wrapper.0.start_game_template.spawn_position;
+            let coords = &wrapper.0.start_game_template.position;
             wit_types::Vec3 {
                 x: coords.x as f64,
                 y: coords.y as f64,
@@ -708,8 +708,7 @@ impl PluginManager {
         {
             use crate::entity::components::{PlayerName, PlayerSession};
             use jolyne::valentine::{
-                McpePacket, TextPacket, TextPacketCategory, TextPacketContent,
-                TextPacketContentAnnouncement, TextPacketType,
+                McpePacket, TextPacket, TextPacketBody, TextPacketPayloadAuthorAndMessage,
             };
 
             let sender_name = world
@@ -718,15 +717,15 @@ impl PluginManager {
                 .unwrap_or_else(|| "Unknown".to_string());
 
             let packet = TextPacket {
-                type_: TextPacketType::Chat,
-                needs_translation: false,
-                category: TextPacketCategory::Authored,
-                content: Some(TextPacketContent::Chat(TextPacketContentAnnouncement {
-                    source_name: sender_name.clone(),
+                localize: false,
+                // TextPacketCategory::Authored in the pre-generated facade is wire value 1.
+                message_category: 1,
+                body: TextPacketBody::Chat(TextPacketPayloadAuthorAndMessage {
+                    player_name: sender_name.clone(),
                     message: message.clone(),
-                })),
-                xuid: "0".to_string(),
-                platform_chat_id: String::new(),
+                }),
+                senders_xuid: "0".to_string(),
+                platform_id: String::new(),
                 filtered_message: None,
             };
 

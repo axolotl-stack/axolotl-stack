@@ -328,7 +328,7 @@ async fn main() -> Result<()> {
                         {
                             info!(
                                 address = %transfer.server_address,
-                                port = transfer.port,
+                                port = transfer.server_port,
                                 "Server sent TRANSFER"
                             );
                         }
