@@ -4633,6 +4633,7 @@ dependencies = [
 name = "unastar_noise"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "proc-macro2",
  "quote",
  "serde",
