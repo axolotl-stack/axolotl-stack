@@ -5320,6 +5320,55 @@ impl From<BookEditActionSwapPagesView> for BookEditActionSwapPages {
     }
 }
 #[derive(Debug, Clone, PartialEq)]
+pub struct BoolAttributeDatajsonView {
+    pub value: bool,
+    pub operation: crate::bedrock::borrowed::BorrowedStr,
+}
+impl crate::bedrock::codec::BedrockSized for BoolAttributeDatajsonView {
+    fn encoded_size(&self) -> usize {
+        0usize
+            + crate::bedrock::codec::BedrockSized::encoded_size(&self.value)
+            + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
+                ((&self.operation).as_bytes().len()) as u32,
+            ))
+            + (&self.operation).as_bytes().len()
+    }
+}
+impl crate::bedrock::borrowed::BedrockBorrowDecode for BoolAttributeDatajsonView {
+    type Args = ();
+    fn borrow_decode(
+        buf: &mut bytes::Bytes,
+        _args: Self::Args,
+    ) -> Result<Self, crate::bedrock::error::DecodeError> {
+        let _ = &buf;
+        let _ = _args;
+        let value = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let operation = crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?;
+        Ok(Self { value, operation })
+    }
+}
+impl BoolAttributeDatajsonView {
+    pub fn decode(buf: &mut bytes::Bytes) -> Result<Self, crate::bedrock::error::DecodeError> {
+        <Self as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(buf, ())
+    }
+    pub fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
+        (&self.value).encode(buf)?;
+        crate::bedrock::codec::VarUInt(((&self.operation).as_bytes().len()) as u32).encode(buf)?;
+        buf.put_slice((&self.operation).as_bytes());
+        Ok(())
+    }
+}
+impl From<BoolAttributeDatajsonView> for BoolAttributeDatajson {
+    fn from(value: BoolAttributeDatajsonView) -> Self {
+        let _ = &value;
+        Self {
+            value: value.value,
+            operation: (value.operation).to_string_lossy().into_owned(),
+        }
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
 pub struct BoxDataPayloadView {
     pub box_bound: Vec3View,
 }
@@ -8290,12 +8339,12 @@ impl From<CommandOriginDatajsonView> for CommandOriginDatajson {
     }
 }
 #[derive(Debug, Clone, PartialEq)]
-pub struct CommandOutputMessageView {
+pub struct CommandOutputMessagejsonView {
     pub message_id: crate::bedrock::borrowed::BorrowedStr,
     pub successful: bool,
     pub parameters: Vec<crate::bedrock::borrowed::BorrowedStr>,
 }
-impl crate::bedrock::codec::BedrockSized for CommandOutputMessageView {
+impl crate::bedrock::codec::BedrockSized for CommandOutputMessagejsonView {
     fn encoded_size(&self) -> usize {
         0usize
             + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
@@ -8316,7 +8365,7 @@ impl crate::bedrock::codec::BedrockSized for CommandOutputMessageView {
                 .sum::<usize>()
     }
 }
-impl crate::bedrock::borrowed::BedrockBorrowDecode for CommandOutputMessageView {
+impl crate::bedrock::borrowed::BedrockBorrowDecode for CommandOutputMessagejsonView {
     type Args = ();
     fn borrow_decode(
         buf: &mut bytes::Bytes,
@@ -8348,7 +8397,7 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for CommandOutputMessageView 
         })
     }
 }
-impl CommandOutputMessageView {
+impl CommandOutputMessagejsonView {
     pub fn decode(buf: &mut bytes::Bytes) -> Result<Self, crate::bedrock::error::DecodeError> {
         <Self as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(buf, ())
     }
@@ -8365,8 +8414,8 @@ impl CommandOutputMessageView {
         Ok(())
     }
 }
-impl From<CommandOutputMessageView> for CommandOutputMessage {
-    fn from(value: CommandOutputMessageView) -> Self {
+impl From<CommandOutputMessagejsonView> for CommandOutputMessagejson {
+    fn from(value: CommandOutputMessagejsonView) -> Self {
         let _ = &value;
         Self {
             message_id: (value.message_id).to_string_lossy().into_owned(),
@@ -8379,13 +8428,13 @@ impl From<CommandOutputMessageView> for CommandOutputMessage {
     }
 }
 #[derive(Debug, Clone, PartialEq)]
-pub struct CommandOutputView {
+pub struct CommandOutputjsonView {
     pub output_type: crate::bedrock::borrowed::BorrowedStr,
     pub success_count: u32,
-    pub output_messages: Vec<CommandOutputMessageView>,
+    pub output_messages: Vec<CommandOutputMessagejsonView>,
     pub data_set: Option<crate::bedrock::borrowed::BorrowedStr>,
 }
-impl crate::bedrock::codec::BedrockSized for CommandOutputView {
+impl crate::bedrock::codec::BedrockSized for CommandOutputjsonView {
     fn encoded_size(&self) -> usize {
         0usize
             + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
@@ -8408,7 +8457,7 @@ impl crate::bedrock::codec::BedrockSized for CommandOutputView {
             })
     }
 }
-impl crate::bedrock::borrowed::BedrockBorrowDecode for CommandOutputView {
+impl crate::bedrock::borrowed::BedrockBorrowDecode for CommandOutputjsonView {
     type Args = ();
     fn borrow_decode(
         buf: &mut bytes::Bytes,
@@ -8433,7 +8482,7 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for CommandOutputView {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
                     .push(
-                        <CommandOutputMessageView as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(
+                        <CommandOutputMessagejsonView as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(
                             buf,
                             (),
                         )?,
@@ -8454,7 +8503,7 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for CommandOutputView {
         })
     }
 }
-impl CommandOutputView {
+impl CommandOutputjsonView {
     pub fn decode(buf: &mut bytes::Bytes) -> Result<Self, crate::bedrock::error::DecodeError> {
         <Self as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(buf, ())
     }
@@ -8476,8 +8525,8 @@ impl CommandOutputView {
         Ok(())
     }
 }
-impl From<CommandOutputView> for CommandOutput {
-    fn from(value: CommandOutputView) -> Self {
+impl From<CommandOutputjsonView> for CommandOutputjson {
+    fn from(value: CommandOutputjsonView) -> Self {
         let _ = &value;
         Self {
             output_type: (value.output_type).to_string_lossy().into_owned(),
@@ -9583,153 +9632,6 @@ impl From<DisconnectPacketMessagesView> for DisconnectPacketMessages {
     }
 }
 #[derive(Debug, Clone, PartialEq)]
-pub struct EasBoolAttributeDataView {
-    pub value: bool,
-    pub operation: crate::bedrock::borrowed::BorrowedStr,
-}
-impl crate::bedrock::codec::BedrockSized for EasBoolAttributeDataView {
-    fn encoded_size(&self) -> usize {
-        0usize
-            + crate::bedrock::codec::BedrockSized::encoded_size(&self.value)
-            + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                ((&self.operation).as_bytes().len()) as u32,
-            ))
-            + (&self.operation).as_bytes().len()
-    }
-}
-impl crate::bedrock::borrowed::BedrockBorrowDecode for EasBoolAttributeDataView {
-    type Args = ();
-    fn borrow_decode(
-        buf: &mut bytes::Bytes,
-        _args: Self::Args,
-    ) -> Result<Self, crate::bedrock::error::DecodeError> {
-        let _ = &buf;
-        let _ = _args;
-        let value = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let operation = crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?;
-        Ok(Self { value, operation })
-    }
-}
-impl EasBoolAttributeDataView {
-    pub fn decode(buf: &mut bytes::Bytes) -> Result<Self, crate::bedrock::error::DecodeError> {
-        <Self as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(buf, ())
-    }
-    pub fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        (&self.value).encode(buf)?;
-        crate::bedrock::codec::VarUInt(((&self.operation).as_bytes().len()) as u32).encode(buf)?;
-        buf.put_slice((&self.operation).as_bytes());
-        Ok(())
-    }
-}
-impl From<EasBoolAttributeDataView> for EasBoolAttributeData {
-    fn from(value: EasBoolAttributeDataView) -> Self {
-        let _ = &value;
-        Self {
-            value: value.value,
-            operation: (value.operation).to_string_lossy().into_owned(),
-        }
-    }
-}
-#[derive(Debug, Clone, PartialEq)]
-pub struct EasFloatAttributeDataView {
-    pub value: f32,
-    pub operation: crate::bedrock::borrowed::BorrowedStr,
-    pub constraint_min: Option<f32>,
-    pub constraint_max: Option<f32>,
-}
-impl crate::bedrock::codec::BedrockSized for EasFloatAttributeDataView {
-    fn encoded_size(&self) -> usize {
-        0usize
-            + 4usize
-            + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                ((&self.operation).as_bytes().len()) as u32,
-            ))
-            + (&self.operation).as_bytes().len()
-            + 1usize
-            + (&self.constraint_min)
-                .as_ref()
-                .map_or(0usize, |_value| 4usize)
-            + 1usize
-            + (&self.constraint_max)
-                .as_ref()
-                .map_or(0usize, |_value| 4usize)
-    }
-}
-impl crate::bedrock::borrowed::BedrockBorrowDecode for EasFloatAttributeDataView {
-    type Args = ();
-    fn borrow_decode(
-        buf: &mut bytes::Bytes,
-        _args: Self::Args,
-    ) -> Result<Self, crate::bedrock::error::DecodeError> {
-        let _ = &buf;
-        let _ = _args;
-        let value =
-            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
-                .0;
-        let operation = crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?;
-        let constraint_min = if <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? {
-            Some(
-                <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?
-                .0,
-            )
-        } else {
-            None
-        };
-        let constraint_max = if <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? {
-            Some(
-                <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?
-                .0,
-            )
-        } else {
-            None
-        };
-        Ok(Self {
-            value,
-            operation,
-            constraint_min,
-            constraint_max,
-        })
-    }
-}
-impl EasFloatAttributeDataView {
-    pub fn decode(buf: &mut bytes::Bytes) -> Result<Self, crate::bedrock::error::DecodeError> {
-        <Self as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(buf, ())
-    }
-    pub fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        crate::bedrock::codec::F32LE(*&self.value).encode(buf)?;
-        crate::bedrock::codec::VarUInt(((&self.operation).as_bytes().len()) as u32).encode(buf)?;
-        buf.put_slice((&self.operation).as_bytes());
-        (&self.constraint_min).is_some().encode(buf)?;
-        if let Some(value) = &self.constraint_min {
-            crate::bedrock::codec::F32LE(*value).encode(buf)?;
-        }
-        (&self.constraint_max).is_some().encode(buf)?;
-        if let Some(value) = &self.constraint_max {
-            crate::bedrock::codec::F32LE(*value).encode(buf)?;
-        }
-        Ok(())
-    }
-}
-impl From<EasFloatAttributeDataView> for EasFloatAttributeData {
-    fn from(value: EasFloatAttributeDataView) -> Self {
-        let _ = &value;
-        Self {
-            value: value.value,
-            operation: (value.operation).to_string_lossy().into_owned(),
-            constraint_min: (value.constraint_min).map(|value| value),
-            constraint_max: (value.constraint_max).map(|value| value),
-        }
-    }
-}
-#[derive(Debug, Clone, PartialEq)]
 pub struct EcsProfilingDiagnosticsEntityDiagnosticTimingInfoView {
     pub display_name: crate::bedrock::borrowed::BorrowedStr,
     pub entity: crate::bedrock::borrowed::BorrowedStr,
@@ -10596,6 +10498,104 @@ impl From<FeatureRegistryFeatureBinaryJsonFormatView> for FeatureRegistryFeature
         Self {
             feature_name: (value.feature_name).to_string_lossy().into_owned(),
             binary_json_output: (value.binary_json_output).to_vec(),
+        }
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
+pub struct FloatAttributeDatajsonView {
+    pub value: f32,
+    pub operation: crate::bedrock::borrowed::BorrowedStr,
+    pub constraint_min: Option<f32>,
+    pub constraint_max: Option<f32>,
+}
+impl crate::bedrock::codec::BedrockSized for FloatAttributeDatajsonView {
+    fn encoded_size(&self) -> usize {
+        0usize
+            + 4usize
+            + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
+                ((&self.operation).as_bytes().len()) as u32,
+            ))
+            + (&self.operation).as_bytes().len()
+            + 1usize
+            + (&self.constraint_min)
+                .as_ref()
+                .map_or(0usize, |_value| 4usize)
+            + 1usize
+            + (&self.constraint_max)
+                .as_ref()
+                .map_or(0usize, |_value| 4usize)
+    }
+}
+impl crate::bedrock::borrowed::BedrockBorrowDecode for FloatAttributeDatajsonView {
+    type Args = ();
+    fn borrow_decode(
+        buf: &mut bytes::Bytes,
+        _args: Self::Args,
+    ) -> Result<Self, crate::bedrock::error::DecodeError> {
+        let _ = &buf;
+        let _ = _args;
+        let value =
+            <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?
+                .0;
+        let operation = crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?;
+        let constraint_min = if <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? {
+            Some(
+                <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                    buf,
+                    (),
+                )?
+                .0,
+            )
+        } else {
+            None
+        };
+        let constraint_max = if <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())? {
+            Some(
+                <crate::bedrock::codec::F32LE as crate::bedrock::codec::BedrockCodec>::decode(
+                    buf,
+                    (),
+                )?
+                .0,
+            )
+        } else {
+            None
+        };
+        Ok(Self {
+            value,
+            operation,
+            constraint_min,
+            constraint_max,
+        })
+    }
+}
+impl FloatAttributeDatajsonView {
+    pub fn decode(buf: &mut bytes::Bytes) -> Result<Self, crate::bedrock::error::DecodeError> {
+        <Self as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(buf, ())
+    }
+    pub fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        let _ = buf;
+        crate::bedrock::codec::F32LE(*&self.value).encode(buf)?;
+        crate::bedrock::codec::VarUInt(((&self.operation).as_bytes().len()) as u32).encode(buf)?;
+        buf.put_slice((&self.operation).as_bytes());
+        (&self.constraint_min).is_some().encode(buf)?;
+        if let Some(value) = &self.constraint_min {
+            crate::bedrock::codec::F32LE(*value).encode(buf)?;
+        }
+        (&self.constraint_max).is_some().encode(buf)?;
+        if let Some(value) = &self.constraint_max {
+            crate::bedrock::codec::F32LE(*value).encode(buf)?;
+        }
+        Ok(())
+    }
+}
+impl From<FloatAttributeDatajsonView> for FloatAttributeDatajson {
+    fn from(value: FloatAttributeDatajsonView) -> Self {
+        let _ = &value;
+        Self {
+            value: value.value,
+            operation: (value.operation).to_string_lossy().into_owned(),
+            constraint_min: (value.constraint_min).map(|value| value),
+            constraint_max: (value.constraint_max).map(|value| value),
         }
     }
 }
@@ -17962,10 +17962,10 @@ impl From<RemoveScoreView> for RemoveScore {
     }
 }
 #[derive(Debug, Clone, PartialEq)]
-pub struct ResourcePackClientResponsePacketPayloadCancelView {
+pub struct ResourcePackClientResponseCanceljsonView {
     pub response_type: crate::bedrock::borrowed::BorrowedStr,
 }
-impl crate::bedrock::codec::BedrockSized for ResourcePackClientResponsePacketPayloadCancelView {
+impl crate::bedrock::codec::BedrockSized for ResourcePackClientResponseCanceljsonView {
     fn encoded_size(&self) -> usize {
         0usize
             + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
@@ -17974,9 +17974,7 @@ impl crate::bedrock::codec::BedrockSized for ResourcePackClientResponsePacketPay
             + (&self.response_type).as_bytes().len()
     }
 }
-impl crate::bedrock::borrowed::BedrockBorrowDecode
-    for ResourcePackClientResponsePacketPayloadCancelView
-{
+impl crate::bedrock::borrowed::BedrockBorrowDecode for ResourcePackClientResponseCanceljsonView {
     type Args = ();
     fn borrow_decode(
         buf: &mut bytes::Bytes,
@@ -17988,7 +17986,7 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
         Ok(Self { response_type })
     }
 }
-impl ResourcePackClientResponsePacketPayloadCancelView {
+impl ResourcePackClientResponseCanceljsonView {
     pub fn decode(buf: &mut bytes::Bytes) -> Result<Self, crate::bedrock::error::DecodeError> {
         <Self as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(buf, ())
     }
@@ -18000,10 +17998,8 @@ impl ResourcePackClientResponsePacketPayloadCancelView {
         Ok(())
     }
 }
-impl From<ResourcePackClientResponsePacketPayloadCancelView>
-    for ResourcePackClientResponsePacketPayloadCancel
-{
-    fn from(value: ResourcePackClientResponsePacketPayloadCancelView) -> Self {
+impl From<ResourcePackClientResponseCanceljsonView> for ResourcePackClientResponseCanceljson {
+    fn from(value: ResourcePackClientResponseCanceljsonView) -> Self {
         let _ = &value;
         Self {
             response_type: (value.response_type).to_string_lossy().into_owned(),
@@ -18011,13 +18007,11 @@ impl From<ResourcePackClientResponsePacketPayloadCancelView>
     }
 }
 #[derive(Debug, Clone, PartialEq)]
-pub struct ResourcePackClientResponsePacketPayloadDownloadingView {
+pub struct ResourcePackClientResponseDownloadingjsonView {
     pub response_type: crate::bedrock::borrowed::BorrowedStr,
     pub downloading_packs: Vec<crate::bedrock::borrowed::BorrowedStr>,
 }
-impl crate::bedrock::codec::BedrockSized
-    for ResourcePackClientResponsePacketPayloadDownloadingView
-{
+impl crate::bedrock::codec::BedrockSized for ResourcePackClientResponseDownloadingjsonView {
     fn encoded_size(&self) -> usize {
         0usize
             + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
@@ -18038,7 +18032,7 @@ impl crate::bedrock::codec::BedrockSized
     }
 }
 impl crate::bedrock::borrowed::BedrockBorrowDecode
-    for ResourcePackClientResponsePacketPayloadDownloadingView
+    for ResourcePackClientResponseDownloadingjsonView
 {
     type Args = ();
     fn borrow_decode(
@@ -18069,7 +18063,7 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
         })
     }
 }
-impl ResourcePackClientResponsePacketPayloadDownloadingView {
+impl ResourcePackClientResponseDownloadingjsonView {
     pub fn decode(buf: &mut bytes::Bytes) -> Result<Self, crate::bedrock::error::DecodeError> {
         <Self as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(buf, ())
     }
@@ -18086,10 +18080,10 @@ impl ResourcePackClientResponsePacketPayloadDownloadingView {
         Ok(())
     }
 }
-impl From<ResourcePackClientResponsePacketPayloadDownloadingView>
-    for ResourcePackClientResponsePacketPayloadDownloading
+impl From<ResourcePackClientResponseDownloadingjsonView>
+    for ResourcePackClientResponseDownloadingjson
 {
-    fn from(value: ResourcePackClientResponsePacketPayloadDownloadingView) -> Self {
+    fn from(value: ResourcePackClientResponseDownloadingjsonView) -> Self {
         let _ = &value;
         Self {
             response_type: (value.response_type).to_string_lossy().into_owned(),
@@ -18101,12 +18095,10 @@ impl From<ResourcePackClientResponsePacketPayloadDownloadingView>
     }
 }
 #[derive(Debug, Clone, PartialEq)]
-pub struct ResourcePackClientResponsePacketPayloadDownloadingFinishedView {
+pub struct ResourcePackClientResponseDownloadingFinishedjsonView {
     pub response_type: crate::bedrock::borrowed::BorrowedStr,
 }
-impl crate::bedrock::codec::BedrockSized
-    for ResourcePackClientResponsePacketPayloadDownloadingFinishedView
-{
+impl crate::bedrock::codec::BedrockSized for ResourcePackClientResponseDownloadingFinishedjsonView {
     fn encoded_size(&self) -> usize {
         0usize
             + crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
@@ -18116,7 +18108,7 @@ impl crate::bedrock::codec::BedrockSized
     }
 }
 impl crate::bedrock::borrowed::BedrockBorrowDecode
-    for ResourcePackClientResponsePacketPayloadDownloadingFinishedView
+    for ResourcePackClientResponseDownloadingFinishedjsonView
 {
     type Args = ();
     fn borrow_decode(
@@ -18129,7 +18121,7 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
         Ok(Self { response_type })
     }
 }
-impl ResourcePackClientResponsePacketPayloadDownloadingFinishedView {
+impl ResourcePackClientResponseDownloadingFinishedjsonView {
     pub fn decode(buf: &mut bytes::Bytes) -> Result<Self, crate::bedrock::error::DecodeError> {
         <Self as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(buf, ())
     }
@@ -18141,10 +18133,10 @@ impl ResourcePackClientResponsePacketPayloadDownloadingFinishedView {
         Ok(())
     }
 }
-impl From<ResourcePackClientResponsePacketPayloadDownloadingFinishedView>
-    for ResourcePackClientResponsePacketPayloadDownloadingFinished
+impl From<ResourcePackClientResponseDownloadingFinishedjsonView>
+    for ResourcePackClientResponseDownloadingFinishedjson
 {
-    fn from(value: ResourcePackClientResponsePacketPayloadDownloadingFinishedView) -> Self {
+    fn from(value: ResourcePackClientResponseDownloadingFinishedjsonView) -> Self {
         let _ = &value;
         Self {
             response_type: (value.response_type).to_string_lossy().into_owned(),
@@ -18152,11 +18144,11 @@ impl From<ResourcePackClientResponsePacketPayloadDownloadingFinishedView>
     }
 }
 #[derive(Debug, Clone, PartialEq)]
-pub struct ResourcePackClientResponsePacketPayloadResourcePackStackFinishedView {
+pub struct ResourcePackClientResponseResourcePackStackFinishedjsonView {
     pub response_type: crate::bedrock::borrowed::BorrowedStr,
 }
 impl crate::bedrock::codec::BedrockSized
-    for ResourcePackClientResponsePacketPayloadResourcePackStackFinishedView
+    for ResourcePackClientResponseResourcePackStackFinishedjsonView
 {
     fn encoded_size(&self) -> usize {
         0usize
@@ -18167,7 +18159,7 @@ impl crate::bedrock::codec::BedrockSized
     }
 }
 impl crate::bedrock::borrowed::BedrockBorrowDecode
-    for ResourcePackClientResponsePacketPayloadResourcePackStackFinishedView
+    for ResourcePackClientResponseResourcePackStackFinishedjsonView
 {
     type Args = ();
     fn borrow_decode(
@@ -18180,7 +18172,7 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
         Ok(Self { response_type })
     }
 }
-impl ResourcePackClientResponsePacketPayloadResourcePackStackFinishedView {
+impl ResourcePackClientResponseResourcePackStackFinishedjsonView {
     pub fn decode(buf: &mut bytes::Bytes) -> Result<Self, crate::bedrock::error::DecodeError> {
         <Self as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(buf, ())
     }
@@ -18192,10 +18184,10 @@ impl ResourcePackClientResponsePacketPayloadResourcePackStackFinishedView {
         Ok(())
     }
 }
-impl From<ResourcePackClientResponsePacketPayloadResourcePackStackFinishedView>
-    for ResourcePackClientResponsePacketPayloadResourcePackStackFinished
+impl From<ResourcePackClientResponseResourcePackStackFinishedjsonView>
+    for ResourcePackClientResponseResourcePackStackFinishedjson
 {
-    fn from(value: ResourcePackClientResponsePacketPayloadResourcePackStackFinishedView) -> Self {
+    fn from(value: ResourcePackClientResponseResourcePackStackFinishedjsonView) -> Self {
         let _ = &value;
         Self {
             response_type: (value.response_type).to_string_lossy().into_owned(),
@@ -28470,7 +28462,7 @@ impl From<CommandRequestPacketView> for CommandRequestPacket {
 #[derive(Debug, Clone, PartialEq)]
 pub struct CommandOutputPacketView {
     pub origin_data: CommandOriginDatajsonView,
-    pub output: CommandOutputView,
+    pub output: CommandOutputjsonView,
 }
 impl crate::bedrock::codec::BedrockSized for CommandOutputPacketView {
     fn encoded_size(&self) -> usize {
@@ -28491,11 +28483,10 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for CommandOutputPacketView {
             buf,
             (),
         )?;
-        let output =
-            <CommandOutputView as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(
-                buf,
-                (),
-            )?;
+        let output = <CommandOutputjsonView as crate::bedrock::borrowed::BedrockBorrowDecode>::borrow_decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             origin_data,
             output,

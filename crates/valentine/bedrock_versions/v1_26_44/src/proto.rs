@@ -5749,7 +5749,7 @@ impl crate::bedrock::codec::BedrockCodec for CommandBlockUpdatePacket {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct CommandOutputPacket {
     pub origin_data: CommandOriginDatajson,
-    pub output: CommandOutput,
+    pub output: CommandOutputjson,
 }
 impl crate::bedrock::codec::BedrockSized for CommandOutputPacket {
     fn encoded_size(&self) -> usize {
@@ -5774,7 +5774,7 @@ impl crate::bedrock::codec::BedrockCodec for CommandOutputPacket {
         let _ = buf;
         let origin_data =
             <CommandOriginDatajson as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let output = <CommandOutput as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let output = <CommandOutputjson as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self {
             origin_data,
             output,
@@ -6889,7 +6889,7 @@ impl crate::bedrock::codec::BedrockCodec for PurchaseReceiptPacket {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct PlayerSkinPacket {
     pub uuid: MceUuiDjson,
-    pub serialized_skin: PlayerSkinPacketSerializedSkin,
+    pub serialized_skin: SerializedSkinRef,
     pub localized_new_skin_name: String,
     pub localized_old_skin_name: String,
 }
@@ -6936,10 +6936,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerSkinPacket {
         let _ = buf;
         let uuid = <MceUuiDjson as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let serialized_skin =
-            <PlayerSkinPacketSerializedSkin as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
+            <SerializedSkinRef as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let localized_new_skin_name = {
             let len =
                 (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
@@ -16324,67 +16321,25 @@ impl crate::bedrock::codec::BedrockCodec for ServerPresenceInfoPacket {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ClientboundUpdateSoundDataPacket {
     pub server_sound_handle: ServerSoundHandle,
-    pub stop: Option<ClientboundUpdateSoundDataPacketStop>,
-    pub set_volume: Option<ClientboundUpdateSoundDataPacketSetVolume>,
-    pub set_pitch: Option<ClientboundUpdateSoundDataPacketSetPitch>,
-    pub fade: Option<ClientboundUpdateSoundDataPacketFade>,
-    pub seek_to: Option<ClientboundUpdateSoundDataPacketSeekTo>,
-    pub pause: Option<ClientboundUpdateSoundDataPacketPause>,
-    pub resume: Option<ClientboundUpdateSoundDataPacketResume>,
+    pub stop: ClientboundUpdateSoundDataPacketStop,
+    pub set_volume: ClientboundUpdateSoundDataPacketSetVolume,
+    pub set_pitch: ClientboundUpdateSoundDataPacketSetPitch,
+    pub fade: ClientboundUpdateSoundDataPacketFade,
+    pub seek_to: ClientboundUpdateSoundDataPacketSeekTo,
+    pub pause: ClientboundUpdateSoundDataPacketPause,
+    pub resume: ClientboundUpdateSoundDataPacketResume,
 }
 impl crate::bedrock::codec::BedrockSized for ClientboundUpdateSoundDataPacket {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.server_sound_handle);
-        size += {
-            1usize
-                + match &self.stop {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
-        size += {
-            1usize
-                + match &self.set_volume {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
-        size += {
-            1usize
-                + match &self.set_pitch {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
-        size += {
-            1usize
-                + match &self.fade {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
-        size += {
-            1usize
-                + match &self.seek_to {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
-        size += {
-            1usize
-                + match &self.pause {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
-        size += {
-            1usize
-                + match &self.resume {
-                    Some(_v) => crate::bedrock::codec::BedrockSized::encoded_size(_v),
-                    None => 0usize,
-                }
-        };
+        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.stop);
+        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.set_volume);
+        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.set_pitch);
+        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.fade);
+        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.seek_to);
+        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.pause);
+        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.resume);
         size
     }
 }
@@ -16393,55 +16348,13 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundUpdateSoundDataPacket {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
         self.server_sound_handle.encode(buf)?;
-        match &self.stop {
-            Some(v) => {
-                buf.put_u8(1);
-                v.encode(buf)?;
-            }
-            None => buf.put_u8(0),
-        }
-        match &self.set_volume {
-            Some(v) => {
-                buf.put_u8(1);
-                v.encode(buf)?;
-            }
-            None => buf.put_u8(0),
-        }
-        match &self.set_pitch {
-            Some(v) => {
-                buf.put_u8(1);
-                v.encode(buf)?;
-            }
-            None => buf.put_u8(0),
-        }
-        match &self.fade {
-            Some(v) => {
-                buf.put_u8(1);
-                v.encode(buf)?;
-            }
-            None => buf.put_u8(0),
-        }
-        match &self.seek_to {
-            Some(v) => {
-                buf.put_u8(1);
-                v.encode(buf)?;
-            }
-            None => buf.put_u8(0),
-        }
-        match &self.pause {
-            Some(v) => {
-                buf.put_u8(1);
-                v.encode(buf)?;
-            }
-            None => buf.put_u8(0),
-        }
-        match &self.resume {
-            Some(v) => {
-                buf.put_u8(1);
-                v.encode(buf)?;
-            }
-            None => buf.put_u8(0),
-        }
+        self.stop.encode(buf)?;
+        self.set_volume.encode(buf)?;
+        self.set_pitch.encode(buf)?;
+        self.fade.encode(buf)?;
+        self.seek_to.encode(buf)?;
+        self.pause.encode(buf)?;
+        self.resume.encode(buf)?;
         Ok(())
     }
     fn decode<B: bytes::Buf>(
@@ -16451,97 +16364,37 @@ impl crate::bedrock::codec::BedrockCodec for ClientboundUpdateSoundDataPacket {
         let _ = buf;
         let server_sound_handle =
             <ServerSoundHandle as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let stop = {
-            let present = u8::decode(buf, ())?;
-            if present != 0 {
-                Some(
-                    <ClientboundUpdateSoundDataPacketStop as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                )
-            } else {
-                None
-            }
-        };
-        let set_volume = {
-            let present = u8::decode(buf, ())?;
-            if present != 0 {
-                Some(
-                    <ClientboundUpdateSoundDataPacketSetVolume as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                )
-            } else {
-                None
-            }
-        };
-        let set_pitch = {
-            let present = u8::decode(buf, ())?;
-            if present != 0 {
-                Some(
-                    <ClientboundUpdateSoundDataPacketSetPitch as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                )
-            } else {
-                None
-            }
-        };
-        let fade = {
-            let present = u8::decode(buf, ())?;
-            if present != 0 {
-                Some(
-                    <ClientboundUpdateSoundDataPacketFade as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                )
-            } else {
-                None
-            }
-        };
-        let seek_to = {
-            let present = u8::decode(buf, ())?;
-            if present != 0 {
-                Some(
-                    <ClientboundUpdateSoundDataPacketSeekTo as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                )
-            } else {
-                None
-            }
-        };
-        let pause = {
-            let present = u8::decode(buf, ())?;
-            if present != 0 {
-                Some(
-                    <ClientboundUpdateSoundDataPacketPause as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                )
-            } else {
-                None
-            }
-        };
-        let resume = {
-            let present = u8::decode(buf, ())?;
-            if present != 0 {
-                Some(
-                    <ClientboundUpdateSoundDataPacketResume as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?,
-                )
-            } else {
-                None
-            }
-        };
+        let stop =
+            <ClientboundUpdateSoundDataPacketStop as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?;
+        let set_volume = <ClientboundUpdateSoundDataPacketSetVolume as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let set_pitch = <ClientboundUpdateSoundDataPacketSetPitch as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let fade =
+            <ClientboundUpdateSoundDataPacketFade as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?;
+        let seek_to = <ClientboundUpdateSoundDataPacketSeekTo as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
+        let pause =
+            <ClientboundUpdateSoundDataPacketPause as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?;
+        let resume = <ClientboundUpdateSoundDataPacketResume as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self {
             server_sound_handle,
             stop,

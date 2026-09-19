@@ -1318,11 +1318,11 @@ impl crate::bedrock::codec::BedrockCodec
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct EasBoolAttributeData {
+pub struct BoolAttributeDatajson {
     pub value: bool,
     pub operation: String,
 }
-impl crate::bedrock::codec::BedrockSized for EasBoolAttributeData {
+impl crate::bedrock::codec::BedrockSized for BoolAttributeDatajson {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += 1usize;
@@ -1335,7 +1335,7 @@ impl crate::bedrock::codec::BedrockSized for EasBoolAttributeData {
         size
     }
 }
-impl crate::bedrock::codec::BedrockCodec for EasBoolAttributeData {
+impl crate::bedrock::codec::BedrockCodec for BoolAttributeDatajson {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
@@ -1373,13 +1373,13 @@ impl crate::bedrock::codec::BedrockCodec for EasBoolAttributeData {
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct EasFloatAttributeData {
+pub struct FloatAttributeDatajson {
     pub value: f32,
     pub operation: String,
     pub constraint_min: Option<f32>,
     pub constraint_max: Option<f32>,
 }
-impl crate::bedrock::codec::BedrockSized for EasFloatAttributeData {
+impl crate::bedrock::codec::BedrockSized for FloatAttributeDatajson {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += 4usize;
@@ -1406,7 +1406,7 @@ impl crate::bedrock::codec::BedrockSized for EasFloatAttributeData {
         size
     }
 }
-impl crate::bedrock::codec::BedrockCodec for EasFloatAttributeData {
+impl crate::bedrock::codec::BedrockCodec for FloatAttributeDatajson {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
@@ -1493,11 +1493,11 @@ impl crate::bedrock::codec::BedrockCodec for EasFloatAttributeData {
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct EasColorAttributeData {
+pub struct ColorAttributeDatajson {
     pub value: [i32; 4],
     pub operation: String,
 }
-impl crate::bedrock::codec::BedrockSized for EasColorAttributeData {
+impl crate::bedrock::codec::BedrockSized for ColorAttributeDatajson {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += (&self.value).iter().map(|_item| 4usize).sum::<usize>();
@@ -1510,7 +1510,7 @@ impl crate::bedrock::codec::BedrockSized for EasColorAttributeData {
         size
     }
 }
-impl crate::bedrock::codec::BedrockCodec for EasColorAttributeData {
+impl crate::bedrock::codec::BedrockCodec for ColorAttributeDatajson {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
@@ -1565,30 +1565,30 @@ impl crate::bedrock::codec::BedrockCodec for EasColorAttributeData {
     }
 }
 #[derive(Debug, Clone, PartialEq)]
-pub enum EasEnvironmentAttributeDataFromAttribute {
-    BoolAttributeData(EasBoolAttributeData),
-    FloatAttributeData(Box<EasFloatAttributeData>),
-    ColorAttributeData(EasColorAttributeData),
+pub enum EnvironmentAttributeDatajsonFromAttribute {
+    BoolAttributeData(BoolAttributeDatajson),
+    FloatAttributeData(Box<FloatAttributeDatajson>),
+    ColorAttributeData(ColorAttributeDatajson),
 }
-impl Default for EasEnvironmentAttributeDataFromAttribute {
+impl Default for EnvironmentAttributeDatajsonFromAttribute {
     fn default() -> Self {
         Self::BoolAttributeData(Default::default())
     }
 }
-impl crate::bedrock::codec::BedrockSized for EasEnvironmentAttributeDataFromAttribute {
+impl crate::bedrock::codec::BedrockSized for EnvironmentAttributeDatajsonFromAttribute {
     fn encoded_size(&self) -> usize {
         match self {
-            EasEnvironmentAttributeDataFromAttribute::BoolAttributeData(value) => {
+            EnvironmentAttributeDatajsonFromAttribute::BoolAttributeData(value) => {
                 crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
                     0 as u32,
                 )) + crate::bedrock::codec::BedrockSized::encoded_size(value)
             }
-            EasEnvironmentAttributeDataFromAttribute::FloatAttributeData(value) => {
+            EnvironmentAttributeDatajsonFromAttribute::FloatAttributeData(value) => {
                 crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
                     1 as u32,
                 )) + crate::bedrock::codec::BedrockSized::encoded_size(value.as_ref())
             }
-            EasEnvironmentAttributeDataFromAttribute::ColorAttributeData(value) => {
+            EnvironmentAttributeDatajsonFromAttribute::ColorAttributeData(value) => {
                 crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
                     2 as u32,
                 )) + crate::bedrock::codec::BedrockSized::encoded_size(value)
@@ -1596,23 +1596,23 @@ impl crate::bedrock::codec::BedrockSized for EasEnvironmentAttributeDataFromAttr
         }
     }
 }
-impl crate::bedrock::codec::BedrockCodec for EasEnvironmentAttributeDataFromAttribute {
+impl crate::bedrock::codec::BedrockCodec for EnvironmentAttributeDatajsonFromAttribute {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         match self {
-            EasEnvironmentAttributeDataFromAttribute::BoolAttributeData(value) => {
+            EnvironmentAttributeDatajsonFromAttribute::BoolAttributeData(value) => {
                 let control_value = 0 as i64;
                 crate::bedrock::codec::VarUInt(control_value as u32).encode(buf)?;
                 value.encode(buf)?;
                 Ok(())
             }
-            EasEnvironmentAttributeDataFromAttribute::FloatAttributeData(value) => {
+            EnvironmentAttributeDatajsonFromAttribute::FloatAttributeData(value) => {
                 let control_value = 1 as i64;
                 crate::bedrock::codec::VarUInt(control_value as u32).encode(buf)?;
                 value.as_ref().encode(buf)?;
                 Ok(())
             }
-            EasEnvironmentAttributeDataFromAttribute::ColorAttributeData(value) => {
+            EnvironmentAttributeDatajsonFromAttribute::ColorAttributeData(value) => {
                 let control_value = 2 as i64;
                 crate::bedrock::codec::VarUInt(control_value as u32).encode(buf)?;
                 value.encode(buf)?;
@@ -1631,57 +1631,62 @@ impl crate::bedrock::codec::BedrockCodec for EasEnvironmentAttributeDataFromAttr
             )?
             .0 as i64;
         match control_value {
-            0 => Ok(EasEnvironmentAttributeDataFromAttribute::BoolAttributeData(
-                <EasBoolAttributeData as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
-            )),
+            0 => Ok(
+                EnvironmentAttributeDatajsonFromAttribute::BoolAttributeData(
+                    <BoolAttributeDatajson as crate::bedrock::codec::BedrockCodec>::decode(
+                        buf,
+                        (),
+                    )?,
+                ),
+            ),
             1 => Ok(
-                EasEnvironmentAttributeDataFromAttribute::FloatAttributeData(Box::new(
-                    <EasFloatAttributeData as crate::bedrock::codec::BedrockCodec>::decode(
+                EnvironmentAttributeDatajsonFromAttribute::FloatAttributeData(Box::new(
+                    <FloatAttributeDatajson as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
                         (),
                     )?,
                 )),
             ),
             2 => Ok(
-                EasEnvironmentAttributeDataFromAttribute::ColorAttributeData(
-                    <EasColorAttributeData as crate::bedrock::codec::BedrockCodec>::decode(
+                EnvironmentAttributeDatajsonFromAttribute::ColorAttributeData(
+                    <ColorAttributeDatajson as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
                         (),
                     )?,
                 ),
             ),
             _ => Err(crate::bedrock::error::DecodeError::InvalidEnumValue {
-                enum_name: stringify!(EasEnvironmentAttributeDataFromAttribute),
+                enum_name: stringify!(EnvironmentAttributeDatajsonFromAttribute),
                 value: control_value,
             }),
         }
     }
 }
 #[derive(Debug, Clone, PartialEq)]
-pub enum EasEnvironmentAttributeDataAttribute {
-    BoolAttributeData(EasBoolAttributeData),
-    FloatAttributeData(Box<EasFloatAttributeData>),
-    ColorAttributeData(EasColorAttributeData),
+pub enum EnvironmentAttributeDatajsonAttribute {
+    BoolAttributeData(BoolAttributeDatajson),
+    FloatAttributeData(Box<FloatAttributeDatajson>),
+    ColorAttributeData(ColorAttributeDatajson),
 }
-impl Default for EasEnvironmentAttributeDataAttribute {
+impl Default for EnvironmentAttributeDatajsonAttribute {
     fn default() -> Self {
         Self::BoolAttributeData(Default::default())
     }
 }
-impl crate::bedrock::codec::BedrockSized for EasEnvironmentAttributeDataAttribute {
+impl crate::bedrock::codec::BedrockSized for EnvironmentAttributeDatajsonAttribute {
     fn encoded_size(&self) -> usize {
         match self {
-            EasEnvironmentAttributeDataAttribute::BoolAttributeData(value) => {
+            EnvironmentAttributeDatajsonAttribute::BoolAttributeData(value) => {
                 crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
                     0 as u32,
                 )) + crate::bedrock::codec::BedrockSized::encoded_size(value)
             }
-            EasEnvironmentAttributeDataAttribute::FloatAttributeData(value) => {
+            EnvironmentAttributeDatajsonAttribute::FloatAttributeData(value) => {
                 crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
                     1 as u32,
                 )) + crate::bedrock::codec::BedrockSized::encoded_size(value.as_ref())
             }
-            EasEnvironmentAttributeDataAttribute::ColorAttributeData(value) => {
+            EnvironmentAttributeDatajsonAttribute::ColorAttributeData(value) => {
                 crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
                     2 as u32,
                 )) + crate::bedrock::codec::BedrockSized::encoded_size(value)
@@ -1689,23 +1694,23 @@ impl crate::bedrock::codec::BedrockSized for EasEnvironmentAttributeDataAttribut
         }
     }
 }
-impl crate::bedrock::codec::BedrockCodec for EasEnvironmentAttributeDataAttribute {
+impl crate::bedrock::codec::BedrockCodec for EnvironmentAttributeDatajsonAttribute {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         match self {
-            EasEnvironmentAttributeDataAttribute::BoolAttributeData(value) => {
+            EnvironmentAttributeDatajsonAttribute::BoolAttributeData(value) => {
                 let control_value = 0 as i64;
                 crate::bedrock::codec::VarUInt(control_value as u32).encode(buf)?;
                 value.encode(buf)?;
                 Ok(())
             }
-            EasEnvironmentAttributeDataAttribute::FloatAttributeData(value) => {
+            EnvironmentAttributeDatajsonAttribute::FloatAttributeData(value) => {
                 let control_value = 1 as i64;
                 crate::bedrock::codec::VarUInt(control_value as u32).encode(buf)?;
                 value.as_ref().encode(buf)?;
                 Ok(())
             }
-            EasEnvironmentAttributeDataAttribute::ColorAttributeData(value) => {
+            EnvironmentAttributeDatajsonAttribute::ColorAttributeData(value) => {
                 let control_value = 2 as i64;
                 crate::bedrock::codec::VarUInt(control_value as u32).encode(buf)?;
                 value.encode(buf)?;
@@ -1724,52 +1729,52 @@ impl crate::bedrock::codec::BedrockCodec for EasEnvironmentAttributeDataAttribut
             )?
             .0 as i64;
         match control_value {
-            0 => Ok(EasEnvironmentAttributeDataAttribute::BoolAttributeData(
-                <EasBoolAttributeData as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
+            0 => Ok(EnvironmentAttributeDatajsonAttribute::BoolAttributeData(
+                <BoolAttributeDatajson as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
             )),
-            1 => Ok(EasEnvironmentAttributeDataAttribute::FloatAttributeData(
+            1 => Ok(EnvironmentAttributeDatajsonAttribute::FloatAttributeData(
                 Box::new(
-                    <EasFloatAttributeData as crate::bedrock::codec::BedrockCodec>::decode(
+                    <FloatAttributeDatajson as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
                         (),
                     )?,
                 ),
             )),
-            2 => Ok(EasEnvironmentAttributeDataAttribute::ColorAttributeData(
-                <EasColorAttributeData as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
+            2 => Ok(EnvironmentAttributeDatajsonAttribute::ColorAttributeData(
+                <ColorAttributeDatajson as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
             )),
             _ => Err(crate::bedrock::error::DecodeError::InvalidEnumValue {
-                enum_name: stringify!(EasEnvironmentAttributeDataAttribute),
+                enum_name: stringify!(EnvironmentAttributeDatajsonAttribute),
                 value: control_value,
             }),
         }
     }
 }
 #[derive(Debug, Clone, PartialEq)]
-pub enum EasEnvironmentAttributeDataToAttribute {
-    BoolAttributeData(EasBoolAttributeData),
-    FloatAttributeData(Box<EasFloatAttributeData>),
-    ColorAttributeData(EasColorAttributeData),
+pub enum EnvironmentAttributeDatajsonToAttribute {
+    BoolAttributeData(BoolAttributeDatajson),
+    FloatAttributeData(Box<FloatAttributeDatajson>),
+    ColorAttributeData(ColorAttributeDatajson),
 }
-impl Default for EasEnvironmentAttributeDataToAttribute {
+impl Default for EnvironmentAttributeDatajsonToAttribute {
     fn default() -> Self {
         Self::BoolAttributeData(Default::default())
     }
 }
-impl crate::bedrock::codec::BedrockSized for EasEnvironmentAttributeDataToAttribute {
+impl crate::bedrock::codec::BedrockSized for EnvironmentAttributeDatajsonToAttribute {
     fn encoded_size(&self) -> usize {
         match self {
-            EasEnvironmentAttributeDataToAttribute::BoolAttributeData(value) => {
+            EnvironmentAttributeDatajsonToAttribute::BoolAttributeData(value) => {
                 crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
                     0 as u32,
                 )) + crate::bedrock::codec::BedrockSized::encoded_size(value)
             }
-            EasEnvironmentAttributeDataToAttribute::FloatAttributeData(value) => {
+            EnvironmentAttributeDatajsonToAttribute::FloatAttributeData(value) => {
                 crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
                     1 as u32,
                 )) + crate::bedrock::codec::BedrockSized::encoded_size(value.as_ref())
             }
-            EasEnvironmentAttributeDataToAttribute::ColorAttributeData(value) => {
+            EnvironmentAttributeDatajsonToAttribute::ColorAttributeData(value) => {
                 crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
                     2 as u32,
                 )) + crate::bedrock::codec::BedrockSized::encoded_size(value)
@@ -1777,23 +1782,23 @@ impl crate::bedrock::codec::BedrockSized for EasEnvironmentAttributeDataToAttrib
         }
     }
 }
-impl crate::bedrock::codec::BedrockCodec for EasEnvironmentAttributeDataToAttribute {
+impl crate::bedrock::codec::BedrockCodec for EnvironmentAttributeDatajsonToAttribute {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         match self {
-            EasEnvironmentAttributeDataToAttribute::BoolAttributeData(value) => {
+            EnvironmentAttributeDatajsonToAttribute::BoolAttributeData(value) => {
                 let control_value = 0 as i64;
                 crate::bedrock::codec::VarUInt(control_value as u32).encode(buf)?;
                 value.encode(buf)?;
                 Ok(())
             }
-            EasEnvironmentAttributeDataToAttribute::FloatAttributeData(value) => {
+            EnvironmentAttributeDatajsonToAttribute::FloatAttributeData(value) => {
                 let control_value = 1 as i64;
                 crate::bedrock::codec::VarUInt(control_value as u32).encode(buf)?;
                 value.as_ref().encode(buf)?;
                 Ok(())
             }
-            EasEnvironmentAttributeDataToAttribute::ColorAttributeData(value) => {
+            EnvironmentAttributeDatajsonToAttribute::ColorAttributeData(value) => {
                 let control_value = 2 as i64;
                 crate::bedrock::codec::VarUInt(control_value as u32).encode(buf)?;
                 value.encode(buf)?;
@@ -1812,40 +1817,40 @@ impl crate::bedrock::codec::BedrockCodec for EasEnvironmentAttributeDataToAttrib
             )?
             .0 as i64;
         match control_value {
-            0 => Ok(EasEnvironmentAttributeDataToAttribute::BoolAttributeData(
-                <EasBoolAttributeData as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
+            0 => Ok(EnvironmentAttributeDatajsonToAttribute::BoolAttributeData(
+                <BoolAttributeDatajson as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
             )),
-            1 => Ok(EasEnvironmentAttributeDataToAttribute::FloatAttributeData(
+            1 => Ok(EnvironmentAttributeDatajsonToAttribute::FloatAttributeData(
                 Box::new(
-                    <EasFloatAttributeData as crate::bedrock::codec::BedrockCodec>::decode(
+                    <FloatAttributeDatajson as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
                         (),
                     )?,
                 ),
             )),
-            2 => Ok(EasEnvironmentAttributeDataToAttribute::ColorAttributeData(
-                <EasColorAttributeData as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
+            2 => Ok(EnvironmentAttributeDatajsonToAttribute::ColorAttributeData(
+                <ColorAttributeDatajson as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
             )),
             _ => Err(crate::bedrock::error::DecodeError::InvalidEnumValue {
-                enum_name: stringify!(EasEnvironmentAttributeDataToAttribute),
+                enum_name: stringify!(EnvironmentAttributeDatajsonToAttribute),
                 value: control_value,
             }),
         }
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct EasEnvironmentAttributeData {
+pub struct EnvironmentAttributeDatajson {
     pub attribute_name: String,
-    pub from_attribute: Option<EasEnvironmentAttributeDataFromAttribute>,
-    pub attribute: EasEnvironmentAttributeDataAttribute,
-    pub to_attribute: Option<EasEnvironmentAttributeDataToAttribute>,
+    pub from_attribute: Option<EnvironmentAttributeDatajsonFromAttribute>,
+    pub attribute: EnvironmentAttributeDatajsonAttribute,
+    pub to_attribute: Option<EnvironmentAttributeDatajsonToAttribute>,
     pub current_transition_ticks: u32,
     pub total_transition_ticks: u32,
     pub easing: String,
     pub local_transition_ticks: u32,
     pub noise_transition: bool,
 }
-impl crate::bedrock::codec::BedrockSized for EasEnvironmentAttributeData {
+impl crate::bedrock::codec::BedrockSized for EnvironmentAttributeDatajson {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += {
@@ -1882,7 +1887,7 @@ impl crate::bedrock::codec::BedrockSized for EasEnvironmentAttributeData {
         size
     }
 }
-impl crate::bedrock::codec::BedrockCodec for EasEnvironmentAttributeData {
+impl crate::bedrock::codec::BedrockCodec for EnvironmentAttributeDatajson {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
@@ -1941,7 +1946,7 @@ impl crate::bedrock::codec::BedrockCodec for EasEnvironmentAttributeData {
             let present = u8::decode(buf, ())?;
             if present != 0 {
                 Some(
-                    <EasEnvironmentAttributeDataFromAttribute as crate::bedrock::codec::BedrockCodec>::decode(
+                    <EnvironmentAttributeDatajsonFromAttribute as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
                         (),
                     )?,
@@ -1951,7 +1956,7 @@ impl crate::bedrock::codec::BedrockCodec for EasEnvironmentAttributeData {
             }
         };
         let attribute =
-            <EasEnvironmentAttributeDataAttribute as crate::bedrock::codec::BedrockCodec>::decode(
+            <EnvironmentAttributeDatajsonAttribute as crate::bedrock::codec::BedrockCodec>::decode(
                 buf,
                 (),
             )?;
@@ -1959,7 +1964,7 @@ impl crate::bedrock::codec::BedrockCodec for EasEnvironmentAttributeData {
             let present = u8::decode(buf, ())?;
             if present != 0 {
                 Some(
-                    <EasEnvironmentAttributeDataToAttribute as crate::bedrock::codec::BedrockCodec>::decode(
+                    <EnvironmentAttributeDatajsonToAttribute as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
                         (),
                     )?,
@@ -2014,7 +2019,7 @@ pub struct EasAttributeLayerData {
     pub noise_name: Option<String>,
     pub dimension: DimensionType,
     pub settings: EasAttributeLayerSettings,
-    pub attributes: Vec<EasEnvironmentAttributeData>,
+    pub attributes: Vec<EnvironmentAttributeDatajson>,
 }
 impl crate::bedrock::codec::BedrockSized for EasAttributeLayerData {
     fn encoded_size(&self) -> usize {
@@ -2138,7 +2143,7 @@ impl crate::bedrock::codec::BedrockCodec for EasAttributeLayerData {
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
-                    <EasEnvironmentAttributeData as crate::bedrock::codec::BedrockCodec>::decode(
+                    <EnvironmentAttributeDatajson as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
                         (),
                     )?,
@@ -2217,7 +2222,7 @@ impl crate::bedrock::codec::BedrockCodec for AttributeLayerSyncPacketDataUpdateA
 pub struct AttributeLayerSyncPacketDataUpdateEnvironmentAttributesData {
     pub attribute_layer_name: String,
     pub attribute_layer_dimension: DimensionType,
-    pub attributes: Vec<EasEnvironmentAttributeData>,
+    pub attributes: Vec<EnvironmentAttributeDatajson>,
 }
 impl crate::bedrock::codec::BedrockSized
     for AttributeLayerSyncPacketDataUpdateEnvironmentAttributesData
@@ -2297,7 +2302,7 @@ impl crate::bedrock::codec::BedrockCodec
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
-                    <EasEnvironmentAttributeData as crate::bedrock::codec::BedrockCodec>::decode(
+                    <EnvironmentAttributeDatajson as crate::bedrock::codec::BedrockCodec>::decode(
                         buf,
                         (),
                     )?,
@@ -10257,12 +10262,12 @@ impl crate::bedrock::codec::BedrockCodec for CommandOriginDatajson {
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct CommandOutputMessage {
+pub struct CommandOutputMessagejson {
     pub message_id: String,
     pub successful: bool,
     pub parameters: Vec<String>,
 }
-impl crate::bedrock::codec::BedrockSized for CommandOutputMessage {
+impl crate::bedrock::codec::BedrockSized for CommandOutputMessagejson {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += {
@@ -10289,7 +10294,7 @@ impl crate::bedrock::codec::BedrockSized for CommandOutputMessage {
         size
     }
 }
-impl crate::bedrock::codec::BedrockCodec for CommandOutputMessage {
+impl crate::bedrock::codec::BedrockCodec for CommandOutputMessagejson {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
@@ -10370,13 +10375,13 @@ impl crate::bedrock::codec::BedrockCodec for CommandOutputMessage {
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct CommandOutput {
+pub struct CommandOutputjson {
     pub output_type: String,
     pub success_count: u32,
-    pub output_messages: Vec<CommandOutputMessage>,
+    pub output_messages: Vec<CommandOutputMessagejson>,
     pub data_set: Option<String>,
 }
-impl crate::bedrock::codec::BedrockSized for CommandOutput {
+impl crate::bedrock::codec::BedrockSized for CommandOutputjson {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += {
@@ -10410,7 +10415,7 @@ impl crate::bedrock::codec::BedrockSized for CommandOutput {
         size
     }
 }
-impl crate::bedrock::codec::BedrockCodec for CommandOutput {
+impl crate::bedrock::codec::BedrockCodec for CommandOutputjson {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
@@ -10473,7 +10478,10 @@ impl crate::bedrock::codec::BedrockCodec for CommandOutput {
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
                 tmp_vec.push(
-                    <CommandOutputMessage as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
+                    <CommandOutputMessagejson as crate::bedrock::codec::BedrockCodec>::decode(
+                        buf,
+                        (),
+                    )?,
                 );
             }
             tmp_vec
@@ -25783,7 +25791,7 @@ impl Default for EnumsSharedTypespersonaPieceType {
 pub struct SerializedPersonaPieceHandle {
     pub piece_id: String,
     pub piece_type: EnumsSharedTypespersonaPieceType,
-    pub pack_id: uuid::Uuid,
+    pub pack_id: MceUuiDjson,
     pub is_default_piece: bool,
     pub product_id: String,
 }
@@ -25797,7 +25805,7 @@ impl crate::bedrock::codec::BedrockSized for SerializedPersonaPieceHandle {
             )) + _len
         };
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.piece_type);
-        size += 16usize;
+        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.pack_id);
         size += 1usize;
         size += {
             let _len = (&self.product_id).as_bytes().len();
@@ -25852,7 +25860,7 @@ impl crate::bedrock::codec::BedrockCodec for SerializedPersonaPieceHandle {
                 buf,
                 (),
             )?;
-        let pack_id = <uuid::Uuid as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let pack_id = <MceUuiDjson as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let is_default_piece = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let product_id = {
             let len =
@@ -25987,8 +25995,8 @@ pub struct SerializedSkinRef {
     pub image_data: SkinImage,
     pub animated_image_data: Vec<AnimatedImageData>,
     pub cape_image_data: SkinImage,
-    pub geometry_data: String,
-    pub geometry_data_min_engine_version: String,
+    pub geometry_data: JsonValuejson,
+    pub geometry_data_min_engine_version: MinEngineVersionjson,
     pub animation_data: String,
     pub cape_id: String,
     pub full_id: String,
@@ -26252,38 +26260,42 @@ impl crate::bedrock::codec::BedrockCodec for SerializedSkinRef {
         };
         let cape_image_data = <SkinImage as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let geometry_data = {
-            let len =
-                (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?
-                .0) as usize;
-            if buf.remaining() < len {
-                return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
-                    declared: len,
-                    available: buf.remaining(),
-                });
-            }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            let res: JsonValuejson = {
+                let len = (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
+                        buf,
+                        (),
+                    )?
+                    .0) as usize;
+                if buf.remaining() < len {
+                    return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
+                        declared: len,
+                        available: buf.remaining(),
+                    });
+                }
+                let mut bytes = vec![0u8; len];
+                buf.copy_to_slice(&mut bytes);
+                crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            };
+            res
         };
         let geometry_data_min_engine_version = {
-            let len =
-                (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?
-                .0) as usize;
-            if buf.remaining() < len {
-                return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
-                    declared: len,
-                    available: buf.remaining(),
-                });
-            }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            let res: MinEngineVersionjson = {
+                let len = (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
+                        buf,
+                        (),
+                    )?
+                    .0) as usize;
+                if buf.remaining() < len {
+                    return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
+                        declared: len,
+                        available: buf.remaining(),
+                    });
+                }
+                let mut bytes = vec![0u8; len];
+                buf.copy_to_slice(&mut bytes);
+                crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+            };
+            res
         };
         let animation_data = {
             let len =
@@ -26453,7 +26465,7 @@ impl crate::bedrock::codec::BedrockCodec for SerializedSkinRef {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct PlayerListPacketPayloadAddEntry {
     pub action: PlayerListPacketPayloadAddEntryAction,
-    pub uuid: uuid::Uuid,
+    pub uuid: MceUuiDjson,
     pub actor_unique_id: ActorUniqueId,
     pub player_name: String,
     pub xblxuid: String,
@@ -26469,7 +26481,7 @@ impl crate::bedrock::codec::BedrockSized for PlayerListPacketPayloadAddEntry {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.action);
-        size += 16usize;
+        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.uuid);
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.actor_unique_id);
         size += {
             let _len = (&self.player_name).as_bytes().len();
@@ -26535,7 +26547,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerListPacketPayloadAddEntry {
                 buf,
                 (),
             )?;
-        let uuid = <uuid::Uuid as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let uuid = <MceUuiDjson as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let actor_unique_id =
             <ActorUniqueId as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         let player_name = {
@@ -26655,13 +26667,13 @@ impl Default for EnumsPlayerListPacketType {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct PlayerListPacketPayloadRemoveEntry {
     pub action: EnumsPlayerListPacketType,
-    pub uuid: uuid::Uuid,
+    pub uuid: MceUuiDjson,
 }
 impl crate::bedrock::codec::BedrockSized for PlayerListPacketPayloadRemoveEntry {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += crate::bedrock::codec::BedrockSized::encoded_size(&self.action);
-        size += 16usize;
+        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.uuid);
         size
     }
 }
@@ -26680,7 +26692,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerListPacketPayloadRemoveEntry 
         let _ = buf;
         let action =
             <EnumsPlayerListPacketType as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let uuid = <uuid::Uuid as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let uuid = <MceUuiDjson as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
         Ok(Self { action, uuid })
     }
 }
@@ -28404,10 +28416,10 @@ impl crate::bedrock::codec::BedrockCodec for RemoveScore {
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct ResourcePackClientResponsePacketPayloadCancel {
+pub struct ResourcePackClientResponseCanceljson {
     pub response_type: String,
 }
-impl crate::bedrock::codec::BedrockSized for ResourcePackClientResponsePacketPayloadCancel {
+impl crate::bedrock::codec::BedrockSized for ResourcePackClientResponseCanceljson {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += {
@@ -28419,7 +28431,7 @@ impl crate::bedrock::codec::BedrockSized for ResourcePackClientResponsePacketPay
         size
     }
 }
-impl crate::bedrock::codec::BedrockCodec for ResourcePackClientResponsePacketPayloadCancel {
+impl crate::bedrock::codec::BedrockCodec for ResourcePackClientResponseCanceljson {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
@@ -28455,11 +28467,11 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackClientResponsePacketPay
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct ResourcePackClientResponsePacketPayloadDownloading {
+pub struct ResourcePackClientResponseDownloadingjson {
     pub response_type: String,
     pub downloading_packs: Vec<String>,
 }
-impl crate::bedrock::codec::BedrockSized for ResourcePackClientResponsePacketPayloadDownloading {
+impl crate::bedrock::codec::BedrockSized for ResourcePackClientResponseDownloadingjson {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += {
@@ -28485,7 +28497,7 @@ impl crate::bedrock::codec::BedrockSized for ResourcePackClientResponsePacketPay
         size
     }
 }
-impl crate::bedrock::codec::BedrockCodec for ResourcePackClientResponsePacketPayloadDownloading {
+impl crate::bedrock::codec::BedrockCodec for ResourcePackClientResponseDownloadingjson {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
@@ -28563,12 +28575,10 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackClientResponsePacketPay
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct ResourcePackClientResponsePacketPayloadDownloadingFinished {
+pub struct ResourcePackClientResponseDownloadingFinishedjson {
     pub response_type: String,
 }
-impl crate::bedrock::codec::BedrockSized
-    for ResourcePackClientResponsePacketPayloadDownloadingFinished
-{
+impl crate::bedrock::codec::BedrockSized for ResourcePackClientResponseDownloadingFinishedjson {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
         size += {
@@ -28580,9 +28590,7 @@ impl crate::bedrock::codec::BedrockSized
         size
     }
 }
-impl crate::bedrock::codec::BedrockCodec
-    for ResourcePackClientResponsePacketPayloadDownloadingFinished
-{
+impl crate::bedrock::codec::BedrockCodec for ResourcePackClientResponseDownloadingFinishedjson {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         let _ = buf;
@@ -28618,11 +28626,11 @@ impl crate::bedrock::codec::BedrockCodec
     }
 }
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct ResourcePackClientResponsePacketPayloadResourcePackStackFinished {
+pub struct ResourcePackClientResponseResourcePackStackFinishedjson {
     pub response_type: String,
 }
 impl crate::bedrock::codec::BedrockSized
-    for ResourcePackClientResponsePacketPayloadResourcePackStackFinished
+    for ResourcePackClientResponseResourcePackStackFinishedjson
 {
     fn encoded_size(&self) -> usize {
         let mut size = 0usize;
@@ -28636,7 +28644,7 @@ impl crate::bedrock::codec::BedrockSized
     }
 }
 impl crate::bedrock::codec::BedrockCodec
-    for ResourcePackClientResponsePacketPayloadResourcePackStackFinished
+    for ResourcePackClientResponseResourcePackStackFinishedjson
 {
     type Args = ();
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
@@ -39301,10 +39309,10 @@ impl Default for EnumsUnlockedRecipesPacketPayloadPacketType {
 }
 #[derive(Debug, Clone, PartialEq)]
 pub enum ResourcePackClientResponsePacketResponse {
-    Cancel(ResourcePackClientResponsePacketPayloadCancel),
-    Downloading(ResourcePackClientResponsePacketPayloadDownloading),
-    DownloadingFinished(ResourcePackClientResponsePacketPayloadDownloadingFinished),
-    ResourcePackStackFinished(ResourcePackClientResponsePacketPayloadResourcePackStackFinished),
+    Cancel(ResourcePackClientResponseCanceljson),
+    Downloading(ResourcePackClientResponseDownloadingjson),
+    DownloadingFinished(ResourcePackClientResponseDownloadingFinishedjson),
+    ResourcePackStackFinished(ResourcePackClientResponseResourcePackStackFinishedjson),
 }
 impl Default for ResourcePackClientResponsePacketResponse {
     fn default() -> Self {
@@ -39381,7 +39389,7 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackClientResponsePacketRes
             0 => {
                 Ok(
                     ResourcePackClientResponsePacketResponse::Cancel(
-                        <ResourcePackClientResponsePacketPayloadCancel as crate::bedrock::codec::BedrockCodec>::decode(
+                        <ResourcePackClientResponseCanceljson as crate::bedrock::codec::BedrockCodec>::decode(
                             buf,
                             (),
                         )?,
@@ -39391,7 +39399,7 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackClientResponsePacketRes
             1 => {
                 Ok(
                     ResourcePackClientResponsePacketResponse::Downloading(
-                        <ResourcePackClientResponsePacketPayloadDownloading as crate::bedrock::codec::BedrockCodec>::decode(
+                        <ResourcePackClientResponseDownloadingjson as crate::bedrock::codec::BedrockCodec>::decode(
                             buf,
                             (),
                         )?,
@@ -39401,7 +39409,7 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackClientResponsePacketRes
             2 => {
                 Ok(
                     ResourcePackClientResponsePacketResponse::DownloadingFinished(
-                        <ResourcePackClientResponsePacketPayloadDownloadingFinished as crate::bedrock::codec::BedrockCodec>::decode(
+                        <ResourcePackClientResponseDownloadingFinishedjson as crate::bedrock::codec::BedrockCodec>::decode(
                             buf,
                             (),
                         )?,
@@ -39411,7 +39419,7 @@ impl crate::bedrock::codec::BedrockCodec for ResourcePackClientResponsePacketRes
             3 => {
                 Ok(
                     ResourcePackClientResponsePacketResponse::ResourcePackStackFinished(
-                        <ResourcePackClientResponsePacketPayloadResourcePackStackFinished as crate::bedrock::codec::BedrockCodec>::decode(
+                        <ResourcePackClientResponseResourcePackStackFinishedjson as crate::bedrock::codec::BedrockCodec>::decode(
                             buf,
                             (),
                         )?,
@@ -40512,583 +40520,6 @@ impl crate::bedrock::codec::BedrockCodec for CommandBlockUpdatePacketTarget {
                 })
             }
         }
-    }
-}
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct PlayerSkinPacketSerializedSkinPersonaPiecesItem {
-    pub piece_id: String,
-    pub piece_type: EnumsSharedTypespersonaPieceType,
-    pub pack_id: MceUuiDjson,
-    pub is_default_piece: bool,
-    pub product_id: String,
-}
-impl crate::bedrock::codec::BedrockSized for PlayerSkinPacketSerializedSkinPersonaPiecesItem {
-    fn encoded_size(&self) -> usize {
-        let mut size = 0usize;
-        size += {
-            let _len = (&self.piece_id).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                _len as u32,
-            )) + _len
-        };
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.piece_type);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.pack_id);
-        size += 1usize;
-        size += {
-            let _len = (&self.product_id).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                _len as u32,
-            )) + _len
-        };
-        size
-    }
-}
-impl crate::bedrock::codec::BedrockCodec for PlayerSkinPacketSerializedSkinPersonaPiecesItem {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        let bytes = (&self.piece_id).as_bytes();
-        let len = bytes.len();
-        crate::bedrock::codec::VarUInt(len as u32).encode(buf)?;
-        buf.put_slice(bytes);
-        self.piece_type.encode(buf)?;
-        self.pack_id.encode(buf)?;
-        self.is_default_piece.encode(buf)?;
-        let bytes = (&self.product_id).as_bytes();
-        let len = bytes.len();
-        crate::bedrock::codec::VarUInt(len as u32).encode(buf)?;
-        buf.put_slice(bytes);
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, crate::bedrock::error::DecodeError> {
-        let _ = buf;
-        let piece_id = {
-            let len =
-                (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?
-                .0) as usize;
-            if buf.remaining() < len {
-                return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
-                    declared: len,
-                    available: buf.remaining(),
-                });
-            }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
-        };
-        let piece_type =
-            <EnumsSharedTypespersonaPieceType as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
-        let pack_id = <MceUuiDjson as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let is_default_piece = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let product_id = {
-            let len =
-                (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?
-                .0) as usize;
-            if buf.remaining() < len {
-                return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
-                    declared: len,
-                    available: buf.remaining(),
-                });
-            }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
-        };
-        Ok(Self {
-            piece_id,
-            piece_type,
-            pack_id,
-            is_default_piece,
-            product_id,
-        })
-    }
-}
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct PlayerSkinPacketSerializedSkin {
-    pub id: String,
-    pub play_fab_id: String,
-    pub resource_patch: String,
-    pub image_data: SkinImage,
-    pub animated_image_data: Vec<AnimatedImageData>,
-    pub cape_image_data: SkinImage,
-    pub geometry_data: JsonValuejson,
-    pub geometry_data_min_engine_version: MinEngineVersionjson,
-    pub animation_data: String,
-    pub cape_id: String,
-    pub full_id: String,
-    pub arm_size: EnumsSharedTypespersonaArmSizeType,
-    pub skin_color: MceColor,
-    pub persona_pieces: Vec<PlayerSkinPacketSerializedSkinPersonaPiecesItem>,
-    pub piece_tint_colors: Vec<SerializedSkinRefPieceTintColorsItem>,
-    pub is_premium: bool,
-    pub is_persona: bool,
-    pub is_persona_cape_on_classic_skin: bool,
-    pub is_primary_user: bool,
-    pub overrides_player_appearance: bool,
-    pub trusted_skin_flag: String,
-    pub profile_hash: String,
-}
-impl crate::bedrock::codec::BedrockSized for PlayerSkinPacketSerializedSkin {
-    fn encoded_size(&self) -> usize {
-        let mut size = 0usize;
-        size += {
-            let _len = (&self.id).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                _len as u32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.play_fab_id).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                _len as u32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.resource_patch).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                _len as u32,
-            )) + _len
-        };
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.image_data);
-        size += {
-            let _len = (&self.animated_image_data).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                _len as u32,
-            )) + (&self.animated_image_data)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.cape_image_data);
-        size += {
-            let _len = (&self.geometry_data).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                _len as u32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.geometry_data_min_engine_version).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                _len as u32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.animation_data).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                _len as u32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.cape_id).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                _len as u32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.full_id).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                _len as u32,
-            )) + _len
-        };
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.arm_size);
-        size += crate::bedrock::codec::BedrockSized::encoded_size(&self.skin_color);
-        size += {
-            let _len = (&self.persona_pieces).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                _len as u32,
-            )) + (&self.persona_pieces)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += {
-            let _len = (&self.piece_tint_colors).len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                _len as u32,
-            )) + (&self.piece_tint_colors)
-                .iter()
-                .map(|_item| crate::bedrock::codec::BedrockSized::encoded_size(_item))
-                .sum::<usize>()
-        };
-        size += 1usize;
-        size += 1usize;
-        size += 1usize;
-        size += 1usize;
-        size += 1usize;
-        size += {
-            let _len = (&self.trusted_skin_flag).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                _len as u32,
-            )) + _len
-        };
-        size += {
-            let _len = (&self.profile_hash).as_bytes().len();
-            crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
-                _len as u32,
-            )) + _len
-        };
-        size
-    }
-}
-impl crate::bedrock::codec::BedrockCodec for PlayerSkinPacketSerializedSkin {
-    type Args = ();
-    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
-        let _ = buf;
-        let bytes = (&self.id).as_bytes();
-        let len = bytes.len();
-        crate::bedrock::codec::VarUInt(len as u32).encode(buf)?;
-        buf.put_slice(bytes);
-        let bytes = (&self.play_fab_id).as_bytes();
-        let len = bytes.len();
-        crate::bedrock::codec::VarUInt(len as u32).encode(buf)?;
-        buf.put_slice(bytes);
-        let bytes = (&self.resource_patch).as_bytes();
-        let len = bytes.len();
-        crate::bedrock::codec::VarUInt(len as u32).encode(buf)?;
-        buf.put_slice(bytes);
-        self.image_data.encode(buf)?;
-        let len = self.animated_image_data.len();
-        crate::bedrock::codec::VarUInt(len as u32).encode(buf)?;
-        for item in &self.animated_image_data {
-            item.encode(buf)?;
-        }
-        self.cape_image_data.encode(buf)?;
-        let bytes = (&self.geometry_data).as_bytes();
-        let len = bytes.len();
-        crate::bedrock::codec::VarUInt(len as u32).encode(buf)?;
-        buf.put_slice(bytes);
-        let bytes = (&self.geometry_data_min_engine_version).as_bytes();
-        let len = bytes.len();
-        crate::bedrock::codec::VarUInt(len as u32).encode(buf)?;
-        buf.put_slice(bytes);
-        let bytes = (&self.animation_data).as_bytes();
-        let len = bytes.len();
-        crate::bedrock::codec::VarUInt(len as u32).encode(buf)?;
-        buf.put_slice(bytes);
-        let bytes = (&self.cape_id).as_bytes();
-        let len = bytes.len();
-        crate::bedrock::codec::VarUInt(len as u32).encode(buf)?;
-        buf.put_slice(bytes);
-        let bytes = (&self.full_id).as_bytes();
-        let len = bytes.len();
-        crate::bedrock::codec::VarUInt(len as u32).encode(buf)?;
-        buf.put_slice(bytes);
-        self.arm_size.encode(buf)?;
-        self.skin_color.encode(buf)?;
-        let len = self.persona_pieces.len();
-        crate::bedrock::codec::VarUInt(len as u32).encode(buf)?;
-        for item in &self.persona_pieces {
-            item.encode(buf)?;
-        }
-        let len = self.piece_tint_colors.len();
-        crate::bedrock::codec::VarUInt(len as u32).encode(buf)?;
-        for item in &self.piece_tint_colors {
-            item.encode(buf)?;
-        }
-        self.is_premium.encode(buf)?;
-        self.is_persona.encode(buf)?;
-        self.is_persona_cape_on_classic_skin.encode(buf)?;
-        self.is_primary_user.encode(buf)?;
-        self.overrides_player_appearance.encode(buf)?;
-        let bytes = (&self.trusted_skin_flag).as_bytes();
-        let len = bytes.len();
-        crate::bedrock::codec::VarUInt(len as u32).encode(buf)?;
-        buf.put_slice(bytes);
-        let bytes = (&self.profile_hash).as_bytes();
-        let len = bytes.len();
-        crate::bedrock::codec::VarUInt(len as u32).encode(buf)?;
-        buf.put_slice(bytes);
-        Ok(())
-    }
-    fn decode<B: bytes::Buf>(
-        buf: &mut B,
-        _args: Self::Args,
-    ) -> Result<Self, crate::bedrock::error::DecodeError> {
-        let _ = buf;
-        let id = {
-            let len =
-                (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?
-                .0) as usize;
-            if buf.remaining() < len {
-                return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
-                    declared: len,
-                    available: buf.remaining(),
-                });
-            }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
-        };
-        let play_fab_id = {
-            let len =
-                (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?
-                .0) as usize;
-            if buf.remaining() < len {
-                return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
-                    declared: len,
-                    available: buf.remaining(),
-                });
-            }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
-        };
-        let resource_patch = {
-            let len =
-                (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?
-                .0) as usize;
-            if buf.remaining() < len {
-                return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
-                    declared: len,
-                    available: buf.remaining(),
-                });
-            }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
-        };
-        let image_data = <SkinImage as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let animated_image_data = {
-            let len =
-                (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?
-                .0) as usize;
-            let mut tmp_vec =
-                crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), None)?;
-            for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
-                tmp_vec.push(
-                    <AnimatedImageData as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
-                );
-            }
-            tmp_vec
-        };
-        let cape_image_data = <SkinImage as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let geometry_data = {
-            let res: JsonValuejson = {
-                let len = (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?
-                    .0) as usize;
-                if buf.remaining() < len {
-                    return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
-                        declared: len,
-                        available: buf.remaining(),
-                    });
-                }
-                let mut bytes = vec![0u8; len];
-                buf.copy_to_slice(&mut bytes);
-                crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
-            };
-            res
-        };
-        let geometry_data_min_engine_version = {
-            let res: MinEngineVersionjson = {
-                let len = (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
-                        buf,
-                        (),
-                    )?
-                    .0) as usize;
-                if buf.remaining() < len {
-                    return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
-                        declared: len,
-                        available: buf.remaining(),
-                    });
-                }
-                let mut bytes = vec![0u8; len];
-                buf.copy_to_slice(&mut bytes);
-                crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
-            };
-            res
-        };
-        let animation_data = {
-            let len =
-                (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?
-                .0) as usize;
-            if buf.remaining() < len {
-                return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
-                    declared: len,
-                    available: buf.remaining(),
-                });
-            }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
-        };
-        let cape_id = {
-            let len =
-                (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?
-                .0) as usize;
-            if buf.remaining() < len {
-                return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
-                    declared: len,
-                    available: buf.remaining(),
-                });
-            }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
-        };
-        let full_id = {
-            let len =
-                (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?
-                .0) as usize;
-            if buf.remaining() < len {
-                return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
-                    declared: len,
-                    available: buf.remaining(),
-                });
-            }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
-        };
-        let arm_size =
-            <EnumsSharedTypespersonaArmSizeType as crate::bedrock::codec::BedrockCodec>::decode(
-                buf,
-                (),
-            )?;
-        let skin_color = <MceColor as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let persona_pieces = {
-            let len =
-                (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?
-                .0) as usize;
-            let mut tmp_vec =
-                crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), None)?;
-            for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
-                tmp_vec
-                    .push(
-                        <PlayerSkinPacketSerializedSkinPersonaPiecesItem as crate::bedrock::codec::BedrockCodec>::decode(
-                            buf,
-                            (),
-                        )?,
-                    );
-            }
-            tmp_vec
-        };
-        let piece_tint_colors = {
-            let len =
-                (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?
-                .0) as usize;
-            let mut tmp_vec =
-                crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), None)?;
-            for _ in 0..len {
-                crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
-                tmp_vec
-                    .push(
-                        <SerializedSkinRefPieceTintColorsItem as crate::bedrock::codec::BedrockCodec>::decode(
-                            buf,
-                            (),
-                        )?,
-                    );
-            }
-            tmp_vec
-        };
-        let is_premium = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let is_persona = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let is_persona_cape_on_classic_skin =
-            <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let is_primary_user = <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let overrides_player_appearance =
-            <bool as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-        let trusted_skin_flag = {
-            let len =
-                (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?
-                .0) as usize;
-            if buf.remaining() < len {
-                return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
-                    declared: len,
-                    available: buf.remaining(),
-                });
-            }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
-        };
-        let profile_hash = {
-            let len =
-                (<crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?
-                .0) as usize;
-            if buf.remaining() < len {
-                return Err(crate::bedrock::error::DecodeError::StringLengthExceeded {
-                    declared: len,
-                    available: buf.remaining(),
-                });
-            }
-            let mut bytes = vec![0u8; len];
-            buf.copy_to_slice(&mut bytes);
-            crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
-        };
-        Ok(Self {
-            id,
-            play_fab_id,
-            resource_patch,
-            image_data,
-            animated_image_data,
-            cape_image_data,
-            geometry_data,
-            geometry_data_min_engine_version,
-            animation_data,
-            cape_id,
-            full_id,
-            arm_size,
-            skin_color,
-            persona_pieces,
-            piece_tint_colors,
-            is_premium,
-            is_persona,
-            is_persona_cape_on_classic_skin,
-            is_primary_user,
-            overrides_player_appearance,
-            trusted_skin_flag,
-            profile_hash,
-        })
     }
 }
 #[derive(Debug, Clone, PartialEq)]
