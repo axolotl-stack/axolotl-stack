@@ -31,6 +31,11 @@ impl RaknetEncodable for VarUInt {
                 return Err(DecodeError::UnexpectedEof);
             }
             let v = src.get_u8();
+            // The tenth byte has only one usable bit in a u64. Shifting its
+            // other payload bits would silently truncate an overflowing value.
+            if shift == 63 && v & 0x7e != 0 {
+                return Err(DecodeError::VarIntExceedsLimit);
+            }
             result |= ((v & 0x7f) as u64) << shift;
             if v & 0x80 == 0 {
                 break;
@@ -58,6 +63,18 @@ impl RaknetEncodable for VarInt {
 mod tests {
     use super::*;
     use bytes::BytesMut;
+
+    #[test]
+    fn varuint_rejects_overflow_in_final_byte() {
+        for terminal in 2..=127 {
+            let mut encoded = [0x80; 10];
+            encoded[9] = terminal;
+            assert!(matches!(
+                VarUInt::decode_raknet(&mut &encoded[..]),
+                Err(DecodeError::VarIntExceedsLimit)
+            ));
+        }
+    }
 
     #[test]
     fn varuint_roundtrip_basic_values() -> Result<(), DecodeError> {

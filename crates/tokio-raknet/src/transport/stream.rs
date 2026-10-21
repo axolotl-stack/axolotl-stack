@@ -27,8 +27,9 @@ use crate::transport::Message;
 use crate::protocol::constants::{self};
 
 const TICK_INTERVAL: Duration = Duration::from_millis(20);
-const HANDSHAKE_RETRIES: usize = 3;
-const HANDSHAKE_TIMEOUT: Duration = Duration::from_millis(400);
+/// Upstream `dial.go:connState.request1` sends four probes, 500ms apart.
+const HANDSHAKE_RETRIES: usize = 4;
+const HANDSHAKE_TIMEOUT: Duration = Duration::from_millis(500);
 
 /// Configuration for a `RaknetStream`.
 #[derive(Debug, Clone)]
@@ -62,20 +63,45 @@ pub struct RaknetStreamConfig {
 impl Default for RaknetStreamConfig {
     fn default() -> Self {
         Self {
-            mtu: 1400,
+            mtu: MAXIMUM_MTU_SIZE,
             socket_recv_buffer_size: None,
             socket_send_buffer_size: None,
             connection_timeout: Duration::from_secs(10),
-            session_timeout: Duration::from_secs(10),
+            // Upstream `conn.go:Conn.startTicking`: base inactivity timeout5s.
+            session_timeout: Duration::from_secs(5),
             max_ordering_channels: constants::MAXIMUM_ORDERING_CHANNELS as usize,
             ack_queue_capacity: 1024,
             split_timeout: Duration::from_secs(30),
-            reliable_window: constants::MAX_ACK_SEQUENCES as u32,
-            max_split_parts: 8192,
-
-            max_concurrent_splits: 32, // Bound per-session split reassembly memory
+            reliable_window: 2048,
+            // Upstream `conn.go:Conn.receiveSplitPacket`; also enforced locally
+            // for clients to bound memory from hostile servers.
+            max_split_parts: 512,
+            max_concurrent_splits: 16,
             max_incoming_ack_queue: 4096,
         }
+    }
+}
+
+impl RaknetStreamConfig {
+    pub fn validate(&self) -> Result<(), super::ConfigError> {
+        super::validate_mtu(self.mtu)?;
+        super::validate_duration(self.connection_timeout, "connection_timeout")?;
+        super::validate_duration(self.session_timeout, "session_timeout")?;
+        for (value, field) in [
+            (self.socket_recv_buffer_size, "socket_recv_buffer_size"),
+            (self.socket_send_buffer_size, "socket_send_buffer_size"),
+        ] {
+            super::require_config(value != Some(0), field, "must be positive when specified")?;
+        }
+        super::validate_session_limits(
+            self.max_ordering_channels,
+            self.ack_queue_capacity,
+            self.split_timeout,
+            self.reliable_window,
+            self.max_split_parts,
+            self.max_concurrent_splits,
+            self.max_incoming_ack_queue,
+        )
     }
 }
 
@@ -116,10 +142,15 @@ impl RaknetStream {
         server: SocketAddr,
         config: RaknetStreamConfig,
     ) -> Result<Self, crate::RaknetError> {
+        config.validate().map_err(std::io::Error::from)?;
         let connection_timeout = config.connection_timeout;
 
         timeout(connection_timeout, async move {
-            let socket = std::net::UdpSocket::bind("0.0.0.0:0")?;
+            let socket = std::net::UdpSocket::bind(if server.is_ipv4() {
+                "0.0.0.0:0"
+            } else {
+                "[::]:0"
+            })?;
             socket.set_nonblocking(true)?;
             apply_socket_buffer_config(
                 &socket,
@@ -420,7 +451,15 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
                     continue;
                 }
 
-                if let Ok(dgram) = Datagram::decode(&mut packet) {
+                let dgram = match Datagram::decode(&mut packet) {
+                    Ok(dgram) => dgram,
+                    Err(error) => {
+                        tracing::debug!(?error, "failed to decode connected datagram");
+                        let _ = context.to_app.try_send(Err(error.into()));
+                        return;
+                    }
+                };
+                {
                     let now = Instant::now();
                     let ms = ensure_client_session(
                         &mut managed,
@@ -445,20 +484,13 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
                     match ms.handle_datagram(dgram, now) {
                         Ok(pkts) => {
                             if !deliver_app_packets(pkts, &context.to_app).await {
-                                return;
+                                break;
                             }
                         }
                         Err(e) => {
-                            if matches!(
-                                e,
-                                crate::session::manager::SessionError::Protocol(
-                                    crate::protocol::packet::DecodeError::InvalidAddrVersion(_)
-                                )
-                            ) {
-                                tracing::debug!(error = ?e, "ignoring datagram with invalid addr version");
-                                continue;
-                            }
                             tracing::debug!(error = ?e, "failed to handle datagram");
+                            let _ = context.to_app.try_send(Err(e.into()));
+                            return;
                         }
                     }
                     notify_client_ready(ms, &mut ready_signal);
@@ -468,21 +500,17 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
                             tracing::info!(reason = ?reason, "session disconnected");
                             let _ = context
                                 .to_app
-                                .send(Err(crate::RaknetError::Disconnected(reason)))
-                                .await;
+                                .try_send(Err(crate::RaknetError::Disconnected(reason)));
                         } else {
                             let _ = context
                                 .to_app
-                                .send(Err(crate::RaknetError::ConnectionClosed))
-                                .await;
+                                .try_send(Err(crate::RaknetError::ConnectionClosed));
                         }
                         return;
                     }
 
                     flush_built_datagrams(ms, &socket, context.server, now, false, &mut send_buf)
                         .await;
-                } else {
-                    tracing::debug!("failed to decode datagram");
                 }
             }
 
@@ -511,7 +539,7 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
                     ms.queue_app_packet(msg.packet, msg.reliability, msg.channel, msg.priority)
                 {
                     tracing::debug!(?error, "failed to queue outbound packet");
-                    let _ = context.to_app.send(Err(error.into())).await;
+                    let _ = context.to_app.try_send(Err(error.into()));
                     continue;
                 }
                 flush_built_datagrams(ms, &socket, context.server, now, false, &mut send_buf).await;
@@ -523,8 +551,14 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
                     let now = Instant::now();
                     flush_built_datagrams(ms, &socket, context.server, now, true, &mut send_buf)
                         .await;
-                    if !deliver_app_packets(ms.drain_pending_incoming(now), &context.to_app).await {
+                    if ms.state() == ConnectionState::Closed {
+                        let _ = context
+                            .to_app
+                            .try_send(Err(crate::RaknetError::ConnectionClosed));
                         return;
+                    }
+                    if !deliver_app_packets(ms.drain_pending_incoming(now), &context.to_app).await {
+                        break;
                     }
                     notify_client_ready(ms, &mut ready_signal);
                 }
@@ -569,7 +603,7 @@ async fn deliver_app_packets(
                 reliability: p.reliability,
                 channel: p.ordering_channel.unwrap_or(0),
             };
-            if to_app.send(Ok(msg)).await.is_err() {
+            if to_app.try_send(Ok(msg)).is_err() {
                 tracing::debug!("app channel closed");
                 return false;
             }
@@ -594,8 +628,11 @@ async fn perform_offline_handshake(
             RaknetPacket::OpenConnectionRequest1(crate::protocol::packet::OpenConnectionRequest1 {
                 magic: DEFAULT_UNCONNECTED_MAGIC,
                 protocol_version: RAKNET_PROTOCOL_VERSION,
-                // IP (20) + UDP (8) + Packet ID (1) + Magic (16) + Protocol (1) = 46 bytes overhead
-                padding: EoBPadding(mtu.saturating_sub(46).into()),
+                // IP + UDP + packet ID + magic + protocol.
+                padding: EoBPadding(
+                    mtu.saturating_sub(if server.is_ipv4() { 46 } else { 66 })
+                        .into(),
+                ),
             });
 
         let mut buf = BytesMut::new();
@@ -603,14 +640,16 @@ async fn perform_offline_handshake(
             tracing::warn!(mtu = mtu, "failed to encode OpenConnectionRequest1");
             continue;
         }
-        if let Err(e) = socket.send_to(&buf, server).await {
-            tracing::warn!(mtu = mtu, error = ?e, "failed to send OpenConnectionRequest1");
-            continue;
-        }
 
         let mut tmp = [0u8; 2048];
         let mut attempts = 0;
         while attempts < HANDSHAKE_RETRIES {
+            if let Err(error) = socket.send_to(&buf, server).await {
+                // Upstream `dial.go:connState.openConnectionRequest1` ignores
+                // probe write errors: a smaller MTU may fit the local route.
+                tracing::debug!(?error, mtu, "MTU probe send failed; trying smaller probe");
+                break;
+            }
             // Short timeout for each attempt so we don't stall the whole probe sequence.
             let res = timeout(HANDSHAKE_TIMEOUT, socket.recv_from(&mut tmp)).await;
 
@@ -621,6 +660,13 @@ async fn perform_offline_handshake(
                     if let Ok(RaknetPacket::OpenConnectionReply1(r)) =
                         RaknetPacket::decode(&mut slice)
                     {
+                        if r.magic != DEFAULT_UNCONNECTED_MAGIC
+                            || r.server_guid == 0
+                            || !(MINIMUM_MTU_SIZE..=mtu).contains(&r.mtu)
+                        {
+                            attempts += 1;
+                            continue;
+                        }
                         tracing::debug!(
                             mtu = mtu,
                             server_mtu = r.mtu,
@@ -672,7 +718,7 @@ async fn perform_offline_handshake(
         RaknetPacket::OpenConnectionRequest2(crate::protocol::packet::OpenConnectionRequest2 {
             magic: DEFAULT_UNCONNECTED_MAGIC,
             cookie,
-            client_proof: cookie.is_some(),
+            client_proof: false,
             server_addr: server,
             mtu: mtu_final,
             client_guid,
@@ -682,33 +728,43 @@ async fn perform_offline_handshake(
     req2.encode(&mut buf2).map_err(|_| {
         std::io::Error::new(std::io::ErrorKind::InvalidData, "failed to encode request2")
     })?;
-    socket.send_to(&buf2, server).await?;
 
     let mut tmp = [0u8; 2048];
+    let mut retries = time::interval(HANDSHAKE_TIMEOUT);
+    retries.set_missed_tick_behavior(MissedTickBehavior::Skip);
     let reply2 = loop {
-        let res = timeout(Duration::from_secs(2), socket.recv_from(&mut tmp)).await;
+        // Upstream `dial.go:connState.request2`: retransmit every 500ms until
+        // the outer connection deadline, rather than sending only once.
+        retries.tick().await;
+        socket.send_to(&buf2, server).await?;
+        let res = timeout(HANDSHAKE_TIMEOUT, socket.recv_from(&mut tmp)).await;
         let (len, from) = match res {
             Ok(Ok(v)) => v,
-            _ => {
-                tracing::error!("timeout waiting for OpenConnectionReply2");
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::TimedOut,
-                    "timeout waiting for OpenConnectionReply2",
-                ));
-            }
+            Ok(Err(error)) => return Err(error),
+            Err(_) => continue,
         };
         if from != server {
             continue;
         }
         let mut slice = &tmp[..len];
         if let Ok(RaknetPacket::OpenConnectionReply2(r)) = RaknetPacket::decode(&mut slice) {
+            if r.magic != DEFAULT_UNCONNECTED_MAGIC
+                || r.server_guid != reply1.server_guid
+                || !(MINIMUM_MTU_SIZE..=mtu_final).contains(&r.mtu)
+                || r.security
+            {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "invalid reply2 negotiation",
+                ));
+            }
             tracing::debug!(server_guid = r.server_guid, "handshake complete");
             break r;
         }
     };
 
     Ok(OfflineHandshake {
-        mtu: mtu_final,
+        mtu: reply2.mtu,
         server_guid: reply2.server_guid,
         secure_connection_established: reply2.security,
     })
@@ -735,12 +791,13 @@ fn apply_socket_buffer_config(
     }
 }
 
+/// Upstream `dial.go:mtuSizesFor`: never probe above the configured cap;
+/// the dial probe floor is 576, distinct from the connection floor of 400.
 fn mtu_probe_candidates(mtu_hint: usize) -> Vec<u16> {
-    let hinted = mtu_hint.clamp(MINIMUM_MTU_SIZE as usize, MAXIMUM_MTU_SIZE as usize) as u16;
-    let mut candidates = Vec::with_capacity(crate::protocol::constants::MTU_SIZES.len() + 1);
-    candidates.push(hinted);
-    for &candidate in crate::protocol::constants::MTU_SIZES {
-        if !candidates.contains(&candidate) {
+    let hinted = mtu_hint.clamp(576, MAXIMUM_MTU_SIZE as usize) as u16;
+    let mut candidates = vec![hinted];
+    for candidate in [MAXIMUM_MTU_SIZE, 1200, 576] {
+        if candidate < hinted {
             candidates.push(candidate);
         }
     }
@@ -751,7 +808,7 @@ fn client_guid() -> u64 {
     use std::time::{SystemTime, UNIX_EPOCH};
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos() as u64)
+        .map(|d| (d.as_nanos() as u64) | (1 << 63))
         .unwrap_or(0xdead_beef_dead_beef)
 }
 
@@ -861,24 +918,87 @@ fn notify_client_ready(
 mod tests {
     use super::*;
 
+    #[tokio::test]
+    async fn malformed_server_datagram_reports_error_and_stops_muxer() {
+        let server = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let client_address = socket.local_addr().unwrap();
+        let (_outbound_tx, outbound_rx) = mpsc::channel(1);
+        let (to_app, mut incoming) = mpsc::channel(1);
+        let (ready, _ready_rx) = oneshot::channel();
+        let task = tokio::spawn(run_client_muxer(
+            socket,
+            ClientMuxerContext {
+                server: server.local_addr().unwrap(),
+                server_guid: 1,
+                client_guid: u64::MAX,
+                secure_connection_established: false,
+                outbound_rx,
+                to_app,
+                ready,
+                config: RaknetStreamConfig::default(),
+            },
+        ));
+        // A connected datagram flag without its mandatory sequence number.
+        server.send_to(&[0x80], client_address).await.unwrap();
+        let error = timeout(Duration::from_secs(1), incoming.recv())
+            .await
+            .unwrap();
+        assert!(matches!(error, Some(Err(crate::RaknetError::Decode(_)))));
+        timeout(Duration::from_secs(1), task)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn probe_write_errors_exhaust_candidates_instead_of_aborting_discovery() {
+        // An IPv4 socket cannot send to the IPv6 loopback address. This produces
+        // a real local send error without relying on a particular route MTU.
+        let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let result = timeout(
+            Duration::from_secs(1),
+            perform_offline_handshake(&socket, "[::1]:19132".parse().unwrap(), 1492, u64::MAX),
+        )
+        .await
+        .expect("failed writes must advance immediately to smaller probes");
+        let error = match result {
+            Err(error) => error,
+            Ok(_) => panic!("address-family-mismatched probe succeeded"),
+        };
+        assert_eq!(error.kind(), std::io::ErrorKind::TimedOut);
+        assert!(error.to_string().contains("after probing MTUs"));
+    }
+
+    #[test]
+    fn invalid_stream_config_is_rejected() {
+        let mut config = RaknetStreamConfig {
+            mtu: 399,
+            ..Default::default()
+        };
+        assert!(config.validate().is_err());
+        config.mtu = 1492;
+        config.connection_timeout = Duration::ZERO;
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn generated_guid_is_negative_on_wire() {
+        assert!((client_guid() as i64) < 0);
+    }
+
     #[test]
     fn mtu_probe_candidates_prefers_hint_without_duplicates() {
-        assert_eq!(
-            mtu_probe_candidates(900),
-            vec![900, 1200, MAXIMUM_MTU_SIZE, MINIMUM_MTU_SIZE]
-        );
+        assert_eq!(mtu_probe_candidates(900), vec![900, 576]);
         assert_eq!(
             mtu_probe_candidates(MAXIMUM_MTU_SIZE as usize),
-            vec![MAXIMUM_MTU_SIZE, 1200, MINIMUM_MTU_SIZE]
+            vec![MAXIMUM_MTU_SIZE, 1200, 576]
         );
     }
 
     #[test]
     fn mtu_probe_candidates_clamps_out_of_range_hints() {
-        assert_eq!(
-            mtu_probe_candidates(0).first().copied(),
-            Some(MINIMUM_MTU_SIZE)
-        );
+        assert_eq!(mtu_probe_candidates(0).first().copied(), Some(576));
         assert_eq!(
             mtu_probe_candidates(usize::MAX).first().copied(),
             Some(MAXIMUM_MTU_SIZE)

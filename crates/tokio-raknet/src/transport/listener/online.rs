@@ -13,9 +13,7 @@ use crate::transport::mux::flush_managed;
 use bytes::Bytes;
 use bytes::BytesMut;
 
-use super::offline::{
-    PendingConnection, handle_offline, is_offline_packet_id, server_session_config,
-};
+use super::offline::{PendingConnection, handle_offline, is_offline_packet_id};
 use super::rate_limiter::PingRateLimiter;
 
 use std::sync::{Arc, RwLock};
@@ -38,7 +36,7 @@ pub(super) async fn dispatch_datagram(
     rate_limiter: &mut PingRateLimiter,
     send_buf: &mut BytesMut,
 ) {
-    if bytes.is_empty() {
+    if bytes.is_empty() || rate_limiter.blocked(peer.ip(), Instant::now()) {
         return;
     }
 
@@ -72,21 +70,9 @@ pub(super) async fn dispatch_datagram(
                 )
                 .await;
             } else {
-                // Garbage or unexpected packet; drop session.
                 sessions.remove(&peer);
-                handle_offline(
-                    socket,
-                    config,
-                    bytes,
-                    peer,
-                    sessions,
-                    pending,
-                    new_conn_tx,
-                    advertisement,
-                    rate_limiter,
-                    send_buf,
-                )
-                .await;
+                pending.remove(&peer);
+                rate_limiter.block(peer.ip(), Instant::now());
             }
         }
         return;
@@ -106,39 +92,34 @@ pub(super) async fn dispatch_datagram(
             send_buf,
         )
         .await;
-    } else {
-        // Unexpected packet from unknown peer; ignore.
+    } else if bytes[0] & 0x80 == 0 {
+        // Upstream `handler.go:handleUnconnected` ignores stale datagrams but
+        // rejects unknown offline packet IDs.
+        rate_limiter.block(peer.ip(), Instant::now());
     }
 }
 
 #[tracing::instrument(skip(socket, sessions), level = "trace")]
 pub(super) async fn handle_outgoing_msg(
     socket: &UdpSocket,
-    mtu: usize,
+    _mtu: usize,
     msg: crate::transport::OutboundMsg,
     sessions: &mut HashMap<SocketAddr, SessionState>,
-    config: &RaknetListenerConfig,
+    _config: &RaknetListenerConfig,
     send_buf: &mut BytesMut,
 ) {
     let now = Instant::now();
-    let state = sessions.entry(msg.peer).or_insert_with(|| {
-        let (tx, rx) = mpsc::channel(128);
-        let sess_config = server_session_config(config);
-        SessionState {
-            managed: ManagedSession::with_config(msg.peer, mtu, now, sess_config),
-            to_app: tx,
-            pending_rx: Some(rx),
-            announced: false,
-            handshake_confirmed: false,
-        }
-    });
+    // A late application write must not resurrect an expired session.
+    let Some(state) = sessions.get_mut(&msg.peer) else {
+        return;
+    };
 
     if let Err(error) =
         state
             .managed
             .queue_app_packet(msg.packet, msg.reliability, msg.channel, msg.priority)
     {
-        let _ = state.to_app.send(Err(error.into())).await;
+        let _ = state.to_app.try_send(Err(error.into()));
         return;
     }
 
@@ -174,13 +155,11 @@ pub(super) async fn tick_sessions(
                 if let Some(reason) = state.managed.last_disconnect_reason() {
                     let _ = state
                         .to_app
-                        .send(Err(crate::RaknetError::Disconnected(reason)))
-                        .await;
+                        .try_send(Err(crate::RaknetError::Disconnected(reason)));
                 } else {
                     let _ = state
                         .to_app
-                        .send(Err(crate::RaknetError::ConnectionClosed))
-                        .await;
+                        .try_send(Err(crate::RaknetError::ConnectionClosed));
                 }
             }
             dead.push(peer);
@@ -196,7 +175,7 @@ pub(super) async fn tick_sessions(
 #[allow(clippy::too_many_arguments)]
 async fn handle_incoming_udp(
     socket: &UdpSocket,
-    config: &RaknetListenerConfig,
+    _config: &RaknetListenerConfig,
     bytes: &[u8],
     peer: SocketAddr,
     sessions: &mut HashMap<SocketAddr, SessionState>,
@@ -216,19 +195,9 @@ async fn handle_incoming_udp(
         }
     };
     let now = Instant::now();
-    let state = sessions.entry(peer).or_insert_with(|| {
-        tracing::debug!(mtu = config.max_mtu, "create_session");
-        let (tx, rx) = mpsc::channel(128);
-        let sess_config = server_session_config(config);
-        let sess = ManagedSession::with_config(peer, config.max_mtu as usize, now, sess_config);
-        SessionState {
-            managed: sess,
-            to_app: tx,
-            pending_rx: Some(rx),
-            announced: false,
-            handshake_confirmed: false,
-        }
-    });
+    let Some(state) = sessions.get_mut(&peer) else {
+        return false;
+    };
 
     let closed_after = if let Ok(pkts) = state.managed.handle_datagram(dgram, now) {
         if tracing::enabled!(tracing::Level::TRACE) {
@@ -243,7 +212,7 @@ async fn handle_incoming_udp(
         }
         false
     } else {
-        false
+        return false;
     };
 
     maybe_announce_connection(peer, state, new_conn_tx).await;
@@ -254,13 +223,11 @@ async fn handle_incoming_udp(
             if let Some(reason) = state.managed.last_disconnect_reason() {
                 let _ = state
                     .to_app
-                    .send(Err(crate::RaknetError::Disconnected(reason)))
-                    .await;
+                    .try_send(Err(crate::RaknetError::Disconnected(reason)));
             } else {
                 let _ = state
                     .to_app
-                    .send(Err(crate::RaknetError::ConnectionClosed))
-                    .await;
+                    .try_send(Err(crate::RaknetError::ConnectionClosed));
             }
         }
         sessions.remove(&peer);

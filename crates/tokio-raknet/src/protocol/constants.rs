@@ -18,10 +18,12 @@ pub const RAKNET_PROTOCOL_VERSION: u8 = 11;
 
 // === MTU and framing sizes ===
 
-/// Minimum supported MTU as used during negotiation.
-pub const MINIMUM_MTU_SIZE: u16 = 576;
-/// Maximum supported MTU as used during negotiation.
-pub const MAXIMUM_MTU_SIZE: u16 = 1400;
+/// Minimum negotiated MTU, matching lunar-bedrock/go-raknet `conn.go:newConn`
+/// (`minMTUSize`).
+pub const MINIMUM_MTU_SIZE: u16 = 400;
+/// Maximum negotiated MTU, matching lunar-bedrock/go-raknet `conn.go:newConn`
+/// (`maxMTUSize`).
+pub const MAXIMUM_MTU_SIZE: u16 = 1492;
 /// Candidate MTU sizes to probe, from most used by client.
 pub const MTU_SIZES: &[u16] = &[1200, MAXIMUM_MTU_SIZE, MINIMUM_MTU_SIZE];
 
@@ -38,6 +40,9 @@ pub const MAXIMUM_ORDERING_CHANNELS: u8 = 16;
 /// Maximum size of an encapsulated packet header.
 pub const MAXIMUM_ENCAPSULATED_HEADER_SIZE: usize = 28;
 
+/// Maximum expanded ACK/NACK sequence count, from lunar-bedrock/go-raknet
+/// `acknowledge.go:acknowledgement.read` (`maxAcknowledgementPackets`).
+/// Unlike upstream's range check, the inclusive endpoint counts toward this cap.
 pub const MAX_ACK_SEQUENCES: u16 = 8192;
 
 /// Size of a UDP header on the wire.
@@ -57,8 +62,9 @@ pub const MAXIMUM_CONNECTION_ATTEMPTS: usize = 10;
 /// Time between sending connection attempts.
 pub const TIME_BETWEEN_SEND_CONNECTION_ATTEMPTS: Duration = Duration::from_millis(1000);
 
-/// Time after which a session is closed due to no activity.
-pub const SESSION_TIMEOUT: Duration = Duration::from_millis(10000);
+/// Base inactivity timeout, matching go-raknet `conn.go:Conn.startTicking`.
+/// Session management adds twice the measured RTT to this base duration.
+pub const SESSION_TIMEOUT: Duration = Duration::from_millis(5000);
 
 /// Time after which a session is considered stale due to no activity.
 pub const SESSION_STALE: Duration = Duration::from_millis(5000);
@@ -158,6 +164,8 @@ mod tests {
 
     #[test]
     fn mtu_bounds_are_consistent() {
+        assert_eq!(MINIMUM_MTU_SIZE, 400);
+        assert_eq!(MAXIMUM_MTU_SIZE, 1492);
         assert!(MTU_SIZES.contains(&MAXIMUM_MTU_SIZE));
         assert!(MTU_SIZES.contains(&MINIMUM_MTU_SIZE));
     }
