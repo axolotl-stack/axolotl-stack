@@ -175,7 +175,7 @@ impl crate::bedrock::codec::BedrockCodec for ClientToServerHandshakePacket {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct DisconnectPacket {
     pub reason: EnumsConnectionDisconnectFailReason,
-    pub messages: DisconnectPacketMessages,
+    pub messages: DisconnectPacketMessagesUnion,
 }
 impl crate::bedrock::codec::BedrockSized for DisconnectPacket {
     fn encoded_size(&self) -> usize {
@@ -205,7 +205,10 @@ impl crate::bedrock::codec::BedrockCodec for DisconnectPacket {
                 (),
             )?;
         let messages =
-            <DisconnectPacketMessages as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+            <DisconnectPacketMessagesUnion as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?;
         Ok(Self { reason, messages })
     }
 }

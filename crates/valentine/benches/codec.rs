@@ -9,10 +9,12 @@ use valentine_bedrock_core::bedrock::codec::Nbt;
 fn sample_disconnect_packet() -> DisconnectPacket {
     DisconnectPacket {
         reason: EnumsConnectionDisconnectFailReason::Timeout,
-        messages: DisconnectPacketMessages {
-            message: "Server maintenance in 5 minutes".to_string(),
-            filtered_message: "Server maintenance".to_string(),
-        },
+        messages: DisconnectPacketMessagesUnion::DisconnectPacketMessages(
+            DisconnectPacketMessages {
+                message: "Server maintenance in 5 minutes".to_string(),
+                filtered_message: "Server maintenance".to_string(),
+            },
+        ),
     }
 }
 
@@ -133,6 +135,8 @@ fn bench_disconnect(c: &mut Criterion) {
             || encoded.clone(),
             |mut reader| {
                 let reason = EnumsConnectionDisconnectFailReason::decode(&mut reader, ()).unwrap();
+                let control = valentine::bedrock::codec::VarUInt::decode(&mut reader, ()).unwrap();
+                assert_eq!(control.0, 0);
                 let messages = DisconnectPacketMessagesView::decode(&mut reader).unwrap();
                 black_box((reason, messages));
                 assert!(!reader.has_remaining());

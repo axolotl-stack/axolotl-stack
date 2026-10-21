@@ -34,10 +34,12 @@ fn packet_disconnect_roundtrip_with_message() {
     assert_roundtrip(
         DisconnectPacket {
             reason: EnumsConnectionDisconnectFailReason::Timeout,
-            messages: DisconnectPacketMessages {
-                message: "Server maintenance in 5 minutes".into(),
-                filtered_message: "Server maintenance".into(),
-            },
+            messages: DisconnectPacketMessagesUnion::DisconnectPacketMessages(
+                DisconnectPacketMessages {
+                    message: "Server maintenance in 5 minutes".into(),
+                    filtered_message: "Server maintenance".into(),
+                },
+            ),
         },
         (),
     );
@@ -48,7 +50,7 @@ fn packet_disconnect_roundtrip_empty_message() {
     assert_roundtrip(
         DisconnectPacket {
             reason: EnumsConnectionDisconnectFailReason::Noreason,
-            messages: DisconnectPacketMessages::default(),
+            messages: DisconnectPacketMessagesUnion::default(),
         },
         (),
     );
@@ -108,10 +110,12 @@ fn packet_text_roundtrip_json_chat() {
 fn packet_disconnect_rejects_truncated_payload() {
     let packet = DisconnectPacket {
         reason: EnumsConnectionDisconnectFailReason::Disconnected,
-        messages: DisconnectPacketMessages {
-            message: "Bye".into(),
-            filtered_message: "Bye".into(),
-        },
+        messages: DisconnectPacketMessagesUnion::DisconnectPacketMessages(
+            DisconnectPacketMessages {
+                message: "Bye".into(),
+                filtered_message: "Bye".into(),
+            },
+        ),
     };
     let mut buf = BytesMut::new();
     packet.encode(&mut buf).expect("encode");

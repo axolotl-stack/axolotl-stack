@@ -53,23 +53,30 @@ fn borrowed_login_decode_roundtrips_connection_request() {
 fn borrowed_disconnect_decode_roundtrips_strings() {
     let packet = DisconnectPacket {
         reason: EnumsConnectionDisconnectFailReason::Timeout,
-        messages: DisconnectPacketMessages {
-            message: "Server maintenance in 5 minutes".into(),
-            filtered_message: "Server maintenance".into(),
-        },
+        messages: DisconnectPacketMessagesUnion::DisconnectPacketMessages(
+            DisconnectPacketMessages {
+                message: "Server maintenance in 5 minutes".into(),
+                filtered_message: "Server maintenance".into(),
+            },
+        ),
     };
     let mut encoded = encode_to_bytes(&packet);
     // The current schema exposes a borrowed view for messages, not the whole packet.
     let reason = EnumsConnectionDisconnectFailReason::decode(&mut encoded, ()).expect("reason");
+    let control = valentine::bedrock::codec::VarUInt::decode(&mut encoded, ()).expect("control");
+    assert_eq!(control.0, 0);
+    let DisconnectPacketMessagesUnion::DisconnectPacketMessages(expected) = &packet.messages else {
+        panic!("expected visible disconnect");
+    };
     let messages = DisconnectPacketMessagesView::decode(&mut encoded).expect("borrowed messages");
     assert_eq!(reason, packet.reason);
     assert_eq!(
         messages.message.as_str().expect("message utf8"),
-        packet.messages.message
+        expected.message
     );
     assert_eq!(
         messages.filtered_message.as_str().expect("filtered utf8"),
-        packet.messages.filtered_message
+        expected.filtered_message
     );
     assert!(!encoded.has_remaining());
 }

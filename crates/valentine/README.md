@@ -38,6 +38,13 @@ use valentine::bedrock::protocol::v1_26_51::*;
 
 Use `protocol::vX_Y_Z` when you explicitly want the raw generated version crate/module layout.
 
+`DisconnectPacket.messages` is a `DisconnectPacketMessagesUnion`. Construct
+`DisconnectPacketMessagesUnion::DisconnectPacketMessages(DisconnectPacketMessages {
+message, filtered_message })` to show a kick message, or `Empty1` to hide the
+disconnect screen. The union owns the wire control varint; encoding its payload
+struct alone is not a valid disconnect body. `tests/union_conformance.rs`
+cross-checks both variants against protocolgen's Rust contract.
+
 ## Regenerating Protocol Code
 
 From the repo root:

@@ -383,6 +383,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "bedrock-protocol-1-26-51"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "glam 0.33.12",
+ "regex",
+ "uuid",
+]
+
+[[package]]
 name = "bench-compare"
 version = "0.1.0"
 dependencies = [
@@ -494,7 +504,7 @@ dependencies = [
  "downcast-rs",
  "erased-serde",
  "foldhash 0.2.0",
- "glam",
+ "glam 0.30.9",
  "serde",
  "smallvec",
  "smol_str",
@@ -1839,6 +1849,12 @@ checksum = "bd47b05dddf0005d850e5644cae7f2b14ac3df487979dbfff3b56f20b1a6ae46"
 dependencies = [
  "serde_core",
 ]
+
+[[package]]
+name = "glam"
+version = "0.33.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "37bfe73dc8ec21f54d181e5a60554327ec3f1c600c455a75ccbfc65d2106a6c4"
 
 [[package]]
 name = "glob"
@@ -4623,7 +4639,7 @@ dependencies = [
  "bytes",
  "crc32fast",
  "criterion",
- "glam",
+ "glam 0.30.9",
  "jolyne",
  "lru",
  "lz4_flex",
@@ -4830,6 +4846,7 @@ name = "valentine"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bedrock-protocol-1-26-51",
  "bitflags 2.10.0",
  "bytes",
  "criterion",

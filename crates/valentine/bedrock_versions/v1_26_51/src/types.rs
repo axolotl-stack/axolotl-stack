@@ -40340,6 +40340,72 @@ impl Default for EnumsUnlockedRecipesPacketPayloadPacketType {
     }
 }
 #[derive(Debug, Clone, PartialEq)]
+pub enum DisconnectPacketMessagesUnion {
+    DisconnectPacketMessages(DisconnectPacketMessages),
+    Empty1,
+}
+impl Default for DisconnectPacketMessagesUnion {
+    fn default() -> Self {
+        Self::DisconnectPacketMessages(Default::default())
+    }
+}
+impl crate::bedrock::codec::BedrockSized for DisconnectPacketMessagesUnion {
+    fn encoded_size(&self) -> usize {
+        match self {
+            DisconnectPacketMessagesUnion::DisconnectPacketMessages(value) => {
+                crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
+                    0 as u32,
+                )) + crate::bedrock::codec::BedrockSized::encoded_size(value)
+            }
+            DisconnectPacketMessagesUnion::Empty1 => {
+                crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarUInt(
+                    1 as u32,
+                ))
+            }
+        }
+    }
+}
+impl crate::bedrock::codec::BedrockCodec for DisconnectPacketMessagesUnion {
+    type Args = ();
+    const MIN_ENCODED_SIZE: usize = 1usize;
+    fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        match self {
+            DisconnectPacketMessagesUnion::DisconnectPacketMessages(value) => {
+                let control_value = 0 as i64;
+                crate::bedrock::codec::VarUInt(control_value as u32).encode(buf)?;
+                value.encode(buf)?;
+                Ok(())
+            }
+            DisconnectPacketMessagesUnion::Empty1 => {
+                let control_value = 1 as i64;
+                crate::bedrock::codec::VarUInt(control_value as u32).encode(buf)?;
+                Ok(())
+            }
+        }
+    }
+    fn decode<B: bytes::Buf>(
+        buf: &mut B,
+        _args: Self::Args,
+    ) -> Result<Self, crate::bedrock::error::DecodeError> {
+        let control_value =
+            <crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(
+                buf,
+                (),
+            )?
+            .0 as i64;
+        match control_value {
+            0 => Ok(DisconnectPacketMessagesUnion::DisconnectPacketMessages(
+                <DisconnectPacketMessages as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?,
+            )),
+            1 => Ok(DisconnectPacketMessagesUnion::Empty1),
+            _ => Err(crate::bedrock::error::DecodeError::InvalidEnumValue {
+                enum_name: stringify!(DisconnectPacketMessagesUnion),
+                value: control_value,
+            }),
+        }
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
 pub enum ResourcePackClientResponsePacketResponse {
     Cancel(ResourcePackClientResponseCanceljson),
     Downloading(ResourcePackClientResponseDownloadingjson),
