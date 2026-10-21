@@ -69,7 +69,7 @@ fn main() -> Result<()> {
     )?;
     writeln!(out, "#[macro_export]")?;
     writeln!(out, "macro_rules! export_plugin {{")?;
-    writeln!(out, "    ($t:ident) => {{")?;
+    writeln!(out, "    ($t:ty) => {{")?;
     writeln!(out, "        struct __UnastarPluginBridge;")?;
     writeln!(out)?;
     writeln!(

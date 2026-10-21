@@ -16,6 +16,7 @@ mod plugins;
 pub mod types;
 
 use bevy_ecs::prelude::*;
+pub(crate) use blocks::{commit_block_event, reject_block_event};
 use jolyne::WorldTemplate;
 use jolyne::valentine::EnumsGameType;
 use jolyne::valentine::types::{BlockPos, Vec3};

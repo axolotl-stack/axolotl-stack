@@ -38,10 +38,13 @@ pub struct PluginManifest {
 /// Resource limits for a plugin.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginLimits {
-    /// Maximum fuel (epoch ticks) per tick. Defaults to 10M.
+    /// Wasmtime instruction fuel shared by all event exports in one server tick.
+    /// Instantiation and on-load share a separate initialization budget of this size.
+    /// Defaults to 10M; epoch interruption remains an independent per-call limit.
     #[serde(default = "default_fuel")]
     pub fuel_per_tick: u64,
-    /// Maximum memory in bytes. Defaults to 64MB.
+    /// Maximum bytes per Wasm linear memory, enforced at creation and growth.
+    /// Exceeding this limit traps. Defaults to 64MB.
     #[serde(default = "default_memory")]
     pub max_memory: usize,
 }
