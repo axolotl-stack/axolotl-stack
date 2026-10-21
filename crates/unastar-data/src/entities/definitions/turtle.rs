@@ -15,6 +15,7 @@ impl Turtle {
 /// Component bundle for spawning a `minecraft:turtle`
 #[derive(Bundle, Clone)]
 pub struct TurtleBundle {
+    pub attack: super::super::components::Attack,
     pub behavior_hurt_by_target: super::super::components::BehaviorHurtByTarget,
     pub behavior_look_at_player: super::super::components::BehaviorLookAtPlayer,
     pub behavior_move_to_water: super::super::components::BehaviorMoveToWater,
@@ -27,10 +28,12 @@ pub struct TurtleBundle {
         super::super::components::ConditionalBandwidthOptimization,
     pub damage_sensor: super::super::components::DamageSensor,
     pub despawn: super::super::components::Despawn,
+    pub flying_speed: super::super::components::FlyingSpeed,
     pub follow_range: super::super::components::FollowRange,
     pub health: super::super::components::Health,
     pub home: super::super::components::Home,
     pub hurt_on_condition: super::super::components::HurtOnCondition,
+    pub inventory: super::super::components::Inventory,
     pub is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
     pub jump_static: super::super::components::JumpStatic,
     pub movement: super::super::components::Movement,
@@ -39,12 +42,18 @@ pub struct TurtleBundle {
     pub navigation_generic: super::super::components::NavigationGeneric,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub scale: super::super::components::Scale,
     pub water_movement: super::super::components::WaterMovement,
 }
 /// Spawn a new `minecraft:turtle` entity with default Bedrock components
 pub fn spawn_turtle(commands: &mut Commands) -> Entity {
     commands
         .spawn(TurtleBundle {
+            attack: super::super::components::Attack {
+                damage: crate::types::RangeOrVal::Fixed(2f32),
+                effect_duration: Some(crate::types::MolangOr::Value(0i32)),
+                effect_name: None,
+            },
             behavior_hurt_by_target: super::super::components::BehaviorHurtByTarget {
                 alert_same_type: Some(false),
                 entity_types: None,
@@ -153,6 +162,9 @@ pub fn spawn_turtle(commands: &mut Commands) -> Entity {
                 min_range_random_chance: Some(800i32),
                 remove_child_entities: Some(false),
             },
+            flying_speed: super::super::components::FlyingSpeed {
+                value: 0.02f32,
+            },
             follow_range: super::super::components::FollowRange {
                 max: None,
                 min: None,
@@ -170,6 +182,14 @@ pub fn spawn_turtle(commands: &mut Commands) -> Entity {
             },
             hurt_on_condition: super::super::components::HurtOnCondition {
                 damage_conditions: None,
+            },
+            inventory: super::super::components::Inventory {
+                additional_slots_per_strength: Some(0i32),
+                can_be_siphoned_from: Some(false),
+                container_type: Some("none".to_string()),
+                inventory_size: Some(5i32),
+                private: Some(false),
+                restrict_to_owner: Some(false),
             },
             is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
             jump_static: super::super::components::JumpStatic {
@@ -218,6 +238,9 @@ pub fn spawn_turtle(commands: &mut Commands) -> Entity {
             pushable: super::super::components::Pushable {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
+            },
+            scale: super::super::components::Scale {
+                value: 1f32,
             },
             water_movement: super::super::components::WaterMovement {
                 drag_factor: Some(0.9f32),

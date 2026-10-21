@@ -15,6 +15,7 @@ impl Shulker {
 /// Component bundle for spawning a `minecraft:shulker`
 #[derive(Bundle, Clone)]
 pub struct ShulkerBundle {
+    pub attack: super::super::components::Attack,
     pub behavior_hurt_by_target: super::super::components::BehaviorHurtByTarget,
     pub behavior_look_at_player: super::super::components::BehaviorLookAtPlayer,
     pub behavior_nearest_attackable_target:
@@ -27,8 +28,11 @@ pub struct ShulkerBundle {
         super::super::components::ConditionalBandwidthOptimization,
     pub experience_reward: super::super::components::ExperienceReward,
     pub fire_immune: super::super::components::FireImmune,
+    pub flying_speed: super::super::components::FlyingSpeed,
+    pub follow_range: super::super::components::FollowRange,
     pub health: super::super::components::Health,
     pub interact: super::super::components::Interact,
+    pub inventory: super::super::components::Inventory,
     pub is_collidable: super::super::components::IsCollidable,
     pub is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
     pub loot: super::super::components::Loot,
@@ -40,6 +44,7 @@ pub struct ShulkerBundle {
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
     pub renders_when_invisible: super::super::components::RendersWhenInvisible,
+    pub scale: super::super::components::Scale,
     pub shooter: super::super::components::Shooter,
     pub type_family: super::super::components::TypeFamily,
 }
@@ -47,6 +52,11 @@ pub struct ShulkerBundle {
 pub fn spawn_shulker(commands: &mut Commands) -> Entity {
     commands
         .spawn(ShulkerBundle {
+            attack: super::super::components::Attack {
+                damage: crate::types::RangeOrVal::Fixed(2f32),
+                effect_duration: Some(crate::types::MolangOr::Value(0i32)),
+                effect_name: None,
+            },
             behavior_hurt_by_target: super::super::components::BehaviorHurtByTarget {
                 alert_same_type: Some(false),
                 entity_types: Some(vec![BehaviorHurtByTargetEntityTypes {
@@ -210,6 +220,12 @@ pub fn spawn_shulker(commands: &mut Commands) -> Entity {
                 )),
             },
             fire_immune: super::super::components::FireImmune,
+            flying_speed: super::super::components::FlyingSpeed { value: 0.02f32 },
+            follow_range: super::super::components::FollowRange {
+                max: None,
+                min: None,
+                value: crate::types::RangeOrVal::Fixed(16f32),
+            },
             health: super::super::components::Health {
                 max: Some(30f32),
                 min: None,
@@ -2051,6 +2067,14 @@ pub fn spawn_shulker(commands: &mut Commands) -> Entity {
                     },
                 ]),
             },
+            inventory: super::super::components::Inventory {
+                additional_slots_per_strength: Some(0i32),
+                can_be_siphoned_from: Some(false),
+                container_type: Some("none".to_string()),
+                inventory_size: Some(5i32),
+                private: Some(false),
+                restrict_to_owner: Some(false),
+            },
             is_collidable: super::super::components::IsCollidable,
             is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
             loot: super::super::components::Loot {
@@ -2119,6 +2143,7 @@ pub fn spawn_shulker(commands: &mut Commands) -> Entity {
                 is_pushable_by_piston: Some(true),
             },
             renders_when_invisible: super::super::components::RendersWhenInvisible,
+            scale: super::super::components::Scale { value: 1f32 },
             shooter: super::super::components::Shooter {
                 aux_val: Some(-1i32),
                 def: Some("minecraft:shulker_bullet".to_string()),

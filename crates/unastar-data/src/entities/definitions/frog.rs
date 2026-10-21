@@ -15,6 +15,7 @@ impl Frog {
 /// Component bundle for spawning a `minecraft:frog`
 #[derive(Bundle, Clone)]
 pub struct FrogBundle {
+    pub attack: super::super::components::Attack,
     pub behavior_breed: super::super::components::BehaviorBreed,
     pub behavior_croak: super::super::components::BehaviorCroak,
     pub behavior_eat_mob: super::super::components::BehaviorEatMob,
@@ -32,8 +33,11 @@ pub struct FrogBundle {
     pub damage_sensor: super::super::components::DamageSensor,
     pub despawn: super::super::components::Despawn,
     pub experience_reward: super::super::components::ExperienceReward,
+    pub flying_speed: super::super::components::FlyingSpeed,
+    pub follow_range: super::super::components::FollowRange,
     pub health: super::super::components::Health,
     pub hurt_on_condition: super::super::components::HurtOnCondition,
+    pub inventory: super::super::components::Inventory,
     pub is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
     pub jump_static: super::super::components::JumpStatic,
     pub leashable: super::super::components::Leashable,
@@ -44,6 +48,7 @@ pub struct FrogBundle {
     pub navigation_generic: super::super::components::NavigationGeneric,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub scale: super::super::components::Scale,
     pub type_family: super::super::components::TypeFamily,
     pub underwater_movement: super::super::components::UnderwaterMovement,
 }
@@ -51,6 +56,11 @@ pub struct FrogBundle {
 pub fn spawn_frog(commands: &mut Commands) -> Entity {
     commands
         .spawn(FrogBundle {
+            attack: super::super::components::Attack {
+                damage: crate::types::RangeOrVal::Fixed(2f32),
+                effect_duration: Some(crate::types::MolangOr::Value(0i32)),
+                effect_name: None,
+            },
             behavior_breed: super::super::components::BehaviorBreed {
                 priority: Some(BehaviorBreedPriority {}),
                 speed_multiplier: Some(BehaviorBreedSpeedMultiplier {}),
@@ -325,6 +335,14 @@ pub fn spawn_frog(commands: &mut Commands) -> Entity {
                     ),
                 ),
             },
+            flying_speed: super::super::components::FlyingSpeed {
+                value: 0.02f32,
+            },
+            follow_range: super::super::components::FollowRange {
+                max: None,
+                min: None,
+                value: crate::types::RangeOrVal::Fixed(16f32),
+            },
             health: super::super::components::Health {
                 max: None,
                 min: None,
@@ -332,6 +350,14 @@ pub fn spawn_frog(commands: &mut Commands) -> Entity {
             },
             hurt_on_condition: super::super::components::HurtOnCondition {
                 damage_conditions: None,
+            },
+            inventory: super::super::components::Inventory {
+                additional_slots_per_strength: Some(0i32),
+                can_be_siphoned_from: Some(false),
+                container_type: Some("none".to_string()),
+                inventory_size: Some(5i32),
+                private: Some(false),
+                restrict_to_owner: Some(false),
             },
             is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
             jump_static: super::super::components::JumpStatic {
@@ -394,6 +420,9 @@ pub fn spawn_frog(commands: &mut Commands) -> Entity {
             pushable: super::super::components::Pushable {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
+            },
+            scale: super::super::components::Scale {
+                value: 1f32,
             },
             type_family: super::super::components::TypeFamily {
                 family: vec!["frog".to_string(), "mob".to_string()],

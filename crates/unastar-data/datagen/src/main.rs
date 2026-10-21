@@ -11,6 +11,7 @@ mod ir;
 mod json;
 mod manifest;
 mod merge;
+mod nbt;
 mod normalize;
 mod pmmp;
 mod validate;
@@ -26,10 +27,6 @@ struct Args {
     /// Path to vanilla behavior pack biomes directory
     #[arg(long, default_value = "../data/vanilla_bp/behavior_pack/biomes")]
     vanilla_biomes: PathBuf,
-
-    /// Path to vanilla behavior pack items directory
-    #[arg(long, default_value = "../data/vanilla_bp/behavior_pack/items")]
-    vanilla_items: PathBuf,
 
     /// Path to overrides directory
     #[arg(long, default_value = "../data/overrides")]
@@ -55,11 +52,11 @@ struct Args {
     #[arg(long, conflicts_with_all = ["manifest_only", "blocks_only", "biomes_only", "bds_only"])]
     pmmp_only: bool,
 
-    /// Only refresh Valentine-derived block output artifacts and the manifest
+    /// Only refresh native block artifacts and the manifest
     #[arg(long, conflicts_with_all = ["manifest_only", "pmmp_only", "biomes_only", "bds_only"])]
     blocks_only: bool,
 
-    /// Only refresh vanilla behavior-pack biome output artifacts and the manifest
+    /// Only refresh native biome artifacts with behavior-pack enrichment
     #[arg(long, conflicts_with_all = ["manifest_only", "pmmp_only", "blocks_only", "bds_only"])]
     biomes_only: bool,
 
@@ -90,10 +87,6 @@ fn main() -> miette::Result<()> {
         manifest_dir.join(&args.vanilla_biomes).display()
     );
     info!(
-        "Vanilla items: {}",
-        manifest_dir.join(&args.vanilla_items).display()
-    );
-    info!(
         "Overrides: {}",
         manifest_dir.join(&args.overrides).display()
     );
@@ -101,12 +94,12 @@ fn main() -> miette::Result<()> {
 
     let vanilla_path = manifest_dir.join(&args.vanilla);
     let vanilla_biomes_path = manifest_dir.join(&args.vanilla_biomes);
-    let vanilla_items_path = manifest_dir.join(&args.vanilla_items);
     let overrides_path = manifest_dir.join(&args.overrides);
     let output_path = manifest_dir.join(&args.output);
     let upstream_path = manifest_dir.join("../data/upstream");
     let pmmp_path = upstream_path.join("pmmp");
-    let valentine_version_path = manifest_dir.join("../../valentine/bedrock_versions/v1_26_30");
+    let native_path =
+        manifest_dir.join("../../valentine_gen/protocolgen/data/source/inputs/1.26.51/native");
     let bds_extraction_path = args
         .bds_extraction
         .as_ref()
@@ -117,11 +110,10 @@ fn main() -> miette::Result<()> {
             &manifest::ManifestInputs {
                 vanilla_path: &vanilla_path,
                 vanilla_biomes_path: &vanilla_biomes_path,
-                vanilla_items_path: &vanilla_items_path,
                 overrides_path: &overrides_path,
                 upstream_path: &upstream_path,
                 pmmp_path: &pmmp_path,
-                valentine_version_path: &valentine_version_path,
+                native_path: &native_path,
                 bds_extraction_path,
             },
         )
@@ -133,19 +125,19 @@ fn main() -> miette::Result<()> {
     }
 
     if args.pmmp_only {
-        pmmp::write_pmmp_artifacts(&pmmp_path, &vanilla_items_path, &output_path)?;
+        pmmp::write_pmmp_artifacts(&native_path, &pmmp_path, &output_path)?;
         write_manifest(None)?;
         return Ok(());
     }
 
     if args.blocks_only {
-        blocks::write_blocks_kdl(&output_path)?;
+        blocks::write_blocks_kdl(&native_path, &output_path)?;
         write_manifest(None)?;
         return Ok(());
     }
 
     if args.biomes_only {
-        biomes::write_biomes_kdl(&vanilla_biomes_path, &output_path)?;
+        biomes::write_biomes_kdl(&native_path, &vanilla_biomes_path, &output_path)?;
         write_manifest(None)?;
         return Ok(());
     }
@@ -191,9 +183,9 @@ fn main() -> miette::Result<()> {
     // Step 4: Emit KDL
     info!("Writing KDL output...");
     emit::write_entities_kdl(&merged, &output_path)?;
-    blocks::write_blocks_kdl(&output_path)?;
-    biomes::write_biomes_kdl(&vanilla_biomes_path, &output_path)?;
-    pmmp::write_pmmp_artifacts(&pmmp_path, &vanilla_items_path, &output_path)?;
+    blocks::write_blocks_kdl(&native_path, &output_path)?;
+    biomes::write_biomes_kdl(&native_path, &vanilla_biomes_path, &output_path)?;
+    pmmp::write_pmmp_artifacts(&native_path, &pmmp_path, &output_path)?;
     if let Some(bds_extraction_path) = bds_extraction_path.as_ref() {
         bds::write_bds_artifacts(bds_extraction_path, &output_path)?;
     }

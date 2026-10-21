@@ -159,10 +159,7 @@ impl ItemRegistry {
         self.inner.is_empty()
     }
 
-    /// Load vanilla item registry rows from normalized PMMP/BedrockData artifacts.
-    ///
-    /// The generated item table is authoritative for the protocol network ID,
-    /// component flag, version, and the best available stack limit source.
+    /// Load native item IDs and stack limits with separately sourced packet metadata.
     pub fn load_vanilla(&mut self) {
         use unastar_data::items::ALL_ITEMS;
 
@@ -175,7 +172,7 @@ impl ItemRegistry {
             "Loading item registry from generated item data"
         );
 
-        for item in ALL_ITEMS {
+        for item in &ALL_ITEMS {
             let entry = ItemEntry {
                 id: item.id,
                 network_id: item.network_id,
@@ -494,6 +491,26 @@ mod tests {
     }
 
     #[test]
+    fn vanilla_registry_loads_on_a_small_worker_stack() {
+        std::thread::Builder::new()
+            .stack_size(256 * 1024)
+            .spawn(|| {
+                let mut registry = ItemRegistry::new();
+                registry.load_vanilla();
+                assert_eq!(
+                    registry
+                        .get_by_name("minecraft:acacia_button")
+                        .unwrap()
+                        .network_id,
+                    -140
+                );
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
     fn load_vanilla_uses_generated_stack_limits() {
         let mut registry = ItemRegistry::new();
         registry.load_vanilla();
@@ -501,11 +518,6 @@ mod tests {
         let honey_bottle = registry
             .get_by_name("minecraft:honey_bottle")
             .expect("honey bottle item");
-        let source = unastar_data::items::get("minecraft:honey_bottle")
-            .expect("generated honey bottle item");
-
-        assert_eq!(source.max_stack_size_source, "vanilla_behavior_pack");
-        assert_eq!(honey_bottle.stack_size, source.max_stack_size);
         assert_eq!(honey_bottle.stack_size, 16);
     }
 }

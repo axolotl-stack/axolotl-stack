@@ -8,3 +8,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 unastar_api = { path = "../unastar-api" }
+unastar_api_macros = { path = "../unastar-api-macros" }

@@ -54,24 +54,15 @@ struct ManifestArtifact {
 pub struct ManifestInputs<'a> {
     pub vanilla_path: &'a Path,
     pub vanilla_biomes_path: &'a Path,
-    pub vanilla_items_path: &'a Path,
     pub overrides_path: &'a Path,
     pub upstream_path: &'a Path,
     pub pmmp_path: &'a Path,
-    pub valentine_version_path: &'a Path,
+    pub native_path: &'a Path,
     pub bds_extraction_path: Option<&'a Path>,
 }
 
 pub fn write_manifest(output_dir: &Path, inputs: &ManifestInputs<'_>) -> miette::Result<()> {
     let mut sources = vec![
-        source_from_path(
-            "valentine_bedrock_1_26_30",
-            "generated_protocol_data",
-            inputs.valentine_version_path,
-            Some("bedrock_1_26_30".to_string()),
-            "high",
-            false,
-        )?,
         source_from_path(
             "vanilla_behavior_pack",
             "behavior_pack",
@@ -85,14 +76,6 @@ pub fn write_manifest(output_dir: &Path, inputs: &ManifestInputs<'_>) -> miette:
             "behavior_pack_biomes",
             inputs.vanilla_biomes_path,
             vanilla_version(inputs.vanilla_biomes_path)?,
-            "high",
-            true,
-        )?,
-        source_from_path(
-            "vanilla_behavior_pack_items",
-            "behavior_pack_items",
-            inputs.vanilla_items_path,
-            vanilla_version(inputs.vanilla_items_path)?,
             "high",
             true,
         )?,
@@ -121,6 +104,52 @@ pub fn write_manifest(output_dir: &Path, inputs: &ManifestInputs<'_>) -> miette:
             false,
         )?,
     ];
+    for name in [
+        "canonical_block_states.nbt",
+        "block_properties_table.json",
+        "block_state_data.json",
+        "block_tags.json",
+        "item_properties_table.json",
+        "item_tags.json",
+        "biome_definitions.json",
+        "biome_id_map.json",
+        "version.json",
+    ] {
+        sources.push(source_from_path(
+            &format!("protocolgen_native_{name}"),
+            "bds_native_measurement",
+            &inputs.native_path.join(name),
+            Some("1.26.51-protocol-2193".into()),
+            "high",
+            true,
+        )?);
+    }
+    sources.push(source_from_path(
+        "protocolgen_item_registry",
+        "cloudburst_packet_registry",
+        &inputs
+            .native_path
+            .join("../../../../../generated/data/registry/items.nbt"),
+        Some("1.26.51".into()),
+        "high",
+        true,
+    )?);
+    sources.push(source_from_path(
+        "protocolgen_source_lock",
+        "upstream_revision_and_input_digests",
+        &inputs.native_path.join("../../../lock.json"),
+        Some("schema-2;release-1.26.51".into()),
+        "high",
+        true,
+    )?);
+    sources.push(source_from_path(
+        "first_canonical_state_policy",
+        "unmeasured_default_state_selection",
+        &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/blocks.rs"),
+        Some("first-canonical-state-v1".into()),
+        "weak",
+        false,
+    )?);
     if let Some(path) = inputs.bds_extraction_path {
         sources.push(source_from_path(
             "bds_extractor_capture",

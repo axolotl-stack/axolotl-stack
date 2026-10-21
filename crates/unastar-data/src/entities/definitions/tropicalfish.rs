@@ -15,6 +15,7 @@ impl Tropicalfish {
 /// Component bundle for spawning a `minecraft:tropicalfish`
 #[derive(Bundle, Clone)]
 pub struct TropicalfishBundle {
+    pub attack: super::super::components::Attack,
     pub behavior_avoid_mob_type: super::super::components::BehaviorAvoidMobType,
     pub behavior_random_swim: super::super::components::BehaviorRandomSwim,
     pub behavior_swim_idle: super::super::components::BehaviorSwimIdle,
@@ -26,8 +27,11 @@ pub struct TropicalfishBundle {
     pub despawn: super::super::components::Despawn,
     pub experience_reward: super::super::components::ExperienceReward,
     pub flocking: super::super::components::Flocking,
+    pub flying_speed: super::super::components::FlyingSpeed,
+    pub follow_range: super::super::components::FollowRange,
     pub health: super::super::components::Health,
     pub hurt_on_condition: super::super::components::HurtOnCondition,
+    pub inventory: super::super::components::Inventory,
     pub is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
     pub loot: super::super::components::Loot,
     pub movement: super::super::components::Movement,
@@ -44,6 +48,11 @@ pub struct TropicalfishBundle {
 pub fn spawn_tropicalfish(commands: &mut Commands) -> Entity {
     commands
         .spawn(TropicalfishBundle {
+            attack: super::super::components::Attack {
+                damage: crate::types::RangeOrVal::Fixed(2f32),
+                effect_duration: Some(crate::types::MolangOr::Value(0i32)),
+                effect_name: None,
+            },
             behavior_avoid_mob_type: super::super::components::BehaviorAvoidMobType {
                 avoid_mob_sound: Some("undefined".to_string()),
                 avoid_target_xz: Some(16i32),
@@ -233,6 +242,12 @@ pub fn spawn_tropicalfish(commands: &mut Commands) -> Entity {
                 separation_weight: Some(0.65f32),
                 use_center_of_mass: Some(false),
             },
+            flying_speed: super::super::components::FlyingSpeed { value: 0.02f32 },
+            follow_range: super::super::components::FollowRange {
+                max: None,
+                min: None,
+                value: crate::types::RangeOrVal::Fixed(16f32),
+            },
             health: super::super::components::Health {
                 max: Some(3f32),
                 min: None,
@@ -240,6 +255,14 @@ pub fn spawn_tropicalfish(commands: &mut Commands) -> Entity {
             },
             hurt_on_condition: super::super::components::HurtOnCondition {
                 damage_conditions: None,
+            },
+            inventory: super::super::components::Inventory {
+                additional_slots_per_strength: Some(0i32),
+                can_be_siphoned_from: Some(false),
+                container_type: Some("none".to_string()),
+                inventory_size: Some(5i32),
+                private: Some(false),
+                restrict_to_owner: Some(false),
             },
             is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
             loot: super::super::components::Loot {

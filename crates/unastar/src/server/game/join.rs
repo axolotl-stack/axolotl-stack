@@ -3,7 +3,10 @@
 //! Contains the send_join_packets method for sending initial game state.
 
 use super::GameServer;
-use crate::entity::components::{GameMode, PlayerSession, RuntimeEntityId};
+use crate::entity::components::{
+    ArmourInventory, CursorItem, Experience, GameMode, Health, HeldSlot, Hunger, MainInventory,
+    OffhandSlot, PlayerSession, RuntimeEntityId,
+};
 use jolyne::valentine::types::{
     ActorRuntimeId, AttributeData, CerealizerNetworkItemStackDescriptorSerializedData,
     DataItemEntry, DataItemEntryPayload, DataItemFloatPayload, DataItemInt64Payload,
@@ -155,21 +158,54 @@ impl GameServer {
             }
         }
 
+        let health = world.get::<Health>(entity).cloned().unwrap_or_default();
+        let hunger = world.get::<Hunger>(entity).cloned().unwrap_or_default();
+        let experience = world.get::<Experience>(entity).cloned().unwrap_or_default();
         let attributes = vec![
-            attr("minecraft:health", 20.0, 20.0, 20.0, 20.0),
+            attr(
+                "minecraft:health",
+                health.current,
+                health.max,
+                health.max,
+                health.max,
+            ),
             attr("minecraft:absorption", 0.0, f32::MAX, 0.0, f32::MAX),
             attr("minecraft:movement", 0.1, f32::MAX, 0.1, f32::MAX),
-            attr("minecraft:player.hunger", 20.0, 20.0, 20.0, 20.0),
-            attr("minecraft:player.saturation", 20.0, 20.0, 20.0, 20.0),
-            attr("minecraft:player.exhaustion", 0.0, 5.0, 0.0, 5.0),
+            attr(
+                "minecraft:player.hunger",
+                hunger.food_level as f32,
+                20.0,
+                20.0,
+                20.0,
+            ),
+            attr(
+                "minecraft:player.saturation",
+                hunger.saturation,
+                20.0,
+                20.0,
+                20.0,
+            ),
+            attr(
+                "minecraft:player.exhaustion",
+                hunger.exhaustion,
+                5.0,
+                0.0,
+                5.0,
+            ),
             attr(
                 "minecraft:player.level",
-                0.0,
+                experience.level as f32,
                 i32::MAX as f32,
                 0.0,
                 i32::MAX as f32,
             ),
-            attr("minecraft:player.experience", 0.0, 1.0, 0.0, 1.0),
+            attr(
+                "minecraft:player.experience",
+                experience.progress,
+                1.0,
+                0.0,
+                1.0,
+            ),
         ];
 
         let _ = session.send(McpePacket::from(UpdateAttributesPacket {
@@ -246,7 +282,7 @@ impl GameServer {
 
         // Send inventory contents to enable inventory UI
         // Without these packets, the client won't allow opening the inventory
-        self.send_inventory_contents(session);
+        self.send_inventory_contents(entity, session);
 
         // Creative content is sent via WorldTemplate during the StartGame sequence
         // (see jolyne::stream::server). Network IDs are now correct from required_item_list.json.
@@ -254,68 +290,88 @@ impl GameServer {
 
     /// Send initial inventory contents to the client.
     ///
-    /// This is required for the inventory UI to work. We send empty inventories
-    /// for all player inventory windows:
-    /// - Main inventory (36 slots: 9 hotbar + 27 main)
-    /// - Offhand (1 slot)
-    /// - Armor (4 slots)
-    /// - UI (for crafting grid, cursor, etc.)
-    fn send_inventory_contents(&self, session: &PlayerSession) {
-        debug!("Sending inventory contents to client");
-
-        // Helper to create an empty item
-        let empty_item = CerealizerNetworkItemStackDescriptorSerializedData::default();
-
-        // Helper to create FullContainerName for inventory slots
-        let container_name = FullContainerName {
-            container_name: EnumsContainerEnumName::Inventorycontainer,
-            dynamic_id: None,
+    /// Sends restored inventory state, not an empty client-side replacement.
+    fn send_inventory_contents(&self, entity: bevy_ecs::entity::Entity, session: &PlayerSession) {
+        let world = self.ecs.world();
+        let items = &world.resource::<super::types::ItemRegistryResource>().0;
+        let blocks = &world.resource::<super::types::BlockRegistryResource>().0;
+        let encode = |stack: &crate::item::ItemStack| {
+            if stack.is_empty() {
+                return CerealizerNetworkItemStackDescriptorSerializedData::default();
+            }
+            let Some(network_id) = items
+                .get_by_name(&stack.item_id)
+                .map(|item| item.network_id)
+                .and_then(|id| i16::try_from(id).ok())
+            else {
+                tracing::warn!(item = %stack.item_id, "Stored inventory item has no protocol ID");
+                return CerealizerNetworkItemStackDescriptorSerializedData::default();
+            };
+            CerealizerNetworkItemStackDescriptorSerializedData {
+                id: network_id,
+                stacksize: u16::from(stack.count),
+                auxvalue: stack.damage as u32,
+                net_id_variant: None,
+                block_runtime_id: if stack.runtime_id != 0 {
+                    stack.runtime_id as u32
+                } else {
+                    blocks
+                        .get_by_name(&stack.item_id)
+                        .map(|block| block.min_state_id)
+                        .unwrap_or(0)
+                },
+                user_data_buffer: stack.nbt.clone().unwrap_or_default(),
+            }
         };
-
-        // Main inventory: 36 empty slots (hotbar 0-8, main 9-35)
-        let result = session.send(McpePacket::from(InventoryContentPacket {
+        let main = world
+            .get::<MainInventory>(entity)
+            .expect("player inventory");
+        let armour = world.get::<ArmourInventory>(entity).expect("player armour");
+        let offhand = world.get::<OffhandSlot>(entity).expect("player offhand");
+        let cursor = world.get::<CursorItem>(entity).expect("player cursor");
+        let empty_item = CerealizerNetworkItemStackDescriptorSerializedData::default();
+        let mut ui = vec![empty_item.clone(); 51];
+        ui[0] = encode(&cursor.0);
+        for (container_id, container_name, slots) in [
+            (
+                0,
+                EnumsContainerEnumName::Inventorycontainer,
+                main.0.slots().iter().map(&encode).collect(),
+            ),
+            (
+                119,
+                EnumsContainerEnumName::Offhandcontainer,
+                vec![encode(&offhand.0)],
+            ),
+            (
+                120,
+                EnumsContainerEnumName::Armorcontainer,
+                armour.slots().iter().map(&encode).collect(),
+            ),
+            (124, EnumsContainerEnumName::Cursorcontainer, ui),
+        ] {
+            let _ = session.send(McpePacket::from(InventoryContentPacket {
+                container_id,
+                slots,
+                full_container_name: FullContainerName {
+                    container_name,
+                    dynamic_id: None,
+                },
+                storage_item: empty_item.clone(),
+            }));
+        }
+        let held_slot = world.get::<HeldSlot>(entity).expect("player held slot").0;
+        let _ = session.send(McpePacket::from(jolyne::valentine::MobEquipmentPacket {
+            target_runtime_id: ActorRuntimeId {
+                actor_runtime_id: world
+                    .get::<RuntimeEntityId>(entity)
+                    .expect("player runtime ID")
+                    .0 as u64,
+            },
+            item: encode(main.hotbar(held_slot).expect("valid saved hotbar slot")),
+            slot: held_slot,
+            selected_slot: held_slot,
             container_id: 0,
-            slots: vec![empty_item.clone(); 36],
-            full_container_name: container_name.clone(),
-            storage_item: empty_item.clone(),
         }));
-        debug!("Sent main inventory (36 slots, window=0): {:?}", result);
-
-        // Offhand: 1 empty slot
-        let result = session.send(McpePacket::from(InventoryContentPacket {
-            container_id: 119,
-            slots: vec![empty_item.clone(); 1],
-            full_container_name: FullContainerName {
-                container_name: EnumsContainerEnumName::Offhandcontainer,
-                dynamic_id: None,
-            },
-            storage_item: empty_item.clone(),
-        }));
-        debug!("Sent offhand inventory (1 slot, window=119): {:?}", result);
-
-        // Armor: 4 empty slots (helmet, chestplate, leggings, boots)
-        let result = session.send(McpePacket::from(InventoryContentPacket {
-            container_id: 120,
-            slots: vec![empty_item.clone(); 4],
-            full_container_name: FullContainerName {
-                container_name: EnumsContainerEnumName::Armorcontainer,
-                dynamic_id: None,
-            },
-            storage_item: empty_item.clone(),
-        }));
-        debug!("Sent armor inventory (4 slots, window=120): {:?}", result);
-
-        // UI inventory (crafting grid, cursor, etc.)
-        // The UI inventory needs a larger size to support crafting operations
-        let result = session.send(McpePacket::from(InventoryContentPacket {
-            container_id: 124,
-            slots: vec![empty_item.clone(); 51], // UI inventory size from Dragonfly
-            full_container_name: FullContainerName {
-                container_name: EnumsContainerEnumName::Cursorcontainer,
-                dynamic_id: None,
-            },
-            storage_item: empty_item,
-        }));
-        debug!("Sent UI inventory (51 slots, window=124): {:?}", result);
     }
 }

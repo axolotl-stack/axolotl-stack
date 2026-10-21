@@ -15,6 +15,7 @@ impl Pillager {
 /// Component bundle for spawning a `minecraft:pillager`
 #[derive(Bundle, Clone)]
 pub struct PillagerBundle {
+    pub attack: super::super::components::Attack,
     pub behavior_avoid_mob_type: super::super::components::BehaviorAvoidMobType,
     pub behavior_charge_held_item: super::super::components::BehaviorChargeHeldItem,
     pub behavior_equip_item: super::super::components::BehaviorEquipItem,
@@ -35,9 +36,11 @@ pub struct PillagerBundle {
     pub equip_item: super::super::components::EquipItem,
     pub equipment: super::super::components::Equipment,
     pub experience_reward: super::super::components::ExperienceReward,
+    pub flying_speed: super::super::components::FlyingSpeed,
     pub follow_range: super::super::components::FollowRange,
     pub health: super::super::components::Health,
     pub hurt_on_condition: super::super::components::HurtOnCondition,
+    pub inventory: super::super::components::Inventory,
     pub is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
     pub jump_static: super::super::components::JumpStatic,
     pub loot: super::super::components::Loot,
@@ -47,6 +50,7 @@ pub struct PillagerBundle {
     pub navigation_walk: super::super::components::NavigationWalk,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub scale: super::super::components::Scale,
     pub shareables: super::super::components::Shareables,
     pub type_family: super::super::components::TypeFamily,
     pub variant: super::super::components::Variant,
@@ -55,6 +59,11 @@ pub struct PillagerBundle {
 pub fn spawn_pillager(commands: &mut Commands) -> Entity {
     commands
         .spawn(PillagerBundle {
+            attack: super::super::components::Attack {
+                damage: crate::types::RangeOrVal::Fixed(2f32),
+                effect_duration: Some(crate::types::MolangOr::Value(0i32)),
+                effect_name: None,
+            },
             behavior_avoid_mob_type: super::super::components::BehaviorAvoidMobType {
                 avoid_mob_sound: Some("undefined".to_string()),
                 avoid_target_xz: Some(16i32),
@@ -341,6 +350,9 @@ pub fn spawn_pillager(commands: &mut Commands) -> Entity {
                     ),
                 ),
             },
+            flying_speed: super::super::components::FlyingSpeed {
+                value: 0.02f32,
+            },
             follow_range: super::super::components::FollowRange {
                 max: None,
                 min: None,
@@ -353,6 +365,14 @@ pub fn spawn_pillager(commands: &mut Commands) -> Entity {
             },
             hurt_on_condition: super::super::components::HurtOnCondition {
                 damage_conditions: None,
+            },
+            inventory: super::super::components::Inventory {
+                additional_slots_per_strength: Some(0i32),
+                can_be_siphoned_from: Some(false),
+                container_type: Some("none".to_string()),
+                inventory_size: Some(5i32),
+                private: Some(false),
+                restrict_to_owner: Some(false),
             },
             is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
             jump_static: super::super::components::JumpStatic {
@@ -405,6 +425,9 @@ pub fn spawn_pillager(commands: &mut Commands) -> Entity {
             pushable: super::super::components::Pushable {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
+            },
+            scale: super::super::components::Scale {
+                value: 1f32,
             },
             shareables: super::super::components::Shareables {
                 all_items: Some(false),

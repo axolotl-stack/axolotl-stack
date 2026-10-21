@@ -14,6 +14,7 @@ entity minecraft:allay {
             range 5.0
             value 5.0
         }
+        attack damage=2
         balloonable mass=0.5
         behavior.float priority=7
         behavior.follow_owner can_teleport=#false ignore_vibration=#false priority=6 speed_multiplier=8 start_distance=16 stop_distance=4
@@ -106,6 +107,7 @@ entity minecraft:allay {
         }
         physics has_gravity=#false
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family allay
             family mob
@@ -154,10 +156,26 @@ entity minecraft:area_effect_cloud {
     is_spawnable #false
     is_summonable #false
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=1.8 width=0.6
         conditional_bandwidth_optimization
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
+        movement 0.25
         physics has_collision=#false
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
     }
 }
 entity minecraft:armadillo {
@@ -175,6 +193,7 @@ entity minecraft:armadillo {
         }
     }
     components {
+        attack damage=2
         balloonable
         behavior.float priority=0
         behavior.panic ignore_mob_damage=#true priority=1 speed_multiplier=2.0
@@ -224,6 +243,8 @@ entity minecraft:armadillo {
                 range 2.0
             }
         }
+        flying_speed 0.02
+        follow_range 16
         health 12
         hurt_on_condition {
             condition {
@@ -232,14 +253,17 @@ entity minecraft:armadillo {
                 filters test=in_lava subject=self
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         leashable
+        movement 0.25
         movement.basic
         nameable
         navigation.walk avoid_damage_blocks=#true avoid_water=#true can_path_over_water=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family armadillo
             family mob
@@ -444,8 +468,20 @@ entity minecraft:armor_stand {
     is_spawnable #false
     is_summonable #true
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=1.975 width=0.5
         conditional_bandwidth_optimization
+        flying_speed 0.02
+        follow_range 16
         health 6 max=6
         hurt_on_condition {
             condition {
@@ -454,12 +490,15 @@ entity minecraft:armor_stand {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         knockback_resistance 1.0
         loot table="loot_tables/entities/armor_stand.json"
+        movement 0.25
         nameable
         persistent
         physics
         pushable is_pushable=#false is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family armor_stand
             family inanimate
@@ -471,6 +510,16 @@ entity minecraft:arrow {
     is_spawnable #false
     is_summonable #true
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=0.25 width=0.25
         conditional_bandwidth_optimization {
             default_values {
@@ -480,6 +529,9 @@ entity minecraft:arrow {
             }
         }
         dimension_bound
+        flying_speed 0.02
+        follow_range 16
+        health 20
         hurt_on_condition {
             condition {
                 cause lava
@@ -487,6 +539,8 @@ entity minecraft:arrow {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
+        movement 0.25
         physics
         projectile {
             anchor 1
@@ -516,6 +570,7 @@ entity minecraft:arrow {
             uncertainty_multiplier 4
         }
         pushable is_pushable=#false is_pushable_by_piston=#true
+        scale 1.0
     }
     component_groups {
         group hard_arrow {
@@ -700,6 +755,8 @@ entity minecraft:axolotl {
         despawn {
             despawn_from_distance
         }
+        flying_speed 0.02
+        follow_range 16
         health 14
         hurt_on_condition {
             condition {
@@ -708,6 +765,7 @@ entity minecraft:axolotl {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         leashable
@@ -717,6 +775,7 @@ entity minecraft:axolotl {
         navigation.generic avoid_damage_blocks=#true can_path_over_water=#true can_sink=#false can_swim=#true can_walk=#true is_amphibious=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family aquatic
             family axolotl
@@ -863,6 +922,7 @@ entity minecraft:bat {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         behavior.float priority=0
         behavior.float_wander {
             entry 0.1
@@ -885,6 +945,8 @@ entity minecraft:bat {
         despawn {
             despawn_from_distance
         }
+        flying_speed 0.02
+        follow_range 16
         game_event_movement_tracking emit_flap=#true
         health 6 max=6
         hurt_on_condition {
@@ -894,6 +956,7 @@ entity minecraft:bat {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         movement 0.1
@@ -902,6 +965,7 @@ entity minecraft:bat {
         navigation.float can_path_over_water=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family bat
             family mob
@@ -916,6 +980,7 @@ entity minecraft:bee {
         has_nectar type=bool default=#false client_sync=#true
     }
     components {
+        attack damage=2
         balloonable mass=0.5
         behavior.float priority=19
         behavior.move_towards_home_restriction priority=9
@@ -1030,6 +1095,7 @@ entity minecraft:bee {
                 use_item #true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         leashable
@@ -1048,6 +1114,7 @@ entity minecraft:bee {
         on_target_acquired event=attacked target=self
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family bee
             family mob
@@ -1529,6 +1596,7 @@ entity minecraft:blaze {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         behavior.float priority=0
         behavior.hurt_by_target priority=1
         behavior.nearest_attackable_target {
@@ -1541,6 +1609,15 @@ entity minecraft:blaze {
         }
         behavior.random_look_around priority=5
         behavior.random_stroll priority=4 speed_multiplier=1.0
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         can_climb
         collision_box height=1.8 width=0.5
         conditional_bandwidth_optimization
@@ -1555,6 +1632,7 @@ entity minecraft:blaze {
         }
         experience_reward on_death="query.last_hit_by_player ? 10 : 0"
         fire_immune
+        flying_speed 0.02
         follow_range 48 max=48
         health 20 max=20
         hurt_on_condition {
@@ -1564,6 +1642,7 @@ entity minecraft:blaze {
                 filters test=in_contact_with_water
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         loot table="loot_tables/entities/blaze.json"
@@ -1575,6 +1654,7 @@ entity minecraft:blaze {
         on_hurt_by_player event=minecraft:on_hurt_event target=self
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family blaze
             family monster
@@ -1636,7 +1716,17 @@ entity minecraft:boat {
     is_spawnable #false
     is_summonable #true
     components {
+        attack damage=2
         balloonable
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         buoyant {
             apply_gravity #true
             base_buoyancy 1.0
@@ -1660,6 +1750,9 @@ entity minecraft:boat {
                 use_motion_prediction_hints #true
             }
         }
+        flying_speed 0.02
+        follow_range 16
+        health 20
         hurt_on_condition {
             condition {
                 cause lava
@@ -1701,6 +1794,7 @@ entity minecraft:boat {
                 }
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_collidable
         is_stackable
         leashable {
@@ -1713,6 +1807,7 @@ entity minecraft:boat {
         }
         leashable_to
         loot table="loot_tables/entities/boat.json"
+        movement 0.25
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
         rideable {
@@ -1748,6 +1843,7 @@ entity minecraft:boat {
                 rotate_rider_by "query.has_any_family('blaze', 'creeper', 'enderman', 'illager', 'magmacube', 'piglin', 'player', 'skeleton', 'slime', 'villager', 'wandering_trader', 'witch', 'zombie', 'zombie_pigman', 'happy_ghast', 'copper_golem') ? -90 : 0"
             }
         }
+        scale 1.0
         type_family {
             family boat
             family inanimate
@@ -1899,6 +1995,7 @@ entity minecraft:bogged {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         behavior.avoid_mob_type {
             entity_type {
                 filters test=is_family subject=other value=wolf
@@ -1963,6 +2060,8 @@ entity minecraft:bogged {
         }
         equipment table="loot_tables/entities/skeleton_gear.json"
         experience_reward on_death="query.last_hit_by_player ? 5 + (query.equipment_count * Math.Random(1,3)) : 0"
+        flying_speed 0.02
+        follow_range 16
         health 16 max=16
         hurt_on_condition {
             condition {
@@ -1990,6 +2089,7 @@ entity minecraft:bogged {
                 use_item #false
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         loot table="loot_tables/entities/bogged.json"
@@ -1999,6 +2099,7 @@ entity minecraft:bogged {
         navigation.walk avoid_sun=#true avoid_water=#true is_amphibious=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         shareables {
             item item=minecraft:netherite_sword priority=0 surplus_amount=1 want_amount=1
             item item=minecraft:diamond_sword priority=1 surplus_amount=1 want_amount=1
@@ -2107,6 +2208,7 @@ entity minecraft:breeze {
         is_playing_idle_ground_sound type=bool default=#false client_sync=#false
     }
     components {
+        attack damage=2
         behavior.fire_at_target {
             attack_cooldown 0.5
             entry 0
@@ -2241,6 +2343,7 @@ entity minecraft:breeze {
             }
         }
         experience_reward on_bred="Math.Random(1,7)" on_death="query.last_hit_by_player ? 10 : 0"
+        flying_speed 0.02
         follow_range 32.0
         health 30 max=30
         hurt_on_condition {
@@ -2250,6 +2353,7 @@ entity minecraft:breeze {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         knockback_resistance 0.0
@@ -2284,6 +2388,7 @@ entity minecraft:breeze {
             reflected_projectile fishing_hook
             reflection_scale "0.5"
         }
+        scale 1.0
         type_family {
             family breeze
             family monster
@@ -2303,6 +2408,16 @@ entity minecraft:breeze_wind_charge_projectile {
     is_spawnable #false
     is_summonable #false
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=0.3125 width=0.3125
         conditional_bandwidth_optimization {
             default_values {
@@ -2324,6 +2439,11 @@ entity minecraft:breeze_wind_charge_projectile {
             sound_effect breeze_wind_charge.burst
             toggles_blocks #true
         }
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
+        movement 0.25
         physics
         projectile {
             gravity 0.0
@@ -2345,6 +2465,7 @@ entity minecraft:breeze_wind_charge_projectile {
             uncertainty_multiplier 4.0
         }
         pushable is_pushable=#false is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family wind_charge
             family wind_charge_projectile
@@ -2356,6 +2477,7 @@ entity minecraft:camel {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         balloonable
         behavior.float chance_per_tick_to_float=1.0 priority=0 time_under_water_to_dismount_passengers=2.0
         behavior.look_at_player priority=7 probability=0.02 target_distance=6.0
@@ -2395,6 +2517,8 @@ entity minecraft:camel {
         despawn {
             despawn_from_distance
         }
+        flying_speed 0.02
+        follow_range 16
         healable {
             item heal_amount=2 item=cactus
         }
@@ -2406,6 +2530,7 @@ entity minecraft:camel {
                 filters test=in_lava subject=self
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         is_tamed
         jump.static
@@ -2421,6 +2546,7 @@ entity minecraft:camel {
         navigation.walk avoid_damage_blocks=#true can_path_over_water=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family camel
             family mob
@@ -2599,6 +2725,7 @@ entity minecraft:camel_husk {
         has_rider_mounted type=bool default=#false client_sync=#false
     }
     components {
+        attack damage=2
         balloonable
         behavior.float chance_per_tick_to_float=1.0 priority=0 time_under_water_to_dismount_passengers=2.0
         behavior.look_at_player priority=8 probability=0.02 target_distance=6.0
@@ -2649,6 +2776,8 @@ entity minecraft:camel_husk {
             }
         }
         experience_reward on_bred="Math.Random(1,7)" on_death="query.last_hit_by_player ? Math.Random(1,3) : 0"
+        flying_speed 0.02
+        follow_range 16
         healable {
             item heal_amount=2 item=rabbit_foot
         }
@@ -2693,6 +2822,7 @@ entity minecraft:camel_husk {
                 entry -0.5
             }
         }
+        scale 1.0
         type_family {
             family camel_husk
             family mob
@@ -2842,6 +2972,7 @@ entity minecraft:cat {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         attack_damage 4
         balloonable mass=0.6
         behavior.float priority=0
@@ -2885,10 +3016,13 @@ entity minecraft:cat {
             update_interval_base 60
             update_interval_variant 40
         }
+        flying_speed 0.02
+        follow_range 16
         healable {
             item heal_amount=2 item=fish
             item heal_amount=2 item=salmon
         }
+        health 20
         hurt_on_condition {
             condition {
                 cause lava
@@ -2896,6 +3030,7 @@ entity minecraft:cat {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         leashable
@@ -2905,6 +3040,7 @@ entity minecraft:cat {
         navigation.walk avoid_damage_blocks=#true avoid_water=#true can_float=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family cat
             family mob
@@ -3138,6 +3274,7 @@ entity minecraft:cave_spider {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         behavior.avoid_mob_type {
             entity_type {
                 filters {
@@ -3168,6 +3305,8 @@ entity minecraft:cave_spider {
             despawn_from_distance
         }
         experience_reward on_death="query.last_hit_by_player ? 5 : 0"
+        flying_speed 0.02
+        follow_range 16
         health 12 max=12
         hurt_on_condition {
             condition {
@@ -3176,6 +3315,7 @@ entity minecraft:cave_spider {
                 filters test=in_lava subject=self
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         loot table="loot_tables/entities/spider.json"
@@ -3196,6 +3336,7 @@ entity minecraft:cave_spider {
                 seat 0.0
             }
         }
+        scale 1.0
         type_family {
             family cavespider
             family monster
@@ -3373,7 +3514,17 @@ entity minecraft:chest_boat {
     is_spawnable #false
     is_summonable #true
     components {
+        attack damage=2
         balloonable
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         buoyant {
             apply_gravity #true
             base_buoyancy 1.0
@@ -3397,6 +3548,9 @@ entity minecraft:chest_boat {
                 use_motion_prediction_hints #true
             }
         }
+        flying_speed 0.02
+        follow_range 16
+        health 20
         hurt_on_condition {
             condition {
                 cause lava
@@ -3450,6 +3604,7 @@ entity minecraft:chest_boat {
             preset hard_distance=4.0 rotation_adjustment=90 soft_distance=2.0
         }
         leashable_to
+        movement 0.25
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
         rideable {
@@ -3467,6 +3622,7 @@ entity minecraft:chest_boat {
                 rotate_rider_by "query.has_any_family('blaze', 'creeper', 'enderman', 'illager', 'magmacube', 'piglin', 'player', 'skeleton', 'slime', 'villager', 'wandering_trader', 'witch', 'zombie', 'zombie_pigman', 'happy_ghast', 'copper_golem') ? -90 : 0"
             }
         }
+        scale 1.0
         type_family {
             family boat
             family inanimate
@@ -3581,6 +3737,16 @@ entity minecraft:chest_minecart {
     is_spawnable #false
     is_summonable #true
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=0.7 width=0.98
         conditional_bandwidth_optimization {
             conditional_value {
@@ -3594,11 +3760,16 @@ entity minecraft:chest_minecart {
                 use_motion_prediction_hints #true
             }
         }
+        flying_speed 0.02
+        follow_range 16
+        health 20
         inventory can_be_siphoned_from=#true container_type=minecart_chest inventory_size=27
         is_stackable #true
+        movement 0.25
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
         rail_movement
+        scale 1.0
         type_family {
             family minecart
             family inanimate
@@ -3618,6 +3789,7 @@ entity minecraft:chicken {
         }
     }
     components {
+        attack damage=2
         balloonable mass=0.5
         behavior.float priority=0
         behavior.look_at_player look_distance=6.0 priority=7 probability=0.02
@@ -3648,6 +3820,8 @@ entity minecraft:chicken {
         despawn {
             despawn_from_distance
         }
+        flying_speed 0.02
+        follow_range 16
         game_event_movement_tracking emit_flap=#true
         health 4 max=4
         hurt_on_condition {
@@ -3657,6 +3831,7 @@ entity minecraft:chicken {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         leashable
@@ -3666,6 +3841,7 @@ entity minecraft:chicken {
         navigation.walk avoid_damage_blocks=#true can_path_over_water=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family chicken
             family mob
@@ -3774,6 +3950,7 @@ entity minecraft:cod {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         behavior.avoid_mob_type {
             entity_type {
                 filters {
@@ -3821,6 +3998,8 @@ entity minecraft:cod {
             separation_weight 1.75
             use_center_of_mass #true
         }
+        flying_speed 0.02
+        follow_range 16
         health 3 max=3
         hurt_on_condition {
             condition {
@@ -3829,6 +4008,7 @@ entity minecraft:cod {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         loot table="loot_tables/entities/fish.json"
         movement 0.1
@@ -3850,6 +4030,16 @@ entity minecraft:command_block_minecart {
     is_spawnable #false
     is_summonable #true
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=0.7 width=0.98
         conditional_bandwidth_optimization {
             conditional_value {
@@ -3863,10 +4053,15 @@ entity minecraft:command_block_minecart {
                 use_motion_prediction_hints #true
             }
         }
+        flying_speed 0.02
+        follow_range 16
+        health 20
         inventory
+        movement 0.25
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
         rail_movement
+        scale 1.0
         type_family {
             family minecart
             family inanimate
@@ -3976,6 +4171,15 @@ entity minecraft:copper_golem {
             source_container_type minecraft:waxed_weathered_copper_chest
             source_container_type minecraft:weathered_copper_chest
         }
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         can_climb
         collision_box height=0.98 width=0.6
         conditional_bandwidth_optimization
@@ -3995,6 +4199,8 @@ entity minecraft:copper_golem {
         equipment {
             entry drop_chance=1.0 slot=slot.weapon.mainhand
         }
+        flying_speed 0.02
+        follow_range 16
         health 12 max=12
         hurt_on_condition {
             condition {
@@ -4086,6 +4292,7 @@ entity minecraft:copper_golem {
                 vibration shear
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         leashable
@@ -4098,6 +4305,7 @@ entity minecraft:copper_golem {
         persistent
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family copper_golem
             family mob
@@ -4270,6 +4478,7 @@ entity minecraft:cow {
         }
     }
     components {
+        attack damage=2
         balloonable
         behavior.breed priority=3 speed_multiplier=1.0
         behavior.float priority=0
@@ -4291,6 +4500,8 @@ entity minecraft:cow {
         despawn {
             despawn_from_distance
         }
+        flying_speed 0.02
+        follow_range 16
         health 10 max=10
         hurt_on_condition {
             condition {
@@ -4299,6 +4510,7 @@ entity minecraft:cow {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         leashable
@@ -4308,6 +4520,7 @@ entity minecraft:cow {
         navigation.walk avoid_damage_blocks=#true avoid_water=#true can_path_over_water=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family cow
             family mob
@@ -4417,20 +4630,33 @@ entity minecraft:creaking {
     }
     components {
         attack damage=3
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         can_climb
         collision_box height=2.7 width=0.9
         despawn {
             despawn_from_distance
         }
+        flying_speed 0.02
         follow_range 32 max=32
         health 1 max=1
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
+        movement 0.25
         movement.basic
         nameable
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
         renders_when_invisible
+        scale 1.0
         type_family {
             family creaking
             family monster
@@ -4761,6 +4987,8 @@ entity minecraft:creeper {
             despawn_from_distance
         }
         experience_reward on_death="query.last_hit_by_player ? 5 : 0"
+        flying_speed 0.02
+        follow_range 16
         health 20 max=20
         hurt_on_condition {
             condition {
@@ -4786,6 +5014,7 @@ entity minecraft:creeper {
                 swing #true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         loot table="loot_tables/entities/creeper.json"
@@ -4796,6 +5025,7 @@ entity minecraft:creeper {
         on_target_escape event=minecraft:stop_exploding target=self
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         target_nearby_sensor {
             inside_range 2.5
             must_see #true
@@ -4923,6 +5153,7 @@ entity minecraft:dolphin {
             separation_weight 1.75
             use_center_of_mass #false
         }
+        flying_speed 0.02
         follow_range 48 max=48
         health 10 max=10
         hurt_on_condition {
@@ -4932,6 +5163,7 @@ entity minecraft:dolphin {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static jump_power=0.6
         leashable
@@ -4942,6 +5174,7 @@ entity minecraft:dolphin {
         on_target_escape target=self
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family aquatic
             family dolphin
@@ -5083,6 +5316,7 @@ entity minecraft:donkey {
     is_summonable #true
     components {
         ambient_sound_interval
+        attack damage=2
         balloonable
         behavior.float chance_per_tick_to_float=1.0 priority=0 time_under_water_to_dismount_passengers=2.0
         behavior.look_at_player look_distance=6.0 priority=7 probability=0.02
@@ -5102,6 +5336,8 @@ entity minecraft:donkey {
         despawn {
             despawn_from_distance
         }
+        flying_speed 0.02
+        follow_range 16
         healable {
             item heal_amount=2 item=wheat
             item heal_amount=1 item=sugar
@@ -5126,6 +5362,7 @@ entity minecraft:donkey {
                 filters test=in_lava subject=self
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         leashable {
@@ -5140,6 +5377,7 @@ entity minecraft:donkey {
         navigation.walk avoid_damage_blocks=#true avoid_water=#true can_path_over_water=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family donkey
             family mob
@@ -5428,6 +5666,16 @@ entity minecraft:dragon_fireball {
     is_spawnable #false
     is_summonable #false
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=0.31 width=0.31
         conditional_bandwidth_optimization {
             default_values {
@@ -5437,6 +5685,11 @@ entity minecraft:dragon_fireball {
             }
         }
         dimension_bound
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
+        movement 0.25
         physics
         projectile {
             anchor 2
@@ -5467,6 +5720,7 @@ entity minecraft:dragon_fireball {
             uncertainty_base 10.0
         }
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
     }
 }
 entity minecraft:drowned {
@@ -5474,6 +5728,7 @@ entity minecraft:drowned {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         behavior.equip_item priority=3
         behavior.flee_sun priority=2 speed_multiplier=1
         behavior.hurt_by_target priority=1
@@ -5553,6 +5808,8 @@ entity minecraft:drowned {
         equip_item {
             excluded_item item=minecraft:banner:15
         }
+        flying_speed 0.02
+        follow_range 16
         health 20 max=20
         hurt_on_condition {
             condition {
@@ -5561,6 +5818,7 @@ entity minecraft:drowned {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         jump.static
         movement 0.23
         movement.generic
@@ -5571,6 +5829,7 @@ entity minecraft:drowned {
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
         rotation_locked_to_vehicle
+        scale 1.0
         shareables {
             item item=minecraft:trident priority=0 surplus_amount=1 want_amount=1
             item item=minecraft:nautilus_shell priority=1 surplus_amount=1 want_amount=1
@@ -5756,6 +6015,16 @@ entity minecraft:egg {
         }
     }
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=0.25 width=0.25
         conditional_bandwidth_optimization {
             default_values {
@@ -5764,6 +6033,11 @@ entity minecraft:egg {
                 use_motion_prediction_hints #true
             }
         }
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
+        movement 0.25
         physics
         projectile {
             angle_offset 0.0
@@ -5813,6 +6087,7 @@ entity minecraft:egg {
             power 1.5
         }
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
     }
     events {
         event spawn_cold
@@ -5850,6 +6125,7 @@ entity minecraft:elder_guardian {
         collision_box height=1.99 width=1.99
         conditional_bandwidth_optimization
         experience_reward on_death="query.last_hit_by_player ? 10 : 0"
+        flying_speed 0.02
         follow_range 16 max=16
         health 80 max=80
         home restriction_radius=16 restriction_type=random_movement
@@ -5860,6 +6136,7 @@ entity minecraft:elder_guardian {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         loot table="loot_tables/entities/elder_guardian.json"
@@ -5869,6 +6146,7 @@ entity minecraft:elder_guardian {
         navigation.generic can_breach=#true can_path_over_water=#false can_swim=#true can_walk=#false is_amphibious=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family aquatic
             family guardian_elder
@@ -5882,13 +6160,28 @@ entity minecraft:ender_crystal {
     is_spawnable #false
     is_summonable #true
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=2 width=2
         conditional_bandwidth_optimization
         fire_immune #true
+        flying_speed 0.02
+        follow_range 16
         health 1 max=1
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
+        movement 0.25
         on_hurt event=minecraft:crystal_explode target=self
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
     }
     component_groups {
         group crystal_exploding {
@@ -5908,6 +6201,15 @@ entity minecraft:ender_dragon {
     components {
         attack damage=3
         boss hud_range=125 should_darken_sky=#false
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=4 width=13
         damage_sensor {
             triggers {
@@ -5918,8 +6220,10 @@ entity minecraft:ender_dragon {
         dimension_bound
         fire_immune #true
         flying_speed 0.6
+        follow_range 16
         game_event_movement_tracking emit_flap=#true
         health 200 max=200
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         knockback_resistance 100 max=100
         movement 0.3
@@ -5929,6 +6233,7 @@ entity minecraft:ender_dragon {
         persistent
         physics has_collision=#false has_gravity=#false
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family dragon
             family mob
@@ -5974,6 +6279,16 @@ entity minecraft:ender_pearl {
     is_spawnable #false
     is_summonable #false
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=0.25 width=0.25
         conditional_bandwidth_optimization {
             default_values {
@@ -5982,6 +6297,11 @@ entity minecraft:ender_pearl {
                 use_motion_prediction_hints #true
             }
         }
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
+        movement 0.25
         physics
         projectile {
             angle_offset 0.0
@@ -6000,6 +6320,7 @@ entity minecraft:ender_pearl {
             power 1.5
         }
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
     }
     component_groups {
         group no_spawn {
@@ -6114,6 +6435,7 @@ entity minecraft:enderman {
             despawn_from_distance
         }
         experience_reward on_death="query.last_hit_by_player ? 5 : 0"
+        flying_speed 0.02
         follow_range 64 max=64
         health 40 max=40
         hurt_on_condition {
@@ -6128,6 +6450,7 @@ entity minecraft:enderman {
                 filters test=in_contact_with_water
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         looked_at {
@@ -6138,12 +6461,14 @@ entity minecraft:enderman {
             set_target once_and_stop_scanning
         }
         loot table="loot_tables/entities/enderman.json"
+        movement 0.25
         movement.basic
         nameable
         navigation.walk avoid_water=#true can_path_over_water=#false
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
         renders_when_invisible
+        scale 1.0
         teleport {
             light_teleport_chance 0.05
             max_random_teleport_time 30
@@ -6259,6 +6584,8 @@ entity minecraft:endermite {
             despawn_from_distance
         }
         experience_reward on_death="query.last_hit_by_player ? 3 : 0"
+        flying_speed 0.02
+        follow_range 16
         health 8 max=8
         hurt_on_condition {
             condition {
@@ -6267,6 +6594,7 @@ entity minecraft:endermite {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         movement 0.25
@@ -6275,6 +6603,7 @@ entity minecraft:endermite {
         navigation.walk can_path_over_water=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family endermite
             family arthropod
@@ -6289,6 +6618,7 @@ entity minecraft:evocation_illager {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         behavior.avoid_mob_type {
             entity_type {
                 filters test=is_family subject=other value=player
@@ -6435,6 +6765,7 @@ entity minecraft:evocation_illager {
         conditional_bandwidth_optimization
         equip_item
         experience_reward on_death="10"
+        flying_speed 0.02
         follow_range 64
         health 24 max=24
         hurt_on_condition {
@@ -6444,6 +6775,7 @@ entity minecraft:evocation_illager {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         loot table="loot_tables/entities/evocation_illager.json"
@@ -6454,6 +6786,7 @@ entity minecraft:evocation_illager {
         persistent
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         shareables {
             item item=minecraft:banner:15 priority=0 surplus_amount=1 want_amount=1
         }
@@ -6523,6 +6856,16 @@ entity minecraft:eye_of_ender_signal {
     is_spawnable #false
     is_summonable #false
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=0.25 width=0.25
         conditional_bandwidth_optimization {
             default_values {
@@ -6531,14 +6874,30 @@ entity minecraft:eye_of_ender_signal {
                 use_motion_prediction_hints #true
             }
         }
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
+        movement 0.25
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
     }
 }
 entity minecraft:fireball {
     is_spawnable #false
     is_summonable #false
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=1.0 width=1.0
         conditional_bandwidth_optimization {
             default_values {
@@ -6548,6 +6907,11 @@ entity minecraft:fireball {
             }
         }
         dimension_bound
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
+        movement 0.25
         physics
         projectile {
             anchor 2
@@ -6578,6 +6942,7 @@ entity minecraft:fireball {
             uncertainty_multiplier 0
         }
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
     }
     component_groups {
         group exploding {
@@ -6594,6 +6959,16 @@ entity minecraft:fireworks_rocket {
     is_spawnable #false
     is_summonable #true
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=0.25 width=0.25
         conditional_bandwidth_optimization {
             default_values {
@@ -6602,14 +6977,30 @@ entity minecraft:fireworks_rocket {
                 use_motion_prediction_hints #true
             }
         }
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
+        movement 0.25
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
     }
 }
 entity minecraft:fishing_hook {
     is_spawnable #false
     is_summonable #false
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=0.15 width=0.15
         conditional_bandwidth_optimization {
             default_values {
@@ -6619,7 +7010,12 @@ entity minecraft:fishing_hook {
             }
         }
         dimension_bound
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         loot table="loot_tables/gameplay/fishing.json"
+        movement 0.25
         physics
         projectile {
             on_hit {
@@ -6627,6 +7023,7 @@ entity minecraft:fishing_hook {
             }
         }
         pushable is_pushable=#false is_pushable_by_piston=#true
+        scale 1.0
         transient
     }
     component_groups {
@@ -6736,6 +7133,8 @@ entity minecraft:fox {
             }
         }
         equip_item can_wear_armor=#false
+        flying_speed 0.02
+        follow_range 16
         health 10 max=10
         hurt_on_condition {
             condition {
@@ -6744,6 +7143,7 @@ entity minecraft:fox {
                 filters test=in_lava subject=self
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         leashable
@@ -6753,6 +7153,7 @@ entity minecraft:fox {
         navigation.walk avoid_damage_blocks=#true avoid_water=#true can_path_over_water=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         scheduler {
             max_delay_secs 0
             min_delay_secs 0
@@ -7093,6 +7494,7 @@ entity minecraft:frog {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         behavior.breed priority=4
         behavior.croak {
             duration 4.5
@@ -7182,6 +7584,8 @@ entity minecraft:frog {
             despawn_from_distance
         }
         experience_reward on_bred="Math.Random(1,7)" on_death="query.last_hit_by_player ? Math.Random(1,3) : 0"
+        flying_speed 0.02
+        follow_range 16
         health 10
         hurt_on_condition {
             condition {
@@ -7190,6 +7594,7 @@ entity minecraft:frog {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         leashable
@@ -7200,6 +7605,7 @@ entity minecraft:frog {
         navigation.generic avoid_damage_blocks=#true can_path_over_water=#true can_sink=#false can_swim=#true can_walk=#true is_amphibious=#true
         physics
         pushable
+        scale 1.0
         type_family {
             family frog
             family mob
@@ -7263,6 +7669,7 @@ entity minecraft:ghast {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         behavior.float priority=0
         behavior.float_wander {
             entry 2
@@ -7298,8 +7705,10 @@ entity minecraft:ghast {
         }
         experience_reward on_death="query.last_hit_by_player ? 5 + (query.equipment_count * Math.Random(1,3)) : 0"
         fire_immune
+        flying_speed 0.02
         follow_range 64 max=64
         health 10 max=10
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         loot table="loot_tables/entities/ghast.json"
@@ -7308,6 +7717,7 @@ entity minecraft:ghast {
         navigation.float can_path_over_water=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         shooter def=minecraft:fireball
         type_family {
             family ghast
@@ -7321,6 +7731,7 @@ entity minecraft:glow_squid {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         balloonable mass=0.5
         behavior.squid_dive priority=2
         behavior.squid_flee priority=2
@@ -7334,6 +7745,8 @@ entity minecraft:glow_squid {
             despawn_from_distance
         }
         experience_reward on_death="!query.is_baby && query.last_hit_by_player ? Math.Random(1,3) : 0"
+        flying_speed 0.02
+        follow_range 16
         health 10 max=10
         hurt_on_condition {
             condition {
@@ -7342,6 +7755,7 @@ entity minecraft:glow_squid {
                 filters test=in_lava subject=self
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         leashable
@@ -7352,6 +7766,7 @@ entity minecraft:glow_squid {
         navigation.walk can_path_over_water=#true can_sink=#false
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family aquatic
             family squid
@@ -7381,6 +7796,7 @@ entity minecraft:goat {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         balloonable
         behavior.float priority=0
         behavior.jump_to_block {
@@ -7427,6 +7843,8 @@ entity minecraft:goat {
         despawn {
             despawn_from_distance
         }
+        flying_speed 0.02
+        follow_range 16
         genetics {
             gene {
                 allele_range {
@@ -7466,6 +7884,7 @@ entity minecraft:goat {
                 filters test=in_lava subject=self
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         leashable
@@ -7480,6 +7899,7 @@ entity minecraft:goat {
         }
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family goat
             family animal
@@ -7670,6 +8090,7 @@ entity minecraft:guardian {
             despawn_from_distance
         }
         experience_reward on_death="query.last_hit_by_player ? 10 : 0"
+        flying_speed 0.02
         follow_range 16 max=16
         health 30 max=30
         home restriction_radius=16 restriction_type=random_movement
@@ -7680,6 +8101,7 @@ entity minecraft:guardian {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         loot table="loot_tables/entities/guardian.json"
@@ -7689,6 +8111,7 @@ entity minecraft:guardian {
         navigation.generic can_breach=#true can_path_over_water=#false can_swim=#true can_walk=#false is_amphibious=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         target_nearby_sensor {
             inside_range 3.0
             on_inside_range {
@@ -7772,8 +8195,18 @@ entity minecraft:happy_ghast {
         can_move type=bool default=#true client_sync=#true
     }
     components {
+        attack damage=2
         behavior.float priority=0
         body_rotation_always_follows_head
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         can_fly
         collision_box height=4.0 width=4.0
         conditional_bandwidth_optimization
@@ -7783,7 +8216,9 @@ entity minecraft:happy_ghast {
         despawn {
             despawn_from_distance
         }
+        flying_speed 0.02
         follow_range 16 max=16
+        health 20
         hurt_on_condition {
             condition {
                 cause lava
@@ -7791,6 +8226,7 @@ entity minecraft:happy_ghast {
                 filters test=in_lava
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         is_tamed
         jump.static
@@ -7801,10 +8237,12 @@ entity minecraft:happy_ghast {
             }
             preset hard_distance=10 max_distance=14
         }
+        movement 0.25
         nameable
         physics has_gravity=#false
         pushable is_pushable=#true is_pushable_by_piston=#true
         renders_when_invisible
+        scale 1.0
         type_family {
             family happy_ghast
             family mob
@@ -8155,6 +8593,7 @@ entity minecraft:hoglin {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         balloonable
         behavior.avoid_block {
             avoid_block_sound retreat
@@ -8215,6 +8654,8 @@ entity minecraft:hoglin {
             despawn_from_distance
         }
         experience_reward on_bred="Math.Random(1,7)" on_death="query.last_hit_by_player ? 5 : 0"
+        flying_speed 0.02
+        follow_range 16
         health 40 max=40
         hurt_on_condition {
             condition {
@@ -8223,15 +8664,18 @@ entity minecraft:hoglin {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         knockback_resistance 0.6
         leashable
+        movement 0.25
         movement.basic
         nameable
         navigation.walk avoid_damage_blocks=#true avoid_water=#true can_path_over_water=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
     }
     component_groups {
         group angry_hoglin {
@@ -8464,6 +8908,16 @@ entity minecraft:hopper_minecart {
     is_spawnable #false
     is_summonable #true
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=0.7 width=0.98
         conditional_bandwidth_optimization {
             conditional_value {
@@ -8477,11 +8931,16 @@ entity minecraft:hopper_minecart {
                 use_motion_prediction_hints #true
             }
         }
+        flying_speed 0.02
+        follow_range 16
+        health 20
         inventory can_be_siphoned_from=#true container_type=minecart_hopper inventory_size=5
         is_stackable
+        movement 0.25
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
         rail_movement
+        scale 1.0
         type_family {
             family minecart
             family inanimate
@@ -8524,6 +8983,7 @@ entity minecraft:horse {
     is_summonable #true
     components {
         ambient_sound_interval
+        attack damage=2
         balloonable
         behavior.float chance_per_tick_to_float=1.0 priority=0 time_under_water_to_dismount_passengers=2.0
         behavior.look_at_player look_distance=6.0 priority=7 probability=0.02
@@ -8536,6 +8996,15 @@ entity minecraft:horse {
             item golden_carrot
             priority 5
             speed_multiplier 1.2
+        }
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
         }
         collision_box height=1.6 width=1.4
         conditional_bandwidth_optimization
@@ -8565,6 +9034,8 @@ entity minecraft:horse {
                 slot 1
             }
         }
+        flying_speed 0.02
+        follow_range 16
         healable {
             item heal_amount=2 item=wheat
             item heal_amount=1 item=sugar
@@ -8594,6 +9065,7 @@ entity minecraft:horse {
                 filters test=in_lava subject=self
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         leashable {
@@ -8613,6 +9085,7 @@ entity minecraft:horse {
         navigation.walk avoid_damage_blocks=#true avoid_water=#true can_path_over_water=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family horse
             family mob
@@ -8983,6 +9456,8 @@ entity minecraft:husk {
             excluded_item item=minecraft:banner:15
         }
         equipment table="loot_tables/entities/zombie_equipment.json"
+        flying_speed 0.02
+        follow_range 16
         health 20 max=20
         hurt_on_condition {
             condition {
@@ -8991,15 +9466,18 @@ entity minecraft:husk {
                 filters test=in_lava
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         loot table="loot_tables/entities/zombie.json"
+        movement 0.25
         movement.basic
         nameable
         navigation.walk avoid_portals=#false can_break_doors=#true can_pass_doors=#true is_amphibious=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
         rotation_locked_to_vehicle
+        scale 1.0
         shareables {
             item item=minecraft:netherite_sword priority=0 surplus_amount=1 want_amount=1
             item item=minecraft:diamond_sword priority=1 surplus_amount=1 want_amount=1
@@ -9323,6 +9801,15 @@ entity minecraft:iron_golem {
             percent_chance 5.0
             priority 1
         }
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         can_climb
         collision_box height=2.9 width=1.4
         conditional_bandwidth_optimization
@@ -9332,6 +9819,7 @@ entity minecraft:iron_golem {
                 deals_damage no
             }
         }
+        flying_speed 0.02
         follow_range 64
         health 100 max=100
         hurt_on_condition {
@@ -9356,6 +9844,7 @@ entity minecraft:iron_golem {
                 use_item #true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         knockback_resistance 1.0
@@ -9537,6 +10026,7 @@ entity minecraft:iron_golem {
             }
         }
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family irongolem
             family mob
@@ -9592,6 +10082,16 @@ entity minecraft:lightning_bolt {
     is_spawnable #false
     is_summonable #true
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=1.8 width=0.6
         conditional_bandwidth_optimization {
             default_values {
@@ -9600,8 +10100,14 @@ entity minecraft:lightning_bolt {
                 use_motion_prediction_hints #true
             }
         }
-        physics drag=0.02 gravity=0.08 has_collision=#true has_gravity=#true
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
+        movement 0.25
+        physics has_collision=#true has_gravity=#true
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family lightning
         }
@@ -9611,6 +10117,16 @@ entity minecraft:lingering_potion {
     is_spawnable #false
     is_summonable #false
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=0.25 width=0.25
         conditional_bandwidth_optimization {
             default_values {
@@ -9619,6 +10135,11 @@ entity minecraft:lingering_potion {
                 use_motion_prediction_hints #true
             }
         }
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
+        movement 0.25
         physics
         projectile {
             angle_offset -20.0
@@ -9637,6 +10158,7 @@ entity minecraft:lingering_potion {
             power 0.5
         }
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
     }
 }
 entity minecraft:llama {
@@ -9644,6 +10166,7 @@ entity minecraft:llama {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         balloonable
         behavior.float priority=0
         behavior.hurt_by_target hurt_owner=#true priority=1
@@ -9687,6 +10210,7 @@ entity minecraft:llama {
         despawn {
             despawn_from_distance
         }
+        flying_speed 0.02
         follow_range 40 max=40
         healable {
             item heal_amount=2 item=wheat
@@ -9705,6 +10229,7 @@ entity minecraft:llama {
                 filters test=in_lava subject=self
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         leashable {
@@ -9740,6 +10265,7 @@ entity minecraft:llama {
         }
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         shooter def=minecraft:llama_spit
         type_family {
             family llama
@@ -10044,6 +10570,16 @@ entity minecraft:llama_spit {
     is_spawnable #false
     is_summonable #false
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=0.31 width=0.31
         conditional_bandwidth_optimization {
             default_values {
@@ -10052,6 +10588,11 @@ entity minecraft:llama_spit {
                 use_motion_prediction_hints #true
             }
         }
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
+        movement 0.25
         physics
         projectile {
             anchor 1
@@ -10073,6 +10614,7 @@ entity minecraft:llama_spit {
             uncertainty_multiplier 4
         }
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
     }
 }
 entity minecraft:magma_cube {
@@ -10080,6 +10622,7 @@ entity minecraft:magma_cube {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         behavior.nearest_attackable_target {
             entity_type {
                 filters {
@@ -10113,8 +10656,13 @@ entity minecraft:magma_cube {
         }
         experience_reward on_death="query.last_hit_by_player ? query.variant : 0"
         fire_immune
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
+        movement 0.25
         movement.jump {
             entry 2.0
             entry 6.0
@@ -10125,6 +10673,7 @@ entity minecraft:magma_cube {
         on_target_escape event=minecraft:become_calm target=self
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family magmacube
             family monster
@@ -10230,6 +10779,16 @@ entity minecraft:minecart {
     is_spawnable #false
     is_summonable #true
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=0.7 width=0.98
         conditional_bandwidth_optimization {
             conditional_value {
@@ -10243,7 +10802,12 @@ entity minecraft:minecart {
                 use_motion_prediction_hints #true
             }
         }
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_stackable
+        movement 0.25
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
         rail_movement
@@ -10258,6 +10822,7 @@ entity minecraft:minecart {
                 seat 0.0
             }
         }
+        scale 1.0
         type_family {
             family minecart
             family inanimate
@@ -10269,6 +10834,7 @@ entity minecraft:mooshroom {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         balloonable
         behavior.breed priority=3 speed_multiplier=1.0
         behavior.float priority=0
@@ -10314,6 +10880,8 @@ entity minecraft:mooshroom {
         despawn {
             despawn_from_distance
         }
+        flying_speed 0.02
+        follow_range 16
         health 10 max=10
         hurt_on_condition {
             condition {
@@ -10322,6 +10890,7 @@ entity minecraft:mooshroom {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         leashable
@@ -10332,6 +10901,7 @@ entity minecraft:mooshroom {
         navigation.walk avoid_damage_blocks=#true avoid_water=#true can_path_over_water=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family mushroomcow
             family mob
@@ -10872,6 +11442,7 @@ entity minecraft:mule {
     is_summonable #true
     components {
         ambient_sound_interval
+        attack damage=2
         balloonable
         behavior.float chance_per_tick_to_float=1.0 priority=0 time_under_water_to_dismount_passengers=2.0
         behavior.look_at_player look_distance=6.0 priority=7 probability=0.02
@@ -10891,6 +11462,8 @@ entity minecraft:mule {
         despawn {
             despawn_from_distance
         }
+        flying_speed 0.02
+        follow_range 16
         healable {
             item heal_amount=2 item=wheat
             item heal_amount=1 item=sugar
@@ -10915,6 +11488,7 @@ entity minecraft:mule {
                 filters test=in_lava subject=self
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         leashable {
@@ -10929,6 +11503,7 @@ entity minecraft:mule {
         navigation.walk avoid_damage_blocks=#true avoid_water=#true can_path_over_water=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family mule
             family mob
@@ -11175,6 +11750,8 @@ entity minecraft:nautilus {
             }
         }
         experience_reward on_bred="Math.Random(1,7)" on_death="query.last_hit_by_player && !query.is_baby ? Math.Random(1,3) : 0"
+        flying_speed 0.02
+        follow_range 16
         health 15 max=15
         home
         hurt_on_condition {
@@ -11184,17 +11761,20 @@ entity minecraft:nautilus {
                 filters test=in_lava
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         knockback_resistance 0.3
         loot table="loot_tables/entities/nautilus.json"
         mob_effect_immunity {
             mob_effect poison
         }
+        movement 0.25
         movement.sway sway_amplitude=0.0
         nameable
         navigation.generic can_breach=#false can_path_over_water=#false can_sink=#false can_swim=#true can_walk=#false is_amphibious=#false
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family aquatic
             family nautilus
@@ -11613,7 +12193,17 @@ entity minecraft:npc {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         behavior.look_at_player look_distance=6.0 priority=0 probability=0.02
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=2.1 width=0.6
         damage_sensor {
             triggers {
@@ -11622,6 +12212,10 @@ entity minecraft:npc {
             }
         }
         fire_immune #true
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         loot table="loot_tables/empty.json"
         movement 0.5
         nameable allow_name_tag_renaming=#false always_show=#false
@@ -11708,6 +12302,7 @@ entity minecraft:npc {
         persistent
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family npc
             family mob
@@ -11719,6 +12314,7 @@ entity minecraft:ocelot {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         attack_damage 3
         balloonable mass=0.7
         behavior.float priority=0
@@ -11768,6 +12364,8 @@ entity minecraft:ocelot {
         despawn {
             despawn_from_distance
         }
+        flying_speed 0.02
+        follow_range 16
         health 10 max=10
         hurt_on_condition {
             condition {
@@ -11776,6 +12374,7 @@ entity minecraft:ocelot {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         leashable {
@@ -11794,6 +12393,7 @@ entity minecraft:ocelot {
         navigation.walk avoid_damage_blocks=#true avoid_water=#true can_path_over_water=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family ocelot
             family mob
@@ -11936,9 +12536,25 @@ entity minecraft:ominous_item_spawner {
     is_spawnable #false
     is_summonable #false
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=1.8 width=0.6
-        physics drag=0.02 gravity=0.08 has_collision=#true has_gravity=#true
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
+        movement 0.25
+        physics has_collision=#true has_gravity=#true
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
     }
 }
 entity minecraft:panda {
@@ -11946,6 +12562,7 @@ entity minecraft:panda {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         balloonable
         behavior.breed priority=3 speed_multiplier=1.0
         behavior.float priority=0
@@ -11976,6 +12593,8 @@ entity minecraft:panda {
         despawn {
             despawn_from_distance
         }
+        flying_speed 0.02
+        follow_range 16
         genetics {
             gene {
                 allele_range {
@@ -12312,6 +12931,7 @@ entity minecraft:parched {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         behavior.avoid_mob_type {
             entity_type {
                 filters test=is_family subject=other value=wolf
@@ -12375,6 +12995,8 @@ entity minecraft:parched {
         }
         equipment table="loot_tables/entities/skeleton_gear.json"
         experience_reward on_death="query.last_hit_by_player ? 5 + (query.equipment_count * Math.Random(1,3)) : 0"
+        flying_speed 0.02
+        follow_range 16
         health 16 max=16
         hurt_on_condition {
             condition {
@@ -12383,6 +13005,7 @@ entity minecraft:parched {
                 filters test=in_lava
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         loot table="loot_tables/entities/parched.json"
@@ -12395,6 +13018,7 @@ entity minecraft:parched {
         navigation.walk avoid_sun=#true avoid_water=#true is_amphibious=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         shareables {
             item item=minecraft:netherite_sword priority=0 surplus_amount=1 want_amount=1
             item item=minecraft:diamond_sword priority=1 surplus_amount=1 want_amount=1
@@ -12494,6 +13118,7 @@ entity minecraft:parrot {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         balloonable
         behavior.float priority=1
         behavior.panic priority=1 speed_multiplier=1.25
@@ -12510,6 +13135,8 @@ entity minecraft:parrot {
         despawn {
             despawn_from_distance
         }
+        flying_speed 0.02
+        follow_range 16
         game_event_movement_tracking emit_flap=#true
         healable {
             filters test=is_riding operator="!=" value=#true
@@ -12528,6 +13155,7 @@ entity minecraft:parrot {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         leashable
@@ -12537,6 +13165,7 @@ entity minecraft:parrot {
         navigation.fly can_path_from_air=#true can_path_over_water=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
     }
     component_groups {
         group parrot_adult {
@@ -12729,6 +13358,7 @@ entity minecraft:phantom {
             despawn_from_distance
         }
         experience_reward on_death="query.last_hit_by_player ? 5 : 0"
+        flying_speed 0.02
         follow_range 64 max=64
         game_event_movement_tracking emit_flap=#true
         health 20 max=20
@@ -12739,6 +13369,7 @@ entity minecraft:phantom {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         loot table="loot_tables/entities/phantom.json"
         movement 1.8
@@ -12747,6 +13378,7 @@ entity minecraft:phantom {
         physics has_gravity=#false
         pushable is_pushable=#true is_pushable_by_piston=#true
         renders_when_invisible
+        scale 1.0
         type_family {
             family phantom
             family undead
@@ -12768,6 +13400,7 @@ entity minecraft:pig {
         }
     }
     components {
+        attack damage=2
         balloonable mass=0.9
         behavior.float priority=2
         behavior.look_at_player look_distance=6.0 priority=8 probability=0.02
@@ -12800,6 +13433,8 @@ entity minecraft:pig {
         despawn {
             despawn_from_distance
         }
+        flying_speed 0.02
+        follow_range 16
         health 10 max=10
         hurt_on_condition {
             condition {
@@ -12808,6 +13443,7 @@ entity minecraft:pig {
                 filters test=in_lava subject=self
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         leashable
@@ -12817,6 +13453,7 @@ entity minecraft:pig {
         navigation.walk avoid_damage_blocks=#true avoid_water=#true can_path_over_water=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family pig
             family mob
@@ -12962,6 +13599,7 @@ entity minecraft:piglin {
     components {
         admire_item cooldown_after_being_attacked=20 duration=8
         annotation.open_door
+        attack damage=2
         behavior.admire_item {
             admire_item_sound admire
             on_admire_item_start {
@@ -13056,6 +13694,7 @@ entity minecraft:piglin {
         equip_item {
             excluded_item item=minecraft:banner:15
         }
+        flying_speed 0.02
         follow_range 64
         health 16 max=16
         hurt_on_condition {
@@ -13069,12 +13708,14 @@ entity minecraft:piglin {
         is_hidden_when_invisible
         jump.static
         loot table="loot_tables/entities/piglin.json"
+        movement 0.25
         movement.basic
         nameable
         navigation.walk can_open_doors=#true can_path_over_water=#true
         on_target_acquired event=become_angry_event target=self
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         shareables {
             item admire=#true item=minecraft:golden_sword pickup_limit=1 priority=2 stored_in_inventory=#true
             item admire=#true item=minecraft:golden_spear pickup_limit=1 priority=2 stored_in_inventory=#true
@@ -13523,6 +14164,7 @@ entity minecraft:piglin_brute {
     is_summonable #true
     components {
         annotation.open_door
+        attack damage=2
         behavior.hurt_by_target priority=1
         behavior.look_at_player look_distance=8 priority=8
         behavior.random_look_around priority=9
@@ -13547,6 +14189,7 @@ entity minecraft:piglin_brute {
             }
         }
         experience_reward on_death="query.last_hit_by_player ? 20 : 0"
+        flying_speed 0.02
         follow_range 64
         health 50 max=50
         home
@@ -13557,6 +14200,7 @@ entity minecraft:piglin_brute {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         loot table="loot_tables/entities/piglin.json"
@@ -13567,6 +14211,7 @@ entity minecraft:piglin_brute {
         on_target_acquired event=become_angry_event target=self
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family piglin
             family adult_piglin
@@ -13706,6 +14351,7 @@ entity minecraft:pillager {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         behavior.avoid_mob_type {
             entity_type {
                 filters test=is_family subject=other value=creaking
@@ -13764,6 +14410,7 @@ entity minecraft:pillager {
         equip_item
         equipment table="loot_tables/entities/pillager_gear.json"
         experience_reward on_death="query.last_hit_by_player ? (query.is_baby ? 12 : 5) + (Math.die_roll(query.equipment_count,1,3)) : 0"
+        flying_speed 0.02
         follow_range 64
         health 24 max=24
         hurt_on_condition {
@@ -13773,6 +14420,7 @@ entity minecraft:pillager {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         loot table="loot_tables/entities/pillager.json"
@@ -13782,6 +14430,7 @@ entity minecraft:pillager {
         navigation.walk can_path_over_water=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         shareables {
             item item=minecraft:banner:15 priority=0 surplus_amount=1 want_amount=1
         }
@@ -13980,6 +14629,9 @@ entity minecraft:player {
             walk 0.0
         }
         experience_reward on_death="Math.Min(query.player_level * 7, 100)"
+        flying_speed 0.02
+        follow_range 16
+        health 20
         hurt_on_condition {
             condition {
                 cause lava
@@ -13988,6 +14640,7 @@ entity minecraft:player {
             }
         }
         insomnia days_until_insomnia=3
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         loot table="loot_tables/empty.json"
         movement 0.1
@@ -14019,6 +14672,7 @@ entity minecraft:player {
                 entry -0.1
             }
         }
+        scale 1.0
         type_family {
             family player
         }
@@ -14072,6 +14726,7 @@ entity minecraft:polar_bear {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         balloonable
         behavior.float priority=0
         behavior.hurt_by_target priority=2
@@ -14099,6 +14754,7 @@ entity minecraft:polar_bear {
         despawn {
             despawn_from_distance
         }
+        flying_speed 0.02
         follow_range 48
         health 30
         hurt_on_condition {
@@ -14108,6 +14764,7 @@ entity minecraft:polar_bear {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         leashable
@@ -14117,6 +14774,7 @@ entity minecraft:polar_bear {
         navigation.walk avoid_damage_blocks=#true can_path_over_water=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family polarbear
             family mob
@@ -14229,6 +14887,7 @@ entity minecraft:pufferfish {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         behavior.avoid_mob_type {
             entity_type {
                 filters {
@@ -14275,6 +14934,8 @@ entity minecraft:pufferfish {
             separation_weight 1.75
             use_center_of_mass #true
         }
+        flying_speed 0.02
+        follow_range 16
         health 3 max=3
         hurt_on_condition {
             condition {
@@ -14283,6 +14944,7 @@ entity minecraft:pufferfish {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         loot table="loot_tables/entities/pufferfish.json"
         movement 0.13
@@ -14495,6 +15157,7 @@ entity minecraft:rabbit {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         balloonable mass=0.4
         behavior.avoid_mob_type {
             entity_type {
@@ -14544,6 +15207,8 @@ entity minecraft:rabbit {
         despawn {
             despawn_from_distance
         }
+        flying_speed 0.02
+        follow_range 16
         health 3 max=3
         hurt_on_condition {
             condition {
@@ -14552,6 +15217,7 @@ entity minecraft:rabbit {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.dynamic
         leashable
@@ -14707,6 +15373,7 @@ entity minecraft:ravager {
             despawn_from_distance
         }
         experience_reward on_death="query.last_hit_by_player ? 20 : 0"
+        flying_speed 0.02
         follow_range 64
         health 100 max=100
         hurt_on_condition {
@@ -14716,6 +15383,7 @@ entity minecraft:ravager {
                 filters test=in_lava subject=self
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         knockback_resistance 0.75
@@ -14748,6 +15416,7 @@ entity minecraft:ravager {
                 seat -0.3
             }
         }
+        scale 1.0
         type_family {
             family monster
             family ravager
@@ -14960,6 +15629,7 @@ entity minecraft:salmon {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         behavior.avoid_mob_type {
             entity_type {
                 filters {
@@ -15008,6 +15678,8 @@ entity minecraft:salmon {
             separation_weight 0.65
             use_center_of_mass #false
         }
+        flying_speed 0.02
+        follow_range 16
         health 3 max=3
         hurt_on_condition {
             condition {
@@ -15016,6 +15688,7 @@ entity minecraft:salmon {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         movement 0.12
         movement.sway sway_amplitude=0.0
@@ -15023,6 +15696,7 @@ entity minecraft:salmon {
         navigation.generic can_breach=#false can_path_over_water=#false can_sink=#false can_swim=#true can_walk=#false is_amphibious=#false
         physics has_gravity=#false
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family aquatic
             family salmon
@@ -15059,6 +15733,7 @@ entity minecraft:sheep {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         balloonable mass=0.75
         behavior.eat_block {
             eat_and_replace_block_pair eat_block=grass replace_block=dirt
@@ -15092,6 +15767,8 @@ entity minecraft:sheep {
         despawn {
             despawn_from_distance
         }
+        flying_speed 0.02
+        follow_range 16
         health 8 max=8
         hurt_on_condition {
             condition {
@@ -15123,6 +15800,7 @@ entity minecraft:sheep {
                 vibration shear
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         leashable
@@ -15132,6 +15810,7 @@ entity minecraft:sheep {
         navigation.walk avoid_water=#true can_path_over_water=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family sheep
             family mob
@@ -15310,6 +15989,7 @@ entity minecraft:shulker {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         behavior.hurt_by_target {
             entity_types {
                 filters test=is_family subject=other operator="!=" value=shulker
@@ -15338,6 +16018,8 @@ entity minecraft:shulker {
         }
         experience_reward on_death="query.last_hit_by_player ? 5: 0"
         fire_immune #true
+        flying_speed 0.02
+        follow_range 16
         health 30 max=30
         interact {
             interaction {
@@ -15537,6 +16219,7 @@ entity minecraft:shulker {
                 use_item #true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_collidable
         is_hidden_when_invisible
         loot table="loot_tables/entities/shulker.json"
@@ -15558,6 +16241,7 @@ entity minecraft:shulker {
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
         renders_when_invisible
+        scale 1.0
         shooter def=minecraft:shulker_bullet
         type_family {
             family shulker
@@ -15676,6 +16360,16 @@ entity minecraft:shulker_bullet {
     is_spawnable #false
     is_summonable #false
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=0.625 width=0.625
         conditional_bandwidth_optimization {
             default_values {
@@ -15684,6 +16378,11 @@ entity minecraft:shulker_bullet {
                 use_motion_prediction_hints #true
             }
         }
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
+        movement 0.25
         physics has_collision=#false
         projectile {
             anchor 1
@@ -15719,6 +16418,7 @@ entity minecraft:shulker_bullet {
             uncertainty_multiplier 4
         }
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
     }
 }
 entity minecraft:silverfish {
@@ -15753,6 +16453,8 @@ entity minecraft:silverfish {
             despawn_from_distance
         }
         experience_reward on_death="query.last_hit_by_player ? 5 : 0"
+        flying_speed 0.02
+        follow_range 16
         health 8 max=8
         hurt_on_condition {
             condition {
@@ -15761,6 +16463,7 @@ entity minecraft:silverfish {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         loot table="loot_tables/entities/silverfish.json"
@@ -15773,6 +16476,7 @@ entity minecraft:silverfish {
         navigation.walk can_path_over_water=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family silverfish
             family monster
@@ -15817,6 +16521,7 @@ entity minecraft:skeleton {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         behavior.avoid_mob_type {
             entity_type {
                 filters test=is_family subject=other value=wolf
@@ -15886,6 +16591,8 @@ entity minecraft:skeleton {
         }
         equipment table="loot_tables/entities/skeleton_gear.json"
         experience_reward on_death="query.last_hit_by_player ? 5 + (query.equipment_count * Math.Random(1,3)) : 0"
+        flying_speed 0.02
+        follow_range 16
         health 20 max=20
         hurt_on_condition {
             condition {
@@ -15894,6 +16601,7 @@ entity minecraft:skeleton {
                 filters test=in_lava
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         loot table="loot_tables/entities/skeleton.json"
@@ -15904,6 +16612,7 @@ entity minecraft:skeleton {
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
         rotation_locked_to_vehicle
+        scale 1.0
         shareables {
             item item=minecraft:netherite_sword priority=0 surplus_amount=1 want_amount=1
             item item=minecraft:diamond_sword priority=1 surplus_amount=1 want_amount=1
@@ -16075,6 +16784,7 @@ entity minecraft:skeleton_horse {
     is_summonable #true
     components {
         ambient_sound_interval
+        attack damage=2
         balloonable
         behavior.look_at_player look_distance=6.0 priority=7 probability=0.02
         behavior.mount_pathing priority=2 speed_multiplier=1.5 target_dist=4.0 track_target=#true
@@ -16089,6 +16799,8 @@ entity minecraft:skeleton_horse {
         despawn {
             despawn_from_distance
         }
+        flying_speed 0.02
+        follow_range 16
         health 15 max=15
         horse.jump_strength {
             value {
@@ -16104,6 +16816,7 @@ entity minecraft:skeleton_horse {
             }
         }
         input_ground_controlled
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         is_tamed
         jump.static
@@ -16132,6 +16845,7 @@ entity minecraft:skeleton_horse {
                 seat -0.2
             }
         }
+        scale 1.0
         type_family {
             family skeletonhorse
             family undead
@@ -16210,6 +16924,7 @@ entity minecraft:slime {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         behavior.nearest_attackable_target {
             entity_type {
                 filters {
@@ -16236,6 +16951,9 @@ entity minecraft:slime {
             despawn_from_distance
         }
         experience_reward on_death="query.last_hit_by_player ? query.variant : 0"
+        flying_speed 0.02
+        follow_range 16
+        health 20
         hurt_on_condition {
             condition {
                 cause lava
@@ -16243,11 +16961,13 @@ entity minecraft:slime {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         mob_effect_immunity {
             mob_effect oozing
         }
+        movement 0.25
         movement.jump {
             entry 0.5
             entry 1.5
@@ -16258,6 +16978,7 @@ entity minecraft:slime {
         on_target_escape event=minecraft:become_calm target=self
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family slime
             family monster
@@ -16354,6 +17075,16 @@ entity minecraft:small_fireball {
     is_spawnable #false
     is_summonable #false
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=0.31 width=0.31
         conditional_bandwidth_optimization {
             default_values {
@@ -16363,6 +17094,11 @@ entity minecraft:small_fireball {
             }
         }
         dimension_bound
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
+        movement 0.25
         physics
         projectile {
             anchor 2
@@ -16390,6 +17126,7 @@ entity minecraft:small_fireball {
             uncertainty_base 10.0
         }
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
     }
 }
 entity minecraft:sniffer {
@@ -16397,6 +17134,7 @@ entity minecraft:sniffer {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         balloonable
         behavior.float priority=0
         behavior.look_at_player priority=8 probability=0.02 target_distance=6.0
@@ -16424,6 +17162,7 @@ entity minecraft:sniffer {
         can_climb
         collision_box height=1.75 width=1.9
         conditional_bandwidth_optimization
+        flying_speed 0.02
         follow_range 64.0
         healable {
             item heal_amount=2 item=torchflower_seeds
@@ -16436,6 +17175,7 @@ entity minecraft:sniffer {
                 filters test=in_lava subject=self
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         leashable {
@@ -16451,6 +17191,7 @@ entity minecraft:sniffer {
         persistent
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family sniffer
             family mob
@@ -16660,6 +17401,8 @@ entity minecraft:snow_golem {
                 deals_damage no
             }
         }
+        flying_speed 0.02
+        follow_range 16
         health 4 max=4
         hurt_on_condition {
             condition {
@@ -16703,6 +17446,7 @@ entity minecraft:snow_golem {
                 vibration shear
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         leashable
@@ -16715,6 +17459,7 @@ entity minecraft:snow_golem {
         persistent
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         shooter def=minecraft:snowball
         trail {
             block_type minecraft:snow_layer
@@ -16744,6 +17489,16 @@ entity minecraft:snowball {
     is_spawnable #false
     is_summonable #true
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=0.25 width=0.25
         conditional_bandwidth_optimization {
             default_values {
@@ -16752,6 +17507,11 @@ entity minecraft:snowball {
                 use_motion_prediction_hints #true
             }
         }
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
+        movement 0.25
         physics
         projectile {
             anchor 1
@@ -16777,6 +17537,7 @@ entity minecraft:snowball {
             power 1.5
         }
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
     }
 }
 entity minecraft:spider {
@@ -16815,6 +17576,8 @@ entity minecraft:spider {
             despawn_from_distance
         }
         experience_reward on_death="query.last_hit_by_player ? 5 : 0"
+        flying_speed 0.02
+        follow_range 16
         health 16 max=16
         hurt_on_condition {
             condition {
@@ -16823,6 +17586,7 @@ entity minecraft:spider {
                 filters test=in_lava subject=self
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         loot table="loot_tables/entities/spider.json"
@@ -16843,6 +17607,7 @@ entity minecraft:spider {
                 seat -0.1
             }
         }
+        scale 1.0
         type_family {
             family spider
             family monster
@@ -16999,6 +17764,16 @@ entity minecraft:splash_potion {
     is_spawnable #false
     is_summonable #true
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=0.25 width=0.25
         conditional_bandwidth_optimization {
             default_values {
@@ -17007,6 +17782,11 @@ entity minecraft:splash_potion {
                 use_motion_prediction_hints #true
             }
         }
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
+        movement 0.25
         physics
         projectile {
             angle_offset -20.0
@@ -17020,6 +17800,7 @@ entity minecraft:splash_potion {
             power 0.5
         }
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
     }
 }
 entity minecraft:squid {
@@ -17027,6 +17808,7 @@ entity minecraft:squid {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         balloonable mass=0.5
         behavior.squid_dive priority=2
         behavior.squid_flee priority=2
@@ -17041,6 +17823,8 @@ entity minecraft:squid {
             despawn_from_distance
         }
         experience_reward on_death="!query.is_baby && query.last_hit_by_player ? Math.Random(1,3) : 0"
+        flying_speed 0.02
+        follow_range 16
         health 10 max=10
         hurt_on_condition {
             condition {
@@ -17049,6 +17833,7 @@ entity minecraft:squid {
                 filters test=in_lava subject=self
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         leashable
@@ -17059,6 +17844,7 @@ entity minecraft:squid {
         navigation.walk can_path_over_water=#true can_sink=#false
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family aquatic
             family squid
@@ -17088,6 +17874,7 @@ entity minecraft:stray {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         behavior.avoid_mob_type {
             entity_type {
                 filters test=is_family subject=other value=wolf
@@ -17153,6 +17940,8 @@ entity minecraft:stray {
         }
         equipment table="loot_tables/entities/skeleton_gear.json"
         experience_reward on_death="query.last_hit_by_player ? 5 + (query.equipment_count * Math.Random(1,3)) : 0"
+        flying_speed 0.02
+        follow_range 16
         health 20 max=20
         hurt_on_condition {
             condition {
@@ -17161,6 +17950,7 @@ entity minecraft:stray {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         loot table="loot_tables/entities/stray.json"
@@ -17170,6 +17960,7 @@ entity minecraft:stray {
         navigation.walk avoid_sun=#true avoid_water=#true is_amphibious=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         shareables {
             item item=minecraft:netherite_sword priority=0 surplus_amount=1 want_amount=1
             item item=minecraft:diamond_sword priority=1 surplus_amount=1 want_amount=1
@@ -17274,6 +18065,7 @@ entity minecraft:strider {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         balloonable
         behavior.look_at_player look_distance=6.0 priority=9 probability=0.02
         behavior.panic {
@@ -17298,12 +18090,23 @@ entity minecraft:strider {
             speed_multiplier 1.2
             tempt_sound tempt
         }
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=1.7 width=0.9
         conditional_bandwidth_optimization
         despawn {
             despawn_from_distance
         }
         fire_immune
+        flying_speed 0.02
+        follow_range 16
         health 20 max=20
         hurt_on_condition {
             condition {
@@ -17312,6 +18115,7 @@ entity minecraft:strider {
                 filters test=in_contact_with_water
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         lava_movement 0.32
@@ -17323,6 +18127,7 @@ entity minecraft:strider {
         navigation.walk avoid_water=#true can_path_over_lava=#true can_sink=#false can_walk_in_lava=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family strider
             family mob
@@ -17581,6 +18386,7 @@ entity minecraft:tadpole {
                 target self
             }
         }
+        attack damage=2
         behavior.look_at_player priority=3 probability=0.02 target_distance=6.0
         behavior.panic priority=1 speed_multiplier=2.0
         behavior.random_swim interval=100 priority=2
@@ -17595,6 +18401,8 @@ entity minecraft:tadpole {
         despawn {
             despawn_from_distance
         }
+        flying_speed 0.02
+        follow_range 16
         health 6
         hurt_on_condition {
             condition {
@@ -17603,6 +18411,7 @@ entity minecraft:tadpole {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_baby
         is_hidden_when_invisible
         movement 0.1
@@ -17611,6 +18420,7 @@ entity minecraft:tadpole {
         navigation.generic avoid_damage_blocks=#true can_path_over_water=#true can_sink=#false can_swim=#true can_walk=#false
         physics
         pushable
+        scale 1.0
         type_family {
             family aquatic
             family tadpole
@@ -17631,6 +18441,16 @@ entity minecraft:thrown_trident {
     is_spawnable #false
     is_summonable #false
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=0.35 width=0.25
         conditional_bandwidth_optimization {
             default_values {
@@ -17640,6 +18460,11 @@ entity minecraft:thrown_trident {
             }
         }
         dimension_bound
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
+        movement 0.25
         physics
         projectile {
             anchor 1
@@ -17669,12 +18494,23 @@ entity minecraft:thrown_trident {
             uncertainty_multiplier 0
         }
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
     }
 }
 entity minecraft:tnt {
     is_spawnable #false
     is_summonable #true
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=0.98 width=0.98
         conditional_bandwidth_optimization {
             default_values {
@@ -17684,8 +18520,14 @@ entity minecraft:tnt {
             }
         }
         explode causes_fire=#false fuse_length=4 fuse_lit=#true power=4
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
+        movement 0.25
         physics
         pushable is_pushable=#false is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family tnt
             family inanimate
@@ -17714,6 +18556,16 @@ entity minecraft:tnt_minecart {
     is_spawnable #false
     is_summonable #true
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=0.7 width=0.98
         conditional_bandwidth_optimization {
             conditional_value {
@@ -17727,10 +18579,16 @@ entity minecraft:tnt_minecart {
                 use_motion_prediction_hints #true
             }
         }
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_stackable
+        movement 0.25
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
         rail_movement
+        scale 1.0
         type_family {
             family minecart
             family inanimate
@@ -17803,6 +18661,7 @@ entity minecraft:trader_llama {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         balloonable
         behavior.float priority=0
         behavior.hurt_by_target {
@@ -17855,6 +18714,7 @@ entity minecraft:trader_llama {
         despawn {
             despawn_from_distance
         }
+        flying_speed 0.02
         follow_range 40 max=40
         healable {
             item heal_amount=2 item=wheat
@@ -17873,6 +18733,7 @@ entity minecraft:trader_llama {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         leashable {
@@ -17908,6 +18769,7 @@ entity minecraft:trader_llama {
         }
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         shooter def=minecraft:llama_spit
         type_family {
             family trader_llama
@@ -18198,8 +19060,20 @@ entity minecraft:tripod_camera {
     is_spawnable #false
     is_summonable #false
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=1.8 width=0.75
         conditional_bandwidth_optimization
+        flying_speed 0.02
+        follow_range 16
         health 4 max=4
         hurt_on_condition {
             condition {
@@ -18208,9 +19082,12 @@ entity minecraft:tripod_camera {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         loot table="loot_tables/empty.json"
+        movement 0.25
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family tripodcamera
             family inanimate
@@ -18223,6 +19100,7 @@ entity minecraft:tropicalfish {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         behavior.avoid_mob_type {
             entity_type {
                 filters {
@@ -18270,6 +19148,8 @@ entity minecraft:tropicalfish {
             separation_weight 0.65
             use_center_of_mass #false
         }
+        flying_speed 0.02
+        follow_range 16
         health 3 max=3
         hurt_on_condition {
             condition {
@@ -18278,6 +19158,7 @@ entity minecraft:tropicalfish {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         loot table="loot_tables/entities/tropicalfish.json"
         movement 0.12
@@ -18617,6 +19498,7 @@ entity minecraft:turtle {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         behavior.hurt_by_target priority=1
         behavior.look_at_player priority=8 probability=0.02 target_distance=6.0
         behavior.move_to_water goal_radius=1.5 priority=4 search_height=5 search_range=16
@@ -18641,6 +19523,7 @@ entity minecraft:turtle {
         despawn {
             despawn_from_distance
         }
+        flying_speed 0.02
         follow_range 1024
         health 30
         home
@@ -18651,6 +19534,7 @@ entity minecraft:turtle {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         movement 0.1
@@ -18659,6 +19543,7 @@ entity minecraft:turtle {
         navigation.generic avoid_damage_blocks=#true can_path_over_water=#false can_sink=#false can_swim=#true can_walk=#true is_amphibious=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         water_movement drag_factor=0.9
     }
     component_groups {
@@ -18797,6 +19682,15 @@ entity minecraft:vex {
             must_see #true
             priority 3
         }
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         can_climb
         collision_box height=0.8 width=0.4
         conditional_bandwidth_optimization
@@ -18806,8 +19700,11 @@ entity minecraft:vex {
         equipment table="loot_tables/entities/vex_gear.json"
         experience_reward on_death="query.last_hit_by_player ? 5 + (query.equipment_count * Math.Random(1,3)) : 0"
         fire_immune
+        flying_speed 0.02
+        follow_range 16
         game_event_movement_tracking emit_move=#false emit_swim=#false
         health 14 max=14
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         movement 1.0
@@ -18816,6 +19713,7 @@ entity minecraft:vex {
         navigation.walk can_path_over_water=#true
         physics has_collision=#false has_gravity=#false
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family vex
             family monster
@@ -18853,6 +19751,7 @@ entity minecraft:villager {
     is_summonable #true
     components {
         annotation.open_door
+        attack damage=2
         behavior.avoid_mob_type {
             entity_type {
                 filters {
@@ -18922,6 +19821,8 @@ entity minecraft:villager {
                 }
             }
         }
+        flying_speed 0.02
+        follow_range 16
         health 20 max=20
         hurt_on_condition {
             condition {
@@ -18940,6 +19841,7 @@ entity minecraft:villager {
         persistent
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family villager
             family mob
@@ -19192,6 +20094,7 @@ entity minecraft:villager_v2 {
     is_summonable #false
     components {
         annotation.open_door
+        attack damage=2
         behavior.avoid_mob_type {
             entity_type {
                 filters {
@@ -19275,6 +20178,7 @@ entity minecraft:villager_v2 {
         equipment {
             entry drop_chance=0.0 slot=slot.weapon.mainhand
         }
+        flying_speed 0.02
         follow_range 128
         health 20 max=20
         hide
@@ -19296,6 +20200,7 @@ entity minecraft:villager_v2 {
         persistent
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family villager
             family mob
@@ -20888,6 +21793,7 @@ entity minecraft:vindicator {
         equip_item
         equipment table="loot_tables/entities/vindicator_gear.json"
         experience_reward on_death="query.last_hit_by_player ? (query.is_baby ? 12 : 5) + (Math.die_roll(query.equipment_count,1,3)) : 0"
+        flying_speed 0.02
         follow_range 64
         health 24 max=24
         hurt_on_condition {
@@ -20897,6 +21803,7 @@ entity minecraft:vindicator {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         loot table="loot_tables/entities/vindication_illager.json"
@@ -20920,6 +21827,7 @@ entity minecraft:vindicator {
         on_target_escape event=minecraft:stop_aggro target=self
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         shareables {
             item item=minecraft:banner:15 priority=0 surplus_amount=1 want_amount=1
         }
@@ -21099,6 +22007,7 @@ entity minecraft:wandering_trader {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         behavior.avoid_mob_type {
             entity_type {
                 filters {
@@ -21228,6 +22137,8 @@ entity minecraft:wandering_trader {
             remove_child_entities #true
         }
         economy_trade_table display_name=entity.wandering_trader.name new_screen=#true table="trading/economy_trades/wandering_trader_trades.json"
+        flying_speed 0.02
+        follow_range 16
         health 20 max=20
         home restriction_radius=16
         hurt_on_condition {
@@ -21237,6 +22148,7 @@ entity minecraft:wandering_trader {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         movement 0.5
@@ -21245,6 +22157,7 @@ entity minecraft:wandering_trader {
         navigation.walk avoid_water=#true can_open_doors=#false can_pass_doors=#true can_path_over_water=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         spawn_entity {
             entitie {
                 max_wait_time 0
@@ -21390,9 +22303,11 @@ entity minecraft:warden {
         collision_box height=2.9 width=0.9
         experience_reward on_bred="Math.Random(1,7)" on_death="query.last_hit_by_player ? 5 : 0"
         fire_immune
+        flying_speed 0.02
         follow_range 30
         health 500 max=500
         heartbeat interval="2.0 - math.clamp(query.anger_level / 80 * 1.5, 0, 1.5)"
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         knockback_resistance 1.0
@@ -21415,6 +22330,7 @@ entity minecraft:warden {
         physics
         preferred_path max_fall_blocks=20
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         suspect_tracking
         type_family {
             family warden
@@ -21458,6 +22374,16 @@ entity minecraft:wind_charge_projectile {
     is_spawnable #false
     is_summonable #true
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=0.3125 width=0.3125
         conditional_bandwidth_optimization {
             default_values {
@@ -21479,6 +22405,11 @@ entity minecraft:wind_charge_projectile {
             sound_effect wind_charge.burst
             toggles_blocks #true
         }
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
+        movement 0.25
         physics
         projectile {
             gravity 0.0
@@ -21503,6 +22434,7 @@ entity minecraft:wind_charge_projectile {
             uncertainty_multiplier 0.0
         }
         pushable is_pushable=#false is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family wind_charge
             family wind_charge_projectile
@@ -21514,6 +22446,7 @@ entity minecraft:witch {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         behavior.drink_potion {
             potion {
                 chance 0.15
@@ -21613,6 +22546,7 @@ entity minecraft:witch {
             despawn_from_distance
         }
         experience_reward on_death="query.last_hit_by_player ? (query.is_baby ? 12 : 5) + (Math.die_roll(query.equipment_count,1,3)) : 0"
+        flying_speed 0.02
         follow_range 64
         health 26 max=26
         hurt_on_condition {
@@ -21622,6 +22556,7 @@ entity minecraft:witch {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         loot table="loot_tables/entities/witch.json"
@@ -21631,6 +22566,7 @@ entity minecraft:witch {
         navigation.walk avoid_water=#false can_path_over_water=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         shooter {
             aux_val 23
             def minecraft:splash_potion
@@ -21752,6 +22688,7 @@ entity minecraft:wither {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         behavior.float priority=1
         behavior.hurt_by_target priority=2
         behavior.look_at_player look_distance=8 priority=6
@@ -21791,7 +22728,10 @@ entity minecraft:wither {
         }
         experience_reward on_death="50"
         fire_immune
+        flying_speed 0.02
+        follow_range 16
         health 600 max=600
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         loot table="loot_tables/entities/wither_boss.json"
@@ -21802,6 +22742,7 @@ entity minecraft:wither {
         persistent
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family wither
             family skeleton
@@ -21867,7 +22808,10 @@ entity minecraft:wither_skeleton {
         equipment table="loot_tables/entities/wither_skeleton_gear.json"
         experience_reward on_death="query.last_hit_by_player ? 5 + (query.equipment_count * Math.Random(1,3)) : 0"
         fire_immune
+        flying_speed 0.02
+        follow_range 16
         health 20 max=20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         loot table="loot_tables/entities/wither_skeleton.json"
@@ -21964,6 +22908,16 @@ entity minecraft:wither_skull {
     is_spawnable #false
     is_summonable #false
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=0.15 width=0.15
         conditional_bandwidth_optimization {
             default_values {
@@ -21973,6 +22927,11 @@ entity minecraft:wither_skull {
             }
         }
         dimension_bound
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
+        movement 0.25
         physics
         projectile {
             anchor 1
@@ -22006,6 +22965,7 @@ entity minecraft:wither_skull {
             uncertainty_multiplier 1
         }
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
     }
     component_groups {
         group exploding {
@@ -22022,6 +22982,16 @@ entity minecraft:wither_skull_dangerous {
     is_spawnable #false
     is_summonable #false
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=0.15 width=0.15
         conditional_bandwidth_optimization {
             default_values {
@@ -22031,6 +23001,11 @@ entity minecraft:wither_skull_dangerous {
             }
         }
         dimension_bound
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
+        movement 0.25
         physics
         projectile {
             anchor 1
@@ -22066,6 +23041,7 @@ entity minecraft:wither_skull_dangerous {
             uncertainty_multiplier 1
         }
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
     }
     component_groups {
         group exploding {
@@ -22168,6 +23144,8 @@ entity minecraft:wolf {
                 filters test=bool_property operator="!=" domain=minecraft:was_upgraded_to_1_21_100
             }
         }
+        flying_speed 0.02
+        follow_range 16
         healable {
             item heal_amount=6 item=porkchop
             item heal_amount=16 item=cooked_porkchop
@@ -22196,6 +23174,7 @@ entity minecraft:wolf {
                 filters test=in_lava subject=self operator="==" value=#true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         movement 0.3
@@ -22204,6 +23183,7 @@ entity minecraft:wolf {
         navigation.walk avoid_damage_blocks=#true can_path_over_water=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family wolf
             family mob
@@ -22594,6 +23574,16 @@ entity minecraft:xp_bottle {
     is_spawnable #false
     is_summonable #true
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         collision_box height=0.25 width=0.25
         conditional_bandwidth_optimization {
             default_values {
@@ -22602,6 +23592,11 @@ entity minecraft:xp_bottle {
                 use_motion_prediction_hints #true
             }
         }
+        flying_speed 0.02
+        follow_range 16
+        health 20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
+        movement 0.25
         physics
         projectile {
             angle_offset -20.0
@@ -22617,12 +23612,23 @@ entity minecraft:xp_bottle {
             power 0.5
         }
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
     }
 }
 entity minecraft:xp_orb {
     is_spawnable #false
     is_summonable #true
     components {
+        attack damage=2
+        breathable {
+            breathes_air #true
+            breathes_lava #false
+            breathes_solids #false
+            breathes_water #false
+            generates_bubbles #true
+            suffocate_time -1
+            total_supply 15
+        }
         buoyant {
             apply_gravity #false
             liquid_block minecraft:flowing_water
@@ -22636,9 +23642,14 @@ entity minecraft:xp_orb {
                 use_motion_prediction_hints #true
             }
         }
+        flying_speed 0.02
+        follow_range 16
         health 5 max=5
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
+        movement 0.25
         physics
         pushable is_pushable=#false is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family inanimate
         }
@@ -22649,6 +23660,7 @@ entity minecraft:zoglin {
     is_spawnable #true
     is_summonable #true
     components {
+        attack damage=2
         balloonable
         behavior.look_at_player look_distance=6.0 priority=8 probability=0.02
         behavior.melee_box_attack priority=4 speed_multiplier=1.15 track_target=#true
@@ -22688,7 +23700,10 @@ entity minecraft:zoglin {
         }
         experience_reward on_death="query.last_hit_by_player ? 5 : 0"
         fire_immune
+        flying_speed 0.02
+        follow_range 16
         health 40 max=40
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         knockback_resistance 0.6
@@ -22701,6 +23716,7 @@ entity minecraft:zoglin {
         on_target_acquired event=become_angry_event target=self
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
     }
     component_groups {
         group angry_zoglin {
@@ -22882,6 +23898,8 @@ entity minecraft:zombie {
         equip_item {
             excluded_item item=minecraft:banner:15
         }
+        flying_speed 0.02
+        follow_range 16
         health 20 max=20
         hurt_on_condition {
             condition {
@@ -22890,14 +23908,17 @@ entity minecraft:zombie {
                 filters test=in_lava
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
+        movement 0.25
         movement.basic
         nameable
         navigation.walk can_break_doors=#true can_pass_doors=#true can_walk=#true is_amphibious=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
         rotation_locked_to_vehicle
+        scale 1.0
         shareables {
             item item=minecraft:netherite_sword priority=0 surplus_amount=1 want_amount=1
             item item=minecraft:diamond_sword priority=1 surplus_amount=1 want_amount=1
@@ -23176,6 +24197,7 @@ entity minecraft:zombie_horse {
     }
     components {
         ambient_sound_interval
+        attack damage=2
         balloonable
         behavior.flee_sun priority=1 speed_multiplier=1.2
         behavior.float chance_per_tick_to_float=1.0 priority=0 time_under_water_to_dismount_passengers=2.0
@@ -23250,6 +24272,8 @@ entity minecraft:zombie_horse {
                 slot 1
             }
         }
+        flying_speed 0.02
+        follow_range 16
         healable {
             item heal_amount=3 item=red_mushroom
         }
@@ -23267,6 +24291,7 @@ entity minecraft:zombie_horse {
                 filters test=in_lava
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         movement {
@@ -23289,6 +24314,7 @@ entity minecraft:zombie_horse {
         }
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family zombiehorse
             family undead
@@ -23535,6 +24561,8 @@ entity minecraft:zombie_nautilus {
             }
         }
         experience_reward on_death="query.last_hit_by_player ? Math.Random(1,3) : 0"
+        flying_speed 0.02
+        follow_range 16
         health 15 max=15
         home
         hurt_on_condition {
@@ -23544,6 +24572,7 @@ entity minecraft:zombie_nautilus {
                 filters test=in_lava
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         knockback_resistance 0.3
         leashable_to
@@ -23551,11 +24580,13 @@ entity minecraft:zombie_nautilus {
         mob_effect_immunity {
             mob_effect poison
         }
+        movement 0.25
         movement.sway sway_amplitude=0.0
         nameable
         navigation.generic can_breach=#false can_path_over_water=#false can_sink=#false can_swim=#true can_walk=#false is_amphibious=#false
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         type_family {
             family aquatic
             family zombie_nautilus
@@ -23958,7 +24989,10 @@ entity minecraft:zombie_pigman {
         equip_item
         equipment table="loot_tables/entities/zombie_pigman_gear.json"
         fire_immune
+        flying_speed 0.02
+        follow_range 16
         health 20 max=20
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         loot table="loot_tables/entities/zombie_pigman.json"
@@ -23968,6 +25002,7 @@ entity minecraft:zombie_pigman {
         navigation.walk avoid_portals=#true avoid_water=#true can_open_doors=#true can_pass_doors=#true can_path_over_lava=#true is_amphibious=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         shareables {
             item item=minecraft:netherite_sword priority=0 surplus_amount=1 want_amount=1
             item item=minecraft:diamond_sword priority=1 surplus_amount=1 want_amount=1
@@ -24156,6 +25191,8 @@ entity minecraft:zombie_villager {
         equip_item {
             excluded_item item=minecraft:banner:15
         }
+        flying_speed 0.02
+        follow_range 16
         health 20 max=20
         hurt_on_condition {
             condition {
@@ -24178,14 +25215,17 @@ entity minecraft:zombie_villager {
                 use_item #true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         loot table="loot_tables/entities/zombie.json"
+        movement 0.25
         movement.basic
         nameable
         navigation.walk avoid_sun=#false can_break_doors=#true can_pass_doors=#true is_amphibious=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         shareables {
             item item=minecraft:netherite_sword priority=0 surplus_amount=1 want_amount=1
             item item=minecraft:diamond_sword priority=1 surplus_amount=1 want_amount=1
@@ -24496,6 +25536,8 @@ entity minecraft:zombie_villager_v2 {
         equip_item {
             excluded_item item=minecraft:banner:15
         }
+        flying_speed 0.02
+        follow_range 16
         health 20 max=20
         hurt_on_condition {
             condition {
@@ -24518,14 +25560,17 @@ entity minecraft:zombie_villager_v2 {
                 use_item #true
             }
         }
+        inventory can_be_siphoned_from=#false inventory_size=5 private=#false
         is_hidden_when_invisible
         jump.static
         loot table="loot_tables/entities/zombie.json"
+        movement 0.25
         movement.basic
         nameable
         navigation.walk avoid_sun=#false can_break_doors=#true can_pass_doors=#true is_amphibious=#true
         physics
         pushable is_pushable=#true is_pushable_by_piston=#true
+        scale 1.0
         shareables {
             item item=minecraft:netherite_sword priority=0 surplus_amount=1 want_amount=1
             item item=minecraft:diamond_sword priority=1 surplus_amount=1 want_amount=1

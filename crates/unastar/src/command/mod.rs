@@ -11,6 +11,8 @@ use std::sync::Arc;
 pub struct CommandOutput {
     pub messages: Vec<String>,
     pub errors: Vec<String>,
+    /// Server-side movement requested by a successfully authorized command.
+    pub teleport: Option<glam::DVec3>,
 }
 
 impl CommandOutput {
@@ -54,17 +56,25 @@ impl CommandArgs {
     }
 }
 
+/// Server-owned operator grant. Client command origins never confer this marker.
+#[derive(bevy_ecs::prelude::Component, Debug, Clone, Copy)]
+pub struct Operator;
+
 /// Context for command execution.
 ///
 /// Note: Command execution in ECS is simplified - commands don't have
 /// direct server access. Use systems for complex game logic.
 pub struct CommandContext {
     pub sender: SessionId,
+    pub is_operator: bool,
 }
 
 impl CommandContext {
-    pub fn new(sender: SessionId) -> Self {
-        Self { sender }
+    pub fn new(sender: SessionId, is_operator: bool) -> Self {
+        Self {
+            sender,
+            is_operator,
+        }
     }
 }
 
@@ -81,6 +91,10 @@ pub trait Command: Send + Sync + 'static {
 
     fn usage(&self) -> &'static str {
         ""
+    }
+
+    fn requires_operator(&self) -> bool {
+        false
     }
 
     fn execute(&self, ctx: &CommandContext, args: &mut CommandArgs) -> CommandOutput;
@@ -112,6 +126,7 @@ impl CommandRegistry {
     pub fn with_defaults() -> Self {
         let mut registry = Self::new();
         registry.register(PosCommand);
+        registry.register(TeleportCommand);
         registry
     }
 
@@ -131,6 +146,24 @@ impl CommandRegistry {
 
     pub fn find(&self, name: &str) -> Option<Arc<dyn Command>> {
         self.commands.get(&name.to_ascii_lowercase()).cloned()
+    }
+
+    /// Resolve aliases and enforce server permissions before invoking any handler.
+    pub fn execute(
+        &self,
+        ctx: &CommandContext,
+        invocation: &mut CommandInvocation,
+    ) -> CommandOutput {
+        let mut output = CommandOutput::default();
+        let Some(command) = self.find(&invocation.name) else {
+            output.error(format!("Unknown command: {}", invocation.name));
+            return output;
+        };
+        if command.requires_operator() && !ctx.is_operator {
+            output.error("You do not have permission to use this command");
+            return output;
+        }
+        command.execute(ctx, &mut invocation.args)
     }
 }
 
@@ -210,6 +243,47 @@ fn split_tokens(input: &str) -> Result<Vec<String>, CommandParseError> {
     }
 
     Ok(tokens)
+}
+
+struct TeleportCommand;
+
+impl Command for TeleportCommand {
+    fn name(&self) -> &'static str {
+        "tp"
+    }
+
+    fn aliases(&self) -> &'static [&'static str] {
+        &["teleport"]
+    }
+
+    fn requires_operator(&self) -> bool {
+        true
+    }
+
+    fn usage(&self) -> &'static str {
+        "/tp <x> <y> <z>"
+    }
+
+    fn execute(&self, _ctx: &CommandContext, args: &mut CommandArgs) -> CommandOutput {
+        let mut output = CommandOutput::default();
+        let args = args.rest();
+        if args.len() < 3 {
+            output.error(format!("Usage: {}", self.usage()));
+            return output;
+        }
+        let mut coordinates = [0.0; 3];
+        for (index, axis) in ["x", "y", "z"].iter().enumerate() {
+            match args[index].parse::<f64>() {
+                Ok(value) => coordinates[index] = value,
+                Err(_) => {
+                    output.error(format!("Invalid {axis} coordinate: {}", args[index]));
+                    return output;
+                }
+            }
+        }
+        output.teleport = Some(glam::DVec3::from_array(coordinates));
+        output
+    }
 }
 
 struct PosCommand;

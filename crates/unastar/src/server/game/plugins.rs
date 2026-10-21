@@ -96,42 +96,42 @@ pub fn process_plugin_actions(
                 use crate::item::ItemStack;
 
                 if let Ok((_, _, _, session, mut inv)) = players.get_mut(entity) {
-                    let item_stack = if let Some(entry) = item_registry.0.get_by_name(&item_id) {
-                        ItemStack::new(item_id.clone(), count).with_max_stack_size(entry.stack_size)
-                    } else {
-                        ItemStack::new(item_id.clone(), count)
+                    let Some(entry) = item_registry.0.get_by_name(&item_id) else {
+                        warn!(item_id, "Plugin requested an unknown item");
+                        continue;
                     };
+                    let Ok(network_id) = i16::try_from(entry.network_id) else {
+                        warn!(
+                            item_id,
+                            network_id = entry.network_id,
+                            "Item network ID exceeds protocol range"
+                        );
+                        continue;
+                    };
+                    let block_runtime_id = block_registry
+                        .0
+                        .get_by_name(&item_id)
+                        .map_or(0, |block| block.default_state_id);
+                    let Ok(runtime_id) = i32::try_from(block_runtime_id) else {
+                        warn!(
+                            item_id,
+                            block_runtime_id, "Block runtime ID exceeds inventory range"
+                        );
+                        continue;
+                    };
+                    let item_stack = ItemStack::new(item_id.clone(), count)
+                        .with_max_stack_size(entry.stack_size)
+                        .with_runtime_id(runtime_id);
 
                     if let Some(empty_slot) =
-                        (0..36).find(|&i| inv.0.item(i).is_none_or(|item| item.is_empty()))
+                        (0..inv.0.size()).find(|&i| inv.0.item(i).is_some_and(ItemStack::is_empty))
                     {
-                        let _ = inv.0.set_item(empty_slot, item_stack.clone());
                         let effective_count = item_stack.count;
+                        inv.0
+                            .set_item(empty_slot, item_stack)
+                            .expect("validated inventory slot");
                         info!(entity=?entity, item=%item_id, count = effective_count, requested_count = count, slot=empty_slot, "Plugin gave item");
 
-                        let network_id = item_registry
-                            .0
-                            .get_by_name(&item_id)
-                            .map(|entry| entry.network_id)
-                            .unwrap_or_else(|| {
-                                warn!("Item {} not found in registry, using placeholder", item_id);
-                                1
-                            });
-
-                        let block_runtime_id =
-                            if let Some(entry) = block_registry.0.get_by_name(&item_id) {
-                                entry.min_state_id
-                            } else {
-                                0
-                            };
-
-                        let Ok(network_id) = i16::try_from(network_id) else {
-                            warn!(
-                                item_id,
-                                network_id, "Item network ID exceeds protocol range"
-                            );
-                            continue;
-                        };
                         let protocol_item = CerealizerNetworkItemStackDescriptorSerializedData {
                             id: network_id,
                             stacksize: effective_count as u16,

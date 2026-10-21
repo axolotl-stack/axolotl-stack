@@ -25,8 +25,12 @@ pub struct PlayerBundle {
     pub environment_sensor: super::super::components::EnvironmentSensor,
     pub exhaustion_values: super::super::components::ExhaustionValues,
     pub experience_reward: super::super::components::ExperienceReward,
+    pub flying_speed: super::super::components::FlyingSpeed,
+    pub follow_range: super::super::components::FollowRange,
+    pub health: super::super::components::Health,
     pub hurt_on_condition: super::super::components::HurtOnCondition,
     pub insomnia: super::super::components::Insomnia,
+    pub inventory: super::super::components::Inventory,
     pub is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
     pub loot: super::super::components::Loot,
     pub movement: super::super::components::Movement,
@@ -38,6 +42,7 @@ pub struct PlayerBundle {
     pub player_saturation: super::super::components::PlayerSaturation,
     pub pushable: super::super::components::Pushable,
     pub rideable: super::super::components::Rideable,
+    pub scale: super::super::components::Scale,
     pub type_family: super::super::components::TypeFamily,
 }
 /// Spawn a new `minecraft:player` entity with default Bedrock components
@@ -155,11 +160,30 @@ pub fn spawn_player(commands: &mut Commands) -> Entity {
                     "Math.Min(query.player_level * 7, 100)".to_string(),
                 )),
             },
+            flying_speed: super::super::components::FlyingSpeed { value: 0.02f32 },
+            follow_range: super::super::components::FollowRange {
+                max: None,
+                min: None,
+                value: crate::types::RangeOrVal::Fixed(16f32),
+            },
+            health: super::super::components::Health {
+                max: None,
+                min: None,
+                value: crate::types::RangeOrVal::Fixed(20f32),
+            },
             hurt_on_condition: super::super::components::HurtOnCondition {
                 damage_conditions: None,
             },
             insomnia: super::super::components::Insomnia {
                 days_until_insomnia: Some(3f32),
+            },
+            inventory: super::super::components::Inventory {
+                additional_slots_per_strength: Some(0i32),
+                can_be_siphoned_from: Some(false),
+                container_type: Some("none".to_string()),
+                inventory_size: Some(5i32),
+                private: Some(false),
+                restrict_to_owner: Some(false),
             },
             is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
             loot: super::super::components::Loot {
@@ -234,6 +258,7 @@ pub fn spawn_player(commands: &mut Commands) -> Entity {
                     },
                 ]),
             },
+            scale: super::super::components::Scale { value: 1f32 },
             type_family: super::super::components::TypeFamily {
                 family: vec!["player".to_string()],
             },

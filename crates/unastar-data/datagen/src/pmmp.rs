@@ -1,13 +1,13 @@
-//! Normalize vendored PMMP/BedrockData JSON into golden KDL artifacts.
+//! Normalize native item data and PMMP creative inventory into golden KDL artifacts.
 
 use kdl::{KdlDocument, KdlEntry, KdlNode, KdlValue};
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use tracing::info;
-use walkdir::WalkDir;
+use zuri_nbt::NBTTag;
 
-use crate::json::remove_json_comments;
+use crate::nbt::NetworkLittleEndian;
 
 const CREATIVE_TABS: [(&str, &str); 4] = [
     ("construction", "creative_construction.json"),
@@ -21,28 +21,14 @@ const CREATIVE_TABS: [(&str, &str); 4] = [
 const CREATIVE_ITEM_PROPERTIES: [&str; 4] = ["meta", "damage", "block_states", "nbt"];
 
 #[derive(Debug, Deserialize)]
-struct RequiredItem {
-    runtime_id: i32,
-    component_based: bool,
-    version: i32,
-}
-
-#[derive(Debug, Deserialize)]
-struct VanillaItemFile {
-    #[serde(rename = "minecraft:item")]
-    item: VanillaItem,
-}
-
-#[derive(Debug, Deserialize)]
-struct VanillaItem {
-    description: VanillaItemDescription,
+struct NativeItem {
+    id: i16,
+    #[serde(rename = "maxStackSize")]
+    max_stack_size: u8,
     #[serde(default)]
-    components: serde_json::Map<String, serde_json::Value>,
-}
-
-#[derive(Debug, Deserialize)]
-struct VanillaItemDescription {
-    identifier: String,
+    tags: BTreeSet<String>,
+    #[serde(flatten)]
+    properties: BTreeMap<String, serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -54,127 +40,186 @@ struct CreativeGroup {
 }
 
 pub fn write_pmmp_artifacts(
+    native_dir: &Path,
     pmmp_dir: &Path,
-    vanilla_items_dir: &Path,
     output_dir: &Path,
 ) -> miette::Result<()> {
-    write_items_kdl(pmmp_dir, vanilla_items_dir, output_dir)?;
+    write_items_kdl(native_dir, output_dir)?;
     write_creative_kdl(pmmp_dir, output_dir)?;
     Ok(())
 }
 
-fn write_items_kdl(
-    pmmp_dir: &Path,
-    vanilla_items_dir: &Path,
-    output_dir: &Path,
-) -> miette::Result<()> {
-    let path = pmmp_dir.join("required_item_list.json");
-    let content = std::fs::read_to_string(&path)
-        .map_err(|e| miette::miette!("Failed to read {}: {}", path.display(), e))?;
-    let items: HashMap<String, RequiredItem> = serde_json::from_str(&content)
-        .map_err(|e| miette::miette!("Failed to parse {}: {}", path.display(), e))?;
-    let stack_sizes = load_vanilla_item_stack_sizes(vanilla_items_dir)?;
+fn read_json_source(dir: &Path, name: &str) -> miette::Result<String> {
+    let path = dir.join(name);
+    std::fs::read_to_string(&path)
+        .map_err(|e| miette::miette!("Failed to read {}: {}", path.display(), e))
+}
 
-    let mut doc = KdlDocument::new();
-    let mut names: Vec<_> = items.keys().collect();
-    names.sort();
-
-    for name in names {
-        let item = &items[name];
-        let mut node = KdlNode::new("item");
-        node.push(KdlEntry::new(KdlValue::String(name.clone())));
-        node.push(KdlEntry::new_prop(
-            "runtime_id",
-            KdlValue::Integer(item.runtime_id as i128),
-        ));
-        node.push(KdlEntry::new_prop(
-            "component_based",
-            KdlValue::Bool(item.component_based),
-        ));
-        node.push(KdlEntry::new_prop(
-            "version",
-            KdlValue::Integer(item.version as i128),
-        ));
-        if let Some(stack_size) = stack_sizes.get(name.as_str()) {
-            node.push(KdlEntry::new_prop(
-                "max_stack_size",
-                KdlValue::Integer(*stack_size as i128),
-            ));
-            node.push(KdlEntry::new_prop(
-                "max_stack_size_source",
-                KdlValue::String("vanilla_behavior_pack".to_string()),
-            ));
-        } else {
-            node.push(KdlEntry::new_prop("max_stack_size", KdlValue::Integer(64)));
-            node.push(KdlEntry::new_prop(
-                "max_stack_size_source",
-                KdlValue::String("unsourced_default".to_string()),
-            ));
-        }
-        doc.nodes_mut().push(node);
-    }
-
+fn write_items_kdl(native_dir: &Path, output_dir: &Path) -> miette::Result<()> {
+    let properties = read_json_source(native_dir, "item_properties_table.json")?;
+    let tags = read_json_source(native_dir, "item_tags.json")?;
+    let mut doc = native_items_document(&properties, &tags)?;
+    // Native inputs are rooted at data/source/inputs/<version>/native.
+    let protocolgen_dir = native_dir.ancestors().nth(5).ok_or_else(|| {
+        miette::miette!(
+            "native directory must be under protocolgen/data/source/inputs/<version>/native"
+        )
+    })?;
+    let registry_path = protocolgen_dir.join("generated/data/registry/items.nbt");
+    let registry = std::fs::read(&registry_path)
+        .map_err(|e| miette::miette!("Failed to read {}: {}", registry_path.display(), e))?;
+    apply_registry_metadata(&mut doc, &registry)?;
+    let count = doc.nodes().len();
     write_kdl_with_header(
         output_dir,
         "items.kdl",
         &format!(
             "// AUTO-GENERATED by unastar-data-gen\n\
              // Do not edit manually - changes will be overwritten\n\
-             // Source: PMMP/BedrockData required_item_list.json + vanilla behavior-pack item components\n\
-             // Item count: {}\n\n",
-            items.len()
+             // Source: protocolgen native item_properties_table.json + item_tags.json\n\
+             // Registry metadata: protocolgen generated/data/registry/items.nbt\n\
+             // Item count: {count}\n\n"
         ),
         doc,
     )?;
-
-    info!("Wrote {} PMMP item entries", items.len());
+    info!("Wrote {} native item entries", count);
     Ok(())
 }
 
-fn load_vanilla_item_stack_sizes(items_dir: &Path) -> miette::Result<HashMap<String, u8>> {
-    let mut stack_sizes = HashMap::new();
-    if !items_dir.exists() {
-        return Ok(stack_sizes);
+fn apply_registry_metadata(doc: &mut KdlDocument, bytes: &[u8]) -> miette::Result<()> {
+    let mut remaining = bytes;
+    let registry = NBTTag::read(&mut remaining, NetworkLittleEndian)
+        .map_err(|e| miette::miette!("Failed to parse native items.nbt: {}", e))?;
+    if !remaining.is_empty() {
+        return Err(miette::miette!("items.nbt contains trailing bytes"));
     }
-
-    for entry in WalkDir::new(items_dir) {
-        let entry = entry.map_err(|e| miette::miette!("Failed to walk item data: {}", e))?;
-        let path = entry.path();
-        if !path.is_file() || path.extension().and_then(|ext| ext.to_str()) != Some("json") {
-            continue;
-        }
-
-        let content = std::fs::read_to_string(path)
-            .map_err(|e| miette::miette!("Failed to read {}: {}", path.display(), e))?;
-        let stripped = remove_json_comments(&content);
-        let item: VanillaItemFile = serde_json::from_str(&stripped)
-            .map_err(|e| miette::miette!("Failed to parse {}: {}", path.display(), e))?;
-
-        let Some(stack_size) = item
-            .item
-            .components
-            .get("minecraft:max_stack_size")
-            .and_then(|value| value.as_u64())
-        else {
-            continue;
-        };
-        let stack_size = u8::try_from(stack_size).map_err(|_| {
-            miette::miette!(
-                "{} has minecraft:max_stack_size {} outside u8 range",
-                path.display(),
-                stack_size
-            )
-        })?;
-        if stack_size == 0 {
+    let NBTTag::Compound(registry) = registry else {
+        return Err(miette::miette!("items.nbt root must be a compound"));
+    };
+    for node in doc.nodes_mut() {
+        let name = node
+            .get(0)
+            .and_then(KdlValue::as_string)
+            .expect("native identifier");
+        let Some(NBTTag::Compound(metadata)) = registry.0.get(name) else {
             return Err(miette::miette!(
-                "{} has invalid zero minecraft:max_stack_size",
-                path.display()
+                "items.nbt missing registry entry for {}",
+                name
+            ));
+        };
+        let Some(NBTTag::Int(runtime_id)) = metadata.0.get("runtime_id") else {
+            return Err(miette::miette!(
+                "items.nbt {} missing integer runtime_id",
+                name
+            ));
+        };
+        let native_id = node.get("runtime_id").and_then(KdlValue::as_integer);
+        if native_id != Some(runtime_id.0 as i128) {
+            return Err(miette::miette!(
+                "items.nbt {} runtime_id {} disagrees with native item table runtime_id {:?}",
+                name,
+                runtime_id.0,
+                native_id
             ));
         }
-        stack_sizes.insert(item.item.description.identifier, stack_size);
+        let Some(NBTTag::Byte(component_based)) = metadata.0.get("component_based") else {
+            return Err(miette::miette!(
+                "items.nbt {} missing byte component_based",
+                name
+            ));
+        };
+        if component_based.0 > 1 {
+            return Err(miette::miette!(
+                "items.nbt {} component_based must be 0 or 1",
+                name
+            ));
+        }
+        let Some(NBTTag::Int(version)) = metadata.0.get("version") else {
+            return Err(miette::miette!(
+                "items.nbt {} missing integer version",
+                name
+            ));
+        };
+        node.push(KdlEntry::new_prop(
+            "component_based",
+            KdlValue::Bool(component_based.0 != 0),
+        ));
+        node.push(KdlEntry::new_prop(
+            "version",
+            KdlValue::Integer(version.0 as i128),
+        ));
+        node.push(KdlEntry::new_prop(
+            "registry_metadata_source",
+            KdlValue::String("protocolgen_registry".to_string()),
+        ));
     }
+    Ok(())
+}
 
-    Ok(stack_sizes)
+fn native_items_document(properties: &str, tags: &str) -> miette::Result<KdlDocument> {
+    let mut items: BTreeMap<String, NativeItem> = serde_json::from_str(properties)
+        .map_err(|e| miette::miette!("Failed to parse native item_properties_table.json: {}", e))?;
+    let tags: BTreeMap<String, Vec<String>> = serde_json::from_str(tags)
+        .map_err(|e| miette::miette!("Failed to parse native item_tags.json: {}", e))?;
+    if items.is_empty() {
+        return Err(miette::miette!(
+            "native item_properties_table.json contains no items"
+        ));
+    }
+    for (tag, members) in tags {
+        for name in members {
+            let item = items.get_mut(&name).ok_or_else(|| {
+                miette::miette!("native item tag {} references unknown item {}", tag, name)
+            })?;
+            item.tags.insert(tag.clone());
+        }
+    }
+    let mut ids = BTreeSet::new();
+    let mut doc = KdlDocument::new();
+    for (name, item) in items {
+        if name.trim().is_empty() || item.max_stack_size == 0 {
+            return Err(miette::miette!(
+                "native item {} has empty identifier or zero maxStackSize",
+                name
+            ));
+        }
+        if !ids.insert(item.id) {
+            return Err(miette::miette!(
+                "native item {} has duplicate id {}",
+                name,
+                item.id
+            ));
+        }
+        let mut node = KdlNode::new("item");
+        node.push(KdlEntry::new(KdlValue::String(name)));
+        node.push(KdlEntry::new_prop(
+            "runtime_id",
+            KdlValue::Integer(item.id as i128),
+        ));
+        node.push(KdlEntry::new_prop(
+            "max_stack_size",
+            KdlValue::Integer(item.max_stack_size as i128),
+        ));
+        node.push(KdlEntry::new_prop(
+            "max_stack_size_source",
+            KdlValue::String("protocolgen_native".to_string()),
+        ));
+        // Preserve native gameplay properties without inventing runtime semantics.
+        for (key, value) in item.properties {
+            node.push(KdlEntry::new_prop(key, json_scalar_to_kdl(&value)?));
+        }
+        if !item.tags.is_empty() {
+            let mut children = KdlDocument::new();
+            for tag in item.tags {
+                let mut tag_node = KdlNode::new("tag");
+                tag_node.push(KdlEntry::new(KdlValue::String(tag)));
+                children.nodes_mut().push(tag_node);
+            }
+            node.set_children(children);
+        }
+        doc.nodes_mut().push(node);
+    }
+    Ok(doc)
 }
 
 fn write_creative_kdl(pmmp_dir: &Path, output_dir: &Path) -> miette::Result<()> {
@@ -376,53 +421,87 @@ mod tests {
     }
 
     #[test]
-    fn items_kdl_merges_behavior_pack_stack_sizes() {
-        let temp_dir = std::env::temp_dir().join(format!(
-            "unastar-pmmp-items-test-{}-{}",
-            std::process::id(),
-            unique_suffix()
-        ));
-        let pmmp_dir = temp_dir.join("pmmp");
-        let vanilla_items_dir = temp_dir.join("items");
-        let output_dir = temp_dir.join("output");
-        std::fs::create_dir_all(&pmmp_dir).expect("create pmmp dir");
-        std::fs::create_dir_all(&vanilla_items_dir).expect("create vanilla items dir");
-        std::fs::write(
-            pmmp_dir.join("required_item_list.json"),
-            r#"{
-                "minecraft:honey_bottle":{"runtime_id":737,"component_based":false,"version":2},
-                "minecraft:stone":{"runtime_id":1,"component_based":false,"version":2}
-            }"#,
+    fn native_items_preserve_ids_stacks_properties_and_sorted_tags() {
+        let items = r#"{
+            "minecraft:stone":{"id":-1,"maxStackSize":64,"maxDamage":0},
+            "minecraft:boat":{"id":382,"maxStackSize":1,"tags":["minecraft:boats"],"fireResistant":false}
+        }"#;
+        let tags = r#"{"minecraft:boats":["minecraft:boat"],"minecraft:boat":["minecraft:boat"]}"#;
+        let doc = native_items_document(items, tags).unwrap();
+        let boat = &doc.nodes()[0];
+        assert_eq!(
+            boat.get(0).and_then(KdlValue::as_string),
+            Some("minecraft:boat")
+        );
+        assert_eq!(
+            boat.get("runtime_id").and_then(KdlValue::as_integer),
+            Some(382)
+        );
+        assert_eq!(
+            boat.get("max_stack_size").and_then(KdlValue::as_integer),
+            Some(1)
+        );
+        assert_eq!(
+            boat.get("fireResistant").and_then(KdlValue::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            boat.get("max_stack_size_source")
+                .and_then(KdlValue::as_string),
+            Some("protocolgen_native")
+        );
+        let tags = boat.children().unwrap().nodes();
+        assert_eq!(tags.len(), 2);
+        assert_eq!(
+            tags[0].get(0).and_then(KdlValue::as_string),
+            Some("minecraft:boat")
+        );
+        assert_eq!(
+            tags[1].get(0).and_then(KdlValue::as_string),
+            Some("minecraft:boats")
+        );
+        assert_eq!(
+            doc.nodes()[1]
+                .get("runtime_id")
+                .and_then(KdlValue::as_integer),
+            Some(-1)
+        );
+        assert_eq!(
+            doc.to_string(),
+            native_items_document(
+                items,
+                r#"{
+            "minecraft:boat":["minecraft:boat"],"minecraft:boats":["minecraft:boat"]
+        }"#
+            )
+            .unwrap()
+            .to_string()
+        );
+    }
+
+    #[test]
+    fn native_items_reject_missing_or_invalid_required_data() {
+        for items in [
+            "{}",
+            r#"{"minecraft:a":{"maxStackSize":64}}"#,
+            r#"{"minecraft:a":{"id":1}}"#,
+            r#"{"minecraft:a":{"id":1,"maxStackSize":0}}"#,
+            r#"{"minecraft:a":{"id":1,"maxStackSize":256}}"#,
+            r#"{"minecraft:a":{"id":32768,"maxStackSize":64}}"#,
+            r#"{"minecraft:a":{"id":1,"maxStackSize":64},"minecraft:b":{"id":1,"maxStackSize":64}}"#,
+        ] {
+            assert!(native_items_document(items, "{}").is_err(), "{items}");
+        }
+    }
+
+    #[test]
+    fn native_items_reject_dangling_tag_members() {
+        let error = native_items_document(
+            r#"{"minecraft:stone":{"id":1,"maxStackSize":64}}"#,
+            r#"{"minecraft:boats":["minecraft:missing"]}"#,
         )
-        .expect("write required item list");
-        std::fs::write(
-            vanilla_items_dir.join("honey_bottle.json"),
-            r#"{
-                "minecraft:item":{
-                    "description":{"identifier":"minecraft:honey_bottle"},
-                    "components":{
-                        // JSONC comments from vanilla packs should be accepted.
-                        "minecraft:max_stack_size":16
-                    }
-                }
-            }"#,
-        )
-        .expect("write vanilla item");
-
-        write_items_kdl(&pmmp_dir, &vanilla_items_dir, &output_dir).expect("write items kdl");
-
-        let generated =
-            std::fs::read_to_string(output_dir.join("items.kdl")).expect("read items kdl");
-        assert!(generated.contains(
-            "item minecraft:honey_bottle runtime_id=737 component_based=#false version=2 max_stack_size=16"
-        ));
-        assert!(generated.contains("max_stack_size_source=vanilla_behavior_pack"));
-        assert!(generated.contains(
-            "item minecraft:stone runtime_id=1 component_based=#false version=2 max_stack_size=64"
-        ));
-        assert!(generated.contains("max_stack_size_source=unsourced_default"));
-
-        let _ = std::fs::remove_dir_all(temp_dir);
+        .unwrap_err();
+        assert!(error.to_string().contains("minecraft:missing"));
     }
 
     #[test]
@@ -442,11 +521,76 @@ mod tests {
             "{err:?}"
         );
     }
+}
 
-    fn unique_suffix() -> u128 {
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos()
+#[cfg(test)]
+mod registry_tests {
+    use super::*;
+    use zuri_nbt::tag::Compound;
+
+    #[test]
+    fn registry_accepts_negative_native_ids_and_reports_actual_mismatches() {
+        let mut doc =
+            native_items_document(r#"{"minecraft:stone":{"id":-140,"maxStackSize":64}}"#, "{}")
+                .unwrap();
+        apply_registry_metadata(&mut doc, &registry_bytes(-140, true)).unwrap();
+        let error = apply_registry_metadata(&mut doc, &registry_bytes(-139, true)).unwrap_err();
+        let message = error.to_string();
+        assert!(
+            message.contains("-139") && message.contains("-140"),
+            "{message}"
+        );
+    }
+
+    fn registry_bytes(id: i32, include_version: bool) -> Vec<u8> {
+        let mut row = Compound::builder()
+            .with_int("runtime_id", id)
+            .with_byte("component_based", 1);
+        if include_version {
+            row = row.with_int("version", 2);
+        }
+        let registry = NBTTag::Compound(
+            Compound::builder()
+                .with("minecraft:stone", row.build())
+                .build(),
+        );
+        let mut bytes = Vec::new();
+        registry
+            .write(&mut bytes, zuri_nbt::encoding::NetworkLittleEndian)
+            .unwrap();
+        bytes
+    }
+
+    #[test]
+    fn registry_metadata_is_sourced_and_ids_must_agree() {
+        let mut doc =
+            native_items_document(r#"{"minecraft:stone":{"id":1,"maxStackSize":64}}"#, "{}")
+                .unwrap();
+        assert!(apply_registry_metadata(&mut doc, &registry_bytes(2, true)).is_err());
+        assert!(apply_registry_metadata(&mut doc, &registry_bytes(1, false)).is_err());
+        apply_registry_metadata(&mut doc, &registry_bytes(1, true)).unwrap();
+        assert_eq!(
+            doc.nodes()[0]
+                .get("component_based")
+                .and_then(KdlValue::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            doc.nodes()[0].get("version").and_then(KdlValue::as_integer),
+            Some(2)
+        );
+    }
+
+    #[test]
+    fn registry_rejects_missing_entries_and_trailing_bytes() {
+        let mut doc =
+            native_items_document(r#"{"minecraft:missing":{"id":1,"maxStackSize":64}}"#, "{}")
+                .unwrap();
+        let mut bytes = registry_bytes(1, true);
+        let error = apply_registry_metadata(&mut doc, &bytes).unwrap_err();
+        assert!(error.to_string().contains("missing registry entry"));
+        bytes.push(0);
+        let error = apply_registry_metadata(&mut doc, &bytes).unwrap_err();
+        assert!(error.to_string().contains("trailing bytes"));
     }
 }

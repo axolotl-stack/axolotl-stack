@@ -8,16 +8,17 @@ use glam::DVec3;
 use tracing::{debug, info, trace};
 
 use super::packet_queues::{ChatAction, ChatEvents, ChatPacketQueue};
-use super::types::{CommandRegistryResource, SessionEntityMap, system_text};
-use crate::command::{CommandOutput, CommandParseError, parse_command_line};
+use super::types::{CommandRegistryResource, system_text};
+use crate::command::{
+    CommandContext, CommandOutput, CommandParseError, Operator, parse_command_line,
+};
 use crate::ecs::events::ServerEvent;
 use crate::entity::components::transform::Position;
 use crate::entity::components::{PlayerName, PlayerSession, PlayerUuid, RuntimeEntityId};
 use crate::world::ecs::ChunkLoader;
 use jolyne::valentine::types::{
     ActorRuntimeId, EnumsPlayerPositionModeComponentPositionMode, EnumsTextPacketType,
-    PlayerInputTick, TextPacketBody, TextPacketPayloadAuthorAndMessage,
-    TextPacketPayloadAuthorAndMessageMessageType, Vec2, Vec3,
+    PlayerInputTick, TextPacketBody, TextPacketPayloadAuthorAndMessageMessageType, Vec2, Vec3,
 };
 use jolyne::valentine::{McpePacket, MovePlayerPacket, MovePlayerTeleportData, TextPacket};
 
@@ -29,19 +30,19 @@ use jolyne::valentine::{McpePacket, MovePlayerPacket, MovePlayerTeleportData, Te
 pub fn apply_chat_and_commands(
     mut queue: ResMut<ChatPacketQueue>,
     mut events: ResMut<ChatEvents>,
-    session_map: Res<SessionEntityMap>,
     commands: Res<CommandRegistryResource>,
     tick_counter: Res<crate::ecs::resources::TickCounter>,
     sessions: Query<&PlayerSession>,
     names: Query<(&PlayerName, &PlayerUuid)>,
     runtime_ids: Query<&RuntimeEntityId>,
+    operators: Query<(), With<Operator>>,
     mut tp_targets: Query<(&mut Position, Option<&mut ChunkLoader>)>,
 ) {
     let _span = tracing::info_span!("apply_chat_and_commands", count = queue.0.len()).entered();
     for (entity, _session_id, action) in queue.0.drain(..) {
         match action {
             ChatAction::Text(pk) => {
-                handle_text(entity, &pk, &session_map, &sessions, &names, &mut events);
+                handle_text(entity, &pk, &names, &mut events);
             }
             ChatAction::Command(req) => {
                 handle_command_request(
@@ -51,6 +52,7 @@ pub fn apply_chat_and_commands(
                     &tick_counter,
                     &sessions,
                     &runtime_ids,
+                    &operators,
                     &mut tp_targets,
                 );
             }
@@ -61,8 +63,6 @@ pub fn apply_chat_and_commands(
 fn handle_text(
     entity: Entity,
     pk: &TextPacket,
-    session_map: &Res<SessionEntityMap>,
-    sessions: &Query<&PlayerSession>,
     names: &Query<(&PlayerName, &PlayerUuid)>,
     events: &mut ResMut<ChatEvents>,
 ) {
@@ -98,26 +98,8 @@ fn handle_text(
             events.0.push(ServerEvent::PlayerChat {
                 entity,
                 player_id: sender_uuid,
-                message: message.clone(),
+                message,
             });
-
-            let broadcast_packet = TextPacket {
-                localize: false,
-                body: TextPacketBody::AuthorAndMessage(TextPacketPayloadAuthorAndMessage {
-                    message_type: TextPacketPayloadAuthorAndMessageMessageType::Chat,
-                    player_name: sender_name,
-                    message,
-                }),
-                senders_xuid: String::new(),
-                platform_id: String::new(),
-                filtered_message: None,
-            };
-
-            for (_sid, other_entity) in session_map.iter() {
-                if let Ok(session) = sessions.get(other_entity) {
-                    let _ = session.send(McpePacket::from(broadcast_packet.clone()));
-                }
-            }
         }
         TextPacketBody::AuthorAndMessage(author)
             if author.message_type == TextPacketPayloadAuthorAndMessageMessageType::Whisper =>
@@ -130,6 +112,7 @@ fn handle_text(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_command_request(
     entity: Entity,
     req: &jolyne::valentine::CommandRequestPacket,
@@ -137,6 +120,7 @@ fn handle_command_request(
     tick_counter: &Res<crate::ecs::resources::TickCounter>,
     sessions: &Query<&PlayerSession>,
     runtime_ids: &Query<&RuntimeEntityId>,
+    operators: &Query<(), With<Operator>>,
     tp_targets: &mut Query<(&mut Position, Option<&mut ChunkLoader>)>,
 ) {
     if req.is_internal {
@@ -149,7 +133,7 @@ fn handle_command_request(
         return;
     }
 
-    let invocation = match parse_command_line(command_line) {
+    let mut invocation = match parse_command_line(command_line) {
         Ok(inv) => inv,
         Err(CommandParseError::Empty) => return,
         Err(e) => {
@@ -159,42 +143,28 @@ fn handle_command_request(
                 CommandOutput {
                     messages: vec![],
                     errors: vec![e.to_string()],
+                    ..Default::default()
                 },
             );
             return;
         }
     };
 
-    let name_lower = invocation.name.to_ascii_lowercase();
-    if name_lower == "tp" || name_lower == "teleport" {
+    let Ok(session) = sessions.get(entity) else {
+        return;
+    };
+    let context = CommandContext::new(session.session_id, operators.contains(entity));
+    let output = commands.0.execute(&context, &mut invocation);
+    if let Some(target) = output.teleport {
         handle_teleport_command(
             entity,
-            invocation.args.rest(),
+            target,
             tick_counter,
             sessions,
             runtime_ids,
             tp_targets,
         );
-        return;
     }
-
-    let Some(_command) = commands.0.find(&invocation.name) else {
-        send_command_output(
-            entity,
-            sessions,
-            CommandOutput {
-                messages: vec![],
-                errors: vec![format!("Unknown command: {}", invocation.name)],
-            },
-        );
-        return;
-    };
-
-    let output = CommandOutput {
-        messages: vec![format!("Command '{}' executed", invocation.name)],
-        errors: vec![],
-    };
-
     if !output.is_empty() {
         send_command_output(entity, sessions, output);
     }
@@ -202,66 +172,13 @@ fn handle_command_request(
 
 fn handle_teleport_command(
     entity: Entity,
-    args: &[String],
+    target: DVec3,
     tick_counter: &Res<crate::ecs::resources::TickCounter>,
     sessions: &Query<&PlayerSession>,
     runtime_ids: &Query<&RuntimeEntityId>,
     tp_targets: &mut Query<(&mut Position, Option<&mut ChunkLoader>)>,
 ) {
-    if args.len() < 3 {
-        send_command_output(
-            entity,
-            sessions,
-            CommandOutput {
-                messages: vec![],
-                errors: vec!["Usage: /tp <x> <y> <z>".to_string()],
-            },
-        );
-        return;
-    }
-
-    let x: f64 = match args[0].parse() {
-        Ok(v) => v,
-        Err(_) => {
-            send_command_output(
-                entity,
-                sessions,
-                CommandOutput {
-                    messages: vec![],
-                    errors: vec![format!("Invalid x coordinate: {}", args[0])],
-                },
-            );
-            return;
-        }
-    };
-    let y: f64 = match args[1].parse() {
-        Ok(v) => v,
-        Err(_) => {
-            send_command_output(
-                entity,
-                sessions,
-                CommandOutput {
-                    messages: vec![],
-                    errors: vec![format!("Invalid y coordinate: {}", args[1])],
-                },
-            );
-            return;
-        }
-    };
-    let z: f64 = match args[2].parse() {
-        Ok(v) => v,
-        Err(_) => {
-            send_command_output(
-                entity,
-                sessions,
-                CommandOutput {
-                    messages: vec![],
-                    errors: vec![format!("Invalid z coordinate: {}", args[2])],
-                },
-            );
-            return;
-        }
-    };
+    let DVec3 { x, y, z } = target;
 
     let runtime_id = runtime_ids.get(entity).map(|r| r.0).unwrap_or(0);
 
@@ -311,6 +228,7 @@ fn handle_teleport_command(
         CommandOutput {
             messages: vec![format!("Teleported to {x:.1}, {y:.1}, {z:.1}")],
             errors: vec![],
+            ..Default::default()
         },
     );
 }
@@ -325,5 +243,142 @@ fn send_command_output(entity: Entity, sessions: &Query<&PlayerSession>, output:
     }
     for error in output.errors {
         let _ = session.send(McpePacket::from(system_text(&format!("Error: {error}"))));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::command::{Command, CommandArgs, CommandContext, CommandRegistry, Operator};
+    use bevy_ecs::system::RunSystemOnce;
+    use jolyne::valentine::McpePacketData;
+    use jolyne::valentine::types::TextPacketPayloadAuthorAndMessage;
+    use tokio::sync::mpsc;
+
+    fn fixture() -> (World, Entity, mpsc::Receiver<McpePacket>) {
+        let mut world = World::new();
+        world.insert_resource(ChatPacketQueue::default());
+        world.insert_resource(ChatEvents::default());
+        world.insert_resource(CommandRegistryResource(CommandRegistry::with_defaults()));
+        world.insert_resource(crate::ecs::resources::TickCounter::default());
+        let (tx, rx) = mpsc::channel(16);
+        let entity = world
+            .spawn((
+                PlayerSession::new(1, "Alice".into(), None, None, tx),
+                PlayerName("Alice".into()),
+                PlayerUuid(uuid::Uuid::nil()),
+                Position(DVec3::ZERO),
+                RuntimeEntityId(1),
+            ))
+            .id();
+        let mut sessions = super::super::types::SessionEntityMap::default();
+        sessions.insert(1, entity);
+        world.insert_resource(sessions);
+        (world, entity, rx)
+    }
+
+    fn command(world: &mut World, entity: Entity, line: &str) {
+        let mut request = jolyne::valentine::CommandRequestPacket {
+            command: line.into(),
+            ..Default::default()
+        };
+        // A client claiming console origin must not gain operator authority.
+        request.origin.type_ = "console".into();
+        world
+            .resource_mut::<ChatPacketQueue>()
+            .0
+            .push((entity, 1, ChatAction::Command(request)));
+        world.run_system_once(apply_chat_and_commands).unwrap();
+    }
+
+    #[test]
+    fn teleport_rejects_nonoperators_without_moving() {
+        for name in ["tp", "teleport", "TP"] {
+            let (mut world, entity, mut rx) = fixture();
+            command(&mut world, entity, &format!("/{name} 32 70 -16"));
+            assert_eq!(world.get::<Position>(entity).unwrap().0, DVec3::ZERO);
+            let McpePacketData::TextPacket(packet) = rx.try_recv().unwrap().data else {
+                panic!("expected permission error, not teleport");
+            };
+            assert!(format!("{packet:?}").contains("permission"));
+            assert!(rx.try_recv().is_err());
+        }
+    }
+
+    #[test]
+    fn teleport_allows_server_granted_operators() {
+        for name in ["tp", "teleport"] {
+            let (mut world, entity, mut rx) = fixture();
+            world.entity_mut(entity).insert(Operator);
+            command(&mut world, entity, &format!("/{name} 32 70 -16"));
+            assert_eq!(
+                world.get::<Position>(entity).unwrap().0,
+                DVec3::new(32.0, 70.0, -16.0)
+            );
+            assert!(matches!(
+                rx.try_recv().unwrap().data,
+                McpePacketData::MovePlayerPacket(_)
+            ));
+            assert!(matches!(
+                rx.try_recv().unwrap().data,
+                McpePacketData::TextPacket(_)
+            ));
+            assert!(rx.try_recv().is_err());
+        }
+    }
+
+    struct RestrictedCommand;
+
+    impl Command for RestrictedCommand {
+        fn name(&self) -> &'static str {
+            "restricted"
+        }
+        fn requires_operator(&self) -> bool {
+            true
+        }
+        fn execute(&self, _ctx: &CommandContext, _args: &mut CommandArgs) -> CommandOutput {
+            let mut output = CommandOutput::default();
+            output.message("actual execution");
+            output
+        }
+    }
+
+    #[test]
+    fn registry_permissions_apply_to_custom_commands_and_execute_authorized_handlers() {
+        let (mut world, entity, mut rx) = fixture();
+        world
+            .resource_mut::<CommandRegistryResource>()
+            .0
+            .register(RestrictedCommand);
+        command(&mut world, entity, "/restricted");
+        assert!(format!("{:?}", rx.try_recv().unwrap()).contains("permission"));
+        world.entity_mut(entity).insert(Operator);
+        command(&mut world, entity, "/restricted");
+        assert!(format!("{:?}", rx.try_recv().unwrap()).contains("actual execution"));
+    }
+
+    #[test]
+    fn chat_only_queues_cancellable_event_without_delivery() {
+        let (mut world, entity, mut rx) = fixture();
+        let packet = TextPacket {
+            localize: false,
+            body: TextPacketBody::AuthorAndMessage(TextPacketPayloadAuthorAndMessage {
+                message_type: TextPacketPayloadAuthorAndMessageMessageType::Chat,
+                player_name: "spoofed".into(),
+                message: "hello".into(),
+            }),
+            senders_xuid: String::new(),
+            platform_id: String::new(),
+            filtered_message: None,
+        };
+        world
+            .resource_mut::<ChatPacketQueue>()
+            .0
+            .push((entity, 1, ChatAction::Text(packet)));
+        world.run_system_once(apply_chat_and_commands).unwrap();
+        assert!(rx.try_recv().is_err());
+        assert!(matches!(&world.resource::<ChatEvents>().0[..],
+            [ServerEvent::PlayerChat { entity: sender, message, .. }]
+                if *sender == entity && message == "hello"));
     }
 }

@@ -1,16 +1,51 @@
 # Repository maintenance audit
 
-**Reviewed:** 2026-09-25  
-**Base:** Review began at `main` commit `c454051`, matching `origin/main`. Local `main` is at protocolgen commit `06a36d0`; the protocolgen submodule is advanced to upstream `1b105d8`. Valentine now defaults to schema label `1.26.51`, Bedrock 26.51, protocol 2193.
+**Reviewed:** 2026-09-25 (findings) · **Remediation pass:** 2026-10-21  
+**Base:** Review began at `main` commit `c454051`. The 2026-10-21 remediation pass starts at `b295743` and integrates worker branches on local `main`. The protocolgen submodule now tracks `https://github.com/cinnabar-mc/protocolgen.git` (previously `bedrock-mc/protocolgen`) at `7b2e47c`. Valentine supports only schema label `1.26.51`, Bedrock 26.51, protocol 2193.
 **Scope:** Static source review, branch/workflow review, and local validation. Behavior findings below are source-backed review results, not all runtime-reproduced vulnerabilities.
 
 ## Current protocol baseline
 
-The player-facing stable version is Bedrock **26.51**; Mojang's protocol changelog and the canonical protocolgen schema use `1.26.51`, protocol **2193**. Valentine defaults to that generated crate from protocolgen commit `1b105d8`. As of 2026-09-25, Mojang's latest stable hotfix is 26.51, and the checked-in data covers it; no newer official hotfix is unrepresented.
+The player-facing stable version is Bedrock **26.51**; Mojang's protocol changelog and the canonical protocolgen schema use `1.26.51`, protocol **2193**. Valentine generates its only version crate, `v1_26_51`, from protocolgen `7b2e47c`; the 1.26.0, 1.26.30, 1.26.40 and 1.26.44 crates were removed. Server game data (blocks, states, items, biomes) now comes from protocolgen's pinned native BDS inputs (`data/source/inputs/1.26.51/native`) through `unastar-data`; PrismarineJS `minecraft-data` remains checked in only as a reference/cross-check source.
 
-Do not use protocolgen's `1.26.50` manifest as stable: it describes Preview 25, protocol 2187. See the [official version-numbering guide](https://www.minecraft.net/en-us/article/minecraft-new-version-numbering-system) and [Bedrock protocol changelog](https://mojang.github.io/bedrock-protocol-docs/changelog/).
+Do not use protocolgen's `1.26.50` manifest as stable: it describes Preview 25, protocol 2187. See the [official version-numbering guide](https://www.minecraft.net/en-us/article/minecraft-new-version-numbering-system) and [Bedrock protocol changelog](https://mojang.github.io/bedrock-protocol-docs/changelog/). Endstone 0.11.13 (2026-10-06) added BDS 1.26.52 support; whether 26.52 changed protocol 2193 has not been checked yet.
 
 ## Readiness
+
+All high-priority findings except `EXTRACTOR-01` are remediated on `main` (see below). Online mode now verifies logins against Minecraft services' published JWKS. Remaining release blockers: `LICENSE-01`, live verification of Xbox/franchise paths, and the deferred MPSD ConnectionType 7 migration.
+
+## Remediation status (2026-10-21)
+
+| ID | Status | Fix |
+|---|---|---|
+| `AUTH-01` | Fixed | jolyne trusts only build-discovered OpenID/JWKS keys with issuer/audience/time checks, ES384 client-data binding to the authenticated identity key, Mojang-rooted legacy chains; offline mode marks identities unauthenticated (`f8c4917`). |
+| `CODEC-01` | Fixed | Preallocation bounded by remaining input; generated recursive values carry a depth budget; borrowed decoding likewise (`fa91aae`). |
+| `WORLD-01` | Fixed | Async chunk path loads from storage before generating; loaded columns are never marked dirty or overwritten (`f8a69f8`). |
+| `PLAYER-01` | Fixed | Player data restored on join (position, inventory, gamemode, vitals) and saved symmetrically; corrupt records preserved (`f8a69f8`). |
+| `GAME-01` | Fixed | Server-authoritative inventory, reach/gamemode checks, item consumption, permissioned `tp`, i32 block Y (`c66ce25`, `f8a69f8`). |
+| `PLUGIN-01` | Fixed | Plugin instantiation/`on_load` deferred until a live world exists (`c66ce25`). |
+| `RAKNET-01` | Fixed | Receive window 2048 and bounded ACK/NAK/split/ordering state, ported from lunar-bedrock/go-raknet; MTU validated with typed errors (`dd5074d`). |
+| `NETHERNET-01` | Fixed | Discovery receives full datagrams and rejects truncation (`2e6a4ac`). |
+| `CREDENTIALS-01` | Fixed | Secrets removed from logs/errors; token cache written atomically with owner-only permissions (`4e05b3d`). |
+| `EXTRACTOR-01` | Open | Not in this pass; protocolgen's `vanilla-data` BDS capture may replace the extractor. |
+| `PLUGIN-02` | Fixed | Manifest memory/fuel limits enforced; cancellable events dispatched before mutation; chat broadcast once (`c66ce25`). |
+| `DATA-01` | Fixed | Manifest/surface updates merge existing version crates instead of dropping them (`fa91aae`). |
+| `FRAME-01` | Fixed | Owned frame decoding rejects trailing bytes (`fa91aae`). |
+| `NBT-01` | Fixed | NBT decode handles segmented `Buf`s (`fa91aae`). |
+| `GEN-01` | Fixed | Tokens formatted before writing; atomic output writes (`fa91aae`). |
+| `TEST-01` | Fixed | Legacy-gated Valentine integration tests ported to 1.26.51 (`fa91aae`). |
+| `CONFIG-01` | Fixed | Single embedded config source, `deny_unknown_fields` including nested world bounds/generator (`c66ce25`). |
+| `NETHERNET-02` | Fixed | Callbacks, configured timeouts/ICE servers honoured, fragment bounds validated; go-nethernet HTTP `endpoint` signaling and identity assertions added (`2e6a4ac`, `7154670`). Franchise WebSocket friend-join signaling is retained (no current upstream implements it). |
+| `DATA-02` | Fixed | XBL HTTP status checked, PlayFab uses the configured game version (`4e05b3d`); RakNet MTU panic fixed (`dd5074d`). |
+| `API-01` | Fixed | Plugin macros target the WIT `Guest` API; `PLUGIN_ARCHITECTURE.md` rewritten (`c66ce25`). |
+| `LICENSE-01` | Open | Legal review item. |
+| `DOCS-01` | Fixed | README links/prerequisites, workflow references, CI clippy enforced, CI nightly aligned to `rust-toolchain.toml` (`966d817`). |
+
+Additional fixes found during the pass: jolyne's server `start_game` dropped `StartLoadingScreen` sent before `RequestChunkRadius` (jolyne's own client does this) and stalled joins (`f2f6cde`); unastar compiled against 1.26.51 for the first time (`d9c0959`).
+
+Known deferred items: MPSD ConnectionType 7/`PmsgId` friend broadcasting (go-xsapi sample) needs a signaling path no upstream provides yet; go-nethernet's default client verifier defers JWT verification to the Login GameServerToken, which jolyne must enforce when NetherNet identity is used; live Xbox/TLS paths are not exercised by tests.
+
+## Original readiness note (2026-09-25)
 
 Do not expose the server in online mode until `AUTH-01` is fixed. Packet-controlled allocation/recursion, persistence, and client-authoritative gameplay changes also need remediation before public service.
 
@@ -61,7 +96,18 @@ After review, local `main` was fast-forwarded to `06a36d0` on 2026-09-25. Counts
 
 One open PR was visible: draft PR #2 (`realsexmc-changes`), marked dirty and 8 commits ahead / 82 behind; its description reports three failing world-loader tests. Keep draft until rebased and those tests are addressed.
 
+2026-10-21: the decoder-safety work from `origin/fix/decode-allocation-safety` was ported selectively in `fa91aae`; review `origin/feat/borrowed-byte-slices` for anything still unique before retiring both refs. Local worker branches `Jviguy/stab-*` are merged into `main` and can be deleted.
+
 ## Validation and environment
+
+### 2026-10-21 (remediation pass, `nightly-2026-03-05` from `rust-toolchain.toml`)
+
+- Windows `bleveldb-sys` now builds: vcpkg at `C:\Users\jvigu\vcpkg` with `zlib`/`snappy` for `x64-windows-static-md`, `VCPKG_ROOT` set.
+- `cargo clippy --workspace --all-targets -- -D warnings`: clean.
+- `cargo test --workspace --lib --tests --no-fail-fast`: all pass once the `vanilla_bp` and `bedrock-protocol-docs` submodules are initialised (`unastar-data-gen` biome tests and the `valentine_gen` Mojang generation gate read them; CI checks out submodules recursively).
+- RakNet smoke: release `unastar` (offline config) + `jolyne` `stress_test` with 5 clients for 15 s — 5/5 joined and spawned, steady 20.0 TPS, clean despawn on disconnect.
+
+### 2026-09-25
 
 - `cargo fmt --all -- --check` passed on installed `nightly-2026-05-12`.
 - `cargo test -p jolyne --lib --tests` passed 99 tests on `nightly-2026-05-12` with the 1.26.51 protocol feature.

@@ -1,3 +1,11 @@
+//! Typed plugin API generated from the `unastar-plugin` WIT world.
+//!
+//! Implement [`Plugin`] and register it with [`export_plugin!`], or use
+//! `#[unastar_api_macros::plugin]` on the implementation instead. Both routes
+//! export the same [`Guest`] interface; callbacks use the WIT types directly.
+//! A full [`Guest`] implementation can instead register with [`export!`].
+//! Build plugin `cdylib` crates for `wasm32-wasip2`.
+
 pub use wit_bindgen;
 
 #[doc(hidden)]

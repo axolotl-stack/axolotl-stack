@@ -11,114 +11,27 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 
-/// A friendly, commented default configuration file.
-pub const DEFAULT_CONFIG_TOML: &str = r#"# Unastar Server Configuration (TOML)
-#
-# This file is intentionally verbose and friendly: most fields are optional and
-# have safe defaults. Start by changing `server.bind_address` and `spawn_rules`.
-#
-# Notes:
-# - `[[spawn_rules]]` rules are evaluated top-to-bottom. The first rule that produces
-#   a spawn location wins.
-# - `previous_position = true` uses `players.data_dir` to load a per-player file.
-#   If a player has never joined before (or has no UUID), it falls back.
+#[cfg(test)]
+mod tests;
 
-[server]
-# Address to bind the Bedrock listener to.
-bind_address = "0.0.0.0:19132"
+/// The crate sample is the source of truth for newly created configuration files.
+pub const DEFAULT_CONFIG_TOML: &str = include_str!("../../unastar.toml");
 
-# Shown in server list (if/when advertisement is implemented).
-motd = "Unastar Server"
-
-# Soft maximum: connection acceptance still depends on upstream layers.
-max_players = 20
-
-# Chunk radius we will *advertise* to clients and stream.
-# (Clients may request a different radius; we clamp it by `max_chunk_radius`.)
-default_chunk_radius = 4
-max_chunk_radius = 12
-
-# Authentication settings
-# Xbox Live authentication. Set to false for offline/cracked clients.
-online_mode = true
-# Allow legacy JWT chains (self-signed/guest). Required for stress testing.
-allow_legacy_auth = true
-# Enable encryption handshake. Set to false for debugging.
-encryption_enabled = true
-# Require clients to accept advertised resource packs.
-require_resource_packs = false
-
-[world]
-# Dimension ID: 0 = Overworld, 1 = Nether, 2 = End
-dimension = 0
-
-  [world.bounds]
-  # Bounds are applied to *terrain generation* (non-air). Chunks outside bounds
-  # still exist as all-air so the Bedrock client can mesh borders correctly.
-  #
-  # modes: "infinite" | "radius" | "rect"
-  mode = "infinite"
-  # radius_chunks = 256
-  # min_x = -64
-  # max_x = 64
-  # min_z = -64
-  # max_z = 64
-
-  [world.generator]
-  # kinds: "flat_stone" | "void_spawn_platform"
-  kind = "void_spawn_platform"
-  # For void worlds, generate a stone platform at chunk coords [-r..r].
-  platform_radius_chunks = 1
-
-  [world.storage]
-  # Directory for world data (relative to working dir).
-  data_dir = "worlds"
-  # Enable LevelDB-based chunk persistence.
-  leveldb_enabled = true
-  # Save modified chunks on shutdown.
-  save_on_shutdown = true
-
-[players]
-# Where Unastar stores per-player files (e.g. last known position).
-data_dir = "playerdata"
-
-# If true, Unastar writes a player's last known position on disconnect (legacy TOML format).
-save_previous_position = true
-
-# Enable LevelDB-based player persistence (recommended).
-leveldb_enabled = true
-
-# Save player data on disconnect (requires leveldb_enabled).
-save_on_disconnect = true
-
-# Spawn rules.
-#
-# Common patterns:
-# - Always spawn at a fixed location:
-#     always_at_location = true
-#     location = { x = 0.5, y = 17.0, z = 0.5, yaw = 0.0, pitch = 0.0 }
-#
-# - Prefer previous position, fallback to fixed spawn:
-#     previous_position = true
-#     always_at_location = true
-#     location = { ... }
-
-[[spawn_rules]]
-name = "main"
-
-# If true, try to place returning players at their last saved position.
-previous_position = true
-
-# If true, force a fixed spawn location (or act as a fallback if previous position is missing).
-always_at_location = true
-
-# Spawn location in *block coordinates* (floats allowed for smoother centering).
-# `yaw` and `pitch` are optional.
-location = { x = 0.5, y = 17.0, z = 0.5, yaw = 0.0, pitch = 0.0 }
-"#;
+/// Serde's internally tagged unit variants otherwise discard their remaining
+/// map, even with `deny_unknown_fields` on the enum. Decode an empty struct
+/// explicitly so unit modes reject stray variant options too.
+pub(crate) fn deserialize_empty_variant<'de, D>(deserializer: D) -> Result<(), D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct Empty {}
+    Empty::deserialize(deserializer).map(|_| ())
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct UnastarConfig {
     pub server: ServerConfigFile,
     pub world: WorldConfig,
@@ -212,7 +125,7 @@ impl UnastarConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct ServerConfigFile {
     pub bind_address: String,
     pub motd: String,
@@ -250,7 +163,7 @@ impl Default for ServerConfigFile {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct PlayerStorageConfig {
     /// Directory for player data files.
     pub data_dir: PathBuf,
@@ -274,7 +187,7 @@ impl Default for PlayerStorageConfig {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct SpawnLocation {
     pub x: f32,
     pub y: f32,
@@ -296,7 +209,7 @@ impl Default for SpawnLocation {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct SpawnRule {
     pub name: String,
     pub always_at_location: bool,

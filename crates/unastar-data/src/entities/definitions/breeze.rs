@@ -15,6 +15,7 @@ impl Breeze {
 /// Component bundle for spawning a `minecraft:breeze`
 #[derive(Bundle, Clone)]
 pub struct BreezeBundle {
+    pub attack: super::super::components::Attack,
     pub behavior_fire_at_target: super::super::components::BehaviorFireAtTarget,
     pub behavior_float: super::super::components::BehaviorFloat,
     pub behavior_hurt_by_target: super::super::components::BehaviorHurtByTarget,
@@ -33,9 +34,11 @@ pub struct BreezeBundle {
     pub damage_sensor: super::super::components::DamageSensor,
     pub environment_sensor: super::super::components::EnvironmentSensor,
     pub experience_reward: super::super::components::ExperienceReward,
+    pub flying_speed: super::super::components::FlyingSpeed,
     pub follow_range: super::super::components::FollowRange,
     pub health: super::super::components::Health,
     pub hurt_on_condition: super::super::components::HurtOnCondition,
+    pub inventory: super::super::components::Inventory,
     pub is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
     pub jump_static: super::super::components::JumpStatic,
     pub knockback_resistance: super::super::components::KnockbackResistance,
@@ -48,12 +51,18 @@ pub struct BreezeBundle {
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
     pub reflect_projectiles: super::super::components::ReflectProjectiles,
+    pub scale: super::super::components::Scale,
     pub type_family: super::super::components::TypeFamily,
 }
 /// Spawn a new `minecraft:breeze` entity with default Bedrock components
 pub fn spawn_breeze(commands: &mut Commands) -> Entity {
     commands
         .spawn(BreezeBundle {
+            attack: super::super::components::Attack {
+                damage: crate::types::RangeOrVal::Fixed(2f32),
+                effect_duration: Some(crate::types::MolangOr::Value(0i32)),
+                effect_name: None,
+            },
             behavior_fire_at_target: super::super::components::BehaviorFireAtTarget {
                 attack_cooldown: Some(0.5f32),
                 attack_range: None,
@@ -761,6 +770,7 @@ pub fn spawn_breeze(commands: &mut Commands) -> Entity {
                     "query.last_hit_by_player ? 10 : 0".to_string(),
                 )),
             },
+            flying_speed: super::super::components::FlyingSpeed { value: 0.02f32 },
             follow_range: super::super::components::FollowRange {
                 max: None,
                 min: None,
@@ -773,6 +783,14 @@ pub fn spawn_breeze(commands: &mut Commands) -> Entity {
             },
             hurt_on_condition: super::super::components::HurtOnCondition {
                 damage_conditions: None,
+            },
+            inventory: super::super::components::Inventory {
+                additional_slots_per_strength: Some(0i32),
+                can_be_siphoned_from: Some(false),
+                container_type: Some("none".to_string()),
+                inventory_size: Some(5i32),
+                private: Some(false),
+                restrict_to_owner: Some(false),
             },
             is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
             jump_static: super::super::components::JumpStatic {
@@ -859,6 +877,7 @@ pub fn spawn_breeze(commands: &mut Commands) -> Entity {
                 reflection_scale: Some(crate::types::MolangOr::Expr("0.5".to_string())),
                 reflection_sound: Some("reflect".to_string()),
             },
+            scale: super::super::components::Scale { value: 1f32 },
             type_family: super::super::components::TypeFamily {
                 family: vec![
                     "breeze".to_string(),
