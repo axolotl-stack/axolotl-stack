@@ -361,8 +361,8 @@ pub async fn run(
         serde_json::from_reader(File::open(scenarios).context("opening scenarios")?)?;
     let scenario = config.scenarios.get(scenario).context("unknown scenario")?;
     ensure!(
-        config.identity.device_os == 7,
-        "client-diff requires Windows/GDK DeviceOS 7"
+        config.identity.device_os == 1,
+        "client-diff requires Android DeviceOS 1"
     );
     // Validate before opening the connection.
     for step in &scenario.steps {

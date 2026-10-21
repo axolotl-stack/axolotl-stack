@@ -89,25 +89,16 @@ pub async fn request_minecraft_chain(
 
 #[derive(Serialize)]
 struct IdentityClaims {
-    #[serde(rename = "extraData")]
-    extra_data: IdentityExtraData,
-    #[serde(rename = "identityPublicKey")]
-    identity_public_key: String,
+    aud: &'static str,
+    cpk: String,
+    xname: String,
+    leguuid: String,
+    xid: String,
+    ipt: &'static str,
+    mid: &'static str,
+    tid: &'static str,
     nbf: u64,
     exp: u64,
-    iat: u64,
-    iss: String,
-}
-
-#[derive(Serialize)]
-struct IdentityExtraData {
-    #[serde(rename = "displayName")]
-    display_name: String,
-    identity: String, // UUID
-    #[serde(rename = "XUID")]
-    xuid: String,
-    #[serde(rename = "titleId")]
-    title_id: String,
 }
 
 /// Complete ClientData payload with all fields required by BDS.
@@ -217,14 +208,33 @@ fn generate_skin_resource_patch() -> String {
     STANDARD.encode(json.to_string().as_bytes())
 }
 
-/// Generates a self-signed chain (for Offline Mode) and a ClientData JWT.
-/// Returns (identity_chain_json_string, client_data_jwt).
+/// Generates a modern self-signed multiplayer identity and a ClientData JWT.
+/// Returns `(authentication_json, client_data_jwt)` for offline mode.
 pub fn generate_self_signed_chain(
     key: &SecretKey,
     display_name: &str,
     uuid: Uuid,
 ) -> Result<(String, String), JolyneError> {
     generate_chain_internal(key, display_name, uuid, None)
+}
+
+/// Formats modern online authentication using an already acquired multiplayer token.
+///
+/// The caller must acquire the provider token for this exact key; this function
+/// neither acquires nor verifies account credentials. Pass both returned strings
+/// to `send_login_with_tokens`, and retain `key` for the encryption handshake.
+pub fn encode_with_multiplayer_token(
+    key: &SecretKey,
+    display_name: &str,
+    uuid: Uuid,
+    multiplayer_token: &str,
+) -> Result<(String, String), JolyneError> {
+    let auth = serde_json::json!({
+        "AuthenticationType": 0,
+        "Token": multiplayer_token,
+    })
+    .to_string();
+    Ok((auth, generate_client_data_token(key, display_name, uuid)?))
 }
 
 /// Encodes the authentication JSON and client-data JWT into the raw
@@ -384,9 +394,9 @@ pub fn encode_with_mojang_chain(
     Ok((chain_json, client_token))
 }
 
-/// Generates an Xbox Live authenticated chain and a ClientData JWT.
-/// The XUID comes from the BEDROCK_MULTIPLAYER XBL token.
-/// Returns (identity_chain_json_string, client_data_jwt).
+/// Generates self-signed multiplayer claims with an explicitly untrusted XUID.
+///
+/// This does not authenticate an Xbox account or obtain a provider-signed token.
 #[allow(dead_code)]
 pub fn generate_xbox_live_chain(
     key: &SecretKey,
@@ -397,7 +407,7 @@ pub fn generate_xbox_live_chain(
     generate_chain_internal(key, display_name, uuid, Some(xuid))
 }
 
-/// Internal chain generation that handles both self-signed and Xbox Live auth.
+/// Internal self-signed generation; XUID claims do not grant provider authority.
 fn generate_chain_internal(
     key: &SecretKey,
     display_name: &str,
@@ -424,19 +434,18 @@ fn generate_chain_internal(
     // Determine XUID - use provided XUID if available (Xbox Live auth), empty otherwise (self-signed)
     let xuid_value = xuid.unwrap_or("").to_string();
 
-    // 1. Identity Token
+    // Modern self-signed multiplayer identity. Account claims remain untrusted.
     let identity_claims = IdentityClaims {
-        extra_data: IdentityExtraData {
-            display_name: display_name.to_string(),
-            identity: uuid.to_string(),
-            xuid: xuid_value,
-            title_id: "896928775".to_string(), // Win10
-        },
-        identity_public_key: public_key_b64.clone(),
+        aud: "api://auth-minecraft-services/multiplayer",
+        cpk: public_key_b64.clone(),
+        xname: display_name.to_string(),
+        leguuid: uuid.to_string(),
+        xid: xuid_value,
+        ipt: "",
+        mid: "",
+        tid: "",
         nbf: now - 1,
         exp,
-        iat: now,
-        iss: "self".to_string(),
     };
 
     let mut header = Header::new(Algorithm::ES384);
@@ -445,10 +454,11 @@ fn generate_chain_internal(
     let identity_jwt = encode(&header, &identity_claims, &encoding_key)
         .map_err(|e| JolyneError::Auth(crate::error::AuthError::BadSignature(e.to_string())))?;
 
-    // Chain JSON
+    // BDS 26.51 reads the multiplayer Token, not a top-level legacy chain.
     let chain_json = serde_json::json!({
-        "chain": [identity_jwt],
-        "AuthenticationType": 2
+        "AuthenticationType": 2,
+        "Certificate": r#"{"chain":[""]}"#,
+        "Token": identity_jwt
     })
     .to_string();
 
@@ -470,12 +480,13 @@ fn generate_chain_internal(
         cape_image_width: 0,
         cape_on_classic_skin: false,
         client_random_id: (rand::random::<u64>() & 0x7FFFFFFFFFFFFFFF) as i64,
-        compatible_with_client_side_chunk_gen: true,
+        compatible_with_client_side_chunk_gen: false,
         current_input_mode: 1, // Mouse/Keyboard
         default_input_mode: 1,
         device_id,
         device_model: "JolyneClient".into(),
-        device_os: 7, // Win10
+        // UWP (7) is rejected by retail BDS 1.26.51 before authentication.
+        device_os: 1, // Android
         game_version: crate::valentine::GAME_VERSION.into(),
         graphics_mode: 0,
         gui_scale: 0,
@@ -559,7 +570,7 @@ fn generate_client_data_token(
         cape_image_width: 0,
         cape_on_classic_skin: false,
         client_random_id: (rand::random::<u64>() & 0x7FFFFFFFFFFFFFFF) as i64,
-        compatible_with_client_side_chunk_gen: true,
+        compatible_with_client_side_chunk_gen: false,
         current_input_mode: 1,
         default_input_mode: 1,
         device_id,
@@ -605,4 +616,111 @@ fn generate_client_data_token(
         .map_err(|e| JolyneError::Auth(crate::error::AuthError::BadSignature(e.to_string())))?;
 
     Ok(client_jwt)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+
+    #[test]
+    fn offline_login_encodes_a_retail_supported_device_os() {
+        let key = SecretKey::from_slice(&[1; 48]).unwrap();
+        let (auth, client) = generate_self_signed_chain(&key, "ClientDiff", Uuid::nil()).unwrap();
+        let request = encode_login_request(&auth, &client);
+        let auth_len = u32::from_le_bytes(request[..4].try_into().unwrap()) as usize;
+        let client_len_offset = 4 + auth_len;
+        let client_len = u32::from_le_bytes(
+            request[client_len_offset..client_len_offset + 4]
+                .try_into()
+                .unwrap(),
+        ) as usize;
+        assert_eq!(request.len(), client_len_offset + 4 + client_len);
+        let token = std::str::from_utf8(&request[client_len_offset + 4..]).unwrap();
+        let claims: serde_json::Value = serde_json::from_slice(
+            &URL_SAFE_NO_PAD
+                .decode(token.split('.').nth(1).unwrap())
+                .unwrap(),
+        )
+        .unwrap();
+        // BDS 1.26.51's isWellFormed uses bit (DeviceOS + 1) of 0x1763d.
+        // UWP (7) fails this check before authentication; Android (1) is supported.
+        let os = claims["DeviceOS"].as_u64().unwrap();
+        assert!(os < 16 && (0x1763d_u32 & (1 << (os + 1))) != 0);
+        assert_eq!(os, 1);
+    }
+
+    #[test]
+    fn offline_login_identity_token_binds_the_client_signing_key() {
+        use p384::ecdsa::{Signature, VerifyingKey, signature::Verifier};
+        let key = SecretKey::from_slice(&[1; 48]).unwrap();
+        let uuid = Uuid::from_u128(123);
+        let (auth, client) = generate_self_signed_chain(&key, "ClientDiff", uuid).unwrap();
+        let request = encode_login_request(&auth, &client);
+        let auth_len = u32::from_le_bytes(request[..4].try_into().unwrap()) as usize;
+        let envelope: serde_json::Value =
+            serde_json::from_slice(&request[4..4 + auth_len]).unwrap();
+        assert_eq!(envelope["AuthenticationType"], 2);
+        let token = envelope["Token"].as_str().expect("modern identity token");
+        let parts: Vec<_> = token.split('.').collect();
+        let claims: serde_json::Value =
+            serde_json::from_slice(&URL_SAFE_NO_PAD.decode(parts[1]).unwrap()).unwrap();
+        assert_eq!(claims["aud"], "api://auth-minecraft-services/multiplayer");
+        assert_eq!(claims["xname"], "ClientDiff");
+        assert_eq!(claims["leguuid"], uuid.to_string());
+        assert_eq!(claims["xid"], "");
+        assert_eq!(
+            claims["cpk"],
+            STANDARD.encode(key.public_key().to_public_key_der().unwrap())
+        );
+        let verify = |token: &str| {
+            let parts: Vec<_> = token.split('.').collect();
+            let signature =
+                Signature::from_slice(&URL_SAFE_NO_PAD.decode(parts[2]).unwrap()).unwrap();
+            VerifyingKey::from(key.public_key())
+                .verify(format!("{}.{}", parts[0], parts[1]).as_bytes(), &signature)
+                .unwrap();
+        };
+        verify(token);
+        verify(std::str::from_utf8(&request[4 + auth_len + 4..]).unwrap());
+    }
+
+    #[test]
+    fn authenticated_login_uses_full_auth_and_preserves_provider_token() {
+        use p384::ecdsa::{Signature, VerifyingKey, signature::Verifier};
+        let key = SecretKey::from_slice(&[1; 48]).unwrap();
+        let provider_token = "opaque.provider.token";
+        let (auth, client) =
+            encode_with_multiplayer_token(&key, "ClientDiff", Uuid::nil(), provider_token).unwrap();
+        let request = encode_login_request(&auth, &client);
+        let auth_len = u32::from_le_bytes(request[..4].try_into().unwrap()) as usize;
+        let envelope: serde_json::Value =
+            serde_json::from_slice(&request[4..4 + auth_len]).unwrap();
+        assert_eq!(envelope["AuthenticationType"], 0);
+        assert_eq!(envelope["Token"], provider_token);
+        let token = std::str::from_utf8(&request[4 + auth_len + 4..]).unwrap();
+        let parts: Vec<_> = token.split('.').collect();
+        let signature = Signature::from_slice(&URL_SAFE_NO_PAD.decode(parts[2]).unwrap()).unwrap();
+        VerifyingKey::from(key.public_key())
+            .verify(format!("{}.{}", parts[0], parts[1]).as_bytes(), &signature)
+            .unwrap();
+    }
+
+    #[test]
+    fn client_without_a_chunk_generator_does_not_advertise_one() {
+        let key = SecretKey::from_slice(&[1; 48]).unwrap();
+        for (_, client) in [
+            generate_self_signed_chain(&key, "ClientDiff", Uuid::nil()).unwrap(),
+            encode_with_multiplayer_token(&key, "ClientDiff", Uuid::nil(), "provider-token")
+                .unwrap(),
+        ] {
+            let claims: serde_json::Value = serde_json::from_slice(
+                &URL_SAFE_NO_PAD
+                    .decode(client.split('.').nth(1).unwrap())
+                    .unwrap(),
+            )
+            .unwrap();
+            assert_eq!(claims["CompatibleWithClientSideChunkGen"], false);
+        }
+    }
 }
