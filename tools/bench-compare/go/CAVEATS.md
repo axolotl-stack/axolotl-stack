@@ -39,6 +39,8 @@ The comparison runner exports `BENCH_SPLIT_COUNT=10` to both languages while ret
 
 `BENCH_TRACE_SPLITS=1` enables a diagnostic-only public UDP socket wrapper for Go listeners. It records completed split IDs and duplicate fragment indexes received after completion, with summaries on stderr; `BENCH_TRACE_DIRECTION` labels the peer direction. It never implements reassembly, changes packets, or participates in timed comparison runs. The runner explicitly disables it. Distilled evidence is committed in `../diagnostics.json`; raw logs are ignored. Source and observer tests verify the reliability-dependent header offsets and completion boundary.
 
+Observer completion means every wire fragment index for an ID has been observed; it does not inspect the reference's private assembly map. Socket observation changes scheduling, so traced successes and negative duplicate observations are not substituted for uninstrumented failure evidence or timed results.
+
 There are **no public standalone datagram, ACK-window, or split/reassembly APIs** in this fork. Relevant implementations are private: `packet.read/write`, `split`, `datagramWindow`, and connection receive/reassembly methods; the low-level handshake messages are under Go's `internal` package boundary. Therefore `micro` succeeds with a clear stderr explanation and emits **no JSONL timings**. No vendoring, fork modifications, `go:linkname`, copied implementation, raw-byte fallback, or fabricated timings are used. Real large-message loopback naturally exercises fragmentation and reassembly but is not a substitute for isolated microbenchmarks.
 
 ## Commands
