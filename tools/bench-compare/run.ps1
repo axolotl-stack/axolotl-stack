@@ -7,7 +7,8 @@ param(
     [ValidateRange(1, 256)][int]$GoCpu = 4,
     [string]$Output = (Join-Path $PSScriptRoot 'results'),
     [switch]$SkipBuild,
-    [switch]$Contract
+    [ValidateRange(0, 63)][int]$Processor = 2,
+    [int[]]$LoopbackProcessors = @(0, 2, 4, 6)
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -28,7 +29,26 @@ $env:BENCH_TRACE_SPLITS = '0'
 $Suffix = if ($IsWindows) { '.exe' } else { '' }
 $Rust = Join-Path $Repo "target/release/bench-compare$Suffix"
 $Go = Join-Path $Cache "go-bench$Suffix"
+$CinnabarManifest = Join-Path $PSScriptRoot 'cinnabar/Cargo.toml'
+$Cinnabar = Join-Path $PSScriptRoot "cinnabar/target/release/cinnabar-bench$Suffix"
+$Executables = @{ rust = $Rust; cinnabar = $Cinnabar; go = $Go }
+# Pin the parent before spawning: child processes inherit the mask, with no
+# unpinned startup window. Logical CPU 2 is a P-core on the measured i9-14900HX.
+$ParentProcess = [Diagnostics.Process]::GetCurrentProcess()
+$OldAffinity = $ParentProcess.ProcessorAffinity
+$Affinity = [IntPtr]([long]1 -shl $Processor)
+if (@($LoopbackProcessors | Sort-Object -Unique).Count -ne $GoCpu) {
+    throw 'Select one distinct P-core logical CPU per Tokio worker / GOMAXPROCS in -LoopbackProcessors'
+}
+$LoopbackMask = [long]0
+foreach ($cpu in $LoopbackProcessors) {
+    if ($cpu -lt 0 -or $cpu -gt 63) { throw 'LoopbackProcessors must be logical CPUs 0..63' }
+    $LoopbackMask = $LoopbackMask -bor ([long]1 -shl $cpu)
+}
 function Start-Runner([string]$Exe, [string[]]$Arguments, [string]$Cwd, [bool]$Ready = $false) {
+    $ParentProcess.ProcessorAffinity = if ($Arguments[0] -in @('loopback','serve','client')) {
+        [IntPtr]$LoopbackMask
+    } else { $Affinity }
     $info = [Diagnostics.ProcessStartInfo]::new()
     $info.FileName = $Exe
     $info.WorkingDirectory = $Cwd
@@ -69,9 +89,12 @@ try {
         if ($LASTEXITCODE) { throw 'Submodule initialization failed' }
         & cargo build --release -p bench-compare
         if ($LASTEXITCODE) { throw 'Rust build failed' }
+        & cargo build --release --manifest-path $CinnabarManifest --locked
+        if ($LASTEXITCODE) { throw 'Cinnabar standalone build failed' }
         Push-Location (Join-Path $PSScriptRoot 'go')
         try { & go build -o $Go .; if ($LASTEXITCODE) { throw 'Go build failed' } } finally { Pop-Location }
     }
+    $ParentProcess.ProcessorAffinity = $Affinity
     $meta = @{
         utc = [DateTime]::UtcNow.ToString('o'); rounds = $Rounds; count = $Count; go_cpu = $GoCpu
         warmup_echoes = 1
@@ -84,13 +107,21 @@ try {
         rust = (& rustc --version | Out-String).Trim(); go = (& go version | Out-String).Trim()
         commit = (& git rev-parse HEAD | Out-String).Trim()
         corpus_commit = (& git -C crates/valentine_gen/protocolgen rev-parse HEAD | Out-String).Trim()
-        conditions = 'Shared Windows workstation; other workers may build or benchmark concurrently; no affinity, priority, power-plan or timer-resolution adjustment.'
+        affinity_logical_cpu = $Processor
+        loopback_affinity_logical_cpus = $LoopbackProcessors
+        cinnabar_raknet_commit = '7eb32a31f5715ed6cd69120ef19118aa03fcab28'
+        cinnabar_bedrock_net_commit = '0eaf6d4cb38ac1b52328815302c0964645150d17'
+        conditions = "Shared Windows workstation; codec/micro inherit affinity to logical CPU $Processor; loopback/interop inherit logical CPUs $($LoopbackProcessors -join ',') (distinct P-cores on measured i9-14900HX), matching $GoCpu workers; other workers may run concurrently; no priority, power-plan or timer-resolution adjustment."
     }
     $meta | ConvertTo-Json | Set-Content (Join-Path $Output 'metadata.json')
     foreach ($round in 1..$Rounds) {
-        $order = if ($round % 2) { @('rust','go') } else { @('go','rust') }
+        $order = switch (($round - 1) % 3) {
+            0 { @('rust','cinnabar','go') }
+            1 { @('go','cinnabar','rust') }
+            2 { @('cinnabar','rust','go') }
+        }
         foreach ($side in $order) {
-            $exe = if ($side -eq 'rust') { $Rust } else { $Go }
+            $exe = $Executables[$side]
             foreach ($area in @('codec','micro','loopback')) {
                 Write-Host "Round $round/$Rounds $side $area"
                 $arguments = @($area)
@@ -101,9 +132,10 @@ try {
         }
     }
     $interop = @()
-    foreach ($direction in @('go-to-rust','rust-to-go')) {
-        $server = if ($direction -eq 'go-to-rust') { $Rust } else { $Go }
-        $client = if ($direction -eq 'go-to-rust') { $Go } else { $Rust }
+    foreach ($direction in @('go-to-rust','rust-to-go','cinnabar-to-rust','rust-to-cinnabar','cinnabar-to-go','go-to-cinnabar')) {
+        $clientSide, $serverSide = $direction -split '-to-'
+        $server = $Executables[$serverSide]
+        $client = $Executables[$clientSide]
         # Bind an ephemeral UDP socket to obtain an unreserved candidate; bind errors fail explicitly.
         $udp = [Net.Sockets.UdpClient]::new(0)
         $port = $udp.Client.LocalEndPoint.Port
@@ -122,12 +154,10 @@ try {
         }
     }
     $interop | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $Output 'interop.json')
-    if ($Contract) {
-        $env:CRITERION_HOME = Join-Path $Output 'contract-criterion'
-        & cargo bench --manifest-path crates/valentine_gen/protocolgen/differential/retail/bench/Cargo.toml --target-dir (Join-Path $Repo 'target/contract-bench') --bench codec -- --warm-up-time 0.1 --measurement-time 0.2 --sample-size 10
-        if ($LASTEXITCODE) { throw 'Protocolgen contract benchmarks failed' }
-    }
     & python (Join-Path $PSScriptRoot 'report.py') $Output (Join-Path $PSScriptRoot 'report.md')
     if ($LASTEXITCODE) { throw 'Report generation failed' }
     if (@($interop | Where-Object status -eq 'FAIL').Count) { throw 'Interop failed; report and raw evidence retained' }
-} finally { Pop-Location }
+} finally {
+    Pop-Location
+    $ParentProcess.ProcessorAffinity = $OldAffinity
+}

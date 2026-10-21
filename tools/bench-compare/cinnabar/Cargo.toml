@@ -1,0 +1,21 @@
+[package]
+name = "cinnabar-bench"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+anyhow = "1"
+bytes = "1"
+clap = { version = "4", features = ["derive"] }
+futures-util = { version = "0.3", features = ["sink"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tokio = { version = "1", features = ["full"] }
+bedrock-net = { git = "https://github.com/cinnabar-mc/bedrock-net", rev = "0eaf6d4cb38ac1b52328815302c0964645150d17", default-features = false }
+raknet = { git = "https://github.com/cinnabar-mc/raknet", rev = "7eb32a31f5715ed6cd69120ef19118aa03fcab28", features = ["test-support"] }
+raknet-tokio = { git = "https://github.com/cinnabar-mc/raknet", rev = "7eb32a31f5715ed6cd69120ef19118aa03fcab28" }
+contract = { package = "bedrock-protocol-1-26-51", path = "../../../crates/valentine_gen/protocolgen/generated/1.26.51/rust-contract" }

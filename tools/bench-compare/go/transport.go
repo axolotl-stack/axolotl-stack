@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -144,6 +145,17 @@ func serve(address string, count int) error {
 }
 
 func client(address string, count int) error {
+	clock, err := newBenchmarkClock()
+	if err != nil {
+		return err
+	}
+	evidence, err := clock.validate()
+	if err != nil {
+		return err
+	}
+	if err := json.NewEncoder(os.Stderr).Encode(evidence); err != nil {
+		return err
+	}
 	for _, size := range sizes {
 		count, err := countForSize(size, count)
 		if err != nil {
@@ -158,9 +170,12 @@ func client(address string, count int) error {
 			defer conn.Close()
 			want := payload(size)
 			samples := make([]float64, count)
-			start := time.Now()
+			var start int64
 			for i := -1; i < count; i++ {
-				tick := time.Now()
+				tick, err := clock.now()
+				if err != nil {
+					return err
+				}
 				n, err := conn.Write(want)
 				if err != nil {
 					return err
@@ -175,18 +190,34 @@ func client(address string, count int) error {
 				if !bytes.Equal(got, want) {
 					return fmt.Errorf("size %d message %d: echoed payload differs", size, i)
 				}
+				end, err := clock.now()
+				if err != nil {
+					return err
+				}
 				// The first echo proves application readiness after connection
 				// setup and the previous session's asynchronous drain.
 				if i < 0 {
-					start = time.Now()
+					start = end
 					continue
 				}
-				samples[i] = float64(time.Since(tick).Nanoseconds()) / 1000
+				samples[i] = clock.nanoseconds(tick, end) / 1000
+				if samples[i] <= 0 {
+					return fmt.Errorf("benchmark clock measured a nonpositive echo duration")
+				}
 			}
-			elapsed := time.Since(start)
+			end, err := clock.now()
+			if err != nil {
+				return err
+			}
+			elapsedNS := clock.nanoseconds(start, end)
+			if elapsedNS <= 0 {
+				return fmt.Errorf("benchmark clock measured a nonpositive total duration")
+			}
+			elapsedSeconds := elapsedNS / 1e9
 			sort.Float64s(samples)
 			p50, p99 := samples[(count*50+99)/100-1], samples[(count*99+99)/100-1]
-			result = row{Area: "loopback", Name: fmt.Sprintf("%d", size), Operation: "echo", Implementation: "go", NSPerOp: float64(elapsed.Nanoseconds()) / float64(count), PayloadBytes: size, MsgsPerSec: float64(count) / elapsed.Seconds(), MBPerSec: float64(count) * float64(size) / elapsed.Seconds() / 1e6, P50US: &p50, P99US: &p99}
+			maximum := samples[count-1]
+			result = row{Area: "loopback", Name: fmt.Sprintf("%d", size), Operation: "echo", Implementation: "go", NSPerOp: elapsedNS / float64(count), PayloadBytes: size, MsgsPerSec: float64(count) / elapsedSeconds, MBPerSec: float64(count) * float64(size) / elapsedSeconds / 1e6, P50US: &p50, P99US: &p99, MaxUS: &maximum}
 			return nil
 		})
 		if err != nil {

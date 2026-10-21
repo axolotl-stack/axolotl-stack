@@ -33,7 +33,7 @@ def main():
         key = row['area'], row['name'], row['operation'], row['implementation']
         groups.setdefault(key, []).append(row)
     metrics = ('ns_per_op', 'allocs_per_op', 'bytes_per_op', 'payload_bytes',
-               'msgs_per_sec', 'mb_per_sec', 'p50_us', 'p99_us')
+               'msgs_per_sec', 'mb_per_sec', 'p50_us', 'p99_us', 'max_us')
     aggregate = [{**dict(zip(('area','name','operation','implementation'), key)),
                   **{metric: median(values, metric) for metric in metrics},
                   'rounds': len(values)} for key, values in sorted(groups.items())]
@@ -44,43 +44,61 @@ def main():
               f"Machine: {metadata['os']} / {metadata['architecture']}; {metadata.get('cpu')}; {metadata['processors']} logical processors.",
               f"Toolchains: `{metadata['rust']}`; `{metadata['go']}`; Go GOMAXPROCS={metadata['go_cpu']}; Tokio multi-thread workers={metadata.get('rust_workers', 'not recorded')}.",
               f"Source base: `{metadata['commit']}`; protocolgen corpus: `{metadata['corpus_commit']}`.", '', metadata['conditions'], '',
-              'Ratios are ours/Go ns/op (below 1 is faster); throughput is request payload only, decimal MB/s, one completed echo per message. Medians are descriptive, not significance tests.', '']
+              'Ratios are row-side/Go ns/op (below 1 is faster); throughput is request payload only, decimal MB/s, one completed echo per message. Contract, Valentine and Cinnabar use the same custom-loop estimator in alternating rounds. Medians are descriptive, not significance tests.', '']
+    if metadata.get('cinnabar_raknet_commit'):
+        report += [f"Cinnabar pins: raknet/raknet-tokio `{metadata['cinnabar_raknet_commit']}`; bedrock-net `{metadata['cinnabar_bedrock_net_commit']}` (root crate only; provider-verification disabled).", '']
+    clocks = []
+    for file in sorted(source.glob('[0-9]*-go-loopback.stderr.log')):
+        round_number = int(file.name.split('-')[0])
+        if not 1 <= round_number <= metadata['rounds']:
+            continue
+        for line in file.read_text(encoding='utf-8-sig').splitlines():
+            if line.startswith('{'):
+                evidence = json.loads(line)
+                if evidence.get('event') == 'benchmark_clock':
+                    clocks.append((round_number, evidence))
+    if clocks:
+        report += ['## Go transport clock validation', '',
+                   '| Round | Clock | Frequency Hz | Tick ns | Minimum observed positive ns |',
+                   '| ---: | --- | ---: | ---: | ---: |']
+        report += [f"| {number} | {clock['clock']} | {clock['frequency_hz']} | {fmt(clock['tick_ns'])} | {fmt(clock['minimum_positive_ns'])} |" for number, clock in clocks]
+        report += ['', 'Startup validation is outside timing. Windows transport uses QueryPerformanceCounter; codec/batch aggregate Go benchmarks retain Go testing.Benchmark over long intervals.', '']
     ratios = []
+    sides = ('rust-owned', 'rust-borrowed', 'contract', 'cinnabar', 'go', 'flate2-rust')
     for area in sorted({r['area'] for r in aggregate}):
         report += [f'## {area}', '']
         if area == 'loopback':
-            report += ['| Size / operation | Side | Samples | ns/echo | msgs/s | MB/s | p50 µs | p99 µs | ours/Go | Winner |',
-                       '| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |']
-        else:
-            report += ['| Case | Operation | Side | ns/op | allocs/op | allocated B/op | ours/Go | Winner |',
-                       '| --- | --- | --- | ---: | ---: | ---: | ---: | --- |']
-        for r in (r for r in aggregate if r['area'] == area):
-            go = index.get((area, r['name'], r['operation'], 'go'))
-            ratio = r['ns_per_op'] / go['ns_per_op'] if go and go['ns_per_op'] and r['implementation'] != 'go' else None
-            winner = '—' if ratio is None else ('ours' if ratio < 1 else 'Go')
-            if ratio is not None:
-                ratios.append((ratio, area, r['name'], r['operation'], r['implementation']))
-            if area == 'loopback':
+            report += ['| Size / operation | Side | Samples | Mean µs | msgs/s | MB/s | p50 µs | p99 µs | Max µs | Side/Go |',
+                       '| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |']
+            for r in (r for r in aggregate if r['area'] == area):
+                go = index.get((area, r['name'], r['operation'], 'go'))
+                ratio = r['ns_per_op'] / go['ns_per_op'] if go and go['ns_per_op'] and r['implementation'] != 'go' else None
                 samples = metadata.get('split_count', metadata['count']) if r['payload_bytes'] >= 4096 else metadata['count']
                 tail = fmt(r['p99_us']) + (' †' if samples < 100 else '')
-                report.append(f"| {r['name']} / {r['operation']} | {r['implementation']} | {samples} | {fmt(r['ns_per_op'])} | {fmt(r['msgs_per_sec'])} | {fmt(r['mb_per_sec'])} | {fmt(r['p50_us'])} | {tail} | {fmt(ratio)} | {winner} |")
-            else:
-                report.append(f"| {r['name']} | {r['operation']} | {r['implementation']} | {fmt(r['ns_per_op'])} | {fmt(r['allocs_per_op'])} | {fmt(r['bytes_per_op'])} | {fmt(ratio)} | {winner} |")
-        report.append('')
-        if area == 'loopback':
-            report += ['† Low-sample p99: for ten samples, nearest-rank p99 is the maximum, not a stable population tail estimate. Both implementations use the same per-size counts and fresh connections in every round.', '']
-    contract = []
-    for estimates in sorted((source / 'contract-criterion').glob('*/*/new/estimates.json')):
-        result = json.loads(estimates.read_text())
-        contract.append((estimates.parents[2].name, estimates.parents[1].name, result['median']['point_estimate']))
-    if contract:
-        report += ['## Protocolgen contract baseline (third implementation)', '',
-                   'Criterion median estimates; independent sampling, not the alternating custom-loop estimator. Length framing matches the original protocolgen benchmark; see README for the Valentine boundary caveat.', '',
-                   '| Case | Operation | Contract ns/op |', '| --- | --- | ---: |']
-        report += [f'| {name} | {operation} | {fmt(ns)} |' for operation, name, ns in contract]
-        report.append('')
+                report.append(f"| {r['name']} / {r['operation']} | {r['implementation']} | {samples} | {fmt(r['ns_per_op'] / 1000)} | {fmt(r['msgs_per_sec'])} | {fmt(r['mb_per_sec'])} | {fmt(r['p50_us'])} | {tail} | {fmt(r['max_us'])} | {fmt(ratio)} |")
+                if ratio is not None:
+                    ratios.append((ratio, area, r['name'], r['operation'], r['implementation']))
+            report += ['', '† Low-sample p99: for ten samples, nearest-rank p99 is the maximum, not a stable population tail estimate. All implementations use identical counts and fresh connections. Columns are medians of per-round mean/percentile/max statistics, not pooled samples.', '']
+            continue
+        report += ['| Case | Operation | Valentine/jolyne owned ns/op | Valentine borrowed ns/op | Contract ns/op | Cinnabar ns/op | Go ns/op | flate2-rust ns/op | Fastest measured |',
+                   '| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |']
+        cases = sorted({(r['name'], r['operation']) for r in aggregate if r['area'] == area})
+        for name, operation in cases:
+            records = [index.get((area, name, operation, side)) for side in sides]
+            available = [r for r in records if r is not None]
+            winner = min(available, key=lambda r: r['ns_per_op'])['implementation'] if len(available) > 1 else 'unmatched'
+            report.append(f"| {name} | {operation} | " + ' | '.join(fmt(r['ns_per_op']) if r else '—' for r in records) + f' | {winner} |')
+            go = index.get((area, name, operation, 'go'))
+            if go and go['ns_per_op']:
+                ratios.extend((r['ns_per_op'] / go['ns_per_op'], area, name, operation, r['implementation']) for r in available if r['implementation'] != 'go')
+        report += ['', '<details><summary>Allocation requests (median per round)</summary>', '',
+                   '| Case | Operation | Side | allocs/op | allocated B/op |',
+                   '| --- | --- | --- | ---: | ---: |']
+        for r in (r for r in aggregate if r['area'] == area):
+            report.append(f"| {r['name']} | {r['operation']} | {r['implementation']} | {fmt(r['allocs_per_op'])} | {fmt(r['bytes_per_op'])} |")
+        report += ['', '</details>', '']
     excluded = set()
-    for log in source.glob('[0-9]*-*-codec.stderr.log'):
+    for log in source.glob('[0-9]*-*.stderr.log'):
         if not 1 <= int(log.name.split('-')[0]) <= metadata['rounds']:
             continue
         for line in log.read_text(encoding='utf-8-sig').splitlines():
@@ -94,7 +112,7 @@ def main():
                '| Case | Implementation | Excluded because |', '| --- | --- | --- |']
     for name, implementation, reason in sorted(excluded):
         report.append(f"| {name} | {implementation} | {str(reason).replace('|', '/').replace(chr(10), ' ')} |")
-    report += ['', 'Borrowed encoding has no public API. Go RakNet datagram/split micro APIs are private; only Rust micro timings are available, with no speed ratio or winner. Go compression-only rows have no equivalent jolyne comparison in this run.', '']
+    report += ['', 'Borrowed encoding has no public API. Go RakNet datagram/split/ACK micro APIs and Cinnabar split assembly are private. Missing cells mean unavailable, not zero cost. Batch framing excludes typed packet decoding; callback-vs-owned API and compression backend asymmetries are documented in the READMEs. Jolyne has no public isolated encryption API.', '']
     interop = json.loads((source / 'interop.json').read_text(encoding='utf-8-sig'))
     if isinstance(interop, dict):
         interop = [interop]
@@ -125,7 +143,7 @@ def main():
     report += ['', '## Limits and reproducibility', '',
                'See [README.md](README.md), [Go API caveats](go/CAVEATS.md), and [Rust API caveats](../../crates/bench-compare/README.md). Missing rows are not zero-cost operations: private transport internals and untyped borrowed variants cannot be compared through public APIs.', '',
                'Go GC accounting and Rust allocator accounting are not equivalent retained-memory measurements. Timing loops include destruction; Go GC may run during later iterations. Small timings on Windows depend on clock precision and scheduling. No production implementation was optimized for this run.', '',
-               'Raw per-round JSONL, stderr, metadata, interop outcomes and summary.json remain in the ignored results directory. Run `./tools/bench-compare/run.ps1 -Contract` to regenerate.']
+               'Raw per-round JSONL, stderr, metadata, interop outcomes and summary.json remain in the ignored results directory. Run `./tools/bench-compare/run.ps1` to regenerate.']
     if any(r['area'] == 'loopback' and r['implementation'] == 'go' and r['p50_us'] == 0 for r in aggregate):
         report += ['', 'Observed Go p50 RTT values include zero. Clock quantization may contribute [INFERENCE]; these values must not be interpreted as physically zero RTT. Throughput uses the complete elapsed exchange interval.']
     destination.write_text('\n'.join(report) + '\n', encoding='utf-8')
