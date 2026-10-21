@@ -59,13 +59,31 @@ func run() error {
 			})
 			ns := float64(result.T.Nanoseconds()) / float64(result.N)
 			allocs, allocated := float64(result.MemAllocs)/float64(result.N), float64(result.MemBytes)/float64(result.N)
-			if err := emit(row{Area: "codec", Name: c.name, Operation: c.operation, Implementation: "go", NSPerOp: ns, AllocsPerOp: &allocs, BytesPerOp: &allocated, PayloadBytes: c.size, MsgsPerSec: 1e9 / ns, MBPerSec: float64(c.size) * 1e3 / ns}); err != nil {
+			if err := emit(row{Area: c.area, Name: c.name, Operation: c.operation, Implementation: "go", NSPerOp: ns, AllocsPerOp: &allocs, BytesPerOp: &allocated, PayloadBytes: c.size, MsgsPerSec: 1e9 / ns, MBPerSec: float64(c.size) * 1e3 / ns}); err != nil {
 				return err
 			}
 		}
 		return nil
 	case "micro":
-		fmt.Fprintln(os.Stderr, "Go RakNet datagram and split APIs are private; no comparable micro rows. See CAVEATS.md.")
+		fmt.Fprintln(os.Stderr, "Go RakNet datagram, split and ACK APIs are private; no comparable micro rows. See CAVEATS.md.")
+		cases, err := batchCases(*corpus)
+		if err != nil {
+			return err
+		}
+		for _, c := range cases {
+			result := testing.Benchmark(func(b *testing.B) {
+				b.ReportAllocs()
+				b.SetBytes(int64(c.size))
+				for b.Loop() {
+					c.run()
+				}
+			})
+			ns := float64(result.T.Nanoseconds()) / float64(result.N)
+			allocs, allocated := float64(result.MemAllocs)/float64(result.N), float64(result.MemBytes)/float64(result.N)
+			if err := emit(row{Area: c.area, Name: c.name, Operation: c.operation, Implementation: "go", NSPerOp: ns, AllocsPerOp: &allocs, BytesPerOp: &allocated, PayloadBytes: c.size, MsgsPerSec: 1e9 / ns, MBPerSec: float64(c.size) * 1e3 / ns}); err != nil {
+				return err
+			}
+		}
 		return nil
 	case "serve":
 		return serve(*address, *count)

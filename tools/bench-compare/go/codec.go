@@ -24,9 +24,9 @@ type fixture struct {
 }
 
 type codecCase struct {
-	name, operation string
-	size            int
-	run             func()
+	area, name, operation string
+	size                  int
+	run                   func()
 }
 type entry struct {
 	header          packet.Header
@@ -173,8 +173,8 @@ fixtures:
 				unavailable(f.Name, fmt.Errorf("typed encoding differs from committed corpus"))
 				continue fixtures
 			}
-			cases = append(cases, codecCase{f.Name, "decode", len(e.payload), func() { decodeFramed(p, e.framed, limits) }})
-			cases = append(cases, codecCase{f.Name, "encode", len(e.payload), encode})
+			cases = append(cases, codecCase{"codec", f.Name, "decode", len(e.payload), func() { decodeFramed(p, e.framed, limits) }})
+			cases = append(cases, codecCase{"codec", f.Name, "encode", len(e.payload), encode})
 			continue
 		}
 		decoder := packet.NewDecoder(&batchSource{batch})
@@ -197,8 +197,8 @@ fixtures:
 			unavailable(f.Name, fmt.Errorf("typed batch encoding differs from committed corpus"))
 			continue fixtures
 		}
-		cases = append(cases, codecCase{f.Name, "decode_batch", len(batch), func() { must(decoder.DecodeFunc(decode)) }})
-		cases = append(cases, codecCase{f.Name, "encode_batch", len(batch), encode})
+		cases = append(cases, codecCase{"codec", f.Name, "decode_batch", len(batch), func() { must(decoder.DecodeFunc(decode)) }})
+		cases = append(cases, codecCase{"codec", f.Name, "encode_batch", len(batch), encode})
 		// Compression operates on the framed entries, excluding the 0xfe marker.
 		plain := batch[1:]
 		compressed, err := packet.FlateCompression.Compress(plain)
@@ -217,10 +217,10 @@ fixtures:
 		compressedDecoder.EnableCompression(packet.FlateCompression, len(plain))
 		decodeCompressed := func() { must(compressedDecoder.DecodeFunc(decode)) }
 		decodeCompressed()
-		cases = append(cases, codecCase{f.Name, "decode_compressed_batch", len(batch), decodeCompressed})
+		cases = append(cases, codecCase{"codec", f.Name, "decode_compressed_batch", len(batch), decodeCompressed})
 		cases = append(cases,
-			codecCase{f.Name, "compress", len(plain), func() { data, err := packet.FlateCompression.Compress(plain); must(err); runtime.KeepAlive(data) }},
-			codecCase{f.Name, "decompress", len(plain), func() {
+			codecCase{"codec", f.Name, "compress", len(plain), func() { data, err := packet.FlateCompression.Compress(plain); must(err); runtime.KeepAlive(data) }},
+			codecCase{"codec", f.Name, "decompress", len(plain), func() {
 				data, err := packet.FlateCompression.Decompress(compressed, len(plain))
 				must(err)
 				runtime.KeepAlive(data)

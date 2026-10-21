@@ -25,6 +25,34 @@ Supported batches also have `decode_compressed_batch`: setup constructs `0xfe`, 
 
 `payload_bytes` counts header+body excluding the length prefix for single packets, the complete uncompressed batch for batch operations, and uncompressed framed entries for compression operations. `bytes_per_op` is Go heap allocation volume, not wire volume; fractional `allocs_per_op` and `bytes_per_op` use the raw benchmark totals. Throughput uses decimal MB/s. Codec latency percentiles are null because Go's aggregate benchmark does not provide a per-operation distribution. Rust borrowed decoding may avoid copies/allocations that Go typed structures own; do not label this an ownership-equivalent comparison. Reused-buffer Go encoding likewise must not be presented as identical allocation policy to a freshly allocated Rust output.
 
+## Raw cross-implementation batch cases (`micro`)
+
+The independent raw batch loader always selects all four `set=batch` fixtures,
+even when typed codec support excludes one. SHA-256, marker, packet count, exact
+uncompressed re-encoding and each decoded packet's bytes are checked before
+timing. `area=batch` operations `framing_encode`/`framing_decode` call public
+`Encoder.Encode`/`Decoder.Decode` with compression disabled; no typed body
+marshalling occurs. `deflate_encode`/`deflate_decode` and
+`snappy_encode`/`snappy_decode` enable negotiated compression at threshold zero
+and include framing, compression selector and compression/decompression.
+They use the complete original batch length as throughput denominator.
+
+Raw `compress`/`decompress` use public `FlateCompression`, input `batch[1:]`,
+level 6, with the exact output-length limit. The pinned fork above uses
+klauspost/compress v1.18.1 and pooled compressor/decompressor state. Rust's
+separate `flate2-rust` rows use fresh miniz_oxide-backed state, not a jolyne
+compression-only API; bedrock-net's combined DEFLATE uses libdeflate level 6.
+Compressed bytes need not match across backends; decompressed bytes must.
+Go's owned slices, jolyne's ID-parsed raw descriptors and bedrock-net's iterator
+have different ownership/validation work and must not be described as identical
+allocation contracts. The Go encoder reuses its output buffer.
+
+Isolated `encrypt`/`decrypt` are unavailable: the pinned public package exposes
+encryption only through Encoder/Decoder, while the checksum/cipher primitives
+are private. Coverage records explain this omission. No copied crypto, fresh
+key setup measurement, or combined framing operation is mislabeled as isolated
+encryption. These additions do not change the dependency pins above.
+
 ## RakNet transport and public API gaps
 
 `loopback`, `serve`, and `client` use real fork `Listen`, `DialTimeout`, reliable-ordered `Conn.Write`, and `Conn.ReadPacket`; there is no TCP/UDP surrogate. Four consecutive connections carry payload sizes 32, 512, 4096, and 65536 bytes. Each payload starts with `0xfe`, with byte at index i thereafter equal to i modulo 251. Both endpoints check complete payload equality. Defaults are 100 measured sequential request/echo pairs per size plus one untimed readiness echo of the identical payload before each size. That first echo excludes application acceptance and any previous connection's asynchronous drain from measured throughput and percentiles. Connection setup and payload/sample allocation are excluded from measured exchange time; equality checks and timestamp recording are included. Latency is round-trip latency, nearest-rank p50/p99. Throughput counts completed measured echoes and one application payload per echo, not doubled bidirectional bytes or RakNet wire overhead. Allocation metrics are null for transport.
@@ -41,7 +69,9 @@ The comparison runner exports `BENCH_SPLIT_COUNT=10` to both languages while ret
 
 Observer completion means every wire fragment index for an ID has been observed; it does not inspect the reference's private assembly map. Socket observation changes scheduling, so traced successes and negative duplicate observations are not substituted for uninstrumented failure evidence or timed results.
 
-There are **no public standalone datagram, ACK-window, or split/reassembly APIs** in this fork. Relevant implementations are private: `packet.read/write`, `split`, `datagramWindow`, and connection receive/reassembly methods; the low-level handshake messages are under Go's `internal` package boundary. Therefore `micro` succeeds with a clear stderr explanation and emits **no JSONL timings**. No vendoring, fork modifications, `go:linkname`, copied implementation, raw-byte fallback, or fabricated timings are used. Real large-message loopback naturally exercises fragmentation and reassembly but is not a substitute for isolated microbenchmarks.
+There are **no public standalone datagram, ACK-window, or split/reassembly APIs** in this fork. Relevant implementations are private: `packet.read/write`, `split`, `datagramWindow`, and connection receive/reassembly methods; low-level handshake messages are under Go's `internal` package boundary. `micro` explains this on stderr and emits only the separate Bedrock batch rows, not RakNet micro timings. No vendoring, fork modifications, `go:linkname`, copied implementation, raw-byte fallback, or fabricated timings are used. Real large-message loopback naturally exercises fragmentation and reassembly but is not an isolated microbenchmark.
+
+Windows transport RTT and complete exchange intervals use QueryPerformanceCounter with one cached frequency, not `time.Now`/`time.Since`. Counter differences are converted before reporting; large absolute uptime does not multiply into nanosecond overflow. Timed client modes validate the clock at startup and log frequency and minimum observed positive increments to stderr; no silent coarse-clock fallback. Connection deadlines and timeout timers still use Go's standard runtime clocks. Per-message clocks include counter-read overhead just as Rust `Instant` does.
 
 ## Commands
 
