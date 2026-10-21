@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use std::fmt;
 use thiserror::Error;
 
-/// Signal types defined by the NetherNet protocol.
+/// Signal names from go-nethernet signal.go:Signal.UnmarshalText / Signal.validate.
 pub mod signal_type {
     pub const OFFER: &str = "CONNECTREQUEST";
     pub const ANSWER: &str = "CONNECTRESPONSE";
@@ -11,7 +11,7 @@ pub mod signal_type {
 }
 
 /// Error codes used in `SignalType::ERROR`.
-/// These match the upstream Bedrock implementation exactly.
+/// Source: go-nethernet signal.go:ErrorCodeNone constant block / Signal.validate.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SignalErrorCode {
@@ -42,6 +42,17 @@ pub enum SignalErrorCode {
     NoSignalingChannel = 24,
     NotLoggedIn = 25,
     SignalingFailedToSend = 26,
+    RelayServerConfigurationResultFailure = 27,
+    RelayServerConfigurationResultParsingErrorNoURLs = 28,
+    RelayServerConfigurationResultParsingErrorNoCreds = 29,
+    RelayServerConfigurationResultParsingErrorNoServers = 30,
+    RelayServerConfigurationResultParsingErrorNoExpiration = 31,
+    DataChannelClosed = 32,
+    InternalErrorJSONSerialization = 33,
+    InvalidArgument = 34,
+    GenericFailure = 35,
+    FailedToCreateIdentityAssertion = 36,
+    IdentityNotAllowed = 37,
 }
 
 impl fmt::Display for SignalErrorCode {
@@ -132,23 +143,30 @@ impl Signal {
     ///
     /// Expected format: `TYPE CONNECTION_ID DATA`
     pub fn parse(s: &str, network_id: String) -> Result<Self, SignalParseError> {
-        let parts: Vec<&str> = s.splitn(3, ' ').collect();
-        if parts.len() != 3 {
-            return Err(SignalParseError::InvalidFormat);
-        }
-
-        let typ = parts[0].to_string();
-        let connection_id = parts[1]
+        let mut parts = s.splitn(3, ' ');
+        let typ = parts.next().ok_or(SignalParseError::InvalidFormat)?;
+        let id = parts.next().ok_or(SignalParseError::InvalidFormat)?;
+        let data = parts.next().ok_or(SignalParseError::InvalidFormat)?;
+        let connection_id = decimal_prefix(id, false)
             .parse::<u64>()
             .map_err(|_| SignalParseError::InvalidConnectionId)?;
-        let data = parts[2].to_string();
-
-        Ok(Self {
-            typ,
+        let signal = Self {
+            typ: typ.to_owned(),
             connection_id,
-            data,
+            data: data.to_owned(),
             network_id,
-        })
+        };
+        signal.validate()?;
+        Ok(signal)
+    }
+
+    /// Validates constructed signals too, as go-nethernet signal.go:Signal.validate does.
+    pub fn validate(&self) -> Result<(), SignalParseError> {
+        match self.typ.as_str() {
+            signal_type::OFFER | signal_type::ANSWER | signal_type::CANDIDATE => Ok(()),
+            signal_type::ERROR => parse_signal_error_code(&self.data).map(|_| ()),
+            _ => Err(SignalParseError::InvalidSignalType),
+        }
     }
 
     /// Creates an error signal to send back to the remote.
@@ -163,8 +181,28 @@ impl Signal {
     }
 }
 
+/// Parses signed decimal prefixes, matching go-nethernet signal.go:parseSignalErrorCode.
+pub fn parse_signal_error_code(data: &str) -> Result<i32, SignalParseError> {
+    decimal_prefix(data, true)
+        .parse()
+        .map_err(|_| SignalParseError::InvalidErrorCode)
+}
+
+fn decimal_prefix(data: &str, signed: bool) -> &str {
+    let start = usize::from(signed && data.starts_with('-'));
+    let digits = data.as_bytes()[start..]
+        .iter()
+        .take_while(|b| b.is_ascii_digit())
+        .count();
+    &data[..start + digits]
+}
+
 #[derive(Debug, Error)]
 pub enum SignalParseError {
+    #[error("unknown signal type")]
+    InvalidSignalType,
+    #[error("invalid signed 32-bit signal error code")]
+    InvalidErrorCode,
     #[error("invalid signal format")]
     InvalidFormat,
     #[error("invalid connection id")]
@@ -188,7 +226,7 @@ const MAX_CANDIDATE_LEN: usize = 1024;
 ///
 /// Format: `candidate:<foundation> 1 <proto> <priority> <addr> <port> typ <type> [raddr <raddr> rport <rport>] generation 0 ufrag <ufrag> network-id <id> network-cost 0`
 ///
-/// This matches the format used by `go-nethernet` and upstream Bedrock clients.
+/// Source: go-nethernet signal.go:formatICECandidate (component, generation and cost constants).
 #[inline]
 #[allow(clippy::too_many_arguments)]
 pub fn format_ice_candidate(
@@ -208,9 +246,15 @@ pub fn format_ice_candidate(
         foundation, protocol, priority, address, port, candidate_type
     );
 
-    // Add related address/port for relay and srflx candidates
-    if let (Some(raddr), Some(rport)) = (related_address, related_port) {
-        s.push_str(&format!(" raddr {} rport {}", raddr, rport));
+    // Upstream emits related fields only for relay and server-reflexive candidates.
+    if matches!(candidate_type, "relay" | "srflx") {
+        use std::fmt::Write;
+        let _ = write!(
+            s,
+            " raddr {} rport {}",
+            related_address.unwrap_or(""),
+            related_port.unwrap_or(0)
+        );
     }
 
     s.push_str(&format!(
@@ -221,13 +265,13 @@ pub fn format_ice_candidate(
     s
 }
 
-/// Parses a C++ WebRTC format ICE candidate string with validation.
+/// Parses a standard ICE candidate, accepting SDP attribute and candidate prefixes.
 ///
-/// Returns (foundation, protocol, priority, address, port, type, related_addr, related_port, ufrag).
+/// Source: go-nethernet conn.go:parseRemoteCandidate. The legacy return type
+/// exposes only the fields needed by existing callers; use the native WebRTC
+/// candidate parser when component/TCP type information must be preserved.
 ///
 /// # Security
-/// - Validates IP addresses (IPv4 or IPv6 format)
-/// - Validates port range (1-65535)
 /// - Limits string field lengths to prevent memory exhaustion
 /// - Validates protocol is "udp" or "tcp"
 pub fn parse_ice_candidate(s: &str) -> Result<IceCandidateInfo, SignalParseError> {
@@ -236,7 +280,9 @@ pub fn parse_ice_candidate(s: &str) -> Result<IceCandidateInfo, SignalParseError
         return Err(SignalParseError::FieldTooLong);
     }
 
-    // Format: candidate:<foundation> 1 <proto> <priority> <addr> <port> typ <type> ...
+    // Source: go-nethernet conn.go:parseRemoteCandidate.
+    let s = s.trim();
+    let s = s.strip_prefix("a=").unwrap_or(s);
     let s = s.strip_prefix("candidate:").unwrap_or(s);
     let parts: Vec<&str> = s.split_whitespace().collect();
 
@@ -251,7 +297,9 @@ pub fn parse_ice_candidate(s: &str) -> Result<IceCandidateInfo, SignalParseError
     }
     let foundation = foundation.to_string();
 
-    // parts[1] is component (always 1)
+    parts[1]
+        .parse::<u16>()
+        .map_err(|_| SignalParseError::InvalidFormat)?;
 
     // Validate protocol (must be udp or tcp)
     let protocol = parts[2].to_lowercase();
@@ -265,20 +313,19 @@ pub fn parse_ice_candidate(s: &str) -> Result<IceCandidateInfo, SignalParseError
 
     // Validate IP address format
     let address = parts[4];
-    if address.parse::<std::net::IpAddr>().is_err() {
+    if address.parse::<std::net::IpAddr>().is_err() && !address.ends_with(".local") {
         return Err(SignalParseError::InvalidIpAddress);
     }
     let address = address.to_string();
 
-    // Validate port range (1-65535)
+    // Standard ICE accepts the full unsigned 16-bit port range.
     let port: u16 = parts[5]
         .parse()
         .map_err(|_| SignalParseError::InvalidPort)?;
-    if port == 0 {
-        return Err(SignalParseError::InvalidPort);
-    }
 
-    // parts[6] is "typ"
+    if parts[6] != "typ" || !matches!(parts[7], "host" | "srflx" | "prflx" | "relay") {
+        return Err(SignalParseError::InvalidFormat);
+    }
     let candidate_type = parts[7].to_string();
 
     // Parse optional fields
@@ -291,22 +338,26 @@ pub fn parse_ice_candidate(s: &str) -> Result<IceCandidateInfo, SignalParseError
         match parts[i] {
             "raddr" if i + 1 < parts.len() => {
                 let addr = parts[i + 1];
-                // Validate related address if present
-                if addr.parse::<std::net::IpAddr>().is_ok() {
-                    related_address = Some(addr.to_string());
+                if addr.parse::<std::net::IpAddr>().is_err() {
+                    return Err(SignalParseError::InvalidIpAddress);
                 }
+                related_address = Some(addr.to_string());
                 i += 2;
             }
             "rport" if i + 1 < parts.len() => {
-                related_port = parts[i + 1].parse().ok();
+                related_port = Some(
+                    parts[i + 1]
+                        .parse()
+                        .map_err(|_| SignalParseError::InvalidPort)?,
+                );
                 i += 2;
             }
             "ufrag" if i + 1 < parts.len() => {
                 let u = parts[i + 1];
-                // Validate ufrag length
-                if u.len() <= MAX_UFRAG_LEN {
-                    ufrag = Some(u.to_string());
+                if u.len() > MAX_UFRAG_LEN {
+                    return Err(SignalParseError::FieldTooLong);
                 }
+                ufrag = Some(u.to_string());
                 i += 2;
             }
             _ => i += 1,
@@ -350,8 +401,26 @@ pub trait Signaling: Send + Sync {
 
     /// Returns TURN server credentials if available.
     /// Returns `None` if no credentials are needed (e.g., STUN-only).
-    async fn credentials(&self) -> Option<Credentials> {
-        None
+    async fn credentials(&self) -> anyhow::Result<Option<Credentials>> {
+        Ok(None)
+    }
+
+    /// Whether candidates must be embedded in SDP rather than trickled.
+    /// Source: go-nethernet signal.go:shouldDisableTrickleICE.
+    fn disable_trickle_ice(&self) -> bool {
+        false
+    }
+
+    /// Whether this signaling transport requires the current identity assertion.
+    /// The retained legacy franchise service predates this upstream requirement.
+    fn requires_identity(&self) -> bool {
+        true
+    }
+
+    /// Completes on a fatal signaling shutdown; unbound clients remain open.
+    /// Source: go-nethernet signal.go:Signaling.Context.
+    async fn closed(&self) {
+        std::future::pending::<()>().await;
     }
 
     /// Sets pong data for RakNet-style ping responses.
@@ -369,8 +438,20 @@ impl<T: Signaling + ?Sized> Signaling for std::sync::Arc<T> {
         (**self).signal(signal).await
     }
 
-    async fn credentials(&self) -> Option<Credentials> {
+    async fn credentials(&self) -> anyhow::Result<Option<Credentials>> {
         (**self).credentials().await
+    }
+
+    fn disable_trickle_ice(&self) -> bool {
+        (**self).disable_trickle_ice()
+    }
+
+    fn requires_identity(&self) -> bool {
+        (**self).requires_identity()
+    }
+
+    async fn closed(&self) {
+        (**self).closed().await;
     }
 
     fn set_pong_data(&self, data: &[u8]) {
@@ -393,7 +474,7 @@ impl<T: Signaling + ?Sized> Signaling for std::sync::Arc<T> {
 pub trait SignalingChannel: Signaling {
     /// Takes the signal receiver from this channel.
     ///
-    /// This should only be called once - subsequent calls return `None`.
+    /// Servers permit one receiver; broadcast-capable clients create independent subscriptions.
     async fn take_signal_receiver(&self) -> Option<tokio::sync::mpsc::Receiver<Signal>>;
 }
 
@@ -407,7 +488,84 @@ impl<T: SignalingChannel + ?Sized> SignalingChannel for std::sync::Arc<T> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn upstream_candidate_accepts_sdp_attribute_prefix() {
+        let parsed =
+            parse_ice_candidate(" \ta=candidate:1 1 udp 123 127.0.0.1 9 typ host\r\n").unwrap();
+        assert_eq!(parsed.foundation, "1");
+    }
+
+    #[test]
+    fn standard_candidates_accept_mdns_and_validate_component_and_type() {
+        assert!(parse_ice_candidate("candidate:1 1 udp 1 host.local 9 typ host").is_ok());
+        for text in [
+            "candidate:1 nope udp 1 127.0.0.1 9 typ host",
+            "candidate:1 1 udp 1 127.0.0.1 9 typ unknown",
+            "candidate:1 1 udp 1 127.0.0.1 9 typ relay raddr 127.0.0.1 rport nope",
+        ] {
+            assert!(parse_ice_candidate(text).is_err(), "{text}");
+        }
+    }
     use super::*;
+
+    /// Fixtures from go-nethernet signal_test.go:TestSignalUnmarshalText.
+    #[test]
+    fn upstream_signal_decimal_prefix_fixtures() {
+        for (text, id) in [
+            ("CONNECTERROR 42junk -12suffix", 42),
+            ("CONNECTERROR 0x10 0x10", 0),
+            ("CONNECTERROR 18446744073709551615 2147483647", u64::MAX),
+            ("CONNECTERROR 42 -2147483648", 42),
+            ("CONNECTREQUEST 42junk offer data", 42),
+            ("CONNECTRESPONSE 42junk answer data", 42),
+            ("CANDIDATEADD 42junk candidate data", 42),
+        ] {
+            let signal = Signal::parse(text, "peer".into()).unwrap();
+            assert_eq!(signal.connection_id, id, "{text}");
+            assert_eq!(
+                Signal::parse(&signal.to_string(), "peer".into()).unwrap(),
+                signal
+            );
+        }
+        for text in [
+            "CONNECTERROR 42 2147483648",
+            "CONNECTERROR 42 -2147483649",
+            "CONNECTERROR 42 invalid",
+            "CONNECTERROR 42 ",
+            "CONNECTERROR 42 -",
+            "CONNECTERROR 42 +12",
+            "CONNECTERROR 42  12",
+            "CONNECTERROR 42\t12",
+            "CONNECTERROR 18446744073709551616 12",
+            "CONNECTERROR -42 12",
+            "CONNECTERROR +42 12",
+            "CONNECTERROR  42 12",
+            "CONNECTERROR invalid 12",
+            "UNKNOWN 42 12",
+            "connecterror 42 12",
+        ] {
+            assert!(Signal::parse(text, "peer".into()).is_err(), "{text}");
+        }
+    }
+
+    #[test]
+    fn upstream_host_candidate_omits_related_address() {
+        assert_eq!(
+            format_ice_candidate(
+                2,
+                "abc",
+                "udp",
+                1,
+                "127.0.0.1",
+                9,
+                "host",
+                Some("10.0.0.1"),
+                Some(123),
+                "xyz"
+            ),
+            "candidate:abc 1 udp 1 127.0.0.1 9 typ host generation 0 ufrag xyz network-id 2 network-cost 0"
+        );
+    }
 
     #[test]
     fn test_parse_ice_candidate_valid_host() {
@@ -453,11 +611,11 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_ice_candidate_invalid_port_zero() {
+    fn test_parse_ice_candidate_standard_port_zero() {
         let candidate = "candidate:1 1 udp 2130706431 192.168.1.100 0 typ host";
         let result = parse_ice_candidate(candidate);
 
-        assert!(matches!(result, Err(SignalParseError::InvalidPort)));
+        assert_eq!(result.unwrap().port, 0);
     }
 
     #[test]

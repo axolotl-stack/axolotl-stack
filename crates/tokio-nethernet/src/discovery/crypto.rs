@@ -11,14 +11,14 @@ use aes::cipher::{BlockDecrypt, BlockEncrypt, KeyInit, generic_array::GenericArr
 use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
 
-/// The encryption key derived from the application ID (0xdeadbeef).
+/// SHA256 of LE u64 application ID 0xdeadbeef: upstream `discovery/crypto.go:key`.
 fn key() -> [u8; 32] {
     let mut hasher = Sha256::new();
     hasher.update(0xdeadbeefu64.to_le_bytes());
     hasher.finalize().into()
 }
 
-/// Encrypt data using AES-256-ECB with PKCS7 padding.
+/// AES-256-ECB, 16-byte blocks and PKCS7: upstream `discovery/crypto.go:encrypt`.
 pub fn encrypt(data: &[u8]) -> Vec<u8> {
     let key_bytes = key();
     let cipher = Aes256::new(GenericArray::from_slice(&key_bytes));
@@ -26,21 +26,16 @@ pub fn encrypt(data: &[u8]) -> Vec<u8> {
     // PKCS7 padding
     let block_size = 16;
     let padding_len = block_size - (data.len() % block_size);
-    let mut padded = data.to_vec();
-    padded.resize(data.len() + padding_len, padding_len as u8);
-
-    // Encrypt each block (ECB mode)
-    let mut encrypted = Vec::with_capacity(padded.len());
-    for chunk in padded.chunks(block_size) {
-        let mut block = GenericArray::clone_from_slice(chunk);
-        cipher.encrypt_block(&mut block);
-        encrypted.extend_from_slice(&block);
+    let mut encrypted = Vec::with_capacity(data.len() + padding_len);
+    encrypted.extend_from_slice(data);
+    encrypted.resize(data.len() + padding_len, padding_len as u8);
+    for chunk in encrypted.chunks_exact_mut(block_size) {
+        cipher.encrypt_block(GenericArray::from_mut_slice(chunk));
     }
-
     encrypted
 }
 
-/// Decrypt data using AES-256-ECB with PKCS7 unpadding.
+/// AES-ECB/PKCS7 validation: upstream `discovery/crypto.go:decrypt`.
 pub fn decrypt(data: &[u8]) -> Result<Vec<u8>, &'static str> {
     if data.is_empty() || !data.len().is_multiple_of(16) {
         return Err("invalid ciphertext length");
@@ -75,7 +70,7 @@ pub fn decrypt(data: &[u8]) -> Result<Vec<u8>, &'static str> {
     Ok(decrypted)
 }
 
-/// Compute HMAC-SHA256 checksum.
+/// 32-byte HMAC-SHA256 over unpadded plaintext: upstream `discovery/packet.go:Marshal`.
 pub fn hmac_checksum(data: &[u8]) -> [u8; 32] {
     let key_bytes = key();
     let mut mac: Hmac<Sha256> =
@@ -84,10 +79,12 @@ pub fn hmac_checksum(data: &[u8]) -> [u8; 32] {
     mac.finalize().into_bytes().into()
 }
 
-/// Verify HMAC-SHA256 checksum.
+/// Upstream `discovery/packet.go:Unmarshal` checksum, compared in constant time.
 pub fn verify_hmac(data: &[u8], expected: &[u8; 32]) -> bool {
-    let computed = hmac_checksum(data);
-    computed == *expected
+    let mut mac: Hmac<Sha256> =
+        <Hmac<Sha256> as Mac>::new_from_slice(&key()).expect("valid key length");
+    mac.update(data);
+    mac.verify_slice(expected).is_ok()
 }
 
 #[cfg(test)]

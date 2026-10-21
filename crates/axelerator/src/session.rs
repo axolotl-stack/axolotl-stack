@@ -198,6 +198,24 @@ impl Axelerator {
             })
             .await;
 
+        let resync_friends = friends_client.clone();
+        let resync_sessions = session_client.clone();
+        let resync_tokens = token_cache.clone();
+        let resync_info = self.session_info.clone();
+        let resync_processed = processed_xuids.clone();
+        rta_client
+            .on_resync(move || {
+                let friends = resync_friends.clone();
+                let sessions = resync_sessions.clone();
+                let tokens = resync_tokens.clone();
+                let info = resync_info.clone();
+                let processed = resync_processed.clone();
+                tokio::spawn(async move {
+                    accept_friends_and_invite(&friends, &sessions, &tokens, info, &processed).await;
+                });
+            })
+            .await;
+
         // Store RTA handle for reconnection
         // For long-running services, we retry indefinitely with capped backoff
         // Pass token_cache to allow token refresh on reconnection
@@ -273,16 +291,10 @@ impl Axelerator {
 
         // Wait for RTA to connect and get ID
         info!("Waiting for RTA connection...");
-        let connection_id = match rta_client.wait_for_connection_id().await {
-            Ok(id) => id,
-            Err(e) => {
-                warn!(
-                    "RTA connection timed out, using fallback UUID (this may cause issues): {}",
-                    e
-                );
-                uuid::Uuid::new_v4().to_string()
-            }
-        };
+        let connection_id = rta_client
+            .wait_for_connection_id()
+            .await
+            .context("Failed to establish an authenticated RTA connection")?;
 
         // Step 2: Set presence to active
         let presence = PresenceClient::new();
@@ -552,25 +564,25 @@ impl Axelerator {
         let nethernet_id = session.nethernet_id;
         let signaling_url = endpoints.signaling.websocket_url(nethernet_id);
 
-        info!(
-            signaling_uri = %endpoints.signaling.service_uri,
-            "Discovered signaling endpoint"
-        );
+        info!("Discovered signaling endpoint");
 
-        // Helper function to get fresh mc_token
+        // Keep upstream PlayFab and franchise caches across listener restarts.
+        let playfab = PlayFabClient::with_environment(&endpoints.auth)?;
+        let playfab = &playfab;
+        let game_version = self.config.version.as_str();
         let get_fresh_mc_token = |token_cache: Arc<TokenCache>, device_id: String| async move {
             let playfab_token = token_cache
-                .get_xbl_token(axolotl_xbl::auth::relying_party::PLAYFAB)
+                .get_xbl_token_for_url(playfab.login_url())
                 .await?;
 
-            let playfab = PlayFabClient::new();
+            // NSAL selects the relying party for the discovered PlayFab title.
             let playfab_ticket = playfab
                 .login(&playfab_token.user_hash, &playfab_token.token)
                 .await
                 .context("PlayFab login failed")?;
 
             let mc_token = playfab
-                .start_session(&device_id, &playfab_ticket)
+                .start_session(&device_id, &playfab_ticket, game_version)
                 .await
                 .context("Minecraft session start failed")?;
 
@@ -636,7 +648,7 @@ impl Axelerator {
         let friends_client = FriendsClient::new();
 
         // Presence refresh with exponential backoff
-        let mut heartbeat_secs = initial_heartbeat_secs;
+        let mut heartbeat_secs = presence_interval(initial_heartbeat_secs);
         let mut presence_failures = 0u32;
         let mut presence_backoff_secs = PRESENCE_INITIAL_BACKOFF_SECS;
         let mut last_presence_refresh = Instant::now();
@@ -732,6 +744,7 @@ impl Axelerator {
                                     );
 
                                     // Force refresh the XBL token for PlayFab
+                                    playfab.invalidate_service_token(&mc_token).await;
                                     if let Err(e) = token_cache.force_refresh_xbl().await {
                                         error!("Failed to refresh XBL token: {}", e);
                                         // Wait before retrying
@@ -861,7 +874,7 @@ impl Axelerator {
 
                         match presence.set_active(&presence_token).await {
                             Ok(new_heartbeat) => {
-                                heartbeat_secs = new_heartbeat;
+                                heartbeat_secs = presence_interval(new_heartbeat);
                                 presence_failures = 0;
                                 presence_backoff_secs = PRESENCE_INITIAL_BACKOFF_SECS;
                                 last_presence_refresh = now;
@@ -1533,8 +1546,7 @@ async fn sync_followers(
                 Ok(f) => f,
                 Err(e) => {
                     debug!("Failed to get merged friends after token refresh: {}", e);
-                    let err = e.to_string();
-                    if is_rate_limited_error(&err) {
+                    if is_rate_limited_error(&e) {
                         return Some(Duration::from_secs(FRIEND_SYNC_RATE_LIMIT_FALLBACK_SECS));
                     }
                     return None;
@@ -1543,8 +1555,7 @@ async fn sync_followers(
         }
         Err(e) => {
             debug!("Failed to get merged friends: {}", e);
-            let err = e.to_string();
-            if is_rate_limited_error(&err) {
+            if is_rate_limited_error(&e) {
                 return Some(Duration::from_secs(FRIEND_SYNC_RATE_LIMIT_FALLBACK_SECS));
             }
             return None;
@@ -1621,9 +1632,9 @@ async fn sync_followers(
                         added
                     }
                     Err(e) => {
-                        let err_str = e.to_string();
-                        if is_rate_limited_error(&err_str) {
-                            let retry_after = parse_retry_after_secs(&err_str)
+                        if is_rate_limited_error(&e) {
+                            let retry_after = e
+                                .retry_after()
                                 .unwrap_or(FRIEND_SYNC_RATE_LIMIT_FALLBACK_SECS);
                             warn!(
                                 retry_after_secs = retry_after,
@@ -1638,9 +1649,9 @@ async fn sync_followers(
                 }
             }
             Err(e) => {
-                let err_str = e.to_string();
-                if is_rate_limited_error(&err_str) {
-                    let retry_after = parse_retry_after_secs(&err_str)
+                if is_rate_limited_error(&e) {
+                    let retry_after = e
+                        .retry_after()
                         .unwrap_or(FRIEND_SYNC_RATE_LIMIT_FALLBACK_SECS);
                     warn!(
                         retry_after_secs = retry_after,
@@ -1760,9 +1771,9 @@ async fn sync_followers(
                         );
                     }
                     Err(e) => {
-                        let err_str = e.to_string();
-                        if is_rate_limited_error(&err_str) {
-                            let retry_after = parse_retry_after_secs(&err_str)
+                        if is_rate_limited_error(&e) {
+                            let retry_after = e
+                                .retry_after()
                                 .unwrap_or(FRIEND_SYNC_RATE_LIMIT_FALLBACK_SECS);
                             warn!(
                                 retry_after_secs = retry_after,
@@ -1833,8 +1844,7 @@ async fn run_friend_expiry_check(
                             history.remove(xuid).await;
                         }
                         Err(e) => {
-                            let err_str = e.to_string();
-                            if is_rate_limited_error(&err_str) {
+                            if is_rate_limited_error(&e) {
                                 warn!("Rate limited during friend expiry, will retry next cycle");
                                 break;
                             }
@@ -1849,27 +1859,49 @@ async fn run_friend_expiry_check(
     }
 }
 
-fn is_rate_limited_error(err: &str) -> bool {
-    let lower = err.to_ascii_lowercase();
-    lower.contains("429")
-        || lower.contains("rate limited")
-        || lower.contains("too many requests")
-        || lower.contains("retry after")
+fn is_rate_limited_error(error: &axolotl_xbl::XblError) -> bool {
+    error.status().is_some_and(|status| status.as_u16() == 429)
+        || matches!(error, axolotl_xbl::XblError::RateLimited)
 }
 
-fn parse_retry_after_secs(err: &str) -> Option<u64> {
-    let lower = err.to_ascii_lowercase();
-    let idx = lower.find("retry after ")?;
-    let rest = &lower[idx + "retry after ".len()..];
-    let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
-    if digits.is_empty() {
-        return None;
-    }
-    digits.parse::<u64>().ok()
+fn presence_interval(heartbeat: u64) -> u64 {
+    // Upstream returns zero for absent/invalid heartbeat metadata, not a polling
+    // instruction. Keep the caller's conservative five-minute retry interval.
+    if heartbeat == 0 { 300 } else { heartbeat }
 }
 
 /// Check if an XUID is a guest/split-screen account.
 /// Guest accounts have bit 52 set to 1.
 fn is_guest_account(xuid: &str) -> bool {
     xuid.parse::<u64>().map(|x| (x >> 52) == 1).unwrap_or(false)
+}
+
+#[cfg(test)]
+mod auth_scheduling_tests {
+    use super::*;
+
+    #[test]
+    fn omitted_heartbeat_does_not_create_a_busy_refresh_loop() {
+        assert_eq!(presence_interval(0), 300);
+        assert_eq!(presence_interval(1), 1);
+        assert_eq!(presence_interval(120), 120);
+    }
+
+    #[test]
+    fn rate_limit_classification_uses_status_not_remote_strings() {
+        use axolotl_xbl::XblError;
+        let status = reqwest::StatusCode::TOO_MANY_REQUESTS;
+        assert!(is_rate_limited_error(&XblError::HttpStatus {
+            status,
+            operation: "friends"
+        }));
+        assert!(is_rate_limited_error(&XblError::SocialStatus {
+            status,
+            code: None,
+            retry_after: Some(120),
+        }));
+        assert!(!is_rate_limited_error(&XblError::Auth(
+            "remote text includes 429".into()
+        )));
+    }
 }

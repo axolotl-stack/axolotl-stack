@@ -34,6 +34,22 @@ impl Session {
         let payload = payload_buf.freeze();
 
         let max_len = self.max_encapsulated_payload_len(reliability, false).max(1);
+        let fragments = if payload.len() <= max_len {
+            1
+        } else {
+            let split_reliability = self.normalize_reliability_for_split(reliability);
+            payload.len().div_ceil(
+                self.max_encapsulated_payload_len(split_reliability, true)
+                    .max(1),
+            )
+        };
+        // Local adaptation: go-raknet conn.go:Conn.write sends synchronously;
+        // our deferred response heap must remain bounded even under ping floods.
+        if self.outgoing_heap.len().saturating_add(fragments)
+            > super::receive_window::RECEIVE_WINDOW_SIZE as usize
+        {
+            return Err(QueuePacketError::QueueFull);
+        }
 
         if payload.len() <= max_len {
             Ok(self.enqueue_single_encap(payload, reliability, channel, priority))
@@ -406,24 +422,29 @@ impl Session {
         bw: &mut usize,
         out: &mut Vec<Datagram>,
     ) {
-        let mut resent_any = false;
-
-        for tracked in self.sent_datagrams.values_mut() {
-            let dgram_size = tracked.datagram.size();
-            if tracked.next_send > now || *bw < dgram_size {
-                continue;
+        let rto = self.sliding.get_rto_for_retransmission();
+        let mut retransmitted = Vec::new();
+        for (_, mut tracked) in self.sent_datagrams.extract_if(.., |_, tracked| {
+            let size = tracked.datagram.size();
+            if tracked.next_send > now || *bw < size {
+                return false;
             }
-
-            let rto = self.sliding.get_rto_for_retransmission();
+            *bw -= size;
+            true
+        }) {
+            // go-raknet conn.go:Conn.resend -> sendDatagram assigns a fresh
+            // datagram sequence; reliable/order indices remain unchanged.
+            let seq = self.datagram_write_index;
+            self.datagram_write_index = seq.next();
+            tracked.datagram.header.sequence = seq;
             tracked.send_time = now;
             tracked.next_send = now + rto;
-            *bw -= dgram_size;
-            resent_any = true;
             out.push(tracked.datagram.clone());
+            retransmitted.push((seq, tracked));
         }
-
-        if resent_any {
+        if !retransmitted.is_empty() {
             self.sliding.on_resend(self.datagram_write_index);
+            self.sent_datagrams.extend(retransmitted);
         }
     }
 }

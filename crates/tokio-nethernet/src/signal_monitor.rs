@@ -29,6 +29,11 @@ use tracing::{debug, error, info, warn};
 
 use crate::signaling::{Signal, signal_type};
 
+/// Local monitoring memory limits, not NetherNet protocol constants.
+const MAX_TRACKED_ENTRIES: usize = 1024;
+const MAX_NETWORKS_PER_CONNECTION: usize = 16;
+const MAX_NETWORK_ID_BYTES: usize = 256;
+
 /// Configuration for signal monitoring.
 #[derive(Debug, Clone)]
 pub struct SignalMonitorConfig {
@@ -187,7 +192,7 @@ impl SignalMonitor {
 
         if config.enabled {
             let monitor_weak = std::sync::Arc::downgrade(&monitor);
-            let cleanup_interval = config.tracking_window;
+            let cleanup_interval = config.tracking_window.max(Duration::from_millis(1));
 
             tokio::spawn(async move {
                 let mut interval = tokio::time::interval(cleanup_interval);
@@ -226,7 +231,7 @@ impl SignalMonitor {
 
     /// Process an incoming signal and check for anomalies.
     pub async fn process_incoming(&self, signal: &Signal) -> Vec<SignalAnomaly> {
-        if !self.config.enabled {
+        if !self.config.enabled || signal.network_id.len() > MAX_NETWORK_ID_BYTES {
             return vec![];
         }
 
@@ -237,8 +242,10 @@ impl SignalMonitor {
         // Update stats
         {
             let mut stats = self.stats.write().await;
-            stats.signals_processed += 1;
-            stats.unique_network_ids.insert(network_id.clone());
+            stats.signals_processed = stats.signals_processed.saturating_add(1);
+            if stats.unique_network_ids.len() < MAX_TRACKED_ENTRIES {
+                stats.unique_network_ids.insert(network_id.clone());
+            }
         }
 
         // Check for signal flooding
@@ -248,12 +255,18 @@ impl SignalMonitor {
 
         // Get or create connection state
         let mut connections = self.connections.write().await;
+        if connections.len() >= MAX_TRACKED_ENTRIES && !connections.contains_key(&conn_id) {
+            return anomalies;
+        }
         let state = connections
             .entry(conn_id)
             .or_insert_with(ConnectionState::new);
 
         // Track network IDs for this connection
-        let is_new_network = state.seen_network_ids.insert(network_id.clone());
+        let is_new_network = !state.seen_network_ids.contains(network_id);
+        if state.seen_network_ids.len() < MAX_NETWORKS_PER_CONNECTION {
+            state.seen_network_ids.insert(network_id.clone());
+        }
 
         match signal.typ.as_str() {
             signal_type::OFFER => {
@@ -295,7 +308,7 @@ impl SignalMonitor {
                 });
             }
             signal_type::CANDIDATE => {
-                state.candidate_count += 1;
+                state.candidate_count = state.candidate_count.saturating_add(1);
 
                 // Check if candidate is from expected network
                 if is_new_network && state.request_received {
@@ -319,14 +332,15 @@ impl SignalMonitor {
                 }
             }
             signal_type::ERROR => {
-                state.error_count += 1;
+                state.error_count = state.error_count.saturating_add(1);
 
-                let error_code: i32 = signal.data.parse().unwrap_or(-1);
+                let error_code =
+                    crate::signaling::parse_signal_error_code(&signal.data).unwrap_or(-1);
 
                 // Update stats
                 {
                     let mut stats = self.stats.write().await;
-                    stats.errors_received += 1;
+                    stats.errors_received = stats.errors_received.saturating_add(1);
                 }
 
                 // Log error details
@@ -395,11 +409,14 @@ impl SignalMonitor {
         // Store anomalies
         if !anomalies.is_empty() {
             let mut stored = self.anomalies.write().await;
-            stored.extend(anomalies.clone());
+            let remaining = MAX_TRACKED_ENTRIES.saturating_sub(stored.len());
+            stored.extend(anomalies.iter().take(remaining).cloned());
 
             // Update stats
             let mut stats = self.stats.write().await;
-            stats.anomalies_detected += anomalies.len() as u64;
+            stats.anomalies_detected = stats
+                .anomalies_detected
+                .saturating_add(anomalies.len() as u64);
 
             // Log anomalies
             for anomaly in &anomalies {
@@ -441,13 +458,16 @@ impl SignalMonitor {
 
     /// Process an outgoing signal (for tracking state).
     pub async fn process_outgoing(&self, signal: &Signal) {
-        if !self.config.enabled {
+        if !self.config.enabled || signal.network_id.len() > MAX_NETWORK_ID_BYTES {
             return;
         }
 
         let conn_id = signal.connection_id;
 
         let mut connections = self.connections.write().await;
+        if connections.len() >= MAX_TRACKED_ENTRIES && !connections.contains_key(&conn_id) {
+            return;
+        }
         let state = connections
             .entry(conn_id)
             .or_insert_with(ConnectionState::new);
@@ -464,10 +484,13 @@ impl SignalMonitor {
     async fn check_flood(&self, network_id: &str) -> Option<SignalAnomaly> {
         let mut counts = self.signal_counts.write().await;
         let now = Instant::now();
+        if counts.len() >= MAX_TRACKED_ENTRIES && !counts.contains_key(network_id) {
+            return None;
+        }
 
         let (count, first_seen) = counts.entry(network_id.to_string()).or_insert((0, now));
 
-        *count += 1;
+        *count = count.saturating_add(1);
 
         // Check if too many signals in short time
         let elapsed = first_seen.elapsed();
@@ -634,18 +657,26 @@ impl SignalMonitor {
 
     /// Get a summary of monitoring status.
     pub async fn summary(&self) -> String {
-        let stats = self.stats.read().await;
+        let (signals_processed, anomalies_detected, errors_received, unique_networks) = {
+            let stats = self.stats.read().await;
+            (
+                stats.signals_processed,
+                stats.anomalies_detected,
+                stats.errors_received,
+                stats.unique_network_ids.len(),
+            )
+        };
         let anomalies = self.anomalies.read().await;
 
         let recent_critical = anomalies.iter().filter(|a| a.severity >= 4).count();
 
         format!(
             "Signal Monitor: {} signals, {} anomalies ({} critical), {} errors, {} unique networks",
-            stats.signals_processed,
-            stats.anomalies_detected,
+            signals_processed,
+            anomalies_detected,
             recent_critical,
-            stats.errors_received,
-            stats.unique_network_ids.len()
+            errors_received,
+            unique_networks
         )
     }
 }
@@ -659,6 +690,62 @@ impl Default for SignalMonitor {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn summary_does_not_hold_stats_lock_while_waiting_for_anomalies() {
+        use futures::FutureExt;
+        let monitor = SignalMonitor::default();
+        let anomalies = monitor.anomalies.write().await;
+        let mut summary = Box::pin(monitor.summary());
+        assert!(summary.as_mut().now_or_never().is_none());
+        assert!(monitor.stats.try_write().is_ok());
+        drop(anomalies);
+        summary.await;
+    }
+
+    #[tokio::test]
+    async fn peer_controlled_tracking_is_bounded() {
+        let monitor = SignalMonitor::new(SignalMonitorConfig {
+            enabled: true,
+            ..Default::default()
+        });
+        for id in 0..1100 {
+            let signal = Signal {
+                typ: signal_type::OFFER.into(),
+                connection_id: id,
+                network_id: id.to_string(),
+                data: "bad".into(),
+            };
+            monitor.process_incoming(&signal).await;
+            monitor.process_outgoing(&signal).await;
+        }
+        assert!(monitor.connections.read().await.len() <= 1024);
+        assert!(monitor.signal_counts.read().await.len() <= 1024);
+        assert!(monitor.stats.read().await.unique_network_ids.len() <= 1024);
+        assert!(monitor.anomalies.read().await.len() <= 1024);
+        for id in 0..100 {
+            monitor
+                .process_incoming(&Signal {
+                    typ: signal_type::CANDIDATE.into(),
+                    connection_id: 0,
+                    network_id: id.to_string(),
+                    data: String::new(),
+                })
+                .await;
+        }
+        assert!(monitor.connections.read().await[&0].seen_network_ids.len() <= 16);
+    }
+
+    #[tokio::test]
+    async fn zero_tracking_window_does_not_panic() {
+        let monitor = SignalMonitor::new_with_cleanup(SignalMonitorConfig {
+            enabled: true,
+            tracking_window: Duration::ZERO,
+            ..Default::default()
+        });
+        tokio::task::yield_now().await;
+        drop(monitor);
+    }
 
     #[tokio::test]
     async fn test_error_detection() {

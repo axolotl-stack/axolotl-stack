@@ -23,6 +23,86 @@ pub mod stream;
 pub use listener::{RaknetListener, RaknetListenerConfig};
 pub use stream::{RaknetStream, RaknetStreamConfig};
 
+pub use crate::error::ConfigError;
+
+pub(crate) fn require_config(
+    valid: bool,
+    field: &'static str,
+    requirement: &'static str,
+) -> Result<(), ConfigError> {
+    if valid {
+        Ok(())
+    } else {
+        Err(ConfigError { field, requirement })
+    }
+}
+
+pub(crate) fn validate_duration(
+    value: std::time::Duration,
+    field: &'static str,
+) -> Result<(), ConfigError> {
+    require_config(
+        !value.is_zero() && std::time::Instant::now().checked_add(value).is_some(),
+        field,
+        "must be positive and representable as an Instant",
+    )
+}
+
+/// MTU bounds match upstream `conn.go:clampMTU`; unlike Go, invalid explicit
+/// configuration is rejected rather than silently clamped.
+pub(crate) fn validate_mtu(mtu: u16) -> Result<(), ConfigError> {
+    require_config(
+        (400..=1492).contains(&mtu),
+        "mtu",
+        "must be within 400..=1492",
+    )
+}
+
+/// Matches session hard bounds: upstream `conn.go:receiveDatagram`,
+/// `receivePacket`, and `receiveSplitPacket`; ACK buffering caps are local
+/// bounded-resource policy, not additional upstream wire restrictions.
+pub(crate) fn validate_session_limits(
+    channels: usize,
+    ack_capacity: usize,
+    split_timeout: std::time::Duration,
+    reliable_window: u32,
+    split_parts: u32,
+    concurrent_splits: usize,
+    incoming_acks: usize,
+) -> Result<(), ConfigError> {
+    require_config(
+        (1..=256).contains(&channels),
+        "max_ordering_channels",
+        "must be within 1..=256",
+    )?;
+    require_config(
+        (1..=2048).contains(&ack_capacity),
+        "ack_queue_capacity",
+        "must be within 1..=2048",
+    )?;
+    validate_duration(split_timeout, "split_timeout")?;
+    require_config(
+        (1..=2048).contains(&reliable_window),
+        "reliable_window",
+        "must be within 1..=2048",
+    )?;
+    require_config(
+        (1..=512).contains(&split_parts),
+        "max_split_parts",
+        "must be within 1..=512",
+    )?;
+    require_config(
+        (1..=16).contains(&concurrent_splits),
+        "max_concurrent_splits",
+        "must be within 1..=16",
+    )?;
+    require_config(
+        (1..=8192).contains(&incoming_acks),
+        "max_incoming_ack_queue",
+        "must be within 1..=8192",
+    )
+}
+
 /// High-level message object for sending data.
 /// Wraps the payload and delivery options (reliability, channel, priority).
 #[derive(Debug, Clone)]

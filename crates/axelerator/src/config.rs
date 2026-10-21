@@ -204,7 +204,7 @@ impl Default for ScreenshotConfig {
 ///
 /// When enabled, critical errors (auth failures after refresh, crashes, etc.)
 /// will be sent to the configured Discord webhook in addition to terminal logging.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct DiscordWebhookConfig {
     /// Enable Discord webhook notifications.
@@ -239,6 +239,16 @@ pub struct DiscordWebhookConfig {
     /// Minimum seconds between notifications to prevent spam.
     /// Default: 60 seconds
     pub rate_limit_secs: u64,
+}
+
+impl std::fmt::Debug for DiscordWebhookConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DiscordWebhookConfig")
+            .field("enabled", &self.enabled)
+            .field("webhook_url", &"[REDACTED]")
+            .field("rate_limit_secs", &self.rate_limit_secs)
+            .finish_non_exhaustive()
+    }
 }
 
 impl Default for DiscordWebhookConfig {
@@ -305,7 +315,7 @@ impl AxeleratorConfig {
 
         toml::from_str(&contents).map_err(|e| ConfigError::Parse {
             path: path.display().to_string(),
-            source: e,
+            span: e.span(),
         })
     }
 
@@ -395,7 +405,8 @@ pub enum ConfigError {
     },
     Parse {
         path: String,
-        source: toml::de::Error,
+        // Never retain the TOML error: it embeds the original configuration.
+        span: Option<std::ops::Range<usize>>,
     },
     Serialize {
         source: toml::ser::Error,
@@ -408,8 +419,12 @@ impl std::fmt::Display for ConfigError {
             ConfigError::Io { path, source } => {
                 write!(f, "Failed to read config file '{}': {}", path, source)
             }
-            ConfigError::Parse { path, source } => {
-                write!(f, "Failed to parse config file '{}': {}", path, source)
+            ConfigError::Parse { path, span } => {
+                write!(
+                    f,
+                    "Failed to parse config file '{}' at byte range {:?}",
+                    path, span
+                )
             }
             ConfigError::Serialize { source } => {
                 write!(f, "Failed to serialize config: {}", source)
@@ -422,8 +437,42 @@ impl std::error::Error for ConfigError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             ConfigError::Io { source, .. } => Some(source),
-            ConfigError::Parse { source, .. } => Some(source),
+            ConfigError::Parse { .. } => None,
             ConfigError::Serialize { source } => Some(source),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn config_debug_redacts_webhook_credentials() {
+        let mut config = AxeleratorConfig::default();
+        config.discord.webhook_url =
+            Some("https://discord.com/api/webhooks/123/secret-sentinel".into());
+        for debug in [format!("{config:?}"), format!("{:?}", config.discord)] {
+            assert!(!debug.contains("secret-sentinel"));
+            assert!(!debug.contains("/api/webhooks/"));
+        }
+    }
+
+    #[test]
+    fn malformed_config_errors_do_not_retain_input() {
+        use std::error::Error;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        for contents in [
+            "[discord]\nwebhook_url = \"secret-sentinel",
+            "[discord]\nenabled = \"secret-sentinel\"",
+        ] {
+            std::fs::write(&path, contents).unwrap();
+            let error = AxeleratorConfig::load(&path).unwrap_err();
+            assert!(matches!(error, ConfigError::Parse { .. }));
+            assert!(!error.to_string().contains("secret-sentinel"));
+            assert!(!format!("{error:?}").contains("secret-sentinel"));
+            assert!(error.source().is_none());
         }
     }
 }

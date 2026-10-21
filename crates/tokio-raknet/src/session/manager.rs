@@ -86,6 +86,8 @@ pub struct ManagedSession {
     peer: SocketAddr,
     state: ConnectionState,
     last_activity: Instant,
+    created_at: Instant,
+    closing_since: Option<Instant>,
     config: SessionConfig,
     last_pong_received: Instant,
     last_ping_sent: Option<Instant>,
@@ -108,6 +110,8 @@ impl ManagedSession {
             state: ConnectionState::Unconnected,
             last_activity: now,
             config,
+            created_at: now,
+            closing_since: None,
 
             last_pong_received: now,
             last_ping_sent: None,
@@ -189,8 +193,6 @@ impl ManagedSession {
 
         let added = self.inner.queue_packet(pkt, rel, channel, priority)?;
         self.queued_reliable_bytes = self.queued_reliable_bytes.saturating_add(added);
-        // Treat an outbound enqueue as activity to avoid stale self timeouts
-        self.last_activity = Instant::now();
 
         Ok(())
     }
@@ -213,12 +215,15 @@ impl ManagedSession {
 
         match dgram.payload {
             DatagramPayload::EncapsulatedPackets(packets) => {
+                // go-raknet conn.go:receiveDatagram validates and deduplicates
+                // the receive window before touching any packet payload.
+                if !self
+                    .inner
+                    .accept_datagram_sequence(dgram.header.sequence, now)?
+                {
+                    return Ok(Vec::new());
+                }
                 let mut pkts = self.inner.handle_data_payload(packets, now)?;
-
-                // Only DATA datagrams participate in sequence/NACK tracking.
-                // We process sequence AFTER handling payload so that if handling fails
-                // (e.g. split buffer full), we don't ACK the datagram, forcing a resend.
-                self.inner.process_datagram_sequence(dgram.header.sequence);
                 pkts.extend(self.inner.drain_pending_incoming());
 
                 for pkt in &pkts {
@@ -490,7 +495,7 @@ mod tests {
         };
         let mut ms = ManagedSession::with_config(peer, 1200, now, config);
 
-        let _ = ms.on_tick(now + Duration::from_millis(10));
+        let _ = ms.on_tick(now + Duration::from_secs(10));
 
         assert_eq!(ms.state(), ConnectionState::Closed);
         assert!(matches!(
@@ -499,6 +504,32 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn outgoing_keepalives_do_not_refresh_receive_timeout() {
+        let now = Instant::now();
+        let mut session = ManagedSession::new("127.0.0.1:19142".parse().unwrap(), 1200, now);
+        session.state = ConnectionState::Connected;
+        session.on_tick(now + Duration::from_secs(1));
+        assert_eq!(session.last_activity, now);
+    }
+
+    #[test]
+    fn handshake_activity_does_not_extend_completion_deadline() {
+        let now = Instant::now();
+        let mut session = ManagedSession::new("127.0.0.1:19143".parse().unwrap(), 1200, now);
+        session.last_activity = now + Duration::from_secs(9);
+        session.on_tick(now + Duration::from_secs(11));
+        assert_eq!(session.state(), ConnectionState::Closed);
+    }
+
+    #[test]
+    fn keepalive_is_retried_without_waiting_for_pong() {
+        let now = Instant::now();
+        let mut session = ManagedSession::new("127.0.0.1:19144".parse().unwrap(), 1200, now);
+        session.state = ConnectionState::Connected;
+        session.send_connected_ping(now);
+        assert!(session.should_send_ping(now + Duration::from_millis(500)));
+    }
     fn decode_first_packet(dgram: &crate::protocol::datagram::Datagram) -> RaknetPacket {
         if let DatagramPayload::EncapsulatedPackets(packets) = &dgram.payload {
             let encap = packets

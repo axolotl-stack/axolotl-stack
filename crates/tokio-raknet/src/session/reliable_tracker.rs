@@ -52,11 +52,9 @@ impl ReliableTracker {
         }
 
         let dist = self.base.distance_to(ridx);
-        if dist == 0 {
-            return true; // Behind base, so seen.
-        }
-        if dist as usize > self.max_window {
-            return false; // Too far ahead, treat as not seen (or invalid, but not duplicate).
+        // Outside the bounded forward window is stale or invalid, never fresh.
+        if dist == 0 || dist as usize > self.max_window {
+            return true;
         }
 
         let offset = dist as usize - 1;
@@ -68,8 +66,10 @@ impl ReliableTracker {
     }
 
     fn advance_base(&mut self) {
-        while let Some(true) = self.window.front().copied() {
-            self.window.pop_front();
+        while let Some(seen) = self.window.pop_front() {
+            if !seen {
+                break;
+            }
             self.base = self.base.next();
         }
     }
@@ -104,5 +104,16 @@ mod tests {
     fn rejects_too_far_ahead() {
         let mut t = ReliableTracker::new(2);
         assert!(!t.see(Sequence24::new(5)));
+    }
+
+    #[test]
+    fn filling_base_realigns_remaining_duplicate_bits() {
+        let mut tracker = ReliableTracker::new(8);
+        assert!(tracker.see(Sequence24::new(2)));
+        assert!(tracker.see(Sequence24::new(0)));
+        assert!(tracker.has_seen(Sequence24::new(2)));
+        assert!(tracker.see(Sequence24::new(1)));
+        assert!(!tracker.see(Sequence24::new(2)));
+        assert!(tracker.see(Sequence24::new(3)));
     }
 }

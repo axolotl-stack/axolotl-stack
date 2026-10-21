@@ -31,7 +31,7 @@ pub enum DecodeError {
     UnknownId(u8),
 
     /// A variable-length integer exceeded the supported bit width.
-    #[error("VarInt bigger than 128 bits provided.")]
+    #[error("VarInt exceeds the supported 64-bit width.")]
     VarIntExceedsLimit,
 
     /// Wrapper for packets that are considered legacy/unsupported.
@@ -58,6 +58,14 @@ pub enum DecodeError {
     UnknownReliability(u8),
     #[error("Invalid Ack Packet encountered.")]
     InvalidAckPacket,
+    #[error("Encapsulated packet payload cannot be empty.")]
+    InvalidPacketLength,
+    #[error("Data datagram is missing the valid datagram flag.")]
+    InvalidDatagramFlags,
+    #[error("Datagram receive window exceeds the supported limit.")]
+    ReceiveWindowExceeded,
+    #[error("Ordered packet receive window exceeds the supported limit.")]
+    OrderingWindowExceeded,
     #[error("Packet split amount didn't match expected.")]
     SplitCountMismatch,
     #[error("Split index out of range.")]

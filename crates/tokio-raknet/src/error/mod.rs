@@ -2,6 +2,20 @@ use thiserror::Error;
 
 use crate::protocol::state::DisconnectReason;
 
+/// Invalid transport configuration, reported before allocating a socket or session.
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
+#[error("invalid transport configuration: {field} {requirement}")]
+pub struct ConfigError {
+    pub field: &'static str,
+    pub requirement: &'static str,
+}
+
+impl From<ConfigError> for std::io::Error {
+    fn from(error: ConfigError) -> Self {
+        Self::new(std::io::ErrorKind::InvalidInput, error)
+    }
+}
+
 #[derive(Error, Debug)]
 pub enum RaknetError {
     #[error("io error: {0}")]

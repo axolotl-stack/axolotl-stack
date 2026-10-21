@@ -47,45 +47,41 @@
 //!         .await?;
 //!     
 //!     println!("Authenticated as: {} (XUID: {})", xbl_token.gamertag, xbl_token.xuid);
-//!     println!("Auth header: {}", xbl_token.auth_header());
 //!     
 //!     Ok(())
 //! }
 //! ```
 
 mod device_code;
+pub(crate) mod nsal;
 mod signing;
 mod xbl_token;
 
 pub use device_code::{DeviceCodeAuth, DeviceCodeResponse, OAuthToken};
-pub use signing::{
-    SigningKeyPair, shared_signing_key, sign_request_for_url, update_server_time_from_header,
-};
+pub use signing::{SigningKeyPair, shared_signing_key, update_server_time_from_header};
+pub(crate) use signing::{sign_service_request, sign_websocket_request};
 pub use xbl_token::{XblToken, XblTokenClient, relying_party};
 
-/// Minecraft's official client ID.
-///
-/// This is the client ID hardcoded in the Minecraft client.
-/// Using this allows us to appear as "Minecraft" on Xbox Live,
-/// which is required for session broadcasting and friends list features.
-///
-/// **Do not change this** unless you specifically want to authenticate
-/// as a different application (which will break Minecraft integration).
+/// go-xsapi/example_test.go:MinecraftAndroid.ClientID.
 pub const MINECRAFT_CLIENT_ID: &str = "0000000048183522";
 
-/// Default scope for Xbox Live authentication.
-///
-/// This scope grants access to Xbox Live user authentication services.
+/// go-xsapi/xal/sisu/oauth2.go:scope.
 pub const XBL_SCOPE: &str = "service::user.auth.xboxlive.com::MBI_SSL";
 
-/// Device authentication endpoint.
+/// go-xsapi/xal/xasd/authenticate.go:Authenticate.
 pub const DEVICE_AUTH_URL: &str = "https://device.auth.xboxlive.com/device/authenticate";
 
-/// SISU (Xbox Live) authorization endpoint.
+/// go-xsapi/xal/sisu/session.go:Session.authorize.
 pub const SISU_AUTHORIZE_URL: &str = "https://sisu.xboxlive.com/authorize";
 
-/// Microsoft Live Connect device code endpoint.
+/// go-xsapi/xal/sisu/oauth2.go:Config.oauth2.
 pub const LIVE_CONNECT_URL: &str = "https://login.live.com/oauth20_connect.srf";
 
-/// Microsoft Live Connect token endpoint.
+/// go-xsapi/xal/sisu/oauth2.go:Config.oauth2 (Microsoft LiveConnectEndpoint).
 pub const LIVE_TOKEN_URL: &str = "https://login.live.com/oauth20_token.srf";
+
+/// go-xsapi/xal/xsts/authorize.go:Authorize.
+pub const XSTS_AUTHORIZE_URL: &str = "https://xsts.auth.xboxlive.com/xsts/authorize";
+
+/// go-xsapi/example_test.go:MinecraftAndroid.UserAgent.
+pub const XAL_USER_AGENT: &str = "XAL Android 2025.04.20250326.000";

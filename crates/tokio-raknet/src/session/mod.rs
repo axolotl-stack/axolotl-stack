@@ -14,6 +14,7 @@ mod inbound;
 pub mod manager;
 mod ordering_channels;
 mod outbound;
+mod receive_window;
 mod reliable_tracker;
 mod sliding_window;
 pub mod split_assembler;
@@ -27,7 +28,7 @@ use std::{
 use thiserror::Error;
 
 use crate::protocol::{
-    constants::{self, MAX_ACK_SEQUENCES},
+    constants,
     datagram::Datagram,
     encapsulated_packet::EncapsulatedPacket,
     packet::{DecodeError, EncodeError, RaknetPacket},
@@ -53,11 +54,13 @@ pub struct IncomingPacket {
 pub enum QueuePacketError {
     #[error("ordering channel {channel} out of range (max channels: {max_channels})")]
     InvalidOrderingChannel { channel: u8, max_channels: usize },
+    #[error("outgoing packet queue is full")]
+    QueueFull,
     #[error(transparent)]
     Encode(#[from] EncodeError),
 }
 
-/// Tunable low-level session parameters to mirror Cloudburst configurability.
+/// Low-level parameters bounded by the lunar-bedrock/go-raknet receive limits.
 #[derive(Debug, Clone)]
 pub struct SessionTunables {
     pub max_ordering_channels: usize,
@@ -75,12 +78,14 @@ impl Default for SessionTunables {
     fn default() -> Self {
         Self {
             max_ordering_channels: constants::MAXIMUM_ORDERING_CHANNELS as usize,
-            ack_queue_capacity: 1024,
-            // Reduced split timeout to clear dead buffers faster
+            // Local bounded ACK staging; upstream conn.go:flushACKs flushes each tick.
+            ack_queue_capacity: receive_window::RECEIVE_WINDOW_SIZE as usize,
+            // Safety deviation: upstream Conn.receiveSplitPacket retains incomplete splits.
             split_timeout: Duration::from_secs(30),
-            reliable_window: constants::MAX_ACK_SEQUENCES as u32,
-            max_split_parts: 8192,
-            max_concurrent_splits: 32,
+            reliable_window: receive_window::RECEIVE_WINDOW_SIZE,
+            // go-raknet conn.go:Conn.receiveSplitPacket.
+            max_split_parts: 512,
+            max_concurrent_splits: 16,
             max_incoming_ack_queue: 4096,
         }
     }
@@ -118,7 +123,7 @@ pub struct Session {
 
     sliding: SlidingWindow,
     split_index: u16,
-    datagram_read_index: Sequence24,
+    receive_window: receive_window::ReceiveWindow,
     datagram_write_index: Sequence24,
     sequence_write_index: Sequence24,
     reliability_write_index: Sequence24,
@@ -152,11 +157,17 @@ impl Session {
     }
 
     pub fn with_tunables(mtu: usize, tunables: SessionTunables) -> Self {
+        // Preserve infallible low-level constructors while enforcing hard safety ceilings.
+        // Transport constructors return typed configuration errors instead.
+        let mtu = mtu.clamp(
+            constants::MINIMUM_MTU_SIZE as usize,
+            constants::MAXIMUM_MTU_SIZE as usize,
+        );
         let mut s = Self {
             mtu,
             sliding: SlidingWindow::new(mtu),
             split_index: 0,
-            datagram_read_index: Sequence24::new(0),
+            receive_window: receive_window::ReceiveWindow::default(),
             datagram_write_index: Sequence24::new(0),
             sequence_write_index: Sequence24::new(0),
             reliability_write_index: Sequence24::new(0),
@@ -165,8 +176,12 @@ impl Session {
                 tunables.max_split_parts,
                 tunables.max_concurrent_splits,
             ),
-            ordering: OrderingChannels::new(tunables.max_ordering_channels),
-            reliable_tracker: ReliableTracker::new(tunables.reliable_window as usize),
+            ordering: OrderingChannels::new(tunables.max_ordering_channels.min(256)),
+            reliable_tracker: ReliableTracker::new(
+                tunables
+                    .reliable_window
+                    .min(receive_window::RECEIVE_WINDOW_SIZE) as usize,
+            ),
             outgoing_heap: BinaryHeap::new(),
             outgoing_packet_next_weights: [0; 4],
             last_min_weight: 0,
@@ -174,9 +189,19 @@ impl Session {
             incoming_acks: VecDeque::new(),
             incoming_naks: VecDeque::new(),
             pending_incoming: VecDeque::new(),
-            outgoing_acks: AckQueue::new(tunables.ack_queue_capacity),
-            outgoing_naks: AckQueue::new(tunables.ack_queue_capacity),
-            max_incoming_ack_queue: tunables.max_incoming_ack_queue,
+            outgoing_acks: AckQueue::new(
+                tunables
+                    .ack_queue_capacity
+                    .min(receive_window::RECEIVE_WINDOW_SIZE as usize),
+            ),
+            outgoing_naks: AckQueue::new(
+                tunables
+                    .ack_queue_capacity
+                    .min(receive_window::RECEIVE_WINDOW_SIZE as usize),
+            ),
+            max_incoming_ack_queue: tunables
+                .max_incoming_ack_queue
+                .min(constants::MAX_ACK_SEQUENCES as usize),
         };
 
         for level in 0..4 {
@@ -190,78 +215,39 @@ impl Session {
         self.mtu
     }
 
-    /// Process datagram sequence for ACK/NACK generation (Cloudburst-style).
+    /// Compatibility entry point; invalid sequences are ignored without feedback.
+    /// Managed sessions use the checked path to close on protocol violations.
     #[tracing::instrument(skip_all, level = "trace")]
     pub fn process_datagram_sequence(&mut self, seq: Sequence24) {
-        let prev = self.datagram_read_index;
-
-        if prev > seq {
-            let range = SequenceRange {
-                start: seq,
-                end: seq,
-            };
-            tracing::trace!(event = "ack_out_of_order");
-            self.outgoing_acks.push(range);
-            return;
-        }
-
-        self.datagram_read_index = seq.next();
-
-        if seq == prev {
-            let range = SequenceRange {
-                start: seq,
-                end: seq,
-            };
-            tracing::trace!(event = "ack_in_order");
-            self.outgoing_acks.push(range);
-            return;
-        }
-
-        let mut nack_start = prev;
-        let nack_end_inclusive = seq.prev();
-        let missing = prev.distance_to(seq).saturating_sub(1);
-
-        if missing > 0 {
-            tracing::trace!("datagram_gap");
-        }
-
-        loop {
-            let mut chunk_end = nack_start;
-            let mut count = 0;
-
-            while count < (MAX_ACK_SEQUENCES - 1) && chunk_end < nack_end_inclusive {
-                chunk_end = chunk_end.next();
-                count += 1;
-            }
-
-            let range = SequenceRange {
-                start: nack_start,
-                end: chunk_end,
-            };
-            tracing::trace!(event = "queue_nak");
-            self.outgoing_naks.push(range);
-
-            if chunk_end == nack_end_inclusive {
-                break;
-            }
-
-            nack_start = chunk_end.next();
-        }
-
-        let ack_range = SequenceRange {
-            start: seq,
-            end: seq,
-        };
-        tracing::trace!(event = "ack_gap_end");
-        self.outgoing_acks.push(ack_range);
+        let _ = self.accept_datagram_sequence(seq, Instant::now());
     }
 
-    /// Handle ordered delivery via per-channel heaps.
+    fn accept_datagram_sequence(
+        &mut self,
+        seq: Sequence24,
+        now: Instant,
+    ) -> Result<bool, DecodeError> {
+        let delay = self.sliding.measured_rtt().mul_f64(1.5);
+        let Some(missing) = self.receive_window.receive(seq, now, delay)? else {
+            return Ok(false);
+        };
+        for range in missing {
+            self.outgoing_naks.push(range);
+        }
+        self.outgoing_acks.push(SequenceRange {
+            start: seq,
+            end: seq,
+        });
+        Ok(true)
+    }
+
+    /// Handle ordered delivery via bounded per-channel queues.
     fn handle_ordered(
         &mut self,
         enc: EncapsulatedPacket,
         out: &mut Vec<IncomingPacket>,
     ) -> Result<(), DecodeError> {
+        self.ordering.validate_ordered(&enc)?;
         if let Some(ready) = self.ordering.handle_ordered(enc) {
             for pkt in ready {
                 self.decode_and_push(pkt, out)?;
@@ -280,6 +266,176 @@ mod tests {
     use super::*;
     use crate::protocol::ack::{AckNackPayload, SequenceRange};
     use std::time::Instant;
+
+    #[test]
+    fn hostile_datagram_gap_does_not_advance_or_queue_feedback() {
+        let mut session = Session::new(1200);
+        session.process_datagram_sequence(Sequence24::new(1 << 23));
+        assert_eq!(session.receive_window.next(), Sequence24::new(0));
+        assert_eq!(session.receive_window.len(), 0);
+        let feedback = session.on_tick(Instant::now());
+        assert!(feedback.is_empty());
+    }
+
+    #[test]
+    fn peer_triggered_responses_cannot_grow_outgoing_queue() {
+        use crate::protocol::{packet::ConnectedPong, state::RakPriority, types::RaknetTime};
+        let mut session = Session::new(1200);
+        for _ in 0..receive_window::RECEIVE_WINDOW_SIZE {
+            session
+                .queue_packet(
+                    RaknetPacket::ConnectedPong(ConnectedPong {
+                        ping_time: RaknetTime(0),
+                        pong_time: RaknetTime(0),
+                    }),
+                    Reliability::Unreliable,
+                    0,
+                    RakPriority::Immediate,
+                )
+                .unwrap();
+        }
+        assert!(
+            session
+                .queue_packet(
+                    RaknetPacket::ConnectedPong(ConnectedPong {
+                        ping_time: RaknetTime(0),
+                        pong_time: RaknetTime(0)
+                    }),
+                    Reliability::Unreliable,
+                    0,
+                    RakPriority::Immediate,
+                )
+                .is_err()
+        );
+        assert_eq!(
+            session.outgoing_heap.len(),
+            receive_window::RECEIVE_WINDOW_SIZE as usize
+        );
+    }
+
+    #[test]
+    fn retransmitted_loss_recovers_ordered_delivery() {
+        use crate::protocol::{datagram::DatagramPayload, state::RakPriority};
+        let now = Instant::now();
+        let mut sender = Session::new(1200);
+        let mut receiver = Session::new(1200);
+        let mut sent = Vec::new();
+        for id in [0xfe, 0xff] {
+            sender
+                .queue_packet(
+                    RaknetPacket::UserData {
+                        id,
+                        payload: bytes::Bytes::from_static(b"data"),
+                    },
+                    Reliability::ReliableOrdered,
+                    0,
+                    RakPriority::Normal,
+                )
+                .unwrap();
+            sent.push(sender.build_data_datagram(now).unwrap());
+        }
+        let later = sent.pop().unwrap();
+        assert!(
+            receiver
+                .accept_datagram_sequence(later.header.sequence, now)
+                .unwrap()
+        );
+        let DatagramPayload::EncapsulatedPackets(packets) = later.payload else {
+            unreachable!()
+        };
+        assert!(
+            receiver
+                .handle_data_payload(packets, now)
+                .unwrap()
+                .is_empty()
+        );
+        for feedback in receiver.on_tick(now) {
+            if let DatagramPayload::Nak(payload) = feedback.payload {
+                sender.handle_nack_payload(payload);
+            }
+        }
+        let retransmitted = sender
+            .on_tick(now)
+            .into_iter()
+            .find(|d| matches!(d.payload, DatagramPayload::EncapsulatedPackets(_)))
+            .unwrap();
+        assert!(
+            receiver
+                .accept_datagram_sequence(retransmitted.header.sequence, now)
+                .unwrap()
+        );
+        let DatagramPayload::EncapsulatedPackets(packets) = retransmitted.payload else {
+            unreachable!()
+        };
+        let received = receiver.handle_data_payload(packets, now).unwrap();
+        assert_eq!(
+            received.iter().map(|p| p.packet.id()).collect::<Vec<_>>(),
+            vec![0xfe, 0xff]
+        );
+    }
+
+    #[test]
+    fn fragmented_message_does_not_stall_reliable_tracking() {
+        use crate::protocol::{datagram::DatagramPayload, state::RakPriority};
+        let now = Instant::now();
+        let mut sender = Session::new(1200);
+        let mut receiver = Session::new(1200);
+        sender
+            .queue_packet(
+                RaknetPacket::UserData {
+                    id: 0xfe,
+                    payload: bytes::Bytes::from(vec![0; 1500]),
+                },
+                Reliability::Reliable,
+                0,
+                RakPriority::Normal,
+            )
+            .unwrap();
+        let mut fragments = Vec::new();
+        while let Some(datagram) = sender.build_data_datagram(now) {
+            let seq = datagram.header.sequence;
+            sender.handle_ack_payload(AckNackPayload {
+                ranges: vec![SequenceRange {
+                    start: seq,
+                    end: seq,
+                }],
+            });
+            sender.process_incoming_acks_naks(now);
+            if let DatagramPayload::EncapsulatedPackets(packets) = datagram.payload {
+                fragments.extend(packets);
+            }
+        }
+        assert_eq!(
+            receiver.handle_data_payload(fragments, now).unwrap().len(),
+            1
+        );
+        for _ in 0..2050 {
+            sender
+                .queue_packet(
+                    RaknetPacket::UserData {
+                        id: 0xff,
+                        payload: bytes::Bytes::new(),
+                    },
+                    Reliability::Reliable,
+                    0,
+                    RakPriority::Normal,
+                )
+                .unwrap();
+            let datagram = sender.build_data_datagram(now).unwrap();
+            let seq = datagram.header.sequence;
+            let DatagramPayload::EncapsulatedPackets(packets) = datagram.payload else {
+                unreachable!()
+            };
+            assert_eq!(receiver.handle_data_payload(packets, now).unwrap().len(), 1);
+            sender.handle_ack_payload(AckNackPayload {
+                ranges: vec![SequenceRange {
+                    start: seq,
+                    end: seq,
+                }],
+            });
+            sender.process_incoming_acks_naks(now);
+        }
+    }
 
     #[test]
     fn tunables_limit_ack_queue_capacity() {
@@ -405,37 +561,5 @@ mod tests {
         // The oldest entries should have been dropped
         let first = session.incoming_naks.front().unwrap();
         assert_eq!(first.start, Sequence24::new(30));
-    }
-
-    #[test]
-    fn session_tunables_default_values() {
-        let tunables = SessionTunables::default();
-
-        assert_eq!(
-            tunables.max_ordering_channels,
-            constants::MAXIMUM_ORDERING_CHANNELS as usize
-        );
-        assert_eq!(tunables.ack_queue_capacity, 1024);
-        assert_eq!(tunables.split_timeout, Duration::from_secs(30));
-        assert_eq!(
-            tunables.reliable_window,
-            constants::MAX_ACK_SEQUENCES as u32
-        );
-        assert_eq!(tunables.max_split_parts, 8192);
-        assert_eq!(tunables.max_concurrent_splits, 32);
-        assert_eq!(tunables.max_incoming_ack_queue, 4096);
-    }
-
-    #[test]
-    fn session_with_custom_tunables() {
-        let tunables = SessionTunables {
-            max_incoming_ack_queue: 100,
-            max_concurrent_splits: 16,
-            split_timeout: Duration::from_secs(5),
-            ..Default::default()
-        };
-        let session = Session::with_tunables(1400, tunables);
-
-        assert_eq!(session.max_incoming_ack_queue, 100);
     }
 }

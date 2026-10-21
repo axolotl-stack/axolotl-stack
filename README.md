@@ -40,7 +40,7 @@ A pure Rust, asynchronous implementation of the RakNet reliability protocol. It 
 Axelerator is a production-grade friend broadcaster, it hosts a mini nethernet server that signals via xbox and appears as a friends session upon joining we transfer to whatever the end user server is. 
 *   **Use for**: Allowing console players or etc to join your server via a friend in the friends menu.
 
-### 🔑 [Axolotl XBL](crates/axolotl_xbl)
+### 🔑 [Axolotl XBL](crates/axolotl-xbl)
 **The Authentication Provider.**
 A standalone library for handling Xbox Live authentication flows (XSTS, Device Code, Minecraft Services). It powers the secure connection features of `axelerator` and `jolyne`.
 *   **Use for**: Logging in real players or authenticating servers.
@@ -48,7 +48,8 @@ A standalone library for handling Xbox Live authentication flows (XSTS, Device C
 ## 🛠️ Getting Started
 
 ### Prerequisites
-*   [Rust](https://rustup.rs/) (latest stable)
+*   [Rust](https://rustup.rs/) nightly (pinned by `rust-toolchain.toml`; the workspace uses `portable_simd`)
+*   Windows only: [vcpkg](https://vcpkg.io) with `zlib` and `snappy` for the `x64-windows-static-md` triplet, and `VCPKG_ROOT` pointing at it (needed by `bleveldb-sys`)
 
 ### Building
 To build all components in the workspace:
@@ -83,7 +84,7 @@ Please check the individual crate directories for specific contribution guidelin
 We are building towards a production-ready, open-source Bedrock server stack. Here is the high-level plan:
 
 1.  **Transport Independence (Completed)**: `Jolyne` is now decoupled from `RakNet`. We support `NetherNet` (via `tokio-nethernet`) and generic `Framed<Stream>` abstractions.
-2.  **Xbox Live Integration (In Progress)**: `axolotl_xbl` provides the authentication primitives. Full integration into `Jolyne` for "Online Mode" is underway.
+2.  **Xbox Live Integration (In Progress)**: `axolotl-xbl` provides the authentication primitives. Full integration into `Jolyne` for "Online Mode" is underway.
 3.  **Data Completeness**: Expand `Valentine` to include block states, collision geometry, and entity metadata schemas.
 4.  **High-Performance Server (`Unastar`)**: Build a modular, ECS-driven server foundation.
 

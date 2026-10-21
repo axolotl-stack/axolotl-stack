@@ -33,7 +33,7 @@
 //! ```
 
 use crate::constants::endpoints;
-use crate::error::{XblError, XblResult};
+use crate::error::{XblError, XblResult, check_status, response_json};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -133,20 +133,14 @@ impl GalleryClient {
             .await?;
 
         let status = response.status();
-        if status.as_u16() == 429 {
-            return Err(XblError::RateLimited);
-        }
-
-        // API returns 202 Accepted on success
         if status.as_u16() != 202 {
-            let body = response.text().await.unwrap_or_default();
-            return Err(XblError::XboxLive(format!(
-                "Failed to upload gallery image ({}): {}",
-                status, body
-            )));
+            return Err(XblError::HttpStatus {
+                status,
+                operation: "upload gallery image",
+            });
         }
-
-        let upload_response: GalleryUploadResponse = response.json().await?;
+        let upload_response: GalleryUploadResponse =
+            response_json(response, "upload gallery image").await?;
         info!(id = %upload_response.result.id, "Gallery image uploaded");
 
         Ok(upload_response.result)
@@ -172,20 +166,8 @@ impl GalleryClient {
             .send()
             .await?;
 
-        let status = response.status();
-        if status.as_u16() == 429 {
-            return Err(XblError::RateLimited);
-        }
-
-        if !status.is_success() {
-            let body = response.text().await.unwrap_or_default();
-            return Err(XblError::XboxLive(format!(
-                "Failed to get gallery images ({}): {}",
-                status, body
-            )));
-        }
-
-        let gallery_response: GalleryResponse = response.json().await?;
+        let gallery_response: GalleryResponse =
+            response_json(response, "get gallery images").await?;
         debug!(
             count = gallery_response.result.showcased_images.len(),
             "Retrieved gallery images"
@@ -211,17 +193,9 @@ impl GalleryClient {
             .send()
             .await?;
 
-        let status = response.status();
-        if status.as_u16() == 429 {
-            return Err(XblError::RateLimited);
-        }
-
-        if !status.is_success() && status.as_u16() != 404 {
-            let body = response.text().await.unwrap_or_default();
-            return Err(XblError::XboxLive(format!(
-                "Failed to delete gallery image ({}): {}",
-                status, body
-            )));
+        // Deletion remains idempotent when the image has already disappeared.
+        if response.status() != reqwest::StatusCode::NOT_FOUND {
+            check_status(&response, "delete gallery image")?;
         }
 
         info!(image_id, "Gallery image deleted");
@@ -237,7 +211,7 @@ impl GalleryClient {
     /// # Returns
     /// The raw image bytes.
     pub async fn download_image(&self, mc_token: &str, image: &GalleryImage) -> XblResult<Vec<u8>> {
-        debug!(id = %image.id, url = %image.url, "Downloading gallery image");
+        debug!("Downloading gallery image");
 
         let response = self
             .client
@@ -246,12 +220,7 @@ impl GalleryClient {
             .send()
             .await?;
 
-        if !response.status().is_success() {
-            return Err(XblError::XboxLive(format!(
-                "Failed to download gallery image: {}",
-                response.status()
-            )));
-        }
+        check_status(&response, "download gallery image")?;
 
         let bytes = response.bytes().await?;
         Ok(bytes.to_vec())

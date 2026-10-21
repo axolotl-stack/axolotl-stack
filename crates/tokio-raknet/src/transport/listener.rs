@@ -88,19 +88,21 @@ impl Default for RaknetListenerConfig {
         Self {
             max_connections: 1024,
             max_pending_connections: 256, // Reduced from 1024 to prevent handshake flooding
-            max_mtu: 1400,
+            max_mtu: constants::MAXIMUM_MTU_SIZE,
             socket_recv_buffer_size: None,
             socket_send_buffer_size: None,
-            session_timeout: Duration::from_secs(10),
+            // Upstream `conn.go:Conn.startTicking`: base inactivity timeout5s.
+            session_timeout: Duration::from_secs(5),
             session_stale: Duration::from_secs(5),
             max_queued_reliable_bytes: 1024 * 1024, // Reduced from 4MB to 1MB per session
             advertisement: b"MCPE;Tokio-Raknet Default Advertisement;527;1.19.1;0;10;13253860892328930865;Tokio Raknet;Survival;1;19132;19133".to_vec(),
             max_ordering_channels: constants::MAXIMUM_ORDERING_CHANNELS as usize,
             ack_queue_capacity: 1024,
             split_timeout: Duration::from_secs(30),
-            reliable_window: constants::MAX_ACK_SEQUENCES as u32,
-            max_split_parts: 8192,
-            max_concurrent_splits: 32, // Bound per-session split reassembly memory
+            reliable_window: 2048,
+            // Upstream `conn.go:Conn.receiveSplitPacket`.
+            max_split_parts: 512,
+            max_concurrent_splits: 16,
             max_incoming_ack_queue: 4096,
             ping_rate_limit_per_ip: 10, // 10 pings per second per IP
             ping_rate_limit_max_entries: 16_384,
@@ -109,6 +111,60 @@ impl Default for RaknetListenerConfig {
 }
 
 impl RaknetListenerConfig {
+    /// Validates explicit resource limits before binding. Existing bounded admission
+    /// limits are a local deviation: upstream `listener.go:Listen` has no global cap.
+    pub fn validate(&self) -> Result<(), super::ConfigError> {
+        use super::{require_config, validate_duration, validate_mtu, validate_session_limits};
+        validate_mtu(self.max_mtu)?;
+        require_config(
+            self.max_connections > 0,
+            "max_connections",
+            "must be positive",
+        )?;
+        require_config(
+            self.max_pending_connections > 0,
+            "max_pending_connections",
+            "must be positive",
+        )?;
+        require_config(
+            self.max_queued_reliable_bytes > 0,
+            "max_queued_reliable_bytes",
+            "must be positive",
+        )?;
+        require_config(
+            self.ping_rate_limit_per_ip == 0 || self.ping_rate_limit_max_entries > 0,
+            "ping_rate_limit_max_entries",
+            "must be positive when rate limiting is enabled",
+        )?;
+        require_config(
+            self.advertisement.len() <= i16::MAX as usize,
+            "advertisement",
+            "must not exceed 32767 bytes",
+        )?;
+        for (value, field) in [
+            (self.socket_recv_buffer_size, "socket_recv_buffer_size"),
+            (self.socket_send_buffer_size, "socket_send_buffer_size"),
+        ] {
+            require_config(value != Some(0), field, "must be positive when specified")?;
+        }
+        validate_duration(self.session_timeout, "session_timeout")?;
+        validate_duration(self.session_stale, "session_stale")?;
+        require_config(
+            self.session_stale <= self.session_timeout,
+            "session_stale",
+            "must not exceed session_timeout",
+        )?;
+        validate_session_limits(
+            self.max_ordering_channels,
+            self.ack_queue_capacity,
+            self.split_timeout,
+            self.reliable_window,
+            self.max_split_parts,
+            self.max_concurrent_splits,
+            self.max_incoming_ack_queue,
+        )
+    }
+
     /// Returns a configuration optimized for high-performance servers with ample memory.
     ///
     /// - `max_pending_connections`: 1024
@@ -144,6 +200,7 @@ impl RaknetListener {
         addr: SocketAddr,
         config: RaknetListenerConfig,
     ) -> std::io::Result<Self> {
+        config.validate().map_err(std::io::Error::from)?;
         let socket = std::net::UdpSocket::bind(addr)?;
         socket.set_nonblocking(true)?;
         report_socket_buffer_config(
@@ -205,11 +262,22 @@ impl RaknetListener {
         }
     }
 
-    /// Sets the advertisement data (Pong payload) sent in response to UnconnectedPing (0x01) and OpenConnections (0x02).
-    pub fn set_advertisement(&self, data: Vec<u8>) {
-        if let Ok(mut guard) = self.advertisement.write() {
-            *guard = Bytes::from(data);
-        }
+    /// Set the unconnected-pong advertisement.
+    ///
+    /// `go-raknet/listener.go:PongData` caps this at signed 16-bit length.
+    /// Return a typed error rather than panicking or silently discarding input.
+    pub fn set_advertisement(&self, data: Vec<u8>) -> Result<(), super::ConfigError> {
+        super::require_config(
+            data.len() <= i16::MAX as usize,
+            "advertisement",
+            "must not exceed 32767 bytes",
+        )?;
+        let mut guard = self
+            .advertisement
+            .write()
+            .unwrap_or_else(|error| error.into_inner());
+        *guard = Bytes::from(data);
+        Ok(())
     }
 
     /// Gets a copy of the current advertisement data.
@@ -266,7 +334,10 @@ async fn run_listener_muxer(
     loop {
         let event = tokio::select! {
             res = socket.recv_from(&mut buf) => LoopEvent::Inbound(res),
-            Some(msg) = outbound_rx.recv() => LoopEvent::Outbound(msg),
+            msg = outbound_rx.recv() => match msg {
+                Some(msg) => LoopEvent::Outbound(msg),
+                None => break,
+            },
             _ = tick.tick() => LoopEvent::Tick,
         };
 
@@ -306,8 +377,54 @@ async fn run_listener_muxer(
                 .await;
             }
             LoopEvent::Tick => {
+                pending.retain(|peer, connection| {
+                    if sessions
+                        .get(peer)
+                        .is_some_and(|state| state.handshake_confirmed)
+                    {
+                        return false;
+                    }
+                    if connection.expires_at <= std::time::Instant::now() {
+                        sessions.remove(peer);
+                        return false;
+                    }
+                    sessions.contains_key(peer)
+                });
                 tick_sessions(&socket, &mut sessions, &new_conn_tx, &mut send_buf).await;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn invalid_listener_config_is_rejected() {
+        let mut config = RaknetListenerConfig {
+            max_mtu: 399,
+            ..Default::default()
+        };
+        assert!(config.validate().is_err());
+        config.max_mtu = 1492;
+        assert!(config.validate().is_ok());
+        config.max_ordering_channels = 0;
+        assert!(config.validate().is_err());
+    }
+
+    #[tokio::test]
+    async fn invalid_config_returns_typed_error_before_bind() {
+        let config = RaknetListenerConfig {
+            max_mtu: 1,
+            ..Default::default()
+        };
+        let error =
+            match RaknetListener::bind_with_config("127.0.0.1:0".parse().unwrap(), config).await {
+                Ok(_) => panic!("invalid config accepted"),
+                Err(error) => error,
+            };
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+        assert!(error.get_ref().unwrap().is::<crate::error::ConfigError>());
     }
 }

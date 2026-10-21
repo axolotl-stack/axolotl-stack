@@ -80,6 +80,12 @@ impl Datagram {
             });
         }
 
+        // conn.go:Conn.receive dispatches data only when bitFlagDatagram is set.
+        // The decoder reports an error rather than silently ignoring the packet.
+        if !flags.contains(DatagramFlags::VALID) {
+            return Err(DecodeError::InvalidDatagramFlags);
+        }
+
         let sequence = Sequence24::decode_raknet(src)?;
         let header = DatagramHeader { flags, sequence };
 
@@ -103,6 +109,38 @@ impl Datagram {
                 size
             }
             DatagramPayload::Nak(payload) | DatagramPayload::Ack(payload) => 1 + payload.size(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_data_without_datagram_flag() {
+        let mut src = &[0, 0, 0, 0, 0, 0, 8, 0xff][..];
+        assert!(matches!(
+            Datagram::decode(&mut src),
+            Err(DecodeError::InvalidDatagramFlags)
+        ));
+    }
+
+    #[test]
+    fn rejects_truncated_data_and_ack_datagrams() {
+        for wire in [
+            &[0x80, 0, 0, 0, 0, 0, 8, 0xff][..],
+            &[0xc0, 0, 1, 1, 0, 0, 0][..],
+            &[0xa0, 0, 1, 1, 0, 0, 0][..],
+        ] {
+            for len in 0..wire.len() {
+                // A data header with no frames is valid in the reference.
+                if wire[0] == 0x80 && len == 4 {
+                    continue;
+                }
+                assert!(Datagram::decode(&mut &wire[..len]).is_err());
+            }
+            assert!(Datagram::decode(&mut &wire[..]).is_ok());
         }
     }
 }

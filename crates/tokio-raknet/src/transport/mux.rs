@@ -8,7 +8,8 @@ use crate::protocol::packet::RaknetPacket;
 use crate::session::manager::ManagedSession;
 use crate::transport::ReceivedMessage;
 
-const TICK_INTERVAL_MS: u64 = 20;
+/// go-raknet conn.go:Conn.startTicking flushes maintenance every 100 ms.
+const TICK_INTERVAL_MS: u64 = 100;
 
 pub fn new_tick_interval() -> Interval {
     let mut tick = time::interval(Duration::from_millis(TICK_INTERVAL_MS));
