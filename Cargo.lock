@@ -390,6 +390,8 @@ dependencies = [
  "bytes",
  "clap",
  "criterion",
+ "flate2",
+ "jolyne",
  "serde",
  "serde_json",
  "sha2",

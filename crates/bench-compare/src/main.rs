@@ -44,7 +44,10 @@ fn main() -> Result<()> {
     let args = Args::parse();
     match args.command {
         Command::Codec { iterations } => bench_compare::codec::run(iterations),
-        Command::Micro { iterations } => bench_compare::micro::run(iterations),
+        Command::Micro { iterations } => {
+            bench_compare::micro::run(iterations)?;
+            bench_compare::batch::run(iterations)
+        }
         command => tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()?

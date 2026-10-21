@@ -26,6 +26,42 @@ Each measured operation includes the entry length varuint, packet header varuint
 
 Allocation snapshots count allocation, zeroed allocation and reallocation calls and their requested bytes (not live/retained memory). Allocation counting runs in a separate untimed pass after latency measurement; atomic counter increments are disabled during timing. The CLI allocator still checks one relaxed atomic boolean on each allocation/reallocation, so its overhead is not identical to Go's allocator instrumentation. The global allocator is installed only in the CLI binary. Criterion deliberately uses its normal allocator, without even this flag-check cost. Codec/micro do not start an async runtime, avoiding background-task allocations in these measurements. p50/p99 are null for aggregate timed-loop measurements.
 
+## Raw batch measurements (`micro`)
+
+The report's `rust-owned` batch rows mean the public jolyne raw APIs below,
+not Valentine's typed codec. Compression-only rows keep a distinct backend label.
+
+`micro` also emits `area=batch` for the four manifest `set=batch` fixtures.
+This loader is independent of typed codec support: it checks SHA-256, packet
+counts/IDs and byte-for-byte raw re-encoding before timing. `framing_encode` and
+`framing_decode` use jolyne's public `encode_batch_raw`/`decode_batch_raw`, not
+typed packet decoding. jolyne additionally parses packet IDs/subclients and
+allocates `RawPacket` descriptors; Go returns owned opaque packet slices and
+bedrock-net exposes a packet iterator. jolyne raw encoding copies cached inner
+frames into fresh output; Go and bedrock-net may reuse encoder buffers. These
+are public-API comparisons, not identical ownership/allocation policies.
+
+`deflate_encode`/`deflate_decode` include raw framing and negotiated DEFLATE
+with threshold zero and level 6. Throughput uses the original complete batch,
+including `0xfe`. Compression-only `compress`/`decompress` instead consume
+framed entries excluding `0xfe` and are honestly labeled `flate2-rust`, **not**
+jolyne: no public jolyne compression-only API exists. They use flate2's default
+Rust backend at level 6 with fresh encoder/decoder output. The workspace
+Cargo.lock pins the resolved flate2/miniz_oxide versions; jolyne is the workspace
+source revision. Go uses pooled klauspost/compress level 6, while bedrock-net's
+combined DEFLATE uses libdeflate level 6. Equal levels do not promise identical
+compressed bytes or algorithmic effort. Setup checks decompressed bytes, not
+cross-backend compressed-byte equality. Go's decompression output limit is the
+exact expected length; these jolyne/flate2 calls have no output limit.
+
+Isolated jolyne `encrypt`/`decrypt` rows are explicitly unavailable because the
+checksum/cipher helpers are private to `BedrockTransport`; public send/receive
+would include framing and transport. No copied crypto implementation or mock
+transport stands in for that API. The public raw jolyne encoder supports
+DEFLATE, not algorithm-selected Snappy, so no jolyne Snappy timing is claimed.
+The batch tests cover all four exact frame roundtrips, compressed roundtrips,
+and truncated frame rejection; the same smoke validation runs before timing.
+
 ## Public API gaps
 
 * `BorrowedMcpePacket` has no public borrowed encode method. There are no `rust-borrowed` encode rows: converting to owned or re-emitting raw input would benchmark a different operation.

@@ -1,6 +1,6 @@
 # Cross-implementation benchmarks
 
-Measurement infrastructure, not production optimization. Valentine typed codecs and tokio-raknet transport are compared with the same gophertunnel/go-raknet forks as the client-diff harness. The protocolgen contract crate is an optional third codec baseline, using its original Criterion benchmark unchanged.
+Measurement infrastructure, not production optimization. Valentine typed codecs, jolyne batch framing and tokio-raknet transport are compared with Cinnabar and the same gophertunnel/go-raknet forks as the client-diff harness. Protocolgen's contract crate participates in the same alternating custom-loop codec measurements, not an independent Criterion run.
 
 ## Reproduce
 
@@ -8,9 +8,11 @@ Requirements: repository Rust toolchain, Go (the installation used by `tools/cli
 
 ```powershell
 git submodule update --init crates/valentine_gen/protocolgen
-./tools/bench-compare/run.ps1 -Rounds 3 -Count 100 -SplitCount 10 -GoCpu 4 -Contract
+./tools/bench-compare/run.ps1 -Rounds 3 -Count 100 -SplitCount 10 -GoCpu 4 -Processor 2
 cargo clippy -p bench-compare --all-targets -- -D warnings
 cargo test -p bench-compare
+cargo clippy --manifest-path tools/bench-compare/cinnabar/Cargo.toml --all-targets -- -D warnings
+cargo test --manifest-path tools/bench-compare/cinnabar/Cargo.toml
 python tools/bench-compare/test_report.py
 Push-Location tools/bench-compare/go
 go vet ./...
@@ -18,7 +20,7 @@ go test ./...
 Pop-Location
 ```
 
-`run.ps1` builds release executables, alternates Rust→Go / Go→Rust for at least three rounds, runs both cross-language transport directions, and writes `report.md` plus ignored `results/run-<unique-id>/` JSONL, metadata, logs, and aggregated JSON. Each invocation gets a fresh evidence directory so old rounds, exclusions and contract estimates cannot leak into a report. `-SkipBuild` reuses executables already built by a previous invocation; the cached Go executable stays in the results base directory. `-Output PATH` changes that base directory. `-Contract` additionally runs the unchanged protocolgen Criterion codec benchmark; its independent estimator is labeled separately. `run.sh` delegates to PowerShell for identical orchestration on POSIX.
+`run.ps1` builds release executables, rotates Rust/Cinnabar/Go order across at least three rounds, runs all six directed interop combinations, and writes `report.md` plus ignored `results/run-<unique-id>/` JSONL, metadata, logs, and aggregated JSON. Each invocation gets a fresh evidence directory so old rounds and exclusions cannot leak into a report. `-SkipBuild` reuses executables already built by a previous invocation; the cached Go executable stays in the results base directory. `-Output PATH` changes that base directory. The Cinnabar project has its own `[workspace]` and lockfile; its git dependencies never enter the main workspace build or lockfile. See [Cinnabar pins, licensing and API boundaries](cinnabar/README.md).
 
 To collect Criterion estimates for Valentine separately:
 
@@ -30,7 +32,7 @@ cargo bench -p bench-compare --bench codec -- --warm-up-time 1 --measurement-tim
 
 The committed corpus is `crates/valentine_gen/protocolgen/testdata/bench`, pinned by submodule commit `7b2e47c463fa425e25004673cf8960753dd2ff12`. It contains 26 single-packet cases and four realistic batches, generated deterministically by protocolgen from typed Go packets. Both implementations consume those exact files, not independently generated lookalikes. Both validate typed decoding outside timing; encoder preparation is outside timing and output buffers are reused. Packet operations include the length prefix, header varint and typed body. Batch operations include the `0xfe` marker and all entries. Rust borrowed cases are reported only where the public view API produces genuinely typed views; raw payload variants are omitted rather than misrepresented as typed decoding. See the crate README for exact coverage.
 
-Protocolgen's existing `differential/retail/bench_test.go`, `bench/benches/codec.rs` and counting allocator establish the benchmark shape. Its `bench-check` and Go `bench-compare` tools join Go testing output with Criterion JSON; this harness instead joins normalized per-round JSONL to support transport metrics, borrowed coverage, and alternating paired measurements. The optional contract run uses the original corpus and original benchmark directly.
+Protocolgen's `differential/retail/bench_test.go`, `bench/benches/codec.rs` and counting allocator establish the benchmark shape. This harness joins normalized per-round JSONL to support transport metrics, borrowed coverage, and alternating paired measurements. The contract crate consumes exactly the same committed corpus and includes identical packet/batch length framing.
 
 Transport loopback creates a listener and dialer, then measures sequential request/echo round trips (one message in flight), excluding connection setup. Four sizes: 32, 512, 4096 and 65536 bytes. Payload byte zero is `0xfe`; remaining bytes are index modulo 251. Every response is compared byte for byte. Large messages force transport splitting/reassembly. `msgs/s` counts completed request/echo pairs and MB/s counts request payload only (decimal MB), not doubled echo traffic, UDP overhead or retransmissions. p50/p99 are nearest-rank observed round-trip latencies, not one-way latency. This is latency-limited echo throughput, not saturation bandwidth. Interop uses the same four connections/sizes and full equality checks, but its timing is not included in speed ratios.
 
@@ -42,8 +44,8 @@ Microbenchmarks are restricted to APIs publicly exposed by each dependency. Priv
 
 ## Reading the report
 
-Tables contain medians of per-round measurements. `ours/Go` is the ns/op ratio: 0.5 means ours takes half the time; 2 means ours takes twice the time. Owned and borrowed Rust decode are separate rows against the same Go typed decode. Allocations count allocation/reallocation requests, not retained memory. Unmatched rows have no ratio or winner. The contract baseline is separately labeled because Criterion uses a different estimator; do not treat sub-percent differences as conclusions.
+Tables contain medians of per-round measurements, with separate Valentine owned/borrowed, contract, Cinnabar and Go columns. Fastest labels compare only measured matched rows; missing public APIs remain gaps, never zeroes. Transport `Side/Go` is the ns/echo ratio: 0.5 means half Go's mean time. Mean, p50, p99 and max columns are medians of each round's corresponding statistic, not percentiles computed from pooled samples. Allocations count allocation/reallocation requests, not retained memory.
 
 Go's allocator/GC accounting differs from Rust's global allocation counter: reclamation timing, size classes, deferred collection and runtime allocation bookkeeping are not equivalent. Rust counts requested bytes; Go reports its runtime B/op. Go uses fixed `GOMAXPROCS` (`-GoCpu`, default 4), equivalent to controlling the Go testing `-cpu` setting; these are not multithreaded scaling results. Rust tokio runtime worker configuration is documented by the runner. No forced GC in the timed region.
 
-Windows timer precision, scheduler quantum, background builds, power management and UDP tick/flush behavior can dominate tiny operations and tail latency. The harness does not change timer resolution, affinity, priority or the power plan. Alternating order mitigates drift but does not remove contention or establish statistical significance. Use more rounds/counts on a quiet machine before optimizing. The report records OS, architecture, CPU identifier, logical processor count, exact toolchains and run conditions. Raw large results and build outputs must not be committed.
+Windows timer precision, scheduler quantum, background builds, power management and UDP tick/flush behavior can dominate tiny operations and tail latency. Before timed process creation, the runner pins its parent so children inherit affinity without an unpinned startup window. Codec/micro default to logical CPU 2; loopback/interop default to logical CPUs 0,2,4,6, one hardware thread from each of four P-cores on the measured i9-14900HX, matching four Tokio workers/GOMAXPROCS. Select `-Processor` and `-LoopbackProcessors` after checking topology on other machines; the latter must contain one distinct CPU per configured worker. Builds run before pinning. Previous affinity is restored on exit; no timer-resolution, priority or power-plan changes. Go transport uses Windows QueryPerformanceCounter rather than the coarse `time.Now` clock; startup checks reject nonpositive/≥1 µs clock resolution and log observed positive increments. Alternating order mitigates drift, not contention or statistical uncertainty. Raw large results and build outputs must not be committed.

@@ -6,6 +6,7 @@ use std::{
 };
 use tokio_raknet::{
     protocol::{
+        ack::{AckNackPayload, SequenceRange},
         constants::DatagramFlags,
         datagram::{Datagram, DatagramPayload},
         encapsulated_packet::{EncapsulatedPacket, SplitInfo},
@@ -97,6 +98,56 @@ pub fn validate() -> Result<()> {
     Ok(())
 }
 pub fn run(iterations: usize) -> Result<()> {
+    let ack = Datagram {
+        header: DatagramHeader {
+            flags: DatagramFlags::VALID | DatagramFlags::ACK,
+            sequence: Sequence24::new(0),
+        },
+        payload: DatagramPayload::Ack(AckNackPayload {
+            ranges: [(1, 8), (16, 16), (32, 40)]
+                .into_iter()
+                .map(|(start, end)| SequenceRange {
+                    start: Sequence24::new(start),
+                    end: Sequence24::new(end),
+                })
+                .collect(),
+        }),
+    };
+    let mut ack_out = BytesMut::with_capacity(ack.size());
+    ack.encode(&mut ack_out)?;
+    let ack_encoded = ack_out.clone().freeze();
+    let mut cursor = ack_encoded.clone();
+    let decoded = Datagram::decode(&mut cursor)?;
+    let mut roundtrip = BytesMut::new();
+    decoded.encode(&mut roundtrip)?;
+    ensure!(
+        roundtrip == ack_encoded && cursor.is_empty(),
+        "ACK roundtrip"
+    );
+    super::measure(
+        "micro",
+        "ack_3_ranges",
+        "encode",
+        "rust-owned",
+        54,
+        iterations,
+        || {
+            ack_out.clear();
+            ack.encode(&mut ack_out).unwrap();
+            black_box(ack_out.as_ref());
+        },
+    )?;
+    super::measure(
+        "micro",
+        "ack_3_ranges",
+        "decode",
+        "rust-owned",
+        54,
+        iterations,
+        || {
+            black_box(Datagram::decode(&mut black_box(ack_encoded.clone())).unwrap());
+        },
+    )?;
     validate()?;
     for size in [32, 512, 4096] {
         let p = packet(super::transport::payload(size));
