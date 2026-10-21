@@ -16,6 +16,7 @@ impl Allay {
 #[derive(Bundle, Clone)]
 pub struct AllayBundle {
     pub ambient_sound_interval: super::super::components::AmbientSoundInterval,
+    pub attack: super::super::components::Attack,
     pub balloonable: super::super::components::Balloonable,
     pub behavior_float: super::super::components::BehaviorFloat,
     pub behavior_follow_owner: super::super::components::BehaviorFollowOwner,
@@ -51,6 +52,7 @@ pub struct AllayBundle {
     pub navigation_hover: super::super::components::NavigationHover,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub scale: super::super::components::Scale,
     pub type_family: super::super::components::TypeFamily,
     pub vibration_listener: super::super::components::VibrationListener,
 }
@@ -72,6 +74,11 @@ pub fn spawn_allay(commands: &mut Commands) -> Entity {
                 ),
                 range: Some(5f32),
                 value: 5f32,
+            },
+            attack: super::super::components::Attack {
+                damage: crate::types::RangeOrVal::Fixed(2f32),
+                effect_duration: Some(crate::types::MolangOr::Value(0i32)),
+                effect_name: None,
             },
             balloonable: super::super::components::Balloonable {
                 mass: Some(0.5f32),
@@ -361,6 +368,9 @@ pub fn spawn_allay(commands: &mut Commands) -> Entity {
             pushable: super::super::components::Pushable {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
+            },
+            scale: super::super::components::Scale {
+                value: 1f32,
             },
             type_family: super::super::components::TypeFamily {
                 family: vec!["allay".to_string(), "mob".to_string()],

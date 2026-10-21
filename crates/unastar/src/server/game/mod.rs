@@ -78,6 +78,55 @@ fn game_mode_to_storage_id(game_mode: GameMode) -> u8 {
     }
 }
 
+fn player_record(world: &World, entity: Entity) -> Option<(uuid::Uuid, PlayerData)> {
+    use crate::entity::components::{Experience, Health, Hunger};
+    let uuid = world.get::<PlayerUuid>(entity)?.0;
+    let position = world.get::<Position>(entity)?;
+    let rotation = world.get::<Rotation>(entity)?;
+    let health = world.get::<Health>(entity).cloned().unwrap_or_default();
+    let hunger = world.get::<Hunger>(entity).cloned().unwrap_or_default();
+    let experience = world.get::<Experience>(entity).cloned().unwrap_or_default();
+    let inventory = world.get::<MainInventory>(entity);
+    let armour = world.get::<ArmourInventory>(entity);
+    Some((
+        uuid,
+        PlayerData {
+            uuid: uuid.to_string(),
+            position: position.0.to_array(),
+            rotation: [rotation.yaw, rotation.pitch],
+            dimension: world.resource::<ServerConfigResource>().0.world.dimension,
+            game_mode: game_mode_to_storage_id(*world.get::<GameMode>(entity)?),
+            health: health.current,
+            max_health: health.max,
+            food: hunger.food_level,
+            saturation: hunger.saturation,
+            exhaustion: hunger.exhaustion,
+            experience: experience.level,
+            experience_progress: experience.progress,
+            inventory: inventory
+                .map(|inventory| inventory.0.slots().iter().map(Into::into).collect())
+                .unwrap_or_default(),
+            armour: std::array::from_fn(|i| {
+                armour
+                    .map(|armour| (&armour.slots()[i]).into())
+                    .unwrap_or_default()
+            }),
+            offhand: world
+                .get::<OffhandSlot>(entity)
+                .map(|slot| (&slot.0).into())
+                .unwrap_or_default(),
+            cursor: world
+                .get::<CursorItem>(entity)
+                .map(|slot| (&slot.0).into())
+                .unwrap_or_default(),
+            held_slot: world
+                .get::<HeldSlot>(entity)
+                .map(|slot| slot.0)
+                .unwrap_or(0),
+        },
+    ))
+}
+
 impl GameServer {
     pub fn new() -> Self {
         Self::with_config(ServerConfig::default())
@@ -257,46 +306,18 @@ impl GameServer {
     }
 
     pub async fn save_all_players(&mut self) -> usize {
-        let Some(provider) = self
-            .ecs
-            .world()
-            .get_resource::<types::PlayerProviderResource>()
-            .map(|resource| resource.0.clone())
-        else {
-            return 0;
-        };
-
         let records = {
             let world = self.ecs.world_mut();
-            let mut query = world.query::<(&PlayerUuid, &Position, &Rotation, &GameMode)>();
+            let mut query = world.query_filtered::<Entity, With<PlayerUuid>>();
             query
                 .iter(world)
-                .map(|(uuid, position, rotation, game_mode)| {
-                    (
-                        uuid.0,
-                        PlayerData {
-                            uuid: uuid.0.to_string(),
-                            position: [position.0.x, position.0.y, position.0.z],
-                            rotation: [rotation.yaw, rotation.pitch],
-                            dimension: world
-                                .get_resource::<ServerConfigResource>()
-                                .map(|config| config.0.world.dimension)
-                                .unwrap_or(0),
-                            game_mode: game_mode_to_storage_id(*game_mode),
-                            health: 20.0,
-                            food: 20,
-                            experience: 0,
-                        },
-                    )
-                })
+                .filter_map(|entity| player_record(world, entity))
                 .collect::<Vec<_>>()
         };
-
         let mut saved = 0;
         for (uuid, data) in records {
-            match provider.save(uuid, &data).await {
-                Ok(()) => saved += 1,
-                Err(e) => warn!(%uuid, error = %e, "Failed to save player data"),
+            if self.save_player_record(uuid, &data).await {
+                saved += 1;
             }
         }
         saved
@@ -354,54 +375,54 @@ impl GameServer {
     }
 
     pub async fn save_player(&mut self, session_id: SessionId) -> bool {
-        let Some(provider) = self
-            .ecs
-            .world()
-            .get_resource::<types::PlayerProviderResource>()
-            .map(|resource| resource.0.clone())
-        else {
-            return false;
-        };
-
         let record = {
-            let world = self.ecs.world_mut();
-            let dimension = world
-                .get_resource::<ServerConfigResource>()
-                .map(|config| config.0.world.dimension)
-                .unwrap_or(0);
-            let mut query =
-                world.query::<(&PlayerSession, &PlayerUuid, &Position, &Rotation, &GameMode)>();
-            query
-                .iter(world)
-                .find(|(session, _, _, _, _)| session.session_id == session_id)
-                .map(|(_, uuid, position, rotation, game_mode)| {
-                    (
-                        uuid.0,
-                        PlayerData {
-                            uuid: uuid.0.to_string(),
-                            position: [position.0.x, position.0.y, position.0.z],
-                            rotation: [rotation.yaw, rotation.pitch],
-                            dimension,
-                            game_mode: game_mode_to_storage_id(*game_mode),
-                            health: 20.0,
-                            food: 20,
-                            experience: 0,
-                        },
-                    )
-                })
+            let world = self.ecs.world();
+            world
+                .resource::<SessionEntityMap>()
+                .get(session_id)
+                .and_then(|entity| player_record(world, entity))
         };
-
         let Some((uuid, data)) = record else {
             return false;
         };
+        self.save_player_record(uuid, &data).await
+    }
 
-        match provider.save(uuid, &data).await {
-            Ok(()) => true,
-            Err(e) => {
-                warn!(%uuid, session_id, error = %e, "Failed to save player data");
-                false
+    async fn save_player_record(&self, uuid: uuid::Uuid, data: &PlayerData) -> bool {
+        let provider = self
+            .ecs
+            .world()
+            .get_resource::<types::PlayerProviderResource>()
+            .map(|r| r.0.clone());
+        let positions = self
+            .ecs
+            .world()
+            .get_resource::<types::PlayerDataStoreResource>()
+            .map(|r| r.0.clone());
+        let mut saved = provider.is_some() || positions.is_some();
+        if let Some(provider) = provider
+            && let Err(error) = provider.save(uuid, data).await
+        {
+            warn!(%uuid, %error, "Failed to save player data");
+            saved = false;
+        }
+        if let Some(positions) = positions {
+            let last = crate::config::PlayerLastPosition {
+                dimension: data.dimension,
+                location: crate::config::SpawnLocation {
+                    x: data.position[0] as f32,
+                    y: data.position[1] as f32,
+                    z: data.position[2] as f32,
+                    yaw: data.rotation[0],
+                    pitch: data.rotation[1],
+                },
+            };
+            if let Err(error) = positions.save_last_position(&uuid.to_string(), &last).await {
+                warn!(%uuid, %error, "Failed to save last player position");
+                saved = false;
             }
         }
+        saved
     }
 
     pub fn spawn_player(&mut self, data: PlayerSpawnData) -> Entity {
@@ -430,6 +451,49 @@ impl GameServer {
             .0
             .default_gamemode;
 
+        let mut rotation = Rotation::default();
+        let mut game_mode = default_gamemode;
+        let mut main_inventory = MainInventory::default();
+        let mut armour = ArmourInventory::default();
+        let mut offhand = OffhandSlot::default();
+        let mut cursor = CursorItem::default();
+        let mut held_slot = HeldSlot::default();
+        let mut health = crate::entity::components::Health::default();
+        let mut hunger = crate::entity::components::Hunger::default();
+        let mut experience = crate::entity::components::Experience::default();
+        if let Some(saved) = data.saved_data {
+            rotation = Rotation::new(saved.rotation[0], saved.rotation[1]);
+            game_mode = match saved.game_mode {
+                0 => GameMode::Survival,
+                1 => GameMode::Creative,
+                2 => GameMode::Adventure,
+                6 => GameMode::Spectator,
+                _ => unreachable!("saved player data was validated before spawning"),
+            };
+            for (slot, item) in main_inventory.0.slots_mut().iter_mut().zip(saved.inventory) {
+                *slot = item.into();
+            }
+            let [helmet, chestplate, leggings, boots] = saved.armour.map(Into::into);
+            armour.set_helmet(helmet).expect("validated saved helmet");
+            armour
+                .set_chestplate(chestplate)
+                .expect("validated saved chestplate");
+            armour
+                .set_leggings(leggings)
+                .expect("validated saved leggings");
+            armour.set_boots(boots).expect("validated saved boots");
+            offhand.0 = saved.offhand.into();
+            cursor.0 = saved.cursor.into();
+            held_slot.0 = saved.held_slot;
+            health.current = saved.health;
+            health.max = saved.max_health;
+            hunger.food_level = saved.food;
+            hunger.saturation = saved.saturation;
+            hunger.exhaustion = saved.exhaustion;
+            experience.level = saved.experience;
+            experience.progress = saved.experience_progress;
+        }
+
         let entity = self
             .ecs
             .world_mut()
@@ -446,8 +510,8 @@ impl GameServer {
                 ),
                 runtime_id: RuntimeEntityId(runtime_id),
                 position,
-                rotation: Rotation::default(),
-                game_mode: default_gamemode,
+                rotation,
+                game_mode,
                 state: PlayerState::default(),
                 input: PlayerInput::default(),
                 chunk_radius: ChunkRadius(data.chunk_radius),
@@ -457,20 +521,24 @@ impl GameServer {
                     x: position.0.x,
                     y: position.0.y,
                     z: position.0.z,
-                    yaw: 0.0,
-                    pitch: 0.0,
+                    yaw: rotation.yaw,
+                    pitch: rotation.pitch,
                 },
                 chunk_loader,
                 last_publisher_state: LastPublisherState::default(),
-                main_inventory: MainInventory::default(),
-                armour: ArmourInventory::default(),
-                offhand: OffhandSlot::default(),
-                held_slot: HeldSlot::default(),
-                cursor: CursorItem::default(),
+                main_inventory,
+                armour,
+                offhand,
+                held_slot,
+                cursor,
                 inventory_opened: InventoryOpened::default(),
                 item_stack_state: ItemStackRequestState::default(),
             })
             .id();
+        self.ecs
+            .world_mut()
+            .entity_mut(entity)
+            .insert((health, hunger, experience));
 
         if let Some(mut session_map) = self.ecs.world_mut().get_resource_mut::<SessionEntityMap>() {
             session_map.insert(data.session_id, entity);
@@ -654,6 +722,7 @@ mod tests {
             runtime_id: 7,
             position: DVec3::new(0.5, 17.0, 0.5),
             outbound_tx,
+            saved_data: None,
             chunk_radius: 2,
         });
 

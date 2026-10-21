@@ -15,6 +15,7 @@ impl WanderingTrader {
 /// Component bundle for spawning a `minecraft:wandering_trader`
 #[derive(Bundle, Clone)]
 pub struct WanderingTraderBundle {
+    pub attack: super::super::components::Attack,
     pub behavior_avoid_mob_type: super::super::components::BehaviorAvoidMobType,
     pub behavior_drink_milk: super::super::components::BehaviorDrinkMilk,
     pub behavior_drink_potion: super::super::components::BehaviorDrinkPotion,
@@ -36,9 +37,12 @@ pub struct WanderingTraderBundle {
     pub damage_sensor: super::super::components::DamageSensor,
     pub despawn: super::super::components::Despawn,
     pub economy_trade_table: super::super::components::EconomyTradeTable,
+    pub flying_speed: super::super::components::FlyingSpeed,
+    pub follow_range: super::super::components::FollowRange,
     pub health: super::super::components::Health,
     pub home: super::super::components::Home,
     pub hurt_on_condition: super::super::components::HurtOnCondition,
+    pub inventory: super::super::components::Inventory,
     pub is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
     pub jump_static: super::super::components::JumpStatic,
     pub movement: super::super::components::Movement,
@@ -47,6 +51,7 @@ pub struct WanderingTraderBundle {
     pub navigation_walk: super::super::components::NavigationWalk,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub scale: super::super::components::Scale,
     pub spawn_entity: super::super::components::SpawnEntity,
     pub timer: super::super::components::Timer,
     pub type_family: super::super::components::TypeFamily,
@@ -55,6 +60,11 @@ pub struct WanderingTraderBundle {
 pub fn spawn_wandering_trader(commands: &mut Commands) -> Entity {
     commands
         .spawn(WanderingTraderBundle {
+            attack: super::super::components::Attack {
+                damage: crate::types::RangeOrVal::Fixed(2f32),
+                effect_duration: Some(crate::types::MolangOr::Value(0i32)),
+                effect_name: None,
+            },
             behavior_avoid_mob_type: super::super::components::BehaviorAvoidMobType {
                 avoid_mob_sound: Some("undefined".to_string()),
                 avoid_target_xz: Some(16i32),
@@ -496,6 +506,14 @@ pub fn spawn_wandering_trader(commands: &mut Commands) -> Entity {
                 ),
                 use_legacy_price_formula: Some(false),
             },
+            flying_speed: super::super::components::FlyingSpeed {
+                value: 0.02f32,
+            },
+            follow_range: super::super::components::FollowRange {
+                max: None,
+                min: None,
+                value: crate::types::RangeOrVal::Fixed(16f32),
+            },
             health: super::super::components::Health {
                 max: Some(20f32),
                 min: None,
@@ -508,6 +526,14 @@ pub fn spawn_wandering_trader(commands: &mut Commands) -> Entity {
             },
             hurt_on_condition: super::super::components::HurtOnCondition {
                 damage_conditions: None,
+            },
+            inventory: super::super::components::Inventory {
+                additional_slots_per_strength: Some(0i32),
+                can_be_siphoned_from: Some(false),
+                container_type: Some("none".to_string()),
+                inventory_size: Some(5i32),
+                private: Some(false),
+                restrict_to_owner: Some(false),
             },
             is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
             jump_static: super::super::components::JumpStatic {
@@ -557,6 +583,9 @@ pub fn spawn_wandering_trader(commands: &mut Commands) -> Entity {
             pushable: super::super::components::Pushable {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
+            },
+            scale: super::super::components::Scale {
+                value: 1f32,
             },
             spawn_entity: super::super::components::SpawnEntity {
                 entities: Some(

@@ -460,6 +460,16 @@ impl BorrowedGenerator<'_, '_> {
             from_fields.push(quote! { #field_ident: #from_expr });
         }
 
+        let depth_guard = if crate::generator::analysis::is_recursive_type(
+            name,
+            &Type::Container(container.clone()),
+            self.ctx,
+        ) {
+            quote! { let _depth_guard = crate::bedrock::codec::RecursiveDecodeGuard::enter()?; }
+        } else {
+            TokenStream::new()
+        };
+
         self.items.push(quote! {
             #[derive(Debug, Clone, PartialEq)]
             pub struct #view_ident {
@@ -479,6 +489,7 @@ impl BorrowedGenerator<'_, '_> {
                     buf: &mut bytes::Bytes,
                     _args: Self::Args,
                 ) -> Result<Self, crate::bedrock::error::DecodeError> {
+                    #depth_guard
                     let _ = &buf;
                     let _ = _args;
                     #(#decode_stmts)*
@@ -937,13 +948,15 @@ impl BorrowedGenerator<'_, '_> {
                     buf_ident.clone(),
                     resolved,
                 )?;
+                let minimum_size =
+                    crate::generator::analysis::minimum_encoded_size(inner_type, self.ctx);
                 Ok(quote! {
                     {
                         let len = #len_decode;
                         let mut values = crate::bedrock::codec::prepare_decode_vec(
                             len,
                             bytes::Buf::remaining(&*#buf_ident),
-                            None,
+                            Some(#minimum_size),
                         )?;
                         for _ in 0..len {
                             crate::bedrock::codec::reserve_decode_item(&mut values)?;

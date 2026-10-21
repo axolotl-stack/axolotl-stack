@@ -1,4 +1,4 @@
-﻿# Unastar
+# Unastar
 
 **Unastar** is the planned high-performance Minecraft: Bedrock Edition server implementation built on top of the Axolotl Stack.
 
@@ -111,3 +111,28 @@ Manifest `limits.max_memory` caps each linear memory at creation and growth;
 batch each tick. Instantiation and `on-load` share a separate initialization
 budget of the same size. Epoch interruption is an independent wall-clock guard.
 Trapping plugin callbacks are logged, and cancellable callbacks fail closed.
+
+## Persistence
+
+Both LevelDB (the default) and BlazeDB use load-before-generate chunk requests.
+For vanilla terrain, storage reads and generation run off the ECS tick thread;
+only a confirmed storage miss generates terrain. Storage read errors are logged
+and never become generated replacement columns. Loaded columns start clean,
+while generated or edited columns are saved on unload/shutdown.
+
+Player state is loaded through the configured player provider before StartGame
+and restored before initial inventory, abilities, and attributes are sent.
+Disconnect and shutdown use the same snapshot: position/rotation, dimension,
+gamemode, main inventory, armour, offhand, cursor, held slot, health, hunger,
+and experience. Older player records without inventory fields load with empty
+slots. Missing records use first-join defaults; corrupt records are logged and
+left in storage rather than deleted. When `players.save_previous_position` is
+enabled, saves also update the per-player TOML position used by spawn rules.
+Spawn rules retain their ordering and only use saved positions in the current
+dimension.
+
+Regression coverage: `cargo test -p unastar --test persistence` exercises both
+world providers, stored-column preservation through asynchronous loading and
+the save cycle, player disconnect/reconnect, corrupt player data, storage errors,
+and out-of-range block heights. On Windows, set
+`VCPKG_ROOT=C:\Users\jvigu\vcpkg` before building the LevelDB dependency.

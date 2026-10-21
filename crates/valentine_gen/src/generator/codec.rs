@@ -1,4 +1,6 @@
-use crate::generator::analysis::{find_redundant_fields, should_box_variant};
+use crate::generator::analysis::{
+    find_redundant_fields, is_recursive_type, minimum_encoded_size, should_box_variant,
+};
 use crate::generator::context::Context;
 use crate::generator::definitions::resolve_type_to_tokens;
 use crate::generator::primitives::{
@@ -78,6 +80,9 @@ pub fn generate_codec_impl(
     let size_body = generate_size_body(name, container, ctx)?;
     let encode_body = generate_encode_body(name, container, ctx)?;
     let decode_body = generate_decode_body(name, &resolved, ctx, &arg_idents)?;
+    let ty = Type::Container(container.clone());
+    let minimum_size = minimum_encoded_size(&ty, ctx);
+    let depth_guard = recursive_decode_guard(is_recursive_type(name, &ty, ctx));
 
     Ok(quote! {
         #args_struct_def
@@ -91,6 +96,7 @@ pub fn generate_codec_impl(
 
         impl crate::bedrock::codec::BedrockCodec for #struct_ident {
             type Args = #args_type_def;
+            const MIN_ENCODED_SIZE: usize = #minimum_size;
 
             fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
                 let _ = buf;
@@ -99,6 +105,7 @@ pub fn generate_codec_impl(
             }
 
             fn decode<B: bytes::Buf>(buf: &mut B, #args_usage: Self::Args) -> Result<Self, crate::bedrock::error::DecodeError> {
+                #depth_guard
                 let _ = buf;
                 #decode_body
             }
@@ -340,13 +347,14 @@ fn generate_field_decode_expr(
                     let len = (#count_read) as usize;
                 }
             };
+            let minimum_size = minimum_encoded_size(inner_type, ctx);
 
             Ok(quote! {{
                 #len_logic
                 let mut tmp_vec = crate::bedrock::codec::prepare_decode_vec(
                     len,
                     buf.remaining(),
-                    None,
+                    Some(#minimum_size),
                 )?;
                 for _ in 0..len {
                     crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
@@ -3444,8 +3452,11 @@ pub fn generate_union_type_codec(
     name: &str,
     control_type: &Primitive,
     variants: &[UnionVariantCodec],
+    minimum_size: usize,
+    recursive: bool,
 ) -> Result<TokenStream, Box<dyn std::error::Error>> {
     let struct_ident = format_ident!("{}", name);
+    let depth_guard = recursive_decode_guard(recursive);
     let mut encode_arms = Vec::new();
     let mut decode_arms = Vec::new();
     let mut size_arms = Vec::new();
@@ -3600,6 +3611,7 @@ pub fn generate_union_type_codec(
 
         impl crate::bedrock::codec::BedrockCodec for #struct_ident {
             type Args = ();
+            const MIN_ENCODED_SIZE: usize = #minimum_size;
 
             fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
                 match self {
@@ -3608,6 +3620,7 @@ pub fn generate_union_type_codec(
             }
 
             fn decode<B: bytes::Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, crate::bedrock::error::DecodeError> {
+                #depth_guard
                 #decode_control
                 match control_value {
                     #(#decode_arms),*,
@@ -3619,6 +3632,14 @@ pub fn generate_union_type_codec(
             }
         }
     })
+}
+
+fn recursive_decode_guard(recursive: bool) -> TokenStream {
+    if recursive {
+        quote! { let _depth_guard = crate::bedrock::codec::RecursiveDecodeGuard::enter()?; }
+    } else {
+        TokenStream::new()
+    }
 }
 
 fn union_control_encode(

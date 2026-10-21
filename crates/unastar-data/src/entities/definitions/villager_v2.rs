@@ -16,6 +16,7 @@ impl VillagerV2 {
 #[derive(Bundle, Clone)]
 pub struct VillagerV2Bundle {
     pub annotation_open_door: super::super::components::AnnotationOpenDoor,
+    pub attack: super::super::components::Attack,
     pub behavior_avoid_mob_type: super::super::components::BehaviorAvoidMobType,
     pub behavior_float: super::super::components::BehaviorFloat,
     pub behavior_hide: super::super::components::BehaviorHide,
@@ -37,6 +38,7 @@ pub struct VillagerV2Bundle {
     pub damage_sensor: super::super::components::DamageSensor,
     pub dweller: super::super::components::Dweller,
     pub equipment: super::super::components::Equipment,
+    pub flying_speed: super::super::components::FlyingSpeed,
     pub follow_range: super::super::components::FollowRange,
     pub health: super::super::components::Health,
     pub hide: super::super::components::Hide,
@@ -52,6 +54,7 @@ pub struct VillagerV2Bundle {
     pub persistent: super::super::components::Persistent,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub scale: super::super::components::Scale,
     pub type_family: super::super::components::TypeFamily,
 }
 /// Spawn a new `minecraft:villager_v2` entity with default Bedrock components
@@ -59,6 +62,11 @@ pub fn spawn_villager_v2(commands: &mut Commands) -> Entity {
     commands
         .spawn(VillagerV2Bundle {
             annotation_open_door: super::super::components::AnnotationOpenDoor,
+            attack: super::super::components::Attack {
+                damage: crate::types::RangeOrVal::Fixed(2f32),
+                effect_duration: Some(crate::types::MolangOr::Value(0i32)),
+                effect_name: None,
+            },
             behavior_avoid_mob_type: super::super::components::BehaviorAvoidMobType {
                 avoid_mob_sound: Some("undefined".to_string()),
                 avoid_target_xz: Some(16i32),
@@ -365,6 +373,9 @@ pub fn spawn_villager_v2(commands: &mut Commands) -> Entity {
                 slot_drop_chance: None,
                 table: None,
             },
+            flying_speed: super::super::components::FlyingSpeed {
+                value: 0.02f32,
+            },
             follow_range: super::super::components::FollowRange {
                 max: None,
                 min: None,
@@ -439,6 +450,9 @@ pub fn spawn_villager_v2(commands: &mut Commands) -> Entity {
             pushable: super::super::components::Pushable {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
+            },
+            scale: super::super::components::Scale {
+                value: 1f32,
             },
             type_family: super::super::components::TypeFamily {
                 family: vec!["villager".to_string(), "mob".to_string()],

@@ -107,6 +107,11 @@ impl ChunkLoader {
         self.loaded.insert((x, z));
     }
 
+    /// Forget a failed request so a later view rebuild can request it again.
+    pub(super) fn mark_load_failed(&mut self, x: i32, z: i32) {
+        self.loaded.remove(&(x, z));
+    }
+
     /// Pop the next chunk to load from the queue, if any.
     /// Returns chunks in center-outward order.
     pub fn next_to_load(&mut self) -> Option<(i32, i32)> {

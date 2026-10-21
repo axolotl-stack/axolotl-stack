@@ -24,18 +24,23 @@ pub struct NautilusBundle {
     pub collision_box: super::super::components::CollisionBox,
     pub despawn: super::super::components::Despawn,
     pub experience_reward: super::super::components::ExperienceReward,
+    pub flying_speed: super::super::components::FlyingSpeed,
+    pub follow_range: super::super::components::FollowRange,
     pub health: super::super::components::Health,
     pub home: super::super::components::Home,
     pub hurt_on_condition: super::super::components::HurtOnCondition,
+    pub inventory: super::super::components::Inventory,
     pub is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
     pub knockback_resistance: super::super::components::KnockbackResistance,
     pub loot: super::super::components::Loot,
     pub mob_effect_immunity: super::super::components::MobEffectImmunity,
+    pub movement: super::super::components::Movement,
     pub movement_sway: super::super::components::MovementSway,
     pub nameable: super::super::components::Nameable,
     pub navigation_generic: super::super::components::NavigationGeneric,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub scale: super::super::components::Scale,
     pub type_family: super::super::components::TypeFamily,
 }
 /// Spawn a new `minecraft:nautilus` entity with default Bedrock components
@@ -111,6 +116,12 @@ pub fn spawn_nautilus(commands: &mut Commands) -> Entity {
                     "query.last_hit_by_player && !query.is_baby ? Math.Random(1,3) : 0".to_string(),
                 )),
             },
+            flying_speed: super::super::components::FlyingSpeed { value: 0.02f32 },
+            follow_range: super::super::components::FollowRange {
+                max: None,
+                min: None,
+                value: crate::types::RangeOrVal::Fixed(16f32),
+            },
             health: super::super::components::Health {
                 max: Some(15f32),
                 min: None,
@@ -124,6 +135,14 @@ pub fn spawn_nautilus(commands: &mut Commands) -> Entity {
             hurt_on_condition: super::super::components::HurtOnCondition {
                 damage_conditions: None,
             },
+            inventory: super::super::components::Inventory {
+                additional_slots_per_strength: Some(0i32),
+                can_be_siphoned_from: Some(false),
+                container_type: Some("none".to_string()),
+                inventory_size: Some(5i32),
+                private: Some(false),
+                restrict_to_owner: Some(false),
+            },
             is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
             knockback_resistance: super::super::components::KnockbackResistance {
                 max: None,
@@ -135,6 +154,11 @@ pub fn spawn_nautilus(commands: &mut Commands) -> Entity {
             },
             mob_effect_immunity: super::super::components::MobEffectImmunity {
                 mob_effects: Some(vec!["poison".to_string()]),
+            },
+            movement: super::super::components::Movement {
+                max: None,
+                min: None,
+                value: crate::types::RangeOrVal::Fixed(0.25f32),
             },
             movement_sway: super::super::components::MovementSway {
                 max_turn: Some(30f32),
@@ -177,6 +201,7 @@ pub fn spawn_nautilus(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            scale: super::super::components::Scale { value: 1f32 },
             type_family: super::super::components::TypeFamily {
                 family: vec![
                     "aquatic".to_string(),

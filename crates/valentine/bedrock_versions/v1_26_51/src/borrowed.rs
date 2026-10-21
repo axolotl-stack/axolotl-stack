@@ -293,8 +293,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for SkinImageView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(<u8 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -788,8 +791,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for AttributeDataView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(15usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -950,8 +956,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?);
@@ -1236,8 +1245,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(7usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -1351,8 +1363,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for AvailableCommandsPacketCo
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(4usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(
@@ -1372,8 +1387,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for AvailableCommandsPacketCo
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(2usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -1557,8 +1575,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(2usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -1651,8 +1672,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(<u8 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -1733,8 +1757,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for AvailableCommandsPacketPa
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(4usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(
@@ -1817,8 +1844,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?);
@@ -2106,8 +2136,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for BiomeCappedSurfaceDataVie
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(4usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(
@@ -2127,8 +2160,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for BiomeCappedSurfaceDataVie
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(4usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(
@@ -2373,8 +2409,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for BiomeConditionalTransform
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(6usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -2580,8 +2619,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for BiomeScatterParamDataView
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(15usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -2778,8 +2820,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for BiomeConsolidatedFeatures
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(23usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -3113,8 +3158,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for BiomeSurfaceMaterialAdjus
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(42usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -3290,8 +3338,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for BiomeOverworldGenRulesDat
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(6usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -3311,8 +3362,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for BiomeOverworldGenRulesDat
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(6usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -3332,8 +3386,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for BiomeOverworldGenRulesDat
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(6usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -3353,8 +3410,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for BiomeOverworldGenRulesDat
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(6usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -3374,8 +3434,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for BiomeOverworldGenRulesDat
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(7usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -3395,8 +3458,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for BiomeOverworldGenRulesDat
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(7usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -3416,8 +3482,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for BiomeOverworldGenRulesDat
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(5usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -3615,8 +3684,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for BiomeLegacyWorldGenRulesD
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(7usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -3703,8 +3775,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for BiomeReplacementDataView 
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(2usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(
@@ -3798,8 +3873,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for BiomeReplacementsDataView
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(17usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -4060,8 +4138,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for SharedTypesv12630NoiseDes
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(4usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(
@@ -4148,8 +4229,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for BiomeNoiseGradientSurface
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(4usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(
@@ -4169,8 +4253,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for BiomeNoiseGradientSurface
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(17usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -4698,8 +4785,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for BiomeTagsDataView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(2usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(
@@ -4911,8 +5001,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for BiomeStringListView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?);
@@ -6526,8 +6619,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(12usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(
@@ -6546,8 +6642,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(9usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -6567,8 +6666,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(17usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -7621,8 +7723,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for CameraPresetsView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(24usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -8465,8 +8570,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for CommandOutputMessagejsonV
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?);
@@ -8559,8 +8667,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for CommandOutputjsonView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(3usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -10583,8 +10694,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for ExperimentsView {
                 (),
             )?
             .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(2usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -11314,8 +11428,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for InventoryTransactionView 
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(20usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -13206,8 +13323,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for ItemStackResponseContaine
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(7usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -13349,7 +13469,7 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for ItemStackResponseInfoView
                 let mut values = crate::bedrock::codec::prepare_decode_vec(
                     len,
                     bytes::Buf::remaining(&*buf),
-                    None,
+                    Some(3usize),
                 )?;
                 for _ in 0..len {
                     crate::bedrock::codec::reserve_decode_item(&mut values)?;
@@ -13689,8 +13809,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for LegacySetSlotView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(<u8 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -15931,8 +16054,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for MaterialReducerDataEntryV
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(2usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -17021,7 +17147,7 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for PackedItemUseLegacyInvent
                 let mut values = crate::bedrock::codec::prepare_decode_vec(
                     len,
                     bytes::Buf::remaining(&*buf),
-                    None,
+                    Some(2usize),
                 )?;
                 for _ in 0..len {
                     crate::bedrock::codec::reserve_decode_item(&mut values)?;
@@ -17805,8 +17931,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for PropertySyncDataView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(2usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -17826,8 +17955,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for PropertySyncDataView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(5usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -18154,8 +18286,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?);
@@ -18491,8 +18626,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for SerializedAbilitiesDataVi
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(22usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -19209,8 +19347,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(2usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -19324,7 +19465,7 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
                 let mut values = crate::bedrock::codec::prepare_decode_vec(
                     len,
                     bytes::Buf::remaining(&*buf),
-                    None,
+                    Some(3usize),
                 )?;
                 for _ in 0..len {
                     crate::bedrock::codec::reserve_decode_item(&mut values)?;
@@ -19463,8 +19604,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for ShapedRecipePayloadView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(3usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -19484,8 +19628,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for ShapedRecipePayloadView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(6usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -19659,8 +19806,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for ShapelessRecipePayloadVie
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(3usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -19680,8 +19830,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for ShapelessRecipePayloadVie
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(6usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -19855,8 +20008,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?);
@@ -19870,8 +20026,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?);
@@ -19885,8 +20044,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?);
@@ -19900,8 +20062,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?);
@@ -20043,8 +20208,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?);
@@ -20058,8 +20226,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(2usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -20274,8 +20445,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(5usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -20295,8 +20469,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(5usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -20316,8 +20493,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(5usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -20337,8 +20517,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(5usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -20758,8 +20941,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for SharedTypesv1260CameraSpl
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(12usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -20779,8 +20965,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for SharedTypesv1260CameraSpl
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(9usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -20800,8 +20989,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for SharedTypesv1260CameraSpl
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(17usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -22093,8 +22285,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(4usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -22200,8 +22395,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for WorldClockDataView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(4usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -22291,8 +22489,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(5usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -22381,8 +22582,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -22463,8 +22667,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(3usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -22847,8 +23054,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for TextPacketPayloadMessageA
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?);
@@ -23204,8 +23414,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for UpdateSubChunkBlocksChang
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(7usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -23225,8 +23438,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for UpdateSubChunkBlocksChang
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(7usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -23357,8 +23573,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for VoxelShapesSerializableCe
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(<u8 as crate::bedrock::codec::BedrockCodec>::decode(
@@ -23456,8 +23675,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for VoxelShapesSerializableVo
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(4usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(
@@ -23477,8 +23699,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for VoxelShapesSerializableVo
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(4usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(
@@ -23498,8 +23723,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for VoxelShapesSerializableVo
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(4usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(
@@ -23822,8 +24050,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for ResourcePacksInfoPacketVi
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(32usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -23923,8 +24154,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for ResourcePackStackPacketVi
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(3usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -24982,8 +25216,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for UpdateAttributesPacketVie
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(26usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -26149,8 +26386,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for InventoryContentPacketVie
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(8usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -26497,8 +26737,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for CraftingDataPacketView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(26usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -26518,8 +26761,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for CraftingDataPacketView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(23usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -26539,8 +26785,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for CraftingDataPacketView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(17usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -26560,8 +26809,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for CraftingDataPacketView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(23usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -26581,8 +26833,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for CraftingDataPacketView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(23usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -26602,8 +26857,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for CraftingDataPacketView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(26usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -26623,8 +26881,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for CraftingDataPacketView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(18usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -26644,8 +26905,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for CraftingDataPacketView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(12usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -26665,8 +26929,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for CraftingDataPacketView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(6usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -26686,8 +26953,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for CraftingDataPacketView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(3usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -26707,8 +26977,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for CraftingDataPacketView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(2usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -27050,8 +27323,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for LevelChunkPacketView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(8usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -27539,7 +27815,7 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for ClientboundMapItemDataPac
                 let mut values = crate::bedrock::codec::prepare_decode_vec(
                     len,
                     bytes::Buf::remaining(&*buf),
-                    None,
+                    Some(1usize),
                 )?;
                 for _ in 0..len {
                     crate::bedrock::codec::reserve_decode_item(&mut values)?;
@@ -27576,7 +27852,7 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for ClientboundMapItemDataPac
                 let mut values = crate::bedrock::codec::prepare_decode_vec(
                     len,
                     bytes::Buf::remaining(&*buf),
-                    None,
+                    Some(6usize),
                 )?;
                 for _ in 0..len {
                     crate::bedrock::codec::reserve_decode_item(&mut values)?;
@@ -27604,7 +27880,7 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for ClientboundMapItemDataPac
                 let mut values = crate::bedrock::codec::prepare_decode_vec(
                     len,
                     bytes::Buf::remaining(&*buf),
-                    None,
+                    Some(9usize),
                 )?;
                 for _ in 0..len {
                     crate::bedrock::codec::reserve_decode_item(&mut values)?;
@@ -27676,7 +27952,7 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for ClientboundMapItemDataPac
                 let mut values = crate::bedrock::codec::prepare_decode_vec(
                     len,
                     bytes::Buf::remaining(&*buf),
-                    None,
+                    Some(4usize),
                 )?;
                 for _ in 0..len {
                     crate::bedrock::codec::reserve_decode_item(&mut values)?;
@@ -27830,8 +28106,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for MapInfoRequestPacketView 
                 (),
             )?
             .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(6usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -28287,8 +28566,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for AvailableCommandsPacketVi
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?);
@@ -28302,8 +28584,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for AvailableCommandsPacketVi
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?);
@@ -28317,8 +28602,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for AvailableCommandsPacketVi
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?);
@@ -28332,8 +28620,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for AvailableCommandsPacketVi
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(2usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -28353,8 +28644,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for AvailableCommandsPacketVi
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(2usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -28374,8 +28668,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for AvailableCommandsPacketVi
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(11usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -28395,8 +28692,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for AvailableCommandsPacketVi
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(2usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -28416,8 +28716,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for AvailableCommandsPacketVi
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(9usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -29694,8 +29997,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for PurchaseReceiptPacketView
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?);
@@ -30767,8 +31073,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for SetScoreboardIdentityPack
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(2usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -30900,8 +31209,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for UpdateSoftEnumPacketView 
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?);
@@ -31170,8 +31482,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for NetworkChunkPublisherUpda
                 (),
             )?
             .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(2usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(
@@ -31306,8 +31621,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for BiomeDefinitionListPacket
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(31usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -31899,8 +32217,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for ClientCacheBlobStatusPack
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(8usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(
@@ -31920,8 +32241,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for ClientCacheBlobStatusPack
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(8usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(
@@ -31997,8 +32321,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for ClientCacheMissResponsePa
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(9usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -32481,8 +32808,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for CreativeContentPacketView
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(8usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -32502,8 +32832,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for CreativeContentPacketView
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(8usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -32582,8 +32915,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for ItemStackResponsePacketVi
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(3usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -32654,8 +32990,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for PlayerArmorDamagePacketVi
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(3usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -32851,8 +33190,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for EmoteListPacketView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(16usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(<uuid::Uuid as crate::bedrock::codec::BedrockCodec>::decode(
@@ -33254,8 +33596,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for AnimateEntityPacketView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -33424,8 +33769,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for PlayerFogPacketView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?);
@@ -33594,8 +33942,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for ItemRegistryPacketView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(6usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(
@@ -34251,8 +34602,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for SubChunkRequestPacketView
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(3usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -34609,8 +34963,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for DimensionDataPacketView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(22usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -35199,8 +35556,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for DeathInfoPacketView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?);
@@ -35325,8 +35685,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for FeatureRegistryPacketView
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(2usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -35759,8 +36122,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for UnlockedRecipesPacketView
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?);
@@ -35881,8 +36247,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for TrimDataPacketView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(2usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -35902,8 +36271,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for TrimDataPacketView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(3usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -36236,8 +36608,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for SetHudPacketView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(
@@ -36618,8 +36993,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for ServerboundDiagnosticsPac
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(9usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -36639,8 +37017,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for ServerboundDiagnosticsPac
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(13usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -36660,8 +37041,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for ServerboundDiagnosticsPac
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(18usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -36681,8 +37065,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for ServerboundDiagnosticsPac
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(9usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -36702,8 +37089,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for ServerboundDiagnosticsPac
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(26usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -36925,8 +37315,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for ContainerRegistryCleanupP
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(2usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -37083,8 +37476,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for CameraAimAssistPresetsPac
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(7usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -37104,8 +37500,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for CameraAimAssistPresetsPac
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(9usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -37452,8 +37851,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for GraphicsOverrideParameter
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(16usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -37794,8 +38196,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for ClientboundTextureShiftPa
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(1usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values.push(crate::bedrock::borrowed::take_var_u32_prefixed_string(buf)?);
@@ -37963,8 +38368,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for VoxelShapesPacketView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(7usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -37984,8 +38392,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for VoxelShapesPacketView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(3usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -38073,8 +38484,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for CameraSplinePacketView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(9usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -38147,8 +38561,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for CameraAimAssistActorPrior
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(16usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values
@@ -38257,8 +38674,11 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for LocatorBarPacketView {
                     (),
                 )?
                 .0 as usize;
-            let mut values =
-                crate::bedrock::codec::prepare_decode_vec(len, bytes::Buf::remaining(&*buf), None)?;
+            let mut values = crate::bedrock::codec::prepare_decode_vec(
+                len,
+                bytes::Buf::remaining(&*buf),
+                Some(28usize),
+            )?;
             for _ in 0..len {
                 crate::bedrock::codec::reserve_decode_item(&mut values)?;
                 values

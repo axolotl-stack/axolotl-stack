@@ -16,18 +16,23 @@ impl Creaking {
 #[derive(Bundle, Clone)]
 pub struct CreakingBundle {
     pub attack: super::super::components::Attack,
+    pub breathable: super::super::components::Breathable,
     pub can_climb: super::super::components::CanClimb,
     pub collision_box: super::super::components::CollisionBox,
     pub despawn: super::super::components::Despawn,
+    pub flying_speed: super::super::components::FlyingSpeed,
     pub follow_range: super::super::components::FollowRange,
     pub health: super::super::components::Health,
+    pub inventory: super::super::components::Inventory,
     pub is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
     pub jump_static: super::super::components::JumpStatic,
+    pub movement: super::super::components::Movement,
     pub movement_basic: super::super::components::MovementBasic,
     pub nameable: super::super::components::Nameable,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
     pub renders_when_invisible: super::super::components::RendersWhenInvisible,
+    pub scale: super::super::components::Scale,
     pub type_family: super::super::components::TypeFamily,
     pub variable_max_auto_step: super::super::components::VariableMaxAutoStep,
 }
@@ -39,6 +44,19 @@ pub fn spawn_creaking(commands: &mut Commands) -> Entity {
                 damage: crate::types::RangeOrVal::Fixed(3f32),
                 effect_duration: Some(crate::types::MolangOr::Value(0i32)),
                 effect_name: None,
+            },
+            breathable: super::super::components::Breathable {
+                breathe_blocks: None,
+                breathes_air: Some(true),
+                breathes_lava: Some(false),
+                breathes_solids: Some(false),
+                breathes_water: Some(false),
+                can_dehydrate: Some(false),
+                generates_bubbles: Some(true),
+                inhale_time: Some(0f32),
+                non_breathe_blocks: None,
+                suffocate_time: Some(-1i32),
+                total_supply: Some(15i32),
             },
             can_climb: super::super::components::CanClimb,
             collision_box: super::super::components::CollisionBox {
@@ -58,6 +76,7 @@ pub fn spawn_creaking(commands: &mut Commands) -> Entity {
                 min_range_random_chance: Some(800i32),
                 remove_child_entities: Some(false),
             },
+            flying_speed: super::super::components::FlyingSpeed { value: 0.02f32 },
             follow_range: super::super::components::FollowRange {
                 max: Some(32f32),
                 min: None,
@@ -68,9 +87,22 @@ pub fn spawn_creaking(commands: &mut Commands) -> Entity {
                 min: None,
                 value: crate::types::RangeOrVal::Fixed(1f32),
             },
+            inventory: super::super::components::Inventory {
+                additional_slots_per_strength: Some(0i32),
+                can_be_siphoned_from: Some(false),
+                container_type: Some("none".to_string()),
+                inventory_size: Some(5i32),
+                private: Some(false),
+                restrict_to_owner: Some(false),
+            },
             is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
             jump_static: super::super::components::JumpStatic {
                 jump_power: Some(0.42f32),
+            },
+            movement: super::super::components::Movement {
+                max: None,
+                min: None,
+                value: crate::types::RangeOrVal::Fixed(0.25f32),
             },
             movement_basic: super::super::components::MovementBasic {
                 max_turn: Some(30f32),
@@ -91,6 +123,7 @@ pub fn spawn_creaking(commands: &mut Commands) -> Entity {
                 is_pushable_by_piston: Some(true),
             },
             renders_when_invisible: super::super::components::RendersWhenInvisible,
+            scale: super::super::components::Scale { value: 1f32 },
             type_family: super::super::components::TypeFamily {
                 family: vec![
                     "creaking".to_string(),

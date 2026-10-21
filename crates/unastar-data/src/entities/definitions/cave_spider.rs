@@ -15,6 +15,7 @@ impl CaveSpider {
 /// Component bundle for spawning a `minecraft:cave_spider`
 #[derive(Bundle, Clone)]
 pub struct CaveSpiderBundle {
+    pub attack: super::super::components::Attack,
     pub behavior_avoid_mob_type: super::super::components::BehaviorAvoidMobType,
     pub behavior_float: super::super::components::BehaviorFloat,
     pub behavior_hurt_by_target: super::super::components::BehaviorHurtByTarget,
@@ -29,8 +30,11 @@ pub struct CaveSpiderBundle {
         super::super::components::ConditionalBandwidthOptimization,
     pub despawn: super::super::components::Despawn,
     pub experience_reward: super::super::components::ExperienceReward,
+    pub flying_speed: super::super::components::FlyingSpeed,
+    pub follow_range: super::super::components::FollowRange,
     pub health: super::super::components::Health,
     pub hurt_on_condition: super::super::components::HurtOnCondition,
+    pub inventory: super::super::components::Inventory,
     pub is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
     pub jump_static: super::super::components::JumpStatic,
     pub loot: super::super::components::Loot,
@@ -42,12 +46,18 @@ pub struct CaveSpiderBundle {
     pub pushable: super::super::components::Pushable,
     pub renders_when_invisible: super::super::components::RendersWhenInvisible,
     pub rideable: super::super::components::Rideable,
+    pub scale: super::super::components::Scale,
     pub type_family: super::super::components::TypeFamily,
 }
 /// Spawn a new `minecraft:cave_spider` entity with default Bedrock components
 pub fn spawn_cave_spider(commands: &mut Commands) -> Entity {
     commands
         .spawn(CaveSpiderBundle {
+            attack: super::super::components::Attack {
+                damage: crate::types::RangeOrVal::Fixed(2f32),
+                effect_duration: Some(crate::types::MolangOr::Value(0i32)),
+                effect_name: None,
+            },
             behavior_avoid_mob_type: super::super::components::BehaviorAvoidMobType {
                 avoid_mob_sound: Some("undefined".to_string()),
                 avoid_target_xz: Some(16i32),
@@ -277,6 +287,12 @@ pub fn spawn_cave_spider(commands: &mut Commands) -> Entity {
                     "query.last_hit_by_player ? 5 : 0".to_string(),
                 )),
             },
+            flying_speed: super::super::components::FlyingSpeed { value: 0.02f32 },
+            follow_range: super::super::components::FollowRange {
+                max: None,
+                min: None,
+                value: crate::types::RangeOrVal::Fixed(16f32),
+            },
             health: super::super::components::Health {
                 max: Some(12f32),
                 min: None,
@@ -284,6 +300,14 @@ pub fn spawn_cave_spider(commands: &mut Commands) -> Entity {
             },
             hurt_on_condition: super::super::components::HurtOnCondition {
                 damage_conditions: None,
+            },
+            inventory: super::super::components::Inventory {
+                additional_slots_per_strength: Some(0i32),
+                can_be_siphoned_from: Some(false),
+                container_type: Some("none".to_string()),
+                inventory_size: Some(5i32),
+                private: Some(false),
+                restrict_to_owner: Some(false),
             },
             is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
             jump_static: super::super::components::JumpStatic {
@@ -359,6 +383,7 @@ pub fn spawn_cave_spider(commands: &mut Commands) -> Entity {
                     third_person_camera_radius: None,
                 }]),
             },
+            scale: super::super::components::Scale { value: 1f32 },
             type_family: super::super::components::TypeFamily {
                 family: vec![
                     "cavespider".to_string(),

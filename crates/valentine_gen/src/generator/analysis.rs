@@ -249,3 +249,124 @@ pub fn find_redundant_fields(container: &Container) -> HashSet<String> {
     }
     redundant
 }
+
+/// Conservative wire-size lower bounds. Unknown or cyclic references contribute
+/// zero; unlike Rust's size_of, these bounds also preserve zero-byte schema values.
+pub fn minimum_encoded_size(ty: &Type, ctx: &Context) -> usize {
+    fn visit(ty: &Type, ctx: &Context, active: &mut HashSet<String>) -> usize {
+        match ty {
+            Type::Primitive(p) => match p {
+                Primitive::Void | Primitive::ByteArray => 0,
+                Primitive::U16 | Primitive::U16LE | Primitive::I16 | Primitive::I16LE => 2,
+                Primitive::U32
+                | Primitive::U32LE
+                | Primitive::I32
+                | Primitive::I32LE
+                | Primitive::F32
+                | Primitive::F32LE => 4,
+                Primitive::U64
+                | Primitive::U64LE
+                | Primitive::I64
+                | Primitive::I64LE
+                | Primitive::F64
+                | Primitive::F64LE => 8,
+                Primitive::Uuid => 16,
+                _ => 1,
+            },
+            Type::Reference(name) => {
+                if !active.insert(name.clone()) {
+                    return 0;
+                }
+                let size = ctx
+                    .type_lookup
+                    .get(name)
+                    .map_or(0, |ty| visit(ty, ctx, active));
+                active.remove(name);
+                size
+            }
+            Type::Container(container) => container.fields.iter().fold(0usize, |size, field| {
+                size.saturating_add(visit(&field.type_def, ctx, active))
+            }),
+            Type::String { count_type, .. } | Type::Array { count_type, .. } => {
+                visit(count_type, ctx, active)
+            }
+            Type::Encapsulated { length_type, inner } => {
+                visit(length_type, ctx, active).saturating_add(visit(inner, ctx, active))
+            }
+            Type::FixedArray { size, inner_type } => {
+                size.saturating_mul(visit(inner_type, ctx, active))
+            }
+            Type::Bitset { .. } | Type::Option(_) => 1,
+            Type::Switch {
+                fields, default, ..
+            } => {
+                let fallback = visit(default, ctx, active);
+                fields
+                    .iter()
+                    .map(|(_, ty)| visit(ty, ctx, active))
+                    .fold(fallback, usize::min)
+            }
+            Type::Union {
+                control_type,
+                variants,
+            } => visit(&Type::Primitive(control_type.clone()), ctx, active).saturating_add(
+                variants
+                    .iter()
+                    .map(|v| visit(&v.type_def, ctx, active))
+                    .min()
+                    .unwrap_or(0),
+            ),
+            Type::Enum { underlying, .. } => {
+                visit(&Type::Primitive(underlying.clone()), ctx, active)
+            }
+            Type::Bitfield { storage_type, .. } => {
+                visit(&Type::Primitive(storage_type.clone()), ctx, active)
+            }
+            Type::Packed { backing, .. } => visit(&Type::Primitive(backing.clone()), ctx, active),
+        }
+    }
+    visit(ty, ctx, &mut HashSet::new())
+}
+
+/// Finds cycles through named schema references, not mere syntactic nesting.
+pub fn is_recursive_type(name: &str, ty: &Type, ctx: &Context) -> bool {
+    fn visit(name: &str, ty: &Type, ctx: &Context, active: &mut HashSet<String>) -> bool {
+        match ty {
+            Type::Reference(target) => {
+                if crate::generator::utils::clean_type_name(target) == name {
+                    return true;
+                }
+                if !active.insert(target.clone()) {
+                    return false;
+                }
+                let recursive = ctx
+                    .type_lookup
+                    .get(target)
+                    .is_some_and(|ty| visit(name, ty, ctx, active));
+                active.remove(target);
+                recursive
+            }
+            Type::Container(c) => c
+                .fields
+                .iter()
+                .any(|f| visit(name, &f.type_def, ctx, active)),
+            Type::Array { inner_type, .. } | Type::FixedArray { inner_type, .. } => {
+                visit(name, inner_type, ctx, active)
+            }
+            Type::Option(inner) | Type::Encapsulated { inner, .. } => {
+                visit(name, inner, ctx, active)
+            }
+            Type::Switch {
+                fields, default, ..
+            } => {
+                fields.iter().any(|(_, ty)| visit(name, ty, ctx, active))
+                    || visit(name, default, ctx, active)
+            }
+            Type::Union { variants, .. } => variants
+                .iter()
+                .any(|v| visit(name, &v.type_def, ctx, active)),
+            _ => false,
+        }
+    }
+    visit(name, ty, ctx, &mut HashSet::new())
+}

@@ -15,6 +15,7 @@ impl MagmaCube {
 /// Component bundle for spawning a `minecraft:magma_cube`
 #[derive(Bundle, Clone)]
 pub struct MagmaCubeBundle {
+    pub attack: super::super::components::Attack,
     pub behavior_nearest_attackable_target:
         super::super::components::BehaviorNearestAttackableTarget,
     pub behavior_slime_attack: super::super::components::BehaviorSlimeAttack,
@@ -31,8 +32,13 @@ pub struct MagmaCubeBundle {
     pub despawn: super::super::components::Despawn,
     pub experience_reward: super::super::components::ExperienceReward,
     pub fire_immune: super::super::components::FireImmune,
+    pub flying_speed: super::super::components::FlyingSpeed,
+    pub follow_range: super::super::components::FollowRange,
+    pub health: super::super::components::Health,
+    pub inventory: super::super::components::Inventory,
     pub is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
     pub jump_static: super::super::components::JumpStatic,
+    pub movement: super::super::components::Movement,
     pub movement_jump: super::super::components::MovementJump,
     pub nameable: super::super::components::Nameable,
     pub navigation_walk: super::super::components::NavigationWalk,
@@ -40,12 +46,18 @@ pub struct MagmaCubeBundle {
     pub on_target_escape: super::super::components::OnTargetEscape,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub scale: super::super::components::Scale,
     pub type_family: super::super::components::TypeFamily,
 }
 /// Spawn a new `minecraft:magma_cube` entity with default Bedrock components
 pub fn spawn_magma_cube(commands: &mut Commands) -> Entity {
     commands
         .spawn(MagmaCubeBundle {
+            attack: super::super::components::Attack {
+                damage: crate::types::RangeOrVal::Fixed(2f32),
+                effect_duration: Some(crate::types::MolangOr::Value(0i32)),
+                effect_name: None,
+            },
             behavior_nearest_attackable_target:
                 super::super::components::BehaviorNearestAttackableTarget {
                     attack_interval: Some(crate::types::BedrockValue::Object(
@@ -220,9 +232,33 @@ pub fn spawn_magma_cube(commands: &mut Commands) -> Entity {
                 )),
             },
             fire_immune: super::super::components::FireImmune,
+            flying_speed: super::super::components::FlyingSpeed { value: 0.02f32 },
+            follow_range: super::super::components::FollowRange {
+                max: None,
+                min: None,
+                value: crate::types::RangeOrVal::Fixed(16f32),
+            },
+            health: super::super::components::Health {
+                max: None,
+                min: None,
+                value: crate::types::RangeOrVal::Fixed(20f32),
+            },
+            inventory: super::super::components::Inventory {
+                additional_slots_per_strength: Some(0i32),
+                can_be_siphoned_from: Some(false),
+                container_type: Some("none".to_string()),
+                inventory_size: Some(5i32),
+                private: Some(false),
+                restrict_to_owner: Some(false),
+            },
             is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
             jump_static: super::super::components::JumpStatic {
                 jump_power: Some(0.42f32),
+            },
+            movement: super::super::components::Movement {
+                max: None,
+                min: None,
+                value: crate::types::RangeOrVal::Fixed(0.25f32),
             },
             movement_jump: super::super::components::MovementJump {
                 jump_delay: None,
@@ -271,6 +307,7 @@ pub fn spawn_magma_cube(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            scale: super::super::components::Scale { value: 1f32 },
             type_family: super::super::components::TypeFamily {
                 family: vec![
                     "magmacube".to_string(),

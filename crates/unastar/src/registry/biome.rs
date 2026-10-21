@@ -5,10 +5,7 @@ use super::{Registry, RegistryEntry};
 /// Runtime biome entry in the registry.
 #[derive(Debug, Clone)]
 pub struct BiomeEntry {
-    /// Internal registry ID.
-    ///
-    /// This is not a Bedrock packet/runtime biome ID. Those IDs must be sourced
-    /// from BDS packet/native data before they are exposed to the protocol.
+    /// Native Bedrock biome ID, also used as the registry identity.
     pub id: u32,
     /// Sourced packet biome ID, when available.
     ///
@@ -25,7 +22,7 @@ pub struct BiomeEntry {
     pub dimension: String,
     /// Temperature.
     pub temperature: f32,
-    /// Rainfall/downfall value from the behavior-pack climate component.
+    /// Native rainfall/downfall value.
     pub downfall: f32,
     /// Has precipitation (rain/snow).
     pub has_precipitation: bool,
@@ -47,19 +44,17 @@ impl RegistryEntry for BiomeEntry {
 pub type BiomeRegistry = Registry<BiomeEntry>;
 
 impl BiomeRegistry {
-    /// Load vanilla biomes from behavior-pack sourced generated data.
-    ///
-    /// Numeric packet/runtime biome IDs are deliberately not sourced here. The
-    /// behavior pack is authoritative for names, tags, and climate, while packet
-    /// IDs must come from BDS packet/native captures when available.
+    /// Load native biome identities and climate, with behavior-pack gameplay enrichment.
     pub fn load_vanilla(&mut self) {
         use unastar_data::biomes::ALL_BIOMES;
 
-        for (id, biome) in ALL_BIOMES.iter().enumerate() {
+        for biome in &ALL_BIOMES {
             let climate = biome.climate;
             let entry = BiomeEntry {
-                id: id as u32,
-                packet_id: None,
+                id: biome.id,
+                packet_id: Some(
+                    u16::try_from(biome.id).expect("native biome ID exceeds packet range"),
+                ),
                 string_id: biome.identifier.to_string(),
                 name: biome_display_name(biome.identifier),
                 category: biome_category(biome.tags).to_string(),
@@ -76,9 +71,7 @@ impl BiomeRegistry {
     }
 
     /// Convert registry to protocol packet with string interning.
-    /// Match the 1.26.40 map-of-biome-names-to-data wire shape with string
-    /// interning. Vanilla IDs remain the protocol sentinel when no sourced
-    /// numeric ID is available.
+    /// Match the map-of-biome-names-to-data wire shape, preserving sourced native IDs.
     pub fn to_packet(&self) -> jolyne::valentine::BiomeDefinitionListPacket {
         use jolyne::valentine::{
             BiomeDefinitionData, BiomeDefinitionListPacketMapofBiomenamestodataItem,
@@ -204,7 +197,7 @@ mod tests {
     }
 
     #[test]
-    fn vanilla_biome_packet_does_not_invent_numeric_ids() {
+    fn vanilla_biome_packet_preserves_native_numeric_ids() {
         let mut registry = BiomeRegistry::new();
         registry.load_vanilla();
 
@@ -214,12 +207,13 @@ mod tests {
             packet.mapof_biomenamestodata.len(),
             unastar_data::biomes::ALL_BIOMES.len()
         );
-        assert!(
-            packet
-                .mapof_biomenamestodata
-                .iter()
-                .all(|definition| definition.value.id == (-1i16) as u16)
-        );
+        for definition in &packet.mapof_biomenamestodata {
+            let name = &packet.stringlist.strings[usize::from(definition.key)];
+            assert_eq!(
+                u32::from(definition.value.id),
+                unastar_data::biomes::get(name).unwrap().id
+            );
+        }
         let plains_index = packet
             .stringlist
             .strings
