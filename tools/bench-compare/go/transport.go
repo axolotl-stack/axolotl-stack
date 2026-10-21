@@ -2,10 +2,14 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
+	"log/slog"
+	"net"
 	"os"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/sandertv/go-raknet"
@@ -14,6 +18,31 @@ import (
 var sizes = []int{32, 512, 4096, 65536}
 
 const networkTimeout = 30 * time.Second
+
+var networkLog = slog.New(slog.NewTextHandler(os.Stderr, nil))
+
+func countForSize(size, count int) (int, error) {
+	if size < 4096 {
+		return count, nil
+	}
+	value, ok := os.LookupEnv("BENCH_SPLIT_COUNT")
+	if !ok {
+		return count, nil
+	}
+	count, err := strconv.Atoi(value)
+	if err != nil || count <= 0 {
+		return 0, fmt.Errorf("BENCH_SPLIT_COUNT must be a positive integer")
+	}
+	return count, nil
+}
+
+func listenBenchmark(address string) (*raknet.Listener, error) {
+	config := raknet.ListenConfig{ErrorLog: networkLog}
+	if os.Getenv("BENCH_TRACE_SPLITS") == "1" {
+		config.UpstreamPacketListener = traceListener{}
+	}
+	return config.Listen(address)
+}
 
 func payload(size int) []byte {
 	p := make([]byte, size)
@@ -49,9 +78,26 @@ func closeAndDrain(conn *raknet.Conn) error {
 	return nil
 }
 
+// The peer closes only after its final application read. Starting Close here
+// would cancel that read even when transport-level ACKs have already arrived.
+func finishEcho(conn *raknet.Conn) error {
+	_, err := conn.ReadPacket()
+	if err == nil {
+		return fmt.Errorf("unexpected application message after final echo")
+	}
+	if !errors.Is(err, net.ErrClosed) {
+		return err
+	}
+	return closeAndDrain(conn)
+}
+
 func serveListener(listener *raknet.Listener, count int) error {
 	for _, size := range sizes {
-		err := bounded(networkTimeout+time.Duration(count)*time.Second, func() error {
+		count, err := countForSize(size, count)
+		if err != nil {
+			return err
+		}
+		err = bounded(networkTimeout+time.Duration(count)*time.Second, func() error {
 			conn, err := listener.Accept()
 			if err != nil {
 				return err
@@ -78,7 +124,7 @@ func serveListener(listener *raknet.Listener, count int) error {
 					return io.ErrShortWrite
 				}
 			}
-			return closeAndDrain(rc)
+			return finishEcho(rc)
 		})
 		if err != nil {
 			return err
@@ -88,7 +134,7 @@ func serveListener(listener *raknet.Listener, count int) error {
 }
 
 func serve(address string, count int) error {
-	listener, err := raknet.Listen(address)
+	listener, err := listenBenchmark(address)
 	if err != nil {
 		return err
 	}
@@ -99,9 +145,13 @@ func serve(address string, count int) error {
 
 func client(address string, count int) error {
 	for _, size := range sizes {
+		count, err := countForSize(size, count)
+		if err != nil {
+			return err
+		}
 		var result row
-		err := bounded(networkTimeout+time.Duration(count)*time.Second, func() error {
-			conn, err := raknet.DialTimeout(address, networkTimeout)
+		err = bounded(networkTimeout+time.Duration(count)*time.Second, func() error {
+			conn, err := (raknet.Dialer{ErrorLog: networkLog}).DialTimeout(address, networkTimeout)
 			if err != nil {
 				return err
 			}
@@ -120,7 +170,7 @@ func client(address string, count int) error {
 				}
 				got, err := conn.ReadPacket()
 				if err != nil {
-					return err
+					return fmt.Errorf("size %d measured message %d: %w", size, i, err)
 				}
 				if !bytes.Equal(got, want) {
 					return fmt.Errorf("size %d message %d: echoed payload differs", size, i)
@@ -150,7 +200,7 @@ func client(address string, count int) error {
 }
 
 func loopback(count int) error {
-	listener, err := raknet.Listen("127.0.0.1:0")
+	listener, err := listenBenchmark("127.0.0.1:0")
 	if err != nil {
 		return err
 	}

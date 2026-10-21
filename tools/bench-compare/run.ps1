@@ -3,6 +3,7 @@
 param(
     [ValidateRange(3, 99)][int]$Rounds = 3,
     [ValidateRange(1, 100000)][int]$Count = 100,
+    [ValidateRange(1, 100000)][int]$SplitCount = 10,
     [ValidateRange(1, 256)][int]$GoCpu = 4,
     [string]$Output = (Join-Path $PSScriptRoot 'results'),
     [switch]$SkipBuild,
@@ -21,6 +22,9 @@ if (!(Get-Command go -ErrorAction SilentlyContinue) -and (Test-Path 'C:/Program 
 }
 $env:GOMAXPROCS = "$GoCpu"
 $env:TOKIO_WORKER_THREADS = "$GoCpu"
+$env:BENCH_SPLIT_COUNT = "$SplitCount"
+# Diagnostic packet observation changes scheduling and is never a timed input.
+$env:BENCH_TRACE_SPLITS = '0'
 $Suffix = if ($IsWindows) { '.exe' } else { '' }
 $Rust = Join-Path $Repo "target/release/bench-compare$Suffix"
 $Go = Join-Path $Cache "go-bench$Suffix"
@@ -71,6 +75,7 @@ try {
     $meta = @{
         utc = [DateTime]::UtcNow.ToString('o'); rounds = $Rounds; count = $Count; go_cpu = $GoCpu
         warmup_echoes = 1
+        split_count = $SplitCount
         os = [Runtime.InteropServices.RuntimeInformation]::OSDescription
         architecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
         processors = [Environment]::ProcessorCount
@@ -109,9 +114,9 @@ try {
             $cj = Start-Runner $client @('client','--address',$address,'--count',"$Count") $Repo
             Finish-Runner $cj (Join-Path $Output "interop-$direction-client") | Out-Null
             Finish-Runner $job (Join-Path $Output "interop-$direction-server") | Out-Null
-            $interop += @{ direction = $direction; status = 'PASS'; sizes = @(32,512,4096,65536); count = $Count }
+            $interop += @{ direction = $direction; status = 'PASS'; sizes = @(32,512,4096,65536); count = $Count; split_count = $SplitCount }
         } catch {
-            $interop += @{ direction = $direction; status = 'FAIL'; error = "$_"; sizes = @(32,512,4096,65536); count = $Count }
+            $interop += @{ direction = $direction; status = 'FAIL'; error = "$_"; sizes = @(32,512,4096,65536); count = $Count; split_count = $SplitCount }
         } finally {
             if (!$job.Process.HasExited) { $job.Process.Kill($true); $job.Process.WaitForExit() }
         }

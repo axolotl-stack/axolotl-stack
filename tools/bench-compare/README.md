@@ -8,7 +8,7 @@ Requirements: repository Rust toolchain, Go (the installation used by `tools/cli
 
 ```powershell
 git submodule update --init crates/valentine_gen/protocolgen
-./tools/bench-compare/run.ps1 -Rounds 3 -Count 100 -GoCpu 4 -Contract
+./tools/bench-compare/run.ps1 -Rounds 3 -Count 100 -SplitCount 10 -GoCpu 4 -Contract
 cargo clippy -p bench-compare --all-targets -- -D warnings
 cargo test -p bench-compare
 python tools/bench-compare/test_report.py
@@ -35,6 +35,8 @@ Protocolgen's existing `differential/retail/bench_test.go`, `bench/benches/codec
 Transport loopback creates a listener and dialer, then measures sequential request/echo round trips (one message in flight), excluding connection setup. Four sizes: 32, 512, 4096 and 65536 bytes. Payload byte zero is `0xfe`; remaining bytes are index modulo 251. Every response is compared byte for byte. Large messages force transport splitting/reassembly. `msgs/s` counts completed request/echo pairs and MB/s counts request payload only (decimal MB), not doubled echo traffic, UDP overhead or retransmissions. p50/p99 are nearest-rank observed round-trip latencies, not one-way latency. This is latency-limited echo throughput, not saturation bandwidth. Interop uses the same four connections/sizes and full equality checks, but its timing is not included in speed ratios.
 
 Each size starts with one identical untimed readiness echo before the configured measured count. This excludes application acceptance and previous-session draining from both throughput and percentile samples; both implementations and interop directions use that same sequence.
+
+The default final matrix measures 100 echoes for 32/512 B and ten for 4096/65536 B, identically on both sides, with a fresh connection for every size and round. `-SplitCount` sets `BENCH_SPLIT_COUNT` in both child processes; direct CLI use without that environment variable uses `--count` for every size. Ten-sample p99 is explicitly marked low-sample (the maximum of ten observations), not a reliable population-tail estimate. The reduced split-message count was selected after a real 100-echo Go-to-Go run exhausted the reference server's private 16-concurrent-split limit. No failure is retried or reported as a success. See the report's direction-specific packet evidence and [diagnostics.json](diagnostics.json): a separate Go-to-Go trace observed 29 late duplicate fragment indexes over 17 already-completed split IDs; one Rust-to-Go trace observed none. That evidence does not attribute the observed failure to tokio-raknet.
 
 Microbenchmarks are restricted to APIs publicly exposed by each dependency. Private Go datagram serialization and split assemblers cannot be called without forking or changing production sources. Missing cells are unavailable, never inferred or measured with unrelated substitutes. Read [Go caveats](go/CAVEATS.md) and [Rust caveats](../../crates/bench-compare/README.md) for exact pins, APIs and allocation semantics. No jolyne framing comparison is claimed unless an equivalent public API is actually exercised.
 

@@ -40,7 +40,7 @@ def main():
     (source / 'summary.json').write_text(json.dumps({'metadata': metadata, 'rows': aggregate}, indent=2))
     index = {(r['area'], r['name'], r['operation'], r['implementation']): r for r in aggregate}
     report = ['# Cross-implementation benchmark report', '',
-              f"Measured UTC: {metadata['utc']}. Median of {metadata['rounds']} alternating rounds; {metadata['count']} measured sequential echoes per size per round; untimed readiness echoes per connection: {metadata.get('warmup_echoes', 'not recorded')}.", '',
+              f"Measured UTC: {metadata['utc']}. Median of {metadata['rounds']} alternating rounds; measured echoes per connection: {metadata['count']} for 32/512 B and {metadata.get('split_count', metadata['count'])} for 4096/65536 B; untimed readiness echoes per connection: {metadata.get('warmup_echoes', 'not recorded')}.", '',
               f"Machine: {metadata['os']} / {metadata['architecture']}; {metadata.get('cpu')}; {metadata['processors']} logical processors.",
               f"Toolchains: `{metadata['rust']}`; `{metadata['go']}`; Go GOMAXPROCS={metadata['go_cpu']}; Tokio multi-thread workers={metadata.get('rust_workers', 'not recorded')}.",
               f"Source base: `{metadata['commit']}`; protocolgen corpus: `{metadata['corpus_commit']}`.", '', metadata['conditions'], '',
@@ -49,8 +49,8 @@ def main():
     for area in sorted({r['area'] for r in aggregate}):
         report += [f'## {area}', '']
         if area == 'loopback':
-            report += ['| Size / operation | Side | ns/echo | msgs/s | MB/s | p50 µs | p99 µs | ours/Go | Winner |',
-                       '| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |']
+            report += ['| Size / operation | Side | Samples | ns/echo | msgs/s | MB/s | p50 µs | p99 µs | ours/Go | Winner |',
+                       '| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |']
         else:
             report += ['| Case | Operation | Side | ns/op | allocs/op | allocated B/op | ours/Go | Winner |',
                        '| --- | --- | --- | ---: | ---: | ---: | ---: | --- |']
@@ -61,10 +61,14 @@ def main():
             if ratio is not None:
                 ratios.append((ratio, area, r['name'], r['operation'], r['implementation']))
             if area == 'loopback':
-                report.append(f"| {r['name']} / {r['operation']} | {r['implementation']} | {fmt(r['ns_per_op'])} | {fmt(r['msgs_per_sec'])} | {fmt(r['mb_per_sec'])} | {fmt(r['p50_us'])} | {fmt(r['p99_us'])} | {fmt(ratio)} | {winner} |")
+                samples = metadata.get('split_count', metadata['count']) if r['payload_bytes'] >= 4096 else metadata['count']
+                tail = fmt(r['p99_us']) + (' †' if samples < 100 else '')
+                report.append(f"| {r['name']} / {r['operation']} | {r['implementation']} | {samples} | {fmt(r['ns_per_op'])} | {fmt(r['msgs_per_sec'])} | {fmt(r['mb_per_sec'])} | {fmt(r['p50_us'])} | {tail} | {fmt(ratio)} | {winner} |")
             else:
                 report.append(f"| {r['name']} | {r['operation']} | {r['implementation']} | {fmt(r['ns_per_op'])} | {fmt(r['allocs_per_op'])} | {fmt(r['bytes_per_op'])} | {fmt(ratio)} | {winner} |")
         report.append('')
+        if area == 'loopback':
+            report += ['† Low-sample p99: for ten samples, nearest-rank p99 is the maximum, not a stable population tail estimate. Both implementations use the same per-size counts and fresh connections in every round.', '']
     contract = []
     for estimates in sorted((source / 'contract-criterion').glob('*/*/new/estimates.json')):
         result = json.loads(estimates.read_text())
@@ -96,9 +100,25 @@ def main():
         interop = [interop]
     report += ['## Transport interop sanity', '', '| Direction | Sizes | Echoes per size | Result |', '| --- | --- | ---: | --- |']
     for result in interop:
-        report.append(f"| {result['direction']} | {','.join(map(str,result['sizes']))} | {result['count']} | {result['status']} |")
+        counts = [result.get('split_count', result['count']) if size >= 4096 else result['count'] for size in result['sizes']]
+        report.append(f"| {result['direction']} | {','.join(map(str,result['sizes']))} | {','.join(map(str, counts))} | {result['status']} |")
         if result.get('error'):
             report += ['', 'Failure evidence: `' + result['error'].replace('`', "'").replace('\n', ' ') + '`']
+    diagnostic = json.loads(Path(__file__).with_name('diagnostics.json').read_text())
+    failure = diagnostic['failure']
+    report += ['', '## Reference split/retransmission finding (separate diagnostic runs)', '',
+               f"An uninstrumented {failure['direction']} run of `{failure['command']}` failed at {failure['measured_size']} B, measured message index {failure['measured_message_index']}: `{failure['error']}`. No Rust peer participated in that failure; no public listener API overrides this private limit.", '',
+               'The coordinator-approved timed matrix retains 100 small-message echoes and uses ten measured plus one readiness echo for split-message sizes on both implementations. Larger-count failures remain failures: the harness neither retries nor changes production/reference sources.', '',
+               '| Direction | Diagnostic attempt | Completed split groups | Duplicate indexes after completion | Exit code |',
+               '| --- | ---: | ---: | ---: | ---: |']
+    for observed in diagnostic['observations']:
+        report.append(f"| {observed['direction']} | {observed['attempt']} | {observed['completed_groups']} | {observed['duplicate_indexes_after_completion']} | {observed['exit_code']} |")
+    report += ['', diagnostic['interpretation'], '',
+               '| Late datagram sequence | Split ID | Fragment index | Fragment count |',
+               '| ---: | ---: | ---: | ---: |']
+    for example in diagnostic['late_examples']:
+        report.append(f"| {example['datagram_sequence']} | {example['split_id']} | {example['fragment_index']} | {example['fragment_count']} |")
+    report += ['', 'The successful Go-to-Go trace with late fragments covered 17 distinct completed split IDs. All instrumented captures used GOMAXPROCS=4, 100 measured echoes plus readiness; the exact failing standalone run did not record concurrency. The public UDP socket observer is disabled for timed measurements. Reproduction and distilled evidence: [diagnostics.json](diagnostics.json); raw packet metadata logs remain ignored under results/diagnostics/.', '']
     report += ['', '## Highest measured optimization gaps', '']
     for ratio, area, name, operation, implementation in sorted(ratios, reverse=True)[:3]:
         report.append(f'- {area} / {name} / {operation} ({implementation}): {ratio:.2f}× Go time. Profile this measured boundary before attributing a cause.')

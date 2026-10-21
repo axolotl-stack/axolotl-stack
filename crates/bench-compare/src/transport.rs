@@ -16,8 +16,26 @@ pub fn payload(size: usize) -> Bytes {
     Bytes::from(bytes)
 }
 
+fn count_for_size(size: usize, count: usize) -> Result<usize> {
+    if size < 4096 {
+        return Ok(count);
+    }
+    match std::env::var("BENCH_SPLIT_COUNT") {
+        Ok(value) => {
+            let count = value
+                .parse()
+                .context("BENCH_SPLIT_COUNT must be an integer")?;
+            ensure!(count > 0, "BENCH_SPLIT_COUNT must be positive");
+            Ok(count)
+        }
+        Err(std::env::VarError::NotPresent) => Ok(count),
+        Err(error) => Err(error.into()),
+    }
+}
+
 pub async fn echo(mut listener: RaknetListener, count: usize) -> Result<()> {
     for size in SIZES {
+        let count = count_for_size(size, count)?;
         let mut stream = timeout(TIMEOUT, listener.accept())
             .await
             .context("accept timeout")?
@@ -59,6 +77,7 @@ pub async fn serve(address: SocketAddr, count: usize) -> Result<()> {
 pub async fn client(address: SocketAddr, count: usize) -> Result<()> {
     ensure!(count > 0, "count must be positive");
     for size in SIZES {
+        let count = count_for_size(size, count)?;
         let mut stream = timeout(TIMEOUT, RaknetStream::connect(address))
             .await
             .context("connect timeout")??;

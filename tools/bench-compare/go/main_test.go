@@ -105,3 +105,39 @@ func BenchmarkCodec(b *testing.B) {
 		})
 	}
 }
+
+func TestEchoShutdownRejectsExtraDataWithoutClosingUnreadPeer(t *testing.T) {
+	listener, err := raknet.Listen("127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	accepted := make(chan *raknet.Conn, 1)
+	go func() {
+		conn, err := listener.Accept()
+		if err == nil {
+			accepted <- conn.(*raknet.Conn)
+		} else {
+			close(accepted)
+		}
+	}()
+	client, err := raknet.DialTimeout(listener.Addr().String(), networkTimeout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	server := <-accepted
+	if server == nil {
+		t.Fatal("server accept failed")
+	}
+	defer server.Close()
+	if _, err := client.Write(payload(32)); err != nil {
+		t.Fatal(err)
+	}
+	if err := finishEcho(server); err == nil {
+		t.Fatal("shutdown accepted an unread application message")
+	}
+	if server.Context().Err() != nil {
+		t.Fatal("shutdown closed the connection before classifying unread application data")
+	}
+}
