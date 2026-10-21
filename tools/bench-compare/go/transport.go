@@ -62,7 +62,7 @@ func serveListener(listener *raknet.Listener, count int) error {
 				return fmt.Errorf("unexpected RakNet connection type %T", conn)
 			}
 			want := payload(size)
-			for i := range count {
+			for i := range count + 1 {
 				got, err := rc.ReadPacket()
 				if err != nil {
 					return err
@@ -109,7 +109,7 @@ func client(address string, count int) error {
 			want := payload(size)
 			samples := make([]float64, count)
 			start := time.Now()
-			for i := range count {
+			for i := -1; i < count; i++ {
 				tick := time.Now()
 				n, err := conn.Write(want)
 				if err != nil {
@@ -124,6 +124,12 @@ func client(address string, count int) error {
 				}
 				if !bytes.Equal(got, want) {
 					return fmt.Errorf("size %d message %d: echoed payload differs", size, i)
+				}
+				// The first echo proves application readiness after connection
+				// setup and the previous session's asynchronous drain.
+				if i < 0 {
+					start = time.Now()
+					continue
 				}
 				samples[i] = float64(time.Since(tick).Nanoseconds()) / 1000
 			}

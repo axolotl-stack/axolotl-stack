@@ -40,7 +40,7 @@ def main():
     (source / 'summary.json').write_text(json.dumps({'metadata': metadata, 'rows': aggregate}, indent=2))
     index = {(r['area'], r['name'], r['operation'], r['implementation']): r for r in aggregate}
     report = ['# Cross-implementation benchmark report', '',
-              f"Measured UTC: {metadata['utc']}. Median of {metadata['rounds']} alternating rounds; {metadata['count']} sequential echoes per size per round.", '',
+              f"Measured UTC: {metadata['utc']}. Median of {metadata['rounds']} alternating rounds; {metadata['count']} measured sequential echoes per size per round; untimed readiness echoes per connection: {metadata.get('warmup_echoes', 'not recorded')}.", '',
               f"Machine: {metadata['os']} / {metadata['architecture']}; {metadata.get('cpu')}; {metadata['processors']} logical processors.",
               f"Toolchains: `{metadata['rust']}`; `{metadata['go']}`; Go GOMAXPROCS={metadata['go_cpu']}; Tokio multi-thread workers={metadata.get('rust_workers', 'not recorded')}.",
               f"Source base: `{metadata['commit']}`; protocolgen corpus: `{metadata['corpus_commit']}`.", '', metadata['conditions'], '',

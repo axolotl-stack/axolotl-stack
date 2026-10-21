@@ -70,6 +70,7 @@ try {
     }
     $meta = @{
         utc = [DateTime]::UtcNow.ToString('o'); rounds = $Rounds; count = $Count; go_cpu = $GoCpu
+        warmup_echoes = 1
         os = [Runtime.InteropServices.RuntimeInformation]::OSDescription
         architecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
         processors = [Environment]::ProcessorCount

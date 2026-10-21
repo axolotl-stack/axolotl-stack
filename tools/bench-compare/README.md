@@ -34,6 +34,8 @@ Protocolgen's existing `differential/retail/bench_test.go`, `bench/benches/codec
 
 Transport loopback creates a listener and dialer, then measures sequential request/echo round trips (one message in flight), excluding connection setup. Four sizes: 32, 512, 4096 and 65536 bytes. Payload byte zero is `0xfe`; remaining bytes are index modulo 251. Every response is compared byte for byte. Large messages force transport splitting/reassembly. `msgs/s` counts completed request/echo pairs and MB/s counts request payload only (decimal MB), not doubled echo traffic, UDP overhead or retransmissions. p50/p99 are nearest-rank observed round-trip latencies, not one-way latency. This is latency-limited echo throughput, not saturation bandwidth. Interop uses the same four connections/sizes and full equality checks, but its timing is not included in speed ratios.
 
+Each size starts with one identical untimed readiness echo before the configured measured count. This excludes application acceptance and previous-session draining from both throughput and percentile samples; both implementations and interop directions use that same sequence.
+
 Microbenchmarks are restricted to APIs publicly exposed by each dependency. Private Go datagram serialization and split assemblers cannot be called without forking or changing production sources. Missing cells are unavailable, never inferred or measured with unrelated substitutes. Read [Go caveats](go/CAVEATS.md) and [Rust caveats](../../crates/bench-compare/README.md) for exact pins, APIs and allocation semantics. No jolyne framing comparison is claimed unless an equivalent public API is actually exercised.
 
 ## Reading the report

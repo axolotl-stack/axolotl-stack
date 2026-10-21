@@ -23,7 +23,7 @@ pub async fn echo(mut listener: RaknetListener, count: usize) -> Result<()> {
             .context("accept timeout")?
             .context("listener closed")?;
         let expected = payload(size);
-        for _ in 0..count {
+        for _ in 0..=count {
             let received = timeout(TIMEOUT, stream.recv_message())
                 .await
                 .context("server receive timeout")?
@@ -64,8 +64,8 @@ pub async fn client(address: SocketAddr, count: usize) -> Result<()> {
             .context("connect timeout")??;
         let payload = payload(size);
         let mut samples = Vec::with_capacity(count);
-        let started = Instant::now();
-        for _ in 0..count {
+        let mut started = Instant::now();
+        for index in 0..=count {
             let tick = Instant::now();
             timeout(TIMEOUT, stream.send_encoded(Message::new(payload.clone())))
                 .await
@@ -78,6 +78,12 @@ pub async fn client(address: SocketAddr, count: usize) -> Result<()> {
                 reply.id == payload[0] && reply.payload.as_ref() == &payload[1..],
                 "echo mismatch ({size})"
             );
+            // Exclude the readiness echo and any prior connection teardown
+            // from both throughput and per-message latency samples.
+            if index == 0 {
+                started = Instant::now();
+                continue;
+            }
             samples.push(tick.elapsed().as_secs_f64() * 1e6);
         }
         let seconds = started.elapsed().as_secs_f64();
