@@ -22,6 +22,10 @@
       }
     ]
   },
+  "creative": {
+    "groups": [],
+    "items": []
+  },
   "biomes": {
     "definitions": [
       {
