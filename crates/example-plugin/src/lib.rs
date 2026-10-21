@@ -1,7 +1,15 @@
+//! WIT Component Model example. Build with:
+//! `cargo build -p example_plugin --target wasm32-wasip2`.
+//! Install the target first with `rustup target add wasm32-wasip2`.
+//!
+//! The registration attribute exports the WIT-generated `Guest` bridge;
+//! implement only the typed `Plugin` callbacks needed by this component.
+
 use unastar_api::{BlockPos, LogLevel, Player, Plugin, Vec3, host};
 
 struct ExamplePlugin;
 
+#[unastar_api_macros::plugin]
 impl Plugin for ExamplePlugin {
     fn on_load() {
         host::log(LogLevel::Info, "Example plugin loaded!");
@@ -72,5 +80,3 @@ impl Plugin for ExamplePlugin {
         true
     }
 }
-
-unastar_api::export_plugin!(ExamplePlugin);

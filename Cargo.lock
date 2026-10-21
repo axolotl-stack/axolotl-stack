@@ -1490,6 +1490,7 @@ name = "example_plugin"
 version = "0.2.0"
 dependencies = [
  "unastar_api",
+ "unastar_api_macros",
 ]
 
 [[package]]
@@ -4659,6 +4660,15 @@ dependencies = [
  "anyhow",
  "wit-bindgen 0.53.0",
  "wit-parser 0.245.1",
+]
+
+[[package]]
+name = "unastar_api_macros"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
+ "unastar_api",
 ]
 
 [[package]]

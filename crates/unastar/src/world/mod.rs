@@ -25,9 +25,10 @@ impl ChunkPos {
 
 /// World boundary policy in chunk coordinates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "mode", rename_all = "snake_case")]
+#[serde(tag = "mode", rename_all = "snake_case", deny_unknown_fields)]
 pub enum WorldBounds {
     /// Infinite world (no bounds checks).
+    #[serde(deserialize_with = "crate::config::deserialize_empty_variant")]
     Infinite,
     /// A finite square around (0, 0), inclusive.
     Radius { radius_chunks: u32 },
@@ -63,9 +64,10 @@ impl WorldBounds {
 
 /// World generator for chunks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum WorldGenerator {
     /// Superflat world: classic Minecraft superflat (1 bedrock, 2 dirt, 1 grass at Y=0-3).
+    #[serde(deserialize_with = "crate::config::deserialize_empty_variant")]
     SuperFlat,
     /// A 3x3 (or larger) stone platform in an otherwise-void world.
     VoidSpawnPlatform { platform_radius_chunks: u32 },
@@ -86,7 +88,7 @@ pub enum StorageProvider {
 
 /// World configuration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct WorldConfig {
     pub dimension: i32,
     pub bounds: WorldBounds,
