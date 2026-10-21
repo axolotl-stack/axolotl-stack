@@ -17,6 +17,7 @@ impl Piglin {
 pub struct PiglinBundle {
     pub admire_item: super::super::components::AdmireItem,
     pub annotation_open_door: super::super::components::AnnotationOpenDoor,
+    pub attack: super::super::components::Attack,
     pub behavior_admire_item: super::super::components::BehaviorAdmireItem,
     pub behavior_avoid_block: super::super::components::BehaviorAvoidBlock,
     pub behavior_avoid_mob_type: super::super::components::BehaviorAvoidMobType,
@@ -33,6 +34,7 @@ pub struct PiglinBundle {
         super::super::components::ConditionalBandwidthOptimization,
     pub despawn: super::super::components::Despawn,
     pub equip_item: super::super::components::EquipItem,
+    pub flying_speed: super::super::components::FlyingSpeed,
     pub follow_range: super::super::components::FollowRange,
     pub health: super::super::components::Health,
     pub hurt_on_condition: super::super::components::HurtOnCondition,
@@ -40,12 +42,14 @@ pub struct PiglinBundle {
     pub is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
     pub jump_static: super::super::components::JumpStatic,
     pub loot: super::super::components::Loot,
+    pub movement: super::super::components::Movement,
     pub movement_basic: super::super::components::MovementBasic,
     pub nameable: super::super::components::Nameable,
     pub navigation_walk: super::super::components::NavigationWalk,
     pub on_target_acquired: super::super::components::OnTargetAcquired,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub scale: super::super::components::Scale,
     pub shareables: super::super::components::Shareables,
 }
 /// Spawn a new `minecraft:piglin` entity with default Bedrock components
@@ -57,6 +61,11 @@ pub fn spawn_piglin(commands: &mut Commands) -> Entity {
                 duration: Some(8i32),
             },
             annotation_open_door: super::super::components::AnnotationOpenDoor,
+            attack: super::super::components::Attack {
+                damage: crate::types::RangeOrVal::Fixed(2f32),
+                effect_duration: Some(crate::types::MolangOr::Value(0i32)),
+                effect_name: None,
+            },
             behavior_admire_item: super::super::components::BehaviorAdmireItem {
                 admire_item_sound: Some("admire".to_string()),
                 on_admire_item_start: Some(crate::types::BedrockValue::Object(
@@ -388,6 +397,7 @@ pub fn spawn_piglin(commands: &mut Commands) -> Entity {
                     )]),
                 )]),
             },
+            flying_speed: super::super::components::FlyingSpeed { value: 0.02f32 },
             follow_range: super::super::components::FollowRange {
                 max: None,
                 min: None,
@@ -415,6 +425,11 @@ pub fn spawn_piglin(commands: &mut Commands) -> Entity {
             },
             loot: super::super::components::Loot {
                 table: "loot_tables/entities/piglin.json".to_string(),
+            },
+            movement: super::super::components::Movement {
+                max: None,
+                min: None,
+                value: crate::types::RangeOrVal::Fixed(0.25f32),
             },
             movement_basic: super::super::components::MovementBasic {
                 max_turn: Some(30f32),
@@ -459,6 +474,7 @@ pub fn spawn_piglin(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            scale: super::super::components::Scale { value: 1f32 },
             shareables: super::super::components::Shareables {
                 all_items: Some(false),
                 all_items_max_amount: Some(-1i32),

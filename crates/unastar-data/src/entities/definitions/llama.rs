@@ -15,6 +15,7 @@ impl Llama {
 /// Component bundle for spawning a `minecraft:llama`
 #[derive(Bundle, Clone)]
 pub struct LlamaBundle {
+    pub attack: super::super::components::Attack,
     pub balloonable: super::super::components::Balloonable,
     pub behavior_float: super::super::components::BehaviorFloat,
     pub behavior_hurt_by_target: super::super::components::BehaviorHurtByTarget,
@@ -33,10 +34,12 @@ pub struct LlamaBundle {
         super::super::components::ConditionalBandwidthOptimization,
     pub damage_sensor: super::super::components::DamageSensor,
     pub despawn: super::super::components::Despawn,
+    pub flying_speed: super::super::components::FlyingSpeed,
     pub follow_range: super::super::components::FollowRange,
     pub healable: super::super::components::Healable,
     pub health: super::super::components::Health,
     pub hurt_on_condition: super::super::components::HurtOnCondition,
+    pub inventory: super::super::components::Inventory,
     pub is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
     pub jump_static: super::super::components::JumpStatic,
     pub leashable: super::super::components::Leashable,
@@ -49,6 +52,7 @@ pub struct LlamaBundle {
     pub on_target_escape: super::super::components::OnTargetEscape,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub scale: super::super::components::Scale,
     pub shooter: super::super::components::Shooter,
     pub type_family: super::super::components::TypeFamily,
 }
@@ -56,6 +60,11 @@ pub struct LlamaBundle {
 pub fn spawn_llama(commands: &mut Commands) -> Entity {
     commands
         .spawn(LlamaBundle {
+            attack: super::super::components::Attack {
+                damage: crate::types::RangeOrVal::Fixed(2f32),
+                effect_duration: Some(crate::types::MolangOr::Value(0i32)),
+                effect_name: None,
+            },
             balloonable: super::super::components::Balloonable {
                 mass: None,
                 max_distance: None,
@@ -244,6 +253,9 @@ pub fn spawn_llama(commands: &mut Commands) -> Entity {
                 min_range_random_chance: Some(800i32),
                 remove_child_entities: Some(false),
             },
+            flying_speed: super::super::components::FlyingSpeed {
+                value: 0.02f32,
+            },
             follow_range: super::super::components::FollowRange {
                 max: Some(40f32),
                 min: None,
@@ -274,6 +286,14 @@ pub fn spawn_llama(commands: &mut Commands) -> Entity {
             },
             hurt_on_condition: super::super::components::HurtOnCondition {
                 damage_conditions: None,
+            },
+            inventory: super::super::components::Inventory {
+                additional_slots_per_strength: Some(0i32),
+                can_be_siphoned_from: Some(false),
+                container_type: Some("none".to_string()),
+                inventory_size: Some(5i32),
+                private: Some(false),
+                restrict_to_owner: Some(false),
             },
             is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
             jump_static: super::super::components::JumpStatic {
@@ -351,6 +371,9 @@ pub fn spawn_llama(commands: &mut Commands) -> Entity {
             pushable: super::super::components::Pushable {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
+            },
+            scale: super::super::components::Scale {
+                value: 1f32,
             },
             shooter: super::super::components::Shooter {
                 aux_val: Some(-1i32),

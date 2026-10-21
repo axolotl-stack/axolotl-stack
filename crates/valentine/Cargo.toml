@@ -9,7 +9,6 @@ bitflags.workspace = true
 bytes.workspace = true
 uuid.workspace = true
 valentine_bedrock_core.workspace = true
-valentine_bedrock_1_26_30 = { path = "bedrock_versions/v1_26_30", optional = true }
 valentine_bedrock_1_26_51 = { path = "bedrock_versions/v1_26_51", optional = true }
 
 [dev-dependencies]
@@ -23,7 +22,6 @@ criterion.workspace = true
 
 [features]
 default = ["bedrock_1_26_51"]
-bedrock_1_26_30 = ["dep:valentine_bedrock_1_26_30"]
 bedrock_1_26_51 = ["dep:valentine_bedrock_1_26_51"]
 
 [[bench]]

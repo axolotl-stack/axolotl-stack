@@ -15,6 +15,7 @@ impl CamelHusk {
 /// Component bundle for spawning a `minecraft:camel_husk`
 #[derive(Bundle, Clone)]
 pub struct CamelHuskBundle {
+    pub attack: super::super::components::Attack,
     pub balloonable: super::super::components::Balloonable,
     pub behavior_float: super::super::components::BehaviorFloat,
     pub behavior_look_at_player: super::super::components::BehaviorLookAtPlayer,
@@ -32,6 +33,8 @@ pub struct CamelHuskBundle {
     pub despawn: super::super::components::Despawn,
     pub environment_sensor: super::super::components::EnvironmentSensor,
     pub experience_reward: super::super::components::ExperienceReward,
+    pub flying_speed: super::super::components::FlyingSpeed,
+    pub follow_range: super::super::components::FollowRange,
     pub healable: super::super::components::Healable,
     pub health: super::super::components::Health,
     pub hurt_on_condition: super::super::components::HurtOnCondition,
@@ -47,6 +50,7 @@ pub struct CamelHuskBundle {
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
     pub rideable: super::super::components::Rideable,
+    pub scale: super::super::components::Scale,
     pub type_family: super::super::components::TypeFamily,
     pub variable_max_auto_step: super::super::components::VariableMaxAutoStep,
 }
@@ -54,6 +58,11 @@ pub struct CamelHuskBundle {
 pub fn spawn_camel_husk(commands: &mut Commands) -> Entity {
     commands
         .spawn(CamelHuskBundle {
+            attack: super::super::components::Attack {
+                damage: crate::types::RangeOrVal::Fixed(2f32),
+                effect_duration: Some(crate::types::MolangOr::Value(0i32)),
+                effect_name: None,
+            },
             balloonable: super::super::components::Balloonable {
                 mass: None,
                 max_distance: None,
@@ -285,6 +294,12 @@ pub fn spawn_camel_husk(commands: &mut Commands) -> Entity {
                     "query.last_hit_by_player ? Math.Random(1,3) : 0".to_string(),
                 )),
             },
+            flying_speed: super::super::components::FlyingSpeed { value: 0.02f32 },
+            follow_range: super::super::components::FollowRange {
+                max: None,
+                min: None,
+                value: crate::types::RangeOrVal::Fixed(16f32),
+            },
             healable: super::super::components::Healable {
                 filters: None,
                 force_use: Some(false),
@@ -404,6 +419,7 @@ pub fn spawn_camel_husk(commands: &mut Commands) -> Entity {
                     },
                 ]),
             },
+            scale: super::super::components::Scale { value: 1f32 },
             type_family: super::super::components::TypeFamily {
                 family: vec![
                     "camel_husk".to_string(),

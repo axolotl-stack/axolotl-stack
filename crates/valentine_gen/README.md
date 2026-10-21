@@ -137,6 +137,11 @@ its manifest and surface updates. A version absent from minecraft-data is kept
 when its version crate still exists, so refreshing legacy data cannot remove the
 default protocolgen-backed crate or its feature.
 
+Surface refreshes also regenerate `valentine/src/bedrock/borrowed.rs` with
+version-independent core borrowing primitives only. Packet views are exported by
+their generated version crate; obsolete hand-written packet views and retired
+feature gates must not survive a version removal.
+
 Codec emission derives conservative minimum wire sizes for collection bounds
 and detects named-reference cycles to insert the shared recursive-value budget.
 The same bounds apply to borrowed collections; recursive borrowed raw fallbacks

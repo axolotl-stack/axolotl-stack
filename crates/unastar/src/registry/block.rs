@@ -18,14 +18,11 @@ static VANILLA_BLOCK_REGISTRY: LazyLock<BlockRegistry> = LazyLock::new(|| {
 /// Runtime block entry in the registry.
 #[derive(Debug, Clone)]
 pub struct BlockEntry {
-    /// Legacy numeric block ID.
-    ///
-    /// Bedrock has duplicate legacy IDs; use string ID or runtime state ID for
-    /// exact identity.
+    /// Registry ID: the block's first canonical runtime state ID.
     pub id: u32,
     /// String identifier (e.g., "minecraft:stone").
     pub string_id: String,
-    /// Display name.
+    /// Native identifier, retained in the name field for registry consumers.
     pub name: String,
     /// Number of known canonical state variants.
     ///
@@ -41,15 +38,15 @@ pub struct BlockEntry {
     pub max_state_id: u32,
     /// Default state ID for this block.
     pub default_state_id: u32,
-    /// Bootstrap hardness value from the normalized block artifact.
+    /// Native destroy speed of the first canonical state.
     pub hardness: f32,
-    /// Bootstrap explosion resistance value from the normalized block artifact.
+    /// Native explosion resistance of the first canonical state.
     pub resistance: f32,
-    /// Bootstrap lighting/render transparency from the normalized block artifact.
+    /// Inverse native opaque-full-block flag of the first canonical state.
     pub is_transparent: bool,
-    /// Bootstrap emitted light level from the normalized block artifact.
+    /// Native emitted light level of the first canonical state.
     pub emit_light: u8,
-    /// Bootstrap filtered light level from the normalized block artifact.
+    /// Native light damping of the first canonical state.
     pub filter_light: u8,
 }
 
@@ -67,10 +64,7 @@ impl RegistryEntry for BlockEntry {
 #[derive(Debug, Clone, Default)]
 pub struct BlockRegistry {
     entries: Vec<BlockEntry>,
-    /// Maps legacy numeric block ID to the first matching entry.
-    ///
-    /// Bedrock has duplicate numeric IDs in generated data, so string ID or
-    /// runtime state ID lookups are preferred for precise block identity.
+    /// Maps each block's first canonical state ID to its entry.
     id_map: HashMap<u32, usize>,
     /// Maps string ID to entry index.
     name_map: HashMap<String, usize>,
@@ -94,10 +88,8 @@ impl BlockRegistry {
 
     /// Load vanilla blocks from the normalized block artifact.
     ///
-    /// The artifact currently bootstraps canonical runtime ranges and physical
-    /// fields from Valentine, but keeps that weak source boundary in
-    /// `unastar-data` so BDS/native facts can replace it without touching
-    /// registry consumers.
+    /// Canonical ranges and physical measurements come from protocolgen's
+    /// native BDS 1.26.51 snapshot through `unastar-data`.
     pub fn load_vanilla(&mut self) {
         use unastar_data::blocks::ALL_BLOCKS;
 
@@ -115,7 +107,7 @@ impl BlockRegistry {
 
         for block in ALL_BLOCKS.iter() {
             let entry = BlockEntry {
-                id: block.legacy_id,
+                id: block.id,
                 string_id: block.identifier.to_string(),
                 name: block.name.to_string(),
                 state_count: block.state_id_count,
@@ -137,8 +129,7 @@ impl BlockRegistry {
                 self.runtime_id_map[rid as usize] = entry_index;
             }
 
-            // Keep the first block for legacy numeric-ID lookup, but always
-            // preserve every block by string ID and runtime state ID.
+            // Registry IDs are unique first-palette ordinals.
             self.id_map.entry(entry.id).or_insert(entry_index);
             self.name_map.insert(entry.string_id.clone(), entry_index);
             self.entries.push(entry);
@@ -155,10 +146,7 @@ impl BlockRegistry {
         self.entries.get(entry_index)
     }
 
-    /// Get entry by block ID. O(1).
-    ///
-    /// Prefer `get_by_name` or `get_by_runtime_id` when exact identity matters,
-    /// because Bedrock block numeric IDs are not globally unique.
+    /// Get entry by registry ID (the first canonical state ID). O(1).
     #[inline]
     pub fn get(&self, id: u32) -> Option<&BlockEntry> {
         self.id_map
@@ -249,29 +237,18 @@ mod tests {
     }
 
     #[test]
-    fn duplicate_numeric_ids_do_not_hide_string_or_runtime_lookup() {
-        let mut registry = BlockRegistry::new();
-        registry.load_vanilla();
-
-        assert_eq!(
-            registry
-                .get(8)
-                .expect("legacy numeric ID 8 should resolve to first generated entry")
-                .string_id,
-            "minecraft:flowing_water",
-            "numeric ID lookup is first-match legacy behavior"
-        );
-
-        let grass = registry
-            .get_by_name("minecraft:grass_block")
-            .expect("grass block should be registered by string ID");
-        assert_eq!(grass.id, 8);
+    fn registry_ids_match_first_canonical_state() {
+        let registry = BlockRegistry::vanilla();
+        let stone = registry.get(3317).expect("native stone registry ID");
+        assert_eq!(stone.string_id, "minecraft:stone");
+        let grass = registry.get_by_name("minecraft:grass_block").unwrap();
+        assert_eq!(grass.id, grass.min_state_id);
         assert_eq!(
             registry
                 .get_by_runtime_id(grass.default_state_id)
-                .expect("grass default runtime ID should map back to grass")
+                .unwrap()
                 .string_id,
-            "minecraft:grass_block"
+            grass.string_id
         );
     }
 
