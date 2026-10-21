@@ -38,7 +38,7 @@ pub struct NetherNetStreamConfig {
     pub max_message_size: usize,
     /// Timeout for connection establishment.
     pub connection_timeout: Duration,
-    /// ICE servers for WebRTC connectivity.
+    /// Explicit ICE servers; nonempty values override signaling credentials.
     pub ice_servers: Vec<RTCIceServer>,
     /// Maximum size of the reassembly buffer in bytes.
     /// Prevents OOM attacks from fragmented messages.
@@ -710,11 +710,11 @@ mod tests {
         assert_eq!(started.elapsed(), timeout);
     }
 
-    #[tokio::test]
-    async fn configured_ice_servers_reach_peer_validation() {
+    #[tokio::test(start_paused = true)]
+    async fn configured_ice_servers_override_signaling_credential_wait() {
         let result = NetherNetStream::connect_with_config(
             "remote".into(),
-            QuietSignaling::new(false),
+            QuietSignaling::new(true),
             NetherNetStreamConfig {
                 ice_servers: vec![RTCIceServer {
                     urls: vec!["invalid://host".into()],

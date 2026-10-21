@@ -25,7 +25,7 @@ pub struct NetherNetDialerConfig {
     pub stream_config: NetherNetStreamConfig,
     /// Timeout for connection establishment.
     pub connection_timeout: Duration,
-    /// ICE servers for WebRTC connectivity.
+    /// Explicit ICE servers; nonempty values override signaling credentials.
     pub ice_servers: Vec<RTCIceServer>,
     /// Local signed SDP identity (identity.go:Identity).
     pub identity: Option<Arc<crate::identity::Identity>>,
@@ -257,12 +257,16 @@ impl DialerActor {
     }
 }
 
-/// df-mc/go-nethernet credentials.go:gatherOptions: service credentials supply
-/// authenticated TURN servers; absent credentials use the caller's ICE policy.
+/// Explicit ICE configuration is the static equivalent of upstream
+/// dial.go:Dialer.DialContext's Credentials override. Otherwise use signaling's
+/// fresh TURN credentials through credentials.go:gatherOptions.
 pub(crate) async fn ice_servers(
     signaling: &dyn Signaling,
     configured: &[RTCIceServer],
 ) -> Result<Vec<RTCIceServer>, NetherNetError> {
+    if !configured.is_empty() {
+        return Ok(configured.to_vec());
+    }
     Ok(
         match signaling
             .credentials()

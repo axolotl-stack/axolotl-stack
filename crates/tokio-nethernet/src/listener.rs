@@ -29,7 +29,7 @@ pub struct NetherNetListenerConfig {
     pub stream_config: NetherNetStreamConfig,
     /// Timeout for connection establishment.
     pub connection_timeout: Duration,
-    /// ICE servers for WebRTC connectivity.
+    /// Explicit ICE servers; nonempty values override signaling credentials.
     pub ice_servers: Vec<RTCIceServer>,
     /// Maximum SDP size in bytes (prevents OOM from large SDPs).
     pub max_sdp_size: usize,
