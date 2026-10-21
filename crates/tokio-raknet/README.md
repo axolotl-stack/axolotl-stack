@@ -18,6 +18,27 @@
 - 🔧 **Simple API**: A high-level abstraction that feels like working with a TCP stream, but with the control of UDP.
 - 🔍 **Tracing Support**: Deep integration with `tracing` for low-overhead debugging and performance profiling.
 
+### Application delivery and maintenance
+
+Application writes flush available datagrams immediately. Each socket receive also
+flushes ACK/NAK feedback before application data and retires received ACKs before
+checking the congestion window, so an ACK drives window-blocked writes in the same
+receive turn. This applies to both listener sessions and client streams, including
+split messages; the final fragment is reassembled and delivered on receipt.
+
+The listener's 100 ms and client's 20 ms maintenance intervals govern idle/close
+checks, timeout-based retransmission and expired split cleanup, not successful
+application delivery or ACK emission. Receive-window, feedback, split and ordering
+bounds are unchanged.
+
+`TRANSPORT-01` was traced with a scripted 64 KiB split transfer: at 0 ms the first
+fragment left one outstanding datagram and only 28 bytes of congestion bandwidth,
+too little for the next fragment. The legacy receive path emitted its ACK only at
+100 ms; receiving that ACK still left the window closed until sender maintenance
+at 120 ms reopened it to 2400 bytes. No retransmission occurred in this trace.
+Fixed-clock regression tests transfer and acknowledge 32 B and 64 KiB messages
+without invoking maintenance or advancing time.
+
 ## Installation
 
 Add this to your `Cargo.toml`:
