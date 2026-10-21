@@ -1,0 +1,23 @@
+[package]
+name = "bench-compare"
+version = "0.1.0"
+edition.workspace = true
+publish = false
+
+[dependencies]
+anyhow.workspace = true
+bytes.workspace = true
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "time", "net", "sync", "macros"] }
+tokio-raknet.workspace = true
+valentine = { workspace = true, features = ["bedrock_1_26_51"] }
+
+[dev-dependencies]
+criterion.workspace = true
+
+[[bench]]
+name = "codec"
+harness = false

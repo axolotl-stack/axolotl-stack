@@ -45,6 +45,14 @@ Additional fixes found during the pass: jolyne's server `start_game` dropped `St
 
 Known deferred items: MPSD ConnectionType 7/`PmsgId` friend broadcasting (go-xsapi sample) needs a signaling path no upstream provides yet; go-nethernet's default client verifier defers JWT verification to the Login GameServerToken, which jolyne must enforce when NetherNet identity is used; live Xbox/TLS paths are not exercised by tests.
 
+## Performance and conformance tooling (2026-10-21)
+
+- `tools/bench-compare` + `crates/bench-compare`: Valentine and tokio-raknet versus gophertunnel (HashimTheArab fork `80c811b`) and go-raknet (lunar-bedrock), over protocolgen's retail corpus; see `tools/bench-compare/report.md`. Owned codec geometric speedup versus gophertunnel across 25 matched packets: decode 2.0×, encode 5.3×. Cinnabar's protocolgen contract crate (measured on the same machine) decodes faster than Valentine owned (≈1.2–3×) and roughly ties Valentine borrowed; Valentine encodes ≈2–4× faster.
+- `TRANSPORT-01` (open): tokio-raknet loopback echo has near-Go medians (64 KiB: 1.14 ms vs Go ≈1.05 ms mean) but periodic ~100 ms stalls (p99 76–106 ms for ≥512 B), making mean throughput 29–360× slower than go-raknet. The stall period matches the 100 ms listener maintenance tick (`transport/mux.rs`); suspected ACK/congestion-window waits on the tick — not yet traced.
+- Valentine frame dispatch no longer reserves a 10 KB probed stack frame per decode (`333a207`, 240 B). The earlier +78 % `mcpe_frame_decode` regression did not reproduce under pinned interleaved runs.
+- Benchmarking on this i9-14900HX must pin to one P-core and interleave base/head executables; unpinned runs drift 2–3× across P/E cores.
+- `tools/client-diff`: packet capture/diff harness (gophertunnel fork + lunar go-raknet vs jolyne vs BDS 1.26.51/Endstone 0.11.12). `CLIENTDIFF-01` (open): plain BDS 1.26.51 in offline mode rejects every client's Login (`readNoHeader failed`), including unmodified upstream gophertunnel; see `tools/client-diff/examples/rejected-login.md`. The real-client launcher is prepared but has not been run.
+
 ## Original readiness note (2026-09-25)
 
 Do not expose the server in online mode until `AUTH-01` is fixed. Packet-controlled allocation/recursion, persistence, and client-authoritative gameplay changes also need remediation before public service.

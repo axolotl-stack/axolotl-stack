@@ -1,0 +1,27 @@
+{
+  "date": "2026-10-21",
+  "reference_commit": "87a6b7e53799290d70ac25bcd03645d7ead00d2c",
+  "failure": {
+    "direction": "go-to-go",
+    "command": "go run . loopback --count 100",
+    "measured_size": 4096,
+    "measured_message_index": 81,
+    "error": "handle packet: handle datagram: receive packet: split packet: maximum concurrent splits 16 reached",
+    "configuration": "100 measured echoes plus one readiness echo per size; diagnostic ErrorLog enabled, packet observer disabled; standalone Go concurrency was not recorded, unlike the instrumented observations which explicitly set GOMAXPROCS=4",
+    "public_limit_override": false
+  },
+  "observations": [
+    {"direction": "go-to-go", "attempt": 1, "completed_groups": 202, "post_completion_fragments": 0, "duplicate_indexes_after_completion": 0, "exit_code": 0},
+    {"direction": "go-to-go", "attempt": 2, "completed_groups": 202, "post_completion_fragments": 0, "duplicate_indexes_after_completion": 0, "exit_code": 0},
+    {"direction": "go-to-go", "attempt": 3, "completed_groups": 202, "post_completion_fragments": 0, "duplicate_indexes_after_completion": 0, "exit_code": 0},
+    {"direction": "go-to-go", "attempt": 4, "completed_groups": 202, "post_completion_fragments": 29, "duplicate_indexes_after_completion": 29, "distinct_late_split_ids": 17, "exit_code": 0},
+    {"direction": "rust-to-go", "attempt": 1, "completed_groups": 202, "post_completion_fragments": 0, "duplicate_indexes_after_completion": 0, "exit_code": 0}
+  ],
+  "late_examples": [
+    {"datagram_sequence": 4648, "split_id": 14, "fragment_index": 42, "fragment_count": 46},
+    {"datagram_sequence": 4649, "split_id": 15, "fragment_index": 6, "fragment_count": 46},
+    {"datagram_sequence": 4650, "split_id": 15, "fragment_index": 10, "fragment_count": 46}
+  ],
+  "interpretation": "Late duplicate fragments can reopen incomplete split entries after completed assemblies are deleted [INFERENCE from wire observation and reference receiveSplitPacket source]; the traced successful run is not itself a reproduction of the limit failure. The observed failure and late duplicates occurred with Go peers only, so this evidence does not attribute the issue to tokio-raknet. The packet observer changes scheduling; no duplicate in one instrumented Rust-to-Go run does not prove duplicates are impossible.",
+  "reproduce": "Set BENCH_TRACE_SPLITS=1, BENCH_TRACE_DIRECTION=go-to-go and BENCH_SPLIT_COUNT=100, then run go run . loopback --count 100 from tools/bench-compare/go; for Rust-to-Go run the same Go serve command and a Rust client with count 100 and TOKIO_WORKER_THREADS=4. Diagnostics are separate from timed rounds; the comparison runner disables the observer."
+}
