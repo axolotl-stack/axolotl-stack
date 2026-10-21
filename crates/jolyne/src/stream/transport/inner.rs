@@ -359,6 +359,7 @@ impl<T: Transport> BedrockTransport<T> {
         }
     }
 
+    #[cfg(feature = "client")]
     /// Restores packets consumed by an internal state machine so callers can
     /// observe them after the state transition. Restored packets retain their
     /// original order and precede unread packets from the same network batch.

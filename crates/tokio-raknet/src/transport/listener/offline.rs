@@ -1,6 +1,4 @@
 use std::{
-    collections::hash_map::DefaultHasher,
-    hash::{Hash, Hasher},
     net::SocketAddr,
     sync::{Arc, OnceLock, RwLock},
     time::{Duration, Instant},
@@ -19,18 +17,18 @@ use crate::protocol::{
         UDP_HEADER_SIZE,
     },
     packet::{
-        AlreadyConnected, IncompatibleProtocolVersion, OpenConnectionReply1, OpenConnectionReply2,
-        RaknetPacket, UnconnectedPong,
+        IncompatibleProtocolVersion, OpenConnectionReply1, OpenConnectionReply2, RaknetPacket,
+        UnconnectedPong,
     },
 };
 use crate::session::manager::{ManagedSession, SessionConfig};
 use crate::transport::listener_conn::SessionState;
 
+/// Authenticated handshakes expire absolutely after ten seconds, matching
+/// upstream `handler.go:handleOpenConnectionRequest2`, not an idle timeout.
 #[derive(Clone, Copy)]
 pub(super) struct PendingConnection {
-    pub mtu: u16,
     pub expires_at: Instant,
-    pub cookie: u32,
 }
 
 pub(super) fn is_offline_packet_id(id: u8) -> bool {
@@ -77,12 +75,21 @@ pub(super) async fn handle_offline(
     send_buf: &mut BytesMut,
 ) {
     let now = Instant::now();
-    pending.retain(|_, p| p.expires_at > now);
 
     let mut slice = bytes;
-    let pkt = match RaknetPacket::decode(&mut slice) {
+    let decoded = if bytes.first() == Some(&0x07) {
+        slice = &bytes[1..];
+        crate::protocol::packet::OpenConnectionRequest2::decode_body_with_security(&mut slice, true)
+            .map(RaknetPacket::OpenConnectionRequest2)
+    } else {
+        RaknetPacket::decode(&mut slice)
+    };
+    let pkt = match decoded {
         Ok(p) => p,
-        Err(_) => return,
+        Err(_) => {
+            rate_limiter.block(peer.ip(), now);
+            return;
+        }
     };
 
     match pkt {
@@ -96,7 +103,10 @@ pub(super) async fn handle_offline(
                 return;
             }
 
-            let ad_data = advertisement.read().unwrap().clone();
+            let ad_data = advertisement
+                .read()
+                .unwrap_or_else(|e| e.into_inner())
+                .clone();
             let ad_bytes = if ad_data.is_empty() {
                 None
             } else {
@@ -122,7 +132,10 @@ pub(super) async fn handle_offline(
                 return;
             }
 
-            let ad_data = advertisement.read().unwrap().clone();
+            let ad_data = advertisement
+                .read()
+                .unwrap_or_else(|e| e.into_inner())
+                .clone();
             let ad_bytes = if ad_data.is_empty() {
                 None
             } else {
@@ -143,6 +156,9 @@ pub(super) async fn handle_offline(
                 return;
             }
 
+            if !rate_limiter.allow_request1(peer.ip(), now) {
+                return;
+            }
             if req.protocol_version != RAKNET_PROTOCOL_VERSION {
                 let reply =
                     RaknetPacket::IncompatibleProtocolVersion(IncompatibleProtocolVersion {
@@ -151,10 +167,7 @@ pub(super) async fn handle_offline(
                         server_guid: server_guid(),
                     });
                 send_unconnected_packet(socket, peer, reply, send_buf).await;
-                return;
-            }
-
-            if !rate_limiter.allow_request1(peer.ip(), now) {
+                rate_limiter.block(peer.ip(), now);
                 return;
             }
 
@@ -162,8 +175,8 @@ pub(super) async fn handle_offline(
             let padding_len = req.padding.0;
             let mtu_guess =
                 padding_len + 1 + DEFAULT_UNCONNECTED_MAGIC.len() + 1 + ip_header + UDP_HEADER_SIZE;
-            let mtu_clamped = clamp_mtu(mtu_guess as u16, MINIMUM_MTU_SIZE, config.max_mtu);
-            let cookie = generate_cookie(peer);
+            let mtu_clamped = (mtu_guess as u16).clamp(MINIMUM_MTU_SIZE, config.max_mtu);
+            let cookie = rate_limiter.cookie(peer, now);
 
             if sessions.len() >= config.max_connections {
                 let reply = RaknetPacket::NoFreeIncomingConnections(
@@ -172,19 +185,6 @@ pub(super) async fn handle_offline(
                 send_unconnected_packet(socket, peer, reply, send_buf).await;
                 return;
             }
-
-            if pending.len() >= config.max_pending_connections {
-                return;
-            }
-
-            pending.insert(
-                peer,
-                PendingConnection {
-                    mtu: mtu_clamped,
-                    expires_at: now + Duration::from_secs(10),
-                    cookie,
-                },
-            );
 
             let reply = RaknetPacket::OpenConnectionReply1(OpenConnectionReply1 {
                 magic: DEFAULT_UNCONNECTED_MAGIC,
@@ -200,33 +200,28 @@ pub(super) async fn handle_offline(
                 return;
             }
 
-            let pc = match pending.get(&peer).copied() {
-                Some(pc) => pc,
-                None => {
-                    // If the peer is not pending but we have a session, it means the client
-                    // missed the OpenConnectionReply2 and is retrying. We should resend it.
-                    if let Some(state) = sessions.get(&peer) {
-                        let server_addr = socket.local_addr().unwrap_or(peer);
-                        let reply = RaknetPacket::OpenConnectionReply2(OpenConnectionReply2 {
-                            magic: DEFAULT_UNCONNECTED_MAGIC,
-                            server_guid: server_guid(),
-                            server_addr,
-                            mtu: state.managed.mtu() as u16,
-                            // NO ENCRYPTION.
-                            security: false,
-                        });
-                        send_unconnected_packet(socket, peer, reply, send_buf).await;
-                    }
-                    return;
-                }
-            };
-
-            if req.cookie != Some(pc.cookie) {
+            if !req
+                .cookie
+                .is_some_and(|cookie| rate_limiter.valid_cookie(peer, cookie, now))
+                || (req.client_guid as i64) >= 0
+            {
+                rate_limiter.block(peer.ip(), now);
+                return;
+            }
+            if let Some(state) = sessions.get(&peer) {
+                let reply = RaknetPacket::OpenConnectionReply2(OpenConnectionReply2 {
+                    magic: DEFAULT_UNCONNECTED_MAGIC,
+                    server_guid: server_guid(),
+                    server_addr: peer,
+                    mtu: state.managed.mtu() as u16,
+                    security: false,
+                });
+                send_unconnected_packet(socket, peer, reply, send_buf).await;
                 return;
             }
 
             if req.mtu < MINIMUM_MTU_SIZE || req.mtu > MAXIMUM_MTU_SIZE {
-                send_already_connected(socket, peer, send_buf).await;
+                rate_limiter.block(peer.ip(), now);
                 return;
             }
 
@@ -238,8 +233,24 @@ pub(super) async fn handle_offline(
                 return;
             }
 
-            let mtu_final = pc.mtu.min(req.mtu);
-            pending.remove(&peer);
+            // Upstream has no per-IP/global admission caps. Retain the configured
+            // bounded pending budget, also applying it per IP across all sessions.
+            if pending.len() >= config.max_pending_connections
+                || sessions
+                    .keys()
+                    .filter(|addr| addr.ip() == peer.ip())
+                    .count()
+                    >= config.max_pending_connections
+            {
+                return;
+            }
+            let mtu_final = config.max_mtu.min(req.mtu);
+            pending.insert(
+                peer,
+                PendingConnection {
+                    expires_at: now + Duration::from_secs(10),
+                },
+            );
 
             let (tx, rx) =
                 mpsc::channel::<Result<crate::transport::ReceivedMessage, crate::RaknetError>>(128);
@@ -259,9 +270,9 @@ pub(super) async fn handle_offline(
                 maybe_announce_connection(peer, state, new_conn_tx).await;
             }
 
-            // Fallback to peer address if local address cannot be determined.
-            // This is a best-effort approach to avoid crashing.
-            let server_addr = socket.local_addr().unwrap_or(peer);
+            // Upstream `handler.go:handleOpenConnectionRequest2` returns the
+            // client's observed address, not the listener's local address.
+            let server_addr = peer;
 
             let reply = RaknetPacket::OpenConnectionReply2(OpenConnectionReply2 {
                 magic: DEFAULT_UNCONNECTED_MAGIC,
@@ -275,28 +286,6 @@ pub(super) async fn handle_offline(
         }
         _ => {}
     }
-}
-
-fn clamp_mtu(v: u16, min: u16, max: u16) -> u16 {
-    v.clamp(min, max)
-}
-
-fn generate_cookie(peer: SocketAddr) -> u32 {
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    let mut hasher = DefaultHasher::new();
-    peer.hash(&mut hasher);
-    if let Ok(duration) = SystemTime::now().duration_since(UNIX_EPOCH) {
-        hasher.write_u64(duration.as_nanos() as u64);
-    }
-    let mut cookie = (hasher.finish() & 0xffff_ffff) as u32;
-    // Ensure cookie doesn't start with 4 or 6 to avoid ambiguity with IP versions
-    // in OpenConnectionRequest2 decoding logic.
-    let first_byte = (cookie >> 24) as u8;
-    if first_byte == 4 || first_byte == 6 {
-        cookie ^= 0x0100_0000;
-    }
-    cookie
 }
 
 fn server_guid() -> u64 {
@@ -322,10 +311,91 @@ async fn send_unconnected_packet(
     }
 }
 
-async fn send_already_connected(socket: &UdpSocket, peer: SocketAddr, buf: &mut BytesMut) {
-    let pkt = RaknetPacket::AlreadyConnected(AlreadyConnected {
-        magic: DEFAULT_UNCONNECTED_MAGIC,
-        server_guid: server_guid(),
-    });
-    send_unconnected_packet(socket, peer, pkt, buf).await;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[tokio::test]
+    async fn request1_is_stateless_and_request2_requires_address_cookie() {
+        let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let client = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let peer = client.local_addr().unwrap();
+        let config = RaknetListenerConfig::default();
+        let mut sessions = HashMap::new();
+        let mut pending = HashMap::new();
+        let (tx, _rx) = mpsc::channel(1);
+        let ad = Arc::new(RwLock::new(Bytes::new()));
+        let mut limiter = PingRateLimiter::new(10);
+        let mut send = BytesMut::new();
+        let mut wire = BytesMut::new();
+        RaknetPacket::OpenConnectionRequest1(crate::protocol::packet::OpenConnectionRequest1 {
+            magic: DEFAULT_UNCONNECTED_MAGIC,
+            protocol_version: RAKNET_PROTOCOL_VERSION,
+            padding: crate::protocol::types::EoBPadding(1200 - 46),
+        })
+        .encode(&mut wire)
+        .unwrap();
+        handle_offline(
+            &socket,
+            &config,
+            &wire,
+            peer,
+            &mut sessions,
+            &mut pending,
+            &tx,
+            &ad,
+            &mut limiter,
+            &mut send,
+        )
+        .await;
+        assert!(pending.is_empty());
+        assert!(sessions.is_empty());
+
+        // Authenticate directly with a valid cookie; no per-peer request1 state
+        // is required, even when the cookie's previous packet was lost.
+        let cookie = limiter.cookie(peer, Instant::now());
+        wire.clear();
+        RaknetPacket::OpenConnectionRequest2(crate::protocol::packet::OpenConnectionRequest2 {
+            magic: DEFAULT_UNCONNECTED_MAGIC,
+            cookie: Some(cookie),
+            client_proof: false,
+            server_addr: socket.local_addr().unwrap(),
+            mtu: 1200,
+            client_guid: u64::MAX,
+        })
+        .encode(&mut wire)
+        .unwrap();
+        handle_offline(
+            &socket,
+            &config,
+            &wire,
+            peer,
+            &mut sessions,
+            &mut pending,
+            &tx,
+            &ad,
+            &mut limiter,
+            &mut send,
+        )
+        .await;
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(pending.len(), 1);
+        let expires = pending[&peer].expires_at;
+        handle_offline(
+            &socket,
+            &config,
+            &wire,
+            peer,
+            &mut sessions,
+            &mut pending,
+            &tx,
+            &ad,
+            &mut limiter,
+            &mut send,
+        )
+        .await;
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(pending[&peer].expires_at, expires);
+    }
 }

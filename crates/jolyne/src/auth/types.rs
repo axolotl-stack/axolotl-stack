@@ -57,10 +57,12 @@ pub struct OpenIdClaims {
     pub identity_public_key: Option<String>,
     #[serde(rename = "extraData")]
     pub extra_data: Option<ExtraDataClaims>,
+    #[serde(rename = "leguuid")]
+    pub legacy_uuid: Option<String>,
     #[allow(dead_code)]
     pub iss: Option<String>,
     #[allow(dead_code)]
-    pub aud: Option<String>,
+    pub aud: Option<serde_json::Value>,
     #[allow(dead_code)]
     pub exp: Option<u64>,
     #[allow(dead_code)]
@@ -106,6 +108,8 @@ pub struct ValidatedIdentity {
     pub display_name: Option<String>,
     pub identity_public_key: String, // The client's public key for encryption
     pub uuid: Option<String>,
+    /// True only for an identity verified through an online trust root.
+    pub authenticated: bool,
 }
 
 #[allow(dead_code)]

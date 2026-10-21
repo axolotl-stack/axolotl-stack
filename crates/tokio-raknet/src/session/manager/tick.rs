@@ -15,9 +15,14 @@ impl ManagedSession {
     pub fn on_tick(&mut self, now: Instant) -> Vec<Datagram> {
         let idle = now.saturating_duration_since(self.last_activity);
         if self.is_connected() {
-            if idle >= self.config.session_timeout {
+            // go-raknet conn.go:Conn.startTicking: five seconds plus two RTTs.
+            let timeout = self
+                .config
+                .session_timeout
+                .saturating_add(self.inner.sliding.measured_rtt().saturating_mul(2));
+            if idle >= timeout {
                 let _ = self.send_disconnect(DisconnectReason::TimedOut);
-                self.state = ConnectionState::Closed;
+                self.closing_since = Some(now);
                 self.last_disconnect_reason = Some(DisconnectReason::TimedOut);
             } else if idle >= self.config.session_stale {
                 self.state = ConnectionState::Stale;
@@ -25,10 +30,24 @@ impl ManagedSession {
         } else if matches!(
             self.state,
             ConnectionState::Unconnected | ConnectionState::OnlineHandshake
-        ) && idle >= self.config.session_stale
+        ) && now.saturating_duration_since(self.created_at)
+            >= std::time::Duration::from_secs(10)
         {
             self.state = ConnectionState::Closed;
             self.last_disconnect_reason = Some(DisconnectReason::TimedOut);
+        }
+
+        // go-raknet conn.go:Conn.startTicking drains ACKs for up to five seconds;
+        // an empty recovery queue permits closure after one second.
+        if self.state == ConnectionState::Closing {
+            let since = now.saturating_duration_since(*self.closing_since.get_or_insert(now));
+            if since >= std::time::Duration::from_secs(5)
+                || (since >= std::time::Duration::from_secs(1)
+                    && self.inner.sent_datagrams.is_empty()
+                    && self.inner.outgoing_heap.is_empty())
+            {
+                self.state = ConnectionState::Closed;
+            }
         }
 
         if self.should_send_ping(now) {
@@ -42,9 +61,6 @@ impl ManagedSession {
 
     pub(crate) fn should_send_ping(&self, now: Instant) -> bool {
         if !self.is_connected() {
-            return false;
-        }
-        if self.current_ping_nonce.is_some() {
             return false;
         }
         match self.last_ping_sent {

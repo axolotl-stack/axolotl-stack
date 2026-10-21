@@ -61,6 +61,7 @@ impl ManagedSession {
 
         self.queue_control_packet(pkt, Reliability::Reliable, 0, RakPriority::Immediate)?;
         self.state = ConnectionState::Closing;
+        self.closing_since = Some(Instant::now());
         self.last_disconnect_reason = Some(reason);
 
         Ok(())
@@ -249,7 +250,6 @@ impl ManagedSession {
     ) -> Result<(), SessionError> {
         let added = self.inner.queue_packet(pkt, rel, channel, priority)?;
         self.queued_reliable_bytes = self.queued_reliable_bytes.saturating_add(added);
-        self.last_activity = Instant::now();
         Ok(())
     }
 

@@ -1,32 +1,15 @@
-use std::cmp::Reverse;
-use std::collections::BinaryHeap;
+use std::collections::BTreeMap;
 
+use super::receive_window::RECEIVE_WINDOW_SIZE;
 use crate::protocol::encapsulated_packet::EncapsulatedPacket;
+use crate::protocol::packet::DecodeError;
 use crate::protocol::types::Sequence24;
 
-#[derive(Eq, PartialEq)]
-struct OrderedEncap {
-    index: Sequence24,
-    pkt: EncapsulatedPacket,
-}
-
-impl Ord for OrderedEncap {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.index.cmp(&other.index)
-    }
-}
-
-impl PartialOrd for OrderedEncap {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-/// Manages per-channel ordered delivery heaps.
+/// Per-channel queues bounded by go-raknet conn.go:Conn.receivePacket's window.
 pub struct OrderingChannels {
     order_read: Vec<Sequence24>,
     order_write: Vec<Sequence24>,
-    heaps: Vec<BinaryHeap<Reverse<OrderedEncap>>>,
+    buffered: Vec<BTreeMap<Sequence24, EncapsulatedPacket>>,
 }
 
 impl OrderingChannels {
@@ -34,7 +17,7 @@ impl OrderingChannels {
         Self {
             order_read: vec![Sequence24::new(0); max_channels],
             order_write: vec![Sequence24::new(0); max_channels],
-            heaps: (0..max_channels).map(|_| BinaryHeap::new()).collect(),
+            buffered: (0..max_channels).map(|_| BTreeMap::new()).collect(),
         }
     }
 
@@ -73,14 +56,9 @@ impl OrderingChannels {
         self.order_read[ch] = self.order_read[ch].next();
 
         let mut ready = Vec::new();
-        while let Some(top) = self.heaps[ch].peek() {
-            if top.0.index == self.order_read[ch] {
-                let Reverse(OrderedEncap { index: _, pkt }) = self.heaps[ch].pop().unwrap();
-                self.order_read[ch] = self.order_read[ch].next();
-                ready.push(pkt);
-            } else {
-                break;
-            }
+        while let Some(pkt) = self.buffered[ch].remove(&self.order_read[ch]) {
+            self.order_read[ch] = self.order_read[ch].next();
+            ready.push(pkt);
         }
 
         tracing::trace!(
@@ -92,28 +70,36 @@ impl OrderingChannels {
         Some(ready)
     }
 
+    /// Validate before split assembly so invalid order indexes cannot occupy slots.
+    pub fn validate_ordered(&self, enc: &EncapsulatedPacket) -> Result<(), DecodeError> {
+        let ch = enc
+            .ordering_channel
+            .ok_or(DecodeError::OrderingWindowExceeded)? as usize;
+        let idx = enc
+            .ordering_index
+            .ok_or(DecodeError::OrderingWindowExceeded)?;
+        let Some(&read) = self.order_read.get(ch) else {
+            return Err(DecodeError::OrderingWindowExceeded);
+        };
+        let distance = read.distance_to(idx);
+        if (RECEIVE_WINDOW_SIZE..=(1 << 23)).contains(&distance) {
+            return Err(DecodeError::OrderingWindowExceeded);
+        }
+        Ok(())
+    }
+
     /// Handle an ordered packet; returns a list of packets ready for decode in-order.
     pub fn handle_ordered(&mut self, enc: EncapsulatedPacket) -> Option<Vec<EncapsulatedPacket>> {
+        self.validate_ordered(&enc).ok()?;
         let ch = enc.ordering_channel? as usize;
-        if ch >= self.heaps.len() {
+        if ch >= self.buffered.len() {
             return None;
         }
         let idx = enc.ordering_index?;
 
         if self.order_read[ch] < idx {
-            // Prevent unbounded growth if a client skips sequences or floods.
-            if self.heaps[ch].len() >= 2048 {
-                tracing::warn!(
-                    channel = ch,
-                    "dropping ordered packet, buffer full (len=2048)"
-                );
-                return Some(Vec::new());
-            }
-
-            self.heaps[ch].push(Reverse(OrderedEncap {
-                index: idx,
-                pkt: enc,
-            }));
+            // go-raknet packet_queue.go:packetQueue.put keeps one value per index.
+            self.buffered[ch].entry(idx).or_insert(enc);
             return Some(Vec::new());
         } else if self.order_read[ch] > idx {
             return Some(Vec::new());
@@ -122,14 +108,9 @@ impl OrderingChannels {
         self.order_read[ch] = self.order_read[ch].next();
         let mut ready = vec![enc];
 
-        while let Some(top) = self.heaps[ch].peek() {
-            if top.0.index == self.order_read[ch] {
-                let Reverse(OrderedEncap { index: _, pkt }) = self.heaps[ch].pop().unwrap();
-                self.order_read[ch] = self.order_read[ch].next();
-                ready.push(pkt);
-            } else {
-                break;
-            }
+        while let Some(pkt) = self.buffered[ch].remove(&self.order_read[ch]) {
+            self.order_read[ch] = self.order_read[ch].next();
+            ready.push(pkt);
         }
         Some(ready)
     }
@@ -154,6 +135,33 @@ mod tests {
             split: None,
             payload: Bytes::copy_from_slice(payload),
         }
+    }
+
+    #[test]
+    fn hostile_ordering_index_does_not_buffer() {
+        let mut channels = OrderingChannels::new(1);
+        channels.handle_ordered(make_ordered_packet(0, 4096, b"hostile"));
+        assert!(channels.buffered[0].is_empty());
+    }
+
+    #[test]
+    fn buffered_duplicates_do_not_block_delivery() {
+        let mut channels = OrderingChannels::new(1);
+        channels.handle_ordered(make_ordered_packet(0, 1, b"first"));
+        channels.handle_ordered(make_ordered_packet(0, 1, b"duplicate"));
+        channels.handle_ordered(make_ordered_packet(0, 2, b"second"));
+        let ready = channels
+            .handle_ordered(make_ordered_packet(0, 0, b"zero"))
+            .unwrap();
+        assert_eq!(
+            ready.iter().map(|p| p.payload.as_ref()).collect::<Vec<_>>(),
+            vec![
+                b"zero".as_slice(),
+                b"first".as_slice(),
+                b"second".as_slice()
+            ]
+        );
+        assert!(channels.buffered[0].is_empty());
     }
 
     #[test]

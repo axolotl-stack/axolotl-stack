@@ -20,8 +20,6 @@ use crate::error::AuthError;
 #[cfg(feature = "server")]
 use crate::error::JolyneError;
 #[cfg(feature = "server")]
-use openid::fill_identity_from_client_data;
-#[cfg(feature = "server")]
 use tracing::warn;
 #[cfg(feature = "server")]
 use types::{AuthInfo, AuthenticationType};
@@ -107,6 +105,10 @@ pub async fn authenticate_login(
                 );
                 return Err(AuthError::LegacyAuthDisabled.into());
             }
+            // Current offline clients send a self-signed multiplayer token.
+            if let Some(token) = auth_info.token.as_deref().filter(|token| !token.is_empty()) {
+                return openid::validate_open_id(token, client_data_jwt, false).await;
+            }
 
             let chain_opt = auth_info
                 .certificate
@@ -116,7 +118,7 @@ pub async fn authenticate_login(
 
             if let Some(chain) = chain_opt {
                 let identity = validate_chain(chain, online_mode)?;
-                let identity = fill_identity_from_client_data(identity, client_data_jwt);
+                openid::verify_client_data(&identity, client_data_jwt)?;
                 Ok(identity)
             } else {
                 warn!(?auth_type, "failed to extract chain from auth info");
@@ -127,18 +129,11 @@ pub async fn authenticate_login(
 }
 
 #[cfg(all(test, feature = "server"))]
+mod security_tests;
+
+#[cfg(all(test, feature = "server"))]
 mod tests {
     use super::*;
-    use base64::Engine as _;
-    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-    use serde_json::json;
-
-    fn make_jwt(header: serde_json::Value, payload: serde_json::Value) -> String {
-        let header_b64 = URL_SAFE_NO_PAD.encode(serde_json::to_vec(&header).expect("header json"));
-        let payload_b64 =
-            URL_SAFE_NO_PAD.encode(serde_json::to_vec(&payload).expect("payload json"));
-        format!("{header_b64}.{payload_b64}.sig")
-    }
 
     #[test]
     fn parse_login_chain_accepts_valid_payload() {
@@ -232,62 +227,6 @@ mod tests {
             err,
             JolyneError::Auth(AuthError::UnsupportedAuthType(99))
         ));
-    }
-
-    #[tokio::test]
-    async fn validate_open_id_rejects_keyless_token_in_online_mode() {
-        let token = make_jwt(
-            json!({"alg":"ES256"}),
-            json!({
-                "extraData": {
-                    "displayName": "TokenName",
-                    "identity": "uuid-token",
-                    "XUID": "12345"
-                },
-                "identityPublicKey": "CLIENT_KEY",
-                "aud": "0000000048183522"
-            }),
-        );
-
-        let err = openid::validate_open_id(&token, "", true)
-            .await
-            .expect_err("online mode must require a verification key");
-        assert!(matches!(
-            err,
-            JolyneError::Auth(AuthError::MissingIdentityKey)
-        ));
-    }
-
-    #[tokio::test]
-    async fn validate_open_id_prefers_client_identity_key_when_missing_in_token() {
-        let token = make_jwt(
-            json!({"alg":"ES256"}),
-            json!({
-                "extraData": {
-                    "displayName": "TokenName",
-                    "identity": "uuid-token",
-                    "XUID": "12345"
-                }
-            }),
-        );
-
-        let client = make_jwt(
-            json!({"alg":"ES256"}),
-            json!({
-                "IdentityPublicKey": "CLIENT_KEY",
-                "displayName": "ClientName",
-                "identity": "uuid-client",
-                "XUID": "12345"
-            }),
-        );
-
-        let id = openid::validate_open_id(&token, &client, false)
-            .await
-            .expect("should accept");
-        assert_eq!(id.identity_public_key, "CLIENT_KEY");
-        assert_eq!(id.display_name.as_deref(), Some("TokenName"));
-        assert_eq!(id.xuid.as_deref(), Some("12345"));
-        assert_eq!(id.uuid.as_deref(), Some("uuid-token"));
     }
 
     #[tokio::test]

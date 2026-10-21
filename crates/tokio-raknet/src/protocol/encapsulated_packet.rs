@@ -118,6 +118,10 @@ impl RaknetEncodable for EncapsulatedPacket {
         // 2) bit length
         let bit_length = u16::decode_raknet(src)?;
         let payload_len = ((bit_length as usize) + 7) >> 3;
+        // packet.go:packet.read rejects empty content before handling indexes.
+        if payload_len == 0 {
+            return Err(DecodeError::InvalidPacketLength);
+        }
 
         let rel = header.reliability;
 
@@ -147,6 +151,11 @@ impl RaknetEncodable for EncapsulatedPacket {
             let count = u32::decode_raknet(src)?;
             let id = u16::decode_raknet(src)?;
             let index = u32::decode_raknet(src)?;
+            // conn.go:Conn.receiveSplitPacket checks the index before storage.
+            // Reject zero counts too, rather than allowing an empty assembly.
+            if count == 0 || index >= count {
+                return Err(DecodeError::SplitIndexOutOfRange);
+            }
             Some(SplitInfo { count, id, index })
         } else {
             None
@@ -168,5 +177,50 @@ impl RaknetEncodable for EncapsulatedPacket {
             split,
             payload,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bytes::BytesMut;
+
+    #[test]
+    fn rejects_empty_payload() {
+        let mut src = &[0, 0, 0][..];
+        assert!(matches!(
+            EncapsulatedPacket::decode_raknet(&mut src),
+            Err(DecodeError::InvalidPacketLength)
+        ));
+    }
+
+    #[test]
+    fn rejects_invalid_split_metadata() {
+        for (count, index) in [(0u32, 0u32), (1, 1), (2, u32::MAX)] {
+            let mut src = BytesMut::new();
+            src.put_u8(0x10);
+            src.put_u16(8);
+            src.put_u32(count);
+            src.put_u16(7);
+            src.put_u32(index);
+            src.put_u8(0xff);
+            assert!(matches!(
+                EncapsulatedPacket::decode_raknet(&mut src.freeze()),
+                Err(DecodeError::SplitIndexOutOfRange)
+            ));
+        }
+    }
+
+    #[test]
+    fn rejects_every_truncated_split_header() {
+        // Reliable ordered split packet, with one payload byte.
+        let wire = [
+            0x70, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 7, 0, 0, 0, 0, 0xff,
+        ];
+        for len in 0..wire.len() {
+            assert!(EncapsulatedPacket::decode_raknet(&mut &wire[..len]).is_err());
+        }
+        let packet = EncapsulatedPacket::decode_raknet(&mut &wire[..]).unwrap();
+        assert_eq!(packet.payload.as_ref(), &[0xff]);
     }
 }
