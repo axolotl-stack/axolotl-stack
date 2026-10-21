@@ -383,6 +383,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "bench-compare"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "clap",
+ "criterion",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "tokio-raknet",
+ "valentine",
+]
+
+[[package]]
 name = "bevy_ecs"
 version = "0.17.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
