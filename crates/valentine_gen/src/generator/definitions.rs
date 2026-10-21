@@ -399,7 +399,17 @@ pub fn resolve_type_to_tokens(
             quote! { #ident }
         }
         Type::Union { .. } => {
-            let name = clean_type_name(hint);
+            // Inline union hints may equal a named payload (DisconnectPacket's
+            // Messages field and DisconnectPacketMessages). Reusing that name
+            // silently selects the payload codec and drops the control value.
+            let mut name = clean_type_name(hint);
+            while ctx
+                .type_lookup
+                .iter()
+                .any(|(registered, shape)| clean_type_name(registered) == name && shape != t)
+            {
+                name.push_str("Union");
+            }
             if !ctx.emitted.contains(&name) && !ctx.in_progress.contains(&name) {
                 define_type(&name, t, ctx)?;
             }

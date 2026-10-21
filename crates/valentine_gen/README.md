@@ -52,6 +52,15 @@ gate.
 Protocolgen input is already a canonical wire manifest, so
 `--emit-wire-manifest` is intentionally rejected with the default source.
 
+Canonical unions always retain their control codec and every data or void
+variant. Inline union names are disambiguated from named payloads with a
+`Union` suffix: `DisconnectPacketMessagesUnion` contains either
+`DisconnectPacketMessages(DisconnectPacketMessages)` (control 0, show message)
+or `Empty1` (control 1, hide screen). A payload name collision must never select
+the payload codec in place of the union codec. The differential gate is
+`cargo test -p valentine --test union_conformance`; it compares BDS wire vectors
+and both variants against the pinned protocolgen Rust contract crate.
+
 `--mojang-docs <DIR>` selects a separate docs checkout without changing the
 pinned canonical input. Keep scratch comparisons isolated from checked-in
 outputs, and verify the exact protocol version against the stable protocol

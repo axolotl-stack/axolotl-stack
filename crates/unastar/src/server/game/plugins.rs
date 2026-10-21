@@ -9,9 +9,10 @@ use bevy_ecs::prelude::*;
 use glam::DVec3;
 use jolyne::valentine::{
     ActorRuntimeId, CerealizerNetworkItemStackDescriptorSerializedData, DisconnectPacket,
-    DisconnectPacketMessages, EnumsConnectionDisconnectFailReason, EnumsContainerEnumName,
-    EnumsPlayerPositionModeComponentPositionMode, FullContainerName, InventorySlotPacket,
-    McpePacket, MovePlayerPacket, MovePlayerTeleportData, PlayerInputTick, Vec2, Vec3,
+    DisconnectPacketMessages, DisconnectPacketMessagesUnion, EnumsConnectionDisconnectFailReason,
+    EnumsContainerEnumName, EnumsPlayerPositionModeComponentPositionMode, FullContainerName,
+    InventorySlotPacket, McpePacket, MovePlayerPacket, MovePlayerTeleportData, PlayerInputTick,
+    Vec2, Vec3,
 };
 use tracing::{info, warn};
 
@@ -166,10 +167,12 @@ pub fn process_plugin_actions(
                 if let Ok((_, _, _, session, _)) = players.get(entity) {
                     let packet = DisconnectPacket {
                         reason: EnumsConnectionDisconnectFailReason::Disconnected,
-                        messages: DisconnectPacketMessages {
-                            message: reason.clone(),
-                            filtered_message: reason.clone(),
-                        },
+                        messages: DisconnectPacketMessagesUnion::DisconnectPacketMessages(
+                            DisconnectPacketMessages {
+                                message: reason.clone(),
+                                filtered_message: reason.clone(),
+                            },
+                        ),
                     };
                     let _ = session.send(McpePacket::from(packet));
                     info!(entity=?entity, reason=%reason, "Plugin kicked player");
