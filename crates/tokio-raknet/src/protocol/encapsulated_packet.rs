@@ -63,11 +63,9 @@ impl RaknetEncodable for EncapsulatedPacket {
     ) -> Result<(), crate::protocol::packet::EncodeError> {
         use crate::protocol::packet::EncodeError;
 
-        // 1) flags byte
-        self.header.encode_raknet(dst)?;
-
-        // 2) bit length
-        self.bit_length.encode_raknet(dst)?;
+        // Coalesce adjacent fixed fields without staging or copying the payload.
+        let bit_length = self.bit_length.to_be_bytes();
+        dst.put_slice(&[self.header.to_byte(), bit_length[0], bit_length[1]]);
 
         // 3) reliability‑dependent indexes
         let rel = self.header.reliability;
@@ -90,12 +88,10 @@ impl RaknetEncodable for EncapsulatedPacket {
             let idx = self
                 .ordering_index
                 .ok_or(EncodeError::MissingOrderingIndex)?;
-            idx.encode_raknet(dst)?;
-
             let ch = self
                 .ordering_channel
                 .ok_or(EncodeError::MissingOrderingChannel)?;
-            ch.encode_raknet(dst)?;
+            dst.put_u32_le(idx.value() | (u32::from(ch) << 24));
         }
 
         // 4) split metadata
@@ -184,6 +180,34 @@ impl RaknetEncodable for EncapsulatedPacket {
 mod tests {
     use super::*;
     use bytes::BytesMut;
+
+    #[test]
+    fn sequenced_split_encoding_preserves_mixed_endianness_and_high_channel() {
+        use crate::protocol::reliability::Reliability;
+        let packet = EncapsulatedPacket {
+            header: EncapsulatedPacketHeader::new(Reliability::ReliableSequenced, true, true),
+            bit_length: 8,
+            reliable_index: Some(Sequence24::new(0xabcdef)),
+            sequence_index: Some(Sequence24::new(0x123456)),
+            ordering_index: Some(Sequence24::new(0xfedcba)),
+            ordering_channel: Some(255),
+            split: Some(SplitInfo {
+                count: 2,
+                id: 0x1234,
+                index: 1,
+            }),
+            payload: Bytes::from_static(b"\xff"),
+        };
+        let mut encoded = BytesMut::new();
+        packet.encode_raknet(&mut encoded).unwrap();
+        assert_eq!(
+            encoded.as_ref(),
+            &[
+                0x94, 0, 8, 0xef, 0xcd, 0xab, 0x56, 0x34, 0x12, 0xba, 0xdc, 0xfe, 0xff, 0, 0, 0, 2,
+                0x12, 0x34, 0, 0, 0, 1, 0xff,
+            ]
+        );
+    }
 
     #[test]
     fn rejects_empty_payload() {

@@ -24,6 +24,7 @@ struct SplitEntry {
 
     parts: Vec<Option<bytes::Bytes>>,
     received: usize,
+    payload_bytes: usize,
     last_update: Instant,
 }
 
@@ -85,6 +86,7 @@ impl SplitAssembler {
             needs_bas: pkt.header.needs_bas,
             parts: vec![None; split.count as usize],
             received: 0,
+            payload_bytes: 0,
             last_update: now,
         });
 
@@ -115,7 +117,8 @@ impl SplitAssembler {
             return Ok(None);
         }
 
-        entry.parts[idx] = Some(pkt.payload.clone());
+        entry.payload_bytes += pkt.payload.len();
+        entry.parts[idx] = Some(pkt.payload);
         entry.received += 1;
         entry.last_update = now;
 
@@ -124,7 +127,8 @@ impl SplitAssembler {
         }
 
         // All parts present: reassemble
-        let mut buf = BytesMut::new();
+        // Only validated, received fragments contribute to the allocation.
+        let mut buf = BytesMut::with_capacity(entry.payload_bytes);
         for part in &entry.parts {
             let part = part.as_ref().ok_or(DecodeError::SplitCountMismatch)?; // Should not happen given entry.received check
             buf.extend_from_slice(part);

@@ -18,11 +18,18 @@ impl RaknetEncodable for SequenceRange {
         dst: &mut impl BufMut,
     ) -> Result<(), crate::protocol::packet::EncodeError> {
         let singleton = self.start == self.end;
-        singleton.encode_raknet(dst)?;
-        self.start.encode_raknet(dst)?;
-        if !singleton {
-            self.end.encode_raknet(dst)?;
-        }
+        let start = self.start.value().to_le_bytes();
+        let end = self.end.value().to_le_bytes();
+        let record = [
+            u8::from(singleton),
+            start[0],
+            start[1],
+            start[2],
+            end[0],
+            end[1],
+            end[2],
+        ];
+        dst.put_slice(&record[..if singleton { 4 } else { 7 }]);
         Ok(())
     }
 

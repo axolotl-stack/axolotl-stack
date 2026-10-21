@@ -375,8 +375,9 @@ Defaults are chosen to be safe for general-purpose use to prevent Denial of Serv
 For high-performance servers (e.g., dedicated game servers) with ample RAM, use `RaknetListenerConfig::high_performance()` or tune these values manually.
 
 ### Ticking
-The main muxer loop runs at **10 Hz (100 ms)**, matching
-`go-raknet/conn.go:Conn.startTicking`, to aggregate ACKs and run maintenance.
+The listener runs maintenance at **10 Hz (100 ms)**, matching
+`go-raknet/conn.go:Conn.startTicking`. ACK/NAK feedback and application writes
+are flushed promptly, independently of that maintenance interval.
 
 ## Benchmarks
 Performance is a priority. Benchmarks (Ryzen 7 7800x3d):
@@ -394,4 +395,48 @@ revisions with the same benchmark workload; older reused-session results are
 not comparable. On hybrid CPUs, pin both A/B executables to the same logical
 core and interleave their runs. `iter_batched` session benchmarks include
 session teardown as well as the named operation.
+
+### Encoder and buffer ownership (2026-10-21)
+
+Encoders coalesce adjacent fixed header fields and 24-bit sequences without
+staging payloads. The transport keeps the original `Message.buffer` through
+queueing and fragments it with `Bytes::split_to`; it no longer removes the ID
+and then copies the whole message into a fresh encoding buffer. The low-level
+`OutboundMsg` field is now `buffer: Bytes` (including the ID), replacing `packet`;
+no workspace callers outside this crate used the old field.
+
+Split reassembly allocates once for the sum of validated, received fragment
+lengths, not the peer's declared count. The 512-part, 16-assembly, per-fragment
+size, receive-window, and queue bounds remain unchanged. Duplicate fragments do
+not increase that sum.
+
+Five alternating release rounds, CPU 6 for microbenchmarks, retained output
+buffers, 1,000,000 iterations per row; medians in ns/op:
+
+| Wire operation | Before | Encoder/buffer checkpoint |
+|---|---:|---:|
+| encapsulated 32 encode | 13.13 | 8.79 |
+| encapsulated 512 encode | 15.83 | 11.63 |
+| encapsulated 4096 encode | 37.81 | 35.52 |
+| datagram 32 encode | 15.80 | 10.41 |
+| datagram 512 encode | 17.18 | 13.10 |
+| datagram 4096 encode | 43.27 | 36.68 |
+| split 2x512 reassemble | 381.62 | 264.08 |
+
+Split allocations fall from 4 to 3 and requested bytes from 1972 to 1492 per
+operation. Unchanged decoder medians remain within 3% or improve in this paired
+matrix. Historical preliminary Cinnabar timings are not substituted for a fresh
+same-core comparison.
+
+Checkpoint verification: `cargo fmt --all`, `cargo test -p tokio-raknet`
+(234 tests including doctests), strict all-targets crate clippy, and
+`cargo check -p jolyne --all-targets` passed. Release Unastar with an isolated
+offline config on `127.0.0.1:19172` plus `stress_test --clients 5 --duration 15`
+joined/spawned all five clients, with zero failed clients and five despawns;
+server samples with five players were 19.8 and 19.9 TPS on E-cores.
+Go client → Rust server and Rust client → Go server both passed byte-for-byte
+echo checks at 32/512/4096/65536 bytes with counts 100/100/10/10.
+
+Raw local evidence: `target/raknet-checkpoint-*.jsonl`,
+`target/raknet-checkpoint-summary.json`, and `target/raknet-smoke/server-observed.log`.
 

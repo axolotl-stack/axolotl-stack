@@ -279,12 +279,10 @@ impl Sink<Message> for RaknetStream {
         if bytes.is_empty() {
             return Ok(());
         }
-        let id = bytes[0];
-        let body = bytes.slice(1..);
 
         let msg = OutboundMsg {
             peer,
-            packet: RaknetPacket::UserData { id, payload: body },
+            buffer: bytes,
             reliability: item.reliability,
             channel: item.channel,
             priority: item.priority,
@@ -536,7 +534,7 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
                 )
                 .await;
                 if let Err(error) =
-                    ms.queue_app_packet(msg.packet, msg.reliability, msg.channel, msg.priority)
+                    ms.queue_app_buffer(msg.buffer, msg.reliability, msg.channel, msg.priority)
                 {
                     tracing::debug!(?error, "failed to queue outbound packet");
                     let _ = context.to_app.try_send(Err(error.into()));
