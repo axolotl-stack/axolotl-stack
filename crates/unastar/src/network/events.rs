@@ -21,6 +21,7 @@ pub enum NetworkEvent {
         uuid: Option<String>,
         runtime_id: i64,
         initial_position: DVec3,
+        saved_data: Option<Box<crate::storage::PlayerData>>,
         /// Bounded channel to send packets to this player.
         /// Uses bounded capacity to prevent memory explosion on slow connections.
         outbound_tx: mpsc::Sender<McpePacket>,

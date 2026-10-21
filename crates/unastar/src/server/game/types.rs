@@ -45,6 +45,10 @@ pub struct ItemEntityIdCounter(pub i64);
 #[derive(Resource)]
 pub struct PlayerProviderResource(pub Arc<dyn crate::storage::PlayerProvider>);
 
+/// Last-position store, present only when saving previous positions is enabled.
+#[derive(Resource)]
+pub struct PlayerDataStoreResource(pub Arc<crate::config::PlayerDataStore>);
+
 /// Mapping from session ID to ECS entity.
 #[derive(Resource, Default)]
 pub struct SessionEntityMap {
@@ -89,6 +93,8 @@ pub struct PlayerSpawnData {
     pub uuid: Option<String>,
     pub runtime_id: i64,
     pub position: DVec3,
+    /// Validated persistent state loaded before the StartGame handshake.
+    pub saved_data: Option<crate::storage::PlayerData>,
     /// Bounded outbound channel to prevent memory explosion on slow connections.
     pub outbound_tx: mpsc::Sender<McpePacket>,
     pub chunk_radius: i32,

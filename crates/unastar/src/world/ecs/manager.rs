@@ -203,18 +203,24 @@ impl ChunkManager {
 
         // Try to load from provider if available
         if let Some(provider) = &self.provider {
-            // Use a runtime handle to block on async
-            // Note: This is acceptable for LevelDB which has fast reads (~1ms)
-            if let Ok(handle) = tokio::runtime::Handle::try_current() {
-                let provider = provider.clone();
-                let result =
-                    std::thread::spawn(move || handle.block_on(provider.load_column(pos, dim)))
-                        .join();
-
-                if let Ok(Ok(Some(column))) = result {
-                    // Loaded successfully
-                    return (column.chunk, true);
+            let provider = provider.clone();
+            let handle = tokio::runtime::Handle::try_current().ok();
+            let column = std::thread::spawn(move || {
+                if let Some(handle) = handle {
+                    handle.block_on(provider.load_column(pos, dim))
+                } else {
+                    tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                        .expect("chunk storage runtime")
+                        .block_on(provider.load_column(pos, dim))
                 }
+            })
+            .join()
+            .expect("chunk storage thread panicked")
+            .expect("chunk storage read failed; refusing to generate replacement terrain");
+            if let Some(column) = column {
+                return (column.chunk, true);
             }
         }
 
@@ -310,7 +316,7 @@ impl ChunkManager {
         x: i32,
         z: i32,
         viewer: Entity,
-    ) -> Option<tokio::sync::oneshot::Receiver<Chunk>> {
+    ) -> Option<tokio::sync::oneshot::Receiver<super::generation_worker::ChunkLoadResult>> {
         // Already loaded?
         if self.chunks.contains_key(&(x, z)) {
             self.pending_viewers.entry((x, z)).or_default().push(viewer);
@@ -325,7 +331,7 @@ impl ChunkManager {
 
         // Start generation via worker
         if let Some(worker) = &self.generation_worker
-            && let Some(receiver) = worker.generate(x, z)
+            && let Some(receiver) = worker.generate(x, z, self.provider.clone(), self.dimension())
         {
             self.pending_generation.insert((x, z), vec![viewer]);
             return Some(receiver);
@@ -369,18 +375,20 @@ impl ChunkManagerWorldExt for bevy_ecs::world::World {
         }
 
         // Generate chunk data and spawn entity
-        let (chunk_data, pos) = {
+        let (chunk_data, was_loaded, pos) = {
             let chunk_manager = self
                 .get_resource::<ChunkManager>()
                 .expect("ChunkManager must exist");
-            let chunk = chunk_manager.generate_chunk(x, z);
-            (chunk, ChunkPosition::new(x, z))
+            let (chunk, was_loaded) = chunk_manager.load_or_generate_chunk(x, z);
+            (chunk, was_loaded, ChunkPosition::new(x, z))
         };
 
         // Spawn entity with components
         // Mark newly generated chunks as dirty for persistence
         let mut state_flags = ChunkStateFlags::default();
-        state_flags.mark_dirty();
+        if !was_loaded {
+            state_flags.mark_dirty();
+        }
 
         let entity = self
             .spawn((

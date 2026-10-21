@@ -1,16 +1,18 @@
-//! Async chunk generation worker.
+//! Background load-before-generate worker.
 //!
-//! Offloads chunk generation to `tokio::spawn_blocking` to prevent
-//! blocking the main ECS tick loop during vanilla terrain generation.
-//!
-//! The worker spawns generation tasks in parallel, allowing multiple chunks
-//! to generate concurrently on tokio's blocking thread pool.
+//! Storage reads and stack-heavy vanilla generation run outside the ECS tick.
+//! Only an explicit storage miss permits generation; read errors never produce
+//! replacement terrain.
 
 use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot};
 
-use crate::world::Chunk;
+use crate::storage::{StorageResult, WorldProvider};
 use crate::world::generator::VanillaGenerator;
+use crate::world::{Chunk, ChunkPos};
+
+/// Chunk data plus its storage provenance (`true` means loaded, not generated).
+pub type ChunkLoadResult = StorageResult<(Chunk, bool)>;
 
 const CHUNK_GENERATION_STACK_SIZE: usize = 16 * 1024 * 1024;
 
@@ -18,17 +20,16 @@ const CHUNK_GENERATION_STACK_SIZE: usize = 16 * 1024 * 1024;
 pub struct ChunkGenRequest {
     pub x: i32,
     pub z: i32,
-    pub response_tx: oneshot::Sender<Chunk>,
+    pub provider: Option<Arc<dyn WorldProvider>>,
+    pub dimension: i32,
+    pub response_tx: oneshot::Sender<ChunkLoadResult>,
 }
 
 /// Handle to the chunk generation worker.
 ///
 /// Send requests via `generate()` and receive chunks through the returned receiver.
-/// The worker runs chunk generation on tokio's blocking thread pool to avoid
-/// blocking the async runtime or ECS systems.
-///
-/// Generation requests are processed in parallel - multiple chunks can generate
-/// concurrently, limited only by tokio's blocking thread pool size.
+/// Each request loads storage before generating on a miss, on a dedicated
+/// stack-sized thread. Storage failures are returned without generating.
 #[derive(Clone)]
 pub struct ChunkGenerationWorker {
     request_tx: mpsc::UnboundedSender<ChunkGenRequest>,
@@ -37,9 +38,7 @@ pub struct ChunkGenerationWorker {
 impl ChunkGenerationWorker {
     /// Spawn a new chunk generation worker with the given generator.
     ///
-    /// The worker will process generation requests asynchronously using
-    /// `tokio::spawn_blocking` for CPU-intensive terrain generation.
-    /// Requests are processed in parallel for maximum throughput.
+    /// Requests run on explicit 16 MiB stacks for Windows terrain generation.
     pub fn spawn(generator: Arc<VanillaGenerator>) -> Self {
         let (request_tx, request_rx) = mpsc::unbounded_channel();
 
@@ -54,18 +53,29 @@ impl ChunkGenerationWorker {
     ///
     /// The generation happens asynchronously on a blocking thread.
     /// Returns `None` if the worker has been shut down.
-    pub fn generate(&self, x: i32, z: i32) -> Option<oneshot::Receiver<Chunk>> {
+    pub fn generate(
+        &self,
+        x: i32,
+        z: i32,
+        provider: Option<Arc<dyn WorldProvider>>,
+        dimension: i32,
+    ) -> Option<oneshot::Receiver<ChunkLoadResult>> {
         let (response_tx, response_rx) = oneshot::channel();
         self.request_tx
-            .send(ChunkGenRequest { x, z, response_tx })
+            .send(ChunkGenRequest {
+                x,
+                z,
+                provider,
+                dimension,
+                response_tx,
+            })
             .ok()?;
         Some(response_rx)
     }
 
     /// Internal worker loop that processes generation requests.
     ///
-    /// Spawns each generation task without awaiting, allowing parallel execution
-    /// on tokio's blocking thread pool.
+    /// Starts each request without awaiting its load/generation thread.
     async fn run_worker(
         generator: Arc<VanillaGenerator>,
         mut request_rx: mpsc::UnboundedReceiver<ChunkGenRequest>,
@@ -74,6 +84,7 @@ impl ChunkGenerationWorker {
             let gen_clone = generator.clone();
             let x = req.x;
             let z = req.z;
+            let runtime = tokio::runtime::Handle::current();
 
             // Vanilla generation is stack-heavy on Windows. Use an explicit
             // stack size instead of tokio's blocking-pool default so terrain
@@ -82,8 +93,19 @@ impl ChunkGenerationWorker {
                 .name(format!("unastar-chunk-gen-{x}-{z}"))
                 .stack_size(CHUNK_GENERATION_STACK_SIZE)
                 .spawn(move || {
-                    let chunk = gen_clone.generate_chunk(x, z);
-                    let _ = req.response_tx.send(chunk);
+                    let result = (|| {
+                        if let Some(provider) = req.provider
+                            && let Some(column) = runtime.block_on(
+                                provider.load_column(ChunkPos::new(x, z), req.dimension),
+                            )?
+                        {
+                            tracing::debug!(chunk = ?(x, z), dimension = req.dimension, "Loaded chunk from storage");
+                            return Ok((column.chunk, true));
+                        }
+                        tracing::debug!(chunk = ?(x, z), dimension = req.dimension, "Generating missing chunk");
+                        Ok((gen_clone.generate_chunk(x, z), false))
+                    })();
+                    let _ = req.response_tx.send(result);
                 })
             {
                 tracing::warn!(
@@ -108,8 +130,10 @@ mod tests {
         let generator = Arc::new(VanillaGenerator::new(12345));
         let worker = ChunkGenerationWorker::spawn(generator);
 
-        let receiver = worker.generate(0, 0).expect("Worker should accept request");
-        let chunk = receiver.await.expect("Should receive chunk");
+        let receiver = worker
+            .generate(0, 0, None, 0)
+            .expect("Worker should accept request");
+        let (chunk, _) = receiver.await.expect("Should receive chunk").unwrap();
 
         assert_eq!(chunk.x, 0);
         assert_eq!(chunk.z, 0);
@@ -121,14 +145,14 @@ mod tests {
         let worker = ChunkGenerationWorker::spawn(generator);
 
         // Request multiple chunks
-        let r1 = worker.generate(0, 0).unwrap();
-        let r2 = worker.generate(1, 0).unwrap();
-        let r3 = worker.generate(0, 1).unwrap();
+        let r1 = worker.generate(0, 0, None, 0).unwrap();
+        let r2 = worker.generate(1, 0, None, 0).unwrap();
+        let r3 = worker.generate(0, 1, None, 0).unwrap();
 
         // All should complete
-        let c1 = r1.await.unwrap();
-        let c2 = r2.await.unwrap();
-        let c3 = r3.await.unwrap();
+        let (c1, _) = r1.await.unwrap().unwrap();
+        let (c2, _) = r2.await.unwrap().unwrap();
+        let (c3, _) = r3.await.unwrap().unwrap();
 
         assert_eq!((c1.x, c1.z), (0, 0));
         assert_eq!((c2.x, c2.z), (1, 0));

@@ -50,6 +50,11 @@ impl UnastarServer {
 
         // Create ECS-based game server
         let mut server = GameServer::with_config(config.server_config());
+        if config.players.save_previous_position {
+            server.ecs.world_mut().insert_resource(
+                crate::server::game::types::PlayerDataStoreResource(player_data_store.clone()),
+            );
+        }
 
         // Initialize LevelDB player provider (if enabled)
         if config.players.leveldb_enabled {
@@ -203,6 +208,12 @@ impl UnastarServer {
                 key: self.server_key.clone(),
                 config: self.config.clone(),
                 player_data_store: self.player_data_store.clone(),
+                player_provider: self
+                    .server
+                    .ecs
+                    .world()
+                    .get_resource::<crate::server::game::types::PlayerProviderResource>()
+                    .map(|resource| resource.0.clone()),
                 event_tx,
                 tick_tx: tick_tx.clone(),
                 connection_gate,
@@ -273,6 +284,7 @@ impl UnastarServer {
                                 uuid,
                                 runtime_id,
                                 initial_position,
+                                saved_data,
                                 outbound_tx,
                             } => {
                                 let spawn_data = PlayerSpawnData {
@@ -282,6 +294,7 @@ impl UnastarServer {
                                     uuid,
                                     runtime_id,
                                     position: initial_position,
+                                    saved_data: saved_data.map(|data| *data),
                                     outbound_tx,
                                     chunk_radius: default_chunk_radius,
                                 };
@@ -374,6 +387,7 @@ struct AcceptLoopState {
     key: SecretKey,
     config: Arc<UnastarConfig>,
     player_data_store: Arc<PlayerDataStore>,
+    player_provider: Option<Arc<dyn crate::storage::PlayerProvider>>,
     event_tx: mpsc::Sender<NetworkEvent>,
     tick_tx: broadcast::Sender<()>,
     connection_gate: Arc<Semaphore>,
@@ -388,6 +402,7 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
             key,
             config,
             player_data_store,
+            player_provider,
             event_tx,
             tick_tx,
             connection_gate,
@@ -415,6 +430,7 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
                     let key = key.clone();
                     let config = config.clone();
                     let player_data_store = player_data_store.clone();
+                    let player_provider = player_provider.clone();
                     let event_tx = event_tx.clone();
                     let tick_rx = tick_tx.subscribe();
                     let session_id = next_session_id;
@@ -427,12 +443,13 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
                             &key,
                             &config,
                             &player_data_store,
+                            player_provider.as_deref(),
                             session_id,
                             handshake_stream,
                         )
                         .await
                         {
-                            Ok((mut play_stream, identity, initial_position)) => {
+                            Ok((mut play_stream, identity, initial_position, saved_data)) => {
                                 let display_name = identity
                                     .display_name
                                     .as_deref()
@@ -460,6 +477,7 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
                                         uuid: identity.uuid.clone(),
                                         runtime_id: session_id as i64,
                                         initial_position: spawn_to_dvec3(&initial_position),
+                                        saved_data: saved_data.map(Box::new),
                                         outbound_tx: outbound_tx.clone(),
                                     })
                                     .await

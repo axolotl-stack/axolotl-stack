@@ -11,6 +11,7 @@ use jolyne::{JolyneError, WorldTemplate};
 use p384::SecretKey;
 
 use crate::config::{PlayerDataStore, SpawnLocation, UnastarConfig};
+use crate::storage::{PlayerData, PlayerProvider};
 
 /// Performs the complete join sequence for a connecting player.
 ///
@@ -26,9 +27,10 @@ pub async fn accept_join_sequence(
     server_key: &SecretKey,
     config: &UnastarConfig,
     player_data_store: &PlayerDataStore,
+    player_provider: Option<&dyn PlayerProvider>,
     session_id: u64,
     handshake_stream: ServerLogin,
-) -> Result<(ServerPlay, ValidatedIdentity, Vec3), JolyneError> {
+) -> Result<(ServerPlay, ValidatedIdentity, Vec3, Option<PlayerData>), JolyneError> {
     // 1. Network Settings
     let login = handshake_stream.accept_network_settings().await?;
 
@@ -51,7 +53,18 @@ pub async fn accept_join_sequence(
         .await?;
 
     // 5. Resolve spawn before StartGame.
-    let spawn = resolve_spawn_location(config, &identity, template, player_data_store).await;
+    let mut saved_data = load_player_data(player_provider, identity.uuid.as_deref()).await;
+    let spawn = resolve_spawn_location(
+        config,
+        &identity,
+        template,
+        player_data_store,
+        saved_data.as_ref(),
+    )
+    .await;
+    if let Some(saved) = &mut saved_data {
+        saved.rotation = [spawn.yaw, spawn.pitch];
+    }
     let initial_position = Vec3 {
         x: spawn.x,
         y: spawn.y,
@@ -61,6 +74,15 @@ pub async fn accept_join_sequence(
     // 6. Build join params (use session_id as entity/runtime ID for now).
     let mut join_params = template.to_join_params(session_id as i64);
     join_params.start_game.position = initial_position.clone();
+    if let Some(saved) = &saved_data {
+        join_params.start_game.game_type = match saved.game_mode {
+            0 => jolyne::valentine::EnumsGameType::Survival,
+            1 => jolyne::valentine::EnumsGameType::Creative,
+            2 => jolyne::valentine::EnumsGameType::Adventure,
+            6 => jolyne::valentine::EnumsGameType::Spectator,
+            _ => unreachable!("player state validated on load"),
+        };
+    }
     join_params.start_game.settings.default_spawn_block_position = BlockPos {
         x: spawn.x.floor() as i32,
         y: spawn.y.floor() as i32,
@@ -73,7 +95,28 @@ pub async fn accept_join_sequence(
 
     // 7. Join.
     let play = start_game_state.start_game(join_params).await?;
-    Ok((play, identity, initial_position))
+    Ok((play, identity, initial_position, saved_data))
+}
+
+/// Load validated player state once, before StartGame and ECS spawning.
+/// Read/parse errors preserve the record and fall back to first-join defaults.
+pub async fn load_player_data(
+    provider: Option<&dyn PlayerProvider>,
+    uuid: Option<&str>,
+) -> Option<PlayerData> {
+    let provider = provider?;
+    let uuid = uuid.and_then(|uuid| uuid::Uuid::parse_str(uuid).ok())?;
+    let result = match provider.load(uuid).await {
+        Ok(Some(data)) => data.validate(uuid).map(|()| Some(data)),
+        other => other,
+    };
+    match result {
+        Ok(data) => data,
+        Err(error) => {
+            tracing::warn!(%uuid, %error, "Failed to load player data; using defaults without deleting stored data");
+            None
+        }
+    }
 }
 
 /// Resolves the spawn location for a player based on config rules.
@@ -87,6 +130,7 @@ pub async fn resolve_spawn_location(
     identity: &ValidatedIdentity,
     template: &WorldTemplate,
     player_data_store: &PlayerDataStore,
+    saved_data: Option<&PlayerData>,
 ) -> SpawnLocation {
     let uuid = identity.uuid.as_deref();
     let world_dimension = template
@@ -95,15 +139,37 @@ pub async fn resolve_spawn_location(
         .spawn_settings
         .dimension;
 
+    let mut last_position = None;
+    if config.spawn_rules.iter().any(|rule| rule.previous_position)
+        && let Some(uuid) = uuid
+    {
+        match player_data_store.load_last_position(uuid).await {
+            Ok(last) => last_position = last,
+            Err(error) => {
+                tracing::warn!(%uuid, %error, "Failed to load last player position; using spawn defaults")
+            }
+        }
+    }
     // Check spawn rules in order
     for rule in &config.spawn_rules {
         // Check for previous position first if enabled
-        if rule.previous_position
-            && let Some(uuid) = uuid
-            && let Ok(Some(last)) = player_data_store.load_last_position(uuid).await
-            && last.dimension == world_dimension
-        {
-            return last.location;
+        if rule.previous_position {
+            if let Some(saved) = saved_data
+                && saved.dimension == world_dimension
+            {
+                return SpawnLocation {
+                    x: saved.position[0] as f32,
+                    y: saved.position[1] as f32,
+                    z: saved.position[2] as f32,
+                    yaw: saved.rotation[0],
+                    pitch: saved.rotation[1],
+                };
+            }
+            if let Some(last) = &last_position
+                && last.dimension == world_dimension
+            {
+                return last.location;
+            }
         }
         // Use configured location directly (trust the user's config)
         if rule.always_at_location
