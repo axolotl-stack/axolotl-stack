@@ -306,3 +306,10 @@ Run benchmarks locally with:
 cargo bench -p tokio-raknet
 ```
 
+Queueing benchmarks use a fresh session per Criterion batch so they measure
+successful enqueueing rather than exhaust the 2048-packet queue cap. Compare
+revisions with the same benchmark workload; older reused-session results are
+not comparable. On hybrid CPUs, pin both A/B executables to the same logical
+core and interleave their runs. `iter_batched` session benchmarks include
+session teardown as well as the named operation.
+
