@@ -17,4 +17,4 @@
 	branch = r26_u4
 [submodule "crates/valentine_gen/protocolgen"]
 	path = crates/valentine_gen/protocolgen
-	url = https://github.com/bedrock-mc/protocolgen.git
+	url = https://github.com/cinnabar-mc/protocolgen.git

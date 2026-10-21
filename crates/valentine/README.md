@@ -15,8 +15,6 @@ uses that schema label for its module and Cargo feature names.
 - `valentine::bedrock::version::v1_26_51::*`
 - `valentine::bedrock::v1_26_51::*` (compatibility alias)
 
-The `1.26.44` generated crate remains available for older clients.
-
 ## Layout
 
 - `src/bedrock/`: shared Bedrock-facing API, version aliases, codec/context/error re-exports

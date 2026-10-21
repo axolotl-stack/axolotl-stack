@@ -59,27 +59,16 @@ changelog before using a schema as a release target.
 
 ## Mojang version mapping and pin policy
 
-The 1.26.44 protocolgen manifest is a fingerprinted same-protocol hotfix derived
-from the reconciled 1.26.40 manifest. Both versions use protocol 2168; 1.26.44
-adds one outer presence marker around `RemoveScore.objective_name`, producing a
-Rust `Option<Option<String>>`. The hotfix pins exact Mojang, Cloudburst, and
-Lunar evidence in protocolgen rather than guessing from the unchanged protocol
-number.
-
-The legacy `bedrock-protocol-docs` gitlink used to build the 1.26.40 base is
-`0e00fe80f4f3c71572ff6429de40146d1f4412fc` (`automated/1.26.40`). Its schemas
-stamp `x-minecraft-version: 1.26.40-beta.0` and `x-protocol-version: 2168`;
-Valentine normalizes the prerelease metadata suffix to crate/module version
-`v1_26_40` while retaining protocol 2168.
-
-The current supported stable target is Bedrock 26.51 (protocolgen schema label
+The only supported target is Bedrock 26.51 (protocolgen schema label
 `1.26.51`, network protocol 2193). The canonical manifest and its source
-fingerprints are pinned under `protocolgen/generated/1.26.51/`.
+fingerprints are pinned under `protocolgen/generated/1.26.51/`, from the
+`cinnabar-mc/protocolgen` submodule. Older Valentine version crates (1.26.0,
+1.26.40, 1.26.44) have been removed; regenerate from their protocolgen
+manifests if a compatibility crate is ever needed again.
 
-The older 1.26.40 and 1.26.44 crates remain available as compatibility
-versions. Do not treat `generated/1.26.50/` as the stable release: it captures
-Preview 25 and protocol 2187. Stable 26.50 and 26.51 use protocol 2193; the
-26.51 hotfix has no packet changes relative to stable 26.50.
+Do not treat `generated/1.26.50/` as the stable release: it captures Preview 25
+and protocol 2187. Stable 26.50 and 26.51 use protocol 2193; the 26.51 hotfix
+has no packet changes relative to stable 26.50.
 
 ## Mojang corrections and conformance
 
