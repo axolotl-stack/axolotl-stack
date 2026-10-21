@@ -26,7 +26,7 @@ struct Args {
     #[arg(short, long, default_value = "bds-data.json")]
     output: PathBuf,
 
-    /// Connection timeout in seconds
+    /// Timeout in seconds for joining and for collecting post-spawn definitions
     #[arg(short, long, default_value = "30")]
     timeout: u64,
 
@@ -66,81 +66,167 @@ async fn main() -> Result<()> {
 
     info!("Connecting to BDS at {}...", addr);
 
-    // Connect with timeout
-    let connect_result = tokio::time::timeout(
-        Duration::from_secs(args.timeout),
-        extract_data(addr, &args.name),
-    )
-    .await;
+    let data = extract_data(addr, &args.name, Duration::from_secs(args.timeout)).await?;
+    info!("Extraction complete!");
+    info!("  Items: {}", data.items.registry.len());
+    info!("  Blocks: {}", data.blocks.properties.len());
+    info!(
+        "  Creative Groups: {}",
+        data.creative.as_ref().map_or(0, |c| c.groups.len())
+    );
+    info!(
+        "  Creative Items: {}",
+        data.creative.as_ref().map_or(0, |c| c.items.len())
+    );
 
-    match connect_result {
-        Ok(Ok(data)) => {
-            info!("Extraction complete!");
-            info!("  Items: {}", data.items.registry.len());
-            info!("  Blocks: {}", data.blocks.properties.len());
-            info!(
-                "  Creative Groups: {}",
-                data.creative.as_ref().map_or(0, |c| c.groups.len())
-            );
-            info!(
-                "  Creative Items: {}",
-                data.creative.as_ref().map_or(0, |c| c.items.len())
-            );
-
-            write_extracted_data(&args.output, &data)?;
-            Ok(())
-        }
-        Ok(Err(e)) => {
-            anyhow::bail!("Extraction failed: {}", e);
-        }
-        Err(_) => {
-            anyhow::bail!("Connection timed out after {} seconds", args.timeout);
-        }
-    }
+    write_extracted_data(&args.output, &data)?;
+    Ok(())
 }
 
 fn load_fixture(path: &Path) -> Result<output::ExtractedData> {
     let json = std::fs::read_to_string(path).context("Failed to read fixture")?;
     let data: output::ExtractedData =
         serde_json::from_str(&json).context("Failed to parse fixture JSON")?;
-    data.validate()
-        .map_err(|e| anyhow::anyhow!("Fixture validation failed: {e}"))?;
+    data.validate().context("Fixture validation failed")?;
     Ok(data)
 }
 
 fn write_extracted_data(output: &Path, data: &output::ExtractedData) -> Result<()> {
     data.validate()
-        .map_err(|e| anyhow::anyhow!("Extracted data validation failed: {e}"))?;
+        .context("Extracted data validation failed")?;
     let json = serde_json::to_string_pretty(data).context("Failed to serialize data")?;
     std::fs::write(output, json).context("Failed to write output file")?;
     info!("Data written to: {}", output.display());
     Ok(())
 }
 
-async fn extract_data(addr: SocketAddr, player_name: &str) -> Result<output::ExtractedData> {
-    // Connect to BDS
-    let handshake_stream = BedrockStream::connect(addr)
-        .await
-        .context("Failed to connect to BDS")?;
+async fn extract_data(
+    addr: SocketAddr,
+    player_name: &str,
+    collection_timeout: Duration,
+) -> Result<output::ExtractedData> {
+    // Bound login separately so collection timeouts can report missing sections
+    // and still send a disconnect.
+    let (mut play_stream, mut game_data) = tokio::time::timeout(collection_timeout, async {
+        let handshake_stream = BedrockStream::connect(addr)
+            .await
+            .context("Failed to connect to BDS")?;
+        let config = ClientHandshakeConfig::random(addr, player_name);
+        handshake_stream
+            .join(config)
+            .await
+            .context("Failed to complete handshake")
+    })
+    .await
+    .context("Connection/login timed out")??;
 
-    info!("Connected! Starting handshake...");
+    info!("Handshake complete! Collecting game definitions...");
+    let deadline = tokio::time::Instant::now() + collection_timeout;
+    let collection = async {
+        while let Some(section) = missing_section(&game_data) {
+            let packet = tokio::time::timeout_at(deadline, play_stream.recv_packet())
+                .await
+                .map_err(|_| output::ValidationError::MissingSection(section))?
+                .with_context(|| format!("Receiving required section: {section}"))?;
+            capture_definition(&mut game_data, packet.data)?;
+        }
+        Ok::<_, anyhow::Error>(())
+    }
+    .await;
 
-    // Configure client with random identity (self-signed auth for offline BDS)
-    let config = ClientHandshakeConfig::random(addr, player_name);
-
-    // Join - this handles settings, auth, encryption, resource packs, and captures game data
-    let (_play_stream, game_data) = handshake_stream
-        .join(config)
-        .await
-        .context("Failed to complete handshake")?;
-
-    info!("Handshake complete! Extracting data...");
-
-    // Convert to our output format
+    // Send the protocol disconnect even when collection fails; never wait indefinitely
+    // for a peer that stopped sending. Dropping the stream then closes the transport.
+    let disconnect = tokio::time::timeout(
+        Duration::from_secs(2),
+        play_stream.send_packet(jolyne::valentine::DisconnectPacket::default().into()),
+    )
+    .await;
+    collection?;
+    disconnect
+        .context("Disconnect timed out")?
+        .context("Failed to disconnect")?;
     let extracted = output::ExtractedData::from_game_data(game_data);
-
-    // Note: We drop the play_stream here which disconnects
-    // In the future we could stay connected to receive more packets if needed
-
+    extracted.validate()?;
     Ok(extracted)
+}
+
+fn missing_section(data: &jolyne::GameData) -> Option<&'static str> {
+    if data.biome_definitions.is_none() {
+        Some("biomes")
+    } else if data.entity_identifiers.is_none() {
+        Some("entities")
+    } else if data.creative_content.is_none() {
+        Some("creative")
+    } else {
+        None
+    }
+}
+
+fn capture_definition(
+    data: &mut jolyne::GameData,
+    packet: jolyne::valentine::McpePacketData,
+) -> Result<()> {
+    use jolyne::valentine::McpePacketData;
+    match packet {
+        McpePacketData::BiomeDefinitionListPacket(packet) => data.biome_definitions = Some(packet),
+        McpePacketData::AvailableActorIdentifiersPacket(packet) => {
+            data.entity_identifiers = Some(packet)
+        }
+        McpePacketData::CreativeContentPacket(packet) => data.creative_content = Some(packet),
+        McpePacketData::ItemRegistryPacket(packet) => data.item_registry = packet,
+        McpePacketData::DisconnectPacket(packet) => {
+            anyhow::bail!("Server disconnected during extraction: {:?}", packet.reason);
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use jolyne::valentine::{
+        AvailableEntityIdentifiersPacket, BiomeDefinitionListPacket, CreativeContentPacket,
+        ItemRegistryPacket, McpePacketData, StartGamePacket,
+    };
+
+    #[test]
+    fn collection_requires_all_definitions_in_any_order() {
+        let mut data = jolyne::GameData {
+            start_game: StartGamePacket::default(),
+            item_registry: ItemRegistryPacket::default(),
+            biome_definitions: None,
+            entity_identifiers: None,
+            creative_content: None,
+        };
+        capture_definition(
+            &mut data,
+            McpePacketData::CreativeContentPacket(CreativeContentPacket::default()),
+        )
+        .unwrap();
+        assert_eq!(missing_section(&data), Some("biomes"));
+        capture_definition(
+            &mut data,
+            McpePacketData::BiomeDefinitionListPacket(BiomeDefinitionListPacket::default()),
+        )
+        .unwrap();
+        assert_eq!(missing_section(&data), Some("entities"));
+        capture_definition(
+            &mut data,
+            McpePacketData::AvailableActorIdentifiersPacket(
+                AvailableEntityIdentifiersPacket::default(),
+            ),
+        )
+        .unwrap();
+        assert_eq!(missing_section(&data), None);
+        assert!(
+            capture_definition(
+                &mut data,
+                jolyne::valentine::McpePacket::from(
+                    jolyne::valentine::DisconnectPacket::default(),
+                ).data,
+            )
+            .is_err()
+        );
+    }
 }
