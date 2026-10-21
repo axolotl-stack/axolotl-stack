@@ -463,16 +463,9 @@ fn generate_mcpe_packet_module(
             v.encode(buf)?;
         }});
 
-        let decode_expr = if meta.boxed {
-            quote! { McpePacketData::#variant(Box::new(<#payload_ident as crate::bedrock::codec::BedrockCodec>::decode(&mut payload_buf, #decode_args)?)) }
-        } else {
-            quote! { McpePacketData::#variant(<#payload_ident as crate::bedrock::codec::BedrockCodec>::decode(&mut payload_buf, #decode_args)?) }
-        };
-
         decode_match_arms.push(quote! {
             McpePacketName::#variant => {
-                let packet = #decode_expr;
-                packet
+                Self::decode_payload::<#payload_ident, _>(&mut payload_buf, #decode_args)?
             }
         });
     }
@@ -685,6 +678,27 @@ fn generate_mcpe_packet_module(
                 self.encode_inner_bytes_mut(buf, from_subclient, to_subclient)
             }
 
+            /// Keeps each packet's decode temporaries out of the shared dispatch
+            /// stack frame. Inlining the largest codecs here makes even tiny
+            /// packets pay for Windows stack probes and cross-variant spills.
+            #[inline(never)]
+            fn decode_payload<T, B>(
+                buf: &mut B,
+                args: T::Args,
+            ) -> Result<Self, crate::bedrock::error::DecodeError>
+            where
+                T: crate::bedrock::codec::BedrockCodec + Into<Self>,
+                B: bytes::Buf,
+            {
+                let packet = T::decode(buf, args)?;
+                if buf.has_remaining() {
+                    return Err(crate::bedrock::error::DecodeError::TrailingPacketBytes {
+                        remaining: buf.remaining(),
+                    });
+                }
+                Ok(packet.into())
+            }
+
             /// Decodes a batch entry from the provided buffer: `[Length] [Header] [Body]`.
             /// Returns the header and the packet payload.
             ///
@@ -713,12 +727,6 @@ fn generate_mcpe_packet_module(
                 let packet = match packet_id {
                     #(#decode_match_arms)*
                 };
-
-                if payload_buf.has_remaining() {
-                    return Err(crate::bedrock::error::DecodeError::TrailingPacketBytes {
-                        remaining: payload_buf.remaining(),
-                    });
-                }
 
                 Ok((
                     GameHeader {
