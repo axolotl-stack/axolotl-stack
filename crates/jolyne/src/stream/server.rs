@@ -446,15 +446,24 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
 
         tracing::debug!("StartGame packet sent");
 
-        // 2. Wait for RequestChunkRadius
+        // 2. Wait for RequestChunkRadius. Clients may send ServerboundLoadingScreen
+        // (StartLoadingScreen) before or after it — jolyne's own client sends it first —
+        // so loading-screen progress is tracked in any order instead of being discarded.
+        let mut loading = LoadingScreenProgress::default();
         let requested_radius = tokio::time::timeout(START_GAME_STEP_TIMEOUT, async {
             loop {
                 let pkt = self.transport.recv_packet().await?;
-
-                if let McpePacketData::RequestChunkRadiusPacket(req) = pkt.data {
-                    return Ok::<_, JolyneError>(req.chunk_radius);
+                match pkt.data {
+                    McpePacketData::RequestChunkRadiusPacket(req) => {
+                        return Ok::<_, JolyneError>(req.chunk_radius);
+                    }
+                    McpePacketData::ServerboundLoadingScreenPacket(pk) => {
+                        loading.observe(pk.loading_screen_packet_type)
+                    }
+                    other => {
+                        tracing::debug!("Waiting for chunk radius, got: {:?}", other.packet_id())
+                    }
                 }
-                // ignore all other packets. Maybe add a configable logging here?
             }
         })
         .await
@@ -487,64 +496,29 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
             ])
             .await?;
 
-        tracing::debug!("Batch sent, waiting for ServerboundLoadingScreen...");
+        tracing::debug!(
+            "Batch sent, waiting for loading screen and SetLocalPlayerAsInitialized..."
+        );
 
-        // 4. Loading Screen Handshake (Types 1 & 2)
+        // 4. Loading screen (types 1 & 2) and SetLocalPlayerAsInitialized, accepted in
+        // any order relative to each other.
         tokio::time::timeout(START_GAME_STEP_TIMEOUT, async {
             loop {
                 let pkt = self.transport.recv_packet().await?;
-
-                if let McpePacketData::ServerboundLoadingScreenPacket(pk) = pkt.data
-                    && pk.loading_screen_packet_type
-                        == EnumsServerboundLoadingScreenPacketType::Startloadingscreen
-                {
-                    return Ok::<_, JolyneError>(());
-                }
-            }
-        })
-        .await
-        .map_err(|_| {
-            ProtocolError::UnexpectedHandshake("Timeout waiting for StartLoadingScreen".into())
-        })??;
-
-        let end_loading = tokio::time::timeout(START_GAME_STEP_TIMEOUT, async {
-            loop {
-                let pkt = self.transport.recv_packet().await?;
-
-                if let McpePacketData::ServerboundLoadingScreenPacket(pk) = pkt.data
-                    && pk.loading_screen_packet_type
-                        == EnumsServerboundLoadingScreenPacketType::Endloadingscreen
-                {
-                    return Ok::<_, JolyneError>(());
-                }
-            }
-        })
-        .await;
-
-        match end_loading {
-            Ok(Ok(())) => {}
-            Ok(Err(e)) => return Err(e),
-            Err(_) => {
-                return Err(ProtocolError::UnexpectedHandshake(
-                    "Timeout waiting for EndLoadingScreen".into(),
-                )
-                .into());
-            }
-        }
-
-        tracing::debug!("Client finished loading");
-        // 5. Wait for SetLocalPlayerAsInitialized
-        tokio::time::timeout(START_GAME_STEP_TIMEOUT, async {
-            loop {
-                let pkt = self.transport.recv_packet().await?;
-
-                if matches!(
-                    pkt.data,
-                    McpePacketData::SetLocalPlayerAsInitializedPacket(_)
-                ) {
-                    return Ok::<_, JolyneError>(());
-                } else {
-                    tracing::debug!("Waiting for init, got: {:?}", pkt.data.packet_id());
+                match pkt.data {
+                    McpePacketData::ServerboundLoadingScreenPacket(pk) => {
+                        loading.observe(pk.loading_screen_packet_type)
+                    }
+                    McpePacketData::SetLocalPlayerAsInitializedPacket(_) => {
+                        if !loading.finished() {
+                            tracing::debug!(
+                                started = loading.started,
+                                "Client initialized before EndLoadingScreen"
+                            );
+                        }
+                        return Ok::<_, JolyneError>(());
+                    }
+                    other => tracing::debug!("Waiting for init, got: {:?}", other.packet_id()),
                 }
             }
         })
@@ -561,6 +535,33 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
             state: Play,
             _role: PhantomData,
         })
+    }
+}
+
+/// Loading-screen progress reported by the client during the StartGame handshake.
+///
+/// Only used for diagnostics: clients send Start/EndLoadingScreen at different points
+/// relative to RequestChunkRadius and SetLocalPlayerAsInitialized, so the handshake
+/// never blocks on a particular loading-screen ordering.
+#[derive(Debug, Default, Clone, Copy)]
+struct LoadingScreenProgress {
+    started: bool,
+    ended: bool,
+}
+
+impl LoadingScreenProgress {
+    fn observe(&mut self, kind: EnumsServerboundLoadingScreenPacketType) {
+        match kind {
+            EnumsServerboundLoadingScreenPacketType::Startloadingscreen => self.started = true,
+            EnumsServerboundLoadingScreenPacketType::Endloadingscreen => self.ended = true,
+            EnumsServerboundLoadingScreenPacketType::Unknown(value) => {
+                tracing::debug!(value, "Unknown ServerboundLoadingScreen type")
+            }
+        }
+    }
+
+    fn finished(self) -> bool {
+        self.started && self.ended
     }
 }
 
@@ -741,6 +742,67 @@ mod tests {
             *received.lock().expect("received lock"),
             3,
             "server must wait for Completed before entering StartGame"
+        );
+    }
+
+    /// Regression: jolyne's own client (and other clients) send StartLoadingScreen
+    /// before RequestChunkRadius. The server used to discard it while waiting for the
+    /// radius request and then wait for a StartLoadingScreen that never came.
+    #[tokio::test]
+    async fn start_game_accepts_loading_screen_before_chunk_radius() {
+        use crate::valentine::{
+            AvailableActorIdentifiersPacket, BiomeDefinitionListPacket, CreativeContentPacket,
+            ItemRegistryPacket, RequestChunkRadiusPacket, ServerboundLoadingScreenPacket,
+            SetLocalPlayerAsInitializedPacket, StartGamePacket,
+        };
+
+        let loading = |kind| {
+            compressed_frame(McpePacket::from(ServerboundLoadingScreenPacket {
+                loading_screen_packet_type: kind,
+                loading_screen_id: None,
+            }))
+        };
+        let inbound = vec![
+            loading(EnumsServerboundLoadingScreenPacketType::Startloadingscreen),
+            compressed_frame(McpePacket::from(RequestChunkRadiusPacket {
+                chunk_radius: 16,
+                max_chunk_radius: 16,
+            })),
+            compressed_frame(McpePacket::from(
+                SetLocalPlayerAsInitializedPacket::default(),
+            )),
+            loading(EnumsServerboundLoadingScreenPacketType::Endloadingscreen),
+        ];
+
+        let sent = Arc::new(Mutex::new(Vec::new()));
+        let received = Arc::new(Mutex::new(0usize));
+        let mut transport = BedrockTransport::new(ScriptedTransport::new(
+            inbound,
+            sent.clone(),
+            received.clone(),
+        ));
+        transport.set_compression(true, 0, 0);
+        let stream = BedrockStream {
+            transport,
+            state: StartGame,
+            _role: PhantomData,
+        };
+
+        stream
+            .start_game(WorldJoinParams {
+                start_game: StartGamePacket::default(),
+                item_registry: Arc::new(ItemRegistryPacket::default()),
+                biome_definitions: Arc::new(BiomeDefinitionListPacket::default()),
+                available_entities: Arc::new(AvailableActorIdentifiersPacket::default()),
+                creative_content: Arc::new(CreativeContentPacket::default()),
+            })
+            .await
+            .expect("StartLoadingScreen before RequestChunkRadius must not stall the join");
+
+        assert_eq!(
+            *received.lock().expect("received lock"),
+            3,
+            "server enters Play on SetLocalPlayerAsInitialized without waiting for later packets"
         );
     }
 }

@@ -1067,9 +1067,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
     }
 
+    write_prismarine_surface(&valentine_root, version_decls)
+}
+
+fn write_prismarine_surface(
+    valentine_root: &Path,
+    mut version_decls: Vec<VersionDecl>,
+) -> Result<(), Box<dyn std::error::Error>> {
     if version_decls.is_empty() {
         return Err("No versions could be generated from minecraft-data".into());
     }
+
+    // A data checkout need not contain releases generated from protocolgen or
+    // Mojang. Retain their live declarations before replacing the public surface
+    // and manifest, including any release selected by the existing default.
+    for existing in read_existing_version_decls(valentine_root)? {
+        if !version_decls
+            .iter()
+            .any(|decl| decl.module_name == existing.module_name)
+        {
+            version_decls.push(existing);
+        }
+    }
+    let bedrock_src_dir = valentine_root.join("src").join("bedrock");
+    let protocol_mod_dir = bedrock_src_dir.join("protocol");
 
     let default_version = latest_version(
         &version_decls
@@ -1235,7 +1256,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         version_formatted
     )?;
 
-    update_valentine_manifest_at(&valentine_root, &default_feature, &version_decls)?;
+    update_valentine_manifest_at(valentine_root, &default_feature, &version_decls)?;
 
     Ok(())
 }
@@ -1516,6 +1537,89 @@ mod generated_crate_tests {
     use std::path::Path;
     use std::process::Command;
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn prismarine_surface_preserves_existing_versions_and_default() {
+        use super::{
+            BedrockVersionJson, VersionDecl, write_generated_surface, write_prismarine_surface,
+        };
+
+        let output = std::env::temp_dir().join(format!(
+            "valentine-prismarine-surface-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(output.join("bedrock_versions/v1_26_51")).unwrap();
+        fs::create_dir_all(output.join("bedrock_versions/v1_21_120")).unwrap();
+        fs::write(
+            output.join("Cargo.toml"),
+            "[package]\nname = \"valentine\"\nversion = \"0.1.0\"\n\
+             [features]\ndefault = [\"bedrock_1_26_51\"]\ncustom = []\n",
+        )
+        .unwrap();
+        let declaration = |version: &str, protocol_version| VersionDecl {
+            module_name: super::version_to_module(version),
+            feature: super::version_to_feature(version),
+            crate_name: super::version_to_crate(version),
+            meta: BedrockVersionJson {
+                minecraft_version: version.to_string(),
+                protocol_version,
+                major_version: "1.26".to_string(),
+                release_type: "release".to_string(),
+            },
+        };
+        write_generated_surface(
+            &output,
+            &[declaration("1.26.51", 975), declaration("1.20.0", 589)],
+            "bedrock_1_26_51",
+        )
+        .unwrap();
+
+        // The data checkout only knows the older release; the newer protocol
+        // crate and default were generated from another source.
+        write_prismarine_surface(&output, vec![declaration("1.21.120", 859)]).unwrap();
+
+        let manifest: toml_edit::DocumentMut = fs::read_to_string(output.join("Cargo.toml"))
+            .unwrap()
+            .parse()
+            .unwrap();
+        assert_eq!(
+            manifest["features"]["default"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|value| value.as_str().unwrap())
+                .collect::<Vec<_>>(),
+            ["bedrock_1_26_51"]
+        );
+        assert!(manifest["features"].get("custom").is_some());
+        for version in ["1.26.51", "1.21.120"] {
+            let feature = super::version_to_feature(version);
+            let crate_name = super::version_to_crate(version);
+            assert_eq!(
+                manifest["features"][&feature][0].as_str(),
+                Some(format!("dep:{crate_name}").as_str())
+            );
+            assert_eq!(
+                manifest["dependencies"][&crate_name]["path"].as_str(),
+                Some(format!("bedrock_versions/{}", super::version_to_module(version)).as_str())
+            );
+            for file in ["mod.rs", "protocol/mod.rs", "version.rs"] {
+                let source = fs::read_to_string(output.join("src/bedrock").join(file)).unwrap();
+                assert!(
+                    source.contains(&super::version_to_module(version)),
+                    "{file}"
+                );
+                assert!(!source.contains("v1_20_0"), "{file}");
+            }
+        }
+        assert!(manifest["features"].get("bedrock_1_20_0").is_none());
+        assert!(
+            manifest["dependencies"]
+                .get("valentine_bedrock_1_20_0")
+                .is_none()
+        );
+        fs::remove_dir_all(output).unwrap();
+    }
 
     fn copy_directory(source: &Path, destination: &Path) -> std::io::Result<()> {
         fs::create_dir_all(destination)?;
