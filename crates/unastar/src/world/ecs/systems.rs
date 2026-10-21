@@ -476,30 +476,44 @@ pub fn process_completed_generations(
     mut pending_gens: ResMut<PendingChunkGenerations>,
     config: Res<ChunkLoadConfig>,
     sessions: Query<&PlayerSession>,
-    _loaders: Query<&mut ChunkLoader>,
+    mut loaders: Query<&mut ChunkLoader>,
 ) {
     if pending_gens.is_empty() {
         return;
     }
 
     let mut completed = Vec::new();
+    let mut failed = Vec::new();
     let initial_pending = pending_gens.len();
 
     // Check for completed generations (non-blocking)
     pending_gens.pending.retain_mut(|pending| {
         match pending.receiver.try_recv() {
-            Ok(chunk) => {
-                completed.push((pending.x, pending.z, chunk));
-                false // Remove from pending
+            Ok(Ok((chunk, was_loaded))) => {
+                completed.push((pending.x, pending.z, chunk, was_loaded));
+                false
+            }
+            Ok(Err(error)) => {
+                warn!(chunk = ?(pending.x, pending.z), %error, "Chunk storage load failed; refusing to generate replacement terrain");
+                failed.push((pending.x, pending.z));
+                false
             }
             Err(tokio::sync::oneshot::error::TryRecvError::Empty) => true, // Keep
             Err(tokio::sync::oneshot::error::TryRecvError::Closed) => {
                 warn!(chunk = ?(pending.x, pending.z), "Generation channel closed unexpectedly");
-                let _ = chunk_manager.complete_generation(pending.x, pending.z);
+                failed.push((pending.x, pending.z));
                 false // Remove from pending
             }
         }
     });
+
+    for (x, z) in failed {
+        for viewer in chunk_manager.complete_generation(x, z).unwrap_or_default() {
+            if let Ok(mut loader) = loaders.get_mut(viewer) {
+                loader.mark_load_failed(x, z);
+            }
+        }
+    }
 
     if !completed.is_empty() {
         debug!(
@@ -509,7 +523,7 @@ pub fn process_completed_generations(
     }
 
     // Process completed chunks
-    for (x, z, chunk) in completed {
+    for (x, z, chunk, was_loaded) in completed {
         // Get viewers that were waiting for this chunk
         let viewers = chunk_manager.complete_generation(x, z).unwrap_or_default();
 
@@ -526,7 +540,11 @@ pub fn process_completed_generations(
                 ChunkState::Loaded,
                 ChunkViewers::default(),
                 ChunkEntities::default(),
-                ChunkStateFlags::new_generated(),
+                if was_loaded {
+                    ChunkStateFlags::default()
+                } else {
+                    ChunkStateFlags::new_generated()
+                },
             ))
             .id();
 
@@ -872,11 +890,18 @@ pub fn world_to_chunk_coords(world_x: i32, world_z: i32) -> (i32, i32) {
 }
 
 /// Helper to compute local block coordinates from world coordinates.
+/// Unsupported heights map to an out-of-bounds sentinel rejected by Chunk's
+/// get/set methods, never to a wrapped, valid block coordinate.
 #[inline]
 pub fn world_to_local_coords(world_x: i32, world_y: i32, world_z: i32) -> (u8, i16, u8) {
     let local_x = (world_x & 15) as u8;
     let local_z = (world_z & 15) as u8;
-    let local_y = world_y as i16;
+    let max_y = crate::world::chunk::MIN_Y + i32::from(crate::world::chunk::SUBCHUNK_COUNT) * 16;
+    let local_y = if (crate::world::chunk::MIN_Y..max_y).contains(&world_y) {
+        world_y as i16
+    } else {
+        i16::MAX
+    };
     (local_x, local_y, local_z)
 }
 

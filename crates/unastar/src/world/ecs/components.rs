@@ -297,7 +297,7 @@ pub struct PendingGeneration {
     /// Chunk Z coordinate.
     pub z: i32,
     /// Receiver for the generated chunk data.
-    pub receiver: oneshot::Receiver<Chunk>,
+    pub receiver: oneshot::Receiver<super::generation_worker::ChunkLoadResult>,
 }
 
 /// Resource tracking pending async chunk generation results.
@@ -313,7 +313,12 @@ pub struct PendingChunkGenerations {
 
 impl PendingChunkGenerations {
     /// Add a new pending generation.
-    pub fn add(&mut self, x: i32, z: i32, receiver: oneshot::Receiver<Chunk>) {
+    pub fn add(
+        &mut self,
+        x: i32,
+        z: i32,
+        receiver: oneshot::Receiver<super::generation_worker::ChunkLoadResult>,
+    ) {
         self.pending.push(PendingGeneration { x, z, receiver });
     }
 
