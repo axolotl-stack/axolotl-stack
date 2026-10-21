@@ -55,6 +55,7 @@ pub struct Row<'a> {
     pub mb_per_sec: f64,
     pub p50_us: Option<f64>,
     pub p99_us: Option<f64>,
+    pub max_us: Option<f64>,
 }
 
 impl Row<'_> {
@@ -105,6 +106,7 @@ pub fn measure(
         mb_per_sec: payload_bytes as f64 * 1e3 / ns_per_op,
         p50_us: None,
         p99_us: None,
+        max_us: None,
     }
     .emit()
 }

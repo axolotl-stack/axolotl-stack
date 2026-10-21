@@ -126,6 +126,7 @@ pub async fn client(address: SocketAddr, count: usize) -> Result<()> {
             mb_per_sec: count as f64 * size as f64 / seconds / 1e6,
             p50_us: Some(percentile(50)),
             p99_us: Some(percentile(99)),
+            max_us: Some(samples[count - 1]),
         }
         .emit()?;
         drop(stream);

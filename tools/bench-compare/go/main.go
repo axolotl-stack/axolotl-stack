@@ -21,6 +21,7 @@ type row struct {
 	MBPerSec       float64  `json:"mb_per_sec"`
 	P50US          *float64 `json:"p50_us"`
 	P99US          *float64 `json:"p99_us"`
+	MaxUS          *float64 `json:"max_us"`
 }
 
 func emit(r row) error { return json.NewEncoder(os.Stdout).Encode(r) }

@@ -186,7 +186,8 @@ func client(address string, count int) error {
 			elapsed := time.Since(start)
 			sort.Float64s(samples)
 			p50, p99 := samples[(count*50+99)/100-1], samples[(count*99+99)/100-1]
-			result = row{Area: "loopback", Name: fmt.Sprintf("%d", size), Operation: "echo", Implementation: "go", NSPerOp: float64(elapsed.Nanoseconds()) / float64(count), PayloadBytes: size, MsgsPerSec: float64(count) / elapsed.Seconds(), MBPerSec: float64(count) * float64(size) / elapsed.Seconds() / 1e6, P50US: &p50, P99US: &p99}
+			maximum := samples[count-1]
+			result = row{Area: "loopback", Name: fmt.Sprintf("%d", size), Operation: "echo", Implementation: "go", NSPerOp: float64(elapsed.Nanoseconds()) / float64(count), PayloadBytes: size, MsgsPerSec: float64(count) / elapsed.Seconds(), MBPerSec: float64(count) * float64(size) / elapsed.Seconds() / 1e6, P50US: &p50, P99US: &p99, MaxUS: &maximum}
 			return nil
 		})
 		if err != nil {
