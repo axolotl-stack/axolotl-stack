@@ -128,7 +128,7 @@ def main():
     if crosscheck_path.exists():
         crosscheck = json.loads(crosscheck_path.read_text(encoding='utf-8-sig'))
         report += ['', '## Upstream RakNet self-benchmark cross-check', '',
-                   crosscheck['conclusion'], '',
+                   crosscheck['conclusion'], '', crosscheck['conditions'], '',
                    'This separate diagnostic does not enter the alternating comparison medians. Exact upstream commands, configuration audit and limitations: [upstream-check.md](cinnabar/upstream-check.md); reproduction: [upstream-check.ps1](cinnabar/upstream-check.ps1).', '']
     diagnostic = json.loads(Path(__file__).with_name('diagnostics.json').read_text())
     failure = diagnostic['failure']

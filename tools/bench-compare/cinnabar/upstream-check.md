@@ -16,6 +16,7 @@ The preliminary adapter used the default server connection limit of 10 and a sta
 - Timed-run metadata UTC: `2026-10-21T23:10:26.2549295Z`. Parent comparison timings were stopped throughout. No process-priority, power-plan, or timer-resolution tuning was applied; this remains a shared workstation, not an isolated laboratory machine.
 - Build logs: `../results/upstream-check/20261021-190939-Build/`.
 - Timed logs and per-round Criterion JSON: `../results/upstream-check/20261021-191026-Run/`. Each directory contains `commands.json` with executable, argument array, working directory, timestamp, affinity, exit code, and timeout status, plus separate stdout/stderr files. All six timed invocations exited successfully; all three Go runs printed `PASS`.
+- The coordinator subsequently confirmed that other workers had also been benchmarking on these same P-cores. Parent crossbench timing was stopped, but the workstation was **not exclusive**. Retain these as contention-exposed diagnostics, not isolated comparative performance evidence; no stable winner or historical multiplier is inferred. The final main comparison is held until the coordinator grants exclusive access after optimization branches merge.
 
 From the repository root:
 
@@ -42,6 +43,8 @@ C:/Users/jvigu/orca/workspaces/axolotl-stack/stab-crossbench-cinnabar/tools/benc
 ```
 
 The exact executable paths and working directories are also recorded in raw `commands.json`. `CARGO_TARGET_DIR` is the ignored `results/upstream-check/target`; Criterion output is copied after each Rust round so later baseline updates cannot overwrite that round's evidence. Round order was **Rust→Go, Go→Rust, Rust→Go**. Criterion collected ten samples per case after a one-second warmup, with ten-second measurement targets; the upstream group itself specifies ten seconds. Go uses its original `testing.B.Loop` calibration and a ten-second benchtime. No unrelated suites or tests were run.
+
+After the coordinator identified concurrent-compilation contamination, the reproduction script was tightened: all builds run on E-core logical CPUs 16–31 with at most eight jobs, and the timed stage invokes precompiled Rust/Go benchmark executables directly. This avoids spawning a compiler on timed P-cores. The commands above and preserved `commands.json` describe the historical measurement; the later E-core-only build smoke is retained under `../results/upstream-check/20261021-191915-Build/`. No new timed rounds were run during the coordinator's hold.
 
 ## What the original entrypoints measure
 

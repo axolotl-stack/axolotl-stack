@@ -51,6 +51,7 @@ function Invoke-Logged([string]$Exe, [string[]]$Arguments, [string]$Cwd, [string
     return $text
 }
 try {
+    $ParentProcess.ProcessorAffinity = [IntPtr]4294901760 # build/test CPUs 16..31
     if (!(Test-Path $Source)) {
         Invoke-Logged 'git' @('clone', '--no-checkout', 'https://github.com/cinnabar-mc/raknet', $Source) $Output 'clone' | Out-Null
         Invoke-Logged 'git' @('-C', $Source, 'checkout', '--detach', $Revision) $Output 'checkout' | Out-Null
@@ -64,10 +65,13 @@ try {
     $goVersion = (Invoke-Logged 'go' @('version') $Source 'go-version').Trim()
     $GoExe = Join-Path $Output 'upstream-go.test.exe'
     $GoDir = Join-Path $Source 'tools/go-raknet'
-    if ($Stage -in @('Build', 'All')) {
-        Invoke-Logged 'cargo' @('bench', '--locked', '-p', 'raknet-tokio', '--bench', 'loopback', '--no-run') $Source 'rust-build' | Out-Null
-        Invoke-Logged 'go' @('test', '-c', '-o', $GoExe, '.') $GoDir 'go-build' | Out-Null
-    }
+    # Build on E-cores even for Run, then invoke the resulting binaries directly.
+    # Cargo must never start a compiler after the parent switches to timed P-cores.
+    $rustBuild = Invoke-Logged 'cargo' @('bench', '-j', '8', '--locked', '-p', 'raknet-tokio', '--bench', 'loopback', '--no-run', '--message-format=json') $Source 'rust-build'
+    $artifacts = @($rustBuild -split '\r?\n' | Where-Object { $_.StartsWith('{') } | ForEach-Object { ConvertFrom-Json $_ } | Where-Object { $_.reason -eq 'compiler-artifact' -and $_.target.name -eq 'loopback' -and $_.executable })
+    if ($artifacts.Count -ne 1) { throw 'Expected exactly one compiled upstream loopback benchmark executable' }
+    $RustExe = $artifacts[0].executable
+    Invoke-Logged 'go' @('test', '-p', '8', '-c', '-o', $GoExe, '.') $GoDir 'go-build' | Out-Null
     if ($Stage -in @('Run', 'All')) {
         # Set before spawning so every timed child inherits affinity from startup.
         $ParentProcess.ProcessorAffinity = [IntPtr]85 # logical CPUs 0,2,4,6
@@ -77,7 +81,7 @@ try {
             $order = if ($round % 2) { @('rust', 'go') } else { @('go', 'rust') }
             foreach ($side in $order) {
                 if ($side -eq 'rust') {
-                    Invoke-Logged 'cargo' @('bench', '--locked', '-p', 'raknet-tokio', '--bench', 'loopback', '--', 'loopback/', '--sample-size', '10', '--warm-up-time', '1', '--measurement-time', '10', '--noplot') $Source "round-$round-rust" | Out-Null
+                    Invoke-Logged $RustExe @('loopback/', '--sample-size', '10', '--warm-up-time', '1', '--measurement-time', '10', '--noplot', '--bench') $Source "round-$round-rust" | Out-Null
                     $criterion = Join-Path $env:CARGO_TARGET_DIR 'criterion'
                     Copy-Item -Recurse $criterion (Join-Path $Logs "round-$round-criterion")
                 } else {
