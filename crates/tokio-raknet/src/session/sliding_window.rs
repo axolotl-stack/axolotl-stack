@@ -11,6 +11,7 @@ pub struct SlidingWindow {
     estimated_rtt: f64, // -1 = uninitialized
     last_rtt: f64,      // -1 = none
     deviation_rtt: f64, // -1 = none
+    nak_delay: Duration,
     next_congestion_block: Sequence24,
     backoff_this_block: bool,
     unacked_bytes: i64,
@@ -25,6 +26,7 @@ impl SlidingWindow {
             estimated_rtt: -1.0,
             last_rtt: -1.0,
             deviation_rtt: -1.0,
+            nak_delay: Duration::ZERO,
             next_congestion_block: Sequence24::new(0),
             backoff_this_block: false,
             unacked_bytes: 0,
@@ -63,6 +65,9 @@ impl SlidingWindow {
             self.estimated_rtt += gain * diff;
             self.deviation_rtt += gain * (diff.abs() - self.deviation_rtt);
         }
+        // RTT changes only on ACKs. Preserve the same rounding as the receive
+        // path, but avoid two floating-point Duration conversions per datagram.
+        self.nak_delay = self.measured_rtt().mul_f64(1.5);
 
         let is_new_block = acked_seq > self.next_congestion_block;
         if is_new_block {
@@ -114,6 +119,10 @@ impl SlidingWindow {
     /// go-raknet conn.go:receiveDatagram starts NAK aging with a zero RTT.
     pub fn measured_rtt(&self) -> Duration {
         Duration::from_secs_f64(self.estimated_rtt.max(0.0) / 1000.0)
+    }
+
+    pub fn nak_delay(&self) -> Duration {
+        self.nak_delay
     }
 
     pub fn get_rto_for_retransmission(&self) -> Duration {

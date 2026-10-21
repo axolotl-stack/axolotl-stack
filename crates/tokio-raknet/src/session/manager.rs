@@ -219,7 +219,7 @@ impl ManagedSession {
                 // the receive window before touching any packet payload.
                 if !self
                     .inner
-                    .accept_datagram_sequence(dgram.header.sequence, now)?
+                    .accept_datagram_sequence(dgram.header.sequence, || now)?
                 {
                     return Ok(Vec::new());
                 }

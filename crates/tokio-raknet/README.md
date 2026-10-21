@@ -253,6 +253,16 @@ Safety adaptations to the reference:
 - Missing datagrams are derived as ranges from received entries, and receive
   bounds are checked before missing detection. ACK/NACK staging is bounded;
   merged feedback never exceeds the decoder's inclusive 8192-sequence budget.
+  In-order datagrams and immediately aged gaps with no buffered entries bypass
+  receive-tree insertion; delayed out-of-order arrivals retain their timestamps.
+  Missing ranges go directly into feedback staging, without a temporary vector.
+  The 1.5-RTT NAK delay is refreshed when ACKs update RTT rather than recomputed
+  for every incoming datagram. No receive, feedback, split, or ordering limits
+  are relaxed by these fast paths.
+  The compatibility sequence API also defers its clock read until a fresh
+  out-of-order datagram actually needs a stored arrival timestamp.
+  ACK/NACK range normalization is non-recursive, keeping bounded merges inline
+  while oversized local ranges use a separate chunking path.
 - Retransmissions receive fresh datagram sequence numbers while preserving
   reliable/ordering indices. Accepted split fragments advance duplicate
   tracking individually, so large fragmented transfers cannot stall the window.

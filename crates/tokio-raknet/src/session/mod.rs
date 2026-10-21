@@ -219,20 +219,20 @@ impl Session {
     /// Managed sessions use the checked path to close on protocol violations.
     #[tracing::instrument(skip_all, level = "trace")]
     pub fn process_datagram_sequence(&mut self, seq: Sequence24) {
-        let _ = self.accept_datagram_sequence(seq, Instant::now());
+        let _ = self.accept_datagram_sequence(seq, Instant::now);
     }
 
     fn accept_datagram_sequence(
         &mut self,
         seq: Sequence24,
-        now: Instant,
+        now: impl FnOnce() -> Instant,
     ) -> Result<bool, DecodeError> {
-        let delay = self.sliding.measured_rtt().mul_f64(1.5);
-        let Some(missing) = self.receive_window.receive(seq, now, delay)? else {
+        let naks = &mut self.outgoing_naks;
+        if !self
+            .receive_window
+            .receive(seq, now, self.sliding.nak_delay(), |range| naks.push(range))?
+        {
             return Ok(false);
-        };
-        for range in missing {
-            self.outgoing_naks.push(range);
         }
         self.outgoing_acks.push(SequenceRange {
             start: seq,
@@ -275,6 +275,72 @@ mod tests {
         assert_eq!(session.receive_window.len(), 0);
         let feedback = session.on_tick(Instant::now());
         assert!(feedback.is_empty());
+    }
+
+    #[test]
+    fn nak_aging_tracks_rtt_updates_at_the_exact_boundary() {
+        use crate::protocol::{
+            constants::DatagramFlags, datagram::DatagramPayload, types::DatagramHeader,
+        };
+
+        let now = Instant::now();
+        let mut session = Session::new(1200);
+        let datagram = Datagram {
+            header: DatagramHeader {
+                flags: DatagramFlags::VALID,
+                sequence: Sequence24::new(0),
+            },
+            payload: DatagramPayload::EncapsulatedPackets(Vec::new()),
+        };
+        session.sliding.on_ack(
+            now,
+            &datagram,
+            Sequence24::new(0),
+            now - Duration::from_millis(100),
+        );
+        session
+            .accept_datagram_sequence(Sequence24::new(2), || now)
+            .unwrap();
+        let later = now + Duration::from_millis(149);
+        session
+            .accept_datagram_sequence(Sequence24::new(4), || later)
+            .unwrap();
+        session.sliding.on_ack(
+            later,
+            &datagram,
+            Sequence24::new(1),
+            later - Duration::from_millis(300),
+        );
+        // The smoothed RTT is now 110ms, moving the NAK boundary from 150 to 165ms.
+        session
+            .accept_datagram_sequence(Sequence24::new(6), || now + Duration::from_millis(150))
+            .unwrap();
+        assert!(
+            session
+                .on_tick(now + Duration::from_millis(150))
+                .iter()
+                .all(|datagram| { !matches!(datagram.payload, DatagramPayload::Nak(_)) })
+        );
+        session
+            .accept_datagram_sequence(Sequence24::new(8), || now + Duration::from_millis(165))
+            .unwrap();
+        let feedback = session.on_tick(now + Duration::from_millis(165));
+        let ranges: Vec<_> = feedback
+            .iter()
+            .filter_map(|datagram| match &datagram.payload {
+                DatagramPayload::Nak(payload) => Some(payload.ranges.as_slice()),
+                _ => None,
+            })
+            .flatten()
+            .copied()
+            .collect();
+        assert_eq!(
+            ranges,
+            [SequenceRange {
+                start: Sequence24::new(0),
+                end: Sequence24::new(1),
+            }]
+        );
     }
 
     #[test]
@@ -337,7 +403,7 @@ mod tests {
         let later = sent.pop().unwrap();
         assert!(
             receiver
-                .accept_datagram_sequence(later.header.sequence, now)
+                .accept_datagram_sequence(later.header.sequence, || now)
                 .unwrap()
         );
         let DatagramPayload::EncapsulatedPackets(packets) = later.payload else {
@@ -361,7 +427,7 @@ mod tests {
             .unwrap();
         assert!(
             receiver
-                .accept_datagram_sequence(retransmitted.header.sequence, now)
+                .accept_datagram_sequence(retransmitted.header.sequence, || now)
                 .unwrap()
         );
         let DatagramPayload::EncapsulatedPackets(packets) = retransmitted.payload else {
