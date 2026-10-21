@@ -16,6 +16,10 @@ cargo test -p bench-compare
 
 The executable prints JSONL measurements to stdout; diagnostics and the server's `READY address` notification go to stderr. Corpus paths are resolved relative to the crate, not the working directory. Codec/micro default to 5,000 iterations after 32 warmup operations. Transport defaults to 100 sequential echoes per size.
 
+Use `micro --wire-only --iterations 1000000` to select only RakNet wire-codec
+and split-reassembly rows, excluding batch/compression/cipher rows. This changes
+selection only; wire timing loops, warmups, and allocation counting are unchanged.
+
 The comparison script also sets `BENCH_SPLIT_COUNT=10`: sizes 4,096 and 65,536 use that measured count while 32/512 retain `--count` (normally 100). Without the variable, direct CLI calls use `--count` for all sizes. Both peers use the same override; each size opens a fresh connection. Ten-sample p99 is low-sample and is labeled as such in the comparison report.
 
 ## Codec measurement

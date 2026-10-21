@@ -19,6 +19,9 @@ enum Command {
     Micro {
         #[arg(long, default_value_t = 5000)]
         iterations: usize,
+        /// Select only RakNet wire-codec rows, excluding batch codecs.
+        #[arg(long)]
+        wire_only: bool,
     },
     Loopback {
         #[arg(long, default_value_t = 100)]
@@ -40,7 +43,10 @@ enum Command {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     match Args::parse().command {
         Command::Codec { iterations } => codec::run(iterations).map_err(Into::into),
-        Command::Micro { iterations } => micro::run(iterations).map_err(Into::into),
+        Command::Micro {
+            iterations,
+            wire_only,
+        } => micro::run(iterations, wire_only).map_err(Into::into),
         command => {
             let (mode, address, count) = match command {
                 Command::Loopback { count } => ("loopback", "127.0.0.1:0".to_owned(), count),
