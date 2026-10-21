@@ -19,26 +19,45 @@ impl AckQueue {
         }
     }
 
+    #[inline]
     pub fn push(&mut self, range: SequenceRange) {
-        // Split wrapping ranges before comparing raw endpoints.
+        // Normalize wrapping ranges before comparing raw endpoints.
         if let Some((tail, head)) = range.split_wrapping() {
-            self.push(tail);
-            self.push(head);
-            return;
+            self.push_nonwrapping(tail);
+            self.push_nonwrapping(head);
+        } else {
+            self.push_nonwrapping(range);
         }
+    }
+
+    #[inline]
+    fn push_nonwrapping(&mut self, range: SequenceRange) {
+        if range.len() > crate::protocol::constants::MAX_ACK_SEQUENCES as u32 {
+            self.push_chunks(range);
+        } else {
+            self.push_bounded(range);
+        }
+    }
+
+    // Splitting is rare. Do not make bounded pushes recursive (and force the
+    // common merge path out of line) just to support oversized local ranges.
+    #[cold]
+    fn push_chunks(&mut self, range: SequenceRange) {
         let max_sequences = crate::protocol::constants::MAX_ACK_SEQUENCES as u32;
-        if range.len() > max_sequences {
-            let mut start = range.start.value();
-            while start <= range.end.value() && self.queue.len() < self.max_ranges {
-                let end = range.end.value().min(start + max_sequences - 1);
-                self.push(SequenceRange {
-                    start: crate::protocol::types::Sequence24::new(start),
-                    end: crate::protocol::types::Sequence24::new(end),
-                });
-                start = end + 1;
-            }
-            return;
+        let mut start = range.start.value();
+        while start <= range.end.value() && self.queue.len() < self.max_ranges {
+            let end = range.end.value().min(start + max_sequences - 1);
+            self.push_bounded(SequenceRange {
+                start: crate::protocol::types::Sequence24::new(start),
+                end: crate::protocol::types::Sequence24::new(end),
+            });
+            start = end + 1;
         }
+    }
+
+    #[inline]
+    fn push_bounded(&mut self, range: SequenceRange) {
+        let max_sequences = crate::protocol::constants::MAX_ACK_SEQUENCES as u32;
         if let Some(last) = self.queue.back_mut() {
             let start = last.start.value().min(range.start.value());
             let end = last.end.value().max(range.end.value());
@@ -161,5 +180,28 @@ mod tests {
         let mut ranges = Vec::new();
         queue.pop_for_mtu(6, 3, &mut ranges);
         assert!(ranges.is_empty());
+    }
+
+    #[test]
+    fn wrapping_oversized_feedback_preserves_coverage_and_sequence_budget() {
+        let mut queue = AckQueue::new(4);
+        queue.push(SequenceRange {
+            start: Sequence24::new(0xffffff),
+            end: Sequence24::new(8192),
+        });
+        for (start, end) in [(0xffffff, 0xffffff), (0, 8191), (8192, 8192)] {
+            let mut ranges = Vec::new();
+            queue.pop_for_mtu(400, 3, &mut ranges);
+            assert_eq!(
+                ranges,
+                [SequenceRange {
+                    start: Sequence24::new(start),
+                    end: Sequence24::new(end),
+                }]
+            );
+        }
+        let mut remaining = Vec::new();
+        queue.pop_for_mtu(400, 3, &mut remaining);
+        assert!(remaining.is_empty());
     }
 }

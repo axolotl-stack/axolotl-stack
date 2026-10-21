@@ -132,18 +132,23 @@ fn benchmark_queue_packet(c: &mut Criterion) {
             BenchmarkId::new("unreliable", payload_size),
             &payload_size,
             |b, &size| {
-                let mut session = Session::new(1400);
-                b.iter(|| {
-                    let pkt = make_user_data_packet(size);
-                    session
-                        .queue_packet(
-                            black_box(pkt),
-                            Reliability::Unreliable,
-                            0,
-                            RakPriority::Normal,
-                        )
-                        .expect("benchmark packet should queue");
-                })
+                // A session is bounded to 2048 queued packets. Reusing one
+                // across Criterion iterations would benchmark QueueFull (or panic).
+                b.iter_batched(
+                    || Session::new(1400),
+                    |mut session| {
+                        let pkt = make_user_data_packet(size);
+                        session
+                            .queue_packet(
+                                black_box(pkt),
+                                Reliability::Unreliable,
+                                0,
+                                RakPriority::Normal,
+                            )
+                            .expect("benchmark packet should queue");
+                    },
+                    criterion::BatchSize::SmallInput,
+                )
             },
         );
 
@@ -151,18 +156,21 @@ fn benchmark_queue_packet(c: &mut Criterion) {
             BenchmarkId::new("reliable", payload_size),
             &payload_size,
             |b, &size| {
-                let mut session = Session::new(1400);
-                b.iter(|| {
-                    let pkt = make_user_data_packet(size);
-                    session
-                        .queue_packet(
-                            black_box(pkt),
-                            Reliability::Reliable,
-                            0,
-                            RakPriority::Normal,
-                        )
-                        .expect("benchmark packet should queue");
-                })
+                b.iter_batched(
+                    || Session::new(1400),
+                    |mut session| {
+                        let pkt = make_user_data_packet(size);
+                        session
+                            .queue_packet(
+                                black_box(pkt),
+                                Reliability::Reliable,
+                                0,
+                                RakPriority::Normal,
+                            )
+                            .expect("benchmark packet should queue");
+                    },
+                    criterion::BatchSize::SmallInput,
+                )
             },
         );
 
@@ -170,18 +178,21 @@ fn benchmark_queue_packet(c: &mut Criterion) {
             BenchmarkId::new("reliable_ordered", payload_size),
             &payload_size,
             |b, &size| {
-                let mut session = Session::new(1400);
-                b.iter(|| {
-                    let pkt = make_user_data_packet(size);
-                    session
-                        .queue_packet(
-                            black_box(pkt),
-                            Reliability::ReliableOrdered,
-                            0,
-                            RakPriority::Normal,
-                        )
-                        .expect("benchmark packet should queue");
-                })
+                b.iter_batched(
+                    || Session::new(1400),
+                    |mut session| {
+                        let pkt = make_user_data_packet(size);
+                        session
+                            .queue_packet(
+                                black_box(pkt),
+                                Reliability::ReliableOrdered,
+                                0,
+                                RakPriority::Normal,
+                            )
+                            .expect("benchmark packet should queue");
+                    },
+                    criterion::BatchSize::SmallInput,
+                )
             },
         );
     }

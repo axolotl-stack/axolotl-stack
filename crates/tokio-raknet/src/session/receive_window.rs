@@ -17,50 +17,64 @@ pub(super) struct ReceiveWindow {
 impl ReceiveWindow {
     /// Mirrors `datagram_window.go:add`, `shift`, and `missing`: suppress
     /// duplicates, and NAK gaps only when a later datagram aged by 1.5 RTT.
-    /// Unlike upstream, derive missing ranges from received entries, not a walk
-    /// over every missing sequence. Internal extended indices preserve wraparound.
+    /// Emit ranges directly into feedback staging, without a per-datagram Vec.
+    /// Read the clock only if a fresh out-of-order entry needs a timestamp.
     pub fn receive(
         &mut self,
         seq: Sequence24,
-        now: Instant,
+        now: impl FnOnce() -> Instant,
         delay: Duration,
-    ) -> Result<Option<Vec<SequenceRange>>, DecodeError> {
+        mut missing: impl FnMut(SequenceRange),
+    ) -> Result<bool, DecodeError> {
         let distance = Sequence24::new(self.lowest as u32).distance_to(seq);
         if distance > (1 << 23) {
-            return Ok(None);
+            return Ok(false);
         }
         if distance >= RECEIVE_WINDOW_SIZE {
             return Err(DecodeError::ReceiveWindowExceeded);
         }
         let index = self.lowest + u64::from(distance);
-        if self.received.contains_key(&index) {
-            return Ok(None);
+        if distance == 0 {
+            // The next expected sequence cannot already be buffered: shift()
+            // removes every contiguous entry after each accepted datagram.
+            self.lowest += 1;
+            self.shift();
+            return Ok(true);
         }
-        self.received.insert(index, now);
-        let previous = self.lowest;
-        self.shift();
-        let mut missing = Vec::new();
-        if self.lowest == previous {
-            let cutoff = self.received.iter().rev().find_map(|(&index, &time)| {
-                (now.saturating_duration_since(time) >= delay).then_some(index)
+        if delay.is_zero() && self.received.is_empty() {
+            // The new datagram itself ages immediately at the initial zero RTT.
+            // Nothing needs buffering, and the whole bounded gap is one range.
+            missing(SequenceRange {
+                start: Sequence24::new(self.lowest as u32),
+                end: seq.prev(),
             });
-            if let Some(cutoff) = cutoff {
-                let mut start = self.lowest;
-                for (&index, _) in self.received.range(..=cutoff) {
-                    if index > start {
-                        missing.push(SequenceRange {
-                            start: Sequence24::new(start as u32),
-                            end: Sequence24::new((index - 1) as u32),
-                        });
-                    }
-                    start = index + 1;
-                }
-                self.received.retain(|&index, _| index > cutoff);
-                self.lowest = cutoff + 1;
-                self.shift();
-            }
+            self.lowest = index + 1;
+            return Ok(true);
         }
-        Ok(Some(missing))
+        if self.received.contains_key(&index) {
+            return Ok(false);
+        }
+        let now = now();
+        self.received.insert(index, now);
+        let cutoff = self.received.iter().rev().find_map(|(&index, &time)| {
+            (now.saturating_duration_since(time) >= delay).then_some(index)
+        });
+        if let Some(cutoff) = cutoff {
+            let mut start = self.lowest;
+            for (&index, _) in self.received.range(..=cutoff) {
+                if index > start {
+                    missing(SequenceRange {
+                        start: Sequence24::new(start as u32),
+                        end: Sequence24::new((index - 1) as u32),
+                    });
+                }
+                start = index + 1;
+            }
+            self.received.retain(|&index, _| index > cutoff);
+            self.lowest = cutoff + 1;
+            self.shift();
+        }
+        Ok(true)
     }
 
     fn shift(&mut self) {
@@ -83,20 +97,29 @@ impl ReceiveWindow {
 mod tests {
     use super::*;
 
+    fn receive(
+        window: &mut ReceiveWindow,
+        seq: Sequence24,
+        now: Instant,
+        delay: Duration,
+    ) -> Result<Option<Vec<SequenceRange>>, DecodeError> {
+        let mut missing = Vec::new();
+        let accepted = window.receive(seq, || now, delay, |range| missing.push(range))?;
+        Ok(accepted.then_some(missing))
+    }
+
     #[test]
     fn missing_ranges_wait_for_a_later_datagrams_age() {
         let now = Instant::now();
         let delay = Duration::from_millis(100);
         let mut window = ReceiveWindow::default();
         assert!(
-            window
-                .receive(Sequence24::new(2), now, delay)
+            receive(&mut window, Sequence24::new(2), now, delay)
                 .unwrap()
                 .unwrap()
                 .is_empty()
         );
-        let missing = window
-            .receive(Sequence24::new(4), now + delay, delay)
+        let missing = receive(&mut window, Sequence24::new(4), now + delay, delay)
             .unwrap()
             .unwrap();
         assert_eq!(
@@ -108,8 +131,7 @@ mod tests {
         );
         assert_eq!(window.next(), Sequence24::new(3));
         assert!(
-            window
-                .receive(Sequence24::new(3), now + delay, delay)
+            receive(&mut window, Sequence24::new(3), now + delay, delay)
                 .unwrap()
                 .unwrap()
                 .is_empty()
@@ -125,8 +147,7 @@ mod tests {
             lowest: (1 << 24) - 1,
             ..Default::default()
         };
-        let missing = window
-            .receive(Sequence24::new(0), now, Duration::ZERO)
+        let missing = receive(&mut window, Sequence24::new(0), now, Duration::ZERO)
             .unwrap()
             .unwrap();
         assert_eq!(
@@ -138,14 +159,12 @@ mod tests {
         );
         assert_eq!(window.next(), Sequence24::new(1));
         assert!(
-            window
-                .receive(Sequence24::new(0), now, Duration::ZERO)
+            receive(&mut window, Sequence24::new(0), now, Duration::ZERO)
                 .unwrap()
                 .is_none()
         );
         assert!(
-            window
-                .receive(Sequence24::new(1), now, Duration::ZERO)
+            receive(&mut window, Sequence24::new(1), now, Duration::ZERO)
                 .unwrap()
                 .is_some()
         );
@@ -156,13 +175,12 @@ mod tests {
         let now = Instant::now();
         let mut window = ReceiveWindow::default();
         assert!(matches!(
-            window.receive(Sequence24::new(2048), now, Duration::ZERO),
+            receive(&mut window, Sequence24::new(2048), now, Duration::ZERO),
             Err(DecodeError::ReceiveWindowExceeded)
         ));
         assert_eq!(window.next(), Sequence24::new(0));
         assert_eq!(window.len(), 0);
-        let missing = window
-            .receive(Sequence24::new(2047), now, Duration::ZERO)
+        let missing = receive(&mut window, Sequence24::new(2047), now, Duration::ZERO)
             .unwrap()
             .unwrap();
         assert_eq!(
@@ -173,5 +191,41 @@ mod tests {
             }]
         );
         assert_eq!(window.next(), Sequence24::new(2048));
+    }
+
+    #[test]
+    fn zero_delay_flushes_existing_holes_without_naking_received_sequences() {
+        let now = Instant::now();
+        let mut window = ReceiveWindow::default();
+        for sequence in [2, 4] {
+            assert!(
+                receive(
+                    &mut window,
+                    Sequence24::new(sequence),
+                    now,
+                    Duration::from_millis(100),
+                )
+                .unwrap()
+                .unwrap()
+                .is_empty()
+            );
+        }
+        let missing = receive(&mut window, Sequence24::new(6), now, Duration::ZERO)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            missing,
+            [(0, 1), (3, 3), (5, 5)].map(|(start, end)| SequenceRange {
+                start: Sequence24::new(start),
+                end: Sequence24::new(end),
+            })
+        );
+        assert_eq!(window.next(), Sequence24::new(7));
+        assert_eq!(window.len(), 0);
+        assert!(
+            receive(&mut window, Sequence24::new(4), now, Duration::ZERO)
+                .unwrap()
+                .is_none()
+        );
     }
 }
