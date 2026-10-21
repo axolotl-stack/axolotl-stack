@@ -137,6 +137,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 `jolyne::valentine` is pinned to Bedrock 26.51 (protocol 2193). Its canonical
 schema label is `valentine::bedrock::version::v1_26_51`.
 
+### Server authentication
+
+`auth::authenticate_login` retains its existing arguments and
+`Result<ValidatedIdentity, JolyneError>` return type. Authentication failures are
+typed `JolyneError::Auth(AuthError)` values; issuer, audience and temporal failures
+have distinct variants. Key/signature mismatches are `AuthError::BadSignature`.
+`ValidatedIdentity::authenticated` is true only for online-verified identities;
+offline identities are always false, even if their payload claims an XUID.
+
+Online OpenID trust starts at Minecraft's HTTPS build discovery endpoint for
+`1.26.51`, follows the published issuer's OpenID configuration and JWKS, and
+enforces issuer, multiplayer audience, expiry/not-before (60-second skew) and
+the published RS256/ES384 algorithm allow-list. JWT `x5u`/`x5c` keys and URLs are
+never trust sources. JWKS snapshots expire after 30 minutes; expired snapshots
+are refreshed before validation and discovery failures fail closed.
+`auth::openid::OpenIdVerifier::from_jwks` accepts an explicitly trusted issuer,
+algorithm list and JWKS snapshot for deterministic tests; its `validate` method
+uses the same verification path as production.
+
+Client data must be ES384-signed by the token's authenticated `cpk` identity key.
+A contradictory client identity key is rejected, and client data cannot override
+provider-asserted identity fields. Self-signed multiplayer tokens remain supported
+offline. The existing `allow_legacy` policy also gates self-signed authentication.
+`validate_chain(..., true)` accepts only Mojang-rooted legacy chains, including
+the vanilla self-signed prefix delegating to Mojang; subsequent links must verify
+against the preceding signed `identityPublicKey`. Online `authenticate_login`
+continues to reject Guest/SelfSigned authentication types.
+
+Provider discovery and claim conventions follow
+[gophertunnel `service/token.go:VerifierContext`](https://github.com/Sandertv/gophertunnel/blob/be557e33fe6f8d0c0db7ef05b5fd068725c325ad/minecraft/service/token.go)
+and [`login/request.go:Parse`](https://github.com/Sandertv/gophertunnel/blob/be557e33fe6f8d0c0db7ef05b5fd068725c325ad/minecraft/protocol/login/request.go).
+
+
 ## 🔮 Future Roadmap
 
 See [`ROADMAP.md`](ROADMAP.md) for vanilla compatibility gates and acceptance evidence.
@@ -151,7 +184,7 @@ See [`ROADMAP.md`](ROADMAP.md) for vanilla compatibility gates and acceptance ev
 
 
 ### Vanilla Compatibility Hardening
-- Harden online-mode auth trust-chain validation.
+- Online-mode auth uses provider-discovered trust roots and signed client data.
 - Complete resource-pack negotiation, including non-empty pack transfer and `ClientCacheStatus` handling.
 - Add login/start-game packet-order integration tests from `docs/LOGIN_SEQUENCE.md`.
 - Treat `DefaultWorldTemplate` as a minimal scaffold; vanilla-compatible sessions should inject real registry data from Unastar/data generation.

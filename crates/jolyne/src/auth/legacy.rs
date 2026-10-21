@@ -50,11 +50,7 @@ pub(crate) fn chain_from_value(v: &Value) -> Option<Vec<String>> {
     if let Some(arr) = v.get("chain").and_then(|c| c.as_array()) {
         let mut out = Vec::with_capacity(arr.len());
         for item in arr {
-            if let Some(s) = item.as_str() {
-                out.push(s.to_string());
-            } else {
-                return None;
-            }
+            out.push(item.as_str()?.to_string());
         }
         return Some(out);
     }
@@ -66,11 +62,7 @@ pub(crate) fn chain_from_value(v: &Value) -> Option<Vec<String>> {
             if let Some(arr) = cert_obj.get("chain").and_then(|c| c.as_array()) {
                 let mut out = Vec::with_capacity(arr.len());
                 for item in arr {
-                    if let Some(s) = item.as_str() {
-                        out.push(s.to_string());
-                    } else {
-                        return None;
-                    }
+                    out.push(item.as_str()?.to_string());
                 }
                 return Some(out);
             }
@@ -210,17 +202,13 @@ fn verify_chain_with_key(
             return Err(AuthError::TokenTooLarge(MAX_TOKEN_BYTES).into());
         }
         let token = decode_chain_token(token_str, &current_key)?;
-        let header_key_b64 = token
-            .header
-            .x5u
-            .clone()
-            .or_else(|| token.header.x5c.as_ref().and_then(|v| v.first().cloned()));
+        // A link delegates only through its signed identityPublicKey claim.
         let claims = token.claims;
 
         let pub_key_b64 = claims
             .identity_public_key
             .clone()
-            .or(header_key_b64.clone())
+            .filter(|key| !key.is_empty())
             .ok_or(AuthError::MissingIdentityKey)?;
 
         let is_last = idx + 1 == chain.len();
@@ -231,6 +219,7 @@ fn verify_chain_with_key(
                 display_name: extra.display_name.clone(),
                 uuid: extra.uuid.clone(),
                 identity_public_key: pub_key_b64.clone(),
+                authenticated: true,
             });
         } else if is_last {
             // Only enforce extraData on the final token (identity) to match vanilla flow.
@@ -254,33 +243,30 @@ pub fn validate_chain(
         return Err(AuthError::ChainTooLong(MAX_CHAIN_TOKENS).into());
     }
 
-    // The chain is expected root->leaf. Verify signatures when online_mode is true.
+    // Vanilla legacy chains may prepend a self-signed delegation to Mojang.
+    // That prefix is NOT a trust root: only the suffix verified by Mojang is.
     if online_mode {
-        let root_key: DecodingKey = key_from_base64(MOJANG_PUBLIC_KEY_BASE64)
-            .expect("Shouldn't occur mojang pub key invalid, hard coded const.");
-        debug!(chain_len = chain.len(), "validate_chain starting");
-
-        let mut reversed = chain.clone();
-        reversed.reverse();
-
-        // Try provided order with each Mojang root key.
-        if let Ok(id) = verify_chain_with_key(&chain, root_key.clone()) {
-            debug!("validated login chain using mojang root");
-            return Ok(id);
-        }
-        // Try reversed with each root key.
-        if reversed != chain
-            && let Ok(id) = verify_chain_with_key(&reversed, root_key)
-        {
-            debug!("validated login chain after reversing order (mojang root)");
-            return Ok(id);
-        }
-
-        debug!(
-            chain_len = chain.len(),
-            "validate_chain failed all signature attempts"
-        );
-        Err(AuthError::BadSignature("InvalidSignature".to_string()).into())
+        let root_key = key_from_base64(MOJANG_PUBLIC_KEY_BASE64)?;
+        let trusted_chain = if chain.len() == 3 {
+            let first = &chain[0];
+            if first.len() > MAX_TOKEN_BYTES {
+                return Err(AuthError::TokenTooLarge(MAX_TOKEN_BYTES).into());
+            }
+            let header =
+                decode_header(first).map_err(|e| AuthError::InvalidHeader(e.to_string()))?;
+            let prefix_key =
+                key_from_base64(header.x5u.as_deref().ok_or(AuthError::MissingIdentityKey)?)?;
+            let prefix = decode_chain_token(first, &prefix_key)?;
+            if prefix.claims.identity_public_key.as_deref() != Some(MOJANG_PUBLIC_KEY_BASE64) {
+                return Err(
+                    AuthError::BadSignature("Legacy chain is not rooted at Mojang".into()).into(),
+                );
+            }
+            &chain[1..]
+        } else {
+            &chain[..]
+        };
+        verify_chain_with_key(trusted_chain, root_key)
     } else {
         // Offline mode: parse without signature validation but still require structured data.
         let last = chain.last().expect("non-empty checked");
@@ -309,6 +295,7 @@ pub fn validate_chain(
                 display_name: extra.display_name,
                 uuid: extra.uuid,
                 identity_public_key: pub_key_b64,
+                authenticated: false,
             })
         } else {
             Err(AuthError::MissingExtraData.into())
@@ -319,6 +306,48 @@ pub fn validate_chain(
 #[cfg(all(test, feature = "server"))]
 mod tests {
     use super::*;
+
+    #[test]
+    fn delegated_links_require_the_preceding_signed_identity_key() {
+        use jsonwebtoken::{EncodingKey, Header, encode};
+        use p384::{
+            SecretKey,
+            pkcs8::{EncodePrivateKey, EncodePublicKey, LineEnding},
+        };
+        let root = SecretKey::from_slice(&[1; 48]).unwrap();
+        let intermediate = SecretKey::from_slice(&[2; 48]).unwrap();
+        let client = SecretKey::from_slice(&[3; 48]).unwrap();
+        let public = |key: &SecretKey| {
+            STANDARD.encode(key.public_key().to_public_key_der().unwrap().as_bytes())
+        };
+        let sign = |key: &SecretKey, claims: &Value| {
+            let pem = key.to_pkcs8_pem(LineEnding::LF).unwrap();
+            encode(
+                &Header::new(Algorithm::ES384),
+                claims,
+                &EncodingKey::from_ec_pem(pem.as_bytes()).unwrap(),
+            )
+            .unwrap()
+        };
+        let now = jsonwebtoken::get_current_timestamp();
+        let delegation = sign(
+            &root,
+            &serde_json::json!({
+                "identityPublicKey":public(&intermediate), "exp":now+3600,"nbf":now-60
+            }),
+        );
+        let leaf_claims = serde_json::json!({
+            "identityPublicKey":public(&client), "exp":now+3600,"nbf":now-60,
+            "extraData":{"XUID":"123","displayName":"Player","identity":"uuid"}
+        });
+        let trusted = key_from_base64(&public(&root)).unwrap();
+        let valid = vec![delegation.clone(), sign(&intermediate, &leaf_claims)];
+        let identity = verify_chain_with_key(&valid, trusted.clone()).unwrap();
+        assert_eq!(identity.identity_public_key, public(&client));
+        assert!(identity.authenticated);
+        let forged = vec![delegation, sign(&client, &leaf_claims)];
+        assert!(verify_chain_with_key(&forged, trusted).is_err());
+    }
 
     #[test]
     fn chain_from_value_handles_direct_array() {
