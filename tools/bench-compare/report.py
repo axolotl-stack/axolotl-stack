@@ -42,7 +42,7 @@ def main():
     report = ['# Cross-implementation benchmark report', '',
               f"Measured UTC: {metadata['utc']}. Median of {metadata['rounds']} alternating rounds; {metadata['count']} sequential echoes per size per round.", '',
               f"Machine: {metadata['os']} / {metadata['architecture']}; {metadata.get('cpu')}; {metadata['processors']} logical processors.",
-              f"Toolchains: `{metadata['rust']}`; `{metadata['go']}`; Go GOMAXPROCS={metadata['go_cpu']}.",
+              f"Toolchains: `{metadata['rust']}`; `{metadata['go']}`; Go GOMAXPROCS={metadata['go_cpu']}; Tokio multi-thread workers={metadata.get('rust_workers', 'not recorded')}.",
               f"Source base: `{metadata['commit']}`; protocolgen corpus: `{metadata['corpus_commit']}`.", '', metadata['conditions'], '',
               'Ratios are ours/Go ns/op (below 1 is faster); throughput is request payload only, decimal MB/s, one completed echo per message. Medians are descriptive, not significance tests.', '']
     ratios = []
@@ -106,6 +106,8 @@ def main():
                'See [README.md](README.md), [Go API caveats](go/CAVEATS.md), and [Rust API caveats](../../crates/bench-compare/README.md). Missing rows are not zero-cost operations: private transport internals and untyped borrowed variants cannot be compared through public APIs.', '',
                'Go GC accounting and Rust allocator accounting are not equivalent retained-memory measurements. Timing loops include destruction; Go GC may run during later iterations. Small timings on Windows depend on clock precision and scheduling. No production implementation was optimized for this run.', '',
                'Raw per-round JSONL, stderr, metadata, interop outcomes and summary.json remain in the ignored results directory. Run `./tools/bench-compare/run.ps1 -Contract` to regenerate.']
+    if any(r['area'] == 'loopback' and r['implementation'] == 'go' and r['p50_us'] == 0 for r in aggregate):
+        report += ['', 'Observed Go p50 RTT values include zero. Clock quantization may contribute [INFERENCE]; these values must not be interpreted as physically zero RTT. Throughput uses the complete elapsed exchange interval.']
     destination.write_text('\n'.join(report) + '\n', encoding='utf-8')
 
 

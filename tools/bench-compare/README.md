@@ -11,6 +11,7 @@ git submodule update --init crates/valentine_gen/protocolgen
 ./tools/bench-compare/run.ps1 -Rounds 3 -Count 100 -GoCpu 4 -Contract
 cargo clippy -p bench-compare --all-targets -- -D warnings
 cargo test -p bench-compare
+python tools/bench-compare/test_report.py
 Push-Location tools/bench-compare/go
 go vet ./...
 go test ./...

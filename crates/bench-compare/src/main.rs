@@ -45,7 +45,7 @@ fn main() -> Result<()> {
     match args.command {
         Command::Codec { iterations } => bench_compare::codec::run(iterations),
         Command::Micro { iterations } => bench_compare::micro::run(iterations),
-        command => tokio::runtime::Builder::new_current_thread()
+        command => tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()?
             .block_on(async {

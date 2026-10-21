@@ -20,6 +20,7 @@ if (!(Get-Command go -ErrorAction SilentlyContinue) -and (Test-Path 'C:/Program 
     $env:PATH = 'C:\Program Files\Go\bin;' + $env:PATH
 }
 $env:GOMAXPROCS = "$GoCpu"
+$env:TOKIO_WORKER_THREADS = "$GoCpu"
 $Suffix = if ($IsWindows) { '.exe' } else { '' }
 $Rust = Join-Path $Repo "target/release/bench-compare$Suffix"
 $Go = Join-Path $Cache "go-bench$Suffix"
@@ -73,6 +74,7 @@ try {
         architecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
         processors = [Environment]::ProcessorCount
         cpu = $env:PROCESSOR_IDENTIFIER
+        rust_workers = $GoCpu
         rust = (& rustc --version | Out-String).Trim(); go = (& go version | Out-String).Trim()
         commit = (& git rev-parse HEAD | Out-String).Trim()
         corpus_commit = (& git -C crates/valentine_gen/protocolgen rev-parse HEAD | Out-String).Trim()
