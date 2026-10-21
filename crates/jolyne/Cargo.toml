@@ -21,7 +21,8 @@ thiserror = "1.0"  # Keep at 1.0 for now - jolyne uses thiserror 1.x API
 tokio-raknet = { workspace = true, optional = true }
 tokio-nethernet = { workspace = true, optional = true }
 valentine = { workspace = true, default-features = false, features = ["bedrock_1_26_51"] }
-flate2.workspace = true
+flate2 = { version = "1.1.10", default-features = false, features = ["zlib-rs", "runtime_detection"] }
+libdeflater = "1.26"
 snap.workspace = true
 futures.workspace = true
 jsonwebtoken = { workspace = true, optional = true }
@@ -30,9 +31,9 @@ serde.workspace = true
 serde_json.workspace = true
 base64.workspace = true
 uuid.workspace = true
-sha2.workspace = true
-aes.workspace = true
-ctr.workspace = true
+sha2 = "0.11"
+aes = "0.9"
+ctr = "0.10"
 aes-gcm.workspace = true
 p384.workspace = true
 rand.workspace = true

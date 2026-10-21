@@ -2,7 +2,9 @@
 
 pub mod auth;
 pub mod batch;
+mod compression;
 pub mod config;
+pub mod crypto;
 pub mod error;
 pub mod gamedata;
 #[cfg(feature = "server")]

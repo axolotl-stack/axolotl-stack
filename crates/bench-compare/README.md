@@ -28,39 +28,41 @@ Allocation snapshots count allocation, zeroed allocation and reallocation calls 
 
 ## Raw batch measurements (`micro`)
 
-The report's `rust-owned` batch rows mean the public jolyne raw APIs below,
-not Valentine's typed codec. Compression-only rows keep a distinct backend label.
+The report's `rust-owned` batch rows exercise jolyne's public reusable
+`BatchCodec`, not Valentine's typed packet codec. The four manifest batch
+fixtures are checked by digest, packet count/ID and exact raw re-encoding
+before timing.
 
-`micro` also emits `area=batch` for the four manifest `set=batch` fixtures.
-This loader is independent of typed codec support: it checks SHA-256, packet
-counts/IDs and byte-for-byte raw re-encoding before timing. `framing_encode` and
-`framing_decode` use jolyne's public `encode_batch_raw`/`decode_batch_raw`, not
-typed packet decoding. jolyne additionally parses packet IDs/subclients and
-allocates `RawPacket` descriptors; Go returns owned opaque packet slices and
-bedrock-net exposes a packet iterator. jolyne raw encoding copies cached inner
-frames into fresh output; Go and bedrock-net may reuse encoder buffers. These
-are public-API comparisons, not identical ownership/allocation policies.
+`framing_encode` writes packet lengths and opaque packet bytes directly into a
+reused `BytesMut` with `encode_frames_into`. `framing_decode` uses synchronous
+`decode_with` callbacks over borrowed packet slices; no packet-ID parsing,
+per-packet copy, reference-count update or aggregate result vector is charged.
+Go returns owned packet slices; bedrock-net exposes a `Bytes` packet iterator.
+These are public-API comparisons with explicit ownership differences.
 
-`deflate_encode`/`deflate_decode` include raw framing and negotiated DEFLATE
-with threshold zero and level 6. Throughput uses the original complete batch,
-including `0xfe`. Compression-only `compress`/`decompress` instead consume
-framed entries excluding `0xfe` and are honestly labeled `flate2-rust`, **not**
-jolyne: no public jolyne compression-only API exists. They use flate2's default
-Rust backend at level 6 with fresh encoder/decoder output. The workspace
-Cargo.lock pins the resolved flate2/miniz_oxide versions; jolyne is the workspace
-source revision. Go uses pooled klauspost/compress level 6, while bedrock-net's
-combined DEFLATE uses libdeflate level 6. Equal levels do not promise identical
-compressed bytes or algorithmic effort. Setup checks decompressed bytes, not
-cross-backend compressed-byte equality. Go's decompression output limit is the
-exact expected length; these jolyne/flate2 calls have no output limit.
+`deflate_encode`/`deflate_decode` and `snappy_encode`/`snappy_decode` include
+framing, the negotiated compression marker and raw compression. Threshold is
+zero; DEFLATE uses libdeflate level 6 in both Rust implementations, while Go
+uses pooled klauspost/compress level 6. Equal numeric levels need not produce
+identical compressed bytes. jolyne enforces a 4 MiB decompressed-size limit;
+Go's fixture decoder uses the exact expected length. Throughput counts the
+original complete batch including `0xfe`; stderr emits `batch_sizes` records
+with actual encoded byte counts. The obsolete flate2-only timing rows were
+removed because flate2 is no longer jolyne's normal compression backend.
 
-Isolated jolyne `encrypt`/`decrypt` rows are explicitly unavailable because the
-checksum/cipher helpers are private to `BedrockTransport`; public send/receive
-would include framing and transport. No copied crypto implementation or mock
-transport stands in for that API. The public raw jolyne encoder supports
-DEFLATE, not algorithm-selected Snappy, so no jolyne Snappy timing is claimed.
-The batch tests cover all four exact frame roundtrips, compressed roundtrips,
-and truncated frame rejection; the same smoke validation runs before timing.
+`encrypt`/`decrypt` exercise the public in-place `crypto::BatchCipher` used by
+`BedrockTransport`, with independent continuous directional streams. Input
+allocation/refill and output verification are outside timing; each measured
+operation includes its own `Instant` reads, matching the Cinnabar prepared
+measurement. Input excludes `0xfe`, has eight spare bytes, and uses key/IV
+bytes `0x42`. Every output is checked against the opposite cipher direction.
+Allocation accounting is a separate untimed pass. Go's private crypto helpers
+remain unavailable rather than being reimplemented in the harness.
+
+Framing, compression, size limits, truncated inputs and continuous crypto
+streams have deterministic behavioral coverage; the corpus smoke validation
+also runs before timing.
+
 
 ## Public API gaps
 
