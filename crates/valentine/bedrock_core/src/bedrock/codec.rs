@@ -10,6 +10,10 @@ use crate::protocol::wire;
 pub trait BedrockCodec: Sized {
     type Args;
 
+    /// Conservative lower bound on bytes consumed by a successful decode.
+    /// Zero keeps third-party implementations source-compatible.
+    const MIN_ENCODED_SIZE: usize = 0;
+
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error>;
     fn decode<B: Buf>(buf: &mut B, args: Self::Args) -> Result<Self, DecodeError>;
 }
@@ -67,6 +71,37 @@ pub fn reserve_decode_item<T>(values: &mut Vec<T>) -> Result<(), DecodeError> {
     Ok(())
 }
 
+/// Client resource policy for recursive generated values, not a wire-format limit.
+pub const MAX_RECURSIVE_VALUE_DEPTH: usize = 64;
+
+thread_local! {
+    static RECURSIVE_VALUE_DEPTH: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// A synchronous decode scope. Drop restores the budget on errors and unwinding.
+/// This guard cannot move across threads; codec decoding never suspends.
+pub struct RecursiveDecodeGuard(std::marker::PhantomData<*mut ()>);
+
+impl RecursiveDecodeGuard {
+    pub fn enter() -> Result<Self, DecodeError> {
+        RECURSIVE_VALUE_DEPTH.with(|depth| {
+            if depth.get() >= MAX_RECURSIVE_VALUE_DEPTH {
+                return Err(DecodeError::RecursiveDepthExceeded {
+                    max: MAX_RECURSIVE_VALUE_DEPTH,
+                });
+            }
+            depth.set(depth.get() + 1);
+            Ok(Self(std::marker::PhantomData))
+        })
+    }
+}
+
+impl Drop for RecursiveDecodeGuard {
+    fn drop(&mut self) {
+        RECURSIVE_VALUE_DEPTH.with(|depth| depth.set(depth.get() - 1));
+    }
+}
+
 // An explicitly corrected but still-untyped Mojang field can be represented
 // in the shared IR as `Void`/`()`. It consumes no bytes; the Mojang frontend
 // emits a warning and records the parity gap before reaching this fallback.
@@ -108,6 +143,7 @@ macro_rules! le_int_newtype {
 
         impl BedrockCodec for $name {
             type Args = ();
+            const MIN_ENCODED_SIZE: usize = mem::size_of::<$inner>();
             fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
                 buf.$put(self.0);
                 Ok(())
@@ -138,6 +174,7 @@ macro_rules! le_float_newtype {
 
         impl BedrockCodec for $name {
             type Args = ();
+            const MIN_ENCODED_SIZE: usize = mem::size_of::<$inner>();
             fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
                 buf.$put(self.0);
                 Ok(())
@@ -234,6 +271,7 @@ fixed_size_codec!(bool);
 
 impl BedrockCodec for u8 {
     type Args = ();
+    const MIN_ENCODED_SIZE: usize = 1;
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         buf.put_u8(*self);
         Ok(())
@@ -447,6 +485,7 @@ impl BedrockSized for String {
 
 impl<T: BedrockCodec> BedrockCodec for Box<T> {
     type Args = T::Args;
+    const MIN_ENCODED_SIZE: usize = T::MIN_ENCODED_SIZE;
     fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
         (**self).encode(buf)
     }
@@ -475,9 +514,11 @@ where
     }
     fn decode<B: Buf>(buf: &mut B, args: Self::Args) -> Result<Self, DecodeError> {
         let len = crate::protocol::wire::read_var_u32(buf)? as usize;
-        let mut v = Vec::with_capacity(len);
+        let mut v = prepare_decode_vec(len, buf.remaining(), Some(T::MIN_ENCODED_SIZE))?;
         for _ in 0..len {
-            v.push(T::decode(buf, args.clone())?);
+            let value = T::decode(buf, args.clone())?;
+            reserve_decode_item(&mut v)?;
+            v.push(value);
         }
         Ok(v)
     }
@@ -927,22 +968,67 @@ enum NbtEncoding {
 const MAX_NBT_DEPTH: usize = 512;
 
 fn decode_nbt<B: Buf>(buf: &mut B, encoding: NbtEncoding) -> Result<Nbt, DecodeError> {
+    // Keep zero-copy extraction when the NBT fits the first chunk, even if
+    // subsequent packet fields live in another segment.
     let mut cursor = Cursor::new(buf.chunk());
-    let root_tag = read_u8(&mut cursor)?;
+    match scan_nbt(&mut cursor, encoding) {
+        Ok(()) => {
+            let len = cursor.position() as usize;
+            return Ok(Nbt(buf.copy_to_bytes(len)));
+        }
+        Err(err) => {
+            let incomplete = matches!(&err, DecodeError::UnexpectedEof { .. })
+                || matches!(&err, DecodeError::Io(err) if err.kind() == std::io::ErrorKind::UnexpectedEof);
+            if !incomplete || buf.chunk().len() == buf.remaining() {
+                return Err(err);
+            }
+        }
+    }
 
-    // Root tags are named in both Bedrock little-endian variants. Network
-    // little endian uses a VarUInt length; fixed little endian uses an i16.
-    skip_string(&mut cursor, encoding)?;
-    scan_payload(root_tag, &mut cursor, encoding, 0)?;
+    // Record only consumed NBT bytes, never the following packet fields. Copying
+    // all unread bytes would both waste memory and lose the boundary in a Buf.
+    let mut recording = NbtRecordingBuf {
+        inner: buf,
+        bytes: bytes::BytesMut::new(),
+    };
+    scan_nbt(&mut recording, encoding)?;
+    Ok(Nbt(recording.bytes.freeze()))
+}
 
-    let len = cursor.position() as usize;
-    Ok(Nbt(buf.copy_to_bytes(len)))
+struct NbtRecordingBuf<'a, B> {
+    inner: &'a mut B,
+    bytes: bytes::BytesMut,
+}
+
+impl<B: Buf> Buf for NbtRecordingBuf<'_, B> {
+    fn remaining(&self) -> usize {
+        self.inner.remaining()
+    }
+    fn chunk(&self) -> &[u8] {
+        self.inner.chunk()
+    }
+    fn advance(&mut self, mut count: usize) {
+        assert!(count <= self.remaining());
+        while count > 0 {
+            let take = count.min(self.inner.chunk().len());
+            self.bytes.extend_from_slice(&self.inner.chunk()[..take]);
+            self.inner.advance(take);
+            count -= take;
+        }
+    }
+}
+
+fn scan_nbt(cursor: &mut impl Buf, encoding: NbtEncoding) -> Result<(), DecodeError> {
+    let root_tag = read_u8(cursor)?;
+    // Root tags are named in both Bedrock little-endian variants.
+    skip_string(cursor, encoding)?;
+    scan_payload(root_tag, cursor, encoding, 0)
 }
 
 // --- NBT scanner logic ---
 
 fn scan_compound(
-    cursor: &mut Cursor<&[u8]>,
+    cursor: &mut impl Buf,
     encoding: NbtEncoding,
     depth: usize,
 ) -> Result<(), DecodeError> {
@@ -966,7 +1052,7 @@ fn scan_compound(
 
 fn scan_payload(
     tag_id: u8,
-    cursor: &mut Cursor<&[u8]>,
+    cursor: &mut impl Buf,
     encoding: NbtEncoding,
     depth: usize,
 ) -> Result<(), DecodeError> {
@@ -1020,7 +1106,7 @@ fn enter_nbt_container(depth: usize) -> Result<usize, DecodeError> {
 
 // --- Low Level Helpers ---
 
-fn read_u8(cursor: &mut Cursor<&[u8]>) -> Result<u8, DecodeError> {
+fn read_u8(cursor: &mut impl Buf) -> Result<u8, DecodeError> {
     if !cursor.has_remaining() {
         return Err(DecodeError::UnexpectedEof {
             needed: 1,
@@ -1030,7 +1116,7 @@ fn read_u8(cursor: &mut Cursor<&[u8]>) -> Result<u8, DecodeError> {
     Ok(cursor.get_u8())
 }
 
-fn skip_string(cursor: &mut Cursor<&[u8]>, encoding: NbtEncoding) -> Result<(), DecodeError> {
+fn skip_string(cursor: &mut impl Buf, encoding: NbtEncoding) -> Result<(), DecodeError> {
     let len = match encoding {
         NbtEncoding::NetworkLittleEndian => crate::protocol::wire::read_var_u32(cursor)? as usize,
         NbtEncoding::LittleEndian => {
@@ -1046,7 +1132,7 @@ fn skip_string(cursor: &mut Cursor<&[u8]>, encoding: NbtEncoding) -> Result<(), 
     skip(cursor, len)
 }
 
-fn read_i32(cursor: &mut Cursor<&[u8]>, encoding: NbtEncoding) -> Result<i32, DecodeError> {
+fn read_i32(cursor: &mut impl Buf, encoding: NbtEncoding) -> Result<i32, DecodeError> {
     match encoding {
         NbtEncoding::NetworkLittleEndian => Ok(crate::protocol::wire::read_zigzag32(cursor)?),
         NbtEncoding::LittleEndian => {
@@ -1061,7 +1147,7 @@ fn read_i32(cursor: &mut Cursor<&[u8]>, encoding: NbtEncoding) -> Result<i32, De
     }
 }
 
-fn skip_i32(cursor: &mut Cursor<&[u8]>, encoding: NbtEncoding) -> Result<(), DecodeError> {
+fn skip_i32(cursor: &mut impl Buf, encoding: NbtEncoding) -> Result<(), DecodeError> {
     match encoding {
         NbtEncoding::NetworkLittleEndian => {
             crate::protocol::wire::read_zigzag32(cursor)?;
@@ -1071,7 +1157,7 @@ fn skip_i32(cursor: &mut Cursor<&[u8]>, encoding: NbtEncoding) -> Result<(), Dec
     }
 }
 
-fn skip_i64(cursor: &mut Cursor<&[u8]>, encoding: NbtEncoding) -> Result<(), DecodeError> {
+fn skip_i64(cursor: &mut impl Buf, encoding: NbtEncoding) -> Result<(), DecodeError> {
     match encoding {
         NbtEncoding::NetworkLittleEndian => {
             crate::protocol::wire::read_zigzag64(cursor)?;
@@ -1091,7 +1177,7 @@ fn nonnegative_len(value: i32) -> Result<i32, DecodeError> {
     }
 }
 
-fn skip(cursor: &mut Cursor<&[u8]>, n: usize) -> Result<(), DecodeError> {
+fn skip(cursor: &mut impl Buf, n: usize) -> Result<(), DecodeError> {
     if cursor.remaining() < n {
         return Err(DecodeError::UnexpectedEof {
             needed: n,
@@ -1122,13 +1208,41 @@ mod tests {
     }
 
     #[test]
-    fn decoded_collections_do_not_eagerly_trust_wire_counts() {
-        let mut values: Vec<u64> = prepare_decode_vec(1_000_000, 0, None).expect("lazy storage");
-        assert_eq!(values.capacity(), 0);
+    fn zero_width_collection_values_remain_decodable() {
+        assert_codec_roundtrip(vec![(); 5], ());
+    }
 
-        reserve_decode_item(&mut values).expect("reserve first decoded item");
-        values.push(42);
-        assert_eq!(values, [42]);
+    #[test]
+    fn generic_vec_rejects_impossible_wire_count() {
+        let mut wire = BytesMut::new();
+        wire::write_var_u32(&mut wire, 1_000_000);
+        wire.put_u8(42);
+        assert!(matches!(
+            Vec::<u8>::decode(&mut wire.freeze(), ()),
+            Err(DecodeError::ArrayLengthExceeded { .. })
+        ));
+    }
+
+    #[test]
+    fn nbt_decodes_segmented_buffers_without_consuming_following_value() {
+        // Named compound containing a named integer, then an unrelated byte.
+        let network = [10, 0, 3, 1, b'x', 84, 0];
+        let fixed = [10, 0, 0, 3, 1, 0, b'x', 42, 0, 0, 0, 0];
+        for (bytes, encoding) in [
+            (network.as_slice(), NbtEncoding::NetworkLittleEndian),
+            (fixed.as_slice(), NbtEncoding::LittleEndian),
+        ] {
+            for split in 1..bytes.len() {
+                let rest = [bytes[split..].to_vec(), vec![0xaa]].concat();
+                let mut chained = bytes[..split].chain(rest.as_slice());
+                assert_eq!(
+                    decode_nbt(&mut chained, encoding).unwrap().0.as_ref(),
+                    bytes
+                );
+                assert_eq!(chained.remaining(), 1);
+                assert_eq!(chained.get_u8(), 0xaa);
+            }
+        }
     }
 
     // ========== Primitive Tests ==========

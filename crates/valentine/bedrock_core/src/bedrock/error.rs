@@ -27,6 +27,12 @@ pub enum DecodeError {
     #[error("packet length {declared} exceeds available {available}")]
     PacketLengthExceeded { declared: usize, available: usize },
 
+    #[error("packet contains {remaining} trailing payload bytes")]
+    TrailingPacketBytes { remaining: usize },
+
+    #[error("recursive value depth exceeds maximum of {max}")]
+    RecursiveDepthExceeded { max: usize },
+
     #[error("varint too large")]
     VarIntTooLarge,
 

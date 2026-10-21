@@ -68,6 +68,28 @@ Generate multiple versions when you want cross-version type/packet dedup to be c
 cargo run -p valentine_gen -- --versions 1.21.120,1.21.124,1.26.30
 ```
 
+## Decode resource policy
+
+Owned and borrowed collection decoders validate statically known minimum wire
+sizes before allocating. Unknown-size values grow storage only as items decode;
+zero-byte schema values remain valid. `BedrockCodec::MIN_ENCODED_SIZE` defaults
+to zero for external implementations and may be overridden with a conservative
+wire-size lower bound (not Rust's in-memory `size_of`).
+
+Generated recursive types share a synchronous, thread-local budget of 64 active
+recursive value decodes. Exceeding it returns `RecursiveDepthExceeded`; success,
+errors, and unwinding restore the budget. Borrowed packets that defer recursive
+payloads to their raw fallback apply the same policy when materialized.
+
+NBT accepts segmented `Buf` inputs without consuming following fields. Values
+wholly in the first chunk retain the contiguous extraction path; split values
+copy only the bytes belonging to that NBT value.
+
+Owned MCPE frame decoding rejects unread payload bytes with
+`TrailingPacketBytes`, matching [gophertunnel's default invalid-packet
+handling](https://github.com/Sandertv/gophertunnel/blob/master/minecraft/packet.go).
+There are no packet-specific trailing-data exceptions.
+
 ## Notes
 
 - Bedrock strings are decoded lossily on purpose for wire compatibility with existing implementations such as `gophertunnel`.
