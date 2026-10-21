@@ -1,110 +1,43 @@
-/// Minecraft service config ID for session directory.
+//! Endpoint provenance refers exclusively to the cloned df-mc repositories.
+
+/// df-mc/go-xsapi xal/sisu/session_test.go:serviceConfigID.
 pub const SERVICE_CONFIG_ID: &str = "4fc10100-5f7a-4470-899b-280835760c07";
 
-/// Session template name for Minecraft lobbies.
+/// df-mc/go-xsapi xal/sisu/session_test.go:publishSession.
 pub const TEMPLATE_NAME: &str = "MinecraftLobby";
 
-/// Title ID for Minecraft Windows Edition.
+/// df-mc/go-xsapi xal/sisu/session_test.go:publishSession (Invite title ID).
 pub const TITLE_ID: &str = "896928775";
 
-/// Maximum friends allowed on Xbox Live.
-pub const MAX_FRIENDS: usize = 2000;
-
-// NOTE: Connection types (RakNetV1, RakNetV2, WebRTC, Lan) are defined in
-// `tokio_nethernet::ConnectionType` to avoid duplication.
-
-/// API Endpoints
 pub mod endpoints {
-    /// Session directory base URL.
-    pub const SESSION_DIRECTORY: &str = "https://sessiondirectory.xboxlive.com";
-
-    /// Create/update session URL (format with session ID).
+    /// df-mc/go-xsapi mpsd/session.go:SessionReference.URL; title configuration
+    /// comes from xal/sisu/session_test.go:publishSession.
     pub const CREATE_SESSION_FMT: &str = "https://sessiondirectory.xboxlive.com/serviceconfigs/4fc10100-5f7a-4470-899b-280835760c07/sessionTemplates/MinecraftLobby/sessions/";
 
-    /// Session handles endpoint.
+    /// df-mc/go-xsapi mpsd/activity.go:writeActivity, Invite.
     pub const CREATE_HANDLE: &str = "https://sessiondirectory.xboxlive.com/handles";
 
-    /// Join session via handle (format with handle ID).
+    /// df-mc/go-xsapi mpsd/join.go:Join.
     pub const JOIN_SESSION_FMT: &str = "https://sessiondirectory.xboxlive.com/handles/{}/session";
 
-    /// Get handle info (format with handle ID).
+    /// df-mc/go-xsapi mpsd/activity.go:ActivityHandle.URL.
     pub const GET_HANDLE_FMT: &str = "https://sessiondirectory.xboxlive.com/handles/{}";
 
-    /// Query handles (POST with body).
-    pub const QUERY_HANDLES: &str = "https://sessiondirectory.xboxlive.com/handles/query";
-
-    /// PlayFab login for Minecraft.
+    /// df-mc/go-playfab xbox.go:XBLIdentityProvider.Login; Minecraft title configuration.
     pub const PLAYFAB_LOGIN: &str = "https://20ca2.playfabapi.com/Client/LoginWithXbox";
 
-    /// Minecraft services session start.
+    /// Retained Minecraft authorization flow; not defined by go-xsapi.
     pub const MC_SESSION_START: &str =
         "https://authorization.franchise.minecraft-services.net/api/v1.0/session/start";
 
-    /// RTC WebSocket for signaling (format with nethernet ID).
-    pub const RTC_WEBSOCKET_FMT: &str =
-        "wss://signal.franchise.minecraft-services.net/ws/v1.0/signaling/";
-
-    /// RTA WebSocket for presence/connections.
+    /// df-mc/go-xsapi rta/dial.go:connectURL, subprotocol.
     pub const RTA_WEBSOCKET: &str = "wss://rta.xboxlive.com/connect";
 
-    /// People endpoint for friend operations (format with XUID).
-    pub const PEOPLE_FMT: &str = "https://social.xboxlive.com/users/me/people/xuid({})";
-
-    /// User presence endpoint (format with XUID).
+    /// df-mc/go-xsapi presence/client.go:update, remove.
     pub const USER_PRESENCE_FMT: &str =
         "https://userpresence.xboxlive.com/users/xuid({})/devices/current/titles/current";
 
-    /// Get followers (people following you).
-    pub const FOLLOWERS: &str = "https://peoplehub.xboxlive.com/users/me/people/followers";
-
-    /// Get social (people you follow).
-    pub const SOCIAL: &str = "https://peoplehub.xboxlive.com/users/me/people/social";
-
-    /// Social summary (friend counts).
-    pub const SOCIAL_SUMMARY: &str = "https://social.xboxlive.com/users/me/summary";
-
-    /// Force unfollow a follower (format with XUID).
-    pub const FOLLOWER_FMT: &str = "https://social.xboxlive.com/users/me/people/follower/xuid({})";
-
-    /// Pending friend requests.
-    pub const FRIEND_REQUESTS: &str =
-        "https://peoplehub.xboxlive.com/users/me/people/friendrequests(received)";
-
-    /// Bulk friend add.
-    pub const BULK_ADD_FRIENDS: &str =
-        "https://social.xboxlive.com/bulk/users/me/people/friends/v2?method=add";
-
-    /// Profile settings (format with XUID).
-    pub const PROFILE_SETTINGS_FMT: &str =
-        "https://profile.xboxlive.com/users/xuid({})/profile/settings?settings=Gamertag";
-
-    /// Gallery for showcase images.
+    /// Retained Minecraft gallery functionality; no equivalent in the cloned
+    /// go-xsapi, go-playfab, or nethernet reference APIs.
     pub const GALLERY: &str = "https://persona.franchise.minecraft-services.net/api/v1.0/gallery";
-
-    // ========================================================================
-    // MPSD Enumeration Endpoints (for security research)
-    // ========================================================================
-
-    /// Query sessions by SCID only.
-    /// GET /serviceconfigs/{scid}/sessions
-    pub const SCID_SESSIONS_FMT: &str =
-        "https://sessiondirectory.xboxlive.com/serviceconfigs/{scid}/sessions";
-
-    /// Query sessions by SCID and template.
-    /// GET /serviceconfigs/{scid}/sessiontemplates/{templateName}/sessions
-    pub const TEMPLATE_SESSIONS_FMT: &str = "https://sessiondirectory.xboxlive.com/serviceconfigs/{scid}/sessionTemplates/{template}/sessions";
-
-    /// Batch query at SCID level.
-    /// POST /serviceconfigs/{scid}/batch
-    pub const SCID_BATCH_FMT: &str =
-        "https://sessiondirectory.xboxlive.com/serviceconfigs/{scid}/batch";
-
-    /// Batch query at template level.
-    /// POST /serviceconfigs/{scid}/sessiontemplates/{templateName}/batch
-    pub const TEMPLATE_BATCH_FMT: &str = "https://sessiondirectory.xboxlive.com/serviceconfigs/{scid}/sessionTemplates/{template}/batch";
-
-    /// Query session templates.
-    /// GET /serviceconfigs/{scid}/sessiontemplates
-    pub const SESSION_TEMPLATES_FMT: &str =
-        "https://sessiondirectory.xboxlive.com/serviceconfigs/{scid}/sessionTemplates";
 }

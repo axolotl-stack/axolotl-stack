@@ -3,7 +3,7 @@
 //! Note: Most tests require network access and a real Microsoft account.
 //! Unit tests for signing and structure are included.
 
-use axolotl_xbl::auth::{DeviceCodeAuth, SigningKeyPair, XblTokenClient};
+use axolotl_xbl::auth::SigningKeyPair;
 
 /// Test that SigningKeyPair generates valid ProofKey format.
 #[test]
@@ -50,44 +50,6 @@ fn test_signing_produces_valid_base64() {
     );
 }
 
-/// Test that DeviceCodeAuth can be instantiated.
-#[test]
-fn test_device_code_auth_instantiation() {
-    let _auth = DeviceCodeAuth::new();
-}
-
-/// Test that XblTokenClient can be instantiated.
-#[test]
-fn test_xbl_token_client_instantiation() {
-    let _client = XblTokenClient::new();
-}
-
-/// Test error parsing for known Xbox error codes.
-#[test]
-fn test_xbox_error_code_parsing() {
-    use axolotl_xbl::XblError;
-
-    let err = XblError::from_xbox_error_code("2148916233");
-    match err {
-        XblError::XboxLive(msg) => {
-            assert!(
-                msg.contains("Xbox profile"),
-                "Should mention profile: {}",
-                msg
-            );
-        }
-        _ => panic!("Expected XboxLive error variant"),
-    }
-
-    let err = XblError::from_xbox_error_code("unknown");
-    match err {
-        XblError::XboxLive(msg) => {
-            assert!(msg.contains("unknown"), "Should indicate unknown: {}", msg);
-        }
-        _ => panic!("Expected XboxLive error variant"),
-    }
-}
-
 /// Test that multiple keys generate different signatures.
 #[test]
 fn test_different_keys_different_signatures() {
@@ -117,4 +79,34 @@ fn test_different_bodies_different_signatures() {
         sig1, sig2,
         "Different bodies should produce different signatures"
     );
+}
+
+#[test]
+fn credentials_are_redacted_from_debug() {
+    use axolotl_xbl::auth::{OAuthToken, XblToken};
+    let oauth = OAuthToken {
+        access_token: "secret-access".into(),
+        refresh_token: "secret-refresh".into(),
+        token_type: "Bearer".into(),
+        expires_in: 3600,
+        user_id: None,
+    };
+    let xbl = XblToken {
+        token: "secret-xsts".into(),
+        user_hash: "hash".into(),
+        gamertag: "name".into(),
+        xuid: "1".into(),
+        expires_at: 1,
+    };
+    for value in [format!("{oauth:?}"), format!("{xbl:?}")] {
+        assert!(!value.contains("secret-"), "{value}");
+    }
+}
+
+#[test]
+fn malformed_response_error_does_not_disclose_credentials() {
+    let error = serde_json::from_str::<u64>("\"secret-token\"").unwrap_err();
+    let error = axolotl_xbl::XblError::from(error);
+    assert!(!format!("{error} {error:?}").contains("secret-token"));
+    assert!(std::error::Error::source(&error).is_none());
 }

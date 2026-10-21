@@ -24,6 +24,7 @@ p256.workspace = true
 sha2.workspace = true
 rand.workspace = true
 base64.workspace = true
+jsonwebtoken.workspace = true
 
 # WebSocket for RTA
 tokio-tungstenite = { workspace = true, features = ["native-tls"] }

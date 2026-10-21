@@ -290,12 +290,14 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "tempfile",
  "tokio",
  "tokio-nethernet",
  "toml 0.8.23",
  "tracing",
  "tracing-subscriber",
  "uuid",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -306,6 +308,7 @@ dependencies = [
  "chrono",
  "futures-util",
  "hex",
+ "jsonwebtoken",
  "p256",
  "rand 0.8.5",
  "reqwest",

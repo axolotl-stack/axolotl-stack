@@ -175,8 +175,8 @@ impl DiscordNotifier {
                             );
                         }
                     }
-                    Err(e) => {
-                        warn!("Failed to send Discord notification: {}", e);
+                    Err(_) => {
+                        warn!("Failed to send Discord notification");
                     }
                 }
             }
@@ -339,8 +339,8 @@ impl DiscordNotifier {
                             );
                         }
                     }
-                    Err(e) => {
-                        warn!("Failed to send Discord notification: {}", e);
+                    Err(_) => {
+                        warn!("Failed to send Discord notification");
                     }
                 }
             }

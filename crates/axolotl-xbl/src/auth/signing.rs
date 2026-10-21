@@ -7,7 +7,7 @@ use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use p256::ecdsa::{Signature, SigningKey, signature::DigestSigner};
 use p256::elliptic_curve::rand_core::OsRng;
 use sha2::{Digest, Sha256};
-use std::sync::{Arc, OnceLock, RwLock};
+use std::sync::{Arc, LazyLock, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 use url::Url;
 
@@ -18,7 +18,8 @@ static SERVER_TIME_OFFSET: RwLock<Option<i64>> = RwLock::new(None);
 ///
 /// Service request signatures must match the proof key context used while
 /// acquiring XBL tokens, so we keep one process-wide keypair.
-static SHARED_SIGNING_KEY: OnceLock<Arc<SigningKeyPair>> = OnceLock::new();
+static SHARED_SIGNING_KEY: LazyLock<Arc<SigningKeyPair>> =
+    LazyLock::new(|| Arc::new(SigningKeyPair::generate()));
 
 /// Update the server time offset from an HTTP Date header.
 /// Call this after each response to keep time in sync.
@@ -40,34 +41,140 @@ pub fn update_server_time_from_header(date_header: &str) {
 
 /// Get the process-wide signing key pair.
 pub fn shared_signing_key() -> Arc<SigningKeyPair> {
-    SHARED_SIGNING_KEY
-        .get_or_init(|| Arc::new(SigningKeyPair::generate()))
-        .clone()
+    Arc::clone(&SHARED_SIGNING_KEY)
 }
 
-/// Sign a request given a full URL.
-///
-/// Automatically extracts `path[?query]` for Xbox signature material.
-pub fn sign_request_for_url(
-    method: &str,
-    url: &str,
-    authorization: &str,
-    body: &[u8],
-) -> Result<String, String> {
-    let parsed = Url::parse(url).map_err(|e| format!("Invalid URL: {}", e))?;
-    let mut path_with_query = parsed.path().to_string();
-    if let Some(query) = parsed.query() {
-        path_with_query.push('?');
-        path_with_query.push_str(query);
+/// go-xsapi/xal/nsal/transport.go:Transport.RoundTrip resolves the title's
+/// security policy before signing each service request.
+pub(crate) async fn sign_service_request(
+    request: &mut reqwest::Request,
+    token: &super::XblToken,
+) -> crate::error::XblResult<()> {
+    let authorization = reqwest::header::HeaderValue::from_str(&token.auth_header())
+        .map_err(|_| crate::error::XblError::Auth("Invalid Xbox authorization header".into()))?;
+    request
+        .headers_mut()
+        .insert(reqwest::header::AUTHORIZATION, authorization);
+    let key = shared_signing_key();
+    let resolved = shared_nsal().resolve(request.url(), token, &key).await?;
+    if resolved.relying_party != super::relying_party::XBOX_LIVE {
+        return Err(crate::error::XblError::Auth(
+            "Service requires a differently scoped Xbox token".into(),
+        ));
     }
+    sign_http_request(request, &key, &resolved.policy)
+}
 
-    Ok(shared_signing_key().sign_request(method, &path_with_query, authorization, body))
+pub(crate) fn sign_http_request(
+    request: &mut reqwest::Request,
+    key: &SigningKeyPair,
+    policy: &super::nsal::SignaturePolicy,
+) -> crate::error::XblResult<()> {
+    let body = match request.body() {
+        None => &[][..],
+        Some(body) => body.as_bytes().ok_or_else(|| {
+            crate::error::XblError::Auth("Xbox signing requires a buffered request body".into())
+        })?,
+    };
+    let signature = policy_signature(
+        policy,
+        key,
+        request.method().as_str(),
+        request.url(),
+        request.headers(),
+        body,
+    )?;
+    request.headers_mut().insert(
+        "Signature",
+        reqwest::header::HeaderValue::from_str(&signature)
+            .map_err(|_| crate::error::XblError::Auth("Invalid Xbox signature header".into()))?,
+    );
+    Ok(())
+}
+
+pub(crate) async fn sign_websocket_request(
+    request: &mut tokio_tungstenite::tungstenite::handshake::client::Request,
+    token: &super::XblToken,
+) -> crate::error::XblResult<()> {
+    use crate::error::XblError;
+    let mut url = Url::parse(&request.uri().to_string())
+        .map_err(|_| XblError::Auth("Invalid WebSocket URL".into()))?;
+    let scheme = match url.scheme() {
+        "wss" => "https",
+        "ws" => "http",
+        _ => url.scheme(),
+    }
+    .to_owned();
+    url.set_scheme(&scheme)
+        .map_err(|_| XblError::Auth("Invalid WebSocket scheme".into()))?;
+    request.headers_mut().insert(
+        reqwest::header::AUTHORIZATION,
+        reqwest::header::HeaderValue::from_str(&token.auth_header())
+            .map_err(|_| XblError::Auth("Invalid Xbox authorization header".into()))?,
+    );
+    let key = shared_signing_key();
+    let resolved = shared_nsal().resolve(&url, token, &key).await?;
+    if resolved.relying_party != super::relying_party::XBOX_LIVE {
+        return Err(XblError::Auth(
+            "WebSocket requires a differently scoped Xbox token".into(),
+        ));
+    }
+    let signature = policy_signature(
+        &resolved.policy,
+        &key,
+        request.method().as_str(),
+        &url,
+        request.headers(),
+        &[],
+    )?;
+    request.headers_mut().insert(
+        "Signature",
+        reqwest::header::HeaderValue::from_str(&signature)
+            .map_err(|_| XblError::Auth("Invalid Xbox signature header".into()))?,
+    );
+    Ok(())
+}
+
+fn policy_signature(
+    policy: &super::nsal::SignaturePolicy,
+    key: &SigningKeyPair,
+    method: &str,
+    url: &Url,
+    headers: &reqwest::header::HeaderMap,
+    body: &[u8],
+) -> crate::error::XblResult<String> {
+    let mut path = url.path().to_owned();
+    if let Some(query) = url.query() {
+        path.push('?');
+        path.push_str(query);
+    }
+    let authorization = headers
+        .get(reqwest::header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("");
+    Ok(policy.sign_request_with_headers(key, method, &path, authorization, body, headers))
+}
+
+pub(crate) fn shared_nsal() -> Arc<super::nsal::NsalClient> {
+    static NSAL: LazyLock<Arc<super::nsal::NsalClient>> = LazyLock::new(|| {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .expect("valid NSAL client configuration");
+        Arc::new(super::nsal::NsalClient::new(client))
+    });
+    Arc::clone(&NSAL)
 }
 
 /// ECDSA P-256 key pair for signing Xbox Live requests.
-#[derive(Debug)]
 pub struct SigningKeyPair {
     signing_key: SigningKey,
+}
+
+impl std::fmt::Debug for SigningKeyPair {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("SigningKeyPair { private_key: [REDACTED] }")
+    }
 }
 
 impl SigningKeyPair {
@@ -104,16 +211,29 @@ impl SigningKeyPair {
         authorization: &str,
         body: &[u8],
     ) -> String {
+        self.sign_request_with_policy(method, path, authorization, body, 1, &[])
+    }
+
+    /// go-xsapi/xal/internal/signature.go:SignaturePolicy.Generate.
+    /// Extra entries are header values in the policy's declared order.
+    pub(crate) fn sign_request_with_policy(
+        &self,
+        method: &str,
+        path: &str,
+        authorization: &str,
+        body: &[u8],
+        version: u32,
+        extra_headers: &[&str],
+    ) -> String {
         let timestamp = windows_timestamp();
 
         let mut hasher = Sha256::new();
 
         // Signature policy version (0, 0, 0, 1) + 0 byte + timestamp + 0 byte
-        let mut prefix = Vec::with_capacity(13);
-        prefix.extend_from_slice(&[0, 0, 0, 1, 0]);
-        prefix.extend_from_slice(&timestamp.to_be_bytes());
-        prefix.push(0);
-        hasher.update(&prefix);
+        hasher.update(version.to_be_bytes());
+        hasher.update([0]);
+        hasher.update(timestamp.to_be_bytes());
+        hasher.update([0]);
 
         // HTTP method + 0 byte
         hasher.update(method.as_bytes());
@@ -126,6 +246,10 @@ impl SigningKeyPair {
         // Authorization header + 0 byte
         hasher.update(authorization.as_bytes());
         hasher.update([0]);
+        for value in extra_headers {
+            hasher.update(value.as_bytes());
+            hasher.update([0]);
+        }
 
         // Body + 0 byte
         hasher.update(body);
@@ -135,12 +259,12 @@ impl SigningKeyPair {
         let signature: Signature = self.signing_key.sign_digest(hasher);
 
         // Build final signature: [version (4 bytes)][timestamp (8 bytes)][signature (64 bytes)]
-        let mut result = Vec::with_capacity(76);
-        result.extend_from_slice(&[0, 0, 0, 1]);
-        result.extend_from_slice(&timestamp.to_be_bytes());
-        result.extend_from_slice(&signature.to_bytes());
+        let mut result = [0; 76];
+        result[..4].copy_from_slice(&version.to_be_bytes());
+        result[4..12].copy_from_slice(&timestamp.to_be_bytes());
+        result[12..].copy_from_slice(&signature.to_bytes());
 
-        BASE64.encode(&result)
+        BASE64.encode(result)
     }
 }
 
@@ -155,7 +279,7 @@ impl Default for SigningKeyPair {
 fn windows_timestamp() -> i64 {
     let local_unix = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .expect("time went backwards")
+        .unwrap_or_default()
         .as_secs() as i64;
 
     // Apply server time offset if we have one
