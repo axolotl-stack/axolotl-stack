@@ -4919,6 +4919,26 @@ impl McpePacketData {
         bytes::BufMut::put_u8(buf, GAME_PACKET_ID);
         self.encode_inner_bytes_mut(buf, from_subclient, to_subclient)
     }
+    /// Keeps each packet's decode temporaries out of the shared dispatch
+    /// stack frame. Inlining the largest codecs here makes even tiny
+    /// packets pay for Windows stack probes and cross-variant spills.
+    #[inline(never)]
+    fn decode_payload<T, B>(
+        buf: &mut B,
+        args: T::Args,
+    ) -> Result<Self, crate::bedrock::error::DecodeError>
+    where
+        T: crate::bedrock::codec::BedrockCodec + Into<Self>,
+        B: bytes::Buf,
+    {
+        let packet = T::decode(buf, args)?;
+        if buf.has_remaining() {
+            return Err(crate::bedrock::error::DecodeError::TrailingPacketBytes {
+                remaining: buf.remaining(),
+            });
+        }
+        Ok(packet.into())
+    }
     /// Decodes a batch entry from the provided buffer: `[Length] [Header] [Body]`.
     /// Returns the header and the packet payload.
     ///
@@ -4944,2114 +4964,732 @@ impl McpePacketData {
         let packet_id = McpePacketName::from_raw(id_raw)?;
         let packet = match packet_id {
             McpePacketName::LoginPacket => {
-                let packet = McpePacketData::LoginPacket(
-                    <LoginPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<LoginPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::PlayStatusPacket => {
-                let packet = McpePacketData::PlayStatusPacket(
-                    <PlayStatusPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<PlayStatusPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ServerToClientHandshakePacket => {
-                let packet = McpePacketData::ServerToClientHandshakePacket(
-                    <ServerToClientHandshakePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ServerToClientHandshakePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ClientToServerHandshakePacket => {
-                let packet = McpePacketData::ClientToServerHandshakePacket(
-                    <ClientToServerHandshakePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ClientToServerHandshakePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::DisconnectPacket => {
-                let packet = McpePacketData::DisconnectPacket(Box::new(
-                    <DisconnectPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<DisconnectPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ResourcePacksInfoPacket => {
-                let packet = McpePacketData::ResourcePacksInfoPacket(Box::new(
-                    <ResourcePacksInfoPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<ResourcePacksInfoPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ResourcePackStackPacket => {
-                let packet = McpePacketData::ResourcePackStackPacket(Box::new(
-                    <ResourcePackStackPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<ResourcePackStackPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ResourcePackClientResponsePacket => {
-                let packet = McpePacketData::ResourcePackClientResponsePacket(
-                    Box::new(
-                        <ResourcePackClientResponsePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                            &mut payload_buf,
-                            (),
-                        )?,
-                    ),
-                );
-                packet
+                Self::decode_payload::<ResourcePackClientResponsePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::TextPacket => {
-                let packet = McpePacketData::TextPacket(Box::new(
-                    <TextPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<TextPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SetTimePacket => {
-                let packet = McpePacketData::SetTimePacket(
-                    <SetTimePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<SetTimePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::StartGamePacket => {
-                let packet = McpePacketData::StartGamePacket(Box::new(
-                    <StartGamePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<StartGamePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::AddPlayerPacket => {
-                let packet = McpePacketData::AddPlayerPacket(Box::new(
-                    <AddPlayerPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<AddPlayerPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::AddActorPacket => {
-                let packet = McpePacketData::AddActorPacket(Box::new(
-                    <AddActorPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<AddActorPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::RemoveActorPacket => {
-                let packet = McpePacketData::RemoveActorPacket(
-                    <RemoveActorPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<RemoveActorPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::AddItemActorPacket => {
-                let packet = McpePacketData::AddItemActorPacket(Box::new(
-                    <AddItemActorPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<AddItemActorPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ServerPlayerPostMovePositionPacket => {
-                let packet = McpePacketData::ServerPlayerPostMovePositionPacket(
-                    <ServerPlayerPostMovePositionPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ServerPlayerPostMovePositionPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::TakeItemActorPacket => {
-                let packet = McpePacketData::TakeItemActorPacket(
-                    <TakeItemActorPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<TakeItemActorPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::MoveActorAbsolutePacket => {
-                let packet = McpePacketData::MoveActorAbsolutePacket(Box::new(
-                    <MoveActorAbsolutePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<MoveActorAbsolutePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::MovePlayerPacket => {
-                let packet = McpePacketData::MovePlayerPacket(Box::new(
-                    <MovePlayerPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<MovePlayerPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::UpdateBlockPacket => {
-                let packet = McpePacketData::UpdateBlockPacket(Box::new(
-                    <UpdateBlockPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<UpdateBlockPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::AddPaintingPacket => {
-                let packet = McpePacketData::AddPaintingPacket(Box::new(
-                    <AddPaintingPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<AddPaintingPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::LevelEventPacket => {
-                let packet = McpePacketData::LevelEventPacket(
-                    <LevelEventPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<LevelEventPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::BlockEventPacket => {
-                let packet = McpePacketData::BlockEventPacket(
-                    <BlockEventPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<BlockEventPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ActorEventPacket => {
-                let packet = McpePacketData::ActorEventPacket(Box::new(
-                    <ActorEventPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<ActorEventPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::MobEffectPacket => {
-                let packet = McpePacketData::MobEffectPacket(Box::new(
-                    <MobEffectPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<MobEffectPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::UpdateAttributesPacket => {
-                let packet = McpePacketData::UpdateAttributesPacket(
-                    <UpdateAttributesPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<UpdateAttributesPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::InventoryTransactionPacket => {
-                let packet = McpePacketData::InventoryTransactionPacket(Box::new(
-                    <InventoryTransactionPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<InventoryTransactionPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::MobEquipmentPacket => {
-                let packet = McpePacketData::MobEquipmentPacket(Box::new(
-                    <MobEquipmentPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<MobEquipmentPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::MobArmorEquipmentPacket => {
-                let packet = McpePacketData::MobArmorEquipmentPacket(Box::new(
-                    <MobArmorEquipmentPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<MobArmorEquipmentPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::InteractPacket => {
-                let packet = McpePacketData::InteractPacket(
-                    <InteractPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<InteractPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::BlockPickRequestPacket => {
-                let packet = McpePacketData::BlockPickRequestPacket(
-                    <BlockPickRequestPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<BlockPickRequestPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ActorPickRequestPacket => {
-                let packet = McpePacketData::ActorPickRequestPacket(
-                    <ActorPickRequestPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ActorPickRequestPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::PlayerActionPacket => {
-                let packet = McpePacketData::PlayerActionPacket(Box::new(
-                    <PlayerActionPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<PlayerActionPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::HurtArmorPacket => {
-                let packet = McpePacketData::HurtArmorPacket(
-                    <HurtArmorPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<HurtArmorPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SetActorDataPacket => {
-                let packet = McpePacketData::SetActorDataPacket(Box::new(
-                    <SetActorDataPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<SetActorDataPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SetActorMotionPacket => {
-                let packet = McpePacketData::SetActorMotionPacket(
-                    <SetActorMotionPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<SetActorMotionPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SetActorLinkPacket => {
-                let packet = McpePacketData::SetActorLinkPacket(Box::new(
-                    <SetActorLinkPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<SetActorLinkPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SetHealthPacket => {
-                let packet = McpePacketData::SetHealthPacket(
-                    <SetHealthPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<SetHealthPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SetSpawnPositionPacket => {
-                let packet = McpePacketData::SetSpawnPositionPacket(Box::new(
-                    <SetSpawnPositionPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<SetSpawnPositionPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::AnimatePacket => {
-                let packet = McpePacketData::AnimatePacket(Box::new(
-                    <AnimatePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<AnimatePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::RespawnPacket => {
-                let packet = McpePacketData::RespawnPacket(
-                    <RespawnPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<RespawnPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ContainerOpenPacket => {
-                let packet = McpePacketData::ContainerOpenPacket(Box::new(
-                    <ContainerOpenPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<ContainerOpenPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ContainerClosePacket => {
-                let packet = McpePacketData::ContainerClosePacket(
-                    <ContainerClosePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ContainerClosePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::PlayerHotbarPacket => {
-                let packet = McpePacketData::PlayerHotbarPacket(
-                    <PlayerHotbarPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<PlayerHotbarPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::InventoryContentPacket => {
-                let packet = McpePacketData::InventoryContentPacket(Box::new(
-                    <InventoryContentPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<InventoryContentPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::InventorySlotPacket => {
-                let packet = McpePacketData::InventorySlotPacket(Box::new(
-                    <InventorySlotPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<InventorySlotPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ContainerSetDataPacket => {
-                let packet = McpePacketData::ContainerSetDataPacket(
-                    <ContainerSetDataPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ContainerSetDataPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::CraftingDataPacket => {
-                let packet = McpePacketData::CraftingDataPacket(Box::new(
-                    <CraftingDataPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<CraftingDataPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::GuiDataPickItemPacket => {
-                let packet = McpePacketData::GuiDataPickItemPacket(
-                    <GuiDataPickItemPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<GuiDataPickItemPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::BlockActorDataPacket => {
-                let packet = McpePacketData::BlockActorDataPacket(
-                    <BlockActorDataPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<BlockActorDataPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::LevelChunkPacket => {
-                let packet = McpePacketData::LevelChunkPacket(Box::new(
-                    <LevelChunkPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<LevelChunkPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SetCommandsEnabledPacket => {
-                let packet = McpePacketData::SetCommandsEnabledPacket(
-                    <SetCommandsEnabledPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<SetCommandsEnabledPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SetDifficultyPacket => {
-                let packet = McpePacketData::SetDifficultyPacket(
-                    <SetDifficultyPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<SetDifficultyPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ChangeDimensionPacket => {
-                let packet = McpePacketData::ChangeDimensionPacket(Box::new(
-                    <ChangeDimensionPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<ChangeDimensionPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SetPlayerGameTypePacket => {
-                let packet = McpePacketData::SetPlayerGameTypePacket(
-                    <SetPlayerGameTypePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<SetPlayerGameTypePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::PlayerListPacket => {
-                let packet = McpePacketData::PlayerListPacket(
-                    <PlayerListPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<PlayerListPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SimpleEventPacket => {
-                let packet = McpePacketData::SimpleEventPacket(
-                    <SimpleEventPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<SimpleEventPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::LegacyTelemetryEventPacket => {
-                let packet = McpePacketData::LegacyTelemetryEventPacket(Box::new(
-                    <LegacyTelemetryEventPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<LegacyTelemetryEventPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SpawnExperienceOrbPacket => {
-                let packet = McpePacketData::SpawnExperienceOrbPacket(
-                    <SpawnExperienceOrbPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<SpawnExperienceOrbPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ClientboundMapItemDataPacket => {
-                let packet = McpePacketData::ClientboundMapItemDataPacket(Box::new(
-                    <ClientboundMapItemDataPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<ClientboundMapItemDataPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::MapInfoRequestPacket => {
-                let packet = McpePacketData::MapInfoRequestPacket(
-                    <MapInfoRequestPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<MapInfoRequestPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::RequestChunkRadiusPacket => {
-                let packet = McpePacketData::RequestChunkRadiusPacket(
-                    <RequestChunkRadiusPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<RequestChunkRadiusPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ChunkRadiusUpdatedPacket => {
-                let packet = McpePacketData::ChunkRadiusUpdatedPacket(
-                    <ChunkRadiusUpdatedPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ChunkRadiusUpdatedPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::GameRulesChangedPacket => {
-                let packet = McpePacketData::GameRulesChangedPacket(
-                    <GameRulesChangedPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<GameRulesChangedPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::CameraPacket => {
-                let packet = McpePacketData::CameraPacket(
-                    <CameraPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<CameraPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::BossEventPacket => {
-                let packet = McpePacketData::BossEventPacket(Box::new(
-                    <BossEventPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<BossEventPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ShowCreditsPacket => {
-                let packet = McpePacketData::ShowCreditsPacket(
-                    <ShowCreditsPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ShowCreditsPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::AvailableCommandsPacket => {
-                let packet = McpePacketData::AvailableCommandsPacket(Box::new(
-                    <AvailableCommandsPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<AvailableCommandsPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::CommandRequestPacket => {
-                let packet = McpePacketData::CommandRequestPacket(Box::new(
-                    <CommandRequestPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<CommandRequestPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::CommandBlockUpdatePacket => {
-                let packet = McpePacketData::CommandBlockUpdatePacket(Box::new(
-                    <CommandBlockUpdatePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<CommandBlockUpdatePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::CommandOutputPacket => {
-                let packet = McpePacketData::CommandOutputPacket(Box::new(
-                    <CommandOutputPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<CommandOutputPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::UpdateTradePacket => {
-                let packet = McpePacketData::UpdateTradePacket(Box::new(
-                    <UpdateTradePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<UpdateTradePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::UpdateEquipPacket => {
-                let packet = McpePacketData::UpdateEquipPacket(Box::new(
-                    <UpdateEquipPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<UpdateEquipPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ResourcePackDataInfoPacket => {
-                let packet = McpePacketData::ResourcePackDataInfoPacket(Box::new(
-                    <ResourcePackDataInfoPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<ResourcePackDataInfoPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ResourcePackChunkDataPacket => {
-                let packet = McpePacketData::ResourcePackChunkDataPacket(Box::new(
-                    <ResourcePackChunkDataPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<ResourcePackChunkDataPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ResourcePackChunkRequestPacket => {
-                let packet = McpePacketData::ResourcePackChunkRequestPacket(
-                    <ResourcePackChunkRequestPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ResourcePackChunkRequestPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::TransferPacket => {
-                let packet = McpePacketData::TransferPacket(Box::new(
-                    <TransferPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<TransferPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::PlaySoundPacket => {
-                let packet = McpePacketData::PlaySoundPacket(Box::new(
-                    <PlaySoundPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<PlaySoundPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::StopSoundPacket => {
-                let packet = McpePacketData::StopSoundPacket(
-                    <StopSoundPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<StopSoundPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SetTitlePacket => {
-                let packet = McpePacketData::SetTitlePacket(Box::new(
-                    <SetTitlePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<SetTitlePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::AddBehaviorTreePacket => {
-                let packet = McpePacketData::AddBehaviorTreePacket(
-                    <AddBehaviorTreePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<AddBehaviorTreePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::StructureBlockUpdatePacket => {
-                let packet = McpePacketData::StructureBlockUpdatePacket(Box::new(
-                    <StructureBlockUpdatePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<StructureBlockUpdatePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ShowStoreOfferPacket => {
-                let packet = McpePacketData::ShowStoreOfferPacket(
-                    <ShowStoreOfferPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ShowStoreOfferPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::PurchaseReceiptPacket => {
-                let packet = McpePacketData::PurchaseReceiptPacket(
-                    <PurchaseReceiptPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<PurchaseReceiptPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::PlayerSkinPacket => {
-                let packet = McpePacketData::PlayerSkinPacket(Box::new(
-                    <PlayerSkinPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<PlayerSkinPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SubClientLoginPacket => {
-                let packet = McpePacketData::SubClientLoginPacket(
-                    <SubClientLoginPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<SubClientLoginPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::AutomationClientConnectPacket => {
-                let packet = McpePacketData::AutomationClientConnectPacket(
-                    <AutomationClientConnectPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<AutomationClientConnectPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SetLastHurtByPacket => {
-                let packet = McpePacketData::SetLastHurtByPacket(
-                    <SetLastHurtByPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<SetLastHurtByPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::BookEditPacket => {
-                let packet = McpePacketData::BookEditPacket(Box::new(
-                    <BookEditPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<BookEditPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::NpcRequestPacket => {
-                let packet = McpePacketData::NpcRequestPacket(Box::new(
-                    <NpcRequestPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<NpcRequestPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::PhotoTransferPacket => {
-                let packet = McpePacketData::PhotoTransferPacket(Box::new(
-                    <PhotoTransferPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<PhotoTransferPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ModalFormRequestPacket => {
-                let packet = McpePacketData::ModalFormRequestPacket(
-                    <ModalFormRequestPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ModalFormRequestPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ModalFormResponsePacket => {
-                let packet = McpePacketData::ModalFormResponsePacket(
-                    <ModalFormResponsePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ModalFormResponsePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ServerSettingsRequestPacket => {
-                let packet = McpePacketData::ServerSettingsRequestPacket(
-                    <ServerSettingsRequestPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ServerSettingsRequestPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ServerSettingsResponsePacket => {
-                let packet = McpePacketData::ServerSettingsResponsePacket(
-                    <ServerSettingsResponsePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ServerSettingsResponsePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ShowProfilePacket => {
-                let packet = McpePacketData::ShowProfilePacket(
-                    <ShowProfilePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ShowProfilePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SetDefaultGameTypePacket => {
-                let packet = McpePacketData::SetDefaultGameTypePacket(
-                    <SetDefaultGameTypePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<SetDefaultGameTypePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::RemoveObjectivePacket => {
-                let packet = McpePacketData::RemoveObjectivePacket(
-                    <RemoveObjectivePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<RemoveObjectivePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SetDisplayObjectivePacket => {
-                let packet = McpePacketData::SetDisplayObjectivePacket(Box::new(
-                    <SetDisplayObjectivePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<SetDisplayObjectivePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SetScorePacket => {
-                let packet = McpePacketData::SetScorePacket(
-                    <SetScorePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<SetScorePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::LabTablePacket => {
-                let packet = McpePacketData::LabTablePacket(
-                    <LabTablePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<LabTablePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::UpdateBlockSyncedPacket => {
-                let packet = McpePacketData::UpdateBlockSyncedPacket(Box::new(
-                    <UpdateBlockSyncedPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<UpdateBlockSyncedPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::MoveActorDeltaPacket => {
-                let packet = McpePacketData::MoveActorDeltaPacket(Box::new(
-                    <MoveActorDeltaPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<MoveActorDeltaPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SetScoreboardIdentityPacket => {
-                let packet = McpePacketData::SetScoreboardIdentityPacket(
-                    <SetScoreboardIdentityPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<SetScoreboardIdentityPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SetLocalPlayerAsInitializedPacket => {
-                let packet = McpePacketData::SetLocalPlayerAsInitializedPacket(
-                    <SetLocalPlayerAsInitializedPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<SetLocalPlayerAsInitializedPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::UpdateSoftEnumPacket => {
-                let packet = McpePacketData::UpdateSoftEnumPacket(
-                    <UpdateSoftEnumPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<UpdateSoftEnumPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::NetworkStackLatencyPacket => {
-                let packet = McpePacketData::NetworkStackLatencyPacket(
-                    <NetworkStackLatencyPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<NetworkStackLatencyPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SpawnParticleEffectPacket => {
-                let packet = McpePacketData::SpawnParticleEffectPacket(Box::new(
-                    <SpawnParticleEffectPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<SpawnParticleEffectPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::AvailableActorIdentifiersPacket => {
-                let packet = McpePacketData::AvailableActorIdentifiersPacket(
-                    <AvailableActorIdentifiersPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<AvailableActorIdentifiersPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::NetworkChunkPublisherUpdatePacket => {
-                let packet = McpePacketData::NetworkChunkPublisherUpdatePacket(
-                    <NetworkChunkPublisherUpdatePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<NetworkChunkPublisherUpdatePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::BiomeDefinitionListPacket => {
-                let packet = McpePacketData::BiomeDefinitionListPacket(
-                    <BiomeDefinitionListPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<BiomeDefinitionListPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::LevelSoundEventPacket => {
-                let packet = McpePacketData::LevelSoundEventPacket(Box::new(
-                    <LevelSoundEventPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<LevelSoundEventPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::LevelEventGenericPacket => {
-                let packet = McpePacketData::LevelEventGenericPacket(
-                    <LevelEventGenericPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<LevelEventGenericPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::LecternUpdatePacket => {
-                let packet = McpePacketData::LecternUpdatePacket(
-                    <LecternUpdatePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<LecternUpdatePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ClientCacheStatusPacket => {
-                let packet = McpePacketData::ClientCacheStatusPacket(
-                    <ClientCacheStatusPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ClientCacheStatusPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::OnScreenTextureAnimationPacket => {
-                let packet = McpePacketData::OnScreenTextureAnimationPacket(
-                    <OnScreenTextureAnimationPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<OnScreenTextureAnimationPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::MapCreateLockedCopyPacket => {
-                let packet = McpePacketData::MapCreateLockedCopyPacket(
-                    <MapCreateLockedCopyPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<MapCreateLockedCopyPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::StructureTemplateDataRequestPacket => {
-                let packet = McpePacketData::StructureTemplateDataRequestPacket(
-                    Box::new(
-                        <StructureTemplateDataRequestPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                            &mut payload_buf,
-                            (),
-                        )?,
-                    ),
-                );
-                packet
+                Self::decode_payload::<StructureTemplateDataRequestPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::StructureTemplateDataResponsePacket => {
-                let packet = McpePacketData::StructureTemplateDataResponsePacket(
-                    <StructureTemplateDataResponsePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<StructureTemplateDataResponsePacket, _>(
+                    &mut payload_buf,
+                    (),
+                )?
             }
             McpePacketName::ClientCacheBlobStatusPacket => {
-                let packet = McpePacketData::ClientCacheBlobStatusPacket(
-                    <ClientCacheBlobStatusPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ClientCacheBlobStatusPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ClientCacheMissResponsePacket => {
-                let packet = McpePacketData::ClientCacheMissResponsePacket(
-                    <ClientCacheMissResponsePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ClientCacheMissResponsePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::EducationSettingsPacket => {
-                let packet = McpePacketData::EducationSettingsPacket(Box::new(
-                    <EducationSettingsPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<EducationSettingsPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::EmotePacket => {
-                let packet = McpePacketData::EmotePacket(Box::new(
-                    <EmotePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<EmotePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::MultiplayerSettingsPacket => {
-                let packet = McpePacketData::MultiplayerSettingsPacket(
-                    <MultiplayerSettingsPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<MultiplayerSettingsPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SettingsCommandPacket => {
-                let packet = McpePacketData::SettingsCommandPacket(
-                    <SettingsCommandPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<SettingsCommandPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::AnvilDamagePacket => {
-                let packet = McpePacketData::AnvilDamagePacket(
-                    <AnvilDamagePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<AnvilDamagePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::CompletedUsingItemPacket => {
-                let packet = McpePacketData::CompletedUsingItemPacket(
-                    <CompletedUsingItemPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<CompletedUsingItemPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::NetworkSettingsPacket => {
-                let packet = McpePacketData::NetworkSettingsPacket(Box::new(
-                    <NetworkSettingsPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<NetworkSettingsPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::PlayerAuthInputPacket => {
-                let packet = McpePacketData::PlayerAuthInputPacket(Box::new(
-                    <PlayerAuthInputPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<PlayerAuthInputPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::CreativeContentPacket => {
-                let packet = McpePacketData::CreativeContentPacket(
-                    <CreativeContentPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<CreativeContentPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::PlayerEnchantOptionsPacket => {
-                let packet = McpePacketData::PlayerEnchantOptionsPacket(
-                    <PlayerEnchantOptionsPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<PlayerEnchantOptionsPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ItemStackRequestPacket => {
-                let packet = McpePacketData::ItemStackRequestPacket(
-                    <ItemStackRequestPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ItemStackRequestPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ItemStackResponsePacket => {
-                let packet = McpePacketData::ItemStackResponsePacket(
-                    <ItemStackResponsePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ItemStackResponsePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::PlayerArmorDamagePacket => {
-                let packet = McpePacketData::PlayerArmorDamagePacket(
-                    <PlayerArmorDamagePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<PlayerArmorDamagePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::CodeBuilderPacket => {
-                let packet = McpePacketData::CodeBuilderPacket(
-                    <CodeBuilderPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<CodeBuilderPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::UpdatePlayerGameTypePacket => {
-                let packet = McpePacketData::UpdatePlayerGameTypePacket(
-                    <UpdatePlayerGameTypePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<UpdatePlayerGameTypePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::EmoteListPacket => {
-                let packet = McpePacketData::EmoteListPacket(
-                    <EmoteListPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<EmoteListPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::PositionTrackingDbServerBroadcastPacket => {
-                let packet = McpePacketData::PositionTrackingDbServerBroadcastPacket(
-                    <PositionTrackingDbServerBroadcastPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<PositionTrackingDbServerBroadcastPacket, _>(
+                    &mut payload_buf,
+                    (),
+                )?
             }
             McpePacketName::PositionTrackingDbClientRequestPacket => {
-                let packet = McpePacketData::PositionTrackingDbClientRequestPacket(
-                    <PositionTrackingDbClientRequestPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<PositionTrackingDbClientRequestPacket, _>(
+                    &mut payload_buf,
+                    (),
+                )?
             }
             McpePacketName::DebugInfoPacket => {
-                let packet = McpePacketData::DebugInfoPacket(
-                    <DebugInfoPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<DebugInfoPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::PacketViolationWarningPacket => {
-                let packet = McpePacketData::PacketViolationWarningPacket(Box::new(
-                    <PacketViolationWarningPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<PacketViolationWarningPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::MotionPredictionHintsPacket => {
-                let packet = McpePacketData::MotionPredictionHintsPacket(
-                    <MotionPredictionHintsPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<MotionPredictionHintsPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::AnimateEntityPacket => {
-                let packet = McpePacketData::AnimateEntityPacket(Box::new(
-                    <AnimateEntityPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<AnimateEntityPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::CameraShakePacket => {
-                let packet = McpePacketData::CameraShakePacket(Box::new(
-                    <CameraShakePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<CameraShakePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::PlayerFogPacket => {
-                let packet = McpePacketData::PlayerFogPacket(
-                    <PlayerFogPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<PlayerFogPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::CorrectPlayerMovePredictionPacket => {
-                let packet = McpePacketData::CorrectPlayerMovePredictionPacket(
-                    Box::new(
-                        <CorrectPlayerMovePredictionPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                            &mut payload_buf,
-                            (),
-                        )?,
-                    ),
-                );
-                packet
+                Self::decode_payload::<CorrectPlayerMovePredictionPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ItemRegistryPacket => {
-                let packet = McpePacketData::ItemRegistryPacket(
-                    <ItemRegistryPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ItemRegistryPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ClientboundDebugRendererPacket => {
-                let packet = McpePacketData::ClientboundDebugRendererPacket(
-                    Box::new(
-                        <ClientboundDebugRendererPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                            &mut payload_buf,
-                            (),
-                        )?,
-                    ),
-                );
-                packet
+                Self::decode_payload::<ClientboundDebugRendererPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SyncActorPropertyPacket => {
-                let packet = McpePacketData::SyncActorPropertyPacket(
-                    <SyncActorPropertyPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<SyncActorPropertyPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::AddVolumeEntityPacket => {
-                let packet = McpePacketData::AddVolumeEntityPacket(Box::new(
-                    <AddVolumeEntityPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<AddVolumeEntityPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::RemoveVolumeEntityPacket => {
-                let packet = McpePacketData::RemoveVolumeEntityPacket(
-                    <RemoveVolumeEntityPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<RemoveVolumeEntityPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SimulationTypePacket => {
-                let packet = McpePacketData::SimulationTypePacket(
-                    <SimulationTypePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<SimulationTypePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::NpcDialoguePacket => {
-                let packet = McpePacketData::NpcDialoguePacket(Box::new(
-                    <NpcDialoguePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<NpcDialoguePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::EduUriResourcePacket => {
-                let packet = McpePacketData::EduUriResourcePacket(
-                    <EduUriResourcePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<EduUriResourcePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::CreatePhotoPacket => {
-                let packet = McpePacketData::CreatePhotoPacket(
-                    <CreatePhotoPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<CreatePhotoPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::UpdateSubChunkBlocksPacket => {
-                let packet = McpePacketData::UpdateSubChunkBlocksPacket(
-                    <UpdateSubChunkBlocksPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<UpdateSubChunkBlocksPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SubChunkPacket => {
-                let packet = McpePacketData::SubChunkPacket(Box::new(
-                    <SubChunkPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<SubChunkPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SubChunkRequestPacket => {
-                let packet = McpePacketData::SubChunkRequestPacket(
-                    <SubChunkRequestPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<SubChunkRequestPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::PlayerStartItemCooldownPacket => {
-                let packet = McpePacketData::PlayerStartItemCooldownPacket(
-                    <PlayerStartItemCooldownPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<PlayerStartItemCooldownPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ScriptMessagePacket => {
-                let packet = McpePacketData::ScriptMessagePacket(
-                    <ScriptMessagePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ScriptMessagePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::CodeBuilderSourcePacket => {
-                let packet = McpePacketData::CodeBuilderSourcePacket(
-                    <CodeBuilderSourcePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<CodeBuilderSourcePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::TickingAreasLoadStatusPacket => {
-                let packet = McpePacketData::TickingAreasLoadStatusPacket(
-                    <TickingAreasLoadStatusPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<TickingAreasLoadStatusPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::DimensionDataPacket => {
-                let packet = McpePacketData::DimensionDataPacket(
-                    <DimensionDataPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<DimensionDataPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::AgentActionEventPacket => {
-                let packet = McpePacketData::AgentActionEventPacket(
-                    <AgentActionEventPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<AgentActionEventPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ChangeMobPropertyPacket => {
-                let packet = McpePacketData::ChangeMobPropertyPacket(Box::new(
-                    <ChangeMobPropertyPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<ChangeMobPropertyPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::LessonProgressPacket => {
-                let packet = McpePacketData::LessonProgressPacket(
-                    <LessonProgressPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<LessonProgressPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::RequestAbilityPacket => {
-                let packet = McpePacketData::RequestAbilityPacket(Box::new(
-                    <RequestAbilityPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<RequestAbilityPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::RequestPermissionsPacket => {
-                let packet = McpePacketData::RequestPermissionsPacket(
-                    <RequestPermissionsPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<RequestPermissionsPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ToastRequestPacket => {
-                let packet = McpePacketData::ToastRequestPacket(
-                    <ToastRequestPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ToastRequestPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::UpdateAbilitiesPacket => {
-                let packet = McpePacketData::UpdateAbilitiesPacket(Box::new(
-                    <UpdateAbilitiesPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<UpdateAbilitiesPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::UpdateAdventureSettingsPacket => {
-                let packet = McpePacketData::UpdateAdventureSettingsPacket(Box::new(
-                    <UpdateAdventureSettingsPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<UpdateAdventureSettingsPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::DeathInfoPacket => {
-                let packet = McpePacketData::DeathInfoPacket(
-                    <DeathInfoPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<DeathInfoPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::EditorNetworkPacket => {
-                let packet = McpePacketData::EditorNetworkPacket(
-                    <EditorNetworkPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<EditorNetworkPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::FeatureRegistryPacket => {
-                let packet = McpePacketData::FeatureRegistryPacket(
-                    <FeatureRegistryPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<FeatureRegistryPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ServerStatsPacket => {
-                let packet = McpePacketData::ServerStatsPacket(
-                    <ServerStatsPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ServerStatsPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::RequestNetworkSettingsPacket => {
-                let packet = McpePacketData::RequestNetworkSettingsPacket(
-                    <RequestNetworkSettingsPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<RequestNetworkSettingsPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::GameTestRequestPacket => {
-                let packet = McpePacketData::GameTestRequestPacket(Box::new(
-                    <GameTestRequestPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<GameTestRequestPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::GameTestResultsPacket => {
-                let packet = McpePacketData::GameTestResultsPacket(
-                    <GameTestResultsPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<GameTestResultsPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::UpdateClientInputLocksPacket => {
-                let packet = McpePacketData::UpdateClientInputLocksPacket(
-                    <UpdateClientInputLocksPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<UpdateClientInputLocksPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::CameraPresetsPacket => {
-                let packet = McpePacketData::CameraPresetsPacket(
-                    <CameraPresetsPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<CameraPresetsPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::UnlockedRecipesPacket => {
-                let packet = McpePacketData::UnlockedRecipesPacket(
-                    <UnlockedRecipesPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<UnlockedRecipesPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::CameraInstructionPacket => {
-                let packet = McpePacketData::CameraInstructionPacket(Box::new(
-                    <CameraInstructionPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<CameraInstructionPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::TrimDataPacket => {
-                let packet = McpePacketData::TrimDataPacket(
-                    <TrimDataPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<TrimDataPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::OpenSignPacket => {
-                let packet = McpePacketData::OpenSignPacket(
-                    <OpenSignPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<OpenSignPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::AgentAnimationPacket => {
-                let packet = McpePacketData::AgentAnimationPacket(
-                    <AgentAnimationPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<AgentAnimationPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::RefreshEntitlementsPacket => {
-                let packet = McpePacketData::RefreshEntitlementsPacket(
-                    <RefreshEntitlementsPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<RefreshEntitlementsPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::PlayerToggleCrafterSlotRequestPacket => {
-                let packet = McpePacketData::PlayerToggleCrafterSlotRequestPacket(
-                    Box::new(
-                        <PlayerToggleCrafterSlotRequestPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                            &mut payload_buf,
-                            (),
-                        )?,
-                    ),
-                );
-                packet
+                Self::decode_payload::<PlayerToggleCrafterSlotRequestPacket, _>(
+                    &mut payload_buf,
+                    (),
+                )?
             }
             McpePacketName::SetPlayerInventoryOptionsPacket => {
-                let packet = McpePacketData::SetPlayerInventoryOptionsPacket(
-                    Box::new(
-                        <SetPlayerInventoryOptionsPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                            &mut payload_buf,
-                            (),
-                        )?,
-                    ),
-                );
-                packet
+                Self::decode_payload::<SetPlayerInventoryOptionsPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SetHudPacket => {
-                let packet = McpePacketData::SetHudPacket(
-                    <SetHudPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<SetHudPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::AwardAchievementPacket => {
-                let packet = McpePacketData::AwardAchievementPacket(
-                    <AwardAchievementPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<AwardAchievementPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ClientboundCloseFormPacket => {
-                let packet = McpePacketData::ClientboundCloseFormPacket(
-                    <ClientboundCloseFormPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ClientboundCloseFormPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ServerboundLoadingScreenPacket => {
-                let packet = McpePacketData::ServerboundLoadingScreenPacket(
-                    <ServerboundLoadingScreenPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ServerboundLoadingScreenPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::JigsawStructureDataPacket => {
-                let packet = McpePacketData::JigsawStructureDataPacket(
-                    <JigsawStructureDataPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<JigsawStructureDataPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::CurrentStructureFeaturePacket => {
-                let packet = McpePacketData::CurrentStructureFeaturePacket(
-                    <CurrentStructureFeaturePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<CurrentStructureFeaturePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ServerboundDiagnosticsPacket => {
-                let packet = McpePacketData::ServerboundDiagnosticsPacket(Box::new(
-                    <ServerboundDiagnosticsPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<ServerboundDiagnosticsPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::CameraAimAssistPacket => {
-                let packet = McpePacketData::CameraAimAssistPacket(Box::new(
-                    <CameraAimAssistPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<CameraAimAssistPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ContainerRegistryCleanupPacket => {
-                let packet = McpePacketData::ContainerRegistryCleanupPacket(
-                    <ContainerRegistryCleanupPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ContainerRegistryCleanupPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::MovementEffectPacket => {
-                let packet = McpePacketData::MovementEffectPacket(Box::new(
-                    <MovementEffectPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<MovementEffectPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::CameraAimAssistPresetsPacket => {
-                let packet = McpePacketData::CameraAimAssistPresetsPacket(
-                    <CameraAimAssistPresetsPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<CameraAimAssistPresetsPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ClientCameraAimAssistPacket => {
-                let packet = McpePacketData::ClientCameraAimAssistPacket(
-                    <ClientCameraAimAssistPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ClientCameraAimAssistPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ClientMovementPredictionSyncPacket => {
-                let packet = McpePacketData::ClientMovementPredictionSyncPacket(
-                    Box::new(
-                        <ClientMovementPredictionSyncPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                            &mut payload_buf,
-                            (),
-                        )?,
-                    ),
-                );
-                packet
+                Self::decode_payload::<ClientMovementPredictionSyncPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::UpdateClientOptionsPacket => {
-                let packet = McpePacketData::UpdateClientOptionsPacket(
-                    <UpdateClientOptionsPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<UpdateClientOptionsPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::PlayerVideoCapturePacket => {
-                let packet = McpePacketData::PlayerVideoCapturePacket(Box::new(
-                    <PlayerVideoCapturePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<PlayerVideoCapturePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::PlayerUpdateEntityOverridesPacket => {
-                let packet = McpePacketData::PlayerUpdateEntityOverridesPacket(
-                    Box::new(
-                        <PlayerUpdateEntityOverridesPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                            &mut payload_buf,
-                            (),
-                        )?,
-                    ),
-                );
-                packet
+                Self::decode_payload::<PlayerUpdateEntityOverridesPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::PlayerLocationPacket => {
-                let packet = McpePacketData::PlayerLocationPacket(Box::new(
-                    <PlayerLocationPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<PlayerLocationPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ClientboundControlSchemeSetPacket => {
-                let packet = McpePacketData::ClientboundControlSchemeSetPacket(
-                    <ClientboundControlSchemeSetPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ClientboundControlSchemeSetPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::PrimitiveShapesPacket => {
-                let packet = McpePacketData::PrimitiveShapesPacket(
-                    <PrimitiveShapesPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<PrimitiveShapesPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ServerboundPackSettingChangePacket => {
-                let packet = McpePacketData::ServerboundPackSettingChangePacket(
-                    Box::new(
-                        <ServerboundPackSettingChangePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                            &mut payload_buf,
-                            (),
-                        )?,
-                    ),
-                );
-                packet
+                Self::decode_payload::<ServerboundPackSettingChangePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ClientboundDataStorePacket => {
-                let packet = McpePacketData::ClientboundDataStorePacket(
-                    <ClientboundDataStorePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ClientboundDataStorePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::GraphicsOverrideParameterPacket => {
-                let packet = McpePacketData::GraphicsOverrideParameterPacket(
-                    Box::new(
-                        <GraphicsOverrideParameterPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                            &mut payload_buf,
-                            (),
-                        )?,
-                    ),
-                );
-                packet
+                Self::decode_payload::<GraphicsOverrideParameterPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ServerboundDataStorePacket => {
-                let packet = McpePacketData::ServerboundDataStorePacket(Box::new(
-                    <ServerboundDataStorePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<ServerboundDataStorePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ClientboundDataDrivenUiShowScreenPacket => {
-                let packet = McpePacketData::ClientboundDataDrivenUiShowScreenPacket(
-                    <ClientboundDataDrivenUiShowScreenPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ClientboundDataDrivenUiShowScreenPacket, _>(
+                    &mut payload_buf,
+                    (),
+                )?
             }
             McpePacketName::ClientboundDataDrivenUiCloseScreenPacket => {
-                let packet = McpePacketData::ClientboundDataDrivenUiCloseScreenPacket(
-                    <ClientboundDataDrivenUiCloseScreenPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ClientboundDataDrivenUiCloseScreenPacket, _>(
+                    &mut payload_buf,
+                    (),
+                )?
             }
             McpePacketName::ClientboundDataDrivenUiReloadPacket => {
-                let packet = McpePacketData::ClientboundDataDrivenUiReloadPacket(
-                    <ClientboundDataDrivenUiReloadPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ClientboundDataDrivenUiReloadPacket, _>(
+                    &mut payload_buf,
+                    (),
+                )?
             }
             McpePacketName::ClientboundTextureShiftPacket => {
-                let packet = McpePacketData::ClientboundTextureShiftPacket(Box::new(
-                    <ClientboundTextureShiftPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<ClientboundTextureShiftPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::VoxelShapesPacket => {
-                let packet = McpePacketData::VoxelShapesPacket(
-                    <VoxelShapesPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<VoxelShapesPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::CameraSplinePacket => {
-                let packet = McpePacketData::CameraSplinePacket(
-                    <CameraSplinePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<CameraSplinePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::CameraAimAssistActorPriorityPacket => {
-                let packet = McpePacketData::CameraAimAssistActorPriorityPacket(
-                    <CameraAimAssistActorPriorityPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<CameraAimAssistActorPriorityPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ResourcePacksReadyForValidationPacket => {
-                let packet = McpePacketData::ResourcePacksReadyForValidationPacket(
-                    <ResourcePacksReadyForValidationPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ResourcePacksReadyForValidationPacket, _>(
+                    &mut payload_buf,
+                    (),
+                )?
             }
             McpePacketName::LocatorBarPacket => {
-                let packet = McpePacketData::LocatorBarPacket(
-                    <LocatorBarPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<LocatorBarPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::PartyChangedPacket => {
-                let packet = McpePacketData::PartyChangedPacket(
-                    <PartyChangedPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<PartyChangedPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ServerboundDataDrivenScreenClosedPacket => {
-                let packet = McpePacketData::ServerboundDataDrivenScreenClosedPacket(
-                    <ServerboundDataDrivenScreenClosedPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ServerboundDataDrivenScreenClosedPacket, _>(
+                    &mut payload_buf,
+                    (),
+                )?
             }
             McpePacketName::SyncWorldClocksPacket => {
-                let packet = McpePacketData::SyncWorldClocksPacket(Box::new(
-                    <SyncWorldClocksPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                ));
-                packet
+                Self::decode_payload::<SyncWorldClocksPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ClientboundAttributeLayerSyncPacket => {
-                let packet = McpePacketData::ClientboundAttributeLayerSyncPacket(
-                    Box::new(
-                        <ClientboundAttributeLayerSyncPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                            &mut payload_buf,
-                            (),
-                        )?,
-                    ),
-                );
-                packet
+                Self::decode_payload::<ClientboundAttributeLayerSyncPacket, _>(
+                    &mut payload_buf,
+                    (),
+                )?
             }
             McpePacketName::ServerStoreInfoPacket => {
-                let packet = McpePacketData::ServerStoreInfoPacket(
-                    <ServerStoreInfoPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ServerStoreInfoPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ServerPresenceInfoPacket => {
-                let packet = McpePacketData::ServerPresenceInfoPacket(
-                    <ServerPresenceInfoPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<ServerPresenceInfoPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::ClientboundUpdateSoundDataPacket => {
-                let packet = McpePacketData::ClientboundUpdateSoundDataPacket(
-                    Box::new(
-                        <ClientboundUpdateSoundDataPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                            &mut payload_buf,
-                            (),
-                        )?,
-                    ),
-                );
-                packet
+                Self::decode_payload::<ClientboundUpdateSoundDataPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::SendPartyDestinationCookiePacket => {
-                let packet = McpePacketData::SendPartyDestinationCookiePacket(
-                    <SendPartyDestinationCookiePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<SendPartyDestinationCookiePacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::PartyDestinationCookieResponsePacket => {
-                let packet = McpePacketData::PartyDestinationCookieResponsePacket(
-                    <PartyDestinationCookieResponsePacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<PartyDestinationCookieResponsePacket, _>(
+                    &mut payload_buf,
+                    (),
+                )?
             }
             McpePacketName::SetPlayerFurnaceOptionsPacket => {
-                let packet = McpePacketData::SetPlayerFurnaceOptionsPacket(
-                    <SetPlayerFurnaceOptionsPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<SetPlayerFurnaceOptionsPacket, _>(&mut payload_buf, ())?
             }
             McpePacketName::RecordStartedPacket => {
-                let packet = McpePacketData::RecordStartedPacket(
-                    <RecordStartedPacket as crate::bedrock::codec::BedrockCodec>::decode(
-                        &mut payload_buf,
-                        (),
-                    )?,
-                );
-                packet
+                Self::decode_payload::<RecordStartedPacket, _>(&mut payload_buf, ())?
             }
         };
-        if payload_buf.has_remaining() {
-            return Err(crate::bedrock::error::DecodeError::TrailingPacketBytes {
-                remaining: payload_buf.remaining(),
-            });
-        }
         Ok((
             GameHeader {
                 id: packet_id,

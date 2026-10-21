@@ -147,6 +147,14 @@ and detects named-reference cycles to insert the shared recursive-value budget.
 The same bounds apply to borrowed collections; recursive borrowed raw fallbacks
 use the owned codec on materialization.
 
+Owned frame dispatch uses a non-inlined typed payload helper. Each packet's
+decode temporaries and trailing-byte rejection stay inside that helper, before
+conversion to the dispatch enum. This preserves exact payload consumption while
+preventing the largest packet codecs from imposing their stack frame and Windows
+stack probes on every small packet. Use `valentine`'s `mcpe_frame_decode` benchmark
+and generated assembly to check this boundary; interleave benchmark executables
+because machine load and hybrid-core scheduling can obscure small differences.
+
 The test suite generates Mojang output in a temporary directory and runs
 `cargo check` on the generated crate.
 
