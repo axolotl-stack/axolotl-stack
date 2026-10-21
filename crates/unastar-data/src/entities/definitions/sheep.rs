@@ -15,6 +15,7 @@ impl Sheep {
 /// Component bundle for spawning a `minecraft:sheep`
 #[derive(Bundle, Clone)]
 pub struct SheepBundle {
+    pub attack: super::super::components::Attack,
     pub balloonable: super::super::components::Balloonable,
     pub behavior_eat_block: super::super::components::BehaviorEatBlock,
     pub behavior_float: super::super::components::BehaviorFloat,
@@ -31,9 +32,12 @@ pub struct SheepBundle {
     pub conditional_bandwidth_optimization:
         super::super::components::ConditionalBandwidthOptimization,
     pub despawn: super::super::components::Despawn,
+    pub flying_speed: super::super::components::FlyingSpeed,
+    pub follow_range: super::super::components::FollowRange,
     pub health: super::super::components::Health,
     pub hurt_on_condition: super::super::components::HurtOnCondition,
     pub interact: super::super::components::Interact,
+    pub inventory: super::super::components::Inventory,
     pub is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
     pub jump_static: super::super::components::JumpStatic,
     pub leashable: super::super::components::Leashable,
@@ -43,12 +47,18 @@ pub struct SheepBundle {
     pub navigation_walk: super::super::components::NavigationWalk,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub scale: super::super::components::Scale,
     pub type_family: super::super::components::TypeFamily,
 }
 /// Spawn a new `minecraft:sheep` entity with default Bedrock components
 pub fn spawn_sheep(commands: &mut Commands) -> Entity {
     commands
         .spawn(SheepBundle {
+            attack: super::super::components::Attack {
+                damage: crate::types::RangeOrVal::Fixed(2f32),
+                effect_duration: Some(crate::types::MolangOr::Value(0i32)),
+                effect_name: None,
+            },
             balloonable: super::super::components::Balloonable {
                 mass: Some(0.75f32),
                 max_distance: None,
@@ -205,6 +215,14 @@ pub fn spawn_sheep(commands: &mut Commands) -> Entity {
                 min_range_random_chance: Some(800i32),
                 remove_child_entities: Some(false),
             },
+            flying_speed: super::super::components::FlyingSpeed {
+                value: 0.02f32,
+            },
+            follow_range: super::super::components::FollowRange {
+                max: None,
+                min: None,
+                value: crate::types::RangeOrVal::Fixed(16f32),
+            },
             health: super::super::components::Health {
                 max: Some(8f32),
                 min: None,
@@ -265,6 +283,14 @@ pub fn spawn_sheep(commands: &mut Commands) -> Entity {
                     ],
                 ),
             },
+            inventory: super::super::components::Inventory {
+                additional_slots_per_strength: Some(0i32),
+                can_be_siphoned_from: Some(false),
+                container_type: Some("none".to_string()),
+                inventory_size: Some(5i32),
+                private: Some(false),
+                restrict_to_owner: Some(false),
+            },
             is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
             jump_static: super::super::components::JumpStatic {
                 jump_power: Some(0.42f32),
@@ -324,6 +350,9 @@ pub fn spawn_sheep(commands: &mut Commands) -> Entity {
             pushable: super::super::components::Pushable {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
+            },
+            scale: super::super::components::Scale {
+                value: 1f32,
             },
             type_family: super::super::components::TypeFamily {
                 family: vec!["sheep".to_string(), "mob".to_string()],

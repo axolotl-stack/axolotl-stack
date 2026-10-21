@@ -15,6 +15,7 @@ impl Panda {
 /// Component bundle for spawning a `minecraft:panda`
 #[derive(Bundle, Clone)]
 pub struct PandaBundle {
+    pub attack: super::super::components::Attack,
     pub balloonable: super::super::components::Balloonable,
     pub behavior_breed: super::super::components::BehaviorBreed,
     pub behavior_float: super::super::components::BehaviorFloat,
@@ -33,6 +34,8 @@ pub struct PandaBundle {
     pub conditional_bandwidth_optimization:
         super::super::components::ConditionalBandwidthOptimization,
     pub despawn: super::super::components::Despawn,
+    pub flying_speed: super::super::components::FlyingSpeed,
+    pub follow_range: super::super::components::FollowRange,
     pub genetics: super::super::components::Genetics,
     pub giveable: super::super::components::Giveable,
     pub health: super::super::components::Health,
@@ -56,6 +59,11 @@ pub struct PandaBundle {
 pub fn spawn_panda(commands: &mut Commands) -> Entity {
     commands
         .spawn(PandaBundle {
+            attack: super::super::components::Attack {
+                damage: crate::types::RangeOrVal::Fixed(2f32),
+                effect_duration: Some(crate::types::MolangOr::Value(0i32)),
+                effect_name: None,
+            },
             balloonable: super::super::components::Balloonable {
                 mass: None,
                 max_distance: None,
@@ -198,6 +206,14 @@ pub fn spawn_panda(commands: &mut Commands) -> Entity {
                 min_range_inactivity_timer: Some(30i32),
                 min_range_random_chance: Some(800i32),
                 remove_child_entities: Some(false),
+            },
+            flying_speed: super::super::components::FlyingSpeed {
+                value: 0.02f32,
+            },
+            follow_range: super::super::components::FollowRange {
+                max: None,
+                min: None,
+                value: crate::types::RangeOrVal::Fixed(16f32),
             },
             genetics: super::super::components::Genetics {
                 genes: Some(

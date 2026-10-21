@@ -1,7 +1,6 @@
 use bevy_ecs::prelude::*;
 /// Bedrock component `minecraft:inventory`. Defines this entity's inventory properties.
 #[derive(Component, Debug, Clone, PartialEq)]
-#[component(storage = "SparseSet")]
 pub struct Inventory {
     ///Number of slots that this entity can gain per extra strength.
     pub additional_slots_per_strength: Option<i32>,

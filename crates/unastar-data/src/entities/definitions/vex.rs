@@ -23,6 +23,7 @@ pub struct VexBundle {
     pub behavior_look_at_player: super::super::components::BehaviorLookAtPlayer,
     pub behavior_nearest_attackable_target:
         super::super::components::BehaviorNearestAttackableTarget,
+    pub breathable: super::super::components::Breathable,
     pub can_climb: super::super::components::CanClimb,
     pub collision_box: super::super::components::CollisionBox,
     pub conditional_bandwidth_optimization:
@@ -31,8 +32,11 @@ pub struct VexBundle {
     pub equipment: super::super::components::Equipment,
     pub experience_reward: super::super::components::ExperienceReward,
     pub fire_immune: super::super::components::FireImmune,
+    pub flying_speed: super::super::components::FlyingSpeed,
+    pub follow_range: super::super::components::FollowRange,
     pub game_event_movement_tracking: super::super::components::GameEventMovementTracking,
     pub health: super::super::components::Health,
+    pub inventory: super::super::components::Inventory,
     pub is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
     pub jump_static: super::super::components::JumpStatic,
     pub movement: super::super::components::Movement,
@@ -41,6 +45,7 @@ pub struct VexBundle {
     pub navigation_walk: super::super::components::NavigationWalk,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub scale: super::super::components::Scale,
     pub type_family: super::super::components::TypeFamily,
 }
 /// Spawn a new `minecraft:vex` entity with default Bedrock components
@@ -289,6 +294,19 @@ pub fn spawn_vex(commands: &mut Commands) -> Entity {
                     target_sneak_visibility_multiplier: Some(0.8f32),
                     within_radius: Some(0f32),
                 },
+            breathable: super::super::components::Breathable {
+                breathe_blocks: None,
+                breathes_air: Some(true),
+                breathes_lava: Some(false),
+                breathes_solids: Some(false),
+                breathes_water: Some(false),
+                can_dehydrate: Some(false),
+                generates_bubbles: Some(true),
+                inhale_time: Some(0f32),
+                non_breathe_blocks: None,
+                suffocate_time: Some(-1i32),
+                total_supply: Some(15i32),
+            },
             can_climb: super::super::components::CanClimb,
             collision_box: super::super::components::CollisionBox {
                 height: Some(0.8f32),
@@ -324,6 +342,12 @@ pub fn spawn_vex(commands: &mut Commands) -> Entity {
                 )),
             },
             fire_immune: super::super::components::FireImmune,
+            flying_speed: super::super::components::FlyingSpeed { value: 0.02f32 },
+            follow_range: super::super::components::FollowRange {
+                max: None,
+                min: None,
+                value: crate::types::RangeOrVal::Fixed(16f32),
+            },
             game_event_movement_tracking: super::super::components::GameEventMovementTracking {
                 emit_flap: Some(false),
                 emit_move: Some(false),
@@ -333,6 +357,14 @@ pub fn spawn_vex(commands: &mut Commands) -> Entity {
                 max: Some(14f32),
                 min: None,
                 value: crate::types::RangeOrVal::Fixed(14f32),
+            },
+            inventory: super::super::components::Inventory {
+                additional_slots_per_strength: Some(0i32),
+                can_be_siphoned_from: Some(false),
+                container_type: Some("none".to_string()),
+                inventory_size: Some(5i32),
+                private: Some(false),
+                restrict_to_owner: Some(false),
             },
             is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
             jump_static: super::super::components::JumpStatic {
@@ -383,6 +415,7 @@ pub fn spawn_vex(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            scale: super::super::components::Scale { value: 1f32 },
             type_family: super::super::components::TypeFamily {
                 family: vec!["vex".to_string(), "monster".to_string(), "mob".to_string()],
             },

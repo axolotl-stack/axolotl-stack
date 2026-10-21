@@ -23,29 +23,32 @@ fn blocks_only_cli_generates_static_consumer_from_artifact() {
 
     assert!(status.success());
 
-    let generated = std::fs::read_to_string(output.join("blocks.rs"))
-        .expect("generated blocks.rs should exist");
-    assert!(generated.contains("pub const SOURCE: &str = \"valentine_bedrock_1_26_30\""));
-    assert!(generated.contains("pub static ALL_BLOCKS: [BlockData; 2usize]"));
-    assert!(generated.contains("identifier: \"minecraft:stone\""));
-    assert!(generated.contains("state_id_count: 2u32"));
-    assert!(generated.contains("default_state_id: 0u32"));
-    assert!(generated.contains("filter_light: 15u8"));
-    assert!(generated.contains("identifier: \"minecraft:air\""));
-    assert!(generated.contains("min_state_id: 2u32"));
-
-    for unexpected in [
-        "bds_packets.rs",
-        "biomes.rs",
-        "creative.rs",
-        "entities",
-        "items.rs",
-    ] {
-        assert!(
-            !output.join(unexpected).exists(),
-            "--blocks-only should not generate {unexpected}"
-        );
-    }
+    let consumer = output.join("consumer.rs");
+    std::fs::write(
+        &consumer,
+        r#"
+        mod blocks;
+        fn main() {
+            assert_eq!(blocks::get("minecraft:stone").unwrap().default_state_id, 0);
+            assert_eq!(blocks::by_runtime_id(1).unwrap().identifier, "minecraft:stone");
+            assert_eq!(blocks::by_runtime_id(2).unwrap().identifier, "minecraft:air");
+            assert!(blocks::by_runtime_id(3).is_none());
+        }
+    "#,
+    )
+    .unwrap();
+    let binary = output.join(format!("consumer{}", std::env::consts::EXE_SUFFIX));
+    assert!(
+        Command::new("rustc")
+            .arg("--edition=2024")
+            .arg(&consumer)
+            .arg("-o")
+            .arg(&binary)
+            .status()
+            .unwrap()
+            .success()
+    );
+    assert!(Command::new(binary).status().unwrap().success());
 }
 
 #[test]

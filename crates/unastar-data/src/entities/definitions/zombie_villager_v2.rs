@@ -35,17 +35,22 @@ pub struct ZombieVillagerV2Bundle {
         super::super::components::ConditionalBandwidthOptimization,
     pub despawn: super::super::components::Despawn,
     pub equip_item: super::super::components::EquipItem,
+    pub flying_speed: super::super::components::FlyingSpeed,
+    pub follow_range: super::super::components::FollowRange,
     pub health: super::super::components::Health,
     pub hurt_on_condition: super::super::components::HurtOnCondition,
     pub interact: super::super::components::Interact,
+    pub inventory: super::super::components::Inventory,
     pub is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
     pub jump_static: super::super::components::JumpStatic,
     pub loot: super::super::components::Loot,
+    pub movement: super::super::components::Movement,
     pub movement_basic: super::super::components::MovementBasic,
     pub nameable: super::super::components::Nameable,
     pub navigation_walk: super::super::components::NavigationWalk,
     pub physics: super::super::components::Physics,
     pub pushable: super::super::components::Pushable,
+    pub scale: super::super::components::Scale,
     pub shareables: super::super::components::Shareables,
 }
 /// Spawn a new `minecraft:zombie_villager_v2` entity with default Bedrock components
@@ -445,6 +450,12 @@ pub fn spawn_zombie_villager_v2(commands: &mut Commands) -> Entity {
                     )]),
                 )]),
             },
+            flying_speed: super::super::components::FlyingSpeed { value: 0.02f32 },
+            follow_range: super::super::components::FollowRange {
+                max: None,
+                min: None,
+                value: crate::types::RangeOrVal::Fixed(16f32),
+            },
             health: super::super::components::Health {
                 max: Some(20f32),
                 min: None,
@@ -553,12 +564,25 @@ pub fn spawn_zombie_villager_v2(commands: &mut Commands) -> Entity {
                     vibration: None,
                 }]),
             },
+            inventory: super::super::components::Inventory {
+                additional_slots_per_strength: Some(0i32),
+                can_be_siphoned_from: Some(false),
+                container_type: Some("none".to_string()),
+                inventory_size: Some(5i32),
+                private: Some(false),
+                restrict_to_owner: Some(false),
+            },
             is_hidden_when_invisible: super::super::components::IsHiddenWhenInvisible,
             jump_static: super::super::components::JumpStatic {
                 jump_power: Some(0.42f32),
             },
             loot: super::super::components::Loot {
                 table: "loot_tables/entities/zombie.json".to_string(),
+            },
+            movement: super::super::components::Movement {
+                max: None,
+                min: None,
+                value: crate::types::RangeOrVal::Fixed(0.25f32),
             },
             movement_basic: super::super::components::MovementBasic {
                 max_turn: Some(30f32),
@@ -600,6 +624,7 @@ pub fn spawn_zombie_villager_v2(commands: &mut Commands) -> Entity {
                 is_pushable: Some(true),
                 is_pushable_by_piston: Some(true),
             },
+            scale: super::super::components::Scale { value: 1f32 },
             shareables: super::super::components::Shareables {
                 all_items: Some(false),
                 all_items_max_amount: Some(-1i32),
