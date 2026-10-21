@@ -104,6 +104,7 @@ try {
         processors = [Environment]::ProcessorCount
         cpu = $env:PROCESSOR_IDENTIFIER
         rust_workers = $GoCpu
+        rust_release_profile = 'opt-level=3; lto=thin; codegen-units=16; strip=true (both Rust executables)'
         rust = (& rustc --version | Out-String).Trim(); go = (& go version | Out-String).Trim()
         commit = (& git rev-parse HEAD | Out-String).Trim()
         corpus_commit = (& git -C crates/valentine_gen/protocolgen rev-parse HEAD | Out-String).Trim()

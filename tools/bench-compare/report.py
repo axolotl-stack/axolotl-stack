@@ -47,6 +47,8 @@ def main():
               'Ratios are row-side/Go ns/op (below 1 is faster); throughput is request payload only, decimal MB/s, one completed echo per message. Contract, Valentine and Cinnabar use the same custom-loop estimator in alternating rounds. Medians are descriptive, not significance tests.', '']
     if metadata.get('cinnabar_raknet_commit'):
         report += [f"Cinnabar pins: raknet/raknet-tokio `{metadata['cinnabar_raknet_commit']}`; bedrock-net `{metadata['cinnabar_bedrock_net_commit']}` (root crate only; provider-verification disabled).", '']
+    if metadata.get('rust_release_profile'):
+        report += [f"Release flags: {metadata['rust_release_profile']}.", '']
     clocks = []
     for file in sorted(source.glob('[0-9]*-go-loopback.stderr.log')):
         round_number = int(file.name.split('-')[0])
@@ -122,6 +124,12 @@ def main():
         report.append(f"| {result['direction']} | {','.join(map(str,result['sizes']))} | {','.join(map(str, counts))} | {result['status']} |")
         if result.get('error'):
             report += ['', 'Failure evidence: `' + result['error'].replace('`', "'").replace('\n', ' ') + '`']
+    crosscheck_path = Path(__file__).with_name('cinnabar') / 'upstream-check.json'
+    if crosscheck_path.exists():
+        crosscheck = json.loads(crosscheck_path.read_text(encoding='utf-8-sig'))
+        report += ['', '## Upstream RakNet self-benchmark cross-check', '',
+                   crosscheck['conclusion'], '',
+                   'This separate diagnostic does not enter the alternating comparison medians. Exact upstream commands, configuration audit and limitations: [upstream-check.md](cinnabar/upstream-check.md); reproduction: [upstream-check.ps1](cinnabar/upstream-check.ps1).', '']
     diagnostic = json.loads(Path(__file__).with_name('diagnostics.json').read_text())
     failure = diagnostic['failure']
     report += ['', '## Reference split/retransmission finding (separate diagnostic runs)', '',
