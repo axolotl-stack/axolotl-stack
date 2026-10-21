@@ -34,7 +34,7 @@ impl SlidingWindow {
     }
 
     pub fn on_packet_received(&mut self, _now: Instant) {
-        // ACK scheduling happens in the session tick; nothing to track here.
+        // Receive feedback is drained by the transport's immediate flush.
     }
 
     pub fn on_reliable_send(&mut self, dgram: &Datagram) {

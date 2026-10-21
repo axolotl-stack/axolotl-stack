@@ -1,7 +1,7 @@
 # bds-extractor
 
 `bds-extractor` connects to a Minecraft Bedrock Dedicated Server (BDS) as a
-temporary client and writes the packet/runtime data captured during login to a
+temporary client and writes login and post-spawn packet/runtime data to a
 validated JSON file.
 
 The output is an input to `unastar-data-gen`; runtime crates should not parse
@@ -19,8 +19,46 @@ cargo run -p bds-extractor -- `
   --output .tmp/bds-capture.json
 ```
 
-The extractor joins with a random self-signed identity, captures the login data
-that Jolyne exposes, validates it, writes JSON, and disconnects.
+The extractor joins with a random self-signed identity, retains Jolyne's play
+stream, and drains definition packets queued during login and received after
+spawn. `--timeout` bounds connection/login and, separately, collection of all
+required definitions (not an idle timeout that resets on each packet). It sends
+a Disconnect packet on completion or collection failure, with a two-second
+shutdown bound. No output is written if extraction or validation fails.
+
+## Output contract
+
+Required sections are `metadata`, `items` (ItemRegistry), `blocks` (StartGame
+block properties), `creative` (CreativeContent), `biomes` (BiomeDefinitionList),
+and `entities` (AvailableActorIdentifiers). Missing post-spawn sections and an
+empty item registry return `ValidationError::MissingSection`, naming the
+section; malformed contents return `ValidationError::InvalidData`.
+The JSON decoder accepts absent/null post-spawn fields only to provide these
+typed diagnostics: they are **not optional in a successful capture**.
+
+`blocks.properties` may be empty: StartGame carries custom block properties,
+not the complete vanilla block palette. Empty creative groups/entries are valid
+when the server sends an empty CreativeContent packet. Per-item `nbt_base64`
+is genuinely optional and omitted when no component NBT is supplied.
+CraftingData/recipes, item tags, canonical block states and other registries
+are outside this extractor's output contract; unrelated play packets are ignored.
+
+## Relationship to protocolgen
+
+For pinned vanilla game data used by workspace generation, prefer
+`crates/valentine_gen/protocolgen/generated/data` and protocolgen's native BDS
+capture tooling (`docs/outputs.md` in that submodule). Its
+`generated/<version>/vanilla-data` captures include overlapping biome,
+actor-identifier, creative-content and item-registry packet payloads, plus
+crafting data, recipes, canonical block states and other registries that this
+JSON format does not expose. At the pinned protocolgen revision, `outputs.md`
+lists committed vanilla-data snapshots for 1.26.40 and 1.26.44; do not relabel
+those as 1.26.51. `make vanilla-data BDS_BINARY=…` captures a matching pinned BDS.
+
+Use this extractor for a particular running server (including custom content),
+for validating Jolyne's client receive path, or when the existing extractor-JSON
+normalization workflow below is specifically needed. These formats are not
+interchangeable: packet payloads/NBT in vanilla-data are not extractor JSON.
 
 ## Normalize into source-attributed artifacts
 

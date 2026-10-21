@@ -242,10 +242,17 @@ impl ManagedSession {
         }
     }
 
-    /// Build the next outgoing datagram, if any.
-    /// ACKs/NACKs/Resends are built in `on_tick`.
+    /// Build receive feedback before application data, without waiting for maintenance.
+    /// Retiring incoming ACKs here reopens the congestion window in the same receive
+    /// turn: both transports drain this method after reads and application writes.
+    /// Timeout-based retransmission and split expiry remain periodic maintenance.
     pub fn build_datagram(&mut self, now: Instant) -> Option<Datagram> {
-        let dgram = self.inner.build_data_datagram(now)?;
+        self.inner.process_incoming_acks_naks(now);
+        let dgram = self
+            .inner
+            .build_ack_datagram(now)
+            .or_else(|| self.inner.build_nak_datagram())
+            .or_else(|| self.inner.build_data_datagram(now))?;
 
         if let DatagramPayload::EncapsulatedPackets(packets) = &dgram.payload {
             self.debit_reliable_bytes(packets);
@@ -297,6 +304,79 @@ mod tests {
         types::RaknetTime,
     };
     use bytes::Bytes;
+
+    // A fixed clock and no on_tick calls make maintenance-driven progress impossible.
+    fn deliver_without_maintenance(size: usize) {
+        let now = Instant::now();
+        let peer = "127.0.0.1:19132".parse().unwrap();
+        let mut sender = ManagedSession::new(peer, 1200, now);
+        let mut receiver = ManagedSession::new(peer, 1200, now);
+        sender.state = ConnectionState::Connected;
+        receiver.state = ConnectionState::Connected;
+        let payload = Bytes::from(vec![0x5a; size - 1]);
+        sender
+            .queue_app_packet(
+                RaknetPacket::UserData {
+                    id: 0xfe,
+                    payload: payload.clone(),
+                },
+                Reliability::ReliableOrdered,
+                0,
+                RakPriority::Normal,
+            )
+            .unwrap();
+        let mut delivered = Vec::new();
+        let mut acked = 0;
+        for _ in 0..1024 {
+            while let Some(datagram) = sender.build_datagram(now) {
+                delivered.extend(receiver.handle_datagram(datagram, now).unwrap());
+            }
+            let mut feedback = 0;
+            while let Some(datagram) = receiver.build_datagram(now) {
+                assert!(matches!(datagram.payload, DatagramPayload::Ack(_)));
+                sender.handle_datagram(datagram, now).unwrap();
+                feedback += 1;
+                acked += 1;
+            }
+            if sender.inner.sent_datagrams.is_empty() && sender.queued_reliable_bytes == 0 {
+                break;
+            }
+            assert!(
+                feedback > 0,
+                "ACK/window progress waited for maintenance: queued={} outstanding={} window={}",
+                sender.queued_reliable_bytes,
+                sender.inner.sent_datagrams.len(),
+                sender.inner.sliding.get_transmission_bandwidth()
+            );
+        }
+        assert!(acked > 0);
+        assert!(
+            sender.inner.sent_datagrams.is_empty(),
+            "all reliable datagrams must be acknowledged"
+        );
+        assert_eq!(sender.queued_reliable_bytes, 0);
+        assert_eq!(delivered.len(), 1);
+        match &delivered[0].packet {
+            RaknetPacket::UserData {
+                id,
+                payload: actual,
+            } => {
+                assert_eq!(*id, 0xfe);
+                assert_eq!(actual, &payload);
+            }
+            _ => panic!("expected application payload"),
+        }
+    }
+
+    #[test]
+    fn reliable_delivery_and_ack_do_not_wait_for_maintenance() {
+        deliver_without_maintenance(32);
+    }
+
+    #[test]
+    fn split_delivery_and_ack_do_not_wait_for_maintenance() {
+        deliver_without_maintenance(65536);
+    }
 
     #[test]
     fn state_transitions_on_control_packets() {

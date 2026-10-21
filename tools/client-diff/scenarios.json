@@ -4,7 +4,7 @@
     "uuid": "8b8d7d29-25ef-4d61-8c7d-897a10c72a91",
     "device_id": "d9b677e4-58eb-4772-a827-1589b8f617a8",
     "client_random_id": 712345678901,
-    "device_os": 7
+    "device_os": 1
   },
   "scenarios": {
     "join-idle": { "idle_ms": 5000, "steps": [] },
