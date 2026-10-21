@@ -9,6 +9,14 @@
 //! - **RequestPacket** - Broadcast by clients to find servers
 //! - **ResponsePacket** - Sent by servers with game info
 //! - **MessagePacket** - Used to exchange NetherNet signals over LAN
+//!
+//! Wire behavior follows upstream `discovery/packet.go:Marshal/Unmarshal`,
+//! `discovery/crypto.go:encrypt/decrypt`, and the version 7
+//! `discovery/server_data.go:ServerData.MarshalBinary` layout.
+//! Locally, at most 1024 peer identities and their responses are retained;
+//! inactive responses expire with their address. A full 128-signal queue drops
+//! new signals, and a full UDP send queue drops discovery replies, so spam
+//! cannot suspend reception while awaiting a consumer.
 
 mod crypto;
 mod packet;
@@ -27,8 +35,13 @@ use tracing::{debug, trace, warn};
 
 use crate::signaling::{Signal, Signaling, SignalingChannel};
 
-/// Default port for NetherNet LAN discovery.
+/// Upstream `discovery/listener.go:ListenConfig.Listen` (`DefaultPort`).
 pub const DEFAULT_PORT: u16 = 7551;
+
+/// Receive capacity from upstream `discovery/listener.go:Listener.listen` (`maxUDPPacketSize`).
+const MAX_UDP_PACKET_SIZE: usize = 65_535;
+/// Local resource policy, not a wire constant. Responses share the admitted address set.
+const MAX_DISCOVERY_PEERS: usize = 1024;
 
 /// Configuration for discovery listener.
 #[derive(Clone)]
@@ -37,9 +50,9 @@ pub struct DiscoveryListenerConfig {
     pub network_id: u64,
     /// Broadcast address for sending discovery requests.
     pub broadcast_addr: SocketAddr,
-    /// Interval for sending discovery broadcasts.
+    /// Broadcast interval; default 2s from upstream `discovery/listener.go:Listener.background`.
     pub broadcast_interval: Duration,
-    /// Timeout for expiring inactive addresses.
+    /// Expiry; default 15s from upstream `discovery/listener.go:Listener.deleteInactiveAddresses`.
     pub address_timeout: Duration,
 }
 
@@ -73,7 +86,19 @@ pub struct DiscoveryListener {
 
 impl DiscoveryListener {
     /// Bind to the specified address for LAN discovery.
-    pub async fn bind(addr: &str, config: DiscoveryListenerConfig) -> std::io::Result<Arc<Self>> {
+    pub async fn bind(
+        addr: &str,
+        mut config: DiscoveryListenerConfig,
+    ) -> std::io::Result<Arc<Self>> {
+        if config.network_id == 0 {
+            config.network_id = rand::random();
+        }
+        if config.broadcast_interval.is_zero() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "broadcast interval must be nonzero",
+            ));
+        }
         let socket = Arc::new(UdpSocket::bind(addr).await?);
         socket.set_broadcast(true)?;
 
@@ -98,6 +123,11 @@ impl DiscoveryListener {
         Ok(listener)
     }
 
+    /// Actual UDP bind address, including an OS-assigned ephemeral port.
+    pub fn local_addr(&self) -> std::io::Result<SocketAddr> {
+        self.socket.local_addr()
+    }
+
     /// Take the signal receiver for routing to nethernet.
     pub async fn take_signal_receiver(&self) -> Option<mpsc::Receiver<Signal>> {
         self.signal_rx.write().await.take()
@@ -109,17 +139,22 @@ impl DiscoveryListener {
         *self.pong_data.write().await = Some(bytes);
     }
 
-    /// Get discovered servers and their response data.
+    /// Get discovered servers and their decoded application data (not ASCII hex).
     pub async fn responses(&self) -> HashMap<u64, Vec<u8>> {
         self.responses.read().await.clone()
     }
 
     async fn listen_loop(&self) {
-        let mut buf = [0u8; 1024];
+        // Full UDP-sized storage prevents OS-level truncation of ordinary datagrams.
+        let mut buf = vec![0u8; MAX_UDP_PACKET_SIZE];
         debug!("Discovery listener started, waiting for packets...");
         loop {
             match self.socket.recv_from(&mut buf).await {
                 Ok((len, addr)) => {
+                    // A capacity-sized read may be truncated (e.g. a jumbogram).
+                    if len == buf.len() {
+                        continue;
+                    }
                     trace!(
                         from = %addr,
                         len = len,
@@ -139,6 +174,11 @@ impl DiscoveryListener {
                         trace!(error = %e, "Ignoring WSAECONNRESET (no listener on broadcast target)");
                         continue;
                     }
+                    #[cfg(windows)]
+                    if e.raw_os_error() == Some(10040) {
+                        // WSAEMSGSIZE: discard a truncated datagram, keep receiving.
+                        continue;
+                    }
 
                     warn!(error = %e, "Discovery socket error");
                     break;
@@ -152,10 +192,7 @@ impl DiscoveryListener {
         loop {
             interval.tick().await;
 
-            let timeout = self.config.address_timeout;
-            let mut addrs = self.addresses.write().await;
-            addrs.retain(|_, entry| entry.last_seen.elapsed() < timeout);
-            drop(addrs);
+            self.expire_peers().await;
 
             let request = packet::encode_request(self.config.network_id);
             if let Err(e) = self
@@ -168,6 +205,15 @@ impl DiscoveryListener {
         }
     }
 
+    async fn expire_peers(&self) {
+        let mut addrs = self.addresses.write().await;
+        addrs.retain(|_, entry| entry.last_seen.elapsed() <= self.config.address_timeout);
+        self.responses
+            .write()
+            .await
+            .retain(|id, _| addrs.contains_key(id));
+    }
+
     async fn handle_packet(&self, data: &[u8], addr: SocketAddr) -> anyhow::Result<()> {
         let (pkt, sender_id) = packet::decode(data).map_err(|e| anyhow::anyhow!("{}", e))?;
 
@@ -177,6 +223,10 @@ impl DiscoveryListener {
 
         {
             let mut addrs = self.addresses.write().await;
+            // Keep existing peers usable during a flood; reject new identities at capacity.
+            if !addrs.contains_key(&sender_id) && addrs.len() >= MAX_DISCOVERY_PEERS {
+                return Ok(());
+            }
             addrs.insert(
                 sender_id,
                 AddressEntry {
@@ -191,18 +241,31 @@ impl DiscoveryListener {
                 if let Some(data) = self.pong_data.read().await.as_ref() {
                     trace!(to = %addr, len = data.len(), "Sending discovery response");
                     let response = packet::encode_response(self.config.network_id, data);
-                    self.socket.send_to(&response, addr).await?;
+                    // A saturated UDP send queue must not stall inbound signaling.
+                    match self.socket.try_send_to(&response, addr) {
+                        Ok(_) => {}
+                        Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
+                        Err(e) => return Err(e.into()),
+                    }
                 }
             }
             packet::Packet::Response(data) => {
-                self.responses.write().await.insert(sender_id, data);
+                // Same lock ordering as expiry: never retain responses for expired peers.
+                let addrs = self.addresses.read().await;
+                if addrs.contains_key(&sender_id) {
+                    self.responses.write().await.insert(sender_id, data);
+                }
             }
             packet::Packet::Message(msg) => {
-                if msg.data == "Ping" {
+                if msg.recipient_id != self.config.network_id
+                    || msg.data == "Ping"
+                    || msg.data.is_empty()
+                {
                     return Ok(());
                 }
                 let signal = Signal::parse(&msg.data, sender_id.to_string())?;
-                let _ = self.signal_tx.send(signal).await;
+                // Bounded overload policy: drop newest signal rather than block UDP reception.
+                let _ = self.signal_tx.try_send(signal);
             }
         }
 
@@ -210,11 +273,14 @@ impl DiscoveryListener {
     }
 
     async fn send_to_network(&self, network_id: u64, packet: &[u8]) -> anyhow::Result<()> {
-        let addrs = self.addresses.read().await;
-        let entry = addrs
+        let addr = self
+            .addresses
+            .read()
+            .await
             .get(&network_id)
+            .map(|entry| entry.addr)
             .ok_or_else(|| anyhow::anyhow!("No address for network ID {}", network_id))?;
-        self.socket.send_to(packet, entry.addr).await?;
+        self.socket.send_to(packet, addr).await?;
         Ok(())
     }
 }
@@ -244,13 +310,18 @@ impl Signaling for DiscoveryListener {
             let server_data = ServerData {
                 server_name: parts.get(1).unwrap_or(&"").to_string(),
                 level_name: parts.get(7).unwrap_or(&"").to_string(),
-                player_count: parts.get(4).and_then(|s| s.parse().ok()).unwrap_or(1),
-                max_player_count: parts.get(5).and_then(|s| s.parse().ok()).unwrap_or(10),
-                game_type: 0,
+                player_count: parts.get(4).and_then(|s| s.parse().ok()).unwrap_or(0),
+                max_player_count: parts.get(5).and_then(|s| s.parse().ok()).unwrap_or(0),
+                game_type: match parts[8].trim().to_ascii_lowercase().as_str() {
+                    "creative" => 1,
+                    "adventure" => 2,
+                    _ => 0,
+                },
                 editor_world: false,
                 hardcore: false,
                 transport_layer: TransportLayer::NetherNet,
                 connection_type: 4,
+                ..Default::default()
             };
             let bytes = server_data.encode();
             if let Ok(mut guard) = self.pong_data.try_write() {
@@ -264,5 +335,120 @@ impl Signaling for DiscoveryListener {
 impl SignalingChannel for DiscoveryListener {
     async fn take_signal_receiver(&self) -> Option<mpsc::Receiver<Signal>> {
         self.signal_rx.write().await.take()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    async fn listener() -> DiscoveryListener {
+        let socket = Arc::new(UdpSocket::bind("127.0.0.1:0").await.unwrap());
+        let (signal_tx, signal_rx) = mpsc::channel(128);
+        DiscoveryListener {
+            socket,
+            config: DiscoveryListenerConfig {
+                network_id: 42,
+                ..Default::default()
+            },
+            addresses: RwLock::new(HashMap::new()),
+            responses: RwLock::new(HashMap::new()),
+            pong_data: RwLock::new(None),
+            signal_tx,
+            signal_rx: RwLock::new(Some(signal_rx)),
+        }
+    }
+
+    #[tokio::test]
+    async fn large_sdp_survives_udp_receive() {
+        let listener = Arc::new(listener().await);
+        let mut signals = listener.take_signal_receiver().await.unwrap();
+        let receiver = listener.clone();
+        let task = tokio::spawn(async move { receiver.listen_loop().await });
+        let sender = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let sdp = format!("v=0\r\n{}", "a=candidate:test\r\n".repeat(256));
+        let wire = packet::encode_message(
+            u64::MAX,
+            42,
+            &format!("CONNECTREQUEST 18446744073709551615 {sdp}"),
+        );
+        for malformed in [&wire[..16], &wire[..1024], &wire[..wire.len() - 1]] {
+            sender
+                .send_to(malformed, listener.socket.local_addr().unwrap())
+                .await
+                .unwrap();
+        }
+        sender
+            .send_to(&wire, listener.socket.local_addr().unwrap())
+            .await
+            .unwrap();
+        let result = tokio::time::timeout(Duration::from_secs(2), signals.recv()).await;
+        task.abort();
+        let signal = result.unwrap().unwrap();
+        assert_eq!(
+            signal.to_string(),
+            format!("CONNECTREQUEST 18446744073709551615 {sdp}")
+        );
+        assert_eq!(signal.network_id, u64::MAX.to_string());
+    }
+
+    #[tokio::test]
+    async fn bounded_state_and_full_signal_queue_do_not_block() {
+        let listener = listener().await;
+        let addr = "127.0.0.1:12345".parse().unwrap();
+        for id in 100..1300 {
+            listener
+                .handle_packet(&packet::encode_response(id, b"data"), addr)
+                .await
+                .unwrap();
+        }
+        assert!(listener.addresses.read().await.len() <= 1024);
+        assert!(listener.responses.read().await.len() <= 1024);
+        let message = packet::encode_message(100, 42, "CONNECTREQUEST 1 v=0");
+        tokio::time::timeout(Duration::from_secs(2), async {
+            for _ in 0..256 {
+                listener.handle_packet(&message, addr).await.unwrap();
+            }
+        })
+        .await
+        .expect("full signal queue blocked receive processing");
+        listener
+            .handle_packet(&packet::encode_response(100, b"updated"), addr)
+            .await
+            .unwrap();
+        assert_eq!(
+            listener.responses.read().await.get(&100).unwrap(),
+            b"updated"
+        );
+    }
+
+    #[tokio::test]
+    async fn recipient_filter_and_response_expiry() {
+        let listener = listener().await;
+        let mut signals = listener.take_signal_receiver().await.unwrap();
+        let addr = "127.0.0.1:12345".parse().unwrap();
+        listener
+            .handle_packet(&packet::encode_message(1, 99, "CONNECTREQUEST 1 v=0"), addr)
+            .await
+            .unwrap();
+        assert!(signals.try_recv().is_err());
+        listener
+            .handle_packet(&packet::encode_message(1, 42, ""), addr)
+            .await
+            .unwrap();
+        listener
+            .handle_packet(&packet::encode_response(1, b"data"), addr)
+            .await
+            .unwrap();
+        listener
+            .addresses
+            .write()
+            .await
+            .get_mut(&1)
+            .unwrap()
+            .last_seen = Instant::now() - Duration::from_secs(30);
+        listener.expire_peers().await;
+        assert!(listener.addresses.read().await.is_empty());
+        assert!(listener.responses().await.is_empty());
     }
 }

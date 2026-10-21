@@ -1,56 +1,52 @@
-//! Xbox Live WebRTC signaling implementation.
+//! Retained franchise WebSocket signaling for existing Xbox friend joins.
 //!
-//! This module implements the [`Signaling`] trait using Xbox Live's
-//! signaling WebSocket (`signal.franchise.minecraft-services.net`).
-//!
-//! # Overview
-//!
-//! When friends connect via the "Join Game" button in Minecraft,
-//! signaling messages are routed through Xbox Live's WebSocket instead
-//! of LAN broadcast. The protocol is identical to LAN signaling:
-//! - `CONNECTREQUEST` with SDP offer
-//! - `CONNECTRESPONSE` with SDP answer
-//! - `CANDIDATEADD` for ICE candidates
-//!
-//! # Usage
-//!
-//! ```ignore
-//! use tokio_nethernet::xbox_signaling::XboxSignaling;
-//!
-//! let signaling = XboxSignaling::connect(nethernet_id, mc_token).await?;
-//! let listener = NetherNetListener::new(Arc::new(signaling), config);
-//! ```
+//! This is the repository's legacy ConnectionType 3 transport, not a port of
+//! current df-mc/go-nethernet or go-xsapi: neither currently implements this
+//! service. Current upstream HTTP signaling lives separately in `endpoint`.
+//! The retained envelope uses a string `To`, message types 0/1/2 and a 40-second
+//! heartbeat. No service acknowledgement, connection-ID field, or credential
+//! refresh request has been invented. Server credential updates replace a
+//! shared cache; expired credentials are not reused.
 
 use crate::signal_monitor::{SignalMonitor, SignalMonitorConfig};
 use crate::signaling::{Credentials, IceServer, Signal, Signaling, SignalingChannel};
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tokio::sync::{RwLock, mpsc};
-use tokio_tungstenite::{connect_async, tungstenite::Message as WsMessage};
-use tracing::{debug, error, info, warn};
+use std::{sync::Arc, time::Duration};
+use tokio::sync::{RwLock, mpsc, watch};
+use tokio_tungstenite::{
+    connect_async_with_config,
+    tungstenite::{Message as WsMessage, client::IntoClientRequest, protocol::WebSocketConfig},
+};
 
-/// Default signaling WebSocket URL (fallback only - prefer using discovery).
-///
-/// **Note:** This URL may not be optimal for your region. Use
-/// `axolotl_xbl::discovery::DiscoveryClient` to get the regional URL.
+/// Retained repository franchise endpoint; prefer the regional discovery URL.
+/// There is no current go-nethernet/go-xsapi function defining this endpoint.
 pub const RTC_WEBSOCKET_URL: &str =
     "wss://signal.franchise.minecraft-services.net/ws/v1.0/signaling/";
 
-/// Message types for the signaling WebSocket.
+/// Retained repository service message types, not current upstream constants.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum WsMessageType {
-    /// Heartbeat/keepalive.
     Heartbeat = 0,
-    /// Signal message (CONNECTREQUEST, etc.).
     Signal = 1,
-    /// Initialization with TURN credentials.
     Init = 2,
 }
 
-/// Outgoing WebSocket message.
+/// Retained repository heartbeat period (formerly connect_with_url's heartbeat task).
+const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(40);
+/// Retained repository lifetime fallback when the init omits expiration.
+const LEGACY_CREDENTIAL_LIFETIME: u32 = 3600;
+/// Local resource bounds; these are not asserted to be wire protocol constants.
+const MAX_FRAME_BYTES: usize = 64 * 1024;
+const QUEUE_CAPACITY: usize = 256;
+const MAX_NETWORK_ID_BYTES: usize = 256;
+const MAX_ICE_SERVERS: usize = 64;
+const MAX_URLS_PER_SERVER: usize = 64;
+/// Local stalled-write bound, not an acknowledgement deadline.
+const WRITE_TIMEOUT: Duration = Duration::from_secs(15);
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
 struct WsOutgoing {
@@ -62,8 +58,7 @@ struct WsOutgoing {
     message: Option<String>,
 }
 
-/// Incoming WebSocket message.
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 #[serde(rename_all = "PascalCase")]
 struct WsIncoming {
     #[serde(rename = "Type")]
@@ -72,14 +67,14 @@ struct WsIncoming {
     message: Option<String>,
 }
 
-/// TURN auth server credentials from init message.
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 #[serde(rename_all = "PascalCase")]
 struct TurnAuthMessage {
-    turn_auth_servers: Option<Vec<TurnAuthServer>>,
+    expiration_in_seconds: Option<u32>,
+    turn_auth_servers: Vec<TurnAuthServer>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 #[serde(rename_all = "PascalCase")]
 struct TurnAuthServer {
     username: String,
@@ -87,49 +82,126 @@ struct TurnAuthServer {
     urls: Vec<String>,
 }
 
-/// Xbox Live signaling client.
-///
-/// Implements [`Signaling`] using Xbox's signaling WebSocket.
+#[derive(Clone)]
+struct CachedCredentials {
+    credentials: Credentials,
+    received_at: tokio::time::Instant,
+}
+
+impl CachedCredentials {
+    fn is_valid(&self) -> bool {
+        self.received_at.elapsed()
+            < Duration::from_secs(u64::from(self.credentials.expiration_seconds))
+    }
+}
+
+fn decode_credentials(message: &str) -> anyhow::Result<CachedCredentials> {
+    anyhow::ensure!(
+        message.len() <= MAX_FRAME_BYTES,
+        "credentials exceed frame limit"
+    );
+    let message: TurnAuthMessage = serde_json::from_str(message)?;
+    anyhow::ensure!(
+        message.turn_auth_servers.len() <= MAX_ICE_SERVERS,
+        "too many ICE servers"
+    );
+    let ice_servers = message
+        .turn_auth_servers
+        .into_iter()
+        .map(|server| {
+            anyhow::ensure!(
+                server.urls.len() <= MAX_URLS_PER_SERVER,
+                "too many ICE URLs"
+            );
+            Ok(IceServer {
+                username: server.username,
+                password: server.password,
+                urls: server.urls,
+            })
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    Ok(CachedCredentials {
+        credentials: Credentials {
+            expiration_seconds: message
+                .expiration_in_seconds
+                .unwrap_or(LEGACY_CREDENTIAL_LIFETIME),
+            ice_servers,
+        },
+        received_at: tokio::time::Instant::now(),
+    })
+}
+
+fn outgoing_signal(signal: &Signal) -> anyhow::Result<WsOutgoing> {
+    signal.validate()?;
+    anyhow::ensure!(
+        signal.data.len() <= MAX_FRAME_BYTES,
+        "signal exceeds frame limit"
+    );
+    anyhow::ensure!(
+        !signal.network_id.is_empty() && signal.network_id.len() <= MAX_NETWORK_ID_BYTES,
+        "invalid recipient network ID"
+    );
+    let message = signal.to_string();
+    Ok(WsOutgoing {
+        msg_type: WsMessageType::Signal as u8,
+        to: Some(signal.network_id.clone()),
+        message: Some(message),
+    })
+}
+
+async fn wait_credentials(
+    mut receiver: watch::Receiver<Option<CachedCredentials>>,
+) -> anyhow::Result<Option<Credentials>> {
+    loop {
+        // Reject even a still-unexpired cached snapshot when the transport died.
+        anyhow::ensure!(
+            receiver.has_changed().is_ok(),
+            "signaling connection closed"
+        );
+        let current = {
+            let snapshot = receiver.borrow_and_update();
+            snapshot
+                .as_ref()
+                .filter(|value| value.is_valid())
+                .map(|value| value.credentials.clone())
+        };
+        if let Some(credentials) = current {
+            return Ok(Some(credentials));
+        }
+        // Cancellation is owned by the caller's negotiation deadline. Only a real
+        // server update can refresh this cache; no speculative request is sent.
+        receiver
+            .changed()
+            .await
+            .map_err(|_| anyhow::anyhow!("signaling connection closed before fresh credentials"))?;
+    }
+}
+
+/// Retained Xbox friend signaling with bounded queues and a shared TURN cache.
 pub struct XboxSignaling {
-    /// Our nethernet ID.
     nethernet_id: u64,
-    /// Channel to send outgoing signals.
-    tx: mpsc::UnboundedSender<WsOutgoing>,
-    /// Channel to receive incoming signals (takeable for SignalingChannel).
+    tx: mpsc::Sender<String>,
     rx: RwLock<Option<mpsc::Receiver<Signal>>>,
-    /// Cached TURN credentials.
-    credentials: RwLock<Option<Credentials>>,
-    /// Signal monitor for security anomaly detection.
+    credentials: watch::Receiver<Option<CachedCredentials>>,
     monitor: Arc<SignalMonitor>,
+    task: tokio::task::JoinHandle<()>,
 }
 
 impl XboxSignaling {
-    /// Connect to Xbox Live signaling WebSocket using the default URL.
-    ///
-    /// **Note:** Prefer using [`connect_with_url`] with a URL from the discovery API
-    /// for optimal regional routing.
-    ///
-    /// # Arguments
-    /// - `nethernet_id`: Your NetherNet network ID
-    /// - `mc_token`: Minecraft authorization token from PlayFab session start
     #[deprecated(
         since = "0.2.0",
         note = "Use connect_with_url() with a URL from axolotl_xbl::discovery for regional routing"
     )]
     pub async fn connect(nethernet_id: u64, mc_token: &str) -> anyhow::Result<Arc<Self>> {
-        let url = format!("{}{}", RTC_WEBSOCKET_URL, nethernet_id);
-        Self::connect_with_url(url, nethernet_id, mc_token, SignalMonitorConfig::default()).await
+        Self::connect_with_url(
+            format!("{RTC_WEBSOCKET_URL}{nethernet_id}"),
+            nethernet_id,
+            mc_token,
+            SignalMonitorConfig::default(),
+        )
+        .await
     }
 
-    /// Connect to Xbox Live signaling WebSocket with signal monitoring using the default URL.
-    ///
-    /// **Note:** Prefer using [`connect_with_url`] with a URL from the discovery API
-    /// for optimal regional routing.
-    ///
-    /// # Arguments
-    /// - `nethernet_id`: Your NetherNet network ID
-    /// - `mc_token`: Minecraft authorization token from PlayFab session start
-    /// - `monitor_config`: Configuration for signal-level security monitoring
     #[deprecated(
         since = "0.2.0",
         note = "Use connect_with_url() with a URL from axolotl_xbl::discovery for regional routing"
@@ -139,256 +211,152 @@ impl XboxSignaling {
         mc_token: &str,
         monitor_config: SignalMonitorConfig,
     ) -> anyhow::Result<Arc<Self>> {
-        let url = format!("{}{}", RTC_WEBSOCKET_URL, nethernet_id);
-        Self::connect_with_url(url, nethernet_id, mc_token, monitor_config).await
+        Self::connect_with_url(
+            format!("{RTC_WEBSOCKET_URL}{nethernet_id}"),
+            nethernet_id,
+            mc_token,
+            monitor_config,
+        )
+        .await
     }
 
-    /// Connect to Xbox Live signaling WebSocket with a custom URL.
-    ///
-    /// Use this with a URL from the discovery API for optimal regional routing:
-    ///
-    /// ```ignore
-    /// use axolotl_xbl::discovery::DiscoveryClient;
-    /// use tokio_nethernet::XboxSignaling;
-    ///
-    /// let discovery = DiscoveryClient::new();
-    /// let endpoints = discovery.discover("1.21.131").await?;
-    /// let ws_url = endpoints.signaling.websocket_url(nethernet_id);
-    ///
-    /// let signaling = XboxSignaling::connect_with_url(
-    ///     ws_url,
-    ///     nethernet_id,
-    ///     &mc_token,
-    ///     SignalMonitorConfig::default(),
-    /// ).await?;
-    /// ```
-    ///
-    /// # Arguments
-    /// - `url`: Full WebSocket URL (e.g., from `SignalingEndpoint::websocket_url()`)
-    /// - `nethernet_id`: Your NetherNet network ID
-    /// - `mc_token`: Minecraft authorization token from PlayFab session start
-    /// - `monitor_config`: Configuration for signal-level security monitoring
+    /// Connect using the retained franchise handshake and a regional discovery URL.
     pub async fn connect_with_url(
         url: String,
         nethernet_id: u64,
         mc_token: &str,
         monitor_config: SignalMonitorConfig,
     ) -> anyhow::Result<Arc<Self>> {
+        let mut request = url.into_client_request()?;
+        request
+            .headers_mut()
+            .insert("Authorization", mc_token.parse()?);
+        request
+            .headers_mut()
+            .insert("Session-Id", uuid::Uuid::new_v4().to_string().parse()?);
+        request
+            .headers_mut()
+            .insert("Request-Id", uuid::Uuid::new_v4().to_string().parse()?);
+        let config = WebSocketConfig {
+            max_message_size: Some(MAX_FRAME_BYTES),
+            max_frame_size: Some(MAX_FRAME_BYTES),
+            ..Default::default()
+        };
+        let (mut socket, _) = connect_async_with_config(request, Some(config), false).await?;
+        let (out_tx, mut out_rx) = mpsc::channel::<String>(QUEUE_CAPACITY);
+        let (in_tx, in_rx) = mpsc::channel(QUEUE_CAPACITY);
+        let (credentials_tx, credentials) = watch::channel(None);
         let monitor = SignalMonitor::new_with_cleanup(monitor_config);
-
-        // Extract host from URL for the Host header
-        let parsed_url: http::Uri = url.parse()?;
-        let host = parsed_url
-            .host()
-            .ok_or_else(|| anyhow::anyhow!("Invalid URL: missing host"))?;
-
-        // Create request with auth headers
-        let request = http::Request::builder()
-            .uri(&url)
-            .header("Authorization", mc_token)
-            .header("Session-Id", uuid::Uuid::new_v4().to_string())
-            .header("Request-Id", uuid::Uuid::new_v4().to_string())
-            .header(
-                "Sec-WebSocket-Key",
-                tungstenite::handshake::client::generate_key(),
-            )
-            .header("Sec-WebSocket-Version", "13")
-            .header("Connection", "Upgrade")
-            .header("Upgrade", "websocket")
-            .header("Host", host)
-            .body(())?;
-
-        info!(nethernet_id, "Connecting to Xbox signaling WebSocket");
-        let (ws_stream, _) = connect_async(request).await?;
-        let (mut write, mut read) = ws_stream.split();
-
-        // Channels for signal routing
-        let (out_tx, mut out_rx) = mpsc::unbounded_channel::<WsOutgoing>();
-        // Use bounded channel for SignalingChannel compatibility
-        let (in_tx, in_rx) = mpsc::channel::<Signal>(256);
-        let credentials: Arc<RwLock<Option<Credentials>>> = Arc::new(RwLock::new(None));
-        let credentials_clone = Arc::clone(&credentials);
-
-        // Spawn writer task
-        let out_tx_clone = out_tx.clone();
-        tokio::spawn(async move {
-            // Start heartbeat
-            let heartbeat_tx = out_tx_clone;
-            tokio::spawn(async move {
-                loop {
-                    tokio::time::sleep(std::time::Duration::from_secs(40)).await;
-                    if heartbeat_tx
-                        .send(WsOutgoing {
-                            msg_type: WsMessageType::Heartbeat as u8,
-                            to: None,
-                            message: None,
-                        })
-                        .is_err()
-                    {
-                        break;
+        let task_monitor = Arc::clone(&monitor);
+        let task = tokio::spawn(async move {
+            let mut heartbeat = tokio::time::interval_at(
+                tokio::time::Instant::now() + HEARTBEAT_INTERVAL,
+                HEARTBEAT_INTERVAL,
+            );
+            heartbeat.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+            loop {
+                tokio::select! {
+                    outgoing = out_rx.recv() => {
+                        let Some(text) = outgoing else { break };
+                        if !matches!(tokio::time::timeout(WRITE_TIMEOUT, socket.send(WsMessage::Text(text))).await, Ok(Ok(()))) { break; }
                     }
-                }
-            });
-
-            while let Some(msg) = out_rx.recv().await {
-                let json = match serde_json::to_string(&msg) {
-                    Ok(j) => j,
-                    Err(e) => {
-                        error!("Failed to serialize outgoing message: {}", e);
-                        continue;
+                    _ = heartbeat.tick() => {
+                        if !matches!(tokio::time::timeout(WRITE_TIMEOUT, socket.send(WsMessage::Text("{\"Type\":0}".into()))).await, Ok(Ok(()))) { break; }
                     }
-                };
-                debug!(msg = %json, "Sending WebSocket message");
-                if let Err(e) = write.send(WsMessage::Text(json)).await {
-                    error!("WebSocket send error: {}", e);
-                    break;
-                }
-            }
-        });
-
-        // Spawn reader task with signal monitoring
-        let monitor_clone = monitor.clone();
-        tokio::spawn(async move {
-            while let Some(msg) = read.next().await {
-                let msg = match msg {
-                    Ok(WsMessage::Text(text)) => text.to_string(),
-                    Ok(WsMessage::Close(_)) => {
-                        info!("WebSocket closed");
-                        break;
-                    }
-                    Ok(_) => continue,
-                    Err(e) => {
-                        error!("WebSocket receive error: {}", e);
-                        break;
-                    }
-                };
-
-                debug!(msg = %msg, "Received WebSocket message");
-
-                let incoming: WsIncoming = match serde_json::from_str(&msg) {
-                    Ok(m) => m,
-                    Err(e) => {
-                        warn!("Failed to parse incoming message: {}", e);
-                        continue;
-                    }
-                };
-
-                match incoming.msg_type {
-                    0 => {
-                        // Heartbeat response, ignore
-                    }
-                    1 => {
-                        // Signal message
-                        if let (Some(from), Some(message)) = (incoming.from, incoming.message) {
-                            match Signal::parse(&message, from.clone()) {
-                                Ok(signal) => {
-                                    // Process signal through monitor for anomaly detection
-                                    monitor_clone.process_incoming(&signal).await;
-
-                                    if in_tx.send(signal).await.is_err() {
-                                        break;
-                                    }
-                                }
-                                Err(e) => {
-                                    warn!("Failed to parse signal: {}", e);
+                    incoming = socket.next() => {
+                        let text = match incoming {
+                            Some(Ok(WsMessage::Text(text))) => text,
+                            Some(Ok(WsMessage::Ping(_))) => {
+                                // Flush tungstenite's queued protocol Pong.
+                                if !matches!(tokio::time::timeout(WRITE_TIMEOUT, socket.flush()).await, Ok(Ok(()))) { break; }
+                                continue;
+                            }
+                            Some(Ok(WsMessage::Pong(_))) => continue,
+                            _ => break,
+                        };
+                        let Ok(incoming) = serde_json::from_str::<WsIncoming>(&text) else { continue };
+                        match incoming.msg_type {
+                            0 => {},
+                            1 => {
+                                let (Some(from), Some(message)) = (incoming.from, incoming.message) else { continue };
+                                if from.is_empty() || from.len() > MAX_NETWORK_ID_BYTES { continue; }
+                                let Ok(signal) = Signal::parse(&message, from) else { continue };
+                                task_monitor.process_incoming(&signal).await;
+                                match in_tx.try_send(signal) {
+                                    Ok(()) | Err(mpsc::error::TrySendError::Full(_)) => {},
+                                    Err(mpsc::error::TrySendError::Closed(_)) => break,
                                 }
                             }
+                            2 => {
+                                // Retain init frames without From; never accept peer-attributed credentials.
+                                if incoming.from.as_deref().is_some_and(|from| from != "Server") { continue; }
+                                let Some(message) = incoming.message else { continue };
+                                if let Ok(credentials) = decode_credentials(&message)
+                                    && credentials_tx.send(Some(credentials)).is_err() { break; }
+                            }
+                            _ => {},
                         }
-                    }
-                    2 => {
-                        // Init message with TURN credentials
-                        if let Some(message) = incoming.message
-                            && let Ok(turn_msg) = serde_json::from_str::<TurnAuthMessage>(&message)
-                            && let Some(servers) = turn_msg.turn_auth_servers
-                        {
-                            let ice_servers: Vec<IceServer> = servers
-                                .into_iter()
-                                .map(|s| IceServer {
-                                    username: s.username,
-                                    password: s.password,
-                                    urls: s.urls,
-                                })
-                                .collect();
-
-                            let mut creds = credentials_clone.write().await;
-                            *creds = Some(Credentials {
-                                expiration_seconds: 3600,
-                                ice_servers,
-                            });
-                            info!("Received TURN credentials");
-                        }
-                    }
-                    _ => {
-                        debug!(msg_type = incoming.msg_type, "Unknown message type");
                     }
                 }
             }
+            // Both channels close on every terminal path, waking waiters.
         });
-
-        info!("Xbox signaling WebSocket connected");
-
-        // Wait briefly for init message with TURN credentials
-        // The reader task should receive it quickly
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-
-        // Get the credentials from the shared Arc - it's fine if empty at first
-        let cached_credentials = credentials.read().await.clone();
-
         Ok(Arc::new(Self {
             nethernet_id,
             tx: out_tx,
             rx: RwLock::new(Some(in_rx)),
-            credentials: RwLock::new(cached_credentials),
+            credentials,
             monitor,
+            task,
         }))
     }
 
-    /// Receive the next incoming signal.
-    ///
-    /// Note: This will return `None` if `take_signal_receiver()` was called.
+    /// Returns None after transport closure or after take_signal_receiver().
     pub async fn recv(&self) -> Option<Signal> {
-        if let Some(rx) = self.rx.write().await.as_mut() {
-            rx.recv().await
-        } else {
-            None
-        }
+        self.rx.write().await.as_mut()?.recv().await
     }
 
-    /// Get access to the signal monitor.
-    ///
-    /// Use this to check for security anomalies, get statistics,
-    /// or retrieve detected attacks.
     pub fn monitor(&self) -> &Arc<SignalMonitor> {
         &self.monitor
     }
-
-    /// Get a summary of signal monitoring status.
     pub async fn monitor_summary(&self) -> String {
         self.monitor.summary().await
+    }
+}
+
+impl Drop for XboxSignaling {
+    fn drop(&mut self) {
+        self.task.abort();
     }
 }
 
 #[async_trait]
 impl Signaling for XboxSignaling {
     async fn signal(&self, signal: Signal) -> anyhow::Result<()> {
-        // Track outgoing signal for monitoring state
+        let outgoing = outgoing_signal(&signal)?;
+        let text = serde_json::to_string(&outgoing)?;
+        anyhow::ensure!(
+            text.len() <= MAX_FRAME_BYTES,
+            "encoded signal exceeds frame limit"
+        );
         self.monitor.process_outgoing(&signal).await;
-
-        let msg = WsOutgoing {
-            msg_type: WsMessageType::Signal as u8,
-            to: Some(signal.network_id.clone()),
-            message: Some(signal.to_string()),
-        };
-
         self.tx
-            .send(msg)
-            .map_err(|e| anyhow::anyhow!("Send failed: {}", e))
+            .try_send(text)
+            .map_err(|_| anyhow::anyhow!("signaling writer closed or queue full"))
     }
 
-    async fn credentials(&self) -> Option<Credentials> {
-        self.credentials.read().await.clone()
+    async fn credentials(&self) -> anyhow::Result<Option<Credentials>> {
+        wait_credentials(self.credentials.clone()).await
     }
 
+    async fn closed(&self) {
+        let mut receiver = self.credentials.clone();
+        while receiver.changed().await.is_ok() {}
+    }
+
+    fn requires_identity(&self) -> bool {
+        false
+    }
     fn network_id(&self) -> String {
         self.nethernet_id.to_string()
     }
@@ -406,5 +374,176 @@ impl std::fmt::Debug for XboxSignaling {
         f.debug_struct("XboxSignaling")
             .field("nethernet_id", &self.nethernet_id)
             .finish()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn retained_socket_routes_signals_and_refreshes_shared_credentials() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let (release, keep_open) = tokio::sync::oneshot::channel::<()>();
+        let server = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            let mut socket = tokio_tungstenite::accept_async(stream).await.unwrap();
+            let credentials = |from: Option<&str>, expiration: u32| {
+                serde_json::json!({
+                "Type": 2, "From": from,
+                "Message": format!("{{\"ExpirationInSeconds\":{expiration},\"TurnAuthServers\":[]}}")
+            }).to_string()
+            };
+            socket
+                .send(WsMessage::Text(credentials(None, 10)))
+                .await
+                .unwrap();
+            let WsMessage::Text(sent) = socket.next().await.unwrap().unwrap() else {
+                panic!("expected signal")
+            };
+            assert_eq!(
+                serde_json::from_str::<serde_json::Value>(&sent).unwrap()["To"],
+                "42"
+            );
+            socket
+                .send(WsMessage::Text(credentials(Some("Server"), 20)))
+                .await
+                .unwrap();
+            socket
+                .send(WsMessage::Text(credentials(Some("42"), 999)))
+                .await
+                .unwrap();
+            for message in [
+                r#"{"Type":1,"From":"42","Message":"UNKNOWN 1 data"}"#,
+                r#"{"Type":1,"From":"42","Message":"CONNECTERROR 1 +1"}"#,
+                r#"{"Type":1,"From":"42","Message":"CONNECTRESPONSE 1 answer"}"#,
+            ] {
+                socket.send(WsMessage::Text(message.into())).await.unwrap();
+            }
+            let _ = keep_open.await;
+        });
+        let signaling = XboxSignaling::connect_with_url(
+            format!("ws://{address}/"),
+            7,
+            "test-token",
+            SignalMonitorConfig::default(),
+        )
+        .await
+        .unwrap();
+        assert!(!signaling.requires_identity());
+        assert_eq!(
+            signaling
+                .credentials()
+                .await
+                .unwrap()
+                .unwrap()
+                .expiration_seconds,
+            10
+        );
+        signaling
+            .signal(Signal {
+                typ: "CONNECTREQUEST".into(),
+                connection_id: 1,
+                network_id: "42".into(),
+                data: "offer".into(),
+            })
+            .await
+            .unwrap();
+        assert_eq!(signaling.recv().await.unwrap().typ, "CONNECTRESPONSE");
+        assert_eq!(
+            signaling
+                .credentials()
+                .await
+                .unwrap()
+                .unwrap()
+                .expiration_seconds,
+            20
+        );
+        drop(release);
+        server.await.unwrap();
+        signaling.closed().await;
+        assert!(signaling.credentials().await.is_err());
+        assert!(signaling.recv().await.is_none());
+    }
+
+    /// Retained repository wire format: recipient is a string, not a JSON number.
+    #[test]
+    fn retained_signal_envelope_preserves_string_recipient() {
+        let outgoing = outgoing_signal(&Signal {
+            typ: "CONNECTREQUEST".into(),
+            connection_id: 42,
+            network_id: "123".into(),
+            data: "v=0\r\n".into(),
+        })
+        .unwrap();
+        assert_eq!(
+            serde_json::to_value(outgoing).unwrap(),
+            serde_json::json!({
+                "Type": 1, "To": "123", "Message": "CONNECTREQUEST 42 v=0\r\n"
+            })
+        );
+    }
+
+    #[test]
+    fn legacy_credentials_default_and_explicit_expiration() {
+        let credentials = decode_credentials(
+            r#"{"TurnAuthServers":[{"Username":"u","Password":"p","Urls":["turn:relay:3478"]}]}"#,
+        )
+        .unwrap();
+        assert_eq!(credentials.credentials.expiration_seconds, 3600);
+        let explicit =
+            decode_credentials(r#"{"ExpirationInSeconds":42,"TurnAuthServers":[]}"#).unwrap();
+        assert_eq!(explicit.credentials.expiration_seconds, 42);
+        assert!(decode_credentials(r#"{"ExpirationInSeconds":-1,"TurnAuthServers":[]}"#).is_err());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn credentials_expire_and_wait_for_shared_refresh() {
+        use futures_util::FutureExt;
+        let (sender, receiver) = watch::channel(Some(
+            decode_credentials(r#"{"ExpirationInSeconds":1,"TurnAuthServers":[]}"#).unwrap(),
+        ));
+        assert_eq!(
+            wait_credentials(receiver.clone())
+                .await
+                .unwrap()
+                .unwrap()
+                .expiration_seconds,
+            1
+        );
+        tokio::time::advance(Duration::from_secs(2)).await;
+        let mut waiting = Box::pin(wait_credentials(receiver.clone()));
+        assert!(waiting.as_mut().now_or_never().is_none());
+        sender
+            .send(Some(
+                decode_credentials(r#"{"ExpirationInSeconds":42,"TurnAuthServers":[]}"#).unwrap(),
+            ))
+            .unwrap();
+        assert_eq!(waiting.await.unwrap().unwrap().expiration_seconds, 42);
+        drop(sender);
+        assert!(wait_credentials(receiver).await.is_err());
+    }
+
+    #[test]
+    fn malformed_or_oversized_signals_are_rejected() {
+        assert!(
+            outgoing_signal(&Signal {
+                typ: "UNKNOWN".into(),
+                connection_id: 1,
+                network_id: "1".into(),
+                data: String::new()
+            })
+            .is_err()
+        );
+        assert!(
+            outgoing_signal(&Signal {
+                typ: "CONNECTREQUEST".into(),
+                connection_id: 1,
+                network_id: "1".into(),
+                data: "x".repeat(MAX_FRAME_BYTES + 1)
+            })
+            .is_err()
+        );
     }
 }

@@ -1,102 +1,89 @@
 # tokio-nethernet
 
-A Tokio-based implementation of the NetherNet protocol for Minecraft: Bedrock Edition.
+Tokio NetherNet transport for Minecraft Bedrock: ICE, DTLS, SCTP, reliable/unreliable data channels, encrypted LAN discovery, and signaling implementations.
 
-## Overview
+## Signaling and features
 
-NetherNet is the WebRTC-based transport layer used by Minecraft Bedrock for LAN and Xbox Live connections. This crate provides high-level async APIs for building NetherNet servers and clients.
+| Feature | Implementation | Intended use |
+| --- | --- | --- |
+| `discovery` | Encrypted UDP discovery/signals on port 7551 | LAN joins |
+| `endpoint` | HTTP/TLS `GET /v1/join`, `POST /v1/join/{network_id}` | Address joins; upstream go-nethernet endpoint protocol |
+| `xbox-signaling` | Retained franchise signaling WebSocket | Existing Xbox friend-broadcast flow |
 
-## Transport Options
+The HTTP endpoint is **additional**, not a replacement for franchise friend signaling. No current go-nethernet, gophertunnel, or go-xsapi source implements the franchise WebSocket service. Its existing repository envelopes, authentication headers, message types and heartbeat are retained and hardened, not claimed as an upstream port. MPSD friend advertisements remain ConnectionType 3; go-xsapi's type-7/PmsgId example is not silently substituted.
 
-| Transport | Use Case | Status |
-|-----------|----------|--------|
-| **LAN Discovery** | Local network games | ✅ `discovery` feature |
-| **RakNet** | Hybrid/legacy | ✅ Via tokio-raknet |
-| **Xbox Live WebSocket** | Online friends / realms / new server architectures? | ✅ via XboxSignaling and XboxAuth in axolotl_xbl. |
+## Protocol provenance
 
-## Integration with Axolotl Stack
+Transport, HTTP endpoint, identities, and discovery follow [df-mc/go-nethernet at `215e46422b5831d6ddc6146003617dc3f1ff7c26`](https://github.com/df-mc/go-nethernet/tree/215e46422b5831d6ddc6146003617dc3f1ff7c26). Constants carry upstream file/function comments near their implementation.
 
-`tokio-nethernet` is a core building block for **Axelerator**, providing the low-level transport primitive for connecting to Minecraft Bedrock clients over WebRTC. It is designed to be used alongside `jolyne` for protocol handling.
+| Behavior | Source |
+| --- | --- |
+| `CONNECTREQUEST`, `CONNECTRESPONSE`, `CANDIDATEADD`, `CONNECTERROR`; decimal-prefix numeric parsing | `signal.go:Signal.UnmarshalText`, `decimalPrefix` |
+| Two labeled channels; ordered reliable, unordered zero-retransmit unreliable | `message.go:MessageReliability.Parameters`, `Check` |
+| One countdown byte on **both** channels; unreliable count must be zero; at most 255 outgoing segments | `conn.go:Conn.Send`, `message.go:dataChannel.handleMessage` |
+| 15-second dial deadline; 5-second listener negotiation; 2-second terminal signal budget | `dial.go:Dialer.Dial`, `SignalErrorTimeout`; `listener.go:ListenConfig.connContext` |
+| UDP port 7551; 2-second broadcasts; 15-second address expiry | `discovery/listener.go:DefaultPort`, `background`, `deleteInactiveAddresses` |
+| Inclusive packet lengths, AES-ECB/PKCS7 and HMAC-SHA256; hex response application data | `discovery/packet.go`, `crypto.go`, `packet_response.go:ResponsePacket.Read` |
+| Server-data v7, zigzag integers, auth flags and nonce | `discovery/server_data.go:ServerData.MarshalBinary` |
+| ES384 detached SDP fingerprint assertion; `cpk` JWK/DER keys; nested assertion string | `identity.go:Identity.sign`, `identityData`, `generateFingerprints` |
+| HTTP SDP bodies, status JSON, nontrickle ICE, per-negotiation credentials | `endpoint/client.go:Client.Signal`, `DisableTrickleICE`; `endpoint/handler.go:Handler.ServeHTTP` |
 
-## Features
+### Required webrtc-rs differences
 
-- **Fully Async** - Built on Tokio with `async`/`await`
-- **Stream + Sink** - Standard Rust async patterns
-- **Fragmentation** - Automatic message splitting for large payloads
-- **LAN Discovery** - Feature-flagged encrypted UDP discovery (port 7551)
-- **Signaling Agnostic** - Bring your own signaling (RakNet, WebSocket, etc.)
+Upstream advertises 262144-byte SCTP messages with 262143-byte segment payloads. webrtc-rs 0.12 fixes its callback receive buffer to 65535 bytes (`data_channel/mod.rs:RTCDataChannel::read_loop`), so this crate advertises 65535 and limits segment payloads to **65534**. Larger reliable messages are fragmented. The remote SDP limit constrains outgoing fragments independently of our locally advertised incoming limit.
 
-## Quick Start
+webrtc-rs requires its exact generated local offer/answer when applying `set_local_description`. The original is installed internally; the wire copy receives the size attribute and signed identity. Fingerprints and transport credentials are unchanged.
 
-### LAN Discovery Server (Recommended)
+## Identities and authentication
 
-```rust
-use tokio_nethernet::discovery::{DiscoveryListener, DiscoveryListenerConfig, ServerData};
-use tokio_nethernet::{NetherNetListener, NetherNetListenerConfig};
+Current upstream signaling paths reject identityless peers by default. Set `NetherNetDialerConfig.identity` / `NetherNetListenerConfig.identity` to an `Arc<identity::Identity>` containing a P-384 signing key, matching multiplayer JWT, and authorization domain. When no server identity is supplied, a listener generates one P-384 key and issues a fresh self-signed `"self"` token per negotiation. Server tokens are self-signature-verified by default, with an optional server-token policy override.
 
-let discovery = DiscoveryListener::bind("0.0.0.0:7551", DiscoveryListenerConfig::default()).await?;
-discovery.set_server_data(ServerData {
-    server_name: "My Server".into(),
-    level_name: "World".into(),
-    ..Default::default()
-}).await;
+Client assertions always prove possession of the key bound to the DTLS fingerprint and validate JWT temporal claims. As in upstream `listener.go:ListenConfig.Listen`, the default **does not authenticate the client JWT signature**: the application must verify Login's GameServerToken and bind its `cpk` to `remote_identity().public_key`. Alternatively, configure `verify_client_token` implementing `identity::TokenVerifier` to authenticate the multiplayer JWT before accepting the transport. Merely decoding claims is not online authentication.
 
-let (mut listener, signal_tx) = NetherNetListener::new(discovery, NetherNetListenerConfig::default());
+Minecraft-side JWT/key/domain wiring follows [gophertunnel `minecraft/nethernet.go:DialContextIdentity`](https://github.com/Sandertv/gophertunnel/blob/be557e33fe6f8d0c0db7ef05b5fd068725c325ad/minecraft/nethernet.go): use the **multiplayer JWT**, not the franchise service authorization header, and append `/` to the discovered authorization issuer. `axolotl-xbl` provides the service-token and multiplayer-token/verification APIs; adapt its verifier to the transport trait without coupling this crate to authentication services.
+
+`allow_identityless_client` and `allow_identityless_server` are explicit local/test compatibility choices. Retained franchise signaling permits absent identity assertions to preserve its existing peer compatibility; supplied identity assertions are still verified. Valid identities are available through `NetherNetStream::remote_identity()`.
+
+## Connection API
+
+Use `NetherNetDialer::connect_with_signaling` and `NetherNetListener::bind_with_signaling` for automatic routing. Subscription registration happens before sending an offer, including HTTP implementations that return their answer synchronously. The low-level `new` constructors still return signal senders for custom routers.
+
+`NetherNetStream::connect` and `connect_with_config` now take a `SignalingChannel` and return the stream directly. The old `(stream, signal_sender)` result could not be routed until after negotiation had already completed. The configured timeout covers credential acquisition and the entire negotiation; configured ICE servers are no longer replaced by fixed defaults.
+
+`endpoint::{ClientConfig, HandlerConfig}` support credential providers that are consulted for each negotiation. HTTP signaling gathers candidates into the initial SDP rather than emitting trickle messages. `Handler::serve` and `serve_tls` expose the HTTP endpoint; `Client::status` reads upstream status JSON, and `Client::ping` converts it to RakNet pong data. The Jolyne builder adds `.endpoint(handler, transport_config)` behind its `endpoint` feature while keeping `.xbox(...)` intact.
+
+## Bounds and error behavior
+
+- Full UDP-sized discovery receives; truncated, unauthenticated, malformed, wrong-recipient and non-signal packets are rejected without panics.
+- Discovery admits at most 1024 peers/responses, expires both maps together, and never waits on a full signal queue in the socket receive loop. `responses()` contains decoded application bytes, not ASCII hex.
+- `ServerData` is v7; new protocol/version/auth/nonce fields have defaults. `transport_layer` remains application metadata and is not a v7 wire field.
+- Fragment counters and sizes are validated before queueing and while reassembling. Local reassembly byte/time limits supplement the upstream countdown invariant. Timeout is checked on subsequent input; no timer task is allocated per fragmented message.
+- Incoming and outgoing stream handoffs are bounded. Reliable callbacks backpressure rather than dropping fragments. `flush`/graceful `close` wait for accepted writes; transport failures are returned to the sender. Error/drop cleanup cancels pending work and closes transports.
+- Pending signal delivery, listener connection ownership, endpoint HTTP bodies/subscriptions/negotiations, WebSocket frames/queues, and anomaly-monitor state are bounded. Inline and trickled ICE candidates share a 128-candidate per-peer budget. Congested negotiation subscriptions are failed rather than blocking all peers. Cancellation suppresses pending terminal replies, and cleanup checks connection-instance ownership before removing a reused tuple.
+
+The resource budgets are local hardening policy, not newly invented protocol constants.
+
+## Run a real local pair
+
+The listener example binds loopback only, generates a self-signed server identity, and explicitly permits identityless local clients. Production listeners must instead configure client-token authorization.
+
+```sh
+cargo run -p tokio-nethernet --features endpoint --example listener
+cargo run -p tokio-nethernet --features endpoint --example client
 ```
 
-### Client
+LAN examples require `discovery`; configure identities or explicitly choose the local identityless options when integrating them.
 
-```rust
-use tokio_nethernet::{NetherNetStream, Signaling};
-use futures::StreamExt;
+## Validation
 
-let signaling: Arc<dyn Signaling> = /* your impl */;
-let (mut stream, signal_tx) = NetherNetStream::connect("server-id".into(), signaling).await?;
-
-while let Some(msg) = stream.next().await {
-    println!("Received: {:?}", msg?.buffer);
-}
+```sh
+cargo test -p tokio-nethernet --all-features
+cargo clippy -p tokio-nethernet --all-targets --all-features -- -D warnings
+cargo check -p jolyne --all-targets --features nethernet,discovery,xbox-signaling
+cargo check -p axelerator --all-targets
 ```
 
-## Examples
-
-See the `examples/` directory:
-
-```bash
-# LAN Discovery (requires discovery feature)
-cargo run -p tokio-nethernet --example discovery_server --features discovery
-cargo run -p tokio-nethernet --example discovery_client --features discovery
-
-# Generic (without discovery)
-cargo run -p tokio-nethernet --example listener
-cargo run -p tokio-nethernet --example client
-```
-
-## Signaling Transports
-
-### LAN Discovery (Feature: `discovery`)
-UDP-based encrypted discovery on port 7551. Used for local network games.
-- Packets encrypted with AES-256-ECB + HMAC-SHA256
-- Compatible with Bedrock LAN discovery protocol
-
-### Xbox Live WebSocket
-For Xbox Live online games, Minecraft uses WebSocket connections to the Microsoft Multiplayer Session Directory (MPSD). This is more complex and requires:
-- Xbox Live authentication (XSTS tokens)
-- WebSocket connection to MPSD
-- Session management
-
-**Status:** Research phase. See Microsoft GDK documentation for `libHttpClient` WebSocket APIs.
-
-## Cargo Features
-
-```toml
-[dependencies]
-tokio-nethernet = { version = "0.1", features = ["discovery"] }
-```
-
-| Feature | Description |
-|---------|-------------|
-| `discovery` | LAN discovery via encrypted UDP (adds aes, sha2, hmac deps) |
+Tests include upstream wire fixtures, authenticated malformed/truncated discovery input, configuration deadlines/ICE validation, callback backpressure, fragment boundaries, signed-identity tampering, HTTP signaling cancellation/credentials, retained WebSocket framing/closure, and two real loopback WebRTC peers exchanging fragmented reliable and unreliable messages.
 
 ## License
 

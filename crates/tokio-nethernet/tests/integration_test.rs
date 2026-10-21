@@ -10,11 +10,10 @@ struct LocalSignaling {
 
 #[async_trait::async_trait]
 impl Signaling for LocalSignaling {
-    async fn signal(&self, signal: Signal) -> anyhow::Result<()> {
-        // In a real app, this sends over network.
-        // Here we just pipe it to the "other side" via the tx channel.
-        eprintln!("TEST: Signaling {} (type: {})", self.network_id, signal.typ);
-        let _ = self.tx.send(signal).await;
+    async fn signal(&self, mut signal: Signal) -> anyhow::Result<()> {
+        // The transport delivers the sender's network ID, not the destination.
+        signal.network_id = self.network_id.clone();
+        self.tx.send(signal).await?;
         Ok(())
     }
 
@@ -47,7 +46,10 @@ async fn test_connect_flow() {
         tx: dialer_sig_in_tx.clone(), // Listener sends to Dialer
     });
 
-    let config = NetherNetListenerConfig::default();
+    let config = NetherNetListenerConfig {
+        allow_identityless_client: true,
+        ..Default::default()
+    };
     let (mut listener, listener_signal_pusher) = NetherNetListener::new(listener_signaling, config);
 
     // Forward signals received by listener_sig_in logic (simulating network recv) to listener
@@ -61,7 +63,10 @@ async fn test_connect_flow() {
     });
 
     // Start accepting in background
-    let listen_handle = tokio::spawn(async move { listener.accept().await });
+    let listen_handle = tokio::spawn(async move {
+        let stream = listener.accept().await;
+        (listener, stream)
+    });
 
     // Construct Dialer
     let dialer_signaling = Arc::new(LocalSignaling {
@@ -69,8 +74,13 @@ async fn test_connect_flow() {
         tx: listener_sig_in_tx.clone(), // Dialer sends to Listener
     });
 
-    let (dialer, dialer_signal_pusher) =
-        NetherNetDialer::new(dialer_signaling, NetherNetDialerConfig::default());
+    let (dialer, dialer_signal_pusher) = NetherNetDialer::new(
+        dialer_signaling,
+        NetherNetDialerConfig {
+            allow_identityless_server: true,
+            ..Default::default()
+        },
+    );
 
     // Forward signals received by dialer logic to dialer
     let d_pusher = dialer_signal_pusher.clone();
@@ -90,7 +100,8 @@ async fn test_connect_flow() {
     let (dial_res, listen_res) = tokio::join!(dial_future, listen_handle);
 
     let mut client_stream = dial_res.expect("Dial failed");
-    let mut server_stream = listen_res.expect("Join failed").expect("Accept failed");
+    let (_listener, server_stream) = listen_res.expect("Join failed");
+    let mut server_stream = server_stream.expect("Accept failed");
 
     println!("Connected!");
 

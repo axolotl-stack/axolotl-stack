@@ -21,6 +21,27 @@ pub enum NetherNetError {
     #[error("invalid packet")]
     InvalidPacket,
 
+    #[error("remote ICE candidate budget exceeded (maximum {limit})")]
+    TooManyIceCandidates { limit: usize },
+
+    #[error("invalid stream configuration: {0}")]
+    InvalidConfiguration(&'static str),
+
+    #[error("message size {size} exceeds limit {limit}")]
+    MessageTooLarge { size: usize, limit: usize },
+
+    #[error("message requires {count} segments; maximum is 255")]
+    TooManySegments { count: usize },
+
+    #[error("invalid segment count: expected {expected}, got {actual}")]
+    InvalidSegmentCount { expected: u8, actual: u8 },
+
+    #[error("fragment reassembly timed out")]
+    ReassemblyTimeout,
+
+    #[error("invalid SDP max-message-size")]
+    InvalidMaxMessageSize,
+
     #[error("signal error (code {code}): {message}")]
     SignalError {
         code: SignalErrorCode,
