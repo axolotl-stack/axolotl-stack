@@ -145,7 +145,7 @@ fn handle_item_stack_request(
                         };
 
                         if dest_container
-                            == EnumsContainerEnumName::CombinedHotbarAndInventoryContainer
+                            == EnumsContainerEnumName::Combinedhotbarandinventorycontainer
                             && let Ok((mut inv, _, _, _, _)) = players.get_mut(entity)
                         {
                             let _ = inv.0.set_item(dest_slot, item.clone());
@@ -161,12 +161,12 @@ fn handle_item_stack_request(
                                 requested_slot: dest_slot as u8,
                                 slot: dest_slot as u8,
                                 amount: item.count,
-                                item_stack_net_id: Some(Some(
+                                item_stack_net_id: Some(
                                     TypedServerNetIdstructItemStackNetIdTagint32T0 { id: stack_id },
-                                )),
+                                ),
                                 custom_name: BedrockSafetyRedactableString {
                                     unredacted: String::new(),
-                                    redacted: String::new(),
+                                    redacted: None,
                                 },
                                 durability_correction: 0,
                             }],
@@ -198,7 +198,7 @@ fn handle_item_stack_request(
                     client_request_id: TypedClientNetIdstructItemStackRequestIdTagint32T0 {
                         id: request_id,
                     },
-                    containers: Some(Some(response_containers)),
+                    containers: Some(response_containers),
                 }],
             };
             let _ = session.send(McpePacket::from(response));
@@ -275,7 +275,7 @@ fn handle_interact(
     debug!(entity = ?entity, action = ?pk.action, "Interact packet");
 
     match pk.action {
-        EnumsInteractPacketPayloadAction::OpenInventory => {
+        EnumsInteractPacketPayloadAction::Openinventory => {
             // Check if already open
             if let Ok((_, _, opened, _, _)) = players.get(entity)
                 && opened.0
@@ -301,7 +301,7 @@ fn handle_interact(
                 opened.0 = true;
             }
         }
-        EnumsInteractPacketPayloadAction::InteractUpdate => {}
+        EnumsInteractPacketPayloadAction::Interactupdate => {}
         _ => {
             debug!(entity = ?entity, action = ?pk.action, "Unhandled Interact action");
         }
@@ -321,18 +321,13 @@ fn handle_inventory_transaction(
     )>,
     events: &mut ResMut<InventoryEvents>,
 ) {
-    let Some(transaction) = &pk.transaction else {
-        debug!("InventoryTransaction without transaction data");
-        return;
-    };
+    let transaction = &pk.transaction;
 
     info!(transaction = ?transaction, "InventoryTransaction");
 
     match transaction {
         InventoryTransactionPacketTransaction::NormalTransactionData(normal) => {
-            if let Some(actions) = normal.actions.actions.as_deref() {
-                handle_normal_transaction(entity, actions, items, players);
-            }
+            handle_normal_transaction(entity, &normal.actions.actions, items, players);
         }
         InventoryTransactionPacketTransaction::InventoryMismatchData(_) => {
             debug!("Inventory mismatch - should resend inventory");
@@ -370,7 +365,7 @@ fn handle_normal_transaction(
 ) {
     for action in actions {
         match action.source.source_type {
-            EnumsInventorySourceType::CreativeInventory => {
+            EnumsInventorySourceType::Creativeinventory => {
                 if action.to_item.id != 0 {
                     let count = action.to_item.stacksize;
                     info!(
@@ -379,8 +374,8 @@ fn handle_normal_transaction(
                     );
                 }
             }
-            EnumsInventorySourceType::WorldInteraction => {}
-            EnumsInventorySourceType::ContainerInventory => {
+            EnumsInventorySourceType::Worldinteraction => {}
+            EnumsInventorySourceType::Containerinventory => {
                 let slot = action.slot as usize;
 
                 if action.to_item.id != 0 {

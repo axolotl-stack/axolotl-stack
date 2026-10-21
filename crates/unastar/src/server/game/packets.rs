@@ -145,23 +145,23 @@ impl GameServer {
                     q.0.push((entity, InventoryAction::Interact(pk)));
                 }
             }
-            McpePacketData::InventoryTransactionPacket(mut pk) => {
+            McpePacketData::InventoryTransactionPacket(pk) => {
                 use jolyne::valentine::types::{
                     EnumsItemUseInventoryTransactionActionType,
                     InventoryTransactionPacketTransaction,
                 };
 
                 let is_click_block = matches!(
-                    pk.transaction.as_ref(),
-                    Some(InventoryTransactionPacketTransaction::ItemUseInventoryTransaction(
+                    &pk.transaction,
+                    InventoryTransactionPacketTransaction::ItemUseInventoryTransaction(
                         use_item,
-                    )) if use_item.action_type == EnumsItemUseInventoryTransactionActionType::Place
+                    ) if use_item.action_type == EnumsItemUseInventoryTransactionActionType::Place
                 );
 
                 if is_click_block {
-                    if let Some(InventoryTransactionPacketTransaction::ItemUseInventoryTransaction(
+                    if let InventoryTransactionPacketTransaction::ItemUseInventoryTransaction(
                         use_item,
-                    )) = pk.transaction.take()
+                    ) = pk.transaction
                         && let Some(mut q) = world.get_resource_mut::<BlockPacketQueue>()
                     {
                         q.0.push((entity, BlockAction::BlockClick(*use_item)));

@@ -123,7 +123,7 @@ fn handle_subchunk_request(
             entries.push(SubChunkPacketPayloadSubChunkPacketData {
                 sub_chunk_pos_offset: offset.clone(),
                 sub_chunk_request_result:
-                    EnumsSubChunkPacketPayloadSubChunkRequestResult::IndexOutOfBounds,
+                    EnumsSubChunkPacketPayloadSubChunkRequestResult::Indexoutofbounds,
                 serialized_sub_chunk: None,
                 height_map_data: empty_height_map_data(),
                 blob_id: None,
@@ -137,7 +137,7 @@ fn handle_subchunk_request(
             entries.push(SubChunkPacketPayloadSubChunkPacketData {
                 sub_chunk_pos_offset: offset.clone(),
                 sub_chunk_request_result:
-                    EnumsSubChunkPacketPayloadSubChunkRequestResult::SuccessAllAir,
+                    EnumsSubChunkPacketPayloadSubChunkRequestResult::Successallair,
                 serialized_sub_chunk: None,
                 height_map_data: empty_height_map_data(),
                 blob_id: None,
@@ -150,7 +150,7 @@ fn handle_subchunk_request(
             entries.push(SubChunkPacketPayloadSubChunkPacketData {
                 sub_chunk_pos_offset: offset.clone(),
                 sub_chunk_request_result:
-                    EnumsSubChunkPacketPayloadSubChunkRequestResult::LevelChunkDoesntExist,
+                    EnumsSubChunkPacketPayloadSubChunkRequestResult::Levelchunkdoesntexist,
                 serialized_sub_chunk: None,
                 height_map_data: empty_height_map_data(),
                 blob_id: None,
@@ -182,19 +182,19 @@ fn handle_subchunk_request(
 
         let (ht, hm) = chunk_data.inner.get_subchunk_heightmap(sub_y);
         let hm_type = match ht {
-            HeightMapType::TooHigh => EnumsSubChunkPacketPayloadHeightMapDataType::AllTooHigh,
-            HeightMapType::TooLow => EnumsSubChunkPacketPayloadHeightMapDataType::AllTooLow,
-            HeightMapType::HasData => EnumsSubChunkPacketPayloadHeightMapDataType::HasData,
+            HeightMapType::TooHigh => EnumsSubChunkPacketPayloadHeightMapDataType::Alltoohigh,
+            HeightMapType::TooLow => EnumsSubChunkPacketPayloadHeightMapDataType::Alltoolow,
+            HeightMapType::HasData => EnumsSubChunkPacketPayloadHeightMapDataType::Hasdata,
         };
         let render_hm_type = match ht {
             HeightMapType::TooHigh => {
-                SubChunkPacketPayloadHeightmapDataRenderHeightMapType::AllTooHigh
+                SubChunkPacketPayloadHeightmapDataRenderHeightMapType::Alltoohigh
             }
             HeightMapType::TooLow => {
-                SubChunkPacketPayloadHeightmapDataRenderHeightMapType::AllTooLow
+                SubChunkPacketPayloadHeightmapDataRenderHeightMapType::Alltoolow
             }
             HeightMapType::HasData => {
-                SubChunkPacketPayloadHeightmapDataRenderHeightMapType::HasData
+                SubChunkPacketPayloadHeightmapDataRenderHeightMapType::Hasdata
             }
         };
         let height_map_data = SubChunkPacketPayloadHeightmapData {
@@ -205,7 +205,7 @@ fn handle_subchunk_request(
         };
 
         let result = if is_empty {
-            EnumsSubChunkPacketPayloadSubChunkRequestResult::SuccessAllAir
+            EnumsSubChunkPacketPayloadSubChunkRequestResult::Successallair
         } else {
             EnumsSubChunkPacketPayloadSubChunkRequestResult::Success
         };
@@ -248,13 +248,13 @@ fn handle_subchunk_request(
 
 fn empty_height_map_data() -> SubChunkPacketPayloadHeightmapData {
     SubChunkPacketPayloadHeightmapData {
-        height_map_type: EnumsSubChunkPacketPayloadHeightMapDataType::AllTooLow,
+        height_map_type: EnumsSubChunkPacketPayloadHeightMapDataType::Alltoolow,
         subchunk_height_map: None,
-        render_height_map_type: SubChunkPacketPayloadHeightmapDataRenderHeightMapType::AllTooLow,
+        render_height_map_type: SubChunkPacketPayloadHeightmapDataRenderHeightMapType::Alltoolow,
         subchunk_render_height_map: None,
     }
 }
 
-fn height_map(map: [u8; 256]) -> [[i8; 16]; 16] {
-    std::array::from_fn(|z| std::array::from_fn(|x| map[(z << 4) | x] as i8))
+fn height_map(map: [u8; 256]) -> [Vec<i8>; 16] {
+    std::array::from_fn(|z| (0..16).map(|x| map[(z << 4) | x] as i8).collect())
 }
