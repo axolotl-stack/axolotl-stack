@@ -1,0 +1,16 @@
+# Server latency probes carry wall-clock creation times; retain the reply flag.
+timestamps = true
+# Simulation clocks start separately for each new world/session; preserve other movement fields.
+ticks = true
+# Command request UUID/request ID identify one invocation, not its semantic content.
+uuids = true
+# Loading screen IDs correlate one local loading screen; preserve presence and screen type.
+loading_screen_ids = true
+# Decode JWT JSON and remove only listed volatile claims and signatures. Preserve all other claims.
+jwt = true
+# Pairwise absolute tolerance, not rounding: values farther apart remain different. NaNs/infinities remain raw.
+float_tolerance = 0.0001
+# JWT issuance/expiry times are session-specific.
+# Public keys and signatures are fresh cryptographic material, not protocol divergence.
+# Identity UUIDs, device/session IDs, and random IDs are session identifiers.
+jwt_fields = ["iat", "nbf", "exp", "identityPublicKey", "x5u", "cpk", "leguuid", "identity", "DeviceId", "ClientRandomId", "SelfSignedId", "PlayFabId", "salt"]

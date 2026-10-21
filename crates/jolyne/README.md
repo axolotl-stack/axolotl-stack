@@ -105,6 +105,17 @@ jolyne = "0.1"
 
 ### Example: Simple Bot (Client)
 
+For client instrumentation or caller-supplied identity JWTs, the `Login` state
+also exposes `send_login_with_tokens(auth_info_json, client_data_jwt)`. This
+sends the supplied authentication JSON and signed client-data token without
+regenerating their identity fields; the caller must use the matching private
+key for `await_handshake`. The normal `send_login(&ClientHandshakeConfig)`
+continues to generate tokens internally.
+
+The offline vanilla differential harness lives in
+[`tools/client-diff`](../../tools/client-diff/README.md). Its acceptance report
+distinguishes successful joins from server-rejected login captures.
+
 ```rust,no_run
 use jolyne::stream::client::ClientHandshakeConfig;
 use jolyne::stream::BedrockStream;
@@ -121,7 +132,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = ClientHandshakeConfig::random(addr, "JolyneBot");
 
     // 3. Join (Handles auth, encryption, resource packs)
-    let mut client = handshake.join(config).await?;
+    let (mut client, _game_data) = handshake.join(config).await?;
     
     // Send a chunk radius request (could be anything.)
     let req = RequestChunkRadiusPacket {

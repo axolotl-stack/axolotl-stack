@@ -1,0 +1,25 @@
+[package]
+name = "client-diff"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+base64.workspace = true
+bytes.workspace = true
+clap.workspace = true
+hex.workspace = true
+jolyne = { workspace = true, features = ["client", "raknet"] }
+p384.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "net"] }
+toml = "0.8"
+uuid = { workspace = true, features = ["serde"] }
+valentine = { workspace = true, features = ["bedrock_1_26_51"] }
+tokio-raknet.workspace = true
+aes.workspace = true
+ctr.workspace = true
+sha2.workspace = true
+flate2.workspace = true
+snap.workspace = true
