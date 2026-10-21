@@ -6,34 +6,36 @@ It re-exports generated version crates behind feature flags and keeps the shared
 
 ## Current Workspace Version
 
-The checked-in workspace currently exposes:
+The checked-in workspace targets Bedrock **26.51**, network protocol **2193**.
+The canonical protocolgen manifest labels this release `1.26.51`; Valentine
+uses that schema label for its module and Cargo feature names.
 
-- `bedrock_1_26_44`
-- `valentine::bedrock::protocol::v1_26_44::*`
-- `valentine::bedrock::version::v1_26_44::*`
-- `valentine::bedrock::v1_26_44::*` (compatibility alias)
+- `bedrock_1_26_51` (default feature)
+- `valentine::bedrock::protocol::v1_26_51::*`
+- `valentine::bedrock::version::v1_26_51::*`
+- `valentine::bedrock::v1_26_51::*` (compatibility alias)
 
-`bedrock_1_26_44` is also the default feature in [`Cargo.toml`](Cargo.toml).
+The `1.26.44` generated crate remains available for older clients.
 
 ## Layout
 
 - `src/bedrock/`: shared Bedrock-facing API, version aliases, codec/context/error re-exports
 - `bedrock_core/`: shared codec/runtime primitives used by every generated version crate
-- `bedrock_versions/v1_26_44/`: generated protocol crate for the current version
+- `bedrock_versions/v1_26_51/`: generated protocol crate for the current version
 
 ## Import Paths
 
 Prefer:
 
 ```rust
-use valentine::bedrock::version::v1_26_44::*;
+use valentine::bedrock::version::v1_26_51::*;
 ```
 
 Compatibility aliases still exist:
 
 ```rust
-use valentine::bedrock::v1_26_44::*;
-use valentine::bedrock::protocol::v1_26_44::*;
+use valentine::bedrock::v1_26_51::*;
+use valentine::bedrock::protocol::v1_26_51::*;
 ```
 
 Use `protocol::vX_Y_Z` when you explicitly want the raw generated version crate/module layout.

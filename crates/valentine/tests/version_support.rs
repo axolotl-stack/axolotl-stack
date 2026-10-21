@@ -29,3 +29,13 @@ fn exposes_bedrock_1_26_44_with_protocol_2168() {
     assert_eq!(v1_26_44::INFO.minecraft_version, "1.26.44");
     assert_eq!(v1_26_44::INFO.protocol_version, 2168);
 }
+
+#[cfg(feature = "bedrock_1_26_51")]
+#[test]
+fn exposes_bedrock_1_26_51_with_protocol_2193() {
+    use valentine::bedrock::version::v1_26_51;
+    assert_eq!(v1_26_51::GAME_VERSION, "1.26.51");
+    assert_eq!(v1_26_51::PROTOCOL_VERSION, 2193);
+    assert_eq!(v1_26_51::INFO.minecraft_version, "1.26.51");
+    assert_eq!(v1_26_51::INFO.protocol_version, 2193);
+}

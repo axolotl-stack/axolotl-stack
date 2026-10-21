@@ -15,8 +15,9 @@ use crate::entity::components::transform::Position;
 use crate::entity::components::{PlayerName, PlayerSession, PlayerUuid, RuntimeEntityId};
 use crate::world::ecs::ChunkLoader;
 use jolyne::valentine::types::{
-    ActorRuntimeId, EnumsPlayerPositionModeComponentPositionMode, PlayerInputTick, TextPacketBody,
-    TextPacketPayloadAuthorAndMessage, Vec2, Vec3,
+    ActorRuntimeId, EnumsPlayerPositionModeComponentPositionMode, EnumsTextPacketType,
+    PlayerInputTick, TextPacketBody, TextPacketPayloadAuthorAndMessage,
+    TextPacketPayloadAuthorAndMessageMessageType, Vec2, Vec3,
 };
 use jolyne::valentine::{McpePacket, MovePlayerPacket, MovePlayerTeleportData, TextPacket};
 
@@ -66,10 +67,13 @@ fn handle_text(
     events: &mut ResMut<ChatEvents>,
 ) {
     let message = match &pk.body {
-        TextPacketBody::Chat(ann)
-        | TextPacketBody::Announcement(ann)
-        | TextPacketBody::Whisper(ann) => ann.message.clone(),
-        TextPacketBody::Raw(message) | TextPacketBody::SystemMessage(message) => {
+        TextPacketBody::AuthorAndMessage(author) => author.message.clone(),
+        TextPacketBody::MessageOnly(message)
+            if matches!(
+                message.message_type,
+                EnumsTextPacketType::Raw | EnumsTextPacketType::Systemmessage
+            ) =>
+        {
             message.message.clone()
         }
         _ => String::new(),
@@ -86,7 +90,9 @@ fn handle_text(
         .unwrap_or_else(|_| ("Unknown".to_string(), String::new()));
 
     match &pk.body {
-        TextPacketBody::Chat(_) => {
+        TextPacketBody::AuthorAndMessage(author)
+            if author.message_type == TextPacketPayloadAuthorAndMessageMessageType::Chat =>
+        {
             info!(sender = %sender_name, message = %message, "Chat message");
 
             events.0.push(ServerEvent::PlayerChat {
@@ -97,8 +103,8 @@ fn handle_text(
 
             let broadcast_packet = TextPacket {
                 localize: false,
-                message_category: 1,
-                body: TextPacketBody::Chat(TextPacketPayloadAuthorAndMessage {
+                body: TextPacketBody::AuthorAndMessage(TextPacketPayloadAuthorAndMessage {
+                    message_type: TextPacketPayloadAuthorAndMessageMessageType::Chat,
                     player_name: sender_name,
                     message,
                 }),
@@ -113,7 +119,9 @@ fn handle_text(
                 }
             }
         }
-        TextPacketBody::Whisper(_) => {
+        TextPacketBody::AuthorAndMessage(author)
+            if author.message_type == TextPacketPayloadAuthorAndMessageMessageType::Whisper =>
+        {
             debug!(sender = %sender_name, message = %message, "Whisper (not fully implemented)");
         }
         _ => {

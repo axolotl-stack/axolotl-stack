@@ -3,7 +3,7 @@ use criterion::{BatchSize, Criterion, black_box, criterion_group, criterion_main
 
 use valentine::bedrock::borrowed::RawMcpeFrame;
 use valentine::bedrock::codec::{BedrockCodec, BedrockSized};
-use valentine::bedrock::version::v1_26_44::*;
+use valentine::bedrock::version::v1_26_51::*;
 use valentine_bedrock_core::bedrock::codec::Nbt;
 
 fn sample_disconnect_packet() -> DisconnectPacket {
@@ -27,8 +27,8 @@ fn sample_login_packet() -> LoginPacket {
 fn sample_text_packet() -> TextPacket {
     TextPacket {
         localize: false,
-        message_category: 0,
-        body: TextPacketBody::Chat(TextPacketPayloadAuthorAndMessage {
+        body: TextPacketBody::AuthorAndMessage(TextPacketPayloadAuthorAndMessage {
+            message_type: TextPacketPayloadAuthorAndMessageMessageType::Chat,
             player_name: "PlayerName".to_string(),
             message: "Hello, world!".repeat(8),
         }),
@@ -64,7 +64,7 @@ fn sample_start_game_packet() -> StartGamePacket {
             block_definition: Nbt::default(),
         }],
         multiplayer_correlation_id: "".to_string(),
-        server_version: "1.26.44".to_string(),
+        server_version: "1.26.51".to_string(),
         world_template_id: uuid::Uuid::nil(),
         ..Default::default()
     }

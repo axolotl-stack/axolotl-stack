@@ -85,9 +85,9 @@ impl<T: Transport> BedrockStream<Handshake, Server, T> {
 
                 if client_protocol != server_protocol {
                     let status = if client_protocol < server_protocol {
-                        PlayStatusPacketStatus::LoginFailedClientOld
+                        PlayStatusPacketStatus::LoginfailedClientold
                     } else {
-                        PlayStatusPacketStatus::LoginFailedServerOld
+                        PlayStatusPacketStatus::LoginfailedServerold
                     };
 
                     self.transport
@@ -107,7 +107,7 @@ impl<T: Transport> BedrockStream<Handshake, Server, T> {
 
                 let settings = NetworkSettingsPacket {
                     compression_threshold: listener_config.compression_threshold,
-                    compression_algorithm: NetworkSettingsPacketCompressionAlgorithm::ZLib,
+                    compression_algorithm: NetworkSettingsPacketCompressionAlgorithm::Zlib,
                     client_throttle_enabled: false,
                     client_throttle_threshold: 0,
                     client_throttle_scalar: 0.0,
@@ -247,7 +247,7 @@ impl<T: Transport> BedrockStream<SecurePending, Server, T> {
 
         self.transport
             .send_batch(&[McpePacket::from(PlayStatusPacket {
-                status: PlayStatusPacketStatus::LoginSuccess,
+                status: PlayStatusPacketStatus::Loginsuccess,
             })])
             .await?;
 
@@ -482,7 +482,7 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
                 McpePacket::from(params.available_entities.as_ref().clone()),
                 McpePacket::from(params.creative_content.as_ref().clone()),
                 McpePacket::from(PlayStatusPacket {
-                    status: PlayStatusPacketStatus::PlayerSpawn,
+                    status: PlayStatusPacketStatus::Playerspawn,
                 }),
             ])
             .await?;
@@ -496,7 +496,7 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
 
                 if let McpePacketData::ServerboundLoadingScreenPacket(pk) = pkt.data
                     && pk.loading_screen_packet_type
-                        == EnumsServerboundLoadingScreenPacketType::StartLoadingScreen
+                        == EnumsServerboundLoadingScreenPacketType::Startloadingscreen
                 {
                     return Ok::<_, JolyneError>(());
                 }
@@ -513,7 +513,7 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
 
                 if let McpePacketData::ServerboundLoadingScreenPacket(pk) = pkt.data
                     && pk.loading_screen_packet_type
-                        == EnumsServerboundLoadingScreenPacketType::EndLoadingScreen
+                        == EnumsServerboundLoadingScreenPacketType::Endloadingscreen
                 {
                     return Ok::<_, JolyneError>(());
                 }
@@ -597,10 +597,9 @@ mod tests {
     use crate::batch::{decode_batch, encode_batch_multi};
     use crate::stream::transport::{BedrockTransport, TransportMessage, TransportRecvMessage};
     use crate::valentine::{
-        ClientCacheStatusPacket, ResourcePackClientResponsePacket,
-        ResourcePackClientResponsePacketPayloadDownloadingFinished,
-        ResourcePackClientResponsePacketPayloadResourcePackStackFinished,
-        ResourcePackClientResponsePacketResponse,
+        ClientCacheStatusPacket, ResourcePackClientResponseDownloadingFinishedjson,
+        ResourcePackClientResponsePacket, ResourcePackClientResponsePacketResponse,
+        ResourcePackClientResponseResourcePackStackFinishedjson,
     };
     use bytes::Bytes;
     use std::collections::VecDeque;
@@ -678,14 +677,14 @@ mod tests {
             })),
             compressed_frame(McpePacket::from(ResourcePackClientResponsePacket {
                 response: ResourcePackClientResponsePacketResponse::DownloadingFinished(
-                    ResourcePackClientResponsePacketPayloadDownloadingFinished {
+                    ResourcePackClientResponseDownloadingFinishedjson {
                         response_type: "downloadingfinished".into(),
                     },
                 ),
             })),
             compressed_frame(McpePacket::from(ResourcePackClientResponsePacket {
                 response: ResourcePackClientResponsePacketResponse::ResourcePackStackFinished(
-                    ResourcePackClientResponsePacketPayloadResourcePackStackFinished {
+                    ResourcePackClientResponseResourcePackStackFinishedjson {
                         response_type: "resourcepackstackfinished".into(),
                     },
                 ),

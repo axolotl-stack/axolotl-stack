@@ -709,6 +709,7 @@ impl PluginManager {
             use crate::entity::components::{PlayerName, PlayerSession};
             use jolyne::valentine::{
                 McpePacket, TextPacket, TextPacketBody, TextPacketPayloadAuthorAndMessage,
+                TextPacketPayloadAuthorAndMessageMessageType,
             };
 
             let sender_name = world
@@ -718,9 +719,8 @@ impl PluginManager {
 
             let packet = TextPacket {
                 localize: false,
-                // TextPacketCategory::Authored in the pre-generated facade is wire value 1.
-                message_category: 1,
-                body: TextPacketBody::Chat(TextPacketPayloadAuthorAndMessage {
+                body: TextPacketBody::AuthorAndMessage(TextPacketPayloadAuthorAndMessage {
+                    message_type: TextPacketPayloadAuthorAndMessageMessageType::Chat,
                     player_name: sender_name.clone(),
                     message: message.clone(),
                 }),

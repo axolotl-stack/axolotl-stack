@@ -66,7 +66,7 @@ impl Default for WorldTemplate {
             game_difficulty: EnumsSharedTypesLegacyDifficulty::Peaceful,
             default_spawn_block_position: BlockPos { x: 0, y: 0, z: 0 },
             achievements_disabled: true,
-            editor_world_type: EnumsEditorWorldType::NonEditor,
+            editor_world_type: EnumsEditorWorldType::Noneditor,
             education_edition_offer: EnumsEducationEditionOffer::None,
             education_features_enabled: false,
             education_product_id: String::new(),
@@ -74,8 +74,8 @@ impl Default for WorldTemplate {
             lightning_level: 0.0,
             multiplayer_game_intent: true,
             lan_broadcast_intent: false,
-            xbox_live_broadcast_setting: EnumsSocialGamePublishSetting::NoMultiPlay,
-            platform_broadcast_setting: EnumsSocialGamePublishSetting::NoMultiPlay,
+            xbox_live_broadcast_setting: EnumsSocialGamePublishSetting::Nomultiplay,
+            platform_broadcast_setting: EnumsSocialGamePublishSetting::Nomultiplay,
             commands_enabled: true,
             texture_packs_required: false,
             rule_data: GameRulesChangedPacketData { rules_list: vec![] },
@@ -109,7 +109,7 @@ impl Default for WorldTemplate {
             override_force_experimental_gameplay: None,
             chat_restriction_level: EnumsChatRestrictionLevel::None,
             disable_player_interactions: false,
-            server_editor_connection_policy: EnumsServerEditorConnectionPolicy::MatchWorldType,
+            server_editor_connection_policy: EnumsServerEditorConnectionPolicy::Matchworldtype,
             allow_anonymous_block_drops_in_editor_worlds: false,
             ..Default::default()
         };

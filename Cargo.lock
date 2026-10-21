@@ -4760,6 +4760,7 @@ dependencies = [
  "valentine_bedrock_1_26_30",
  "valentine_bedrock_1_26_40",
  "valentine_bedrock_1_26_44",
+ "valentine_bedrock_1_26_51",
  "valentine_bedrock_core",
 ]
 
@@ -4795,6 +4796,16 @@ dependencies = [
 
 [[package]]
 name = "valentine_bedrock_1_26_44"
+version = "0.1.0"
+dependencies = [
+ "bitflags 2.10.0",
+ "bytes",
+ "uuid",
+ "valentine_bedrock_core",
+]
+
+[[package]]
+name = "valentine_bedrock_1_26_51"
 version = "0.1.0"
 dependencies = [
  "bitflags 2.10.0",

@@ -12,12 +12,18 @@ git submodule update --init --recursive
 ```
 
 The pinned protocolgen submodule is the default source. This command regenerates
-the checked-in 1.26.44 protocol crate from its canonical manifest:
+the checked-in stable Bedrock 26.51 protocol (protocolgen schema label
+`1.26.51`, network protocol `2193`) from its canonical manifest:
 
 ```bash
 cargo run -p valentine_gen -- --latest
 cargo fmt --all
 ```
+
+Minecraft's player-facing version numbering uses the year prefix (`26.51`).
+Protocolgen manifests retain the `1.26.51` schema label used for generated
+module/feature names. The `1.26.50` manifest in protocolgen is Preview 25,
+protocol 2187; it is not the stable 26.50 release (protocol 2193).
 
 An alternate canonical manifest may be selected with
 `--protocolgen-manifest <FILE>`. Protocolgen provides protocol schemas only.
@@ -46,10 +52,10 @@ gate.
 Protocolgen input is already a canonical wire manifest, so
 `--emit-wire-manifest` is intentionally rejected with the default source.
 
-`--mojang-docs <DIR>` selects any other docs checkout without changing the
-submodule pin. For example, maintainers can inspect Mojang main/protocol 2169 in
-a scratch checkout while the repository remains pinned to the live-server 2168
-target. `--overrides <DIR>` similarly selects an alternate correction set.
+`--mojang-docs <DIR>` selects a separate docs checkout without changing the
+pinned canonical input. Keep scratch comparisons isolated from checked-in
+outputs, and verify the exact protocol version against the stable protocol
+changelog before using a schema as a release target.
 
 ## Mojang version mapping and pin policy
 
@@ -66,27 +72,14 @@ stamp `x-minecraft-version: 1.26.40-beta.0` and `x-protocol-version: 2168`;
 Valentine normalizes the prerelease metadata suffix to crate/module version
 `v1_26_40` while retaining protocol 2168.
 
-This is intentionally not Mojang main/`r/26_u4` (1.26.50/protocol 2169).
-Cinnabar is a client and must advertise the protocol accepted by live 1.26.40
-through 1.26.44 servers. Those servers reject RequestNetworkSettings advertising 2169, and
-using the newer layouts would also misparse TextData and persona animated
-texture enums. Cinnabar's preceding target is protocol 1001, verified against
-live BDS 1.26.32.2; protocol 2168 is its next interoperable target. Both
-independent hand-written implementations used as oracles—gophertunnel and
-Cloudburst—implement 2168, while neither implements 2169.
+The current supported stable target is Bedrock 26.51 (protocolgen schema label
+`1.26.51`, network protocol 2193). The canonical manifest and its source
+fingerprints are pinned under `protocolgen/generated/1.26.51/`.
 
-Ignoring version/format stamp lines, 968 of 971 JSON schemas are identical
-between this pin and main. The complete known 2168-to-2169 wire delta is:
-
-- `RequestNetworkSettingsPacketPayload.json`: protocol constant 2168 becomes
-  2169.
-- `TextDataPayload.json`: 2169 adds `LineGapHeight` (`F32LE`) at ordinal 4 and
-  shifts the following field.
-- `persona__AnimatedTextureType.json`: 2169 adds a leading `None`, shifting all
-  following discriminants by one.
-
-Main also has `__protocoldoc.json`; this pin does not need it because its corpus
-has zero dangling references.
+The older 1.26.40 and 1.26.44 crates remain available as compatibility
+versions. Do not treat `generated/1.26.50/` as the stable release: it captures
+Preview 25 and protocol 2187. Stable 26.50 and 26.51 use protocol 2193; the
+26.51 hotfix has no packet changes relative to stable 26.50.
 
 ## Mojang corrections and conformance
 

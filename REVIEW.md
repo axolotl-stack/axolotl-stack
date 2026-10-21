@@ -3,6 +3,9 @@
 **Date**: December 2025
 **Scope**: Full architecture review with focus on code generation strategy and data sources
 
+> This December 2025 review is historical. Current readiness findings, branch disposition, and verification are recorded in [MAINTENANCE_AUDIT.md](MAINTENANCE_AUDIT.md) (2026-09-25).
+
+
 ---
 
 ## Executive Summary

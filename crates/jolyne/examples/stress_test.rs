@@ -171,7 +171,7 @@ async fn spawn_client(addr: SocketAddr, name: &str, duration: u64) -> anyhow::Re
                 y: angle.sin(),
             },
             player_head_rotation: angle.to_degrees(),
-            input_data: None,
+            input_data: vec![],
             input_mode: Default::default(),
             play_mode: Default::default(),
             new_interaction_model: Default::default(),

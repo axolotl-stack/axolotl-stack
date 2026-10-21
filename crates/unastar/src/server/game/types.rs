@@ -12,7 +12,10 @@ use tokio::sync::mpsc;
 use crate::config::PlayerLastPosition;
 use crate::network::SessionId;
 
-use jolyne::valentine::{TextPacket, TextPacketBody, TextPacketPayloadAuthorAndMessage};
+use jolyne::valentine::{
+    TextPacket, TextPacketBody, TextPacketPayloadAuthorAndMessage,
+    TextPacketPayloadAuthorAndMessageMessageType,
+};
 
 /// Wrapper for WorldTemplate to serve as an ECS Resource.
 #[derive(Resource)]
@@ -101,8 +104,8 @@ pub struct PlayerPersistenceData {
 pub fn system_text(message: &str) -> TextPacket {
     TextPacket {
         localize: false,
-        message_category: 1,
-        body: TextPacketBody::Chat(TextPacketPayloadAuthorAndMessage {
+        body: TextPacketBody::AuthorAndMessage(TextPacketPayloadAuthorAndMessage {
+            message_type: TextPacketPayloadAuthorAndMessageMessageType::Chat,
             player_name: "§eServer§r".to_string(),
             message: message.to_string(),
         }),

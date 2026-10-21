@@ -33,3 +33,7 @@ worlds/
 /broadcastergophertunnel/
 nul
 /.omx/
+
+# Local compiler crash dumps and generator error token dumps.
+/rustc-ice-*.txt
+debug_gen_error_*.rs

@@ -221,7 +221,7 @@ impl ItemRegistry {
 fn itemstate_version(version: i32) -> jolyne::valentine::EnumsItemVersion {
     match version {
         0 => EnumsItemVersion::Legacy,
-        1 => EnumsItemVersion::DataDriven,
+        1 => EnumsItemVersion::Datadriven,
         2 => EnumsItemVersion::None,
         other => EnumsItemVersion::Unknown(other),
     }
@@ -263,7 +263,7 @@ mod tests {
         assert!(item.is_component_based);
         assert_eq!(
             item.item_version,
-            jolyne::valentine::EnumsItemVersion::DataDriven
+            jolyne::valentine::EnumsItemVersion::Datadriven
         );
     }
 

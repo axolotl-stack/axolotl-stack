@@ -255,7 +255,7 @@ impl ExtractedData {
                 .map(|item| {
                     let version_str = match item.item_version {
                         jolyne::valentine::types::EnumsItemVersion::Legacy => "legacy".to_string(),
-                        jolyne::valentine::types::EnumsItemVersion::DataDriven => {
+                        jolyne::valentine::types::EnumsItemVersion::Datadriven => {
                             "data_driven".to_string()
                         }
                         jolyne::valentine::types::EnumsItemVersion::None => "none".to_string(),
@@ -518,7 +518,7 @@ mod tests {
                     item_name: "minecraft:stone".to_string(),
                     item_id: 42,
                     is_component_based: true,
-                    item_version: EnumsItemVersion::DataDriven,
+                    item_version: EnumsItemVersion::Datadriven,
                     item_component_data: Nbt::default(),
                 }],
             },

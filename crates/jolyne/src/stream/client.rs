@@ -30,9 +30,9 @@ use crate::valentine::BorrowedMcpePacketData;
 use crate::valentine::{
     ClientCacheStatusPacket, ClientToServerHandshakePacket, ItemRegistryPacket, LoginPacket,
     PlayStatusPacketStatus, RequestChunkRadiusPacket, RequestNetworkSettingsPacket,
-    ResourcePackClientResponsePacket, ResourcePackClientResponsePacketPayloadDownloadingFinished,
-    ResourcePackClientResponsePacketPayloadResourcePackStackFinished,
-    ResourcePackClientResponsePacketResponse, ServerboundLoadingScreenPacket,
+    ResourcePackClientResponseDownloadingFinishedjson, ResourcePackClientResponsePacket,
+    ResourcePackClientResponsePacketResponse,
+    ResourcePackClientResponseResourcePackStackFinishedjson, ServerboundLoadingScreenPacket,
     SetLocalPlayerAsInitializedPacket, StartGamePacket,
 };
 use crate::valentine::{
@@ -216,7 +216,7 @@ impl<T: Transport> BedrockStream<Handshake, Client, T> {
         match settings_pkt.data {
             BorrowedMcpePacketData::NetworkSettingsPacket(settings) => {
                 match settings.compression_algorithm {
-                    NetworkSettingsPacketCompressionAlgorithm::ZLib => {
+                    NetworkSettingsPacketCompressionAlgorithm::Zlib => {
                         self.transport.set_compression_algorithm(
                             true,
                             BatchCompression::Deflate,
@@ -388,7 +388,7 @@ fn observe_login_success_packet(
     early_resource_packs_info: &mut Option<McpePacket>,
 ) -> Result<bool, JolyneError> {
     if let McpePacketData::PlayStatusPacket(status) = &packet.data {
-        if status.status != PlayStatusPacketStatus::LoginSuccess {
+        if status.status != PlayStatusPacketStatus::Loginsuccess {
             return Err(ProtocolError::UnexpectedHandshake(format!(
                 "Login failed: {:?}",
                 status.status
@@ -609,7 +609,7 @@ impl<T: Transport> BedrockStream<SecurePending, Client, T> {
             McpePacketData::PlayStatusPacket(status) => {
                 // Encryption skipped by server?
                 use crate::valentine::PlayStatusPacketStatus;
-                if status.status != PlayStatusPacketStatus::LoginSuccess {
+                if status.status != PlayStatusPacketStatus::Loginsuccess {
                     return Err(ProtocolError::UnexpectedHandshake(format!(
                         "Login failed: {:?}",
                         status.status
@@ -777,7 +777,7 @@ mod tests {
             McpePacket::from(ItemRegistryPacket::default()),
             McpePacket::from(crate::valentine::ChunkRadiusUpdatePacket { chunk_radius: 16 }),
             McpePacket::from(crate::valentine::PlayStatusPacket {
-                status: PlayStatusPacketStatus::PlayerSpawn,
+                status: PlayStatusPacketStatus::Playerspawn,
             }),
         ]
     }
@@ -787,7 +787,7 @@ mod tests {
         let sent = Arc::new(Mutex::new(Vec::new()));
         let inbound = vec![compressed_frame(McpePacket::from(
             crate::valentine::PlayStatusPacket {
-                status: PlayStatusPacketStatus::LoginSuccess,
+                status: PlayStatusPacketStatus::Loginsuccess,
             },
         ))];
 
@@ -1120,7 +1120,7 @@ impl<T: Transport> BedrockStream<ResourcePacks, Client, T> {
         tracing::debug!("Sending HaveAllPacks response...");
         let resp = ResourcePackClientResponsePacket {
             response: ResourcePackClientResponsePacketResponse::DownloadingFinished(
-                ResourcePackClientResponsePacketPayloadDownloadingFinished {
+                ResourcePackClientResponseDownloadingFinishedjson {
                     response_type: "downloadingfinished".into(),
                 },
             ),
@@ -1191,7 +1191,7 @@ impl<T: Transport> BedrockStream<ResourcePacks, Client, T> {
         tracing::debug!("Sending Completed response...");
         let complete = ResourcePackClientResponsePacket {
             response: ResourcePackClientResponsePacketResponse::ResourcePackStackFinished(
-                ResourcePackClientResponsePacketPayloadResourcePackStackFinished {
+                ResourcePackClientResponseResourcePackStackFinishedjson {
                     response_type: "resourcepackstackfinished".into(),
                 },
             ),
@@ -1293,7 +1293,7 @@ impl<T: Transport> BedrockStream<StartGame, Client, T> {
                         unreachable!("packet ID and decoded variant must agree")
                     };
                     tracing::debug!("PlayStatus received: {:?}", status.status);
-                    if status.status == PlayStatusPacketStatus::PlayerSpawn {
+                    if status.status == PlayStatusPacketStatus::Playerspawn {
                         received_player_spawn = true;
                     }
                 }
@@ -1335,7 +1335,7 @@ impl<T: Transport> BedrockStream<StartGame, Client, T> {
                     .send_batch(&[
                         McpePacket::from(ServerboundLoadingScreenPacket {
                             loading_screen_packet_type:
-                                EnumsServerboundLoadingScreenPacketType::StartLoadingScreen,
+                                EnumsServerboundLoadingScreenPacketType::Startloadingscreen,
                             loading_screen_id: None,
                         }),
                         McpePacket::from(RequestChunkRadiusPacket {
@@ -1364,7 +1364,7 @@ impl<T: Transport> BedrockStream<StartGame, Client, T> {
             .send_batch(&[
                 McpePacket::from(ServerboundLoadingScreenPacket {
                     loading_screen_packet_type:
-                        EnumsServerboundLoadingScreenPacketType::EndLoadingScreen,
+                        EnumsServerboundLoadingScreenPacketType::Endloadingscreen,
                     loading_screen_id: None,
                 }),
                 McpePacket::from(SetLocalPlayerAsInitializedPacket {
