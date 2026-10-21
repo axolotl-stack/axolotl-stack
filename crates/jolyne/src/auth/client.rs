@@ -480,7 +480,7 @@ fn generate_chain_internal(
         cape_image_width: 0,
         cape_on_classic_skin: false,
         client_random_id: (rand::random::<u64>() & 0x7FFFFFFFFFFFFFFF) as i64,
-        compatible_with_client_side_chunk_gen: true,
+        compatible_with_client_side_chunk_gen: false,
         current_input_mode: 1, // Mouse/Keyboard
         default_input_mode: 1,
         device_id,
@@ -570,7 +570,7 @@ fn generate_client_data_token(
         cape_image_width: 0,
         cape_on_classic_skin: false,
         client_random_id: (rand::random::<u64>() & 0x7FFFFFFFFFFFFFFF) as i64,
-        compatible_with_client_side_chunk_gen: true,
+        compatible_with_client_side_chunk_gen: false,
         current_input_mode: 1,
         default_input_mode: 1,
         device_id,
@@ -699,5 +699,20 @@ mod tests {
         VerifyingKey::from(key.public_key())
             .verify(format!("{}.{}", parts[0], parts[1]).as_bytes(), &signature)
             .unwrap();
+    }
+
+    #[test]
+    fn client_without_a_chunk_generator_does_not_advertise_one() {
+        let key = SecretKey::from_slice(&[1; 48]).unwrap();
+        for (_, client) in [
+            generate_self_signed_chain(&key, "ClientDiff", Uuid::nil()).unwrap(),
+            encode_with_multiplayer_token(&key, "ClientDiff", Uuid::nil(), "provider-token").unwrap(),
+        ] {
+            let claims: serde_json::Value = serde_json::from_slice(
+                &URL_SAFE_NO_PAD.decode(client.split('.').nth(1).unwrap()).unwrap(),
+            )
+            .unwrap();
+            assert_eq!(claims["CompatibleWithClientSideChunkGen"], false);
+        }
     }
 }

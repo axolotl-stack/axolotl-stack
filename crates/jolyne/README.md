@@ -121,6 +121,8 @@ Offline Login uses `AuthenticationType: 2` with a self-signed multiplayer
 `Token` (`aud`, `cpk`, `xname`, `leguuid`, and empty account-only claims), matching
 the pinned gophertunnel encoder. The identity and client-data JWTs use the same
 P-384 key. A top-level legacy `chain` is not a modern BDS identity token.
+The client does not implement client-side chunk generation and advertises that
+capability as disabled for both offline and provider-token Login.
 
 For modern online Login, acquire a provider multiplayer token bound to the
 connection key (for example with `axolotl_xbl::PlayFabClient::multiplayer_token`),
