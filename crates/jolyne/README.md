@@ -112,6 +112,11 @@ regenerating their identity fields; the caller must use the matching private
 key for `await_handshake`. The normal `send_login(&ClientHandshakeConfig)`
 continues to generate tokens internally.
 
+Client-generated metadata uses Android `DeviceOS: 1`. BDS 1.26.51 rejects the
+retired UWP `DeviceOS: 7` in `ConnectionRequest::isWellFormed`, reporting the
+misleading `readNoHeader failed` before authentication. Caller-supplied metadata
+must likewise identify a supported platform.
+
 The offline vanilla differential harness lives in
 [`tools/client-diff`](../../tools/client-diff/README.md). Its acceptance report
 distinguishes successful joins from server-rejected login captures.

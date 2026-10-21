@@ -475,7 +475,8 @@ fn generate_chain_internal(
         default_input_mode: 1,
         device_id,
         device_model: "JolyneClient".into(),
-        device_os: 7, // Win10
+        // UWP (7) is rejected by retail BDS 1.26.51 before authentication.
+        device_os: 1, // Android
         game_version: crate::valentine::GAME_VERSION.into(),
         graphics_mode: 0,
         gui_scale: 0,
@@ -605,4 +606,36 @@ fn generate_client_data_token(
         .map_err(|e| JolyneError::Auth(crate::error::AuthError::BadSignature(e.to_string())))?;
 
     Ok(client_jwt)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+
+    #[test]
+    fn offline_login_encodes_a_retail_supported_device_os() {
+        let key = SecretKey::from_slice(&[1; 48]).unwrap();
+        let (auth, client) =
+            generate_self_signed_chain(&key, "ClientDiff", Uuid::nil()).unwrap();
+        let request = encode_login_request(&auth, &client);
+        let auth_len = u32::from_le_bytes(request[..4].try_into().unwrap()) as usize;
+        let client_len_offset = 4 + auth_len;
+        let client_len = u32::from_le_bytes(
+            request[client_len_offset..client_len_offset + 4]
+                .try_into()
+                .unwrap(),
+        ) as usize;
+        assert_eq!(request.len(), client_len_offset + 4 + client_len);
+        let token = std::str::from_utf8(&request[client_len_offset + 4..]).unwrap();
+        let claims: serde_json::Value = serde_json::from_slice(
+            &URL_SAFE_NO_PAD.decode(token.split('.').nth(1).unwrap()).unwrap(),
+        )
+        .unwrap();
+        // BDS 1.26.51's isWellFormed uses bit (DeviceOS + 1) of 0x1763d.
+        // UWP (7) fails this check before authentication; Android (1) is supported.
+        let os = claims["DeviceOS"].as_u64().unwrap();
+        assert!(os < 16 && (0x1763d_u32 & (1 << (os + 1))) != 0);
+        assert_eq!(os, 1);
+    }
 }
