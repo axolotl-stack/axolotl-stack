@@ -1,15 +1,16 @@
-use crate::auth::{XblToken, sign_request_for_url, update_server_time_from_header};
+use crate::auth::{XblToken, sign_websocket_request, update_server_time_from_header};
 use crate::error::{XblError, XblResult};
 use futures_util::{SinkExt, StreamExt};
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{Mutex, RwLock};
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 use tracing::{debug, error, info, trace};
 
-const RTA_URL: &str = "wss://rta.xboxlive.com/connect";
+// df-mc/go-xsapi rta/dial.go:connectURL, subprotocol.
+const RTA_URL: &str = crate::constants::endpoints::RTA_WEBSOCKET;
 
 /// Interval between keepalive pings (30 seconds).
 /// Xbox RTA typically expects activity within 60 seconds.
@@ -23,18 +24,12 @@ const MAX_CONNECTION_AGE_SECS: u64 = 75 * 60;
 
 fn format_connect_error(err: tokio_tungstenite::tungstenite::Error) -> XblError {
     match err {
-        tokio_tungstenite::tungstenite::Error::Http(response) => {
-            XblError::XboxLive(format!("RTA connection failed: HTTP {}", response.status()))
-        }
-        other => XblError::XboxLive(format!("RTA connection failed: {}", other)),
+        tokio_tungstenite::tungstenite::Error::Http(response) => XblError::HttpStatus {
+            status: response.status(),
+            operation: "connect RTA",
+        },
+        _ => XblError::XboxLive("RTA connection failed".into()),
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RtaMessage {
-    pub message_type: i32,
-    pub sequence_id: i32,
-    pub payload: Value,
 }
 
 pub type EventHandler = Box<dyn Fn(&Value) + Send + Sync>;
@@ -45,6 +40,10 @@ pub struct RtaClient {
     connection_id: Arc<RwLock<Option<String>>>,
     shutdown: Arc<RwLock<bool>>,
     event_handlers: Arc<Mutex<Vec<EventHandler>>>,
+    subscriptions: Mutex<HashSet<u64>>,
+    resync_handlers: Mutex<Vec<Box<dyn Fn() + Send + Sync>>>,
+    shutdown_notify: tokio::sync::Notify,
+    pending: Mutex<HashSet<u64>>,
 }
 
 impl RtaClient {
@@ -54,6 +53,10 @@ impl RtaClient {
             connection_id: Arc::new(RwLock::new(None)),
             shutdown: Arc::new(RwLock::new(false)),
             event_handlers: Arc::new(Mutex::new(Vec::new())),
+            subscriptions: Mutex::new(HashSet::new()),
+            resync_handlers: Mutex::new(Vec::new()),
+            shutdown_notify: tokio::sync::Notify::new(),
+            pending: Mutex::new(HashSet::new()),
         }
     }
 
@@ -74,23 +77,31 @@ impl RtaClient {
     }
 
     pub async fn connect_and_run(&self) -> XblResult<()> {
+        *self.connection_id.write().await = None;
+        self.subscriptions.lock().await.clear();
+        *self.pending.lock().await = HashSet::from([1]);
+        let result = self.run_connection().await;
+        *self.connection_id.write().await = None;
+        self.subscriptions.lock().await.clear();
+        self.pending.lock().await.clear();
+        result
+    }
+
+    async fn run_connection(&self) -> XblResult<()> {
         let token = self.token.read().await.clone();
-        let authorization = token.auth_header();
-        let signature =
-            sign_request_for_url("GET", RTA_URL, &authorization, b"").map_err(XblError::Auth)?;
         let key = tokio_tungstenite::tungstenite::handshake::client::generate_key();
 
-        let request = tokio_tungstenite::tungstenite::handshake::client::Request::builder()
+        let mut request = tokio_tungstenite::tungstenite::handshake::client::Request::builder()
             .uri(RTA_URL)
-            .header("Authorization", authorization)
-            .header("Signature", signature)
             .header("Sec-WebSocket-Key", key)
             .header("Sec-WebSocket-Version", "13")
+            .header("Sec-WebSocket-Protocol", "rta.xboxlive.com.V2")
             .header("Host", "rta.xboxlive.com")
             .header("Connection", "Upgrade")
             .header("Upgrade", "websocket")
             .body(())
             .map_err(|e| XblError::Auth(e.to_string()))?;
+        sign_websocket_request(&mut request, &token).await?;
 
         info!("Connecting to RTA WebSocket...");
         let (ws_stream, response) = connect_async(request).await.map_err(format_connect_error)?;
@@ -109,7 +120,7 @@ impl RtaClient {
         write
             .send(Message::Text(handshake.to_string()))
             .await
-            .map_err(|e| XblError::XboxLive(format!("Failed to send handshake: {}", e)))?;
+            .map_err(|_| XblError::XboxLive("Failed to send RTA handshake".into()))?;
 
         // 2. Main loop with keepalive
         let keepalive_interval = Duration::from_secs(KEEPALIVE_INTERVAL_SECS);
@@ -129,6 +140,10 @@ impl RtaClient {
 
             tokio::select! {
                 biased;
+                _ = self.shutdown_notify.notified() => {
+                    let _ = write.close().await;
+                    break;
+                }
 
                 // Proactive reconnect for long-running stability.
                 _ = &mut rotate_after => {
@@ -142,11 +157,8 @@ impl RtaClient {
                 // Keepalive ping
                 _ = keepalive_timer.tick() => {
                     trace!("Sending RTA keepalive ping");
-                    if let Err(e) = write.send(Message::Ping(vec![])).await {
-                        return Err(XblError::XboxLive(format!(
-                            "Failed to send RTA keepalive ping: {}",
-                            e
-                        )));
+                    if write.send(Message::Ping(vec![])).await.is_err() {
+                        return Err(XblError::XboxLive("Failed to send RTA keepalive ping".into()));
                     }
                 }
 
@@ -161,8 +173,8 @@ impl RtaClient {
                         }
                         Some(Ok(Message::Ping(data))) => {
                             trace!("Received ping, sending pong");
-                            if let Err(e) = write.send(Message::Pong(data)).await {
-                                error!("Failed to send pong: {}", e);
+                            if write.send(Message::Pong(data)).await.is_err() {
+                                error!("Failed to send RTA pong");
                                 break;
                             }
                         }
@@ -170,7 +182,6 @@ impl RtaClient {
                             if let Some(frame) = frame {
                                 info!(
                                     code = ?frame.code,
-                                    reason = %frame.reason,
                                     "RTA WebSocket closed by server"
                                 );
                             } else {
@@ -178,8 +189,8 @@ impl RtaClient {
                             }
                             break;
                         }
-                        Some(Err(e)) => {
-                            return Err(XblError::XboxLive(format!("RTA WebSocket error: {}", e)));
+                        Some(Err(_)) => {
+                            return Err(XblError::XboxLive("RTA WebSocket read failed".into()));
                         }
                         None => {
                             info!("RTA WebSocket stream ended");
@@ -217,57 +228,77 @@ impl RtaClient {
             Message,
         >,
     ) -> XblResult<()> {
-        // Broadcaster format: [Type, SequenceId, ...data]
-        // We parse as array first
-        let parts: Vec<Value> = serde_json::from_str(text)
-            .map_err(|e| XblError::XboxLive(format!("Failed to parse RTA message: {}", e)))?;
-
-        if parts.is_empty() {
-            return Ok(());
-        }
-
-        let msg_type = parts[0].as_i64().unwrap_or(0);
-
-        // Check for ConnectionId response
-        if text.contains("ConnectionId")
-            && let Some(data) = parts.get(4)
-            && let Some(conn_id) = data.get("ConnectionId").and_then(|v| v.as_str())
-        {
+        // df-mc/go-xsapi rta/conn.go:readHeader, readResponse, handleMessage.
+        let parts = parse_message(text)?;
+        let msg_type = parts[0].as_u64().unwrap_or_default();
+        if msg_type == 1 {
+            let sequence = parts[1].as_u64().unwrap_or_default();
+            let status = parts[2].as_i64().unwrap_or_default();
+            if status != 0 {
+                return Err(XblError::XboxLive(format!(
+                    "RTA subscription failed with code {status}"
+                )));
+            }
+            if !self.pending.lock().await.remove(&sequence) {
+                return Err(XblError::XboxLive(
+                    "Unexpected RTA subscription sequence".into(),
+                ));
+            }
+            let subscription_id = parts
+                .get(3)
+                .and_then(Value::as_u64)
+                .ok_or_else(|| XblError::XboxLive("Missing RTA subscription ID".into()))?;
+            self.subscriptions.lock().await.insert(subscription_id);
+            if sequence == 2 {
+                return Ok(());
+            }
+            let conn_id = parts
+                .get(4)
+                .and_then(|v| v.get("ConnectionId"))
+                .and_then(Value::as_str)
+                .and_then(|v| uuid::Uuid::parse_str(v).ok())
+                .filter(|v| !v.is_nil())
+                .ok_or_else(|| XblError::XboxLive("Missing or invalid RTA connection ID".into()))?
+                .to_string();
             let mut lock = self.connection_id.write().await;
             let previous = lock.clone();
-            *lock = Some(conn_id.to_string());
+            *lock = Some(conn_id.clone());
             drop(lock);
 
-            if previous.as_deref() != Some(conn_id) {
+            if previous.as_deref() != Some(conn_id.as_str()) {
                 info!(previous = ?previous, current = conn_id, "RTA Connection ID updated");
             } else {
                 debug!(current = conn_id, "RTA Connection ID received");
             }
 
-            // Always resubscribe on ConnectionId messages (includes reconnects).
+            // Resource URI: df-mc/go-xsapi social/client.go:New.
             let xuid = self.token.read().await.xuid.clone();
             let sub_msg = serde_json::json!([
                 1,
                 2,
                 format!("https://social.xboxlive.com/users/xuid({})/friends", xuid)
             ]);
+            self.pending.lock().await.insert(2);
 
             write
                 .send(Message::Text(sub_msg.to_string()))
                 .await
-                .map_err(|e| {
-                    XblError::XboxLive(format!("Failed to subscribe to friend feed: {}", e))
-                })?;
+                .map_err(|_| XblError::XboxLive("Failed to subscribe to friend feed".into()))?;
 
             info!(xuid = %xuid, connection_id = conn_id, "Subscribed to RTA friend feed");
         }
 
-        // Event handling
+        if msg_type == 4 {
+            for handler in self.resync_handlers.lock().await.iter() {
+                handler();
+            }
+        }
+        // Only dispatch events for subscriptions acknowledged on this socket.
         if msg_type == 3
+            && let Some(id) = parts.get(1).and_then(Value::as_u64)
+            && self.subscriptions.lock().await.contains(&id)
             && let Some(data) = parts.get(2)
         {
-            debug!("RTA Event: {:?}", data);
-
             let handlers = self.event_handlers.lock().await;
             for handler in handlers.iter() {
                 handler(data);
@@ -285,7 +316,62 @@ impl RtaClient {
         handlers.push(Box::new(handler));
     }
 
+    /// Called when RTA requests a refresh of the subscribed resources.
+    pub async fn on_resync<F>(&self, handler: F)
+    where
+        F: Fn() + Send + Sync + 'static,
+    {
+        self.resync_handlers.lock().await.push(Box::new(handler));
+    }
+
     pub async fn shutdown(&self) {
         *self.shutdown.write().await = true;
+        self.shutdown_notify.notify_one();
+    }
+}
+
+fn parse_message(text: &str) -> XblResult<Vec<Value>> {
+    let parts: Vec<Value> = serde_json::from_str(text)
+        .map_err(|_| XblError::XboxLive("Malformed RTA message".into()))?;
+    let kind = parts
+        .first()
+        .and_then(Value::as_u64)
+        .ok_or_else(|| XblError::XboxLive("Missing RTA message type".into()))?;
+    let valid = match kind {
+        1 | 2 => {
+            parts.get(1).and_then(Value::as_u64).is_some()
+                && parts.get(2).and_then(Value::as_i64).is_some()
+        }
+        3 => parts.get(1).and_then(Value::as_u64).is_some() && parts.len() >= 3,
+        4 => true,
+        _ => false,
+    };
+    if !valid {
+        return Err(XblError::XboxLive("Invalid RTA message header".into()));
+    }
+    Ok(parts)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn malformed_rta_frames_are_safe() {
+        for frame in [
+            "[]",
+            "null",
+            "\"ECHOED_SECRET\"",
+            "[1]",
+            "[1,1,\"ECHOED_SECRET\"]",
+            "[3,1]",
+            "[99]",
+        ] {
+            let error = parse_message(frame).unwrap_err();
+            assert!(!format!("{error} {error:?}").contains("ECHOED_SECRET"));
+        }
+        assert!(parse_message("[4]").is_ok());
+        assert!(parse_message("[1,1,0,42,{}]").is_ok());
+        assert!(parse_message("[3,42,{}]").is_ok());
     }
 }

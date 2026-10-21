@@ -118,6 +118,7 @@ impl RawPacket {
         &self.inner_frame
     }
 
+    #[cfg(feature = "client")]
     /// Copies this packet into an allocation sized for this frame alone.
     ///
     /// Raw packets decoded from a batch are slices of the decompressed batch
