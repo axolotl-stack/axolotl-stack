@@ -30,6 +30,11 @@ Unastar aims to be more than just "another server software." It is designed to b
 
 ## Compatibility Evidence
 
+The server targets Bedrock 1.26.51 (protocol 2193). Game packet handlers use the
+canonical protocolgen enum names and required transaction/input collections.
+Subchunk heightmaps retain 16 columns per row in the generated `[Vec<i8>; 16]`
+representation; item-stack responses omit the optional redacted name when unused.
+
 Unastar's tactical compatibility gates live in [`ROADMAP.md`](ROADMAP.md). Current development should prioritize:
 
 1. Jolyne login/resource-pack/start-game smoke coverage.

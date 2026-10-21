@@ -268,7 +268,7 @@ impl GameServer {
 
         // Helper to create FullContainerName for inventory slots
         let container_name = FullContainerName {
-            container_name: EnumsContainerEnumName::InventoryContainer,
+            container_name: EnumsContainerEnumName::Inventorycontainer,
             dynamic_id: None,
         };
 
@@ -286,7 +286,7 @@ impl GameServer {
             container_id: 119,
             slots: vec![empty_item.clone(); 1],
             full_container_name: FullContainerName {
-                container_name: EnumsContainerEnumName::OffhandContainer,
+                container_name: EnumsContainerEnumName::Offhandcontainer,
                 dynamic_id: None,
             },
             storage_item: empty_item.clone(),
@@ -298,7 +298,7 @@ impl GameServer {
             container_id: 120,
             slots: vec![empty_item.clone(); 4],
             full_container_name: FullContainerName {
-                container_name: EnumsContainerEnumName::ArmorContainer,
+                container_name: EnumsContainerEnumName::Armorcontainer,
                 dynamic_id: None,
             },
             storage_item: empty_item.clone(),
@@ -311,7 +311,7 @@ impl GameServer {
             container_id: 124,
             slots: vec![empty_item.clone(); 51], // UI inventory size from Dragonfly
             full_container_name: FullContainerName {
-                container_name: EnumsContainerEnumName::CursorContainer,
+                container_name: EnumsContainerEnumName::Cursorcontainer,
                 dynamic_id: None,
             },
             storage_item: empty_item,
