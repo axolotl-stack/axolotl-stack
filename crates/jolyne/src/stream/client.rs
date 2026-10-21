@@ -326,7 +326,7 @@ impl<T: Transport> BedrockStream<Handshake, Client, T> {
 impl<T: Transport> BedrockStream<Login, Client, T> {
     #[instrument(skip_all, level = "trace", fields(uuid = %config.uuid, display_name = %config.display_name))]
     pub async fn send_login(
-        mut self,
+        self,
         config: &ClientHandshakeConfig,
     ) -> Result<BedrockStream<SecurePending, Client, T>, JolyneError> {
         // Generate JWT Chain - use Xbox Live auth if credentials provided
@@ -355,10 +355,21 @@ impl<T: Transport> BedrockStream<Login, Client, T> {
                 config.uuid,
             )?
         };
+        self.send_login_with_tokens(&chain, &client_token).await
+    }
 
+    /// Sends caller-signed authentication and client-data tokens.
+    ///
+    /// This allows offline clients to provide a stable device identity without
+    /// changing the default identity generation used by ordinary clients.
+    pub async fn send_login_with_tokens(
+        mut self,
+        chain: &str,
+        client_token: &str,
+    ) -> Result<BedrockStream<SecurePending, Client, T>, JolyneError> {
         let login_pkt = LoginPacket {
             client_network_version: crate::valentine::PROTOCOL_VERSION,
-            connection_request: crate::auth::client::encode_login_request(&chain, &client_token),
+            connection_request: crate::auth::client::encode_login_request(chain, client_token),
         };
         self.transport
             .send_batch(&[McpePacket::from(login_pkt)])

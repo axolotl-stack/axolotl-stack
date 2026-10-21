@@ -17,6 +17,7 @@ members = [
     "crates/axolotl-xbl",
     "crates/axelerator",
     "crates/bds-extractor",
+    "crates/client-diff",
 ]
 
 [workspace.package]

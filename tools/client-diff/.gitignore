@@ -1,0 +1,9 @@
+/endstone-capture/runtime/
+/endstone-capture/build/
+/endstone-capture/src/*.egg-info/
+/endstone-capture/**/__pycache__/
+/runs/
+/real-client/*.jsonl
+/captures/
+/gt-client/*.jsonl
+/gt-client/*.exe

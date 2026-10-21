@@ -863,6 +863,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1d728cc89cf3aee9ff92b05e62b19ee65a02b5702cff7d5a377e32c6ae29d8d"
 
 [[package]]
+name = "client-diff"
+version = "0.1.0"
+dependencies = [
+ "aes",
+ "anyhow",
+ "base64",
+ "bytes",
+ "clap",
+ "ctr",
+ "flate2",
+ "hex",
+ "jolyne",
+ "p384",
+ "serde",
+ "serde_json",
+ "sha2",
+ "snap",
+ "tokio",
+ "tokio-raknet",
+ "toml 0.8.23",
+ "uuid",
+ "valentine",
+]
+
+[[package]]
 name = "cobs"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
