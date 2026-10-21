@@ -626,8 +626,7 @@ mod tests {
     #[test]
     fn offline_login_encodes_a_retail_supported_device_os() {
         let key = SecretKey::from_slice(&[1; 48]).unwrap();
-        let (auth, client) =
-            generate_self_signed_chain(&key, "ClientDiff", Uuid::nil()).unwrap();
+        let (auth, client) = generate_self_signed_chain(&key, "ClientDiff", Uuid::nil()).unwrap();
         let request = encode_login_request(&auth, &client);
         let auth_len = u32::from_le_bytes(request[..4].try_into().unwrap()) as usize;
         let client_len_offset = 4 + auth_len;
@@ -639,7 +638,9 @@ mod tests {
         assert_eq!(request.len(), client_len_offset + 4 + client_len);
         let token = std::str::from_utf8(&request[client_len_offset + 4..]).unwrap();
         let claims: serde_json::Value = serde_json::from_slice(
-            &URL_SAFE_NO_PAD.decode(token.split('.').nth(1).unwrap()).unwrap(),
+            &URL_SAFE_NO_PAD
+                .decode(token.split('.').nth(1).unwrap())
+                .unwrap(),
         )
         .unwrap();
         // BDS 1.26.51's isWellFormed uses bit (DeviceOS + 1) of 0x1763d.
@@ -668,10 +669,14 @@ mod tests {
         assert_eq!(claims["xname"], "ClientDiff");
         assert_eq!(claims["leguuid"], uuid.to_string());
         assert_eq!(claims["xid"], "");
-        assert_eq!(claims["cpk"], STANDARD.encode(key.public_key().to_public_key_der().unwrap()));
+        assert_eq!(
+            claims["cpk"],
+            STANDARD.encode(key.public_key().to_public_key_der().unwrap())
+        );
         let verify = |token: &str| {
             let parts: Vec<_> = token.split('.').collect();
-            let signature = Signature::from_slice(&URL_SAFE_NO_PAD.decode(parts[2]).unwrap()).unwrap();
+            let signature =
+                Signature::from_slice(&URL_SAFE_NO_PAD.decode(parts[2]).unwrap()).unwrap();
             VerifyingKey::from(key.public_key())
                 .verify(format!("{}.{}", parts[0], parts[1]).as_bytes(), &signature)
                 .unwrap();
@@ -706,10 +711,13 @@ mod tests {
         let key = SecretKey::from_slice(&[1; 48]).unwrap();
         for (_, client) in [
             generate_self_signed_chain(&key, "ClientDiff", Uuid::nil()).unwrap(),
-            encode_with_multiplayer_token(&key, "ClientDiff", Uuid::nil(), "provider-token").unwrap(),
+            encode_with_multiplayer_token(&key, "ClientDiff", Uuid::nil(), "provider-token")
+                .unwrap(),
         ] {
             let claims: serde_json::Value = serde_json::from_slice(
-                &URL_SAFE_NO_PAD.decode(client.split('.').nth(1).unwrap()).unwrap(),
+                &URL_SAFE_NO_PAD
+                    .decode(client.split('.').nth(1).unwrap())
+                    .unwrap(),
             )
             .unwrap();
             assert_eq!(claims["CompatibleWithClientSideChunkGen"], false);

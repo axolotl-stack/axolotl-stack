@@ -1,79 +1,75 @@
-# Vanilla offline Login rejection — observed 2026-10-21
+# CLIENTDIFF-01 — offline BDS Login resolved
 
-**Acceptance failed:** neither scripted client reached spawn. These are pre-spawn rejection captures, **not completed scenario comparisons**. Minecraft Bedrock was not launched.
+**Observed 2026-10-21:** the unmodified pinned gophertunnel reference and jolyne both spawn on Mojang BDS **1.26.51.1**, Endstone **0.11.12**, protocol **2193**, `online-mode=false`, and complete **join-idle** and **join-chat**. Minecraft was not launched; no live Xbox account or credentials were used.
 
-Baseline: Mojang BDS **1.26.51.1**, Endstone **0.11.12**, protocol **2193**, offline mode. Both named scenarios were attempted for both clients, with the saved deterministic world template restored before each connection. Endstone independently recorded the same packets as each client.
+## Root cause of `readNoHeader`
 
-| Attempted scenario | c2s identical | c2s masked-equal | c2s different | c2s missing | Spawn completed |
-|---|---:|---:|---:|---:|---|
-| join-idle | 1 | 0 | 1 | 0 | No |
-| join-chat | 1 | 0 | 1 | 0 | No |
+BDS rejects retired UWP **`DeviceOS: 7`** in `ConnectionRequest::isWellFormed`; `readNoHeader failed` is the enclosing packet-reader diagnostic, not evidence that the little-endian string lengths or JWT envelope failed to parse.
 
-Both s2c comparisons contained two identical packets and no masked-equal, different, or missing packets. Chat, `/say`, idle-after-spawn, and local-player initialization were **not reached**.
+Evidence:
 
-## Sequence
+- The shared scenario forced `DeviceOS: 7` into both clients, and the Rust runner explicitly required it. Jolyne's ordinary offline client also defaulted to 7.
+- Read-only disassembly of the baseline BDS executable shows the Login reader calling native `isWellFormed` at RVA `0x2db430c` (callee `0xa8d6c0`), then emitting `Connection Request invalid.` on a false result. Its DeviceOS check increments the value, bounds it, and tests bit `DeviceOS + 1` of `0x1763d` at RVAs `0xa8d7b1`–`0xa8d7c0`. Bit 8 (OS 7) is clear; bit 2 (Android 1) is set. No executable or server verification logic was modified.
+- BDS executable SHA-256: `76d547f82e02c18d0986c30b47132c9cc4171d0f2df1c00649e50ff35788b321`.
+- Removing Go's `Certificate` in a temporary protocol adapter still produced the original warning (`runs/20261021-183829-781`). That adapter was removed.
+- Changing **only** the shared identity's DeviceOS from 7 to **1**, with the pinned Go code and dependencies unmodified, produced ServerToClientHandshake, ClientToServerHandshake, LoginSuccess, resource-pack completion, StartGame, and SetLocalPlayerAsInitialised (`runs/20261021-184216-027/join-idle-vanilla-go.jsonl`). The Go process exited successfully. This established an accepted reference before changing jolyne's identity envelope.
 
-| Direction | ID | Packet | Result |
-|---|---:|---|---|
-| c2s | 193 | RequestNetworkSettings | Identical (`c10100000891`) |
-| s2c | 143 | NetworkSettings | Identical |
-| c2s | 1 | Login | Different |
-| s2c | 156 | PacketViolationWarning | Identical rejection |
+The accepted Go request retains its stringified `Certificate = {"chain":[""]}` and self-signed multiplayer `Token`. The LE i32 authentication/client JWT lengths and the outer packet framing were already correct and were not changed.
 
-Server warning: `Connection Request invalid.\nreadNoHeader failed! packetId: 1`.
+## Client fixes
 
-## Top divergence: Login
+| Commit | Change | Regression evidence |
+|---|---|---|
+| `3d18c5e` | Use supported Android DeviceOS 1 in jolyne's offline metadata and shared harness identity/guard. | Encoded-byte test failed on BDS's platform whitelist before the fix, passed afterward. |
+| `c60cd9b` | Send a modern self-signed multiplayer identity `Token`, rather than only a top-level legacy `chain`. Preserve `AuthenticationType: 2`; bind `cpk` to the client-data signing/encryption key. | Byte-framed envelope/identity-claim/signature test failed because Token was absent, then passed. |
+| `107b881` | Add `encode_with_multiplayer_token` for an already acquired provider token: `AuthenticationType: 0`, unchanged provider Token, signed client metadata. | Missing-API regression failed before implementation; encoded-envelope and real ES384 client-signature checks pass. |
+| `ef58caa` | Do not advertise unsupported client-side chunk generation, for either offline or provider-token metadata. | Regression failed on the advertised `true` capability, then passed for both encoding paths. |
 
-- Go sends authentication JSON with `AuthenticationType: 2`, `Certificate` containing stringified `{"chain":[""]}`, and a self-signed multiplayer `Token` JWT.
-- Jolyne sends `AuthenticationType: 2` with a top-level legacy-style `chain`, without `Certificate` or `Token`.
-- Client-data claim sets and skin geometry differ. The harness fixes identity/device values and skin pixels; remaining capability fields are compared, not blanket-masked.
-- Both Login packets have protocol 2193, consistent outer unsigned-varint lengths, and two correctly bounded little-endian length-prefixed authentication/client-data strings. Both JWT payloads parse as JSON. Public keys use base64 DER `x5u` headers.
-- This envelope difference is real, but it is **not proven to cause BDS's rejection**: the pinned Go reference is rejected too. No speculative Jolyne authentication fix was applied.
+The intermediate platform-only jolyne attempt reached an authentication Disconnect instead of PacketViolationWarning (`runs/20261021-184535-066/join-idle-vanilla-jolyne-client.stderr.log`). Sending the modern multiplayer Token then completed spawn. Server-side authentication/verification was not changed.
 
-## Isolation experiments
+Online **wire shape** is covered without live Xbox. The caller must acquire a provider token bound to the same P-384 key, for example using the existing `PlayFabClient::multiplayer_token`, then use `encode_with_multiplayer_token` and `send_login_with_tokens`. The older XblCredentials/Mojang-chain acquisition path was not live-verified against BDS 26.51; no online-login success is claimed.
 
-1. Directly launching unmodified `bedrock_server.exe` without Endstone reproduces the pinned Go rejection. The packet hook is not the cause.
-2. Unmodified Sandertv/gophertunnel **be557e33fe6f8d0c0db7ef05b5fd068725c325ad**, with no fork replacements, also receives the same rejection against plain BDS. Its login/auth encoder source files match the pinned fork.
-3. The Go legacy-auth experiment also fails; it was not made a production fallback.
-4. Enabling BDS `content-log-file-enabled=true` did not reveal an additional authentication diagnostic in the observed server output.
-5. Protocolgen's `differential/testdata/corpus/client/001/8855508aade16ec5.hex` is five zero bytes, generated as a zero-value packet-body seed. The 53 pinned retail fixtures contain no Login. Neither is an authentic accepted retail Login reference.
+## Final completed scenario comparisons
 
-Missing prerequisite: a proven offline connection-request accepted by this BDS build, or an authentic accepted protocol-2193 Login capture with provenance. Native `BaseConnectionRequest` semantic validation is the remaining unverified boundary; empty claims/dummy certificates remain hypotheses, not established causes.
+Final post-merge artifacts: `tools/client-diff/runs/20261021-185050-556/`.
 
-Raw captures, JWTs, binaries, worlds, virtual environments, and full byte reports remain ignored under `tools/client-diff/runs/` and `endstone-capture/runtime/`; this trimmed report contains no token, private key, or account credential.
+| Scenario | Direction | Identical | Masked-equal | Different | Missing |
+|---|---|---:|---:|---:|---:|
+| join-idle | c2s | 7 | 0 | 1 | 2 |
+| join-idle | s2c | 107 | 1 | 84 | 106 |
+| join-chat | c2s | 8 | 1 | 1 | 2 |
+| join-chat | s2c | 110 | 1 | 84 | 137 |
 
-## Verification and delivery
+Both clients sent exactly one local-player initialization in each scenario. Both sent exactly one chat packet and one command in join-chat; chat was **identical**, command **masked-equal**. These are completed spawn/action/idle captures, not rejection comparisons. Missing counts include unmatched packets on either side; timing-sensitive counts are observations of this run, not stable golden values.
 
-Implementation commit: `0e9a781` (`feat(client-diff): add pinned vanilla packet capture and comparison harness`).
-Merged current `main` into this branch at `d601c1f2cbd29251cbe05c31c9d28966de4a5ea2`, with no conflicts; the following checks were repeated after that merge.
+### Top remaining divergences
+
+- **Login (one c2s Different per scenario):** supported presentation/capability metadata differs. Examples include arm size, view distance/memory tier, skin color/geometry, and additional editor/party/profile claims emitted by Go. The fixed name, UUID, device identity, skin pixels and scenario actions remain controlled. Jolyne no longer claims client-side chunk generation. JWT keys/signatures/times are normalized only by the explicit existing masks; remaining fields are not blanket-erased.
+- **Loading screens (two c2s Missing per scenario):** jolyne sends StartLoadingScreen and EndLoadingScreen around its join. Go sends neither. These are valid notifications, not a reason to delete jolyne's loading-state signaling merely to match a scripted reference.
+- **LevelChunk (80 s2c Different and two unmatched alignment rows per scenario):** sequential packet-ID LCS pairs chunks in different coordinate orders. Independently indexing the captured packets by signed `(chunk_x, chunk_z)` yields the **same 113 coordinates and byte-identical complete packets at all 113 coordinates** in each scenario. No chunk bytes were masked to obtain this result.
+- **NetworkChunkPublisherUpdate (104 / 135 unmatched rows in idle / chat):** Go receives many more repeated updates. In the preceding completed capture, both clients received the same set of distinct publisher-update payloads; repetition counts differed substantially. The different loading-screen signals and client pacing remain visible rather than being normalized away; their causal contribution was not isolated.
+- **StartGame / CraftingData / PlayerList (one / one / two s2c Different per scenario):** a diagnostic typed decode of the preceding completed capture found different StartGame current ticks, enchantment seeds and multiplayer correlation IDs; CraftingData included per-server recipe UUID differences; PlayerList reflected the submitted skin geometry/color differences. Existing masks do not remove these fields. Raw reports remain available for inspection.
+
+### Independent Endstone observations
+
+For all four final sessions, the ordered c2s `(numeric ID, complete bytes)` sequence exactly matches the independent Endstone log. Both jolyne s2c sequences also match exactly. Go server-vantage logs contain additional publisher updates (four in idle, two in chat) and one Disconnect per session that are absent at the client vantage; there are no client-only packet-byte entries. Combined bidirectional event order can differ between observation points, so it is not represented as a global ordering guarantee.
+
+## Verification after merging main
+
+`git merge main` completed without conflicts before the final acceptance commands and captures; it integrated the concurrent bds-extractor changes without modifying this task's ownership boundaries.
 
 | Command | Observed result |
 |---|---|
 | `cargo fmt --all` | Exit 0 |
+| `cargo test -p jolyne --lib --tests` | 108 passed |
 | `cargo test -p client-diff` | 11 passed |
-| `cargo clippy -p client-diff --all-targets -- -D warnings` | Exit 0, clean |
-| `cargo clippy -p jolyne --all-targets -- -D warnings` | Exit 0, clean |
-| `cargo test -p jolyne` | 105 passed, 8 doctests ignored |
+| `cargo clippy -p jolyne -p client-diff --all-targets -- -D warnings` | Exit 0, clean |
 | `go test ./...` in `tools/client-diff/gt-client` | Exit 0 |
 | `go vet ./...` in `tools/client-diff/gt-client` | Exit 0 |
-| `tools/client-diff/endstone-capture/runtime/venv/Scripts/python.exe tools/client-diff/endstone-capture/test_capture.py` | 2 passed |
-| `pwsh -NoProfile -File tools/client-diff/run.ps1` | Exit 1: all four client attempts rejected at Login; all captures and four Markdown reports retained |
+| `pwsh -NoProfile -File tools/client-diff/run.ps1 -Runtime C:/Users/jvigu/orca/workspaces/axolotl-stack/stab-client-diff/tools/client-diff/endstone-capture/runtime` | Exit 0; both clients completed both scenarios |
 
-Final post-merge run artifacts: `tools/client-diff/runs/20261021-151648-721/`.
-For each of the four connections, the sequence of `(direction, numeric ID, complete packet bytes)` in the client capture exactly equaled the independent Endstone capture: IDs 193, 143, 1, 156. The summary counts above were extracted from the final generated Markdown reports, not inferred.
+The Runtime override reuses the already provisioned pinned BDS/Endstone installation and closed-world template; the current worktree's clients, scenarios and report code ran. The runner restored the template between connections. No 26.52 executable or real Minecraft launcher was run: the native whitelist and single-variable 26.51 experiment resolved the original failure directly.
 
-No Jolyne protocol fix was made: `send_login_with_tokens` is an additive client-only API used to sign the fixed harness identity. The existing README example was corrected to destructure `join`'s `(stream, GameData)` return. Review fixes in the new harness preserve noncanonical raw bytes, capture unknown numeric IDs before enum dispatch, and preserve complete timing intervals after slow sends; each has a deterministic regression.
+Additional out-of-ownership finding, reported to the coordinator: the intermediate authentication rejection's Disconnect body `6a000000` triggers Valentine's one-trailing-byte error. It is not suppressed or special-cased here and is not encountered in the completed accepted scenarios.
 
-`-Server unastar` is implemented but was not exercised. Real-client launcher parsing/source was inspected only; the launcher and all `minecraft://` URIs were never executed.
-
-### Changed files
-
-- `Cargo.toml`, `Cargo.lock`: workspace member/dependency resolution.
-- `crates/client-diff/Cargo.toml`, `src/{main,lib,client}.rs`: CLI, typed comparison/reporting, observed real Jolyne client.
-- `crates/client-diff/tests/diff.rs`, `tests/fixtures/latency-{a,b}.jsonl`: alignment/masking/raw-fidelity regression fixtures.
-- `crates/jolyne/src/stream/client.rs`, `crates/jolyne/README.md`: caller-supplied signed client tokens and usage documentation.
-- `tools/client-diff/{README.md,.gitignore,scenarios.json,masks.toml,run.ps1}`: shared contract, explicit masks, lifecycle/reset orchestration, instructions.
-- `tools/client-diff/gt-client/{go.mod,go.sum,main.go,main_test.go}`: pinned reference implementation and regression tests.
-- `tools/client-diff/endstone-capture/{setup.ps1,provision.py,pyproject.toml,test_capture.py}` and `src/endstone_client_diff/{capture,plugin}.py`: pinned provisioner and independent packet capture.
-- `tools/client-diff/real-client/launch.ps1`: dormant manual launcher.
-- `tools/client-diff/examples/rejected-login.md`: this trimmed secret-free report.
+Changed task-owned files: `crates/jolyne/src/auth/client.rs`, `crates/jolyne/README.md`, `crates/client-diff/src/client.rs`, `tools/client-diff/scenarios.json`, `tools/client-diff/README.md`, and this report. The Go reference source/module pins, generated protocol files, server verification, and MAINTENANCE_AUDIT.md are unchanged. Raw captures, JWTs, binaries, worlds and full hex reports remain ignored; this trimmed report contains no account token, private key or credential.
