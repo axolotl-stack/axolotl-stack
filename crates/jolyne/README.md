@@ -117,6 +117,11 @@ retired UWP `DeviceOS: 7` in `ConnectionRequest::isWellFormed`, reporting the
 misleading `readNoHeader failed` before authentication. Caller-supplied metadata
 must likewise identify a supported platform.
 
+Offline Login uses `AuthenticationType: 2` with a self-signed multiplayer
+`Token` (`aud`, `cpk`, `xname`, `leguuid`, and empty account-only claims), matching
+the pinned gophertunnel encoder. The identity and client-data JWTs use the same
+P-384 key. A top-level legacy `chain` is not a modern BDS identity token.
+
 The offline vanilla differential harness lives in
 [`tools/client-diff`](../../tools/client-diff/README.md). Its acceptance report
 distinguishes successful joins from server-rejected login captures.

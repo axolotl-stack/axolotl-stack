@@ -89,25 +89,16 @@ pub async fn request_minecraft_chain(
 
 #[derive(Serialize)]
 struct IdentityClaims {
-    #[serde(rename = "extraData")]
-    extra_data: IdentityExtraData,
-    #[serde(rename = "identityPublicKey")]
-    identity_public_key: String,
+    aud: &'static str,
+    cpk: String,
+    xname: String,
+    leguuid: String,
+    xid: String,
+    ipt: &'static str,
+    mid: &'static str,
+    tid: &'static str,
     nbf: u64,
     exp: u64,
-    iat: u64,
-    iss: String,
-}
-
-#[derive(Serialize)]
-struct IdentityExtraData {
-    #[serde(rename = "displayName")]
-    display_name: String,
-    identity: String, // UUID
-    #[serde(rename = "XUID")]
-    xuid: String,
-    #[serde(rename = "titleId")]
-    title_id: String,
 }
 
 /// Complete ClientData payload with all fields required by BDS.
@@ -217,8 +208,8 @@ fn generate_skin_resource_patch() -> String {
     STANDARD.encode(json.to_string().as_bytes())
 }
 
-/// Generates a self-signed chain (for Offline Mode) and a ClientData JWT.
-/// Returns (identity_chain_json_string, client_data_jwt).
+/// Generates a modern self-signed multiplayer identity and a ClientData JWT.
+/// Returns `(authentication_json, client_data_jwt)` for offline mode.
 pub fn generate_self_signed_chain(
     key: &SecretKey,
     display_name: &str,
@@ -384,9 +375,9 @@ pub fn encode_with_mojang_chain(
     Ok((chain_json, client_token))
 }
 
-/// Generates an Xbox Live authenticated chain and a ClientData JWT.
-/// The XUID comes from the BEDROCK_MULTIPLAYER XBL token.
-/// Returns (identity_chain_json_string, client_data_jwt).
+/// Generates self-signed multiplayer claims with an explicitly untrusted XUID.
+///
+/// This does not authenticate an Xbox account or obtain a provider-signed token.
 #[allow(dead_code)]
 pub fn generate_xbox_live_chain(
     key: &SecretKey,
@@ -397,7 +388,7 @@ pub fn generate_xbox_live_chain(
     generate_chain_internal(key, display_name, uuid, Some(xuid))
 }
 
-/// Internal chain generation that handles both self-signed and Xbox Live auth.
+/// Internal self-signed generation; XUID claims do not grant provider authority.
 fn generate_chain_internal(
     key: &SecretKey,
     display_name: &str,
@@ -424,19 +415,18 @@ fn generate_chain_internal(
     // Determine XUID - use provided XUID if available (Xbox Live auth), empty otherwise (self-signed)
     let xuid_value = xuid.unwrap_or("").to_string();
 
-    // 1. Identity Token
+    // Modern self-signed multiplayer identity. Account claims remain untrusted.
     let identity_claims = IdentityClaims {
-        extra_data: IdentityExtraData {
-            display_name: display_name.to_string(),
-            identity: uuid.to_string(),
-            xuid: xuid_value,
-            title_id: "896928775".to_string(), // Win10
-        },
-        identity_public_key: public_key_b64.clone(),
+        aud: "api://auth-minecraft-services/multiplayer",
+        cpk: public_key_b64.clone(),
+        xname: display_name.to_string(),
+        leguuid: uuid.to_string(),
+        xid: xuid_value,
+        ipt: "",
+        mid: "",
+        tid: "",
         nbf: now - 1,
         exp,
-        iat: now,
-        iss: "self".to_string(),
     };
 
     let mut header = Header::new(Algorithm::ES384);
@@ -445,10 +435,11 @@ fn generate_chain_internal(
     let identity_jwt = encode(&header, &identity_claims, &encoding_key)
         .map_err(|e| JolyneError::Auth(crate::error::AuthError::BadSignature(e.to_string())))?;
 
-    // Chain JSON
+    // BDS 26.51 reads the multiplayer Token, not a top-level legacy chain.
     let chain_json = serde_json::json!({
-        "chain": [identity_jwt],
-        "AuthenticationType": 2
+        "AuthenticationType": 2,
+        "Certificate": r#"{"chain":[""]}"#,
+        "Token": identity_jwt
     })
     .to_string();
 
@@ -637,5 +628,36 @@ mod tests {
         let os = claims["DeviceOS"].as_u64().unwrap();
         assert!(os < 16 && (0x1763d_u32 & (1 << (os + 1))) != 0);
         assert_eq!(os, 1);
+    }
+
+    #[test]
+    fn offline_login_identity_token_binds_the_client_signing_key() {
+        use p384::ecdsa::{Signature, VerifyingKey, signature::Verifier};
+        let key = SecretKey::from_slice(&[1; 48]).unwrap();
+        let uuid = Uuid::from_u128(123);
+        let (auth, client) = generate_self_signed_chain(&key, "ClientDiff", uuid).unwrap();
+        let request = encode_login_request(&auth, &client);
+        let auth_len = u32::from_le_bytes(request[..4].try_into().unwrap()) as usize;
+        let envelope: serde_json::Value =
+            serde_json::from_slice(&request[4..4 + auth_len]).unwrap();
+        assert_eq!(envelope["AuthenticationType"], 2);
+        let token = envelope["Token"].as_str().expect("modern identity token");
+        let parts: Vec<_> = token.split('.').collect();
+        let claims: serde_json::Value =
+            serde_json::from_slice(&URL_SAFE_NO_PAD.decode(parts[1]).unwrap()).unwrap();
+        assert_eq!(claims["aud"], "api://auth-minecraft-services/multiplayer");
+        assert_eq!(claims["xname"], "ClientDiff");
+        assert_eq!(claims["leguuid"], uuid.to_string());
+        assert_eq!(claims["xid"], "");
+        assert_eq!(claims["cpk"], STANDARD.encode(key.public_key().to_public_key_der().unwrap()));
+        let verify = |token: &str| {
+            let parts: Vec<_> = token.split('.').collect();
+            let signature = Signature::from_slice(&URL_SAFE_NO_PAD.decode(parts[2]).unwrap()).unwrap();
+            VerifyingKey::from(key.public_key())
+                .verify(format!("{}.{}", parts[0], parts[1]).as_bytes(), &signature)
+                .unwrap();
+        };
+        verify(token);
+        verify(std::str::from_utf8(&request[4 + auth_len + 4..]).unwrap());
     }
 }
