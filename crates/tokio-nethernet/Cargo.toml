@@ -8,13 +8,8 @@ license.workspace = true
 [features]
 default = []
 discovery = ["aes", "sha2", "hmac", "ecb", "hex"]
-xbox-signaling = [
-    "tokio-tungstenite",
-    "http",
-    "tungstenite",
-    "uuid",
-    "futures-util",
-]
+endpoint = ["dep:reqwest", "dep:http", "dep:hyper", "dep:hyper-util", "dep:http-body-util", "dep:tokio-rustls", "dep:rustls-pemfile", "dep:percent-encoding"]
+xbox-signaling = ["dep:tokio-tungstenite", "dep:http", "dep:tungstenite", "dep:uuid", "dep:futures-util"]
 
 [dependencies]
 tokio = { workspace = true, features = ["sync", "time", "rt", "net", "macros"] }
@@ -29,6 +24,9 @@ serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
 rand.workspace = true
+base64.workspace = true
+p384 = { workspace = true, features = ["ecdsa", "pkcs8"] }
+parking_lot = "0.12"
 
 # Optional crypto dependencies for discovery feature
 aes = { workspace = true, optional = true }
@@ -37,9 +35,18 @@ hmac = { workspace = true, optional = true }
 ecb = { workspace = true, optional = true }
 hex = { workspace = true, optional = true }
 
-# Optional dependencies for xbox-signaling feature
-tokio-tungstenite = { workspace = true, features = ["native-tls"], optional = true }
+# HTTP endpoint signaling (go-nethernet endpoint package).
+reqwest = { workspace = true, features = ["rustls-tls", "stream"], optional = true }
 http = { workspace = true, optional = true }
+hyper = { version = "1", features = ["server", "http1"], optional = true }
+hyper-util = { version = "0.1", features = ["tokio"], optional = true }
+http-body-util = { version = "0.1", optional = true }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"], optional = true }
+rustls-pemfile = { version = "2", optional = true }
+percent-encoding = { version = "2", optional = true }
+
+# Retained franchise signaling, independent from the current HTTP endpoint port.
+tokio-tungstenite = { workspace = true, features = ["native-tls"], optional = true }
 tungstenite = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
 futures-util = { workspace = true, optional = true }
@@ -48,6 +55,14 @@ futures-util = { workspace = true, optional = true }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 tokio = { workspace = true, features = ["full", "test-util"] }
 criterion.workspace = true
+
+[[example]]
+name = "client"
+required-features = ["endpoint"]
+
+[[example]]
+name = "listener"
+required-features = ["endpoint"]
 
 [[example]]
 name = "discovery_client"

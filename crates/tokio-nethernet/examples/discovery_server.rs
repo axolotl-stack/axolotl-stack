@@ -75,9 +75,14 @@ async fn main() -> anyhow::Result<()> {
         println!("If not, check firewall allows UDP port 7551.");
     }
 
-    // ✓ NEW API: One-liner listener creation - no manual signal pump!
-    let mut listener =
-        NetherNetListener::bind_with_signaling(discovery, NetherNetListenerConfig::default());
+    // LAN transport demo only; authenticated servers should configure client identities.
+    let mut listener = NetherNetListener::bind_with_signaling(
+        discovery,
+        NetherNetListenerConfig {
+            allow_identityless_client: true,
+            ..Default::default()
+        },
+    );
 
     println!("\nWaiting for connections...\n");
 

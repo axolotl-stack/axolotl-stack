@@ -12,6 +12,7 @@ raknet = ["dep:tokio-raknet"]
 nethernet = ["dep:tokio-nethernet"]
 discovery = ["nethernet", "tokio-nethernet/discovery"]
 xbox-signaling = ["nethernet", "tokio-nethernet/xbox-signaling"]
+endpoint = ["nethernet", "tokio-nethernet/endpoint"]
 
 [dependencies]
 tokio = { workspace = true, features = ["sync", "time"] }

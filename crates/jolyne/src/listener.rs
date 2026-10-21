@@ -21,15 +21,11 @@
 //!     .await?;
 //! ```
 //!
-//! ## NetherNet with Xbox Live
+//! ## NetherNet with HTTP endpoint signaling
 //! ```ignore
-//! // Get signaling URL from discovery API
-//! let discovery = DiscoveryClient::new();
-//! let endpoints = discovery.discover("1.21.131").await?;
-//! let signaling_url = endpoints.signaling.websocket_url(nethernet_id);
-//!
+//! let endpoint = tokio_nethernet::endpoint::Handler::serve("0.0.0.0:19133").await?;
 //! let mut listener = BedrockListener::nethernet()
-//!     .xbox(signaling_url, nethernet_id, mc_token)
+//!     .endpoint(endpoint, nethernet_config)
 //!     .bind()
 //!     .await?;
 //! ```
@@ -302,8 +298,8 @@ impl RakNetBuilder {
 pub struct NetherNetBuilder {
     signaling: NetherNetSignaling,
     config: BedrockListenerConfig,
-    /// Signal monitoring configuration (Xbox signaling only).
-    #[cfg(feature = "xbox-signaling")]
+    /// Optional signal monitoring for remote negotiations.
+    #[cfg(any(feature = "xbox-signaling", feature = "endpoint"))]
     signal_monitor_config: Option<tokio_nethernet::SignalMonitorConfig>,
 }
 
@@ -313,6 +309,11 @@ enum NetherNetSignaling {
     #[cfg(feature = "discovery")]
     Lan {
         addr: String,
+    },
+    #[cfg(feature = "endpoint")]
+    Endpoint {
+        handler: Arc<tokio_nethernet::endpoint::Handler>,
+        config: tokio_nethernet::NetherNetListenerConfig,
     },
     #[cfg(feature = "xbox-signaling")]
     Xbox {
@@ -332,7 +333,7 @@ impl NetherNetBuilder {
                 encryption_enabled: false,
                 ..Default::default()
             },
-            #[cfg(feature = "xbox-signaling")]
+            #[cfg(any(feature = "xbox-signaling", feature = "endpoint"))]
             signal_monitor_config: None,
         }
     }
@@ -341,6 +342,8 @@ impl NetherNetBuilder {
     ///
     /// Binds a UDP socket for encrypted LAN discovery broadcasts.
     /// This is how players on the same local network find your server.
+    /// Preserves the existing local identityless-client policy; Bedrock Login
+    /// still performs the configured application authentication.
     ///
     /// # Arguments
     /// * `addr` - The address to bind for discovery (e.g., "0.0.0.0:7551")
@@ -350,22 +353,22 @@ impl NetherNetBuilder {
         self
     }
 
-    /// Use Xbox Live signaling.
+    /// Use the current HTTP `/v1/join` NetherNet signaling endpoint.
     ///
-    /// Connects to Xbox's signaling WebSocket for friend-to-friend connections.
-    /// Players join via the Xbox friends list / "Join Game" button.
-    ///
-    /// The `signaling_url` should be obtained from the discovery API:
-    /// ```ignore
-    /// let discovery = DiscoveryClient::new();
-    /// let endpoints = discovery.discover("1.21.131").await?;
-    /// let signaling_url = endpoints.signaling.websocket_url(nethernet_id);
-    /// ```
-    ///
-    /// # Arguments
-    /// * `signaling_url` - Full WebSocket URL from discovery API
-    /// * `nethernet_id` - Your NetherNet network ID
-    /// * `mc_token` - Minecraft authorization token from PlayFab session
+    /// Bind the handler first and configure the transport's signed identity and
+    /// client-token verifier before accepting authenticated Minecraft clients.
+    #[cfg(feature = "endpoint")]
+    pub fn endpoint(
+        mut self,
+        handler: Arc<tokio_nethernet::endpoint::Handler>,
+        config: tokio_nethernet::NetherNetListenerConfig,
+    ) -> Self {
+        self.signaling = NetherNetSignaling::Endpoint { handler, config };
+        self
+    }
+
+    /// Retained franchise WebSocket signaling for friend joins.
+    /// No current go-nethernet upstream implements this service.
     #[cfg(feature = "xbox-signaling")]
     pub fn xbox(
         mut self,
@@ -390,7 +393,7 @@ impl NetherNetBuilder {
         self
     }
 
-    /// Enable signal-level security monitoring (Xbox signaling only).
+    /// Enable signal-level security monitoring for endpoint negotiations.
     ///
     /// This monitors the WebRTC signaling channel for attacks like:
     /// - CONNECTERROR injection
@@ -399,7 +402,7 @@ impl NetherNetBuilder {
     /// - SDP manipulation
     ///
     /// When enabled, anomalies are logged and can be queried via the monitor.
-    #[cfg(feature = "xbox-signaling")]
+    #[cfg(any(feature = "xbox-signaling", feature = "endpoint"))]
     pub fn with_signal_monitoring(mut self, config: tokio_nethernet::SignalMonitorConfig) -> Self {
         self.signal_monitor_config = Some(config);
         self
@@ -408,7 +411,7 @@ impl NetherNetBuilder {
     /// Enable signal monitoring with default configuration.
     ///
     /// Shorthand for `with_signal_monitoring(SignalMonitorConfig { enabled: true, ..Default::default() })`.
-    #[cfg(feature = "xbox-signaling")]
+    #[cfg(any(feature = "xbox-signaling", feature = "endpoint"))]
     pub fn enable_signal_monitoring(mut self) -> Self {
         self.signal_monitor_config = Some(tokio_nethernet::SignalMonitorConfig {
             enabled: true,
@@ -427,7 +430,7 @@ impl NetherNetBuilder {
             NetherNetSignaling::None => {
                 return Err(JolyneError::Io(std::io::Error::new(
                     std::io::ErrorKind::InvalidInput,
-                    "NetherNet listener requires .lan() or .xbox() signaling before .bind()",
+                    "NetherNet listener requires .lan(), .xbox(), or .endpoint() signaling before .bind()",
                 )));
             }
             #[cfg(feature = "discovery")]
@@ -439,8 +442,22 @@ impl NetherNetBuilder {
                     .map_err(JolyneError::Io)?;
                 NetherNetListener::bind_with_signaling(
                     discovery,
-                    NetherNetListenerConfig::default(),
+                    NetherNetListenerConfig {
+                        allow_identityless_client: true,
+                        ..Default::default()
+                    },
                 )
+            }
+            #[cfg(feature = "endpoint")]
+            NetherNetSignaling::Endpoint {
+                handler,
+                mut config,
+            } => {
+                use tokio_nethernet::{NetherNetListener, SignalMonitor};
+                if let Some(monitor_config) = self.signal_monitor_config {
+                    config.signal_monitor = Some(SignalMonitor::new_with_cleanup(monitor_config));
+                }
+                NetherNetListener::bind_with_signaling(handler, config)
             }
             #[cfg(feature = "xbox-signaling")]
             NetherNetSignaling::Xbox {
@@ -457,7 +474,7 @@ impl NetherNetBuilder {
                     monitor_config,
                 )
                 .await
-                .map_err(|e| JolyneError::Transport(e.to_string()))?;
+                .map_err(|error| JolyneError::Transport(error.to_string()))?;
                 NetherNetListener::bind_with_signaling(xbox, NetherNetListenerConfig::default())
             }
         };
