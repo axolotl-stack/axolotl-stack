@@ -16,13 +16,13 @@ pub struct ExtractedData {
     pub items: ItemData,
     /// Block properties data
     pub blocks: BlockData,
-    /// Creative content (if available)
+    /// Required creative content; Option preserves typed missing-section diagnostics.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub creative: Option<CreativeData>,
-    /// Biome definitions (if available)
+    /// Required biome definitions.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub biomes: Option<BiomeData>,
-    /// Entity identifiers (if available)
+    /// Required entity identifiers.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub entities: Option<EntityData>,
 }
@@ -156,20 +156,46 @@ pub struct EntityData {
 // Conversion from GameData
 // ============================================================================
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum ValidationError {
+    MissingSection(&'static str),
+    InvalidData(String),
+}
+
+impl std::fmt::Display for ValidationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MissingSection(section) => write!(f, "missing required section: {section}"),
+            Self::InvalidData(message) => f.write_str(message),
+        }
+    }
+}
+
+impl std::error::Error for ValidationError {}
+
 impl ExtractedData {
-    /// Validate the minimum shape needed for downstream normalization.
-    pub fn validate(&self) -> Result<(), String> {
+    /// Require every promised packet section before validating its contents.
+    pub fn validate(&self) -> Result<(), ValidationError> {
+        for (section, present) in [
+            ("items.registry", !self.items.registry.is_empty()),
+            ("creative", self.creative.is_some()),
+            ("biomes", self.biomes.is_some()),
+            ("entities", self.entities.is_some()),
+        ] {
+            if !present {
+                return Err(ValidationError::MissingSection(section));
+            }
+        }
+        self.validate_contents()
+            .map_err(ValidationError::InvalidData)
+    }
+
+    fn validate_contents(&self) -> Result<(), String> {
         if self.metadata.game_version.trim().is_empty() {
             return Err("metadata.game_version is required".to_string());
         }
         if self.metadata.engine.trim().is_empty() {
             return Err("metadata.engine is required".to_string());
-        }
-        if self.items.registry.is_empty() {
-            return Err("items.registry must contain at least one item".to_string());
-        }
-        if self.blocks.properties.is_empty() {
-            return Err("blocks.properties must contain at least one block".to_string());
         }
 
         for item in &self.items.registry {
@@ -403,7 +429,10 @@ mod tests {
                     state_nbt_base64: "CgA=".to_string(),
                 }],
             },
-            creative: None,
+            creative: Some(CreativeData {
+                groups: vec![],
+                items: vec![],
+            }),
             biomes: Some(BiomeData {
                 definitions: vec![BiomeEntry {
                     name_index: 0,
@@ -425,11 +454,28 @@ mod tests {
     }
 
     #[test]
-    fn validate_rejects_missing_required_data() {
+    fn validate_accepts_vanilla_start_game_without_custom_blocks() {
         let mut data = minimal_extracted_data();
         data.blocks.properties.clear();
-        let error = data.validate().unwrap_err();
-        assert!(error.contains("blocks.properties"));
+        assert_eq!(data.validate(), Ok(()));
+    }
+
+    #[test]
+    fn validate_rejects_missing_required_data() {
+        for section in ["items.registry", "creative", "biomes", "entities"] {
+            let mut data = minimal_extracted_data();
+            match section {
+                "items.registry" => data.items.registry.clear(),
+                "creative" => data.creative = None,
+                "biomes" => data.biomes = None,
+                "entities" => data.entities = None,
+                _ => unreachable!(),
+            }
+            assert_eq!(
+                data.validate(),
+                Err(ValidationError::MissingSection(section))
+            );
+        }
     }
 
     #[test]
@@ -437,7 +483,7 @@ mod tests {
         let mut data = minimal_extracted_data();
         data.blocks.properties[0].state_nbt_base64 = "not base64".to_string();
         let error = data.validate().unwrap_err();
-        assert!(error.contains("invalid state NBT"));
+        assert!(error.to_string().contains("invalid state NBT"));
     }
 
     #[test]
@@ -448,7 +494,7 @@ mod tests {
 
         let error = data.validate().unwrap_err();
 
-        assert!(error.contains("out of range"));
+        assert!(error.to_string().contains("out of range"));
     }
 
     #[test]
@@ -464,7 +510,7 @@ mod tests {
 
         let error = data.validate().unwrap_err();
 
-        assert!(error.contains("duplicate biome_id"));
+        assert!(error.to_string().contains("duplicate biome_id"));
     }
 
     #[test]
@@ -480,7 +526,7 @@ mod tests {
 
         let error = data.validate().unwrap_err();
 
-        assert!(error.contains("duplicate biome identifier"));
+        assert!(error.to_string().contains("duplicate biome identifier"));
     }
 
     #[test]
