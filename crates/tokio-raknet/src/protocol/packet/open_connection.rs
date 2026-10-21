@@ -101,6 +101,43 @@ pub struct OpenConnectionRequest2 {
     pub client_guid: u64,
 }
 
+impl OpenConnectionRequest2 {
+    /// Decode using the security setting negotiated in reply 1, as required by
+    /// go-raknet `internal/message/open_connection_request_2.go:OpenConnectionRequest2.UnmarshalBinary`.
+    /// Cookies may begin with an IPv4/IPv6 tag, so live listeners must use this
+    /// contextual decoder rather than infer cookie presence from packet bytes.
+    pub fn decode_body_with_security(
+        src: &mut impl bytes::Buf,
+        security: bool,
+    ) -> Result<Self, super::DecodeError> {
+        let magic = Magic::decode_raknet(src)?;
+        if magic != DEFAULT_UNCONNECTED_MAGIC {
+            return Err(super::DecodeError::InvalidMagic);
+        }
+        Self::decode_fields(src, magic, security)
+    }
+
+    fn decode_fields(
+        src: &mut impl bytes::Buf,
+        magic: Magic,
+        security: bool,
+    ) -> Result<Self, super::DecodeError> {
+        let (cookie, client_proof) = if security {
+            (Some(u32::decode_raknet(src)?), bool::decode_raknet(src)?)
+        } else {
+            (None, false)
+        };
+        Ok(Self {
+            magic,
+            cookie,
+            client_proof,
+            server_addr: SocketAddr::decode_raknet(src)?,
+            mtu: u16::decode_raknet(src)?,
+            client_guid: u64::decode_raknet(src)?,
+        })
+    }
+}
+
 impl Packet for OpenConnectionRequest2 {
     const ID: u8 = 0x07;
 
@@ -127,35 +164,12 @@ impl Packet for OpenConnectionRequest2 {
         let rest: Bytes = src.copy_to_bytes(src.remaining());
         let mut cursor = &rest[..];
 
-        let mut cookie = None;
-        if let Some(&first) = cursor.first() {
-            if first != 4 && first != 6 {
-                if cursor.len() < 4 {
-                    return Err(super::DecodeError::UnexpectedEof);
-                }
-                cookie = Some(u32::from_be_bytes([
-                    cursor[0], cursor[1], cursor[2], cursor[3],
-                ]));
-                cursor = &cursor[4..];
-                if !cursor.is_empty() {
-                    cursor = &cursor[1..]; // skip reserved/client proof byte
-                }
-            }
-        } else {
-            return Err(super::DecodeError::UnexpectedEof);
-        }
-
-        let server_addr = SocketAddr::decode_raknet(&mut cursor)?;
-        let mtu = u16::decode_raknet(&mut cursor)?;
-        let client_guid = u64::decode_raknet(&mut cursor)?;
-        Ok(Self {
-            magic,
-            cookie,
-            client_proof: false,
-            server_addr,
-            mtu,
-            client_guid,
-        })
+        // The context-free trait implementation retains its historical
+        // inference for callers that do not have the negotiated security mode.
+        // Network listeners use decode_body_with_security instead.
+        let first = cursor.first().ok_or(super::DecodeError::UnexpectedEof)?;
+        let security = *first != 4 && *first != 6;
+        Self::decode_fields(&mut cursor, magic, security)
     }
 }
 
@@ -427,6 +441,62 @@ impl Packet for NewIncomingConnection {
 mod tests {
     use super::*;
     use bytes::BytesMut;
+
+    #[test]
+    fn secured_request2_cookie_prefix_is_not_an_address_tag() {
+        for address in ["127.0.0.1:19132", "[::1]:19132"] {
+            for cookie in [0x0401_0203, 0x0601_0203, 0xffff_ffff] {
+                let request = OpenConnectionRequest2 {
+                    magic: DEFAULT_UNCONNECTED_MAGIC,
+                    cookie: Some(cookie),
+                    client_proof: true,
+                    server_addr: address.parse().unwrap(),
+                    mtu: 1492,
+                    client_guid: 123,
+                };
+                let mut encoded = BytesMut::new();
+                request.encode_body(&mut encoded).unwrap();
+                for len in 0..encoded.len() {
+                    assert!(
+                        OpenConnectionRequest2::decode_body_with_security(
+                            &mut &encoded[..len],
+                            true
+                        )
+                        .is_err()
+                    );
+                }
+                let decoded =
+                    OpenConnectionRequest2::decode_body_with_security(&mut encoded.freeze(), true)
+                        .unwrap();
+                assert_eq!(decoded.cookie, Some(cookie));
+                assert!(decoded.client_proof);
+                assert_eq!(decoded.server_addr, request.server_addr);
+                assert_eq!(decoded.mtu, request.mtu);
+                assert_eq!(decoded.client_guid, request.client_guid);
+            }
+        }
+    }
+
+    #[test]
+    fn unsecured_request2_context_reads_address_directly() {
+        let request = OpenConnectionRequest2 {
+            magic: DEFAULT_UNCONNECTED_MAGIC,
+            cookie: None,
+            client_proof: false,
+            server_addr: "127.0.0.1:19132".parse().unwrap(),
+            mtu: 400,
+            client_guid: 123,
+        };
+        let mut encoded = BytesMut::new();
+        request.encode_body(&mut encoded).unwrap();
+        let decoded =
+            OpenConnectionRequest2::decode_body_with_security(&mut encoded.freeze(), false)
+                .unwrap();
+        assert_eq!(decoded.cookie, None);
+        assert_eq!(decoded.server_addr, request.server_addr);
+        assert_eq!(decoded.mtu, request.mtu);
+        assert_eq!(decoded.client_guid, request.client_guid);
+    }
 
     #[test]
     fn connection_request_roundtrip() {

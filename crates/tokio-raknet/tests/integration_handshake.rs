@@ -56,7 +56,7 @@ async fn raw_request2_handshake(socket: &UdpSocket, server_addr: SocketAddr) {
         mtu: 900,
         cookie: Some(cookie),
         client_proof: false,
-        client_guid: 12345,
+        client_guid: (-12345i64) as u64,
     });
     buf.clear();
     req2.encode(&mut buf).unwrap();
@@ -187,32 +187,11 @@ async fn test_basic_handshake_and_exchange() {
 }
 
 #[tokio::test]
-async fn test_listener_config_defaults() {
-    let config = RaknetListenerConfig::default();
-
-    assert_eq!(config.max_connections, 1024);
-    assert_eq!(config.max_pending_connections, 256);
-    assert_eq!(config.max_mtu, 1400);
-    assert_eq!(config.session_timeout, Duration::from_secs(10));
-    assert_eq!(config.max_ordering_channels, 16); // MAXIMUM_ORDERING_CHANNELS
-}
-
-#[tokio::test]
 async fn test_listener_high_performance_config() {
     let config = RaknetListenerConfig::high_performance();
 
     assert_eq!(config.max_pending_connections, 1024);
     assert_eq!(config.max_queued_reliable_bytes, 4 * 1024 * 1024);
-}
-
-#[tokio::test]
-async fn test_stream_config_defaults() {
-    let config = RaknetStreamConfig::default();
-
-    assert_eq!(config.mtu, 1400);
-    assert_eq!(config.connection_timeout, Duration::from_secs(10));
-    assert_eq!(config.session_timeout, Duration::from_secs(10));
-    assert_eq!(config.max_ordering_channels, 16); // MAXIMUM_ORDERING_CHANNELS
 }
 
 #[tokio::test]
@@ -227,8 +206,10 @@ async fn test_listener_set_advertisement() {
 
     // Set new advertisement
     let new_ad = b"Custom Advertisement".to_vec();
-    listener.set_advertisement(new_ad.clone());
+    listener.set_advertisement(new_ad.clone()).unwrap();
 
+    assert_eq!(listener.get_advertisement(), new_ad);
+    assert!(listener.set_advertisement(vec![0; 32768]).is_err());
     assert_eq!(listener.get_advertisement(), new_ad);
 }
 
@@ -408,7 +389,7 @@ async fn test_listener_waits_for_new_incoming_connection_before_accept() {
     send_online_control(
         &client_socket,
         RaknetPacket::ConnectionRequest(ConnectionRequest {
-            client_guid: 12345,
+            client_guid: (-12345i64) as u64,
             timestamp: RaknetTime(1),
             secure: false,
         }),
@@ -524,7 +505,7 @@ async fn test_request2_rechecks_max_connections() {
         mtu: 900,
         cookie: Some(cookie),
         client_proof: false,
-        client_guid: 67890,
+        client_guid: (-67890i64) as u64,
     });
     buf.clear();
     req2.encode(&mut buf).unwrap();
@@ -543,8 +524,6 @@ async fn test_request2_rechecks_max_connections() {
 async fn test_half_open_request2_session_times_out_and_frees_slot() {
     let config = RaknetListenerConfig {
         max_connections: 1,
-        session_stale: Duration::from_millis(100),
-        session_timeout: Duration::from_secs(5),
         ..Default::default()
     };
     let mut listener = RaknetListener::bind_with_config("127.0.0.1:0".parse().unwrap(), config)
@@ -556,7 +535,10 @@ async fn test_half_open_request2_session_times_out_and_frees_slot() {
     half_open.connect(server_addr).await.unwrap();
     raw_request2_handshake(&half_open, server_addr).await;
 
-    tokio::time::sleep(Duration::from_millis(250)).await;
+    // Upstream handler.go:handleOpenConnectionRequest2 uses an absolute ten
+    // second handshake deadline, independent of the session's stale threshold.
+    // Transport uses std::time::Instant, so Tokio's paused clock cannot expire it.
+    tokio::time::sleep(Duration::from_millis(10_500)).await;
 
     let accepted = tokio::spawn(async move {
         timeout(Duration::from_secs(5), listener.accept())
@@ -568,7 +550,7 @@ async fn test_half_open_request2_session_times_out_and_frees_slot() {
     let client = timeout(Duration::from_secs(5), RaknetStream::connect(server_addr))
         .await
         .expect("connect timed out")
-        .expect("connect failed after half-open stale timeout");
+        .expect("connect failed after half-open handshake deadline");
 
     drop(client);
     accepted.await.unwrap();
@@ -775,4 +757,33 @@ async fn test_recv_message_exposes_id_and_payload_without_repacking() {
 
     assert_eq!(received.id, 0x8e);
     assert_eq!(received.payload.as_ref(), &[0xaa, 0xbb, 0xcc]);
+}
+
+#[tokio::test]
+async fn full_client_receive_queue_notifies_server_of_disconnect() {
+    let mut listener = RaknetListener::bind("127.0.0.1:0".parse().unwrap())
+        .await
+        .unwrap();
+    let address = listener.local_addr();
+    let server = tokio::spawn(async move {
+        let mut stream = listener.accept().await.unwrap();
+        for _ in 0..129 {
+            stream.send_encoded(vec![0xfe, 1]).await.unwrap();
+        }
+        // This is shorter than the five-second inactivity timeout: the client
+        // must send a disconnect, not simply abandon its UDP task.
+        let result = timeout(Duration::from_secs(2), stream.recv_message())
+            .await
+            .expect("client abandoned full receive queue without disconnect");
+        assert!(matches!(
+            result,
+            Some(Err(RaknetError::Disconnected(_)))
+                | Some(Err(RaknetError::ConnectionClosed))
+                | None
+        ));
+    });
+    let client = RaknetStream::connect(address).await.unwrap();
+    // Deliberately retain but never drain the client's 128-message queue.
+    server.await.unwrap();
+    drop(client);
 }

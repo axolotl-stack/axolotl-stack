@@ -27,7 +27,11 @@ impl RaknetEncodable for SequenceRange {
     }
 
     fn decode_raknet(src: &mut impl Buf) -> Result<Self, DecodeError> {
-        let singleton = bool::decode_raknet(src)?;
+        let singleton = match u8::decode_raknet(src)? {
+            0 => false,
+            1 => true,
+            _ => return Err(DecodeError::InvalidAckPacket),
+        };
         let start = Sequence24::decode_raknet(src)?;
         let end = if singleton {
             start
@@ -135,6 +139,12 @@ impl RaknetEncodable for AckNackPayload {
             return Err(DecodeError::InvalidAckPacket);
         }
 
+        // Every record needs at least a tag and a 24-bit sequence. Check before
+        // reserving memory from an untrusted count (acknowledge.go:acknowledgement.read).
+        if src.remaining() < usize::from(len) * 4 {
+            return Err(DecodeError::UnexpectedEof);
+        }
+
         let mut ranges = Vec::with_capacity(len as usize);
         let mut total_sequences = 0u32;
         for _ in 0..len {
@@ -164,6 +174,31 @@ impl AckNackPayload {
 mod tests {
     use super::*;
     use bytes::BytesMut;
+
+    #[test]
+    fn rejects_unknown_record_type() {
+        let mut src = &[0, 1, 2, 0, 0, 0, 0, 0, 0][..];
+        assert!(matches!(
+            AckNackPayload::decode_raknet(&mut src),
+            Err(DecodeError::InvalidAckPacket)
+        ));
+    }
+
+    #[test]
+    fn accepts_exact_sequence_limit() {
+        let mut src = &[0, 1, 0, 0, 0, 0, 0xff, 0x1f, 0][..];
+        let decoded = AckNackPayload::decode_raknet(&mut src).unwrap();
+        assert_eq!(decoded.ranges[0].len(), 8192);
+    }
+
+    #[test]
+    fn rejects_truncated_record_count() {
+        let mut src = &[0x20, 0][..];
+        assert!(matches!(
+            AckNackPayload::decode_raknet(&mut src),
+            Err(DecodeError::UnexpectedEof)
+        ));
+    }
 
     #[test]
     fn encodes_expected_layout() -> Result<(), DecodeError> {

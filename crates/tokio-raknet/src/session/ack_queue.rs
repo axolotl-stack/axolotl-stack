@@ -14,34 +14,44 @@ pub struct AckQueue {
 impl AckQueue {
     pub fn new(max_ranges: usize) -> Self {
         Self {
-            max_ranges,
+            max_ranges: max_ranges.min(crate::protocol::constants::MAX_ACK_SEQUENCES as usize),
             queue: VecDeque::new(),
         }
     }
 
     pub fn push(&mut self, range: SequenceRange) {
-        if self.queue.len() >= self.max_ranges {
-            return;
-        }
-
-        if let Some(last) = self.queue.back_mut() {
-            if last.end.next() == range.start {
-                last.end = range.end;
-                return;
-            }
-
-            // Merge overlapping or contiguous
-            if last.end >= range.start && range.end >= last.start {
-                last.end = std::cmp::max(last.end, range.end);
-                last.start = std::cmp::min(last.start, range.start);
-                return;
-            }
-        }
-
-        // Normalize wrapping ranges by splitting if needed
+        // Split wrapping ranges before comparing raw endpoints.
         if let Some((tail, head)) = range.split_wrapping() {
             self.push(tail);
             self.push(head);
+            return;
+        }
+        let max_sequences = crate::protocol::constants::MAX_ACK_SEQUENCES as u32;
+        if range.len() > max_sequences {
+            let mut start = range.start.value();
+            while start <= range.end.value() && self.queue.len() < self.max_ranges {
+                let end = range.end.value().min(start + max_sequences - 1);
+                self.push(SequenceRange {
+                    start: crate::protocol::types::Sequence24::new(start),
+                    end: crate::protocol::types::Sequence24::new(end),
+                });
+                start = end + 1;
+            }
+            return;
+        }
+        if let Some(last) = self.queue.back_mut() {
+            let start = last.start.value().min(range.start.value());
+            let end = last.end.value().max(range.end.value());
+            if range.start.value() <= last.end.value() + 1
+                && last.start.value() <= range.end.value() + 1
+                && end - start < max_sequences
+            {
+                last.start = crate::protocol::types::Sequence24::new(start);
+                last.end = crate::protocol::types::Sequence24::new(end);
+                return;
+            }
+        }
+        if self.queue.len() >= self.max_ranges {
             return;
         }
 
@@ -57,15 +67,18 @@ impl AckQueue {
         ranges: &mut Vec<SequenceRange>,
     ) {
         let mut used = base_overhead;
+        // go-raknet acknowledge.go:acknowledgement.read accepts 8192 sequences.
+        let mut sequences: u32 = ranges.iter().map(SequenceRange::len).sum();
 
         while let Some(front) = self.queue.front() {
             let size = front.encoded_size();
-            // Check if adding this range would exceed MTU
-            // But if ranges is empty, we MUST add at least one if possible (though base_overhead might be large)
-            // The original logic allowed breaking early.
-            if !ranges.is_empty() && used + size > mtu {
+            if used.saturating_add(size) > mtu
+                || sequences.saturating_add(front.len())
+                    > crate::protocol::constants::MAX_ACK_SEQUENCES as u32
+            {
                 break;
             }
+            sequences += front.len();
             used += size;
             ranges.push(self.queue.pop_front().unwrap());
         }
@@ -101,8 +114,8 @@ mod tests {
         let mut q = AckQueue::new(16);
         for i in 0..4 {
             q.push(SequenceRange {
-                start: Sequence24::new(i),
-                end: Sequence24::new(i),
+                start: Sequence24::new(i * 2),
+                end: Sequence24::new(i * 2),
             });
         }
 
@@ -111,5 +124,42 @@ mod tests {
         let mut out = Vec::new();
         q.pop_for_mtu(6, 2, &mut out);
         assert_eq!(out.len(), 1);
+    }
+
+    #[test]
+    fn sequential_feedback_never_emits_an_oversized_range() {
+        let mut queue = AckQueue::new(2);
+        for index in 0..16385 {
+            let sequence = Sequence24::new(index);
+            queue.push(SequenceRange {
+                start: sequence,
+                end: sequence,
+            });
+        }
+        assert_eq!(queue.queue.len(), 2);
+        let mut ranges = Vec::new();
+        queue.pop_for_mtu(400, 3, &mut ranges);
+        assert_eq!(
+            ranges.iter().map(SequenceRange::len).collect::<Vec<_>>(),
+            vec![8192]
+        );
+        ranges.clear();
+        queue.pop_for_mtu(400, 3, &mut ranges);
+        assert_eq!(
+            ranges.iter().map(SequenceRange::len).collect::<Vec<_>>(),
+            vec![8192]
+        );
+    }
+
+    #[test]
+    fn cannot_emit_feedback_beyond_mtu() {
+        let mut queue = AckQueue::new(1);
+        queue.push(SequenceRange {
+            start: Sequence24::new(1),
+            end: Sequence24::new(1),
+        });
+        let mut ranges = Vec::new();
+        queue.pop_for_mtu(6, 3, &mut ranges);
+        assert!(ranges.is_empty());
     }
 }

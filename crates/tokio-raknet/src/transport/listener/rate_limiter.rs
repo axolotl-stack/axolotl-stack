@@ -2,9 +2,15 @@
 //!
 //! Prevents amplification and admission-flood attacks where attackers spoof victim IPs
 //! or cycle through large numbers of source addresses.
+//! Local deviation from upstream `listener.go:security`: upstream blocks malformed
+//! peers but has no ping/admission rate cap. Preserve the existing configured cap
+//! and reject new identities at capacity rather than evicting live rate windows.
 
 use std::collections::HashMap;
+use std::collections::hash_map::RandomState;
+use std::hash::BuildHasher;
 use std::net::IpAddr;
+use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
 const WINDOW: Duration = Duration::from_secs(1);
@@ -48,6 +54,10 @@ pub struct PingRateLimiter {
     max_per_second: u32,
     max_entries: usize,
     last_cleanup: Instant,
+    cookie_key: RandomState,
+    previous_cookie_key: RandomState,
+    rotated_at: Instant,
+    blocks: HashMap<IpAddr, Instant>,
 }
 
 impl PingRateLimiter {
@@ -64,6 +74,10 @@ impl PingRateLimiter {
             max_per_second: max_pings_per_second,
             max_entries,
             last_cleanup: Instant::now(),
+            cookie_key: RandomState::new(),
+            previous_cookie_key: RandomState::new(),
+            rotated_at: Instant::now(),
+            blocks: HashMap::new(),
         }
     }
 
@@ -80,6 +94,52 @@ impl PingRateLimiter {
         self.check_and_record_kind(ip, now, ProbeKind::Request1)
     }
 
+    /// Upstream `handler.go:cookie` and `listener.go:security.tick`: address-bound
+    /// stateless cookies, rotated every two seconds with one previous salt accepted.
+    /// Deviation: use the standard library's randomly keyed hash instead of CRC32,
+    /// avoiding both predictable clock seeds and an additional hashing dependency.
+    pub(super) fn cookie(&mut self, peer: SocketAddr, now: Instant) -> u32 {
+        self.rotate_cookies(now);
+        Self::hash_cookie(&self.cookie_key, peer)
+    }
+
+    pub(super) fn valid_cookie(&mut self, peer: SocketAddr, cookie: u32, now: Instant) -> bool {
+        self.rotate_cookies(now);
+        cookie == Self::hash_cookie(&self.cookie_key, peer)
+            || cookie == Self::hash_cookie(&self.previous_cookie_key, peer)
+    }
+
+    fn hash_cookie(key: &RandomState, peer: SocketAddr) -> u32 {
+        key.hash_one(peer) as u32
+    }
+
+    fn rotate_cookies(&mut self, now: Instant) {
+        let elapsed = now.saturating_duration_since(self.rotated_at);
+        if elapsed >= Duration::from_secs(2) {
+            self.previous_cookie_key = if elapsed >= Duration::from_secs(4) {
+                RandomState::new()
+            } else {
+                self.cookie_key.clone()
+            };
+            self.cookie_key = RandomState::new();
+            self.rotated_at = now;
+        }
+    }
+
+    /// Upstream `listener.go:security.blockFor`: malformed traffic blocks its IP
+    /// for ten seconds. Unlike the unbounded upstream map, a full local map fails
+    /// closed for unknown addresses until the earliest tracked block expires.
+    pub(super) fn block(&mut self, ip: IpAddr, now: Instant) {
+        self.blocks.retain(|_, expiry| *expiry > now);
+        if self.blocks.contains_key(&ip) || self.blocks.len() < self.max_entries.max(1) {
+            self.blocks.insert(ip, now + Duration::from_secs(10));
+        }
+    }
+
+    pub(super) fn blocked(&mut self, ip: IpAddr, now: Instant) -> bool {
+        self.blocks.retain(|_, expiry| *expiry > now);
+        self.blocks.contains_key(&ip) || self.blocks.len() >= self.max_entries.max(1)
+    }
     fn check_and_record_kind(&mut self, ip: IpAddr, now: Instant, kind: ProbeKind) -> bool {
         if self.max_per_second == 0 {
             return true;
@@ -95,9 +155,6 @@ impl PingRateLimiter {
                 return false;
             }
             self.cleanup(now);
-            if self.per_ip.len() >= self.max_entries {
-                self.evict_oldest();
-            }
             if self.per_ip.len() >= self.max_entries {
                 return false;
             }
@@ -135,34 +192,33 @@ impl PingRateLimiter {
             ping_live || request1_live
         });
     }
-
-    fn evict_oldest(&mut self) {
-        let oldest = self
-            .per_ip
-            .iter()
-            .filter_map(|(ip, state)| state.last_seen().map(|seen| (*ip, seen)))
-            .min_by_key(|(_, seen)| *seen)
-            .map(|(ip, _)| ip);
-
-        if let Some(ip) = oldest {
-            self.per_ip.remove(&ip);
-        }
-    }
-}
-
-impl IpRateState {
-    fn last_seen(&self) -> Option<Instant> {
-        [self.ping, self.request1]
-            .into_iter()
-            .flatten()
-            .map(|window| window.window_start)
-            .max()
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cookies_are_address_bound_and_expire_after_two_rotations() {
+        let mut limiter = PingRateLimiter::new(10);
+        let now = Instant::now();
+        let peer = "127.0.0.1:19132".parse().unwrap();
+        let cookie = limiter.cookie(peer, now);
+        assert!(limiter.valid_cookie(peer, cookie, now));
+        assert!(!limiter.valid_cookie("127.0.0.1:19133".parse().unwrap(), cookie, now));
+        assert!(limiter.valid_cookie(peer, cookie, now + Duration::from_secs(2)));
+        assert!(!limiter.valid_cookie(peer, cookie, now + Duration::from_secs(4)));
+    }
+
+    #[test]
+    fn blocks_expire_and_are_shared_by_source_ip() {
+        let mut limiter = PingRateLimiter::with_max_entries(1, 2);
+        let now = Instant::now();
+        let ip = "127.0.0.1".parse().unwrap();
+        limiter.block(ip, now);
+        assert!(limiter.blocked(ip, now));
+        assert!(!limiter.blocked(ip, now + Duration::from_secs(10)));
+    }
     use std::net::{IpAddr, Ipv4Addr};
 
     #[test]
@@ -253,11 +309,11 @@ mod tests {
 
         assert!(limiter.allow_ping(ip1, now));
         assert!(limiter.allow_request1(ip2, now + Duration::from_millis(1)));
-        assert!(limiter.allow_ping(ip3, now + Duration::from_millis(2)));
+        assert!(!limiter.allow_ping(ip3, now + Duration::from_millis(2)));
 
         assert_eq!(limiter.per_ip.len(), 2);
-        assert!(!limiter.per_ip.contains_key(&ip1));
+        assert!(limiter.per_ip.contains_key(&ip1));
         assert!(limiter.per_ip.contains_key(&ip2));
-        assert!(limiter.per_ip.contains_key(&ip3));
+        assert!(!limiter.per_ip.contains_key(&ip3));
     }
 }

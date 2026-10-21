@@ -111,6 +111,11 @@ impl SlidingWindow {
         self.ss_thresh == 0.0 || self.cwnd <= self.ss_thresh
     }
 
+    /// go-raknet conn.go:receiveDatagram starts NAK aging with a zero RTT.
+    pub fn measured_rtt(&self) -> Duration {
+        Duration::from_secs_f64(self.estimated_rtt.max(0.0) / 1000.0)
+    }
+
     pub fn get_rto_for_retransmission(&self) -> Duration {
         if self.estimated_rtt < 0.0 {
             return Duration::from_millis(CC_MAXIMUM_THRESHOLD as u64);

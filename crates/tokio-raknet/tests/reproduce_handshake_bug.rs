@@ -64,7 +64,7 @@ async fn test_handshake_retry_bug() {
         mtu: 900,
         cookie: Some(cookie),
         client_proof: false,
-        client_guid: 12345,
+        client_guid: (-12345i64) as u64,
     });
     req2.encode(&mut buf).unwrap();
     client_socket.send(&buf).await.unwrap();

@@ -4,7 +4,6 @@ use crate::protocol::{
     constants::MAX_ACK_SEQUENCES,
     encapsulated_packet::EncapsulatedPacket,
     packet::{DecodeError, RaknetPacket},
-    types::Sequence24,
 };
 use bytes::Bytes;
 
@@ -59,6 +58,9 @@ impl Session {
         ranges: Vec<SequenceRange>,
         max_ranges: usize,
     ) {
+        if max_ranges == 0 {
+            return;
+        }
         let mut total_sequences = 0u32;
         for range in ranges {
             if !Self::inbound_ack_range_is_safe(range) {
@@ -83,19 +85,9 @@ impl Session {
         now: Instant,
         out: &mut Vec<IncomingPacket>,
     ) -> Result<(), DecodeError> {
-        // Reliability Logic:
-        // - For non-split reliable packets:
-        //   1) Deduplicate by reliable index; drop duplicates early.
-        //   2) Decode/deliver; mark reliable index as seen on success.
-        //
-        // - For split packets:
-        //   Do NOT mark reliable-indexes as seen until the split is fully assembled.
-        //   Each split part has its own reliable index, and marking parts as seen
-        //   would prevent retransmission if we later drop the split due to timeout.
-        //   We rely on split_assembler to filter duplicate parts per (id,index).
-
-        let is_split = enc.header.is_split;
-        let ridx = if enc.header.reliability.is_reliable() && !is_split {
+        // Every accepted reliable fragment occupies an index, not only complete
+        // messages. Otherwise split traffic leaves permanent holes in this window.
+        let ridx = if enc.header.reliability.is_reliable() {
             enc.reliable_index
         } else {
             None
@@ -104,27 +96,20 @@ impl Session {
         if let Some(idx) = ridx
             && self.reliable_tracker.has_seen(idx)
         {
-            // Duplicate non-split reliable; drop silently.
+            // Duplicate or stale reliable packet/fragment.
             return Ok(());
+        }
+        if enc.header.reliability.is_ordered() {
+            self.ordering.validate_ordered(&enc)?;
         }
 
         // Attempt to add to split assembler (or pass through if not split)
         // Note: add() consumes the packet.
-        let assembled_opt = match self.split_assembler.add(enc, now) {
-            Ok(v) => v,
-            Err(e) => {
-                // If buffer is full, we return Error.
-                // We have NOT marked the reliable index as seen.
-                // Sender will timeout and retransmit. Ideally buffer clears by then.
-                return Err(e);
-            }
-        };
+        let assembled_opt = self.split_assembler.add(enc, now)?;
 
-        // If we reached here, the packet was either buffered or reassembled successfully.
-        // For non-split reliable packets, commit the reliable index now.
-        // For split packets, we avoid marking per-part indexes as seen; duplicates
-        // are handled by split_assembler itself.
-        if !is_split && let Some(idx) = ridx {
+        // Commit only after the assembler accepted the fragment. Expired split
+        // messages are deliberately abandoned by the configured split TTL.
+        if let Some(idx) = ridx {
             self.reliable_tracker.see(idx);
         }
 
@@ -196,44 +181,25 @@ impl Session {
 
     fn process_incoming_acks(&mut self, now: Instant) {
         while let Some(range) = self.incoming_acks.pop_front() {
-            Self::for_each_sequence_in_range(range, |seq| {
-                if let Some(tracked) = self.sent_datagrams.remove(&seq)
-                    && let crate::protocol::datagram::DatagramPayload::EncapsulatedPackets(_) =
-                        &tracked.datagram.payload
-                {
+            while let Some((&seq, _)) = self.sent_datagrams.range(range.start..=range.end).next() {
+                if let Some(tracked) = self.sent_datagrams.remove(&seq) {
                     self.sliding
                         .on_ack(now, &tracked.datagram, seq, tracked.send_time);
                 }
-            });
+            }
         }
     }
 
     fn process_incoming_naks(&mut self, now: Instant) {
         while let Some(range) = self.incoming_naks.pop_front() {
-            Self::for_each_sequence_in_range(range, |seq| {
-                if let Some(mut tracked) = self.sent_datagrams.remove(&seq)
-                    && let crate::protocol::datagram::DatagramPayload::EncapsulatedPackets(_) =
-                        &tracked.datagram.payload
-                {
-                    self.sliding.on_nak();
-                    tracked.next_send = now;
-                    self.sent_datagrams.insert(seq, tracked);
-                }
-            });
-        }
-    }
-
-    fn for_each_sequence_in_range<F>(range: SequenceRange, mut f: F)
-    where
-        F: FnMut(Sequence24),
-    {
-        let mut seq = range.start;
-        loop {
-            f(seq);
-            if seq == range.end {
-                break;
+            for tracked in self
+                .sent_datagrams
+                .range_mut(range.start..=range.end)
+                .map(|(_, value)| value)
+            {
+                self.sliding.on_nak();
+                tracked.next_send = now;
             }
-            seq = seq.next();
         }
     }
 }
@@ -241,6 +207,7 @@ impl Session {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::protocol::types::Sequence24;
     use crate::protocol::{packet::RaknetPacket, reliability::Reliability, state::RakPriority};
     use bytes::Bytes;
 

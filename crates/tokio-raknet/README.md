@@ -221,6 +221,60 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## Security & Tuning
 
+The behavioral reference is [lunar-bedrock/go-raknet](https://github.com/lunar-bedrock/go-raknet/tree/87a6b7e53799290d70ac25bcd03645d7ead00d2c).
+Limits are checked before allocating or scanning peer-controlled windows.
+
+| Resource | Limit / behavior | Upstream reference |
+| --- | --- | --- |
+| Negotiated MTU | 400–1492 bytes including IPv4/UDP headers | `conn.go:clampMTU` |
+| Client MTU discovery | Descending probes, minimum probe 576, four attempts per candidate, 500 ms retry | `dial.go:discoverMTU`, `openConnectionRequest1` |
+| Receive / ordered window | 2048 indices; duplicates do not allocate entries | `conn.go:receiveDatagram`, `receivePacket`; `packet_queue.go:put` |
+| ACK/NACK payload | At most 8192 represented sequences; bounded range queues | `acknowledge.go:acknowledgement.read` |
+| Split reassembly | 512 fragments per ID, 16 live IDs; fragments fit the supported UDP payload | `conn.go:receiveSplitPacket`, `effectiveMTU` |
+| Handshake cookies | Address-bound, rotated every 2 seconds, current/previous accepted | `handler.go:cookie`; `listener.go:security.tick` |
+| Half-open session | Absolute 10-second completion deadline; retries do not extend it | `handler.go:handleOpenConnectionRequest2` |
+| Malformed peer | Session removed and source IP blocked for 10 seconds | `listener.go:ListenConfig`, `security.block` |
+| Keepalive / inactivity | 500 ms keepalives; 5 seconds plus twice measured RTT; outgoing traffic does not refresh receive activity | `conn.go:startTicking` |
+| Graceful close | Drain reliable sends, at most 5 seconds; empty queues permit close after 1 second | `conn.go:startTicking` |
+
+Construction APIs remain source-compatible. `bind_with_config` and
+`connect_with_config` reject invalid configuration before binding a socket:
+`io::ErrorKind::InvalidInput` contains a typed `transport::ConfigError`
+(wrapped in `RaknetError::Io` for clients). MTU below 400 or above 1492,
+zero queue capacities/timeouts, and limits exceeding the hard ceilings are errors.
+Infallible low-level `Session` constructors retain their signatures and clamp
+resource ceilings; the compatibility `process_datagram_sequence` method ignores
+invalid sequences, while managed transport sessions return a protocol error.
+`set_advertisement` returns `Result<(), ConfigError>` for oversized pong data;
+the previous advertisement remains unchanged on error. No jolyne, unastar,
+or valentine caller changes are needed.
+
+Safety adaptations to the reference:
+- Missing datagrams are derived as ranges from received entries, and receive
+  bounds are checked before missing detection. ACK/NACK staging is bounded;
+  merged feedback never exceeds the decoder's inclusive 8192-sequence budget.
+- Retransmissions receive fresh datagram sequence numbers while preserving
+  reliable/ordering indices. Accepted split fragments advance duplicate
+  tracking individually, so large fragmented transfers cannot stall the window.
+- Incomplete splits expire after the configured timeout (30 seconds by default).
+  Split metadata must remain consistent, and zero counts/invalid indexes are
+  rejected before allocation. Limits also protect clients from hostile servers;
+  the reference enables its limits only for listener-side connections.
+- Deferred outgoing encapsulated packets are capped at 2048; the reference
+  sends synchronously rather than accumulating a response heap.
+- Existing configured global admission and rate limits are retained. Per-IP
+  sessions are limited by `max_pending_connections`; rate/block tables are
+  bounded and a full block table fails closed for unknown addresses.
+- Cookie hashing uses a randomly keyed standard-library hash, not salted CRC32,
+  with the same stateless address binding and rotation lifecycle.
+- Invalid configuration/negotiated MTU is rejected instead of silently clamped
+  or applying the reference's provider-specific malformed-reply workaround.
+- Extended reliability/channel support is retained. Unknown ACK record tags,
+  zero-length frames, malformed datagram flags and overflowing varints are
+  rejected; frame bit lengths still round up to the next byte.
+- Sliding congestion control and its smoothed RTT estimator are retained;
+  the Go reference instead averages recovery RTT samples over five seconds.
+
 ### Memory Usage
 Defaults are chosen to be safe for general-purpose use to prevent Denial of Service (DoS) via memory exhaustion:
 - `max_pending_connections`: **256** (was 1024)
@@ -229,7 +283,8 @@ Defaults are chosen to be safe for general-purpose use to prevent Denial of Serv
 For high-performance servers (e.g., dedicated game servers) with ample RAM, use `RaknetListenerConfig::high_performance()` or tune these values manually.
 
 ### Ticking
-The main muxer loop runs at **50Hz (20ms)**. This is by design to aggregate ACKs and manage retransmissions efficiently without causing excessive CPU usage from tight-loop polling.
+The main muxer loop runs at **10 Hz (100 ms)**, matching
+`go-raknet/conn.go:Conn.startTicking`, to aggregate ACKs and run maintenance.
 
 ## Benchmarks
 Performance is a priority. Benchmarks (Ryzen 7 7800x3d):
