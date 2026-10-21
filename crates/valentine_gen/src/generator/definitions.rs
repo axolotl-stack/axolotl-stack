@@ -862,7 +862,15 @@ pub fn define_type(
             } else {
                 quote! { Self::#first_ident(Default::default()) }
             };
-            let codec = generate_union_type_codec(&safe_name_str, control_type, &codec_variants)?;
+            let minimum_size = crate::generator::analysis::minimum_encoded_size(t, ctx);
+            let recursive = crate::generator::analysis::is_recursive_type(&safe_name_str, t, ctx);
+            let codec = generate_union_type_codec(
+                &safe_name_str,
+                control_type,
+                &codec_variants,
+                minimum_size,
+                recursive,
+            )?;
             quote! {
                 #[derive(Debug, Clone, PartialEq)]
                 pub enum #ident { #(#enum_variants),* }

@@ -4921,6 +4921,10 @@ impl McpePacketData {
     }
     /// Decodes a batch entry from the provided buffer: `[Length] [Header] [Body]`.
     /// Returns the header and the packet payload.
+    ///
+    /// Returns `DecodeError::TrailingPacketBytes` if the decoded packet
+    /// does not consume its entire declared payload. Bytes belonging to
+    /// subsequent batch entries are not part of this check.
     pub fn decode_inner<B: bytes::Buf>(
         buf: &mut B,
         _args: McpePacketArgs,
@@ -7043,6 +7047,11 @@ impl McpePacketData {
                 packet
             }
         };
+        if payload_buf.has_remaining() {
+            return Err(crate::bedrock::error::DecodeError::TrailingPacketBytes {
+                remaining: payload_buf.remaining(),
+            });
+        }
         Ok((
             GameHeader {
                 id: packet_id,

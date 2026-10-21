@@ -128,6 +128,20 @@ today's dump.
 5. Register canonical definitions for reuse among versions generated in the
    same invocation.
 
+Generated Rust is parsed and formatted before its destination is touched, then
+staged in a sibling temporary file and atomically renamed into place. A failed
+format or write preserves the previous generated module.
+
+Prismarine data-only generation merges existing live version declarations into
+its manifest and surface updates. A version absent from minecraft-data is kept
+when its version crate still exists, so refreshing legacy data cannot remove the
+default protocolgen-backed crate or its feature.
+
+Codec emission derives conservative minimum wire sizes for collection bounds
+and detects named-reference cycles to insert the shared recursive-value budget.
+The same bounds apply to borrowed collections; recursive borrowed raw fallbacks
+use the owned codec on materialization.
+
 The test suite generates Mojang output in a temporary directory and runs
 `cargo check` on the generated crate.
 
