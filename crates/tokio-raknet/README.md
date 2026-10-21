@@ -39,6 +39,67 @@ at 120 ms reopened it to 2400 bytes. No retransmission occurred in this trace.
 Fixed-clock regression tests transfer and acknowledge 32 B and 64 KiB messages
 without invoking maintenance or advancing time.
 
+#### TRANSPORT-01 loopback verification (2026-10-21)
+
+Windows i9-14900HX, release builds, affinity `0x55` (logical CPUs 0, 2, 4, 6),
+four Tokio workers and `GOMAXPROCS=4`. Three alternating rounds ran
+legacy Rust → fixed Rust → Go, then the reverse, then forward again.
+Each implementation used fresh connections and one untimed readiness echo per
+size, followed by 100 echoes for 32/512 B and ten for 4096/65536 B.
+No local compilation or server smoke ran during this final matrix; other workers
+could still contend on this shared workstation.
+
+The legacy baseline restored only the old `ManagedSession::build_datagram` body.
+All binaries used identical benchmark instrumentation, with measurement-only
+commits `6fd1f6c` (max latency) and `78325e4` (Go QPC clock); neither is part of this
+transport fix. Go's clock validation observed a 10 MHz QPC with 100 ns minimum
+positive increments. Earlier Go `time.Now` runs produced zero percentiles and,
+under single-core affinity, a non-finite throughput result; those invalid timing
+runs are not included below.
+
+Latencies are microseconds. Mean, p50, p99 and msgs/s are medians of the three
+per-round statistics; max is the **worst observation across all three rounds**.
+Ten-sample p99 equals that round's maximum, not a population-tail estimate.
+
+| Bytes | Implementation | Mean µs | p50 µs | p99 µs | Max µs | Echoes/s |
+|---:|---|---:|---:|---:|---:|---:|
+| 32 | Rust before | 1195.28 | 67.1 | 223.3 | 120189.5 | 837 |
+| 32 | Rust fixed | 71.17 | 60.9 | 160.1 | 235.2 | 14051 |
+| 32 | go-raknet | 39.81 | 37.8 | 78.3 | 152.3 | 25119 |
+| 512 | Rust before | 2893.90 | 86.1 | 82554.5 | 96787.3 | 346 |
+| 512 | Rust fixed | 64.44 | 59.0 | 113.1 | 274.5 | 15519 |
+| 512 | go-raknet | 37.80 | 37.4 | 82.0 | 163.5 | 26456 |
+| 4096 | Rust before | 41033.90 | 270.5 | 103417.9 | 105736.0 | 24 |
+| 4096 | Rust fixed | 129.66 | 126.7 | 165.4 | 290.3 | 7712 |
+| 4096 | go-raknet | 72.53 | 70.5 | 90.2 | 196.5 | 13787 |
+| 65536 | Rust before | 32514.96 | 1515.3 | 102378.8 | 427289.3 | 31 |
+| 65536 | Rust fixed | 1351.08 | 1330.7 | 1460.6 | 1687.5 | 740 |
+| 65536 | go-raknet | 1032.35 | 1002.2 | 1229.3 | 1736.6 | 969 |
+
+The fixed implementation's median mean latency is 1.79×, 1.70×, 1.79× and
+1.31× Go respectively. No approximately 100 ms stall occurred in the fixed
+matrix. Local raw evidence is `target/transport-final-*.jsonl` and
+`target/transport-final-summary.json`.
+
+Acceptance verification:
+
+- `cargo fmt --all`.
+- `cargo test -p tokio-raknet`: 231 tests passed, including both new fixed-clock
+  regressions (both failed before the fix).
+- `cargo clippy -p tokio-raknet --all-targets -- -D warnings`: passed.
+- `cargo check -p jolyne --all-targets`: passed.
+- `bench-compare` interop, Go client → Rust server and Rust client → Go server:
+  all four payload sizes matched byte-for-byte, with counts 100/100/10/10.
+  These are conformance checks, not loopback timing comparisons: reference peers
+  can still defer ACK emission to their own maintenance interval.
+- Release `unastar` with an isolated offline config copy, plus
+  `stress_test --addr 127.0.0.1:19162 --clients 5 --duration 15`: 5/5 joined and
+  spawned, 19.9/20.1/20.0 TPS with five players, five disconnects/despawns,
+  then 20.0 TPS with zero players. Build used
+  `VCPKG_ROOT=C:\Users\jvigu\vcpkg`.
+- Current `main` was merged cleanly and the acceptance commands and smoke were
+  repeated after the merge.
+
 ## Installation
 
 Add this to your `Cargo.toml`:
