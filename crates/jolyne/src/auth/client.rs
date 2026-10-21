@@ -218,6 +218,25 @@ pub fn generate_self_signed_chain(
     generate_chain_internal(key, display_name, uuid, None)
 }
 
+/// Formats modern online authentication using an already acquired multiplayer token.
+///
+/// The caller must acquire the provider token for this exact key; this function
+/// neither acquires nor verifies account credentials. Pass both returned strings
+/// to `send_login_with_tokens`, and retain `key` for the encryption handshake.
+pub fn encode_with_multiplayer_token(
+    key: &SecretKey,
+    display_name: &str,
+    uuid: Uuid,
+    multiplayer_token: &str,
+) -> Result<(String, String), JolyneError> {
+    let auth = serde_json::json!({
+        "AuthenticationType": 0,
+        "Token": multiplayer_token,
+    })
+    .to_string();
+    Ok((auth, generate_client_data_token(key, display_name, uuid)?))
+}
+
 /// Encodes the authentication JSON and client-data JWT into the raw
 /// `LoginPacket.connection_request` payload used by Bedrock 26.51 (protocol 2193).
 ///
@@ -659,5 +678,26 @@ mod tests {
         };
         verify(token);
         verify(std::str::from_utf8(&request[4 + auth_len + 4..]).unwrap());
+    }
+
+    #[test]
+    fn authenticated_login_uses_full_auth_and_preserves_provider_token() {
+        use p384::ecdsa::{Signature, VerifyingKey, signature::Verifier};
+        let key = SecretKey::from_slice(&[1; 48]).unwrap();
+        let provider_token = "opaque.provider.token";
+        let (auth, client) =
+            encode_with_multiplayer_token(&key, "ClientDiff", Uuid::nil(), provider_token).unwrap();
+        let request = encode_login_request(&auth, &client);
+        let auth_len = u32::from_le_bytes(request[..4].try_into().unwrap()) as usize;
+        let envelope: serde_json::Value =
+            serde_json::from_slice(&request[4..4 + auth_len]).unwrap();
+        assert_eq!(envelope["AuthenticationType"], 0);
+        assert_eq!(envelope["Token"], provider_token);
+        let token = std::str::from_utf8(&request[4 + auth_len + 4..]).unwrap();
+        let parts: Vec<_> = token.split('.').collect();
+        let signature = Signature::from_slice(&URL_SAFE_NO_PAD.decode(parts[2]).unwrap()).unwrap();
+        VerifyingKey::from(key.public_key())
+            .verify(format!("{}.{}", parts[0], parts[1]).as_bytes(), &signature)
+            .unwrap();
     }
 }

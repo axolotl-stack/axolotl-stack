@@ -122,6 +122,15 @@ Offline Login uses `AuthenticationType: 2` with a self-signed multiplayer
 the pinned gophertunnel encoder. The identity and client-data JWTs use the same
 P-384 key. A top-level legacy `chain` is not a modern BDS identity token.
 
+For modern online Login, acquire a provider multiplayer token bound to the
+connection key (for example with `axolotl_xbl::PlayFabClient::multiplayer_token`),
+then call `auth::client::encode_with_multiplayer_token` and
+`send_login_with_tokens`. This sends `AuthenticationType: 0` and preserves the
+provider token; it does not turn self-signed claims into authenticated credentials.
+The older `XblCredentials`/Mojang-chain acquisition path is a legacy flow, not
+live-verified against 26.51. Online envelope bytes and client signatures are tested;
+live Xbox authentication is not exercised by the offline harness.
+
 The offline vanilla differential harness lives in
 [`tools/client-diff`](../../tools/client-diff/README.md). Its acceptance report
 distinguishes successful joins from server-rejected login captures.
