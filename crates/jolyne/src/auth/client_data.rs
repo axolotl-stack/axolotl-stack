@@ -13,18 +13,70 @@
 //! - `GameVersion` must consist only of digits and dots (gophertunnel's regex
 //!   is unanchored and accepts any string containing one digit or dot).
 //! - Image dimensions are unsigned and their byte size uses checked arithmetic.
+//! - Every list is length-bounded while it is deserialized (`bounded`):
+//!   unbounded lists of small structs let a compressed few-KB login expand to
+//!   100+ MB of retained memory. The caps are far above vanilla clients.
 
 use crate::error::AuthError;
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
+
+/// Caps for client-data lists. Vanilla 1.26.51 persona logins carry a handful
+/// of animations, ~10-20 persona pieces with as many tint entries, and four
+/// colours per tint; the caps leave ample headroom.
+const MAX_ANIMATIONS: usize = 32;
+const MAX_PERSONA_PIECES: usize = 128;
+const MAX_PIECE_TINTS: usize = 128;
+const MAX_TINT_COLOURS: usize = 16;
+
+/// Deserializes a JSON array into a `Vec`, failing as soon as it holds more
+/// than `MAX` elements so oversized input is rejected before it is retained.
+/// `null` yields an empty list, as Go `encoding/json` yields a nil slice.
+fn bounded<'de, D, T, const MAX: usize>(deserializer: D) -> Result<Vec<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    struct BoundedVisitor<T, const MAX: usize>(std::marker::PhantomData<T>);
+
+    impl<'de, T: Deserialize<'de>, const MAX: usize> serde::de::Visitor<'de>
+        for BoundedVisitor<T, MAX>
+    {
+        type Value = Vec<T>;
+
+        fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            write!(f, "an array of at most {MAX} elements")
+        }
+
+        fn visit_seq<A: serde::de::SeqAccess<'de>>(self, mut seq: A) -> Result<Vec<T>, A::Error> {
+            let mut out = Vec::with_capacity(seq.size_hint().unwrap_or(0).min(MAX));
+            while let Some(item) = seq.next_element()? {
+                if out.len() == MAX {
+                    return Err(serde::de::Error::invalid_length(MAX + 1, &self));
+                }
+                out.push(item);
+            }
+            Ok(out)
+        }
+
+        fn visit_unit<E: serde::de::Error>(self) -> Result<Vec<T>, E> {
+            Ok(Vec::new())
+        }
+    }
+
+    deserializer.deserialize_any(BoundedVisitor::<T, MAX>(std::marker::PhantomData))
+}
 
 /// Login client data. Unknown JSON fields are ignored and missing fields take
 /// their zero value, matching Go `encoding/json`.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ClientData {
-    #[serde(rename = "AnimatedImageData")]
+    #[serde(
+        rename = "AnimatedImageData",
+        deserialize_with = "bounded::<_, _, MAX_ANIMATIONS>"
+    )]
     pub animated_image_data: Vec<SkinAnimation>,
     #[serde(rename = "ArmSize")]
     pub arm_size: String,
@@ -91,11 +143,17 @@ pub struct ClientData {
     pub override_skin: bool,
     #[serde(rename = "PartyId")]
     pub party_id: String,
-    #[serde(rename = "PersonaPieces")]
+    #[serde(
+        rename = "PersonaPieces",
+        deserialize_with = "bounded::<_, _, MAX_PERSONA_PIECES>"
+    )]
     pub persona_pieces: Vec<PersonaPiece>,
     #[serde(rename = "PersonaSkin")]
     pub persona_skin: bool,
-    #[serde(rename = "PieceTintColors")]
+    #[serde(
+        rename = "PieceTintColors",
+        deserialize_with = "bounded::<_, _, MAX_PIECE_TINTS>"
+    )]
     pub piece_tint_colours: Vec<PersonaPieceTintColour>,
     #[serde(rename = "PlatformOfflineId")]
     pub platform_offline_id: String,
@@ -188,7 +246,10 @@ pub struct PersonaPiece {
 #[serde(default)]
 pub struct PersonaPieceTintColour {
     /// ARGB hex colours, normally four.
-    #[serde(rename = "Colors")]
+    #[serde(
+        rename = "Colors",
+        deserialize_with = "bounded::<_, _, MAX_TINT_COLOURS>"
+    )]
     pub colours: Vec<String>,
     #[serde(rename = "PieceType")]
     pub piece_type: String,
@@ -627,5 +688,48 @@ pub(crate) mod tests {
         assert_eq!(data.device_os, 1);
         assert!(data.skin_id.is_empty());
         assert!(data.validate().is_err());
+    }
+
+    fn with_list(field: &str, item: &str, count: usize) -> String {
+        let items = vec![item; count].join(",");
+        format!(r#"{{"DeviceOS":1,"{field}":[{items}]}}"#)
+    }
+
+    #[test]
+    fn oversized_lists_are_rejected_while_parsing() {
+        for (field, item, max) in [
+            ("AnimatedImageData", "{}", MAX_ANIMATIONS),
+            ("PersonaPieces", "{}", MAX_PERSONA_PIECES),
+            ("PieceTintColors", "{}", MAX_PIECE_TINTS),
+        ] {
+            let at_cap: ClientData = serde_json::from_str(&with_list(field, item, max)).unwrap();
+            let _ = at_cap;
+            assert!(
+                serde_json::from_str::<ClientData>(&with_list(field, item, max + 1)).is_err(),
+                "{field} accepted {} entries",
+                max + 1
+            );
+        }
+        // The attack shape from the review: ~1M empty persona pieces in a few
+        // KB of compressed JSON must fail without materialising the list.
+        let flood = with_list("PersonaPieces", "{}", 1_000_000);
+        assert!(serde_json::from_str::<ClientData>(&flood).is_err());
+
+        let colours = format!(
+            r#"{{"PieceTintColors":[{{"Colors":[{}]}}]}}"#,
+            vec![r##""#ffffffff""##; MAX_TINT_COLOURS + 1].join(",")
+        );
+        assert!(serde_json::from_str::<ClientData>(&colours).is_err());
+    }
+
+    #[test]
+    fn null_lists_decode_as_empty_like_go() {
+        let data: ClientData = serde_json::from_str(
+            r#"{"AnimatedImageData":null,"PersonaPieces":null,"PieceTintColors":[{"Colors":null}]}"#,
+        )
+        .unwrap();
+        assert!(data.animated_image_data.is_empty());
+        assert!(data.persona_pieces.is_empty());
+        assert!(data.piece_tint_colours[0].colours.is_empty());
     }
 }
