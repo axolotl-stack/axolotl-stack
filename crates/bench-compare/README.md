@@ -91,12 +91,22 @@ to every channel delivery, measuring a different application scheduling model.
 ## NetherNet measurements
 
 `nethernet-micro --iterations 5000` measures only public tokio-nethernet APIs:
-`Signal::parse`/`Display` for CONNECTREQUEST, CONNECTRESPONSE, CANDIDATEADD and
-CONNECTERROR, and `parse_ice_candidate`/`format_ice_candidate`. The exact shared
-fixtures use connection ID 42, a loopback SDP offer/answer, host ICE candidate
-`127.0.0.1:50000` and error code 2. Parse owns its output; format allocates a fresh
-String. Both include output destruction. Fixture construction and roundtrip
-checks precede timing; the existing separate allocation pass is unchanged.
+`Signal::parse` plus `Signal::to_wire_string` (`format`) for CONNECTREQUEST,
+CONNECTRESPONSE, CANDIDATEADD and CONNECTERROR, `parse_ice_candidate`/
+`format_ice_candidate`, and the encrypted/HMAC LAN packet codec
+(`discovery::packet::encode_message`/`decode`). The exact shared fixtures use
+connection ID 42, a loopback SDP offer/answer, host ICE candidate
+`127.0.0.1:50000`, error code 2, and a discovery MessagePacket from sender 1 to
+recipient 2 carrying `CONNECTERROR 42 2`. Parse owns its output (`DATA` copied,
+network ID `"2".into()` per op, as on the Cinnabar side); `format` returns a fresh
+exactly-sized String, as Go `Signal.String` and Cinnabar `to_string` do. Both
+include output destruction. `format_reused_buffer` is an ours-only row:
+`Signal::write_wire` appends into one reused String, so it allocates nothing and
+has no reference counterpart; do not compare it with the fresh-String rows.
+`parse_ice_candidate` borrows its fields from the input (no allocation), whereas
+Cinnabar's parser returns owned fields. Discovery encode returns a fresh Vec and
+decode an owned packet on every side. Fixture construction and roundtrip checks
+precede timing; the existing separate allocation pass is unchanged.
 
 Framing micro rows use the public `tokio_nethernet::framing` API with the same
 16383-byte segment body as the Cinnabar adapter: `encode_segments` consumes every
@@ -104,11 +114,10 @@ encoded segment for 32, 512, 4096, 65536 and 1048576-byte messages; `Reassembler
 rows push cloned wire segments (including header validation) into a fresh
 reassembler; `invalid_count` is a first countdown of 255 (256 segments),
 `invalid_sequence` a countdown gap, and `oversize` a body needing 256 segments.
-The encrypted/HMAC LAN packet codec is **unavailable**: its nominally public
-functions live in the private `discovery::packet` module and are not re-exported.
-That gap emits a machine-readable coverage record on stderr, not a fabricated
-timing. No framing/crypto implementation is copied, and transport timings do not
-stand in for missing isolated micros.
+No framing/crypto implementation is copied, and transport timings do not stand in
+for missing isolated micros. Production API used only by these rows: the public
+`tokio_nethernet::framing` and `tokio_nethernet::discovery::packet` codecs
+(bench-compare enables `discovery`).
 
 `nethernet-loopback --count 100` uses the real public
 `NetherNetListener`/`NetherNetDialer`/`NetherNetStream` over ICE, DTLS and SCTP.

@@ -1,0 +1,108 @@
+{
+  "utc": "2026-10-22T02:25:31.9416243Z",
+  "logical_cpu": 4,
+  "rounds": 5,
+  "rust_iterations": 10000,
+  "go_iterations": "testing.Benchmark calibrated",
+  "build_affinity_logical_cpus": [
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31
+  ],
+  "build_jobs": 8,
+  "baseline_commit": "d2aa8336e807d4403cbb85f87483172d4e572df7",
+  "encoder_commit": "289f79989ad7d2f26bc4f17f5505466cbdc4f3ce",
+  "cpu": "Intel Core i9-14900HX",
+  "os": "Windows x64",
+  "rustc": "1.96.0-nightly (b90dc1e59 2026-03-04)",
+  "go": "go1.27.0 windows/amd64",
+  "goamd64": "v1",
+  "gomaxprocs": 4,
+  "tokio_worker_threads": 4,
+  "profile": "opt-level=3; lto=thin; codegen-units=16; strip=true; target-cpu=native",
+  "corpus_commit": "7b2e47c463fa425e25004673cf8960753dd2ff12",
+  "local_build_or_server_load": false,
+  "odd_round_order": [
+    "before",
+    "after",
+    "cinnabar",
+    "go"
+  ],
+  "even_round_order": [
+    "go",
+    "cinnabar",
+    "after",
+    "before"
+  ],
+  "batch_rows": 640,
+  "jolyne_allocation_samples": 160,
+  "executables": {
+    "cinnabar": {
+      "sha256": "49b38625d322568adbc7fc73e85509813c084f47e08a5f230dfe9c532a0635f2",
+      "source": "audited standalone comparator from stab-opt-jolyne",
+      "bedrock_net_revision": "0eaf6d4cb38ac1b52328815302c0964645150d17",
+      "raknet_revision": "7eb32a31f5715ed6cd69120ef19118aa03fcab28",
+      "snap": "1.1.2"
+    },
+    "after": {
+      "sha256": "b337b679c0b82ad9dc8812e21fe1a0775c542cb9f945ebfe38745d96bb1f1189",
+      "source": "reviewed reusable encoder",
+      "revision": "289f79989ad7d2f26bc4f17f5505466cbdc4f3ce",
+      "snappy_code_revision": "7773324"
+    },
+    "before": {
+      "sha256": "43c2a3804825d16a871fae94b15e2df949831f020f3e83a87627e312aa222049",
+      "source": "main compression.rs, rebuilt in the same worktree with the current harness/dependencies",
+      "revision": "d2aa8336e807d4403cbb85f87483172d4e572df7",
+      "snap": "1.1.1"
+    },
+    "go": {
+      "sha256": "af5bf50647d0fbd6ce9881899fc18cf817723fb54aa72c9a7c158706b362cd7f",
+      "source": "audited comparator from stab-opt-jolyne",
+      "gophertunnel": "HashimTheArab/gophertunnel v1.25.3-0.20260928233358-80c811b61860",
+      "s2": "github.com/klauspost/compress v1.18.1",
+      "vcs_revision": "01842a7fea3858bf66c10a141d8562ad2cad6b77",
+      "vcs_modified": true
+    }
+  },
+  "wire_sizes": {
+    "Spawn": {
+      "before": 1168,
+      "after": 1150,
+      "go": 1150,
+      "cinnabar": 1161
+    },
+    "ServerTick": {
+      "before": 1591,
+      "after": 1591,
+      "go": 1592,
+      "cinnabar": 1586
+    },
+    "ChunkRadius": {
+      "before": 79902,
+      "after": 78875,
+      "go": 78659,
+      "cinnabar": 79092
+    },
+    "ClientTick": {
+      "before": 290,
+      "after": 286,
+      "go": 286,
+      "cinnabar": 281
+    }
+  },
+  "size_sources": {
+    "before_after": "five consistent benchmark stderr samples per fixture",
+    "go": "public packet.SnappyCompression.Compress on the exact corpus bytes excluding initial 0xfe, plus two envelope bytes",
+    "cinnabar": "public negotiated BatchCodec linked against audited release libraries; raw framing first checked against corpus"
+  },
+  "snappy_code_commit": "7773324",
+  "final_merged_main": "ffa64e5132ed446dc5892cac708c7a34b175eda3",
+  "final_integration_commit": "728167b34a1aa26b1f57532379edc79edbfdb3c1",
+  "non_snappy_gate": "Accepted by coordinator with explicit identical-binary measurement-noise caveat; a blanket 3% bound is not established"
+}

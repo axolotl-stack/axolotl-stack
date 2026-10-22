@@ -13,7 +13,7 @@ use tokio::net::UdpSocket;
 use tokio::sync::{Mutex, mpsc};
 use tokio_nethernet::{
     IceServer, Message, NetherNetDialer, NetherNetDialerConfig, NetherNetListener,
-    NetherNetListenerConfig, Signal, Signaling, SignalingChannel, TransportConfig,
+    NetherNetListenerConfig, Signal, SignalType, Signaling, SignalingChannel, TransportConfig,
 };
 use webrtc::turn::auth::{AuthHandler, generate_auth_key};
 use webrtc::turn::relay::relay_static::RelayAddressGeneratorStatic;
@@ -72,7 +72,7 @@ struct Local {
 #[async_trait]
 impl Signaling for Local {
     async fn signal(&self, mut signal: Signal) -> anyhow::Result<()> {
-        if signal.typ == "CONNECTREQUEST" {
+        if signal.typ == SignalType::Offer {
             self.observed.lock().await.push(signal.data.clone());
         }
         signal.network_id = self.id.into();

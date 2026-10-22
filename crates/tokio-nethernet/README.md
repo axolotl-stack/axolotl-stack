@@ -85,6 +85,24 @@ policy, not a production default. `relay_only` is the ICE "relay" transport
 policy (go-nethernet `gatherOptions` `ICEGatherPolicy`). `ice_servers` uses the
 crate's own `signaling::IceServer` (UDP `turn:` and `stun:` URLs).
 
+## Signal and discovery codecs
+
+`Signal.typ` is a `SignalType` enum (`Offer`, `Answer`, `Candidate`, `Error`);
+unknown wire names are rejected at parse time. `Signal::parse(&str, ..)` copies
+only `DATA`; `Signal::parse_owned(String, ..)` reuses the received text's buffer
+(used by the discovery and franchise receive paths). `Signal::write_wire` appends
+the wire text to a reusable `String`, `Signal::to_wire_string` allocates it once
+at its exact length, and `Display` produces the same text.
+`parse_ice_candidate` returns an `IceCandidateInfo<'_>` borrowing from its input
+and does not allocate.
+
+`discovery::packet` exposes the LAN packet codec (`encode_request`,
+`encode_response`, `encode_message`, `decode`) without a socket. Encoding is
+one exact-size allocation; the AES key schedule and HMAC ipad/opad midstates are
+derived once. Decoding verifies the HMAC in constant time before parsing any
+field and reuses the decrypted buffer for message text. Encoders are pinned
+byte-for-byte to go-nethernet `discovery.Marshal` vectors.
+
 ## Bounds and error behavior
 
 - Full UDP-sized discovery receives; truncated, unauthenticated, malformed, wrong-recipient and non-signal packets are rejected without panics.

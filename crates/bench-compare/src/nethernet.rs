@@ -17,8 +17,9 @@ use tokio::{
 use tokio_nethernet::framing::{Reassembler, encode_segments};
 use tokio_nethernet::{
     Message, NetherNetDialer, NetherNetDialerConfig, NetherNetListener, NetherNetListenerConfig,
-    NetherNetStream, Signal, Signaling, SignalingChannel, format_ice_candidate,
-    parse_ice_candidate,
+    NetherNetStream, Signal, Signaling, SignalingChannel,
+    discovery::packet::{self as discovery, MessageData, Packet},
+    format_ice_candidate, parse_ice_candidate,
 };
 
 const TIMEOUT: Duration = Duration::from_secs(30);
@@ -50,7 +51,10 @@ pub fn micro(iterations: usize) -> Result<()> {
     framing_micro(iterations)?;
     for (name, text) in signal_fixtures() {
         let signal = Signal::parse(&text, "2".into())?;
-        ensure!(signal.to_string() == text, "signal roundtrip mismatch");
+        ensure!(
+            signal.to_string() == text && signal.to_wire_string() == text,
+            "signal roundtrip mismatch"
+        );
         super::measure(
             "nethernet_signaling",
             name,
@@ -62,6 +66,7 @@ pub fn micro(iterations: usize) -> Result<()> {
                 black_box(Signal::parse(black_box(&text), "2".into()).unwrap());
             },
         )?;
+        // Fresh String per op, like Go `Signal.String` and Cinnabar `to_string`.
         super::measure(
             "nethernet_signaling",
             name,
@@ -70,7 +75,23 @@ pub fn micro(iterations: usize) -> Result<()> {
             text.len(),
             iterations,
             || {
-                black_box(black_box(&signal).to_string());
+                black_box(black_box(&signal).to_wire_string());
+            },
+        )?;
+        // Ours only: appends into one reused String (no allocation). Not
+        // comparable with the references' fresh-allocation format rows.
+        let mut reused = String::with_capacity(text.len());
+        super::measure(
+            "nethernet_signaling",
+            name,
+            "format_reused_buffer",
+            IMPLEMENTATION,
+            text.len(),
+            iterations,
+            || {
+                reused.clear();
+                black_box(&signal).write_wire(&mut reused);
+                black_box(&reused);
             },
         )?;
     }
@@ -112,10 +133,45 @@ pub fn micro(iterations: usize) -> Result<()> {
             black_box(format_candidate());
         },
     )?;
-    eprintln!(
-        "{}",
-        serde_json::json!({"area":"coverage", "status":"unavailable", "name":"nethernet_discovery", "implementation":IMPLEMENTATION, "reason":"discovery::packet is private; encrypted/HMAC encode/decode functions are not publicly re-exported"})
+    // Shared fixture: MessagePacket{RecipientID: 2, Data: "CONNECTERROR 42 2"} from sender 1.
+    let wire = discovery::encode_message(1, 2, "CONNECTERROR 42 2");
+    ensure!(
+        discovery::decode(&wire).map_err(anyhow::Error::msg)?
+            == (
+                Packet::Message(MessageData {
+                    recipient_id: 2,
+                    data: "CONNECTERROR 42 2".into()
+                }),
+                1
+            ),
+        "discovery mismatch"
     );
+    super::measure(
+        "nethernet_discovery",
+        "packet",
+        "encode",
+        IMPLEMENTATION,
+        wire.len(),
+        iterations,
+        || {
+            black_box(discovery::encode_message(
+                black_box(1),
+                black_box(2),
+                black_box("CONNECTERROR 42 2"),
+            ));
+        },
+    )?;
+    super::measure(
+        "nethernet_discovery",
+        "packet",
+        "decode",
+        IMPLEMENTATION,
+        wire.len(),
+        iterations,
+        || {
+            black_box(discovery::decode(black_box(&wire)).unwrap());
+        },
+    )?;
     Ok(())
 }
 

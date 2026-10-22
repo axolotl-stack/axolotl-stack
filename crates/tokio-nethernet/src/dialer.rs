@@ -5,7 +5,7 @@ use tracing::{debug, trace};
 
 use crate::error::{NetherNetError, catch_dependency_panic};
 use crate::signaling::{
-    IceServer, Signal, SignalErrorCode, Signaling, parse_ice_candidate, signal_type,
+    IceServer, Signal, SignalErrorCode, SignalType, Signaling, parse_ice_candidate,
 };
 use crate::stream::{NetherNetStream, NetherNetStreamConfig};
 use crate::transport::session::Role;
@@ -370,7 +370,7 @@ pub(crate) fn trickle_candidates(
                 let sent = timeout(
                     Duration::from_secs(15),
                     signaling.signal(Signal {
-                        typ: signal_type::CANDIDATE.into(),
+                        typ: SignalType::Candidate,
                         connection_id,
                         data,
                         network_id: remote.clone(),
@@ -419,7 +419,7 @@ async fn perform_dial(
         }
         signaling
             .signal(Signal {
-                typ: signal_type::OFFER.into(),
+                typ: SignalType::Offer,
                 connection_id,
                 data: offer,
                 network_id: network_id.clone(),
@@ -448,8 +448,8 @@ async fn perform_dial(
                 }
                 signal = signal_rx.recv() => {
                     let signal = signal.ok_or(NetherNetError::ConnectionClosed)?;
-                    match signal.typ.as_str() {
-                        signal_type::ANSWER if !answered => {
+                    match signal.typ {
+                        SignalType::Answer if !answered => {
                             let allow_missing = config.allow_identityless_server ||
                                 (!signaling.requires_identity() && config.verify_server_token.is_none());
                             remote_identity = crate::identity::verify_sdp_optional(
@@ -466,7 +466,7 @@ async fn perform_dial(
                             }
                             answered = true;
                         }
-                        signal_type::CANDIDATE => {
+                        SignalType::Candidate => {
                             if answered {
                                 add_candidate(pending.connection(), &signal.data, &candidate_budget)?;
                             } else if pending_candidates.len() < 32 {
@@ -475,7 +475,7 @@ async fn perform_dial(
                                 return Err(NetherNetError::InvalidPacket);
                             }
                         }
-                        signal_type::ERROR => {
+                        SignalType::Error => {
                             let code = crate::signaling::parse_signal_error_code(&signal.data)
                                 .map_err(|e| NetherNetError::Signaling(e.into()))?;
                             return Err(NetherNetError::Signaling(anyhow::anyhow!("Remote connection error: {code}")));
@@ -501,14 +501,14 @@ async fn perform_dial(
                 let (Some(signal), Some(connection)) = (signal, connection.upgrade()) else {
                     break;
                 };
-                match signal.typ.as_str() {
-                    signal_type::CANDIDATE
+                match signal.typ {
+                    SignalType::Candidate
                         if add_candidate(&connection, &signal.data, &candidate_budget).is_err() =>
                     {
                         connection.close();
                         break;
                     }
-                    signal_type::ERROR => {
+                    SignalType::Error => {
                         connection.close();
                         break;
                     }
@@ -569,7 +569,7 @@ mod tests {
         };
         actor
             .dispatch_signal(Signal {
-                typ: signal_type::ANSWER.into(),
+                typ: SignalType::Answer,
                 connection_id: 7,
                 data: "forged answer".into(),
                 network_id: "attacker".into(),

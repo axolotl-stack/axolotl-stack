@@ -108,6 +108,10 @@ def render(source):
             lines += ['Cinnabar micro uses 16,383-byte segment payloads plus a one-byte countdown. '
                       'Encode consumes every generated segment; reassembly includes segment decode. '
                       'The oversize case exceeds the 255-segment encode limit; invalid-count/sequence rows exercise actual public rejection paths.', '']
+        if area == 'nethernet_signaling':
+            lines += ['`format` returns a fresh String per op on every side (ours `Signal::to_wire_string`, Go `Signal.String`, '
+                      'Cinnabar `to_string`). `format_reused_buffer` is ours only: `Signal::write_wire` appends into one reused '
+                      'String without allocating; it has no reference counterpart and is not a comparison.', '']
     gaps = []
     lines += ['## NetherNet loopback: setup and reliable echo', '',
               '| Size | Operation | Side | Samples/round | Mean µs | p50 µs | p99 µs | Max µs | msgs/s | MB/s | Ours/reference time |',

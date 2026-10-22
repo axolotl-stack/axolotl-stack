@@ -77,6 +77,22 @@ Decode remembers the previous output length and bounds speculative buffer
 growth; batches exceeding the 1 MiB speculative ceiling use a guarded zlib-rs
 streaming decoder instead of allocating the entire configured maximum.
 
+Snappy encoding uses a whole-block matcher with input-sized 8/10/12/14-bit
+hash tables retained in 64 KiB of lazily allocated per-connection scratch;
+DEFLATE-only connections do not allocate this table. It emits only
+standard Snappy literal/copy tags, including 32-bit offsets across 64 KiB
+boundaries; it does not emit S2 repeat extensions. Decoding remains the
+`snap` decoder, with the declared decoded length checked before allocation.
+Steady-state compression and decompression reuse their existing buffers.
+Barely compressible input falls back to a single literal instead of retaining
+a tag-heavy parse. Permanent Go interoperability tests decode checked-in
+vectors for all four benchmark batches, a >64 KiB literal and a copy4 offset.
+The matcher adapts the BSD-licensed
+[S2 Snappy search](https://github.com/klauspost/compress/tree/v1.18.1/s2);
+its redistribution notice is retained in `src/compression/snappy.rs`.
+See [Snappy measurements and interoperability](snappy-report.md) for the
+four-fixture size/speed gates and validation commands.
+
 For opaque framing, `BatchCodec::encode_frames_into` accepts packet `Bytes`
 including the game header but excluding the length prefix, a `BatchEncoding`
 settings value, and a reusable `BytesMut`. `decode_with` synchronously borrows

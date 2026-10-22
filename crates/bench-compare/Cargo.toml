@@ -17,7 +17,7 @@ flate2.workspace = true
 jolyne.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "time", "net", "sync", "macros", "io-util"] }
 tokio-raknet.workspace = true
-tokio-nethernet.workspace = true
+tokio-nethernet = { workspace = true, features = ["discovery"] }
 valentine = { workspace = true, features = ["bedrock_1_26_51"] }
 
 [dev-dependencies]
