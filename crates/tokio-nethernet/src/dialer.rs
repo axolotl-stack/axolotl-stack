@@ -7,13 +7,14 @@ use webrtc::api::interceptor_registry::register_default_interceptors;
 use webrtc::api::media_engine::MediaEngine;
 use webrtc::api::setting_engine::SettingEngine;
 use webrtc::data_channel::data_channel_init::RTCDataChannelInit;
+use webrtc::dtls::extension::extension_use_srtp::SrtpProtectionProfile;
 use webrtc::ice_transport::ice_candidate::RTCIceCandidate;
 use webrtc::ice_transport::ice_server::RTCIceServer;
 use webrtc::interceptor::registry::Registry;
 use webrtc::peer_connection::configuration::RTCConfiguration;
 use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
 
-use crate::error::NetherNetError;
+use crate::error::{NetherNetError, catch_dependency_panic};
 use crate::signaling::{
     Signal, SignalErrorCode, SignalType, Signaling, format_ice_candidate, parse_ice_candidate,
 };
@@ -30,6 +31,7 @@ pub struct NetherNetDialerConfig {
     pub ice_servers: Vec<RTCIceServer>,
     /// Optional WebRTC settings for explicit local interface/ICE policy.
     /// `None` preserves webrtc-rs defaults, including excluding loopback candidates.
+    /// SRTP protection profiles are always replaced by `SRTP_PROTECTION_PROFILES`.
     pub setting_engine: Option<SettingEngine>,
     /// Local signed SDP identity (identity.go:Identity).
     pub identity: Option<Arc<crate::identity::Identity>>,
@@ -252,9 +254,13 @@ impl DialerActor {
                 let config = self.config.clone();
 
                 tokio::spawn(async move {
-                    let result =
-                        perform_dial(connection_id, network_id, signaling, config, signal_in_rx)
-                            .await;
+                    let dial =
+                        perform_dial(connection_id, network_id, signaling, config, signal_in_rx);
+                    // Report a contained panic instead of dropping response_tx,
+                    // which the caller would otherwise see as ConnectionClosed.
+                    let result = catch_dependency_panic("dial negotiation", dial)
+                        .await
+                        .and_then(|result| result);
                     let _ = response_tx.send(result);
                 });
             }
@@ -290,6 +296,33 @@ pub(crate) async fn ice_servers(
             None => configured.to_vec(),
         },
     )
+}
+
+/// SRTP profiles that webrtc-srtp 0.14 can actually key.
+///
+/// webrtc-rs 0.12 `dtls_transport/mod.rs:default_srtp_protection_profiles` also
+/// offers SRTP_AEAD_AES_256_GCM, but webrtc-srtp 0.14
+/// `cipher/cipher_aead_aes_gcm.rs:CipherAeadAesGcm::new` and
+/// `key_derivation.rs:aes_cm_key_derivation` hard-code AES-128 and panic
+/// (generic-array length 32 != 16) on that profile's 32-byte master key, inside
+/// webrtc-rs's detached operation task, so SCTP never starts. Pion v4
+/// (`constants.go:defaultSrtpProtectionProfiles`, used by df-mc/go-nethernet)
+/// lists AES-256-GCM first; pion/dtls v3 servers select by their own preference
+/// (`flight0handler.go`) and webrtc-dtls servers by the client's (`flight0.rs`),
+/// so pairings with go-nethernet negotiated the unimplemented profile in both
+/// directions. NetherNet carries no media: the profile only has to be keyable,
+/// and pion supports all of these.
+const SRTP_PROTECTION_PROFILES: [SrtpProtectionProfile; 3] = [
+    SrtpProtectionProfile::Srtp_Aead_Aes_128_Gcm,
+    SrtpProtectionProfile::Srtp_Aes128_Cm_Hmac_Sha1_80,
+    SrtpProtectionProfile::Srtp_Aes128_Cm_Hmac_Sha1_32,
+];
+
+/// Caller settings (or webrtc-rs defaults) restricted to keyable SRTP profiles.
+pub(crate) fn nethernet_setting_engine(settings: Option<SettingEngine>) -> SettingEngine {
+    let mut settings = settings.unwrap_or_default();
+    settings.set_srtp_protection_profiles(SRTP_PROTECTION_PROFILES.to_vec());
+    settings
 }
 
 /// Close transports when negotiation is cancelled or any fallible step fails.
@@ -378,13 +411,11 @@ async fn perform_dial(
     let negotiation = async {
         let mut media_engine = MediaEngine::default();
         let registry = register_default_interceptors(Registry::new(), &mut media_engine)?;
-        let mut api = APIBuilder::new()
+        let api = APIBuilder::new()
             .with_media_engine(media_engine)
-            .with_interceptor_registry(registry);
-        if let Some(settings) = config.setting_engine.take() {
-            api = api.with_setting_engine(settings);
-        }
-        let api = api.build();
+            .with_interceptor_registry(registry)
+            .with_setting_engine(nethernet_setting_engine(config.setting_engine.take()))
+            .build();
         let pc = Arc::new(
             api.new_peer_connection(RTCConfiguration {
                 ice_servers: ice_servers(signaling.as_ref(), &config.ice_servers).await?,

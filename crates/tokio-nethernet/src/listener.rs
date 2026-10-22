@@ -15,7 +15,7 @@ use webrtc::peer_connection::RTCPeerConnection;
 use webrtc::peer_connection::configuration::RTCConfiguration;
 use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
 
-use crate::error::NetherNetError;
+use crate::error::{NetherNetError, catch_dependency_panic};
 use crate::signaling::{Signal, SignalErrorCode, SignalType, Signaling, format_ice_candidate};
 use crate::stream::{NetherNetStream, NetherNetStreamConfig};
 
@@ -34,6 +34,7 @@ pub struct NetherNetListenerConfig {
     pub ice_servers: Vec<RTCIceServer>,
     /// Optional WebRTC settings for explicit local interface/ICE policy.
     /// `None` preserves webrtc-rs defaults, including excluding loopback candidates.
+    /// SRTP protection profiles are always replaced by keyable profiles (see `dialer.rs`).
     pub setting_engine: Option<SettingEngine>,
     /// Maximum SDP size in bytes (prevents OOM from large SDPs).
     pub max_sdp_size: usize,
@@ -290,11 +291,38 @@ impl ListenerActor {
                     return Ok(());
                 }
                 let duration = self.config.connection_timeout;
-                timeout(duration, self.handle_connect_request(signal)).await??;
+                let network_id = signal.network_id.clone();
+                // The actor serves every session: a panic while negotiating one
+                // offer must fail that offer only (its PeerGuard closes the peer).
+                let negotiation =
+                    catch_dependency_panic("listener offer", self.handle_connect_request(signal));
+                match timeout(duration, negotiation).await? {
+                    Ok(result) => result?,
+                    Err(panic) => {
+                        // Bounded like listener.go:listenerNegotiator.signalError.
+                        let _ = timeout(
+                            Duration::from_secs(2),
+                            self.signaling.signal(Signal::error(
+                                conn_id,
+                                network_id,
+                                SignalErrorCode::GenericFailure,
+                            )),
+                        )
+                        .await;
+                        return Err(panic.into());
+                    }
+                }
             }
             SignalType::Candidate => {
                 if let Some(handle) = self.connections.get(&key) {
-                    self.handle_candidate(&signal, handle).await?;
+                    let added = self.handle_candidate(&signal, handle);
+                    match catch_dependency_panic("listener candidate", added).await {
+                        Ok(result) => result?,
+                        Err(panic) => {
+                            let _ = handle.pc.close().await;
+                            return Err(panic.into());
+                        }
+                    }
                 } else {
                     debug!(conn_id, "Received CANDIDATE for unknown connection");
                 }
@@ -400,13 +428,13 @@ impl ListenerActor {
         let mut media_engine = MediaEngine::default();
         let registry = Registry::new();
         let registry = register_default_interceptors(registry, &mut media_engine)?;
-        let mut api = APIBuilder::new()
+        let api = APIBuilder::new()
             .with_media_engine(media_engine)
-            .with_interceptor_registry(registry);
-        if let Some(settings) = &self.config.setting_engine {
-            api = api.with_setting_engine(settings.clone());
-        }
-        let api = api.build();
+            .with_interceptor_registry(registry)
+            .with_setting_engine(crate::dialer::nethernet_setting_engine(
+                self.config.setting_engine.clone(),
+            ))
+            .build();
 
         let rtc_config = RTCConfiguration {
             ice_servers: crate::dialer::ice_servers(
@@ -856,6 +884,79 @@ mod tests {
                 "stale terminal reply: {reply:?}"
             );
         }
+        client.close().await.unwrap();
+    }
+
+    /// Stands in for an integration dependency (HTTP/JWT client behind a
+    /// signaling implementation) panicking during peer-triggered negotiation.
+    struct PanickingCredentials(mpsc::Sender<Signal>);
+    #[async_trait::async_trait]
+    impl Signaling for PanickingCredentials {
+        async fn signal(&self, signal: Signal) -> anyhow::Result<()> {
+            self.0.send(signal).await?;
+            Ok(())
+        }
+        async fn credentials(&self) -> anyhow::Result<Option<crate::Credentials>> {
+            panic!("credential provider exploded")
+        }
+        fn network_id(&self) -> String {
+            "local".into()
+        }
+    }
+
+    #[tokio::test]
+    async fn negotiation_panic_fails_only_that_offer_with_typed_error() {
+        let api = APIBuilder::new().build();
+        let client = api
+            .new_peer_connection(RTCConfiguration::default())
+            .await
+            .unwrap();
+        client
+            .create_data_channel("ReliableDataChannel", None)
+            .await
+            .unwrap();
+        let offer = client.create_offer(None).await.unwrap();
+        let (outbound, mut replies) = mpsc::channel(4);
+        let (cleanup_tx, message_rx) = mpsc::channel(1);
+        let (accept_tx, _accept_rx) = mpsc::channel(1);
+        let mut actor = ListenerActor {
+            signaling: Arc::new(PanickingCredentials(outbound)),
+            config: NetherNetListenerConfig {
+                allow_identityless_client: true,
+                ..Default::default()
+            },
+            message_rx,
+            accept_tx,
+            connections: HashMap::new(),
+            cleanup_tx,
+            generated_identity_key: None,
+        };
+        // The panic used to unwind through the actor task, ending the listener
+        // for every later session; it must become this offer's error instead.
+        let error = actor
+            .handle_signal(Signal {
+                typ: SignalType::Offer,
+                connection_id: 42,
+                network_id: "remote".into(),
+                data: crate::stream::local_sdp(offer.sdp),
+            })
+            .await
+            .unwrap_err();
+        match error.downcast_ref::<NetherNetError>() {
+            Some(NetherNetError::DependencyPanic { context, message }) => {
+                assert_eq!(*context, "listener offer");
+                assert_eq!(message, "credential provider exploded");
+            }
+            other => panic!("expected DependencyPanic, got {other:?} ({error})"),
+        }
+        let reply = replies.recv().await.unwrap();
+        assert_eq!(reply.typ, SignalType::Error);
+        assert_eq!(reply.connection_id, 42);
+        assert_eq!(
+            reply.data,
+            (SignalErrorCode::GenericFailure as i32).to_string()
+        );
+        assert!(actor.connections.is_empty());
         client.close().await.unwrap();
     }
 }
