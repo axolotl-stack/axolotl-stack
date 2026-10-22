@@ -873,12 +873,16 @@ impl Session {
         self.closed || self.failure.is_some()
     }
 
-    /// Tear down: SCTP ABORT, DTLS close_notify, TURN deallocation.
+    /// Tear down: SCTP SHUTDOWN, DTLS close_notify, TURN deallocation. A
+    /// graceful SHUTDOWN (not ABORT) like pion's close: peers such as
+    /// cinnabar-mc/nethernet report an ABORT as a connection error.
     pub(crate) fn close(&mut self, now: Instant) {
         if self.closed {
             return;
         }
-        if let Some((_, association)) = &mut self.association {
+        if let Some((_, association)) = &mut self.association
+            && association.shutdown().is_err()
+        {
             let _ = association.abort();
         }
         self.flush(now);

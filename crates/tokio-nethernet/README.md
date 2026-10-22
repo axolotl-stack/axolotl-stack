@@ -51,8 +51,10 @@ only as an independent interop peer in tests.
   returns after pion queues them; they never wait for acknowledgement (the
   peer's delayed SACK is 200 ms). Senders pause while more than 1 MiB is
   unacknowledged and resume at 256 KiB.
-- The ICE agent uses zero candidate acceptance delays and STUN responses are
-  flushed before DTLS flights, so connection setup never waits on a timer.
+- The ICE agent uses zero candidate acceptance delays, STUN responses are
+  flushed before DTLS flights, and already-due timers run inline instead of
+  through a Tokio sleep (whose tick is 15.6 ms on Windows), so connection setup
+  never waits on a timer.
 
 ## Identities and authentication
 
@@ -75,10 +77,12 @@ Use `NetherNetDialer::connect_with_signaling` and `NetherNetListener::bind_with_
 `NetherNetDialerConfig.transport` and `NetherNetListenerConfig.transport`
 (`TransportConfig`) choose the local addresses that gather host candidates.
 The default matches go-nethernet's pion defaults: every non-loopback UDP4/UDP6
-interface address. `TransportConfig::loopback_v4()` confines the actual
-ICE/DTLS/SCTP sockets to IPv4 loopback for strict local tests; loopback is a
-deliberate testing policy, not a production default. `ice_servers` uses the
-crate's own `signaling::IceServer` (UDP `turn:` and `stun:` URLs).
+interface address. `addresses: Some(..)` binds exactly those addresses and
+skips interface enumeration (several milliseconds per connection on Windows).
+`TransportConfig::loopback_v4()` binds only `127.0.0.1`, confining the actual
+ICE/DTLS/SCTP sockets for strict local tests; loopback is a deliberate testing
+policy, not a production default. `ice_servers` uses the crate's own
+`signaling::IceServer` (UDP `turn:` and `stun:` URLs).
 
 ## Bounds and error behavior
 
