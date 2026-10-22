@@ -4,10 +4,10 @@ mod rate_limiter;
 
 pub use rate_limiter::PingRateLimiter;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::net::SocketAddr;
 use std::sync::{Arc, RwLock};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use bytes::{Bytes, BytesMut};
 use tokio::net::UdpSocket;
@@ -306,6 +306,80 @@ fn report_socket_buffer_config(recv_size: Option<usize>, send_size: Option<usize
     }
 }
 
+/// One entry per armed peer, including peers flushed inline and re-armed before
+/// their old timer fires. New receive transitions have monotonic deadlines.
+#[derive(Default)]
+struct AckSchedule {
+    deadlines: VecDeque<(Instant, SocketAddr)>,
+    armed: HashMap<SocketAddr, Instant>,
+}
+
+impl AckSchedule {
+    fn arm(&mut self, deadline: Instant, peer: SocketAddr) {
+        match self.armed.entry(peer) {
+            std::collections::hash_map::Entry::Occupied(mut entry) => {
+                if *entry.get() == deadline {
+                    return;
+                }
+                entry.insert(deadline);
+                // Inline feedback can clear and then re-arm a peer before its
+                // old timer fires. Cancel that stale entry on receive, keeping
+                // one slot per peer and ACK wakes strictly O(due entries).
+                self.deadlines.retain(|&(_, queued)| queued != peer);
+            }
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                entry.insert(deadline);
+            }
+        }
+        // Only receive-side None->Some transitions enqueue deadlines. Immediate
+        // feedback was already flushed inline; delayed deadlines are now + 1 ms.
+        debug_assert!(
+            self.deadlines
+                .back()
+                .is_none_or(|&(last, _)| last <= deadline)
+        );
+        self.deadlines.push_back((deadline, peer));
+    }
+
+    fn deadline(&self) -> Option<Instant> {
+        self.deadlines.front().map(|&(deadline, _)| deadline)
+    }
+
+    fn pop(&mut self) -> Option<(Instant, SocketAddr)> {
+        let entry = self.deadlines.pop_front()?;
+        self.armed.remove(&entry.1);
+        Some(entry)
+    }
+
+    fn remove(&mut self, peer: SocketAddr) {
+        if self.armed.remove(&peer).is_some() {
+            self.deadlines.retain(|&(_, queued)| queued != peer);
+        }
+    }
+}
+
+async fn flush_scheduled_acks(
+    schedule: &mut AckSchedule,
+    sessions: &mut HashMap<SocketAddr, SessionState>,
+    socket: &UdpSocket,
+    now: Instant,
+    send_buf: &mut BytesMut,
+) {
+    while schedule.deadline().is_some_and(|deadline| deadline <= now) {
+        let (_, peer) = schedule.pop().unwrap();
+        let Some(state) = sessions.get_mut(&peer) else {
+            continue;
+        };
+        if state
+            .managed
+            .ack_deadline()
+            .is_some_and(|deadline| deadline <= now)
+        {
+            super::mux::flush_managed(&mut state.managed, socket, peer, now, false, send_buf).await;
+        }
+    }
+}
+
 async fn run_listener_muxer(
     socket: UdpSocket,
 
@@ -327,7 +401,7 @@ async fn run_listener_muxer(
     let mut sessions: HashMap<SocketAddr, SessionState> = HashMap::new();
     let mut pending: HashMap<SocketAddr, PendingConnection> = HashMap::new();
     let mut tick = new_tick_interval();
-    let mut next_ack: Option<std::time::Instant> = None;
+    let mut ack_schedule = AckSchedule::default();
     let ack_timer = tokio::time::sleep(Duration::ZERO);
     tokio::pin!(ack_timer);
     let mut rate_limiter = rate_limiter::PingRateLimiter::with_max_entries(
@@ -336,6 +410,7 @@ async fn run_listener_muxer(
     );
 
     loop {
+        let next_ack = ack_schedule.deadline();
         if let Some(deadline) = next_ack {
             ack_timer.as_mut().reset(deadline.into());
         }
@@ -365,11 +440,12 @@ async fn run_listener_muxer(
                         &mut send_buf,
                     )
                     .await;
-                    if let Some(deadline) = sessions
-                        .get(&peer)
-                        .and_then(|state| state.managed.ack_deadline())
-                    {
-                        next_ack = Some(next_ack.map_or(deadline, |next| next.min(deadline)));
+                    if let Some(state) = sessions.get(&peer) {
+                        if let Some(deadline) = state.managed.ack_deadline() {
+                            ack_schedule.arm(deadline, peer);
+                        }
+                    } else {
+                        ack_schedule.remove(peer);
                     }
                 }
                 Err(e) => {
@@ -391,28 +467,14 @@ async fn run_listener_muxer(
                 .await;
             }
             LoopEvent::Ack => {
-                let now = std::time::Instant::now();
-                next_ack = None;
-                for (&peer, state) in &mut sessions {
-                    if state
-                        .managed
-                        .ack_deadline()
-                        .is_some_and(|deadline| deadline <= now)
-                    {
-                        super::mux::flush_managed(
-                            &mut state.managed,
-                            &socket,
-                            peer,
-                            now,
-                            false,
-                            &mut send_buf,
-                        )
-                        .await;
-                    }
-                    if let Some(deadline) = state.managed.ack_deadline() {
-                        next_ack = Some(next_ack.map_or(deadline, |next| next.min(deadline)));
-                    }
-                }
+                flush_scheduled_acks(
+                    &mut ack_schedule,
+                    &mut sessions,
+                    &socket,
+                    Instant::now(),
+                    &mut send_buf,
+                )
+                .await;
             }
             LoopEvent::Tick => {
                 pending.retain(|peer, connection| {
@@ -429,6 +491,13 @@ async fn run_listener_muxer(
                     sessions.contains_key(peer)
                 });
                 tick_sessions(&socket, &mut sessions, &new_conn_tx, &mut send_buf).await;
+                // Session expiry is maintenance work, not an ACK wake scan.
+                ack_schedule
+                    .deadlines
+                    .retain(|(_, peer)| sessions.contains_key(peer));
+                ack_schedule
+                    .armed
+                    .retain(|peer, _| sessions.contains_key(peer));
             }
         }
     }
@@ -437,6 +506,172 @@ async fn run_listener_muxer(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn idle_session(peer: SocketAddr) -> SessionState {
+        let (to_app, _rx) = mpsc::channel(1);
+        SessionState {
+            managed: crate::session::manager::ManagedSession::new(peer, 1200, Instant::now()),
+            to_app,
+            pending_rx: None,
+            announced: true,
+            handshake_confirmed: true,
+        }
+    }
+
+    #[test]
+    fn ack_rearms_keep_one_entry_per_peer_until_the_previous_entry_is_consumed() {
+        let now = Instant::now();
+        let peer = "127.0.0.1:19132".parse().unwrap();
+        let mut schedule = AckSchedule::default();
+        for _ in 0..2048 {
+            schedule.arm(now, peer);
+        }
+        assert_eq!(schedule.pop(), Some((now, peer)));
+        assert_eq!(schedule.pop(), None);
+        let later = now + Duration::from_millis(1);
+        schedule.arm(later, peer);
+        assert_eq!(schedule.pop(), Some((later, peer)));
+        // Removing a session must also free its membership slot before reuse.
+        schedule.arm(later, peer);
+        schedule.remove(peer);
+        assert_eq!(schedule.pop(), None);
+        schedule.arm(later, peer);
+        assert_eq!(schedule.pop(), Some((later, peer)));
+    }
+
+    #[test]
+    fn rearming_a_peer_replaces_its_stale_entry_before_later_receives() {
+        let now = Instant::now();
+        let first = "127.0.0.1:19132".parse().unwrap();
+        let second = "127.0.0.1:19133".parse().unwrap();
+        let mut schedule = AckSchedule::default();
+        schedule.arm(now, first);
+        let rearmed = now + Duration::from_millis(2);
+        schedule.arm(rearmed, first);
+        schedule.arm(now + Duration::from_millis(3), second);
+        assert_eq!(schedule.pop(), Some((rearmed, first)));
+        assert_eq!(
+            schedule.pop(),
+            Some((now + Duration::from_millis(3), second))
+        );
+    }
+
+    #[tokio::test]
+    async fn ack_wake_flushes_due_peers_and_skips_removed_peers_among_idle_sessions() {
+        use crate::protocol::constants::DatagramFlags;
+        use crate::protocol::datagram::{Datagram, DatagramPayload};
+        use crate::protocol::types::{DatagramHeader, Sequence24};
+
+        let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let receiver = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let active = receiver.local_addr().unwrap();
+        let removed = "127.0.0.1:1".parse().unwrap();
+        let mut sessions = HashMap::new();
+        for port in 20000..21024 {
+            let peer = SocketAddr::from(([127, 0, 0, 1], port));
+            sessions.insert(peer, idle_session(peer));
+        }
+        let now = Instant::now();
+        let mut state = idle_session(active);
+        state
+            .managed
+            .handle_datagram(
+                Datagram {
+                    header: DatagramHeader {
+                        flags: DatagramFlags::VALID,
+                        sequence: Sequence24::new(0),
+                    },
+                    payload: DatagramPayload::EncapsulatedPackets(Vec::new()),
+                },
+                now,
+            )
+            .unwrap();
+        sessions.insert(active, state);
+        let mut schedule = AckSchedule::default();
+        schedule.arm(now, removed);
+        schedule.arm(now, active);
+        let mut out = BytesMut::new();
+        flush_scheduled_acks(&mut schedule, &mut sessions, &socket, now, &mut out).await;
+        assert!(schedule.deadline().is_none());
+        assert!(
+            sessions
+                .get(&active)
+                .unwrap()
+                .managed
+                .ack_deadline()
+                .is_none()
+        );
+        let mut buffer = [0; 64];
+        let (len, _) =
+            tokio::time::timeout(Duration::from_millis(20), receiver.recv_from(&mut buffer))
+                .await
+                .unwrap()
+                .unwrap();
+        let ack = Datagram::decode(&mut &buffer[..len]).unwrap();
+        let DatagramPayload::Ack(ack) = ack.payload else {
+            panic!("expected ACK")
+        };
+        assert_eq!(ack.ranges[0].start.value(), 0);
+        assert_eq!(ack.ranges[0].end.value(), 0);
+    }
+
+    /// Explicit timing harness: same stale ACK wake against increasingly many
+    /// idle sessions; compares the previous scan with the production queue path.
+    #[tokio::test]
+    #[ignore = "run release, pinned to a reserved CPU, outside acceptance builds"]
+    async fn ack_wake_idle_session_microbench() {
+        use std::hint::black_box;
+        let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let active = "127.0.0.1:19132".parse().unwrap();
+        let mut out = BytesMut::new();
+        for idle in [0, 100, 1000, 10000] {
+            let mut sessions = HashMap::new();
+            sessions.insert(active, idle_session(active));
+            for port in 20000..20000 + idle {
+                let peer = SocketAddr::from(([127, 0, 0, 1], port as u16));
+                sessions.insert(peer, idle_session(peer));
+            }
+            let mut schedule = AckSchedule::default();
+            // Warm queue capacity and the map lookup, outside timing.
+            schedule.arm(Instant::now(), active);
+            schedule.pop();
+            for round in 0..5 {
+                for queued in if round % 2 == 0 {
+                    [false, true]
+                } else {
+                    [true, false]
+                } {
+                    let now = Instant::now();
+                    let started = Instant::now();
+                    for _ in 0..1000 {
+                        if queued {
+                            schedule.arm(now, active);
+                            flush_scheduled_acks(
+                                &mut schedule,
+                                black_box(&mut sessions),
+                                &socket,
+                                now,
+                                &mut out,
+                            )
+                            .await;
+                        } else {
+                            let mut next: Option<Instant> = None;
+                            for state in black_box(&sessions).values() {
+                                if let Some(deadline) = black_box(state.managed.ack_deadline()) {
+                                    next = Some(next.map_or(deadline, |old| old.min(deadline)));
+                                }
+                            }
+                            black_box(next);
+                        }
+                    }
+                    println!(
+                        "ACK_WAKE idle={idle} round={round} queued={queued} ns={:.1}",
+                        started.elapsed().as_nanos() as f64 / 1000.0
+                    );
+                }
+            }
+        }
+    }
 
     #[test]
     fn invalid_listener_config_is_rejected() {
