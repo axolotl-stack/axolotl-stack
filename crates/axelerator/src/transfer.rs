@@ -348,8 +348,8 @@ async fn handle_transfer_connection<T: jolyne::stream::transport::Transport>(
     debug!("Starting Bedrock handshake...");
 
     match handshake_stream.accept_join_sequence(template, key).await {
-        Ok((mut play_stream, identity)) => {
-            let display_name = identity.display_name.as_deref().unwrap_or("Unknown");
+        Ok((mut play_stream, login)) => {
+            let display_name = login.identity.display_name();
 
             info!(
                 identity = %display_name,
@@ -369,7 +369,7 @@ async fn handle_transfer_connection<T: jolyne::stream::transport::Transport>(
 
                 // Update player history on successful transfer
                 if let Some(ref history) = player_history
-                    && let Some(ref xuid) = identity.xuid
+                    && let Some(xuid) = login.identity.xuid()
                 {
                     history.update_last_seen(xuid).await;
                     debug!(xuid, display_name, "Updated player history last-seen");

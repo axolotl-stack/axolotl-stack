@@ -1,12 +1,51 @@
 use axelerator::TokenCache;
+use axolotl_xbl::discovery::DiscoveryClient;
+use axolotl_xbl::{PlayFabClient, XblError, XblToken};
+use futures::future::BoxFuture;
 use jolyne::BedrockStream;
-use jolyne::stream::client::{ClientHandshakeConfig, XblCredentials};
-use jolyne::valentine::McpePacket;
+use jolyne::error::AuthError;
+use jolyne::stream::client::{ClientHandshakeConfig, MultiplayerTokenSource};
+use jolyne::valentine::{GAME_VERSION, McpePacket};
 use p384::SecretKey;
 use rand::thread_rng;
 use std::error::Error;
+use std::sync::Arc;
 use tokio::net::lookup_host;
 use uuid::Uuid;
+
+/// Multiplayer tokens through PlayFab, as gophertunnel's dialer does:
+/// PlayFab-scoped XBL token -> PlayFab login -> Minecraft service token ->
+/// per-key multiplayer token.
+struct PlayFabTokens {
+    playfab: PlayFabClient,
+    playfab_xbl: XblToken,
+    device_id: String,
+}
+
+impl MultiplayerTokenSource for PlayFabTokens {
+    fn multiplayer_token<'a>(
+        &'a self,
+        public_key_der: &'a [u8],
+    ) -> BoxFuture<'a, Result<String, AuthError>> {
+        let error = |e: XblError| AuthError::TokenAcquisition(e.to_string());
+        Box::pin(async move {
+            let ticket = self
+                .playfab
+                .login(&self.playfab_xbl.user_hash, &self.playfab_xbl.token)
+                .await
+                .map_err(error)?;
+            let service = self
+                .playfab
+                .service_token(&self.device_id, &ticket, GAME_VERSION)
+                .await
+                .map_err(error)?;
+            self.playfab
+                .multiplayer_token(&service, public_key_der)
+                .await
+                .map_err(error)
+        })
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -36,31 +75,30 @@ async fn main() -> Result<(), Box<dyn Error>> {
         xbl_token.xuid
     );
 
-    // Get BEDROCK_MULTIPLAYER token for server authentication
-    // Note: This RP doesn't return gamertag/xuid in display claims, so we use
-    // the xuid from the initial auth token instead
-    let bedrock_token = token_cache
-        .get_xbl_token(axolotl_xbl::auth::relying_party::BEDROCK_MULTIPLAYER)
+    // 2. Select the discovered authorization environment and obtain the
+    // PlayFab-scoped Xbox Live token used for the PlayFab login.
+    let environment = DiscoveryClient::new()
+        .discover_authorization(GAME_VERSION)
         .await?;
+    let playfab = PlayFabClient::with_environment(&environment)?;
+    let playfab_xbl = token_cache
+        .get_xbl_token_for_url(playfab.login_url())
+        .await?;
+    let tokens = Arc::new(PlayFabTokens {
+        playfab,
+        playfab_xbl,
+        device_id: Uuid::new_v4().to_string(),
+    });
 
-    // 2. Connect
+    // 3. Connect; Login sends AuthenticationType 0 with the multiplayer token.
     let handshake_stream = BedrockStream::connect(addr).await?;
     println!("Connected!");
-
-    // 3. Configure with Xbox Live credentials
-    // Use xuid from the initial xbl_token since BEDROCK_MULTIPLAYER doesn't return it
-    let xbl_credentials = XblCredentials::new(
-        &bedrock_token.token,
-        &bedrock_token.user_hash,
-        &xbl_token.xuid, // Use xuid from initial auth
-    );
-
     let config = ClientHandshakeConfig::with_xbox_live(
         addr,
         SecretKey::random(&mut thread_rng()),
         xbl_token.gamertag().to_string(),
         Uuid::new_v4(),
-        xbl_credentials,
+        tokens,
     );
 
     // The join() helper handles settings, auth, encryption, packs, and start game.

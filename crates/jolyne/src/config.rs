@@ -2,8 +2,9 @@
 pub struct BedrockListenerConfig {
     /// Whether to enforce Xbox Live authentication (online mode).
     ///
-    /// If `true`, the server will verify the JWT chain in the LoginPacket against the Mojang public key.
-    /// If `false`, the server will accept any validly structured self-signed JWT chain (offline mode).
+    /// If `true`, the Login multiplayer `Token` must be signed by the Minecraft OpenID
+    /// provider (see `auth::openid`). If `false`, self-signed tokens are accepted and
+    /// identities are unauthenticated (`ValidatedIdentity::xuid()` is `None`).
     ///
     /// Default: `true`
     pub online_mode: bool,
@@ -24,7 +25,9 @@ pub struct BedrockListenerConfig {
     /// Default: `true`
     pub encryption_enabled: bool,
 
-    /// Whether to allow legacy/self-signed authentication chains (guest/self-signed).
+    /// Whether offline mode accepts Guest/SelfSigned authentication types
+    /// (self-signed tokens or legacy chains). Ignored in online mode, which only
+    /// accepts provider-signed tokens.
     ///
     /// Default: `true`
     pub allow_legacy_auth: bool,

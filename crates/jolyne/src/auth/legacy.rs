@@ -1,20 +1,23 @@
-use crate::auth::types::{ChainClaims, ValidatedIdentity};
-use crate::auth::util::key_from_base64;
+//! Legacy (pre-OpenID) login chains, accepted only for offline logins.
+//!
+//! Online mode does not accept Mojang-rooted chains: Bedrock Dedicated Server
+//! 1.26.51 no longer embeds the Mojang root key (neither the base64 SPKI nor
+//! its DER bytes occur in `bedrock_server.exe`) nor the `identityPublicKey` /
+//! `extraData` / `certificateAuthority` claim names, so vanilla servers only
+//! authenticate the OpenID multiplayer `Token`. See the auth section of the
+//! crate README.
+
+use crate::auth::types::{ChainClaims, Trust, ValidatedIdentity};
 use crate::error::{AuthError, JolyneError};
 use base64::Engine as _;
 use base64::engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD};
-use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
+use jsonwebtoken::decode_header;
 use serde_json::Value;
 use tracing::debug;
 
 const MAX_IDENTITY_PAYLOAD_BYTES: usize = 64 * 1024; // defensive bound against large/garbage payloads
 const MAX_CHAIN_TOKENS: usize = 8;
 const MAX_TOKEN_BYTES: usize = 8 * 1024;
-
-// Standard Mojang public key for Bedrock Edition
-// This key is used to verify the first JWT in the chain (the one signed by Mojang).
-// It validates the identity of the XBL token.
-pub const MOJANG_PUBLIC_KEY_BASE64: &str = "MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAECRXueJeTDqNRRgJi/vlRufByu/2G0i2Ebt6YMar5QX/R0DIIyrJMcUpruK4QveTfJSTp3Shlq4Gk34cD/4GUWwkv0DVuzeuB+tXija7HBxii03NHDbPAD0AKnLr2wdAp";
 
 pub(crate) fn chain_from_value(v: &Value) -> Option<Vec<String>> {
     // 0. Value IS the chain array.
@@ -162,192 +165,43 @@ pub fn parse_login_chain(identity_payload: &[u8]) -> Result<Vec<String>, JolyneE
     }
 }
 
-fn decode_chain_token(
-    token: &str,
-    key: &DecodingKey,
-) -> Result<jsonwebtoken::TokenData<ChainClaims>, JolyneError> {
-    let header = decode_header(token).map_err(|e| AuthError::InvalidHeader(e.to_string()))?;
-    if header.alg != Algorithm::ES384 {
-        return Err(AuthError::UnsupportedAlg(format!("{:?}", header.alg)).into());
-    }
-
-    let mut validation = Validation::new(Algorithm::ES384);
-    // Accept default exp/nbf checking; audience/issuer are currently not enforced until we define expected values
-    validation.validate_exp = true;
-    validation.validate_nbf = true;
-
-    decode::<ChainClaims>(token, key, &validation).map_err(|e| {
-        let is_time = matches!(
-            e.kind(),
-            jsonwebtoken::errors::ErrorKind::ExpiredSignature
-                | jsonwebtoken::errors::ErrorKind::ImmatureSignature
-        );
-        if is_time {
-            AuthError::TemporalValidation
-        } else {
-            AuthError::BadSignature(e.to_string())
-        }
-        .into()
-    })
-}
-
-fn verify_chain_with_key(
-    chain: &[String],
-    mut current_key: DecodingKey,
-) -> Result<ValidatedIdentity, JolyneError> {
-    let mut identity: Option<ValidatedIdentity> = None;
-
-    for (idx, token_str) in chain.iter().enumerate() {
-        if token_str.len() > MAX_TOKEN_BYTES {
-            return Err(AuthError::TokenTooLarge(MAX_TOKEN_BYTES).into());
-        }
-        let token = decode_chain_token(token_str, &current_key)?;
-        // A link delegates only through its signed identityPublicKey claim.
-        let claims = token.claims;
-
-        let pub_key_b64 = claims
-            .identity_public_key
-            .clone()
-            .filter(|key| !key.is_empty())
-            .ok_or(AuthError::MissingIdentityKey)?;
-
-        let is_last = idx + 1 == chain.len();
-        if let Some(extra) = claims.extra_data.as_ref() {
-            // Some clients may include extraData earlier; only required on last.
-            identity = Some(ValidatedIdentity {
-                xuid: extra.xuid.clone(),
-                display_name: extra.display_name.clone(),
-                uuid: extra.uuid.clone(),
-                identity_public_key: pub_key_b64.clone(),
-                authenticated: true,
-            });
-        } else if is_last {
-            // Only enforce extraData on the final token (identity) to match vanilla flow.
-            return Err(AuthError::MissingExtraData.into());
-        }
-
-        current_key = key_from_base64(&pub_key_b64)?;
-    }
-
-    identity.ok_or_else(|| AuthError::MissingExtraData.into())
-}
-
-pub fn validate_chain(
-    chain: Vec<String>,
-    online_mode: bool,
-) -> Result<ValidatedIdentity, JolyneError> {
-    if chain.is_empty() {
-        return Err(AuthError::EmptyChain.into());
-    }
+/// Extracts the unauthenticated identity of an offline legacy chain.
+///
+/// Signatures are not checked: offline identities are client-chosen anyway,
+/// and the caller binds the client data to the returned identity key.
+pub(crate) fn offline_chain_identity(chain: &[String]) -> Result<ValidatedIdentity, AuthError> {
     if chain.len() > MAX_CHAIN_TOKENS {
-        return Err(AuthError::ChainTooLong(MAX_CHAIN_TOKENS).into());
+        return Err(AuthError::ChainTooLong(MAX_CHAIN_TOKENS));
     }
-
-    // Vanilla legacy chains may prepend a self-signed delegation to Mojang.
-    // That prefix is NOT a trust root: only the suffix verified by Mojang is.
-    if online_mode {
-        let root_key = key_from_base64(MOJANG_PUBLIC_KEY_BASE64)?;
-        let trusted_chain = if chain.len() == 3 {
-            let first = &chain[0];
-            if first.len() > MAX_TOKEN_BYTES {
-                return Err(AuthError::TokenTooLarge(MAX_TOKEN_BYTES).into());
-            }
-            let header =
-                decode_header(first).map_err(|e| AuthError::InvalidHeader(e.to_string()))?;
-            let prefix_key =
-                key_from_base64(header.x5u.as_deref().ok_or(AuthError::MissingIdentityKey)?)?;
-            let prefix = decode_chain_token(first, &prefix_key)?;
-            if prefix.claims.identity_public_key.as_deref() != Some(MOJANG_PUBLIC_KEY_BASE64) {
-                return Err(
-                    AuthError::BadSignature("Legacy chain is not rooted at Mojang".into()).into(),
-                );
-            }
-            &chain[1..]
-        } else {
-            &chain[..]
-        };
-        verify_chain_with_key(trusted_chain, root_key)
-    } else {
-        // Offline mode: parse without signature validation but still require structured data.
-        let last = chain.last().expect("non-empty checked");
-        let header_key_b64 = decode_header(last)
-            .ok()
-            .and_then(|h| h.x5u.or_else(|| h.x5c.and_then(|v| v.first().cloned())));
-        let parts: Vec<&str> = last.split('.').collect();
-        if parts.len() < 2 {
-            return Err(AuthError::BadSignature("Invalid JWT format".to_string()).into());
-        }
-
-        let payload_bytes = URL_SAFE_NO_PAD
-            .decode(parts[1])
-            .or_else(|_| STANDARD.decode(parts[1]))
-            .map_err(|e| AuthError::BadSignature(format!("Invalid offline JWT b64: {e}")))?;
-
-        let claims: ChainClaims =
-            serde_json::from_slice(&payload_bytes).map_err(|_| AuthError::InvalidJson)?;
-        let pub_key_b64 = claims
-            .identity_public_key
-            .or(header_key_b64)
-            .ok_or(AuthError::MissingIdentityKey)?;
-        if let Some(extra) = claims.extra_data {
-            Ok(ValidatedIdentity {
-                xuid: extra.xuid,
-                display_name: extra.display_name,
-                uuid: extra.uuid,
-                identity_public_key: pub_key_b64,
-                authenticated: false,
-            })
-        } else {
-            Err(AuthError::MissingExtraData.into())
-        }
+    let last = chain.last().ok_or(AuthError::EmptyChain)?;
+    if last.len() > MAX_TOKEN_BYTES {
+        return Err(AuthError::TokenTooLarge(MAX_TOKEN_BYTES));
     }
+    let header_key = decode_header(last)
+        .ok()
+        .and_then(|h| h.x5u.or_else(|| h.x5c.and_then(|v| v.into_iter().next())));
+    let payload = last
+        .split('.')
+        .nth(1)
+        .ok_or_else(|| AuthError::BadSignature("Invalid JWT format".into()))?;
+    let payload = URL_SAFE_NO_PAD
+        .decode(payload)
+        .or_else(|_| STANDARD.decode(payload))
+        .map_err(|e| AuthError::BadSignature(format!("Invalid offline JWT b64: {e}")))?;
+    let claims: ChainClaims =
+        serde_json::from_slice(&payload).map_err(|_| AuthError::InvalidJson)?;
+    let key = claims
+        .identity_public_key
+        .filter(|key| !key.is_empty())
+        .or(header_key)
+        .ok_or(AuthError::MissingIdentityKey)?;
+    let extra = claims.extra_data.ok_or(AuthError::MissingExtraData)?;
+    ValidatedIdentity::new(extra.into(), key, Trust::Unauthenticated)
 }
 
 #[cfg(all(test, feature = "server"))]
 mod tests {
     use super::*;
-
-    #[test]
-    fn delegated_links_require_the_preceding_signed_identity_key() {
-        use jsonwebtoken::{EncodingKey, Header, encode};
-        use p384::{
-            SecretKey,
-            pkcs8::{EncodePrivateKey, EncodePublicKey, LineEnding},
-        };
-        let root = SecretKey::from_slice(&[1; 48]).unwrap();
-        let intermediate = SecretKey::from_slice(&[2; 48]).unwrap();
-        let client = SecretKey::from_slice(&[3; 48]).unwrap();
-        let public = |key: &SecretKey| {
-            STANDARD.encode(key.public_key().to_public_key_der().unwrap().as_bytes())
-        };
-        let sign = |key: &SecretKey, claims: &Value| {
-            let pem = key.to_pkcs8_pem(LineEnding::LF).unwrap();
-            encode(
-                &Header::new(Algorithm::ES384),
-                claims,
-                &EncodingKey::from_ec_pem(pem.as_bytes()).unwrap(),
-            )
-            .unwrap()
-        };
-        let now = jsonwebtoken::get_current_timestamp();
-        let delegation = sign(
-            &root,
-            &serde_json::json!({
-                "identityPublicKey":public(&intermediate), "exp":now+3600,"nbf":now-60
-            }),
-        );
-        let leaf_claims = serde_json::json!({
-            "identityPublicKey":public(&client), "exp":now+3600,"nbf":now-60,
-            "extraData":{"XUID":"123","displayName":"Player","identity":"uuid"}
-        });
-        let trusted = key_from_base64(&public(&root)).unwrap();
-        let valid = vec![delegation.clone(), sign(&intermediate, &leaf_claims)];
-        let identity = verify_chain_with_key(&valid, trusted.clone()).unwrap();
-        assert_eq!(identity.identity_public_key, public(&client));
-        assert!(identity.authenticated);
-        let forged = vec![delegation, sign(&client, &leaf_claims)];
-        assert!(verify_chain_with_key(&forged, trusted).is_err());
-    }
 
     #[test]
     fn chain_from_value_handles_direct_array() {
@@ -366,21 +220,22 @@ mod tests {
     }
 
     #[test]
-    fn validate_chain_handles_padded_offline_jwt() {
-        // Construct a dummy payload.
+    fn offline_chain_accepts_padded_jwt_and_is_never_authenticated() {
         let payload = serde_json::json!({
             "identityPublicKey": "key",
             "extraData": {
                 "XUID": "123",
                 "displayName": "User",
-                "identity": "uuid"
+                "identity": "e401efb1-4838-328e-9d95-f0821e340749"
             }
         });
         // Encode with standard padding.
         let payload_b64 = STANDARD.encode(serde_json::to_vec(&payload).unwrap());
         let jwt = format!("header.{}.sig", payload_b64);
 
-        let identity = validate_chain(vec![jwt], false).expect("should accept padded offline jwt");
-        assert_eq!(identity.display_name.as_deref(), Some("User"));
+        let identity = offline_chain_identity(&[jwt]).expect("should accept padded offline jwt");
+        assert_eq!(identity.display_name(), "User");
+        assert!(!identity.is_authenticated());
+        assert_eq!(identity.xuid(), None);
     }
 }
