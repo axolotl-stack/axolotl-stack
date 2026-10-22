@@ -45,6 +45,8 @@ def main():
               f"Toolchains: `{metadata['rust']}`; `{metadata['go']}`; Go GOMAXPROCS={metadata['go_cpu']}; Tokio multi-thread workers={metadata.get('rust_workers', 'not recorded')}.",
               f"Source base: `{metadata['commit']}`; protocolgen corpus: `{metadata['corpus_commit']}`.", '', metadata['conditions'], '',
               'Ratios are row-side/Go ns/op (below 1 is faster); throughput is request payload only, decimal MB/s, one completed echo per message. Contract, Valentine and Cinnabar use the same custom-loop estimator in alternating rounds. Medians are descriptive, not significance tests.', '']
+    if metadata['rounds'] < 5:
+        report += ['**Exploratory record:** fewer than five alternating rounds. This is not the final exclusive-machine optimized-code comparison; do not use these measurements alone for optimization decisions.', '']
     if metadata.get('cinnabar_raknet_commit'):
         report += [f"Cinnabar pins: raknet/raknet-tokio `{metadata['cinnabar_raknet_commit']}`; bedrock-net `{metadata['cinnabar_bedrock_net_commit']}` (root crate only; provider-verification disabled).", '']
     if metadata.get('rust_release_profile'):

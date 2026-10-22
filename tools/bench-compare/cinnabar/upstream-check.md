@@ -1,6 +1,8 @@
 # Pinned upstream loopback cross-check
 
 ## Conclusion
+Dispatch status: the coordinator accepted the committed audit/evidence and moved the exclusive optimized-code matrix to a separate dispatch after the remaining optimization branches merge. The main report retains the first exploratory, contention-exposed measurement; no new timed matrix was run to settle this audit dispatch.
+
 
 The **unmodified upstream benchmark** does not reproduce the preliminary adapter's elevated small-message mean: its 64-byte Criterion sample-mean estimates were **45.961–47.990 µs**, alongside upstream Go aggregate means of **40.173–41.621 µs**, in three alternating rounds on the same four logical P-cores. Its 2 MiB request / one-byte acknowledgement completed with Rust sample-mean estimates **15.523–17.054 ms** and Go aggregate means **37.703–74.245 ms**. This is a diagnostic observation, not a speed-ratio claim or reproduction of an exact published multiplier. Neither benchmark exposes individual-message p99/max, so these results **cannot rule out 10–23 ms individual stalls** or establish their cause.
 
@@ -94,3 +96,22 @@ The upstream 64 B result is much closer in scale to the preliminary 32 B **p50**
 The native Criterion run warms each case for **one second** and then collects long steady-state batches on its case's connection. The custom adapter instead creates a **fresh connection per payload size**, performs **one untimed readiness echo**, then measures only **100 or 10 echoes**. This startup-versus-steady-state distinction is material: the experiment does not hold connection age or warmup duration constant.
 
 The reported published approximately 1.06× small-message and 1.6× 2 MiB comparisons are motivation, not controlled expectations for this machine. This experiment exercises their upstream paired cases, but does not reproduce exact historical hardware, toolchains, source baseline, run protocol, or ratio estimator. It establishes that original upstream code runs successfully under the requested affinity/worker constraints and reports the concrete measurements above; it neither validates those exact multipliers nor attributes the preliminary millisecond tails to a production defect.
+
+## Audit dispatch settlement verification
+
+Merged `main` through source revision `25f1fc4051e23b6e319ab74b93010a0edf16904d` before these checks. All build/test processes were launched with `cmd /c start "" /b /wait /affinity FFFF0000`, restricting execution to E-core logical CPUs 16–31; Cargo parallelism was at most eight. No timed matrix was run for settlement.
+
+| Command | Observed result |
+| --- | --- |
+| `cargo fmt --all` | Exit 0 |
+| `cargo fmt --manifest-path tools/bench-compare/cinnabar/Cargo.toml` | Exit 0 |
+| `cargo clippy -j 8 -p bench-compare --all-targets -- -D warnings` | Exit 0 |
+| `cargo clippy -j 8 --manifest-path tools/bench-compare/cinnabar/Cargo.toml --all-targets -- -D warnings` | Exit 0 |
+| `cargo test -j 8 -p bench-compare` | Three tests passed; zero failures |
+| `cargo test -j 8 --manifest-path tools/bench-compare/cinnabar/Cargo.toml` | Three tests passed; zero failures, including all-size loopback |
+| `go vet -p 8 ./...` (Go harness directory) | Exit 0 |
+| `go test -p 8 ./...` (Go harness directory) | Pass |
+| `python tools/bench-compare/test_report.py` | Two tests passed |
+| `python tools/bench-compare/report.py tools/bench-compare/results/run-0aad4849380b478483985485c72fe91f tools/bench-compare/report.md` | Exit 0; re-aggregated existing exploratory data only |
+
+Implementation/evidence commits: `6fd1f6c` (max RTT/report schema), `78325e4` (Go QPC/raw batch), `40bfcdb` (isolated Cinnabar harness), `649e438` (first report), `cf5fa05` (profile/admission parity), `fb62a76` (native diagnostic evidence), `b49ecdf` (E-core isolation/contention disclosure). The coordinator separately approved the root `Cargo.lock`'s two generated dependency-list additions for existing `flate2` and `jolyne`; Cinnabar git dependencies remain only in the standalone lockfile.

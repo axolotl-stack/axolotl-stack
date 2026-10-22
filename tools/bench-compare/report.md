@@ -10,6 +10,8 @@ Shared Windows workstation; codec/micro inherit affinity to logical CPU 2; loopb
 
 Ratios are row-side/Go ns/op (below 1 is faster); throughput is request payload only, decimal MB/s, one completed echo per message. Contract, Valentine and Cinnabar use the same custom-loop estimator in alternating rounds. Medians are descriptive, not significance tests.
 
+**Exploratory record:** fewer than five alternating rounds. This is not the final exclusive-machine optimized-code comparison; do not use these measurements alone for optimization decisions.
+
 Cinnabar pins: raknet/raknet-tokio `7eb32a31f5715ed6cd69120ef19118aa03fcab28`; bedrock-net `0eaf6d4cb38ac1b52328815302c0964645150d17` (root crate only; provider-verification disabled).
 
 ## Go transport clock validation
@@ -574,6 +576,15 @@ Borrowed encoding has no public API. Go RakNet datagram/split/ACK micro APIs and
 | rust-to-cinnabar | 32,512,4096,65536 | 100,100,10,10 | PASS |
 | cinnabar-to-go | 32,512,4096,65536 | 100,100,10,10 | PASS |
 | go-to-cinnabar | 32,512,4096,65536 | 100,100,10,10 | PASS |
+
+## Upstream RakNet self-benchmark cross-check
+
+Three alternating, unmodified upstream loopback pairs completed on logical CPUs 0,2,4,6 with Tokio/GOMAXPROCS=4. Rust Criterion 64-byte sample means were 45.961–47.990 us versus upstream Go aggregate means 40.173–41.621 us; 2 MiB requests with 1-byte acknowledgements were 15.523–17.054 ms for Rust and 37.703–74.245 ms for Go. These are separate estimators, not speed-ratio claims. Native aggregate outputs neither confirm nor rule out individual 10–23 ms stalls. The preliminary adapter used max_connections=10 and no LTO; the final adapter selects max_connections=1 and matching thin-LTO release settings, but neither change proves the cause of its elevated preliminary means.
+
+The coordinator subsequently confirmed concurrent benchmark workers on the same P-cores. These native measurements are contention-exposed diagnostics, not isolated comparative performance evidence.
+
+This separate diagnostic does not enter the alternating comparison medians. Exact upstream commands, configuration audit and limitations: [upstream-check.md](cinnabar/upstream-check.md); reproduction: [upstream-check.ps1](cinnabar/upstream-check.ps1).
+
 
 ## Reference split/retransmission finding (separate diagnostic runs)
 
