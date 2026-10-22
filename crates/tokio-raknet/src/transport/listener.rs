@@ -95,7 +95,7 @@ impl Default for RaknetListenerConfig {
             max_connections: 1024,
             max_pending_connections: 256, // Reduced from 1024 to prevent handshake flooding
             max_mtu: constants::MAXIMUM_MTU_SIZE,
-            socket_recv_buffer_size: None,
+            socket_recv_buffer_size: Some(super::DEFAULT_SOCKET_RECV_BUFFER),
             socket_send_buffer_size: None,
             // Upstream `conn.go:Conn.startTicking`: base inactivity timeout5s.
             session_timeout: Duration::from_secs(5),
@@ -210,10 +210,11 @@ impl RaknetListener {
         config.validate().map_err(std::io::Error::from)?;
         let socket = std::net::UdpSocket::bind(addr)?;
         socket.set_nonblocking(true)?;
-        report_socket_buffer_config(
+        super::apply_socket_buffers(
+            &socket,
             config.socket_recv_buffer_size,
             config.socket_send_buffer_size,
-        );
+        )?;
 
         let socket = UdpSocket::from_std(socket)?;
         let local_addr = socket.local_addr()?;
@@ -301,16 +302,6 @@ enum LoopEvent<Msg> {
     Outbound(Msg),
     Tick,
     Ack,
-}
-
-fn report_socket_buffer_config(recv_size: Option<usize>, send_size: Option<usize>) {
-    if recv_size.is_some() || send_size.is_some() {
-        tracing::debug!(
-            recv_size,
-            send_size,
-            "socket buffer tuning is unavailable on the std-only listener path; using OS defaults"
-        );
-    }
 }
 
 /// One entry per armed peer, including peers flushed inline and re-armed before

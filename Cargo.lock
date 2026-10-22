@@ -4938,6 +4938,7 @@ dependencies = [
  "criterion",
  "futures",
  "parking_lot",
+ "socket2 0.6.1",
  "thiserror 2.0.21",
  "tokio",
  "tokio-util",

@@ -155,9 +155,10 @@ use a 45 ms tolerance (Windows timer quanta). Scenarios:
 | OT-4 | `unconnected_pong.go` | Pong: time, GUID, magic, `u16` length, data. | Same. | `match` | Kept. | `protocol::packet::unconnected::tests::unconnected_pong_roundtrip` |
 | OT-5 | `conn.go:416-424` | Dispatch: ACK bit, NACK bit, then datagram bit. | Same order. | `match` | Kept. | `protocol::datagram::tests::rejects_data_without_datagram_flag` |
 | OT-6 | `dial.go` (connected socket) | Kernel filters to the dialed peer. | Unconnected socket filtering `from == server`. | `match` | Equivalent. | `transport::stream::tests::client_acks_a_quiet_server_without_application_or_socket_traffic` |
+| OT-7 | `dial.go:184-199`, `listener.go:90-124` (Go runtime netpoller) | OS default socket buffers; on Windows Go pre-posts overlapped IOCP reads, so an unpaced burst (a 64 KiB message is 46 datagrams) is not dropped by the 64 KiB default receive buffer. | `socket_recv_buffer_size`/`socket_send_buffer_size` were silently ignored ("unavailable on the std-only path"); readiness-based reads overflowed on bursts (Vanilla↔Vanilla 64 KiB echo lost its last fragment each way: ~290 ms per echo). | `bug` | Both: the options are applied with `socket2`; default receive buffer 1 MiB (`transport::DEFAULT_SOCKET_RECV_BUFFER`). | `transport::tests::configured_socket_buffers_are_applied`; loopback benchmark in the README |
 
 ## Summary
 
-68 rows: 18 `match`, 35 `vanilla`, 6 `bug` (fixed in both policies), 9
+69 rows: 18 `match`, 35 `vanilla`, 7 `bug` (fixed in both policies), 9
 `shared`. Every `vanilla` row is the only behavioural difference between the
 policies; `Optimized` keeps the tokio main behaviour listed in its row.

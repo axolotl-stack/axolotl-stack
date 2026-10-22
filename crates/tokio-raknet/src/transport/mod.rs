@@ -29,6 +29,29 @@ pub use stream::{RaknetStream, RaknetStreamConfig};
 pub use crate::error::ConfigError;
 pub use crate::session::TransmissionPolicy;
 
+/// Default `SO_RCVBUF` for client and listener sockets. go-raknet's Windows
+/// reads are pre-posted IOCP operations, so a burst never waits in the socket
+/// buffer; readiness-based Tokio sockets need room for one unpaced burst (a
+/// 64 KiB message is 46 datagrams, more than the 64 KiB Windows default).
+/// Linux caps the request at `net.core.rmem_max`.
+pub const DEFAULT_SOCKET_RECV_BUFFER: usize = 1 << 20;
+
+/// Apply the configured socket buffer sizes before the socket is registered.
+pub(crate) fn apply_socket_buffers(
+    socket: &std::net::UdpSocket,
+    recv_size: Option<usize>,
+    send_size: Option<usize>,
+) -> std::io::Result<()> {
+    let socket = socket2::SockRef::from(socket);
+    if let Some(size) = recv_size {
+        socket.set_recv_buffer_size(size)?;
+    }
+    if let Some(size) = send_size {
+        socket.set_send_buffer_size(size)?;
+    }
+    Ok(())
+}
+
 pub(crate) fn require_config(
     valid: bool,
     field: &'static str,
@@ -326,5 +349,27 @@ mod tests {
         assert_eq!(msg.payload.as_ref(), b"payload");
         assert_eq!(msg.reliability, Reliability::ReliableOrdered);
         assert_eq!(msg.channel, 3);
+    }
+
+    /// OT-7: configured socket buffer sizes used to be ignored ("unavailable
+    /// on the std-only path"); the default receive buffer now holds one
+    /// unpaced 64 KiB burst.
+    #[test]
+    fn configured_socket_buffers_are_applied() {
+        let socket = std::net::UdpSocket::bind("127.0.0.1:0").unwrap();
+        let requested = 512 * 1024;
+        apply_socket_buffers(&socket, Some(requested), Some(requested)).unwrap();
+        let applied = socket2::SockRef::from(&socket);
+        assert!(applied.recv_buffer_size().unwrap() >= requested);
+        assert!(applied.send_buffer_size().unwrap() >= requested);
+        assert!(DEFAULT_SOCKET_RECV_BUFFER >= 46 * 1492);
+        assert_eq!(
+            RaknetStreamConfig::default().socket_recv_buffer_size,
+            Some(DEFAULT_SOCKET_RECV_BUFFER)
+        );
+        assert_eq!(
+            RaknetListenerConfig::default().socket_recv_buffer_size,
+            Some(DEFAULT_SOCKET_RECV_BUFFER)
+        );
     }
 }

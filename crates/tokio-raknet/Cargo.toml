@@ -16,6 +16,7 @@ bytes.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["net", "sync", "time", "rt", "macros"] }
 tracing.workspace = true
+socket2 = "0.6"
 futures.workspace = true
 tokio-util = { workspace = true, features = ["codec", "net"] }
 

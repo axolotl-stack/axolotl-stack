@@ -72,7 +72,7 @@ impl Default for RaknetStreamConfig {
     fn default() -> Self {
         Self {
             mtu: MAXIMUM_MTU_SIZE,
-            socket_recv_buffer_size: None,
+            socket_recv_buffer_size: Some(super::DEFAULT_SOCKET_RECV_BUFFER),
             socket_send_buffer_size: None,
             connection_timeout: Duration::from_secs(10),
             // Upstream `conn.go:Conn.startTicking`: base inactivity timeout5s.
@@ -162,11 +162,11 @@ impl RaknetStream {
                 "[::]:0"
             })?;
             socket.set_nonblocking(true)?;
-            apply_socket_buffer_config(
+            super::apply_socket_buffers(
                 &socket,
                 config.socket_recv_buffer_size,
                 config.socket_send_buffer_size,
-            );
+            )?;
 
             let socket = UdpSocket::from_std(socket)?;
             let local = socket.local_addr()?;
@@ -715,20 +715,6 @@ fn connection_timed_out(timeout: Duration) -> crate::RaknetError {
         std::io::ErrorKind::TimedOut,
         format!("connection timed out after {:?}", timeout),
     ))
-}
-
-fn apply_socket_buffer_config(
-    _socket: &std::net::UdpSocket,
-    recv_size: Option<usize>,
-    send_size: Option<usize>,
-) {
-    if recv_size.is_some() || send_size.is_some() {
-        tracing::debug!(
-            recv_size,
-            send_size,
-            "socket buffer tuning is unavailable on the std-only transport path; using OS defaults"
-        );
-    }
 }
 
 fn client_guid() -> u64 {

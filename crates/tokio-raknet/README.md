@@ -392,6 +392,7 @@ Limits are checked before allocating or scanning peer-controlled windows.
 | Keepalive / inactivity | 500 ms keepalives; 5 seconds plus twice measured RTT; outgoing traffic does not refresh receive activity | `conn.go:startTicking` |
 | Graceful close | Drain reliable sends, at most 5 seconds; empty queues permit close after 1 second (Vanilla: go's ordering, notification last) | `conn.go:startTicking` |
 | Client receive queue | 4096 unread messages; one more disconnects | `conn.go:newConn`, `internal/chan.go` |
+| Socket buffers | `socket_recv_buffer_size` defaults to 1 MiB (one unpaced 64 KiB burst; the Windows default is 64 KiB), `socket_send_buffer_size` to the OS default; both applied with `socket2` | Go's IOCP reads (PARITY.md OT-7) |
 
 Construction APIs remain source-compatible. `bind_with_config` and
 `connect_with_config` reject invalid configuration before binding a socket:
