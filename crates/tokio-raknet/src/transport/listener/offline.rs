@@ -53,6 +53,7 @@ pub(super) fn server_session_config(config: &RaknetListenerConfig) -> SessionCon
             max_split_parts: config.max_split_parts,
             max_concurrent_splits: config.max_concurrent_splits,
             max_incoming_ack_queue: config.max_incoming_ack_queue,
+            transmission: config.transmission_policy,
         },
         ..Default::default()
     }

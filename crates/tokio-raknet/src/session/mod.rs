@@ -14,11 +14,13 @@ mod inbound;
 pub mod manager;
 mod ordering_channels;
 mod outbound;
+pub mod policy;
 mod receive_window;
 mod reliable_tracker;
 mod sliding_window;
 pub mod split_assembler;
 mod tick;
+mod vanilla;
 
 use std::{
     cmp::Ordering,
@@ -39,6 +41,8 @@ use crate::protocol::{
 use crate::protocol::ack::SequenceRange;
 use ack_queue::AckQueue;
 use ordering_channels::OrderingChannels;
+pub use policy::TransmissionPolicy;
+use policy::VanillaState;
 use reliable_tracker::ReliableTracker;
 use sliding_window::SlidingWindow;
 use split_assembler::SplitAssembler;
@@ -72,6 +76,8 @@ pub struct SessionTunables {
     /// Maximum number of incoming ACK/NACK ranges to queue before dropping oldest.
     /// Prevents OOM from malicious peers sending excessive ACK/NACK packets.
     pub max_incoming_ack_queue: usize,
+    /// Transmission policy (framing, congestion control, resend, ACK cadence).
+    pub transmission: TransmissionPolicy,
 }
 
 impl Default for SessionTunables {
@@ -87,6 +93,7 @@ impl Default for SessionTunables {
             max_split_parts: 512,
             max_concurrent_splits: 16,
             max_incoming_ack_queue: 4096,
+            transmission: TransmissionPolicy::Optimized,
         }
     }
 }
@@ -120,6 +127,8 @@ impl Ord for QueuedEncap {
 
 pub struct Session {
     mtu: usize,
+    policy: TransmissionPolicy,
+    vanilla: VanillaState,
 
     sliding: SlidingWindow,
     split_index: u16,
@@ -165,6 +174,8 @@ impl Session {
         );
         let mut s = Self {
             mtu,
+            policy: tunables.transmission,
+            vanilla: VanillaState::default(),
             sliding: SlidingWindow::new(mtu),
             split_index: 0,
             receive_window: receive_window::ReceiveWindow::default(),
@@ -215,6 +226,10 @@ impl Session {
         self.mtu
     }
 
+    pub fn transmission_policy(&self) -> TransmissionPolicy {
+        self.policy
+    }
+
     /// Compatibility entry point; invalid sequences are ignored without feedback.
     /// Managed sessions use the checked path to close on protocol violations.
     #[tracing::instrument(skip_all, level = "trace")]
@@ -228,9 +243,14 @@ impl Session {
         now: impl FnOnce() -> Instant,
     ) -> Result<bool, DecodeError> {
         let naks = &mut self.outgoing_naks;
+        let delay = if self.policy.is_vanilla() {
+            self.vanilla.nak_delay()
+        } else {
+            self.sliding.nak_delay()
+        };
         if !self
             .receive_window
-            .receive(seq, now, self.sliding.nak_delay(), |range| naks.push(range))?
+            .receive(seq, now, delay, |range| naks.push(range))?
         {
             return Ok(false);
         }

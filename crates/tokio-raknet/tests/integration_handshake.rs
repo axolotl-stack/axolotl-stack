@@ -18,11 +18,13 @@ use tokio_raknet::protocol::types::{
     DatagramHeader, EncapsulatedPacketHeader, EoBPadding, RaknetTime, Sequence24,
 };
 use tokio_raknet::session::{QueuePacketError, manager::SessionError};
-use tokio_raknet::transport::{Message, RaknetListenerConfig, RaknetStreamConfig};
+use tokio_raknet::transport::{
+    Message, RaknetListenerConfig, RaknetStreamConfig, TransmissionPolicy,
+};
 use tokio_raknet::{RaknetListener, RaknetStream};
 
-fn default_system_addresses(peer: SocketAddr) -> [SocketAddr; 10] {
-    [peer; 10]
+fn default_system_addresses(peer: SocketAddr) -> Vec<SocketAddr> {
+    vec![peer; 10]
 }
 
 async fn recv_packet(socket: &UdpSocket) -> RaknetPacket {
@@ -834,20 +836,42 @@ async fn test_recv_message_exposes_id_and_payload_without_repacking() {
     assert_eq!(received.payload.as_ref(), &[0xaa, 0xbb, 0xcc]);
 }
 
+/// Bind a listener whose sessions send every message immediately (Vanilla has
+/// no congestion window), for tests that push thousands of small messages.
+async fn vanilla_listener() -> RaknetListener {
+    RaknetListener::bind_with_config(
+        "127.0.0.1:0".parse().unwrap(),
+        RaknetListenerConfig {
+            transmission_policy: TransmissionPolicy::Vanilla,
+            max_queued_reliable_bytes: 16 * 1024 * 1024,
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap()
+}
+
+/// Send `count` small messages in bursts small enough for loopback socket buffers.
+async fn send_paced(stream: &mut RaknetStream, count: usize) {
+    for index in 0..count {
+        stream.send_encoded(vec![0xfe, 1]).await.unwrap();
+        if index % 64 == 63 {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    }
+}
+
 #[tokio::test]
 async fn full_client_receive_queue_notifies_server_of_disconnect() {
-    let mut listener = RaknetListener::bind("127.0.0.1:0".parse().unwrap())
-        .await
-        .unwrap();
+    let mut listener = vanilla_listener().await;
     let address = listener.local_addr();
     let server = tokio::spawn(async move {
         let mut stream = listener.accept().await.unwrap();
-        for _ in 0..129 {
-            stream.send_encoded(vec![0xfe, 1]).await.unwrap();
-        }
-        // This is shorter than the five-second inactivity timeout: the client
-        // must send a disconnect, not simply abandon its UDP task.
-        let result = timeout(Duration::from_secs(2), stream.recv_message())
+        // One more than go-raknet's 4096-message application queue.
+        send_paced(&mut stream, 4097).await;
+        // This is shorter than the inactivity timeout of an idle peer: the
+        // client must send a disconnect, not simply abandon its UDP task.
+        let result = timeout(Duration::from_secs(4), stream.recv_message())
             .await
             .expect("client abandoned full receive queue without disconnect");
         assert!(matches!(
@@ -858,7 +882,62 @@ async fn full_client_receive_queue_notifies_server_of_disconnect() {
         ));
     });
     let client = RaknetStream::connect(address).await.unwrap();
-    // Deliberately retain but never drain the client's 128-message queue.
+    // Deliberately retain but never drain the client's 4096-message queue.
     server.await.unwrap();
     drop(client);
+}
+
+/// go-raknet `conn.go:newConn` buffers up to 4096 unread messages. The client
+/// queue previously held 128, so a burst of 129 unread messages disconnected.
+#[tokio::test]
+async fn client_buffers_4096_unread_messages() {
+    let mut listener = vanilla_listener().await;
+    let address = listener.local_addr();
+    let (sent_tx, sent_rx) = tokio::sync::oneshot::channel();
+    let server = tokio::spawn(async move {
+        let mut stream = listener.accept().await.unwrap();
+        send_paced(&mut stream, 4096).await;
+        sent_tx.send(()).unwrap();
+        // Keep the session open until the client has read everything.
+        let _ = timeout(Duration::from_secs(10), stream.recv_message()).await;
+    });
+    let mut client = RaknetStream::connect(address).await.unwrap();
+    sent_rx.await.unwrap();
+    // Let every message arrive before the application starts reading.
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    for index in 0..4096 {
+        let message = timeout(Duration::from_secs(5), client.recv_message())
+            .await
+            .unwrap_or_else(|_| panic!("message {index} missing"))
+            .unwrap()
+            .unwrap();
+        assert_eq!(message.id, 0xfe);
+    }
+    drop(client);
+    server.await.unwrap();
+}
+
+/// go-raknet `Dialer.Ping`: the pong data of the listener is returned.
+#[tokio::test]
+async fn ping_returns_listener_advertisement() {
+    let listener = RaknetListener::bind("127.0.0.1:0".parse().unwrap())
+        .await
+        .unwrap();
+    listener.set_advertisement(b"MCPE;parity".to_vec()).unwrap();
+    let data = tokio_raknet::transport::ping(listener.local_addr())
+        .await
+        .unwrap();
+    assert_eq!(&data[..], b"MCPE;parity");
+
+    // Nothing answers: the ping times out instead of hanging.
+    let silent = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+    let error = tokio_raknet::transport::ping_with_timeout(
+        silent.local_addr().unwrap(),
+        Duration::from_millis(100),
+    )
+    .await
+    .unwrap_err();
+    assert!(
+        matches!(error, RaknetError::Io(error) if error.kind() == std::io::ErrorKind::TimedOut)
+    );
 }

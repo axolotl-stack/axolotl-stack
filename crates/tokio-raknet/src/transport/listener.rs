@@ -81,6 +81,12 @@ pub struct RaknetListenerConfig {
 
     /// Maximum number of source IPs tracked by the ping/handshake rate limiter.
     pub ping_rate_limit_max_entries: usize,
+
+    /// Transmission policy of accepted sessions. Defaults to
+    /// [`TransmissionPolicy::Optimized`](crate::session::TransmissionPolicy).
+    /// Vanilla sessions must be ticked every 100 ms; the listener's
+    /// maintenance interval already is.
+    pub transmission_policy: crate::session::TransmissionPolicy,
 }
 
 impl Default for RaknetListenerConfig {
@@ -106,6 +112,7 @@ impl Default for RaknetListenerConfig {
             max_incoming_ack_queue: 4096,
             ping_rate_limit_per_ip: 10, // 10 pings per second per IP
             ping_rate_limit_max_entries: 16_384,
+            transmission_policy: crate::session::TransmissionPolicy::Optimized,
         }
     }
 }

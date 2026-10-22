@@ -15,15 +15,19 @@ use std::net::SocketAddr;
 
 use crate::protocol::{reliability::Reliability, state::RakPriority};
 
+mod handshake;
 pub mod listener;
 mod listener_conn;
 pub mod mux;
+mod ping;
 pub mod stream;
 
 pub use listener::{RaknetListener, RaknetListenerConfig};
+pub use ping::{DEFAULT_PING_TIMEOUT, ping, ping_with_timeout};
 pub use stream::{RaknetStream, RaknetStreamConfig};
 
 pub use crate::error::ConfigError;
+pub use crate::session::TransmissionPolicy;
 
 pub(crate) fn require_config(
     valid: bool,

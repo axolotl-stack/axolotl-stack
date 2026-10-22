@@ -118,9 +118,9 @@ mod tests {
         SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 19132))
     }
 
-    // Helper to create array of 10 socket addresses
-    fn test_system_addresses() -> [SocketAddr; 10] {
-        [test_addr(); 10]
+    // Helper to create a list of 10 socket addresses
+    fn test_system_addresses() -> Vec<SocketAddr> {
+        vec![test_addr(); 10]
     }
 
     #[test]
@@ -195,6 +195,7 @@ mod tests {
         let pkt = RaknetPacket::UnconnectedPing(UnconnectedPing {
             ping_time: RaknetTime(12345),
             magic: DEFAULT_UNCONNECTED_MAGIC,
+            client_guid: Some(7),
         });
 
         let mut buf = BytesMut::new();
