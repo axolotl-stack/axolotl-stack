@@ -167,20 +167,7 @@ impl RawPacket {
     }
 
     fn decode_error(&self, source: valentine::bedrock::error::DecodeError) -> JolyneError {
-        let body = self.body();
-        JolyneError::PacketDecode {
-            packet_id: self.header.id,
-            body_len: body.len(),
-            body_preview: body.iter().take(32).copied().collect(),
-            source,
-        }
-    }
-
-    fn require_valentine(self) -> Result<Self, JolyneError> {
-        if self.name.is_none() {
-            return Err(JolyneError::NonValentinePacket(Box::new(self)));
-        }
-        Ok(self)
+        Preview::of(self.body()).error(self.header.id, source)
     }
 
     /// Decodes into an owned valentine packet.
@@ -188,35 +175,41 @@ impl RawPacket {
     /// Custom and unknown IDs return [`JolyneError::NonValentinePacket`] with
     /// the packet handed back.
     pub fn decode(self) -> Result<McpePacket, JolyneError> {
-        let this = self.require_valentine()?;
-        let mut buf = this.frame.clone();
-        let (header, data) = McpePacketData::decode_inner_bytes(&mut buf, McpePacketArgs)
-            .map_err(|source| this.decode_error(source))?;
-        if buf.has_remaining() {
-            return Err(JolyneError::PacketTrailingBytes {
-                packet_id: this.header.id,
-                body_len: this.body().len(),
-                remaining: buf.remaining(),
-            });
+        if self.name.is_none() {
+            return Err(JolyneError::NonValentinePacket(Box::new(self)));
         }
-        Ok(McpePacket::new(header, data))
+        let id = self.header.id;
+        let preview = Preview::of(self.body());
+        // Decode from the moved frame: no reference-count traffic per packet.
+        let mut buf = self.frame;
+        match McpePacketData::decode_inner_bytes(&mut buf, McpePacketArgs) {
+            Ok((header, data)) if !buf.has_remaining() => Ok(McpePacket::new(header, data)),
+            Ok(_) => Err(JolyneError::PacketTrailingBytes {
+                packet_id: id,
+                body_len: preview.body_len,
+                remaining: buf.remaining(),
+            }),
+            Err(source) => Err(preview.error(id, source)),
+        }
     }
 
     /// Decodes into a borrowed valentine view sharing this packet's bytes.
     pub fn decode_borrowed(self) -> Result<BorrowedMcpePacket, JolyneError> {
-        let this = self.require_valentine()?;
-        let mut buf = this.frame.clone();
-        let (packet, payload_remaining) = BorrowedMcpePacket::decode_inner_with_remaining(&mut buf)
-            .map_err(|source| this.decode_error(source))?;
-        let remaining = buf.remaining() + payload_remaining;
-        if remaining != 0 {
-            return Err(JolyneError::PacketTrailingBytes {
-                packet_id: this.header.id,
-                body_len: this.body().len(),
-                remaining,
-            });
+        if self.name.is_none() {
+            return Err(JolyneError::NonValentinePacket(Box::new(self)));
         }
-        Ok(packet)
+        let id = self.header.id;
+        let preview = Preview::of(self.body());
+        let mut buf = self.frame;
+        match BorrowedMcpePacket::decode_inner_with_remaining(&mut buf) {
+            Ok((packet, 0)) if !buf.has_remaining() => Ok(packet),
+            Ok((_, payload_remaining)) => Err(JolyneError::PacketTrailingBytes {
+                packet_id: id,
+                body_len: preview.body_len,
+                remaining: buf.remaining() + payload_remaining,
+            }),
+            Err(source) => Err(preview.error(id, source)),
+        }
     }
 
     /// Decodes a registered custom packet with its user codec.
@@ -240,6 +233,35 @@ impl RawPacket {
             frame: Bytes::copy_from_slice(&self.frame),
             compact: true,
             ..self
+        }
+    }
+}
+
+/// The first body bytes, kept on the stack for decode-error diagnostics.
+struct Preview {
+    bytes: [u8; 32],
+    body_len: usize,
+}
+
+impl Preview {
+    #[inline]
+    fn of(body: &[u8]) -> Self {
+        let mut bytes = [0; 32];
+        let len = body.len().min(32);
+        bytes[..len].copy_from_slice(&body[..len]);
+        Self {
+            bytes,
+            body_len: body.len(),
+        }
+    }
+
+    #[cold]
+    fn error(self, packet_id: u16, source: valentine::bedrock::error::DecodeError) -> JolyneError {
+        JolyneError::PacketDecode {
+            packet_id,
+            body_len: self.body_len,
+            body_preview: self.bytes[..self.body_len.min(32)].to_vec(),
+            source,
         }
     }
 }

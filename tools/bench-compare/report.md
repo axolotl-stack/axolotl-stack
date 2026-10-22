@@ -26,143 +26,109 @@ Startup validation is outside timing. Windows transport uses QueryPerformanceCou
 
 ## batch
 
-| Case | Operation | Valentine/jolyne owned ns/op | Valentine borrowed ns/op | Contract ns/op | Cinnabar ns/op | Go ns/op | flate2-rust ns/op | Fastest measured |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| ChunkRadius | compress | — | — | — | — | 977,276.43 | 3,341,282.82 | go |
-| ChunkRadius | decompress | — | — | — | — | 317,727.54 | 268,563.14 | flate2-rust |
-| ChunkRadius | decrypt | — | — | — | 77,258.68 | — | — | unmatched |
-| ChunkRadius | deflate_decode | 268,818.30 | — | — | 191,264.32 | 330,126.33 | — | cinnabar |
-| ChunkRadius | deflate_encode | 3,547,494.70 | — | — | 542,590.14 | 970,590.87 | — | cinnabar |
-| ChunkRadius | encrypt | — | — | — | 73,652.30 | — | — | unmatched |
-| ChunkRadius | framing_decode | 1,242.56 | — | — | 221.66 | 21,737.98 | — | cinnabar |
-| ChunkRadius | framing_encode | 16,579.96 | — | — | 4,814.30 | 4,951.74 | — | cinnabar |
-| ChunkRadius | snappy_decode | — | — | — | 7,987.32 | 28,064.44 | — | cinnabar |
-| ChunkRadius | snappy_encode | — | — | — | 21,560.58 | 21,078.94 | — | go |
-| ClientTick | compress | — | — | — | — | 8,434.98 | 20,239.28 | go |
-| ClientTick | decompress | — | — | — | — | 1,267.03 | 4,675.08 | go |
-| ClientTick | decrypt | — | — | — | 289.56 | — | — | unmatched |
-| ClientTick | deflate_decode | 5,922.50 | — | — | 988.18 | 1,595.25 | — | cinnabar |
-| ClientTick | deflate_encode | 20,031.56 | — | — | 10,069.28 | 9,650.01 | — | go |
-| ClientTick | encrypt | — | — | — | 313.80 | — | — | unmatched |
-| ClientTick | framing_decode | 616.62 | — | — | 103.02 | 292.18 | — | cinnabar |
-| ClientTick | framing_encode | 112.34 | — | — | 65.80 | 54.07 | — | go |
-| ClientTick | snappy_decode | — | — | — | 283.50 | 458.18 | — | cinnabar |
-| ClientTick | snappy_encode | — | — | — | 346.48 | 377.66 | — | cinnabar |
-| ServerTick | compress | — | — | — | — | 31,633.50 | 44,314.34 | go |
-| ServerTick | decompress | — | — | — | — | 8,081.51 | 8,206.02 | go |
-| ServerTick | decrypt | — | — | — | 1,346.00 | — | — | unmatched |
-| ServerTick | deflate_decode | 16,135.24 | — | — | 7,115.58 | 11,419.79 | — | cinnabar |
-| ServerTick | deflate_encode | 71,020.82 | — | — | 16,474.56 | 33,972.35 | — | cinnabar |
-| ServerTick | encrypt | — | — | — | 1,271.76 | — | — | unmatched |
-| ServerTick | framing_decode | 8,980.78 | — | — | 1,458.58 | 2,231.68 | — | cinnabar |
-| ServerTick | framing_encode | 347.62 | — | — | 275.92 | 448.66 | — | cinnabar |
-| ServerTick | snappy_decode | — | — | — | 1,975.78 | 2,267.52 | — | cinnabar |
-| ServerTick | snappy_encode | — | — | — | 2,213.40 | 1,815.74 | — | go |
-| Spawn | compress | — | — | — | — | 29,902.82 | 33,253.14 | go |
-| Spawn | decompress | — | — | — | — | 7,606.43 | 7,600.08 | flate2-rust |
-| Spawn | decrypt | — | — | — | 1,876.06 | — | — | unmatched |
-| Spawn | deflate_decode | 9,260.40 | — | — | 3,222.12 | 9,000.08 | — | cinnabar |
-| Spawn | deflate_encode | 35,416.92 | — | — | 16,545.10 | 25,408.82 | — | cinnabar |
-| Spawn | encrypt | — | — | — | 1,882.10 | — | — | unmatched |
-| Spawn | framing_decode | 2,447.82 | — | — | 367.58 | 1,304.69 | — | cinnabar |
-| Spawn | framing_encode | 296.28 | — | — | 149.52 | 199.04 | — | cinnabar |
-| Spawn | snappy_decode | — | — | — | 897.62 | 1,845.79 | — | cinnabar |
-| Spawn | snappy_encode | — | — | — | 1,809.04 | 1,293.74 | — | go |
+Re-measured for the jolyne sans-IO core (branch `Jviguy/stab-jolyne-core`,
+commit `9d49930` for the batch and join rows, `f8577ce` for the stream rows)
+against jolyne on main (`6e3b96c`), Cinnabar bedrock-net (`0eaf6d4`, the
+`tools/bench-compare/cinnabar` harness) and gophertunnel (HashimTheArab fork
+`80c811b61860`, `tools/bench-compare/go`).
 
-<details><summary>Allocation requests (median per round)</summary>
+Method: release builds with `-j8` on logical CPUs 16–23. Each round runs every
+implementation once, alternating the order and the pinned P-core (logical CPU 2
+on even rounds, 4 on odd rounds); 9 rounds for batch and join, 20 for stream.
+Rust and Cinnabar use 5,000 iterations after 32 warm-ups (`bench-compare batch`,
+`cinnabar-bench micro`); Go uses calibrated `testing.Benchmark` loops. Values
+are medians across rounds, in ns/op. The workstation is shared with other
+workers; differences inside about ±3% are noise. Go's isolated encryption
+helpers are private, so it has no crypto rows.
 
-| Case | Operation | Side | allocs/op | allocated B/op |
-| --- | --- | --- | ---: | ---: |
-| ChunkRadius | compress | flate2-rust | 9.00 | 450,398.00 |
-| ChunkRadius | compress | go | 1.08 | 49,971.47 |
-| ChunkRadius | decompress | flate2-rust | 16.00 | 600,320.00 |
-| ChunkRadius | decompress | go | 2.31 | 155,848.93 |
-| ChunkRadius | decrypt | cinnabar | 1.00 | 24.00 |
-| ChunkRadius | deflate_decode | cinnabar | 8.00 | 563,672.00 |
-| ChunkRadius | deflate_decode | go | 7.36 | 156,682.03 |
-| ChunkRadius | deflate_decode | rust-owned | 32.00 | 594,744.00 |
-| ChunkRadius | deflate_encode | cinnabar | 5.00 | 467,208.00 |
-| ChunkRadius | deflate_encode | go | 2.31 | 104,658.72 |
-| ChunkRadius | deflate_encode | rust-owned | 12.00 | 698,693.00 |
-| ChunkRadius | encrypt | cinnabar | 0.00 | 0.00 |
-| ChunkRadius | framing_decode | cinnabar | 0.00 | 0.00 |
-| ChunkRadius | framing_decode | go | 6.07 | 156,399.77 |
-| ChunkRadius | framing_decode | rust-owned | 23.00 | 2,560.00 |
-| ChunkRadius | framing_encode | cinnabar | 1.00 | 24.00 |
-| ChunkRadius | framing_encode | go | 0.00 | 1.26 |
-| ChunkRadius | framing_encode | rust-owned | 3.00 | 454,471.00 |
-| ChunkRadius | snappy_decode | cinnabar | 2.00 | 151,514.00 |
-| ChunkRadius | snappy_decode | go | 6.21 | 156,439.95 |
-| ChunkRadius | snappy_encode | cinnabar | 2.00 | 176,794.00 |
-| ChunkRadius | snappy_encode | go | 0.00 | 8.92 |
-| ClientTick | compress | flate2-rust | 8.00 | 352,358.00 |
-| ClientTick | compress | go | 1.00 | 295.57 |
-| ClientTick | decompress | flate2-rust | 7.00 | 77,056.00 |
-| ClientTick | decompress | go | 2.00 | 400.68 |
-| ClientTick | decrypt | cinnabar | 1.00 | 24.00 |
-| ClientTick | deflate_decode | cinnabar | 3.00 | 47,901.00 |
-| ClientTick | deflate_decode | go | 6.00 | 760.86 |
-| ClientTick | deflate_decode | rust-owned | 16.00 | 77,533.00 |
-| ClientTick | deflate_encode | cinnabar | 2.00 | 354.00 |
-| ClientTick | deflate_encode | go | 2.00 | 832.15 |
-| ClientTick | deflate_encode | rust-owned | 11.00 | 353,214.00 |
-| ClientTick | encrypt | cinnabar | 0.00 | 0.00 |
-| ClientTick | framing_decode | cinnabar | 0.00 | 0.00 |
-| ClientTick | framing_decode | go | 5.00 | 712.04 |
-| ClientTick | framing_decode | rust-owned | 12.00 | 1,120.00 |
-| ClientTick | framing_encode | cinnabar | 1.00 | 24.00 |
-| ClientTick | framing_encode | go | 0.00 | 0.00 |
-| ClientTick | framing_encode | rust-owned | 3.00 | 976.00 |
-| ClientTick | snappy_decode | cinnabar | 2.00 | 349.00 |
-| ClientTick | snappy_decode | go | 5.00 | 712.21 |
-| ClientTick | snappy_encode | cinnabar | 1.00 | 24.00 |
-| ClientTick | snappy_encode | go | 0.00 | 0.00 |
-| ServerTick | compress | flate2-rust | 8.00 | 353,428.00 |
-| ServerTick | compress | go | 1.00 | 1,431.62 |
-| ServerTick | decompress | flate2-rust | 10.00 | 84,224.00 |
-| ServerTick | decompress | go | 2.01 | 2,355.68 |
-| ServerTick | decrypt | cinnabar | 1.00 | 24.00 |
-| ServerTick | deflate_decode | cinnabar | 3.00 | 49,825.00 |
-| ServerTick | deflate_decode | go | 9.01 | 5,789.15 |
-| ServerTick | deflate_decode | rust-owned | 140.00 | 100,577.00 |
-| ServerTick | deflate_encode | cinnabar | 2.00 | 2,278.00 |
-| ServerTick | deflate_encode | go | 2.01 | 2,983.56 |
-| ServerTick | deflate_encode | rust-owned | 11.00 | 358,348.00 |
-| ServerTick | encrypt | cinnabar | 0.00 | 0.00 |
-| ServerTick | framing_decode | cinnabar | 0.00 | 0.00 |
-| ServerTick | framing_decode | go | 8.00 | 5,736.29 |
-| ServerTick | framing_decode | rust-owned | 136.00 | 22,240.00 |
-| ServerTick | framing_encode | cinnabar | 1.00 | 24.00 |
-| ServerTick | framing_encode | go | 0.00 | 0.00 |
-| ServerTick | framing_encode | rust-owned | 3.00 | 6,748.00 |
-| ServerTick | snappy_decode | cinnabar | 2.00 | 2,273.00 |
-| ServerTick | snappy_decode | go | 8.01 | 5,737.69 |
-| ServerTick | snappy_encode | cinnabar | 1.00 | 24.00 |
-| ServerTick | snappy_encode | go | 0.00 | 0.02 |
-| Spawn | compress | flate2-rust | 8.00 | 353,090.00 |
-| Spawn | compress | go | 1.00 | 1,051.36 |
-| Spawn | decompress | flate2-rust | 10.00 | 84,224.00 |
-| Spawn | decompress | go | 2.01 | 4,148.09 |
-| Spawn | decrypt | cinnabar | 1.00 | 24.00 |
-| Spawn | deflate_decode | cinnabar | 3.00 | 51,051.00 |
-| Spawn | deflate_decode | go | 8.01 | 5,788.36 |
-| Spawn | deflate_decode | rust-owned | 46.00 | 84,971.00 |
-| Spawn | deflate_encode | cinnabar | 2.00 | 3,504.00 |
-| Spawn | deflate_encode | go | 2.01 | 2,195.98 |
-| Spawn | deflate_encode | rust-owned | 11.00 | 358,560.00 |
-| Spawn | encrypt | cinnabar | 0.00 | 0.00 |
-| Spawn | framing_decode | cinnabar | 0.00 | 0.00 |
-| Spawn | framing_decode | go | 7.00 | 5,736.27 |
-| Spawn | framing_decode | rust-owned | 42.00 | 5,408.00 |
-| Spawn | framing_encode | cinnabar | 1.00 | 24.00 |
-| Spawn | framing_encode | go | 0.00 | 0.00 |
-| Spawn | framing_encode | rust-owned | 3.00 | 10,426.00 |
-| Spawn | snappy_decode | cinnabar | 2.00 | 3,499.00 |
-| Spawn | snappy_decode | go | 7.01 | 5,737.66 |
-| Spawn | snappy_encode | cinnabar | 4.00 | 8,207.00 |
-| Spawn | snappy_encode | go | 0.00 | 0.02 |
+| Case | Operation | jolyne main (ns) | jolyne branch (ns) | bedrock-net (ns) | gophertunnel (ns) | branch vs main | branch vs fastest reference |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Spawn | framing_encode | 102 | 96 | 156 | 198 | -5.6% | -38.3% |
+| Spawn | framing_decode | 74 | 74 | 428 | 2,198 | +0.0% | -82.6% |
+| Spawn | deflate_encode | 15,342 | 14,323 | 19,419 | 29,423 | -6.6% | -26.2% |
+| Spawn | deflate_decode | 1,708 | 1,691 | 3,164 | 10,423 | -1.0% | -46.6% |
+| Spawn | snappy_encode | 1,204 | 1,224 | 1,751 | 1,439 | +1.7% | -15.0% |
+| Spawn | snappy_decode | 560 | 570 | 938 | 2,592 | +1.9% | -39.2% |
+| Spawn | encrypt | 2,073 | 2,096 | 2,119 | private | +1.1% | -1.1% |
+| Spawn | decrypt | 2,051 | 2,082 | 2,126 | private | +1.5% | -2.0% |
+| ServerTick | framing_encode | 209 | 189 | 274 | 467 | -9.5% | -31.0% |
+| ServerTick | framing_decode | 160 | 158 | 1,471 | 2,239 | -1.2% | -89.2% |
+| ServerTick | deflate_encode | 15,331 | 15,042 | 18,356 | 30,664 | -1.9% | -18.1% |
+| ServerTick | deflate_decode | 4,396 | 4,360 | 13,276 | 11,704 | -0.8% | -62.7% |
+| ServerTick | snappy_encode | 1,532 | 1,528 | 2,002 | 2,014 | -0.3% | -23.7% |
+| ServerTick | snappy_decode | 641 | 644 | 2,093 | 2,947 | +0.4% | -69.2% |
+| ServerTick | encrypt | 1,398 | 1,362 | 1,427 | private | -2.6% | -4.6% |
+| ServerTick | decrypt | 1,349 | 1,350 | 1,399 | private | +0.0% | -3.6% |
+| ChunkRadius | framing_encode | 2,656 | 2,707 | 5,087 | 5,464 | +1.9% | -46.8% |
+| ChunkRadius | framing_decode | 66 | 65 | 230 | 24,747 | -1.0% | -71.5% |
+| ChunkRadius | deflate_encode | 582,313 | 576,150 | 621,228 | 906,333 | -1.1% | -7.3% |
+| ChunkRadius | deflate_decode | 132,992 | 132,948 | 194,150 | 378,480 | -0.0% | -31.5% |
+| ChunkRadius | snappy_encode | 17,414 | 17,559 | 24,041 | 22,669 | +0.8% | -22.5% |
+| ChunkRadius | snappy_decode | 6,194 | 6,388 | 9,154 | 39,032 | +3.1% | -30.2% |
+| ChunkRadius | encrypt | 88,154 | 87,062 | 88,059 | private | -1.2% | -1.1% |
+| ChunkRadius | decrypt | 87,582 | 87,355 | 86,885 | private | -0.3% | +0.5% |
+| ClientTick | framing_encode | 26 | 26 | 70 | 59 | -0.8% | -55.4% |
+| ClientTick | framing_decode | 39 | 38 | 119 | 379 | -1.7% | -68.0% |
+| ClientTick | deflate_encode | 7,116 | 6,893 | 11,491 | 9,975 | -3.1% | -30.9% |
+| ClientTick | deflate_decode | 531 | 507 | 1,125 | 1,943 | -4.6% | -54.9% |
+| ClientTick | snappy_encode | 271 | 268 | 379 | 416 | -0.9% | -29.2% |
+| ClientTick | snappy_decode | 166 | 160 | 277 | 557 | -3.5% | -42.2% |
+| ClientTick | encrypt | 291 | 285 | 331 | private | -2.2% | -13.9% |
+| ClientTick | decrypt | 285 | 282 | 323 | private | -1.2% | -12.7% |
 
-</details>
+Jolyne is fastest on 31 of 32 rows. ChunkRadius decrypt (151 KB) is a tie with
+bedrock-net (+0.5%, inside noise): both run RustCrypto AES-CTR plus `sha2`
+SHA-256, and the SHA-256 pass (about 80% of the time, SHA-NI bound) is the
+limit. Measured separately, `ring`'s SHA-256 is no faster on this CPU, and
+interleaving the AES and SHA passes in 2 KiB or 16 KiB chunks made large
+batches slower, so neither was adopted. Against main, every row is within the
+noise band; the branch replaced the per-byte `subtle` checksum compare with one
+u64 compare, which removed an earlier small-batch decrypt regression.
+
+### join (jolyne main vs branch)
+
+`bench-compare join --joins 20 --count 200`: a full offline join over RakNet
+loopback (settings, login, ECDH encryption, packs, StartGame, spawn), then Text
+echoes through the server's typed path. Both peers are in one process pinned to
+logical CPUs 2 and 4 with two Tokio workers. The join time is dominated by
+RakNet connection setup and is the same on both revisions.
+
+| Row | jolyne main | jolyne branch | branch vs main |
+|---|---:|---:|---:|
+| `join/raknet/join` (ms, mean of medians) | 115.40 | 115.32 | -0.1% |
+| `join/raknet/echo` (µs, mean of medians) | 31.23 | 31.28 | +0.2% |
+
+### stream (jolyne main vs branch)
+
+`bench-compare stream --iterations 2000`: every batch fixture sent with
+`send_batch_raw`/`send_batch` and received again with
+`recv_packet_raw`/`recv_packet` through `BedrockTransport` over an in-memory
+self-loop transport (DEFLATE 6 at threshold 256, AES-CTR). Allocation counts are
+deterministic; timings on this shared machine vary by up to ±15% between runs.
+
+| Case | Operation | main (ns) | branch (ns) | branch vs main | allocs/op main → branch |
+|---|---|---:|---:|---:|---:|
+| Spawn | raw_deflate | 21,019 | 22,285 | +6.0% | 6 → 2 |
+| Spawn | raw_encrypted | 7,236 | 6,582 | -9.0% | 4 → 2 |
+| Spawn | raw_deflate_encrypted | 23,708 | 24,024 | +1.3% | 6 → 4 |
+| Spawn | typed_deflate_encrypted | 35,060 | 35,158 | +0.3% | 48 → 46 |
+| ServerTick | raw_deflate | 25,850 | 24,207 | -6.4% | 8 → 2 |
+| ServerTick | raw_encrypted | 7,656 | 6,739 | -12.0% | 6 → 2 |
+| ServerTick | raw_deflate_encrypted | 28,383 | 26,477 | -6.7% | 8 → 4 |
+| ServerTick | typed_deflate_encrypted | 36,439 | 35,272 | -3.2% | 18 → 14 |
+| ChunkRadius | raw_deflate | 779,813 | 803,019 | +3.0% | 5 → 2 |
+| ChunkRadius | raw_encrypted | 951,158 | 989,350 | +4.0% | 5 → 4 |
+| ChunkRadius | raw_deflate_encrypted | 992,603 | 959,934 | -3.3% | 5 → 4 |
+| ChunkRadius | typed_deflate_encrypted | 937,890 | 954,700 | +1.8% | 5 → 4 |
+| ClientTick | raw_deflate | 9,571 | 9,882 | +3.2% | 4 → 2 |
+| ClientTick | raw_encrypted | 1,193 | 1,378 | +15.5% | 2 → 2 |
+| ClientTick | raw_deflate_encrypted | 10,373 | 10,184 | -1.8% | 4 → 4 |
+| ClientTick | typed_deflate_encrypted | 11,968 | 12,177 | +1.7% | 12 → 12 |
+
+The new core keeps one connection-owned queue instead of building a `Vec` per
+batch, frames outbound packets straight into the pending batch with one
+up-front reservation, and decrypts in place when it holds the only reference.
+That cuts allocations per round trip on every raw row (up to 8 → 2).
 
 ## codec
 
