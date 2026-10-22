@@ -29,8 +29,10 @@ use crate::protocol::constants::{self};
 const TICK_INTERVAL: Duration = Duration::from_millis(20);
 /// go-raknet `conn.go:newConn`: the application queue grows to 4096 messages.
 pub(crate) const CLIENT_RECEIVE_QUEUE: usize = 4096;
-/// go-raknet `dial.go:clientListen` reads into a `maxMTUSize` buffer.
-const VANILLA_MAX_DATAGRAM: usize = MAXIMUM_MTU_SIZE as usize;
+/// Mojang RakNet `RNS2_Berkley::RecvFromLoop` reads into a 1600-byte buffer
+/// (lens2 `SOCK_Berkley_002_RecvFromLoop.c:94`), so the Bedrock client handles
+/// datagrams up to 1600 bytes, longer than its 1492-byte MTU.
+pub(crate) const VANILLA_MAX_DATAGRAM: usize = 1600;
 
 /// Configuration for a `RaknetStream`.
 #[derive(Debug, Clone)]
@@ -183,8 +185,10 @@ impl RaknetStream {
             let local = socket.local_addr()?;
 
             // Perform offline handshake using OpenConnectionRequest1/2.
+            // Vanilla: Mojang `resetMyGUID` before every connect (lens2
+            // RNC_005_connect.c:57): a fresh random GUID per dial.
             let client_guid = match config.transmission_policy {
-                TransmissionPolicy::Vanilla => handshake::vanilla_dialer_id(),
+                TransmissionPolicy::Vanilla => handshake::random_guid(),
                 TransmissionPolicy::Optimized => client_guid(),
             };
             let handshake = handshake::perform(
@@ -428,8 +432,8 @@ fn report_closed(
 #[tracing::instrument(skip(socket, context), fields(server = %context.server, mtu = context.config.mtu), level = "debug")]
 async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
     let vanilla = context.config.transmission_policy.is_vanilla();
-    // Vanilla reads like go-raknet's 1492-byte buffer; one extra byte detects
-    // (and drops) longer datagrams on platforms that truncate.
+    // Vanilla reads like Mojang's 1600-byte recvfrom buffer; one extra byte
+    // detects (and drops) longer datagrams on platforms that truncate.
     let buffer_len = if vanilla {
         VANILLA_MAX_DATAGRAM + 1
     } else {
@@ -510,7 +514,7 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
                     continue;
                 }
                 if vanilla && len > VANILLA_MAX_DATAGRAM {
-                    tracing::debug!(len, "dropping datagram longer than go-raknet's buffer");
+                    tracing::debug!(len, "dropping datagram longer than Mojang's receive buffer");
                     continue;
                 }
                 if vanilla {
@@ -1066,7 +1070,7 @@ mod tests {
                 ClientMuxerContext {
                     server: server.local_addr().unwrap(),
                     server_guid: 1,
-                    client_guid: handshake::vanilla_dialer_id(),
+                    client_guid: handshake::random_guid(),
                     secure_connection_established: false,
                     outbound_rx,
                     to_app,
@@ -1167,36 +1171,55 @@ mod tests {
                 range.start.value() <= sequence && range.end.value() >= sequence))
     }
 
-    /// MTU-11: datagrams above go-raknet's 1492-byte read buffer are dropped
-    /// without ending the connection.
+    /// MTU-11: Mojang's 1600-byte receive buffer: datagrams up to 1600 bytes
+    /// are handled, longer ones are dropped without ending the connection.
     #[tokio::test]
-    async fn vanilla_client_drops_datagrams_longer_than_1492() {
-        let mut harness = VanillaHarness::connect().await;
-        let oversized = Datagram {
-            header: crate::protocol::types::DatagramHeader {
-                flags: crate::protocol::constants::DatagramFlags::VALID,
-                sequence: crate::protocol::types::Sequence24::new(100),
-            },
-            payload: crate::protocol::datagram::DatagramPayload::EncapsulatedPackets(vec![
-                crate::protocol::encapsulated_packet::EncapsulatedPacket {
-                    header: crate::protocol::types::EncapsulatedPacketHeader {
-                        reliability: crate::protocol::reliability::Reliability::Unreliable,
-                        is_split: false,
-                        needs_bas: false,
-                    },
-                    bit_length: 1500 << 3,
-                    reliable_index: None,
-                    sequence_index: None,
-                    ordering_index: None,
-                    ordering_channel: None,
-                    split: None,
-                    payload: Bytes::from(vec![0xfe; 1500]),
+    async fn vanilla_client_handles_datagrams_up_to_1600_bytes() {
+        fn unreliable(sequence: u32, payload: Vec<u8>) -> Datagram {
+            Datagram {
+                header: crate::protocol::types::DatagramHeader {
+                    flags: crate::protocol::constants::DatagramFlags::VALID
+                        | crate::protocol::constants::DatagramFlags::HAS_B_AND_AS,
+                    sequence: crate::protocol::types::Sequence24::new(sequence),
                 },
-            ]),
-        };
-        harness.send_datagram(&oversized).await;
-        harness.send_message(b"\xfeafter").await;
-        harness.expect_message(b"\xfeafter").await;
+                payload: crate::protocol::datagram::DatagramPayload::EncapsulatedPackets(vec![
+                    crate::protocol::encapsulated_packet::EncapsulatedPacket {
+                        header: crate::protocol::types::EncapsulatedPacketHeader {
+                            reliability: crate::protocol::reliability::Reliability::Unreliable,
+                            is_split: false,
+                            needs_bas: false,
+                        },
+                        bit_length: (payload.len() << 3) as u16,
+                        reliable_index: None,
+                        sequence_index: None,
+                        ordering_index: None,
+                        ordering_channel: None,
+                        split: None,
+                        payload: Bytes::from(payload),
+                    },
+                ]),
+            }
+        }
+        // Datagram header (4 bytes) + unreliable frame header (3 bytes).
+        let largest = [vec![0xfe], vec![0x01; VANILLA_MAX_DATAGRAM - 8]].concat();
+        let oversized = [vec![0xfe], vec![0x02; VANILLA_MAX_DATAGRAM - 7]].concat();
+        let mut harness = VanillaHarness::connect().await;
+        let mut encoded = BytesMut::new();
+        unreliable(100, largest.clone())
+            .encode(&mut encoded)
+            .unwrap();
+        assert_eq!(encoded.len(), VANILLA_MAX_DATAGRAM);
+        harness
+            .send_datagram(&unreliable(100, largest.clone()))
+            .await;
+        harness.expect_message(&largest).await;
+        // Dropped: the next delivered message is the one after it.
+        harness.send_datagram(&unreliable(101, oversized)).await;
+        let after = b"\xfeafter";
+        harness
+            .send_datagram(&unreliable(102, after.to_vec()))
+            .await;
+        harness.expect_message(after).await;
         assert!(!harness.task.is_finished());
     }
 
