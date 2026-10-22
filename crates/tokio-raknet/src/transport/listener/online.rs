@@ -117,7 +117,7 @@ pub(super) async fn handle_outgoing_msg(
     if let Err(error) =
         state
             .managed
-            .queue_app_packet(msg.packet, msg.reliability, msg.channel, msg.priority)
+            .queue_app_buffer(msg.buffer, msg.reliability, msg.channel, msg.priority)
     {
         let _ = state.to_app.try_send(Err(error.into()));
         return;

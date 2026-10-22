@@ -23,15 +23,30 @@ impl Session {
         channel: u8,
         priority: RakPriority,
     ) -> Result<usize, QueuePacketError> {
+        // Application packets already know their payload length. Reserve once
+        // rather than growing after the ID byte has allocated a small buffer.
+        let mut payload_buf = match &pkt {
+            RaknetPacket::UserData { payload, .. } => BytesMut::with_capacity(1 + payload.len()),
+            _ => BytesMut::new(),
+        };
+        pkt.encode(&mut payload_buf)?;
+        self.queue_encoded_packet(payload_buf.freeze(), reliability, channel, priority)
+    }
+
+    /// Queue an already encoded packet without copying its backing storage.
+    pub(crate) fn queue_encoded_packet(
+        &mut self,
+        payload: bytes::Bytes,
+        reliability: Reliability,
+        channel: u8,
+        priority: RakPriority,
+    ) -> Result<usize, QueuePacketError> {
         if channel as usize >= self.ordering.max_channels() {
             return Err(QueuePacketError::InvalidOrderingChannel {
                 channel,
                 max_channels: self.ordering.max_channels(),
             });
         }
-        let mut payload_buf = BytesMut::new();
-        pkt.encode(&mut payload_buf)?;
-        let payload = payload_buf.freeze();
 
         let max_len = self.max_encapsulated_payload_len(reliability, false).max(1);
         let fragments = if payload.len() <= max_len {
@@ -290,14 +305,6 @@ impl Session {
         let total = payload.len();
         let parts = ((total - 1) / max_len) + 1;
 
-        let mut chunks = Vec::with_capacity(parts);
-        for _ in 0..parts {
-            let take = payload.len().min(max_len);
-            let chunk = payload.split_to(take);
-            chunks.push(chunk);
-        }
-        debug_assert!(payload.is_empty());
-
         let split_id = self.split_index;
         self.split_index = self.split_index.wrapping_add(1);
 
@@ -315,7 +322,8 @@ impl Session {
 
         let mut reliable_bytes = 0usize;
 
-        for (i, chunk) in chunks.into_iter().enumerate() {
+        for i in 0..parts {
+            let chunk = payload.split_to(payload.len().min(max_len));
             let header = EncapsulatedPacketHeader {
                 reliability,
                 is_split: true,
@@ -456,6 +464,34 @@ mod tests {
     use crate::protocol::packet::RaknetPacket;
     use bytes::Bytes;
     use std::time::Instant;
+
+    #[test]
+    fn encoded_application_packets_keep_their_backing_storage() {
+        for size in [32, 512, 4096, 65536] {
+            let payload = Bytes::from(vec![0xfe; size]);
+            let mut session = Session::new(1400);
+            session
+                .queue_encoded_packet(
+                    payload.clone(),
+                    Reliability::ReliableOrdered,
+                    0,
+                    RakPriority::Normal,
+                )
+                .unwrap();
+            let mut fragments: Vec<_> = session.outgoing_heap.drain().map(|p| p.pkt).collect();
+            fragments.sort_by_key(|p| p.split.as_ref().map_or(0, |s| s.index));
+            let mut offset = 0;
+            for fragment in fragments {
+                assert_eq!(fragment.payload.as_ptr(), payload[offset..].as_ptr());
+                assert_eq!(
+                    fragment.payload.as_ref(),
+                    &payload[offset..offset + fragment.payload.len()]
+                );
+                offset += fragment.payload.len();
+            }
+            assert_eq!(offset, size);
+        }
+    }
 
     #[test]
     fn priorities_follow_cloudburst_weights() {

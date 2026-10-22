@@ -16,6 +16,10 @@ There is no dependency on bedrock-client, bedrock-client-tokio, bedrock-packs, o
 
 The typed corpus is the same committed `testdata/bench/manifest.json` as the other adapters. Input SHA-256, packet IDs/counts, typed equality, exact reserialization, and batch roundtrips are checked before timing. Unsupported typed cases are explicitly reported rather than timed as opaque forwarding. Ordinary loops use 32 warmups, an amortized wall-clock timing pass, and a separate allocation-counting pass. Output buffers are retained between encode calls where the public API allows it. No Criterion harness is used.
 
+`micro --wire-only --iterations 1000000` selects only the existing RakNet
+wire-codec rows, returning before batch/compression/cipher cases. Timing loops,
+warmups, allocation counting, and wire validation are unchanged.
+
 ## Measurement boundaries and asymmetries
 
 - `codec`: single entries use `Packet::decode_framed`; batches use `Frames::from_batch` followed by `Packet::decode_frame`, including public framing traversal and direction validation. Encodes use `Packet::encode_frame`, retaining header subclient bits and adding the batch marker only for multi-packet cases. These APIs own decoded values; no borrowed implementation is claimed.
@@ -29,3 +33,9 @@ Transport uses the public asynchronous adapter, not bedrock-net's optional clien
 ACK representations differ: Cinnabar's public `Ack` stores 18 expanded sequence IDs, compresses them into three records during encode, and expands records during decode. Ours retains three range records. Both process the same complete 21-byte wire datagram (`0xc0` plus three records), checked against canonical bytes before timing; the representation and range-expansion work are intentionally not hidden.
 
 Framing decode ownership differs: jolyne returns `Vec<RawPacket>` and parses each packet header; Go's public `Decode` returns an owned slice of packet byte slices; bedrock-net exposes a lazy owned-buffer packet iterator, consumed without an extra adapter collection. These are public framing boundaries over identical bytes, not identical allocation contracts. Encoding jolyne uses prepared `RawPacket` headers and payloads; the other two accept complete packet bytes. Loopback Cinnabar's send API consumes `Box<[u8]>`, requiring a client-side payload copy; ours sends a cheap `Bytes` clone and Go passes its existing byte slice. The required ownership cost is inside the measured RTT rather than optimized away.
+
+## Upstream parity audit
+
+The final adapter follows upstream's echo example and loopback benchmark: `ReliableOrdered`, `Normal` priority, automatic flush enabled, default 10 ms maintenance interval, default MTU negotiation up to 1492, default socket/channel/backpressure settings, and `max_connections=1`. It does not switch to `Immediate` or invent a faster flush policy. Both Rust comparison executables use release `opt-level=3`, thin LTO, 16 codegen units and symbol stripping.
+
+The first report used Cinnabar's default ten-connection admission limit and standalone Cargo's default release profile without LTO; the final report corrects those two configuration differences. This does not establish either as the cause of millisecond tails. Native upstream self-benchmarks use different sizes, response lengths, sample volumes and their unmodified bench profile; see [upstream-check.md](upstream-check.md) and [reproduction script](upstream-check.ps1) for separately measured diagnostics.

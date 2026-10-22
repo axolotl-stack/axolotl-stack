@@ -17,8 +17,9 @@ impl RaknetEncodable for DatagramHeader {
         &self,
         dst: &mut impl BufMut,
     ) -> Result<(), crate::protocol::packet::EncodeError> {
-        dst.put_u8(self.flags.bits());
-        self.sequence.encode_raknet(dst)
+        let sequence = self.sequence.value().to_le_bytes();
+        dst.put_slice(&[self.flags.bits(), sequence[0], sequence[1], sequence[2]]);
+        Ok(())
     }
 
     fn decode_raknet(src: &mut impl Buf) -> Result<Self, DecodeError> {

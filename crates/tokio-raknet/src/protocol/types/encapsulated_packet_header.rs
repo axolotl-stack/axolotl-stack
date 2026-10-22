@@ -11,8 +11,8 @@ use crate::protocol::{
 /// Layout on the wire (first byte of the frame):
 ///   bits 7..5: reliability (0..7)
 ///   bit 4:     split flag
-///   bit 3:     needs B&As flag
-///   bits 2..0: reserved (currently unused, must be zero)
+///   bit 2:     needs B&As flag
+///   bits 3, 1..0: reserved (currently unused, must be zero)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EncapsulatedPacketHeader {
     pub reliability: Reliability,

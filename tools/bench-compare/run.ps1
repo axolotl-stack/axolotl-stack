@@ -1,7 +1,7 @@
 #requires -Version 7.0
 [CmdletBinding()]
 param(
-    [ValidateRange(3, 99)][int]$Rounds = 3,
+    [ValidateRange(3, 99)][int]$Rounds = 5,
     [ValidateRange(1, 100000)][int]$Count = 100,
     [ValidateRange(1, 100000)][int]$SplitCount = 10,
     [ValidateRange(1, 256)][int]$GoCpu = 4,
@@ -84,15 +84,18 @@ function Finish-Runner($Job, [string]$Log, [int]$Seconds = 600) {
 }
 Push-Location $Repo
 try {
+    # Reserve this workstation's logical CPUs 16..31 for compilation.
+    # Children inherit affinity before startup; Cargo also caps parallel jobs.
+    $ParentProcess.ProcessorAffinity = [IntPtr]4294901760
     if (!$SkipBuild) {
         & git submodule update --init crates/valentine_gen/protocolgen
         if ($LASTEXITCODE) { throw 'Submodule initialization failed' }
-        & cargo build --release -p bench-compare
+        & cargo build --release -j 8 -p bench-compare
         if ($LASTEXITCODE) { throw 'Rust build failed' }
-        & cargo build --release --manifest-path $CinnabarManifest --locked
+        & cargo build --release -j 8 --manifest-path $CinnabarManifest --locked
         if ($LASTEXITCODE) { throw 'Cinnabar standalone build failed' }
         Push-Location (Join-Path $PSScriptRoot 'go')
-        try { & go build -o $Go .; if ($LASTEXITCODE) { throw 'Go build failed' } } finally { Pop-Location }
+        try { & go build -p 8 -o $Go .; if ($LASTEXITCODE) { throw 'Go build failed' } } finally { Pop-Location }
     }
     $ParentProcess.ProcessorAffinity = $Affinity
     $meta = @{
@@ -104,6 +107,9 @@ try {
         processors = [Environment]::ProcessorCount
         cpu = $env:PROCESSOR_IDENTIFIER
         rust_workers = $GoCpu
+        rust_release_profile = 'opt-level=3; lto=thin; codegen-units=16; strip=true (both Rust executables)'
+        build_affinity_logical_cpus = @(16..31)
+        build_jobs = 8
         rust = (& rustc --version | Out-String).Trim(); go = (& go version | Out-String).Trim()
         commit = (& git rev-parse HEAD | Out-String).Trim()
         corpus_commit = (& git -C crates/valentine_gen/protocolgen rev-parse HEAD | Out-String).Trim()
