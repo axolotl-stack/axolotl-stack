@@ -52,6 +52,7 @@ jobs:
           cargo clippy -p jolyne --lib --no-default-features --features server,raknet -- -D warnings
           cargo clippy -p jolyne --lib --no-default-features --features server,discovery -- -D warnings
           cargo clippy -p jolyne --lib --no-default-features --features client,nethernet -- -D warnings
+          cargo clippy -p jolyne --lib --no-default-features --features server,nethernet -- -D warnings
           cargo clippy -p jolyne --all-targets --all-features -- -D warnings
 
       - name: Test core crates

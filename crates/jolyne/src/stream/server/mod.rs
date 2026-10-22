@@ -59,8 +59,10 @@ pub(crate) async fn verify_login(
     )
 }
 
-/// A verified player and its stream, as returned by `authenticate`.
-pub type AuthenticatedStream<T> = (BedrockStream<SecurePending, Server, T>, AuthenticatedLogin);
+/// A verified, admitted player before the encryption handshake, as returned
+/// by `authenticate`. Its identity is not yet [`crate::auth::Trust::Authenticated`]:
+/// read the identity from the stream after `finish_handshake`.
+pub type AuthenticatedStream<T> = BedrockStream<SecurePending, Server, T>;
 
 /// A spawned player and its login, as returned by `accept_join_sequence`.
 pub type JoinedStream<T> = (BedrockStream<Play, Server, T>, AuthenticatedLogin);
@@ -149,7 +151,7 @@ impl<T: Transport> BedrockStream<Handshake, Server, T> {
             server_key: &SecretKey,
         ) -> Result<JoinedStream<T>, Failed<T>> {
             let login = stream.accept_network_settings().await?;
-            let (secure, identity) = login.authenticate().await?;
+            let secure = login.authenticate().await?;
             let packs = secure
                 .finish_handshake(&ServerHandshakeConfig {
                     server_key: server_key.clone(),
@@ -159,7 +161,8 @@ impl<T: Transport> BedrockStream<Handshake, Server, T> {
             let play = start
                 .start_game(template.to_join_params(rand::random()))
                 .await?;
-            Ok((play, identity))
+            let login = play.login().clone();
+            Ok((play, login))
         }
         match run(self, template, server_key).await {
             Ok(joined) => Ok(joined),
@@ -170,7 +173,8 @@ impl<T: Transport> BedrockStream<Handshake, Server, T> {
 
 impl<T: Transport> BedrockStream<Login, Server, T> {
     /// Waits for `Login`, enforces `max_players`, verifies the login and runs
-    /// the admission hook. The whole step shares the login deadline.
+    /// the admission hook. The whole step shares the login deadline. The
+    /// identity becomes authenticated in `finish_handshake`.
     #[tracing::instrument(skip_all, level = "debug", fields(peer = %self.peer_addr()))]
     pub async fn authenticate(self) -> Result<AuthenticatedStream<T>, Failed<T>> {
         let super::Parts {
@@ -212,11 +216,8 @@ impl<T: Transport> BedrockStream<Login, Server, T> {
                 return Err(failed(Failure::new(error, request), transport, seat));
             }
         };
-        match request.authenticated(login.clone(), peer, Instant::now()) {
-            Ok(authenticated) => {
-                let stream = advance_to(transport, authenticated, seat).await?;
-                Ok((stream, login))
-            }
+        match request.authenticated(login, peer, Instant::now()) {
+            Ok(authenticated) => advance_to(transport, authenticated, seat).await,
             Err(failure) => Err(failed(failure, transport, seat)),
         }
     }
@@ -228,7 +229,9 @@ impl<T: Transport> BedrockStream<SecurePending, Server, T> {
     }
 
     /// Runs the ECDH handshake (when enabled) and sends `LoginSuccess`.
-    /// The handshake is flushed in plaintext before encryption starts.
+    /// The handshake is flushed in plaintext before encryption starts. A
+    /// provider-verified identity is authenticated once the client proves its
+    /// key (see `proto::server::Authenticated::start_encryption`).
     #[tracing::instrument(skip_all, level = "debug", fields(peer = %self.peer_addr()))]
     pub async fn finish_handshake(
         self,
@@ -239,7 +242,8 @@ impl<T: Transport> BedrockStream<SecurePending, Server, T> {
             owner,
             seat,
         } = self.take();
-        match owner.start_encryption(&config.server_key, Instant::now()) {
+        let transport_key = transport.proven_peer_key();
+        match owner.start_encryption(&config.server_key, transport_key.as_ref(), Instant::now()) {
             Ok(Step::Next(ready)) => advance_to(transport, ready, seat).await,
             // `drive` flushes the queued ServerToClientHandshake first.
             Ok(Step::Wait(encryption)) => match driver::drive(&mut transport, encryption).await {

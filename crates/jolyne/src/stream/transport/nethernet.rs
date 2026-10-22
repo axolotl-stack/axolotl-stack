@@ -74,4 +74,10 @@ impl Transport for NetherNetTransport {
     fn latency(&self) -> Option<std::time::Duration> {
         self.stream.rtt()
     }
+
+    fn proven_peer_key(&self) -> Option<p384::PublicKey> {
+        self.stream
+            .remote_identity()
+            .map(|identity| p384::PublicKey::from(&identity.public_key))
+    }
 }

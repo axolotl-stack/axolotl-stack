@@ -48,14 +48,15 @@ pub async fn accept_join_sequence(
     let login = reasoned(handshake_stream.accept_network_settings()).await?;
 
     // 2. Auth
-    let (secure, login) = reasoned(login.authenticate()).await?;
-    let identity = login.identity;
+    let secure = reasoned(login.authenticate()).await?;
 
-    // 3. Encryption/handshake
+    // 3. Encryption/handshake: the identity is authenticated once the client
+    // proved it holds the login's key.
     let packs = reasoned(secure.finish_handshake(&ServerHandshakeConfig {
         server_key: server_key.clone(),
     }))
     .await?;
+    let identity = packs.login().identity.clone();
 
     // 4. Resource packs (from the listener config)
     let start_game_state = reasoned(packs.negotiate_packs()).await?;

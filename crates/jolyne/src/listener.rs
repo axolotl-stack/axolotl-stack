@@ -211,6 +211,11 @@ impl RakNetBuilder {
                 "RakNet listener requires .addr() before .bind()",
             ))
         })?;
+        // RakNet cannot prove the client's key, so online mode depends on the
+        // encryption handshake to stop replayed logins.
+        if self.config.online_mode && !self.config.encryption_enabled {
+            return Err(crate::error::AuthError::OnlineModeRequiresEncryption.into());
+        }
         let addr: SocketAddr = addr.parse().map_err(|error| {
             JolyneError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, error))
         })?;
@@ -302,6 +307,16 @@ impl NetherNetBuilder {
         self
     }
 
+    // Without a signaling feature only `NetherNetSignaling::None` exists and
+    // `bind` always fails.
+    #[cfg_attr(
+        not(any(
+            feature = "discovery",
+            feature = "endpoint",
+            feature = "xbox-signaling"
+        )),
+        allow(unreachable_code, unused_variables)
+    )]
     pub async fn bind(
         self,
     ) -> Result<BedrockListener<tokio_nethernet::NetherNetListener>, JolyneError> {

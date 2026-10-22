@@ -82,13 +82,22 @@ pub struct ChainClaims {
 }
 
 /// How an identity was established. Only the crate can produce
-/// [`Trust::Authenticated`]: the value is set while verifying a provider token
-/// and [`ValidatedIdentity`] has no public constructor or mutable fields.
+/// [`Trust::Authenticated`]: it requires a provider-verified token *and* proof
+/// that the client holds the token's key (the encryption handshake, or a
+/// transport that proved the key, see `Transport::proven_peer_key`).
+/// [`ValidatedIdentity`] has no public constructor or mutable fields.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Trust {
-    /// Provider-signed multiplayer token verified against the trusted JWKS.
+    /// Provider-signed multiplayer token verified against the trusted JWKS,
+    /// and the client proved possession of its key.
     Authenticated,
-    /// Offline login: every claim, including any XUID, is client-chosen.
+    /// Provider-signed token verified, but key possession is not yet proven:
+    /// a captured `Login` could be a replay. Account accessors stay `None`;
+    /// [`ValidatedIdentity::claimed_xuid`] may be used to *refuse* a player
+    /// (e.g. in an admission hook), never to grant anything.
+    AwaitingKeyProof,
+    /// Offline login, or an online login whose key was never proven (Bedrock
+    /// encryption off and no transport proof): every claim is client-chosen.
     Unauthenticated,
 }
 
@@ -128,7 +137,8 @@ impl ValidatedIdentity {
             title_id,
         } = claims;
         let xuid = xuid.filter(|xuid| !xuid.is_empty());
-        if trust == Trust::Authenticated && xuid.is_none() {
+        let token_verified = trust != Trust::Unauthenticated;
+        if token_verified && xuid.is_none() {
             return Err(AuthError::NotAuthenticated);
         }
         if identity_public_key.is_empty() {
@@ -152,19 +162,43 @@ impl ValidatedIdentity {
         };
         let display_name = display_name.unwrap_or_default();
         validate_display_name(&display_name, xuid.is_some())?;
-        let authenticated = trust == Trust::Authenticated;
         Ok(Self {
             display_name,
             uuid,
             identity_public_key,
             claimed_xuid: xuid,
-            playfab_id: playfab_id.filter(|id| authenticated && !id.is_empty()),
-            title_id: title_id.filter(|id| authenticated && !id.is_empty()),
+            playfab_id: playfab_id.filter(|id| token_verified && !id.is_empty()),
+            title_id: title_id.filter(|id| token_verified && !id.is_empty()),
             trust,
         })
     }
 
-    /// Whether a trusted provider verified this identity (online mode).
+    /// Records that the client proved it holds the identity key: a
+    /// provider-verified identity becomes [`Trust::Authenticated`].
+    pub(crate) fn confirm_key_possession(&mut self) {
+        if self.trust == Trust::AwaitingKeyProof {
+            self.trust = Trust::Authenticated;
+        }
+    }
+
+    /// Key possession can no longer be proven (encryption off, no transport
+    /// proof): the identity is treated as offline.
+    pub(crate) fn forfeit_key_proof(&mut self) {
+        if self.trust == Trust::AwaitingKeyProof {
+            self.trust = Trust::Unauthenticated;
+            self.playfab_id = None;
+            self.title_id = None;
+        }
+    }
+
+    /// Whether this identity's key is the given transport-proven key.
+    pub(crate) fn key_matches(&self, key: &p384::PublicKey) -> bool {
+        crate::proto::handshake::parse_public_key(&self.identity_public_key)
+            .is_ok_and(|own| own == *key)
+    }
+
+    /// Whether a trusted provider verified this identity and the client
+    /// proved it holds the identity key.
     pub fn is_authenticated(&self) -> bool {
         self.trust == Trust::Authenticated
     }
@@ -204,12 +238,14 @@ impl ValidatedIdentity {
 
     /// PlayFab master player account ID (`mid`), only when authenticated.
     pub fn playfab_id(&self) -> Option<&str> {
-        self.playfab_id.as_deref()
+        self.playfab_id
+            .as_deref()
+            .filter(|_| self.is_authenticated())
     }
 
     /// PlayFab title ID (`tid`, `20CA2` for retail), only when authenticated.
     pub fn title_id(&self) -> Option<&str> {
-        self.title_id.as_deref()
+        self.title_id.as_deref().filter(|_| self.is_authenticated())
     }
 }
 

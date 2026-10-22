@@ -84,6 +84,12 @@ struct Harness {
     server_key: SecretKey,
     client_key: SecretKey,
     sent: Log,
+    framing: Framing,
+    /// Signs an online (provider) login instead of an offline one.
+    provider: Option<SecretKey>,
+    /// The key the online login claims; `None` is the client's own key. A
+    /// replayed Login claims a key the sender does not hold.
+    login_key: Option<SecretKey>,
 }
 
 impl Harness {
@@ -97,19 +103,34 @@ impl Harness {
             server_key: SecretKey::random(&mut rand::thread_rng()),
             client_key: SecretKey::random(&mut rand::thread_rng()),
             sent,
+            framing: Framing::RakNet,
+            provider: None,
+            login_key: None,
+        }
+    }
+
+    /// An online-mode harness whose logins carry a test-provider token.
+    fn online(config: BedrockListenerConfig, framing: Framing) -> Self {
+        Self {
+            framing,
+            provider: Some(crate::auth::security_tests::key(2)),
+            ..Self::new(BedrockListenerConfig {
+                online_mode: true,
+                ..config
+            })
         }
     }
 
     fn start(&self) -> (ServerHandshake, ClientSettings) {
         let now = Instant::now();
         let server = ServerHandshake::new(
-            Connection::new(Framing::RakNet, self.config.connection.clone()),
+            Connection::new(self.framing, self.config.connection.clone()),
             self.config.clone(),
             now,
         );
         let client_config = ClientConfig::default();
         let client = ClientSettings::new(
-            Connection::new(Framing::RakNet, client_config.connection.clone()),
+            Connection::new(self.framing, client_config.connection.clone()),
             &client_config,
             now,
         )
@@ -127,11 +148,30 @@ impl Harness {
         crate::auth::client::encode_login_request(&chain, &token).into()
     }
 
-    /// Runs settings, login and encryption; returns both sides at the
-    /// resource pack phase.
-    async fn through_login(
+    /// Verifies the login like the async layer: offline, or against the test
+    /// provider's key set.
+    async fn verify(
         &self,
-    ) -> Result<(super::server::PacksReady, super::client::ClientPacks), JolyneError> {
+        request: &super::server::LoginRequest,
+    ) -> Result<crate::auth::AuthenticatedLogin, JolyneError> {
+        match &self.provider {
+            None => {
+                crate::stream::server::verify_login(request.connection_request(), false, true).await
+            }
+            Some(provider) => {
+                use crate::auth::security_tests::{claims, client_data, sign, verifier_for};
+                let key = self.login_key.as_ref().unwrap_or(&self.client_key);
+                let token = sign(provider, &claims(key));
+                Ok(verifier_for(&[(provider, None)]).validate(&token, &client_data(key))?)
+            }
+        }
+    }
+
+    /// Runs settings and login; returns the verified, admitted server side
+    /// and the client waiting for the handshake.
+    async fn through_authentication(
+        &self,
+    ) -> Result<(super::server::Authenticated, ClientHandshake), JolyneError> {
         let (mut server, mut client) = self.start();
         pump(&mut client, &mut server);
         let mut server = next(server);
@@ -146,17 +186,25 @@ impl Harness {
             .map_err(|failure| failure.error)?;
         pump(&mut client, &mut server);
         let request = next(server);
-        let identity =
-            crate::stream::server::verify_login(request.connection_request(), false, true).await?;
+        let identity = self.verify(&request).await?;
         let authenticated = request
             .authenticated(identity, PEER, Instant::now())
             .map_err(|failure| failure.error)?;
-        let mut encryption = match authenticated.start_encryption(&self.server_key, Instant::now())
-        {
-            Ok(Step::Wait(encryption)) => encryption,
-            Ok(Step::Next(_)) => panic!("encryption is enabled"),
-            Err(failure) => return Err(failure.error),
-        };
+        Ok((authenticated, client))
+    }
+
+    /// Runs settings, login and encryption; returns both sides at the
+    /// resource pack phase.
+    async fn through_login(
+        &self,
+    ) -> Result<(super::server::PacksReady, super::client::ClientPacks), JolyneError> {
+        let (authenticated, mut client) = self.through_authentication().await?;
+        let mut encryption =
+            match authenticated.start_encryption(&self.server_key, None, Instant::now()) {
+                Ok(Step::Wait(encryption)) => encryption,
+                Ok(Step::Next(_)) => panic!("encryption is enabled"),
+                Err(failure) => return Err(failure.error),
+            };
         pump(&mut encryption, &mut client);
         let mut client = wait(client);
         pump(&mut client, &mut encryption);
@@ -621,4 +669,133 @@ fn deadline_elapses_exactly_at_login_timeout() {
         _ => panic!("still within the deadline"),
     };
     assert!(server.advance(now + Duration::from_secs(3)).is_err());
+}
+
+fn encryption_of(
+    harness: &Harness,
+    authenticated: super::server::Authenticated,
+) -> super::server::ServerEncryption {
+    match authenticated.start_encryption(&harness.server_key, None, Instant::now()) {
+        Ok(Step::Wait(encryption)) => encryption,
+        Ok(Step::Next(_)) => panic!("encryption is enabled"),
+        Err(failure) => panic!("start_encryption failed: {}", failure.error),
+    }
+}
+
+/// A verified online token is not an authenticated identity until the client
+/// proves it holds the token's key by completing the encryption handshake.
+#[tokio::test]
+async fn online_identity_is_authenticated_only_after_the_encryption_handshake() {
+    use crate::auth::Trust;
+    let harness = Harness::online(BedrockListenerConfig::default(), Framing::RakNet);
+    let (authenticated, mut client) = harness.through_authentication().await.unwrap();
+    let identity = &authenticated.login().identity;
+    assert_eq!(identity.trust(), Trust::AwaitingKeyProof);
+    assert_eq!((identity.xuid(), identity.playfab_id()), (None, None));
+
+    let mut encryption = encryption_of(&harness, authenticated);
+    pump(&mut encryption, &mut client);
+    let mut client = wait(client);
+    pump(&mut client, &mut encryption);
+    let ready = next(encryption);
+    let identity = &ready.login().identity;
+    assert!(identity.is_authenticated());
+    assert_eq!(identity.xuid(), Some("2535428123456789"));
+    assert_eq!(identity.playfab_id(), Some("ABCDEF0123456789"));
+}
+
+/// A replayed Login (valid token for a key the sender does not hold) cannot
+/// complete the handshake, stays unauthenticated, and the wait for
+/// `ClientToServerHandshake` is bounded by the login deadline.
+#[tokio::test]
+async fn replayed_online_login_never_authenticates_and_times_out_at_the_login_deadline() {
+    use crate::auth::Trust;
+    let harness = Harness {
+        login_key: Some(crate::auth::security_tests::key(9)),
+        ..Harness::online(BedrockListenerConfig::default(), Framing::RakNet)
+    };
+    let (authenticated, mut client) = harness.through_authentication().await.unwrap();
+    let mut encryption = encryption_of(&harness, authenticated);
+    pump(&mut encryption, &mut client);
+    // The replaying client derives a different secret: its handshake reply
+    // fails the checksum and is never accepted.
+    let mut client = wait(client);
+    let transmit = client.connection().poll_transmit().unwrap();
+    assert!(matches!(
+        encryption
+            .connection()
+            .handle_datagram(Datagram::Contiguous(transmit.payload)),
+        Err(JolyneError::Protocol(
+            ProtocolError::ChecksumMismatch { .. }
+        ))
+    ));
+    let encryption = wait(encryption);
+    assert_eq!(encryption.login().identity.trust(), Trust::AwaitingKeyProof);
+    let late = Instant::now() + harness.config.login_timeout;
+    assert!(matches!(
+        error_of(encryption, late),
+        JolyneError::Protocol(ProtocolError::Timeout(HandshakePhase::Encryption))
+    ));
+}
+
+/// Without Bedrock encryption, RakNet cannot prove the client's key, so an
+/// online server refuses rather than trusting a possibly replayed Login.
+#[tokio::test]
+async fn online_mode_without_encryption_is_refused_on_raknet() {
+    let harness = Harness::online(
+        BedrockListenerConfig {
+            encryption_enabled: false,
+            ..Default::default()
+        },
+        Framing::RakNet,
+    );
+    let (authenticated, _client) = harness.through_authentication().await.unwrap();
+    let error = match authenticated.start_encryption(&harness.server_key, None, Instant::now()) {
+        Err(failure) => failure.error,
+        Ok(_) => panic!("online RakNet login accepted without encryption"),
+    };
+    assert!(matches!(
+        error,
+        JolyneError::Auth(crate::error::AuthError::OnlineModeRequiresEncryption)
+    ));
+    assert_eq!(
+        error.disconnect_reason(),
+        Some(EnumsConnectionDisconnectFailReason::Notauthenticated)
+    );
+}
+
+/// On a message transport with encryption off, an online login is
+/// authenticated only when the transport proved the login's key (NetherNet's
+/// DTLS-bound identity); otherwise it is treated as offline.
+#[tokio::test]
+async fn unencrypted_online_login_trusts_only_a_transport_proven_key() {
+    use crate::auth::Trust;
+    let harness = Harness::online(
+        BedrockListenerConfig {
+            encryption_enabled: false,
+            ..Default::default()
+        },
+        Framing::Unprefixed,
+    );
+    let own = harness.client_key.public_key();
+    let other = crate::auth::security_tests::key(9).public_key();
+    for (transport_key, expected) in [
+        (None, Trust::Unauthenticated),
+        (Some(&other), Trust::Unauthenticated),
+        (Some(&own), Trust::Authenticated),
+    ] {
+        let (authenticated, _client) = harness.through_authentication().await.unwrap();
+        let ready = match authenticated.start_encryption(
+            &harness.server_key,
+            transport_key,
+            Instant::now(),
+        ) {
+            Ok(Step::Next(ready)) => ready,
+            Ok(Step::Wait(_)) => panic!("encryption is disabled"),
+            Err(failure) => panic!("start_encryption failed: {}", failure.error),
+        };
+        let identity = &ready.login().identity;
+        assert_eq!(identity.trust(), expected);
+        assert_eq!(identity.xuid().is_some(), expected == Trust::Authenticated);
+    }
 }

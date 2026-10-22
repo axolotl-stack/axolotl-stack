@@ -100,13 +100,15 @@ where
     >,
 {
     let login_stream = reasoned(downstream.accept_network_settings()).await?;
-    let (secure, login) = reasoned(login_stream.authenticate()).await?;
+    let secure = reasoned(login_stream.authenticate()).await?;
     // Finish the downstream login stage first: it runs under `login_timeout`,
     // while the logged-in pack phase has no deadline until packs are offered.
+    // The identity is only authenticated once the handshake proved its key.
     let packs = reasoned(secure.finish_handshake(&ServerHandshakeConfig {
         server_key: server_key.clone(),
     }))
     .await?;
+    let login = packs.login().clone();
 
     let dialed = match dial(&login).await {
         Ok((upstream, identity)) => upstream.join(identity).await,

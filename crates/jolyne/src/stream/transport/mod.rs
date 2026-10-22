@@ -58,4 +58,12 @@ pub trait Transport: Unpin + Send {
     fn latency(&self) -> Option<Duration> {
         None
     }
+
+    /// The P-384 key the peer proved it holds at the transport layer, if any
+    /// (NetherNet: the SDP identity assertion bound to DTLS). With Bedrock
+    /// encryption off, an online login is authenticated only when its
+    /// identity key equals this key.
+    fn proven_peer_key(&self) -> Option<p384::PublicKey> {
+        None
+    }
 }

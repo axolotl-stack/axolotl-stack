@@ -70,6 +70,10 @@ pub enum AuthError {
     /// A client-side login token could not be produced or acquired.
     #[error("Login token acquisition failed: {0}")]
     TokenAcquisition(String),
+    /// Online mode with Bedrock encryption disabled on a transport that cannot
+    /// prove the client's key (RakNet): a captured `Login` could be replayed.
+    #[error("online mode requires encryption on this transport")]
+    OnlineModeRequiresEncryption,
 }
 
 /// The handshake stage an error or timeout belongs to.

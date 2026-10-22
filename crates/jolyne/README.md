@@ -251,8 +251,22 @@ key/signature mismatches are `AuthError::BadSignature`.
 
 | Mode | Accepted | `ValidatedIdentity` |
 |---|---|---|
-| online | `AuthenticationType: 0` with a provider-signed `Token` carrying an XUID | `is_authenticated()`; `xuid()`, `playfab_id()` (`mid`), `title_id()` (`tid`, `20CA2` retail) |
+| online | `AuthenticationType: 0` with a provider-signed `Token` carrying an XUID | `Trust::AwaitingKeyProof` from `authenticate_login`; `Trust::Authenticated` (`is_authenticated()`, `xuid()`, `playfab_id()` (`mid`), `title_id()` (`tid`, `20CA2` retail)) once the connection proves the client holds the token's key |
 | offline | type 0 with an unverified `Token`; with `allow_legacy`, type 1/2 with a self-signed `Token` or a legacy chain | unauthenticated; `xuid()`, `playfab_id()`, `title_id()` are `None` |
+
+A verified token alone does not authenticate: a captured `Login` can be
+replayed. The server phases authenticate the identity when the client
+completes the encryption handshake (its `ClientToServerHandshake` decrypts
+under the ECDH secret of the token's key). With encryption off, the identity is
+authenticated only if the transport proved the same key
+(`Transport::proven_peer_key`, NetherNet's DTLS-bound identity) and is
+otherwise downgraded to `Trust::Unauthenticated`; on RakNet, which cannot prove
+keys, online mode without encryption is refused
+(`AuthError::OnlineModeRequiresEncryption`, also at `bind`). The handshake wait
+runs under the login deadline. Read the identity after `finish_handshake`
+(`authenticate` returns only the stream); admission hooks run before it and see
+`AwaitingKeyProof`, so they may refuse on `claimed_xuid()` but must not grant
+anything on it.
 
 `ValidatedIdentity` has private fields and no public constructor, so an offline
 identity cannot be upgraded or edited. Its offline XUID claim is only reachable
@@ -268,7 +282,8 @@ the published RS256/ES384 algorithm allow-list. JWT `x5u`/`x5c` keys and URLs ar
 never trust sources. The process-wide `OpenIdProvider::minecraft()` caches the
 key set without serializing logins: validation clones an `Arc` snapshot and
 verifies without holding a lock; refreshes are single-flight and shared by all
-waiters (success or failure); an unknown `kid` refreshes at most once per 30
+waiters (success or failure) and run in a spawned task, so a cancelled login
+neither aborts the fetch nor loses its outcome or backoff; an unknown `kid` refreshes at most once per 30
 minutes (gophertunnel `refreshingKeySet`); snapshots older than one hour are
 revalidated by one caller while the others keep using the cached keys, which
 keep serving for up to 24 hours if refreshing fails; failed fetches back off for

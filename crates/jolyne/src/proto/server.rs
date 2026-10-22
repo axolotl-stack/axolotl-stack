@@ -18,15 +18,15 @@ use std::time::Instant;
 use p384::SecretKey;
 use rand::RngCore;
 
-use super::conn::Connection;
+use super::conn::{Connection, Framing};
 use super::handshake;
 use super::packs::{PackProgress, ServerPackExchange, ServerPacks};
 use super::phase::{Deferred, Failure, Owner, Phase, Step, unexpected};
 use super::raw::RawPacket;
 use super::session::Session;
-use crate::auth::AuthenticatedLogin;
+use crate::auth::{AuthenticatedLogin, Trust};
 use crate::config::BedrockListenerConfig;
-use crate::error::{HandshakePhase, JolyneError, LoginRefusal, ProtocolError};
+use crate::error::{AuthError, HandshakePhase, JolyneError, LoginRefusal, ProtocolError};
 use crate::valentine::{
     BorrowedMcpePacketData, ChunkRadiusUpdatedPacket, EnumsConnectionDisconnectFailReason,
     McpePacket, McpePacketData, McpePacketName, NetworkChunkPublisherUpdatePacket,
@@ -316,12 +316,29 @@ impl Authenticated {
 
     /// Sends `ServerToClientHandshake` (plaintext) and enables encryption, or
     /// skips straight to `LoginSuccess` when encryption is disabled.
+    ///
+    /// A provider-verified identity becomes authenticated only once the
+    /// client proves it holds the token's key: by completing the encryption
+    /// handshake, or, with encryption off, through `transport_key` (the key
+    /// the transport proved, e.g. NetherNet's DTLS-bound identity). Without
+    /// either it is downgraded to unauthenticated; on RakNet, which cannot
+    /// prove keys, online mode without encryption is refused.
     pub fn start_encryption(
         mut self,
         server_key: &SecretKey,
+        transport_key: Option<&p384::PublicKey>,
         now: Instant,
     ) -> Result<Step<ServerEncryption, PacksReady>, Failure<Self>> {
         if !self.shared.config.encryption_enabled {
+            let identity = &mut self.login.identity;
+            if transport_key.is_some_and(|key| identity.key_matches(key)) {
+                identity.confirm_key_possession();
+            } else if identity.trust() == Trust::AwaitingKeyProof {
+                if self.conn.framing() == Framing::RakNet {
+                    return Err(Failure::new(AuthError::OnlineModeRequiresEncryption, self));
+                }
+                identity.forfeit_key_proof();
+            }
             return match login_success(&mut self.conn, now) {
                 Ok(()) => Ok(Step::Next(PacksReady {
                     deferred: Deferred::new(&self.conn),
@@ -374,6 +391,13 @@ pub struct ServerEncryption {
 }
 owner!(ServerEncryption);
 
+impl ServerEncryption {
+    /// The login; its identity is authenticated only after this phase.
+    pub fn login(&self) -> &AuthenticatedLogin {
+        &self.login
+    }
+}
+
 impl Phase for ServerEncryption {
     type Next = PacksReady;
     const PHASE: HandshakePhase = HandshakePhase::Encryption;
@@ -393,6 +417,9 @@ impl Phase for ServerEncryption {
             }
             return Ok(Step::Wait(self));
         }
+        // The batch decrypted and its checksum verified, so the client
+        // derived the ECDH secret from the identity key: it holds that key.
+        self.login.identity.confirm_key_possession();
         if let Err(error) = login_success(&mut self.conn, now) {
             return Err(Failure::new(error, self));
         }

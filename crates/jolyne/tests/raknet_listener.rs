@@ -13,6 +13,27 @@ use jolyne::valentine::{PlayStatusPacketStatus, TextPacket};
 use jolyne::{BedrockListener, BedrockListenerConfig, BedrockStream, JolyneError, WorldTemplate};
 use p384::SecretKey;
 
+/// RakNet cannot prove the client's key, so online mode without Bedrock
+/// encryption (replayable logins) is refused when binding.
+#[tokio::test]
+async fn online_raknet_listener_requires_encryption() {
+    let result = BedrockListener::raknet()
+        .addr("127.0.0.1:0")
+        .config(BedrockListenerConfig {
+            online_mode: true,
+            encryption_enabled: false,
+            ..Default::default()
+        })
+        .bind()
+        .await;
+    assert!(matches!(
+        result,
+        Err(JolyneError::Auth(
+            jolyne::error::AuthError::OnlineModeRequiresEncryption
+        ))
+    ));
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn listener_advertises_status_and_enforces_max_players() {
     let mut listener = BedrockListener::raknet()

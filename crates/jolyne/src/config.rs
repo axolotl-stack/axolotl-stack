@@ -128,6 +128,9 @@ impl Default for CompressionConfig {
 /// encryption handshake (gophertunnel `ListenConfig.Allow`).
 pub trait AdmissionHook: Send + Sync {
     /// Returns `Err(message)` to refuse the player with a `Kicked` disconnect.
+    /// Runs before the encryption handshake: the identity is
+    /// `Trust::AwaitingKeyProof` (online) and its `claimed_xuid()` may be
+    /// used to refuse, never to grant privileges.
     fn admit(&self, peer: SocketAddr, login: &AuthenticatedLogin) -> Result<(), String>;
 }
 
@@ -155,7 +158,9 @@ pub struct BedrockListenerConfig {
     /// only accepts provider-signed tokens. Default: `true`.
     pub allow_legacy_auth: bool,
     /// Run the ECDH handshake and AES-CTR batch encryption. Default: `true`
-    /// (NetherNet listeners default to `false`; DTLS already encrypts).
+    /// (NetherNet listeners default to `false`; DTLS already encrypts). The
+    /// handshake is what proves an online client holds its token's key, so
+    /// RakNet refuses online mode without it.
     pub encryption_enabled: bool,
     pub compression: CompressionConfig,
     /// Deadline from accept through `ClientToServerHandshake` (settings,
