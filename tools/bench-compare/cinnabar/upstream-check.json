@@ -1,0 +1,33 @@
+{
+  "conclusion": "Three alternating, unmodified upstream loopback pairs completed on logical CPUs 0,2,4,6 with Tokio/GOMAXPROCS=4. Rust Criterion 64-byte sample means were 45.961–47.990 us versus upstream Go aggregate means 40.173–41.621 us; 2 MiB requests with 1-byte acknowledgements were 15.523–17.054 ms for Rust and 37.703–74.245 ms for Go. These are separate estimators, not speed-ratio claims. Native aggregate outputs neither confirm nor rule out individual 10–23 ms stalls. The preliminary adapter used max_connections=10 and no LTO; the final adapter selects max_connections=1 and matching thin-LTO release settings, but neither change proves the cause of its elevated preliminary means.",
+  "source_commit": "7eb32a31f5715ed6cd69120ef19118aa03fcab28",
+  "conditions": "The coordinator subsequently confirmed concurrent benchmark workers on the same P-cores. These native measurements are contention-exposed diagnostics, not isolated comparative performance evidence.",
+  "commands": [
+    "git clone --no-checkout https://github.com/cinnabar-mc/raknet tools/bench-compare/results/upstream-check/source",
+    "git -C tools/bench-compare/results/upstream-check/source checkout --detach 7eb32a31f5715ed6cd69120ef19118aa03fcab28",
+    "pwsh -NoProfile -File tools/bench-compare/cinnabar/upstream-check.ps1 -Stage Build",
+    "pwsh -NoProfile -File tools/bench-compare/cinnabar/upstream-check.ps1 -Stage Run",
+    "cargo bench --locked -p raknet-tokio --bench loopback --no-run",
+    "go test -c -o C:/Users/jvigu/orca/workspaces/axolotl-stack/stab-crossbench-cinnabar/tools/bench-compare/results/upstream-check/upstream-go.test.exe .",
+    "cargo bench --locked -p raknet-tokio --bench loopback -- loopback/ --sample-size 10 --warm-up-time 1 --measurement-time 10 --noplot",
+    "C:/Users/jvigu/orca/workspaces/axolotl-stack/stab-crossbench-cinnabar/tools/bench-compare/results/upstream-check/upstream-go.test.exe -test.run=^$ -test.bench=^BenchmarkLoopback$ -test.benchtime=10s -test.count=1 -test.cpu=4"
+  ],
+  "limitations": [
+    "Criterion sample mean/slope and Go testing aggregate ns/op are distinct estimators; no cross-estimator ratios or individual-message percentiles are inferred.",
+    "Native Criterion warms each connection for one second and measures long steady-state batches; our custom adapter uses a fresh connection per size, one readiness echo, and only 100 or 10 measured echoes.",
+    "Upstream cases are 64-byte full echo and 2 MiB request/1-byte acknowledgement, not the main report's 32/512/4096/65536-byte full echoes.",
+    "Upstream Go pins lunar 6124f52657d4; the main harness pins lunar 87a6b7e53799.",
+    "Upstream sources and default optimized bench profile were preserved; the final custom adapter's thin-LTO profile is not applied to this diagnostic run.",
+    "Go testing on this Windows toolchain already uses QueryPerformanceCounter/Frequency; no published benchmark clock patch or substituted custom harness was used.",
+    "Three alternating rounds on a shared workstation do not reproduce historical published hardware/toolchains or validate exact reported multipliers.",
+    "The coordinator subsequently confirmed other workers benchmarked concurrently on these same P-cores. These recorded diagnostic numbers are contention-exposed, not isolated comparative performance evidence; no stable winner or historical multiplier is inferred.",
+    "Preliminary main-report values are preserved as historical diagnostics; final adapter connection-limit and release-profile alignment does not establish causality for its tails.",
+    "Raw Rust stdout has Windows non-ASCII glyph decoding artifacts; numeric table values use preserved Criterion JSON. Exact absolute commands and working directories are recorded in raw commands.json."
+  ],
+  "report": "upstream-check.md",
+  "build_evidence": "tools/bench-compare/results/upstream-check/20261021-190939-Build",
+  "run_evidence": "tools/bench-compare/results/upstream-check/20261021-191026-Run",
+  "rounds": 3,
+  "logical_cpus": [0, 2, 4, 6],
+  "workers": 4
+}
