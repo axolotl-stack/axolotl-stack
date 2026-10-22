@@ -78,7 +78,7 @@ impl Session {
         if self.outgoing_heap.is_empty() {
             return None;
         }
-        if self.policy.is_vanilla() {
+        if self.is_vanilla() {
             return Some(self.build_vanilla_datagram(now));
         }
 
@@ -212,7 +212,7 @@ impl Session {
     /// Maximum payload size for an encapsulated packet given the current MTU.
     /// Uses the actual header footprint for the reliability/flags instead of worst-case.
     fn max_encapsulated_payload_len(&self, reliability: Reliability, is_split: bool) -> usize {
-        if self.policy.is_vanilla() {
+        if self.is_vanilla() {
             return super::vanilla::max_fragment_len(self.mtu, is_split);
         }
         let header = self.encapsulated_header_overhead(reliability, is_split);
@@ -290,7 +290,7 @@ impl Session {
     }
 
     fn normalize_reliability_for_split(&self, reliability: Reliability) -> Reliability {
-        if self.policy.is_vanilla() {
+        if self.is_vanilla() {
             // go-raknet conn.go:write keeps the message reliability for fragments.
             return reliability;
         }
@@ -374,10 +374,10 @@ impl Session {
     }
 
     fn push_outgoing_encap(&mut self, pkt: EncapsulatedPacket, priority: RakPriority) {
-        let weight = if self.policy.is_vanilla() {
+        let weight = if self.is_vanilla() {
             // go-raknet writes synchronously: transmission follows write order.
-            self.vanilla.fifo += 1;
-            self.vanilla.fifo
+            self.vanilla_mut().fifo += 1;
+            self.vanilla_mut().fifo
         } else {
             self.get_next_weight(priority)
         };

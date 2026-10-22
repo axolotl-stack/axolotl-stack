@@ -175,7 +175,7 @@ impl Session {
     }
 
     pub(crate) fn process_incoming_acks_naks(&mut self, now: Instant) {
-        if self.policy.is_vanilla() {
+        if self.is_vanilla() {
             self.vanilla_process_acks(now);
             self.vanilla_process_naks(now);
             return;

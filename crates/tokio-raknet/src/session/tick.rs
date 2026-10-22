@@ -10,10 +10,10 @@ impl Session {
     /// Vanilla sessions must be ticked every 100 ms (go-raknet
     /// `conn.go:startTicking`); the call count drives the resend cadence.
     pub fn on_tick(&mut self, now: Instant) -> Vec<Datagram> {
-        if self.policy.is_vanilla() {
-            self.vanilla.ticks += 1;
+        if self.is_vanilla() {
+            self.vanilla_mut().ticks += 1;
             let resend_check = self
-                .vanilla
+                .vanilla_mut()
                 .ticks
                 .is_multiple_of(super::policy::VANILLA_RESEND_TICKS);
             return self.on_vanilla_tick(now, resend_check);

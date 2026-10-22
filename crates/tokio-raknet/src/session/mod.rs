@@ -127,8 +127,9 @@ impl Ord for QueuedEncap {
 
 pub struct Session {
     mtu: usize,
-    policy: TransmissionPolicy,
-    vanilla: VanillaState,
+    /// `Some` selects `TransmissionPolicy::Vanilla`. Boxed so Optimized
+    /// sessions keep their pre-policy size and never allocate it.
+    vanilla: Option<Box<VanillaState>>,
 
     sliding: SlidingWindow,
     split_index: u16,
@@ -174,8 +175,10 @@ impl Session {
         );
         let mut s = Self {
             mtu,
-            policy: tunables.transmission,
-            vanilla: VanillaState::default(),
+            vanilla: tunables
+                .transmission
+                .is_vanilla()
+                .then(|| Box::new(VanillaState::default())),
             sliding: SlidingWindow::new(mtu),
             split_index: 0,
             receive_window: receive_window::ReceiveWindow::default(),
@@ -227,7 +230,23 @@ impl Session {
     }
 
     pub fn transmission_policy(&self) -> TransmissionPolicy {
-        self.policy
+        if self.is_vanilla() {
+            TransmissionPolicy::Vanilla
+        } else {
+            TransmissionPolicy::Optimized
+        }
+    }
+
+    #[inline]
+    fn is_vanilla(&self) -> bool {
+        self.vanilla.is_some()
+    }
+
+    /// Vanilla state; only called on Vanilla code paths.
+    fn vanilla_mut(&mut self) -> &mut VanillaState {
+        self.vanilla
+            .as_deref_mut()
+            .expect("Vanilla code path on an Optimized session")
     }
 
     /// Compatibility entry point; invalid sequences are ignored without feedback.
@@ -242,12 +261,11 @@ impl Session {
         seq: Sequence24,
         now: impl FnOnce() -> Instant,
     ) -> Result<bool, DecodeError> {
-        let naks = &mut self.outgoing_naks;
-        let delay = if self.policy.is_vanilla() {
-            self.vanilla.nak_delay()
-        } else {
-            self.sliding.nak_delay()
+        let delay = match &self.vanilla {
+            Some(vanilla) => vanilla.nak_delay(),
+            None => self.sliding.nak_delay(),
         };
+        let naks = &mut self.outgoing_naks;
         if !self
             .receive_window
             .receive(seq, now, delay, |range| naks.push(range))?

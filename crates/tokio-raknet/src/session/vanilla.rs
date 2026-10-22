@@ -61,17 +61,17 @@ impl Session {
     /// NAK feedback, then queued data. ACKs wait for the 100 ms tick.
     pub(crate) fn next_vanilla_datagram(&mut self, now: Instant) -> Option<Datagram> {
         self.process_incoming_acks_naks(now);
-        if let Some(datagram) = self.vanilla.resend_ready.pop_front() {
+        if let Some(datagram) = self.vanilla_mut().resend_ready.pop_front() {
             return Some(datagram);
         }
-        if let Some(datagram) = self.vanilla.feedback_ready.pop_front() {
+        if let Some(datagram) = self.vanilla_mut().feedback_ready.pop_front() {
             return Some(datagram);
         }
         let mut feedback = Vec::new();
         self.vanilla_feedback(false, &mut feedback);
         if !feedback.is_empty() {
-            self.vanilla.feedback_ready.extend(feedback);
-            return self.vanilla.feedback_ready.pop_front();
+            self.vanilla_mut().feedback_ready.extend(feedback);
+            return self.vanilla_mut().feedback_ready.pop_front();
         }
         self.build_data_datagram(now)
     }
@@ -85,8 +85,8 @@ impl Session {
         self.vanilla_feedback(true, &mut out);
         if resend_check {
             // conn.go:checkResend stores the RTT before scanning.
-            let rtt = self.vanilla.rtt(now);
-            self.vanilla.store_rtt(rtt);
+            let rtt = self.vanilla_mut().rtt(now);
+            self.vanilla_mut().store_rtt(rtt);
             let delay = rtt + rtt / 2;
             let due: Vec<Sequence24> = self
                 .sent_datagrams
@@ -100,8 +100,8 @@ impl Session {
                 }
             }
         }
-        out.extend(self.vanilla.resend_ready.drain(..));
-        out.extend(self.vanilla.feedback_ready.drain(..));
+        out.extend(self.vanilla_mut().resend_ready.drain(..));
+        out.extend(self.vanilla_mut().feedback_ready.drain(..));
         self.vanilla_feedback(false, &mut out);
         out
     }
@@ -111,7 +111,7 @@ impl Session {
         while let Some(range) = self.incoming_acks.pop_front() {
             while let Some((&seq, _)) = self.sent_datagrams.range(range.start..=range.end).next() {
                 if let Some(tracked) = self.sent_datagrams.remove(&seq) {
-                    self.vanilla.record(now, tracked.send_time, 1);
+                    self.vanilla_mut().record(now, tracked.send_time, 1);
                 }
             }
         }
@@ -124,7 +124,7 @@ impl Session {
             while let Some((&seq, _)) = self.sent_datagrams.range(range.start..=range.end).next() {
                 if let Some(tracked) = self.sent_datagrams.remove(&seq) {
                     let datagram = self.vanilla_retransmit(tracked, now);
-                    self.vanilla.resend_ready.push_back(datagram);
+                    self.vanilla_mut().resend_ready.push_back(datagram);
                 }
             }
         }
@@ -133,7 +133,7 @@ impl Session {
     /// `resend_map.go:retransmit` (sample `2 × age`) followed by
     /// `conn.go:sendDatagram` (fresh sequence, new timestamp).
     fn vanilla_retransmit(&mut self, mut tracked: TrackedDatagram, now: Instant) -> Datagram {
-        self.vanilla.record(now, tracked.send_time, 2);
+        self.vanilla_mut().record(now, tracked.send_time, 2);
         let seq = self.datagram_write_index;
         self.datagram_write_index = seq.next();
         tracked.datagram.header.sequence = seq;
@@ -181,7 +181,7 @@ impl Session {
 
     /// Vanilla RTT as `resend_map.go:rtt` would compute it now.
     pub(crate) fn vanilla_rtt(&mut self, now: Instant) -> std::time::Duration {
-        self.vanilla.rtt(now)
+        self.vanilla_mut().rtt(now)
     }
 
     /// Unacknowledged datagrams (`len(conn.retransmission.unacknowledged)`).
@@ -192,12 +192,12 @@ impl Session {
     /// Drop the resend state (`conn.go:closeImmediately`).
     pub(crate) fn clear_unacknowledged(&mut self) {
         self.sent_datagrams.clear();
-        self.vanilla.resend_ready.clear();
+        self.vanilla_mut().resend_ready.clear();
     }
 
     /// `conn.go:startTicking` tick counter.
     pub(crate) fn vanilla_ticks(&self) -> u64 {
-        self.vanilla.ticks
+        self.vanilla.as_ref().map_or(0, |vanilla| vanilla.ticks)
     }
 }
 
