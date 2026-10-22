@@ -426,7 +426,7 @@ async fn test_listener_waits_for_new_incoming_connection_before_accept() {
 }
 
 #[tokio::test]
-async fn listener_ack_deadline_fires_without_more_socket_or_application_traffic() {
+async fn listener_acks_a_quiet_peer_without_application_or_socket_traffic() {
     let mut listener = RaknetListener::bind("127.0.0.1:0".parse().unwrap())
         .await
         .unwrap();
@@ -463,39 +463,41 @@ async fn listener_ack_deadline_fires_without_more_socket_or_application_traffic(
         .await
         .unwrap()
         .unwrap();
-    send_online_control(
-        &raw,
-        RaknetPacket::UserData {
-            id: 0xfe,
-            payload: Bytes::from_static(b"quiet peer"),
-        },
-        2,
-        2,
-        Some(1),
-    )
-    .await;
-    let message = stream.recv_message().await.unwrap().unwrap();
-    assert_eq!(message.payload, Bytes::from_static(b"quiet peer"));
-    // No application response and no further UDP input may drive the flush.
-    timeout(Duration::from_millis(50), async {
-        let mut buffer = [0; 2048];
-        loop {
-            let len = raw.recv(&mut buffer).await.unwrap();
-            if let Ok(Datagram {
-                payload: DatagramPayload::Ack(ack),
-                ..
-            }) = Datagram::decode(&mut &buffer[..len])
-                && ack
-                    .ranges
-                    .iter()
-                    .any(|range| range.start.value() <= 2 && range.end.value() >= 2)
-            {
-                break;
+    for sequence in 2..7 {
+        send_online_control(
+            &raw,
+            RaknetPacket::UserData {
+                id: 0xfe,
+                payload: Bytes::from_static(b"quiet peer"),
+            },
+            sequence,
+            sequence,
+            Some(sequence - 1),
+        )
+        .await;
+        let message = stream.recv_message().await.unwrap().unwrap();
+        assert_eq!(message.payload, Bytes::from_static(b"quiet peer"));
+        // No application response and no further UDP input may drive the flush.
+        // Repeated rounds cannot all hide behind the 100 ms maintenance tick.
+        timeout(Duration::from_millis(20), async {
+            let mut buffer = [0; 2048];
+            loop {
+                let len = raw.recv(&mut buffer).await.unwrap();
+                if let Ok(Datagram {
+                    payload: DatagramPayload::Ack(ack),
+                    ..
+                }) = Datagram::decode(&mut &buffer[..len])
+                    && ack.ranges.iter().any(|range| {
+                        range.start.value() <= sequence && range.end.value() >= sequence
+                    })
+                {
+                    break;
+                }
             }
-        }
-    })
-    .await
-    .expect("ACK waited for maintenance instead of its own deadline");
+        })
+        .await
+        .expect("ACK waited for maintenance instead of burst completion or its backstop");
+    }
 }
 
 #[tokio::test]

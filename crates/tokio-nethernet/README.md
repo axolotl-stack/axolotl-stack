@@ -52,6 +52,14 @@ Use `NetherNetDialer::connect_with_signaling` and `NetherNetListener::bind_with_
 
 `endpoint::{ClientConfig, HandlerConfig}` support credential providers that are consulted for each negotiation. HTTP signaling gathers candidates into the initial SDP rather than emitting trickle messages. `Handler::serve` and `serve_tls` expose the HTTP endpoint; `Client::status` reads upstream status JSON, and `Client::ping` converts it to RakNet pong data. The Jolyne builder adds `.endpoint(handler, transport_config)` behind its `endpoint` feature while keeping `.xbox(...)` intact.
 
+`NetherNetDialerConfig.setting_engine` and
+`NetherNetListenerConfig.setting_engine` optionally accept a webrtc-rs
+`SettingEngine` for explicit local interface/ICE policy. `None` preserves the
+existing defaults. For strict local tests, enable loopback candidates and use an
+IP filter accepting only IPv4 loopback addresses on both peers; this confines
+the actual ICE/DTLS/SCTP sockets, not merely the signaling endpoint. Loopback
+candidates are a deliberate testing policy, not a production default.
+
 ## Bounds and error behavior
 
 - Full UDP-sized discovery receives; truncated, unauthenticated, malformed, wrong-recipient and non-signal packets are rejected without panics.

@@ -28,12 +28,13 @@ func emit(r row) error { return json.NewEncoder(os.Stdout).Encode(r) }
 
 func run() error {
 	if len(os.Args) < 2 {
-		return fmt.Errorf("usage: bench-compare codec|micro|loopback|serve|client [options]")
+		return fmt.Errorf("usage: bench-compare codec|micro|loopback|serve|client|nethernet-micro|nethernet-loopback|nethernet-serve|nethernet-client [options]")
 	}
 	fs := flag.NewFlagSet(os.Args[1], flag.ContinueOnError)
-	address := fs.String("address", "127.0.0.1:19142", "RakNet address")
+	address := fs.String("address", "127.0.0.1:19142", "transport address (NetherNet: local TCP signaling endpoint)")
 	count := fs.Int("count", 100, "sequential echoes per payload size")
 	corpus := fs.String("corpus", defaultCorpus(), "committed benchmark corpus directory")
+	iterations := fs.Int("iterations", 5000, "NetherNet micro iterations")
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		return err
 	}
@@ -43,7 +44,18 @@ func run() error {
 	if *count <= 0 {
 		return fmt.Errorf("count must be positive")
 	}
+	if *iterations <= 0 {
+		return fmt.Errorf("iterations must be positive")
+	}
 	switch os.Args[1] {
+	case "nethernet-micro":
+		return nethernetMicro(*iterations)
+	case "nethernet-loopback":
+		return nethernetLoopback(*count)
+	case "nethernet-serve":
+		return nethernetServe(*address, *count)
+	case "nethernet-client":
+		return nethernetClient(*address, *count)
 	case "codec":
 		cases, err := codecCases(*corpus)
 		if err != nil {

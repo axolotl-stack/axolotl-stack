@@ -89,3 +89,82 @@ go test -run '^$' -bench BenchmarkCodec -benchmem
 ```
 
 The binary can run from the repository root: its default corpus path is anchored to the source location recorded by Go. Set `BENCH_CORPUS` or pass `codec --corpus <directory>` for relocated binaries or builds using `-trimpath`.
+
+## NetherNet reference adapter
+
+`nethernet-micro --iterations 5000`, `nethernet-loopback --count 100`,
+`nethernet-serve --address 127.0.0.1:19142 --count 100`, and
+`nethernet-client --address 127.0.0.1:19142 --count 100` are measurement-only
+commands. They use upstream public APIs, not copied protocol implementations.
+The exact df-mc/go-nethernet pin is
+`215e46422b5831d6ddc6146003617dc3f1ff7c26`
+(`v1.0.25-0.20260928201420-215e46422b58`). The standalone Go module records all
+checksums and transitive versions. Transport is Pion WebRTC
+`v4.2.21-0.20260920133716-91bfc6c2039f`, ICE `v4.4.4`, DTLS `v3.1.9`,
+SCTP `v1.11.3`, and datachannel `v1.6.3`.
+
+Public micro coverage is `Signal.UnmarshalText` / `Signal.String` for
+CONNECTREQUEST, CONNECTRESPONSE, CANDIDATEADD, and CONNECTERROR, plus
+`discovery.Marshal` / `discovery.Unmarshal` for the actual encrypted,
+HMAC-authenticated LAN MessagePacket. The shared fixture has sender 1,
+recipient 2, and data `CONNECTERROR 42 2`; discovery payload bytes are the
+encrypted wire length. Signal fixtures in `nethernetSignalFixtures` are shared
+with the Rust adapters, including literal SDP CRLF, connection ID 42, and the
+same host ICE candidate text. Signal parsing does not parse SDP or ICE internals.
+Each operation receives 32 untimed warmups and exactly the configured iteration
+count. Timing uses the existing validated QPC clock; allocation columns are null
+because this fixed-iteration measurement does not separately instrument allocation.
+
+Standalone framing encode/reassembly, malformed counts, oversize framing, and
+NetherNet-specific ICE string formatting are private in the pinned upstream.
+Consequently no framing rows for 32/512/4096/65536/1048576 or standalone
+`ice_candidate` rows are fabricated. Unavailable coverage is emitted as stderr
+JSON. Pion's different generic ICE API is not substituted. Real transport echoes
+still exercise the actual public reliable `Conn.Write` / `Conn.ReadPacket` path.
+
+`--address` is a **local TCP signaling endpoint**, not the WebRTC data socket.
+Every size opens a fresh TCP signaling connection and fresh NetherNet connection.
+One newline-delimited JSON string carries the complete reference Signal text;
+JSON escaping preserves SDP newlines. The bridge assigns server network ID 1 and
+client network ID 2 out of band. No cloud endpoint, external signaling, STUN, or
+TURN is used. ICE is UDP4 with loopback-only candidates and nontrickle gathering
+completed before SDP transmission. Anonymous client offers and identityless
+server answers are accepted by the benchmark dialer. The Go listener retains
+its required default self-signed server identity: returning nil from
+`IssueServerIdentity` is not supported and panics in upstream `identity.sign`.
+This adds identity issuance/signing to Go setup; Rust/Cinnabar local listeners
+can omit identity. This setup asymmetry is not patched out of the reference.
+These local compatibility choices are not production authentication recommendations.
+
+Same-implementation loopback uses this same TCP bridge, rather than an in-memory
+substitute, so its setup rows include TCP connect, API/transport initialization,
+ICE gathering, DTLS/SCTP negotiation and dial completion. The server emits `READY`
+before accepting four sessions. Sizes are 32/512/4096/65536; measured counts default
+to 100/100/10/10 (`--count` sets the first two and `BENCH_SPLIT_COUNT` overrides
+the last two). Each session first performs one untimed echo of the same full-size
+payload (index modulo 251, first byte `0xfe`); every response is validated.
+Echo rows include RTT percentiles and maximum. Setup is one sample per size.
+Payload/sample allocation, readiness, shutdown, and percentile sorting are outside
+echo timing. After validating its final echo, the client sends the reserved JSON
+string `"BENCH-DONE"` and waits for the same marker from the server. The server
+finishes its final echo write, waits for the client marker, then sends its marker.
+Both keep RTC and signaling live throughout this bounded two-phase handshake;
+the bridge handles markers separately from Signal parsing without cancellation.
+Only afterward do they close RTC and TCP; signaling EOF is not an acknowledgement.
+
+The bridge starts with a 4 KiB scanner buffer capped at 1 MiB per signaling record.
+Application payload and latency buffers are allocated once per size. Upstream Go
+uses an unbuffered completed-packet channel and dynamically accumulated reassembly,
+not an adapter-owned packet pool. Its advertised SCTP maximum message size is
+262144 bytes with a one-byte NetherNet fragment counter (262143 payload bytes);
+the peer's advertised limit affects negotiated segmentation. This differs from
+other stacks' segmentation/buffering and is not patched for artificial parity.
+Socket, SCTP, and DTLS buffer sizes otherwise remain upstream defaults.
+NetherNet public Conn deadlines are unsupported; whole-round timers close live
+connections, and signaling cancellation unblocks negotiation. Standard runtime
+clocks are used only for deadlines/timeouts, never benchmark durations.
+
+Added tests cover signal fixture round trips, authenticated discovery corruption
+rejection, multiline JSON bridge preservation, fixed sender attribution, bridge
+serialization, idempotent unsubscribe, default split-message counts, and a real
+65536-byte final echo followed by the explicit two-phase completion handshake.

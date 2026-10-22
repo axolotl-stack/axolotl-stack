@@ -5,6 +5,7 @@ use tracing::{debug, trace};
 use webrtc::api::APIBuilder;
 use webrtc::api::interceptor_registry::register_default_interceptors;
 use webrtc::api::media_engine::MediaEngine;
+use webrtc::api::setting_engine::SettingEngine;
 use webrtc::data_channel::data_channel_init::RTCDataChannelInit;
 use webrtc::ice_transport::ice_candidate::RTCIceCandidate;
 use webrtc::ice_transport::ice_server::RTCIceServer;
@@ -27,6 +28,9 @@ pub struct NetherNetDialerConfig {
     pub connection_timeout: Duration,
     /// Explicit ICE servers; nonempty values override signaling credentials.
     pub ice_servers: Vec<RTCIceServer>,
+    /// Optional WebRTC settings for explicit local interface/ICE policy.
+    /// `None` preserves webrtc-rs defaults, including excluding loopback candidates.
+    pub setting_engine: Option<SettingEngine>,
     /// Local signed SDP identity (identity.go:Identity).
     pub identity: Option<Arc<crate::identity::Identity>>,
     /// Optional server-token policy; the default verifies self-signed server tokens.
@@ -43,6 +47,7 @@ impl Default for NetherNetDialerConfig {
             connection_timeout: Duration::from_secs(15),
             // credentials.go:gatherOptions: no implicit public STUN service.
             ice_servers: Vec::new(),
+            setting_engine: None,
             identity: None,
             verify_server_token: None,
             allow_identityless_server: false,
@@ -373,10 +378,13 @@ async fn perform_dial(
     let negotiation = async {
         let mut media_engine = MediaEngine::default();
         let registry = register_default_interceptors(Registry::new(), &mut media_engine)?;
-        let api = APIBuilder::new()
+        let mut api = APIBuilder::new()
             .with_media_engine(media_engine)
-            .with_interceptor_registry(registry)
-            .build();
+            .with_interceptor_registry(registry);
+        if let Some(settings) = config.setting_engine.take() {
+            api = api.with_setting_engine(settings);
+        }
+        let api = api.build();
         let pc = Arc::new(
             api.new_peer_connection(RTCConfiguration {
                 ice_servers: ice_servers(signaling.as_ref(), &config.ice_servers).await?,

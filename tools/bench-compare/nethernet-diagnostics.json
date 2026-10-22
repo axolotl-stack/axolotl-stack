@@ -1,0 +1,18 @@
+{
+  "finding_id": "NETHERNET-BENCH-INTEROP-01",
+  "ours_stack": "webrtc-rs 0.12.0; webrtc-dtls 0.11.0; webrtc-sctp 0.11.0; webrtc-data 0.10.0",
+  "title": "SRTP key derivation panic during cross-stack WebRTC setup",
+  "observation": "rust-to-go, go-to-rust and rust-to-cinnabar fail at the initial 32-byte connection before any measured echo; the Rust process reports generic-array length assertion left 32 / right 16. The Go client reports association closed before connecting, while the preserved Rust server stderr contains the same panic. Cinnabar-to-rust and both Cinnabar/Go directions pass all four sizes.",
+  "diagnostic": "A separate untimed rust-to-go run with RUST_BACKTRACE=1 reaches webrtc_srtp::key_derivation::aes_cm_key_derivation, called by CipherAeadAesGcm::new, Context::new and RTCPeerConnection::set_remote_description. It reproduces the same 32-versus-16-byte assertion. No cipher/profile restriction, dependency patch or panic suppression was applied to the measured defaults.",
+  "source_evidence": "webrtc-srtp 0.14.0 src/key_derivation.rs:43-44 constructs GenericArray::from_slice(master_key) followed by Aes128::new(key); src/cipher/cipher_aead_aes_gcm.rs stores Aes128Gcm and derives keys using master_key.len(). The observed key-length mismatch identifies this dependency boundary; the negotiated SRTP profile itself was not logged.",
+  "backtrace": [
+    "generic_array 0.14.7: length assertion left 32 / right 16",
+    "webrtc_srtp::key_derivation::aes_cm_key_derivation",
+    "webrtc_srtp::cipher::cipher_aead_aes_gcm::CipherAeadAesGcm::new",
+    "webrtc_srtp::context::Context::new",
+    "webrtc::peer_connection::RTCPeerConnection::set_remote_description"
+  ],
+  "raw_evidence": "results/nethernet-43e1c77874774af9b5de371eb8388692/interop-*.stderr.log; results/nethernet-dtls-diagnostic/rust-client.stderr.log and go-server.stderr.log",
+  "reproduction": "On logical CPUs 16-23 with TOKIO_WORKER_THREADS=8, GOMAXPROCS=8, BENCH_SPLIT_COUNT=1 and RUST_BACKTRACE=1, start go-bench nethernet-serve --address 127.0.0.1:50051 --count 1, then bench-compare nethernet-client with the same address/count. Port 50051 must be available. Server/client are independent processes with the benchmark-local JSON-string signaling bridge.",
+  "follow_up": "Investigate the dependency's SRTP key derivation/profile support separately from SCTP echo stalls. This task measures and reports the gap; it does not optimize or patch production transports."
+}

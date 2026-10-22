@@ -6,6 +6,7 @@ This standalone workspace keeps its dependency graph and `Cargo.lock` out of the
 
 - [bedrock-net dev](https://github.com/cinnabar-mc/bedrock-net/tree/0eaf6d4cb38ac1b52328815302c0964645150d17): `0eaf6d4cb38ac1b52328815302c0964645150d17`, upstream HEAD resolved on 2026-10-21. Only the MIT OR Apache-2.0 root package is used, with default features disabled.
 - [raknet main](https://github.com/cinnabar-mc/raknet/tree/7eb32a31f5715ed6cd69120ef19118aa03fcab28): `7eb32a31f5715ed6cd69120ef19118aa03fcab28`, upstream HEAD resolved on 2026-10-21. Both `raknet` and `raknet-tokio` use this revision. The core's `test-support` feature exposes its existing wire codecs; no upstream code is copied or patched.
+- [nethernet main](https://github.com/cinnabar-mc/nethernet/tree/fed09fc05afb3b0fe34d0e7b18702f7ea86c3290): `fed09fc05afb3b0fe34d0e7b18702f7ea86c3290`, resolved 2026-10-21, Apache-2.0. Both `nethernet` and `nethernet-tokio` are standalone dependencies; no production workspace changes or copied implementation code.
 - The generated contract comes from the existing protocolgen submodule at `7b2e47c463fa425e25004673cf8960753dd2ff12`, path `generated/1.26.51/rust-contract`. Generated files are not edited.
 
 There is no dependency on bedrock-client, bedrock-client-tokio, bedrock-packs, or the login/provider-verification/messaging features. No login provider or client_data code is used. Codec rows say `implementation=contract`, not `cinnabar`: these measure protocolgen's public typed codec, not a packet codec attributed to bedrock-net.
@@ -19,6 +20,73 @@ The typed corpus is the same committed `testdata/bench/manifest.json` as the oth
 `micro --wire-only --iterations 1000000` selects only the existing RakNet
 wire-codec rows, returning before batch/compression/cipher cases. Timing loops,
 warmups, allocation counting, and wire validation are unchanged.
+
+### NetherNet measurements
+
+`nethernet-micro --iterations 5000`, `nethernet-loopback --count 100`,
+`nethernet-serve --address 127.0.0.1:19133 --count 100`, and
+`nethernet-client --address 127.0.0.1:19133 --count 100` use ordinary Row JSONL,
+including `max_us`. The server writes `READY` to stderr after TCP bind and serves
+four fresh connections, one each for 32/512/4096/65536-byte bodies. Echo counts
+default to 100/100/10/10 (`BENCH_SPLIT_COUNT` overrides the two larger sizes).
+An untimed full-size deterministic payload echo precedes each measured series.
+Payload equality is checked inside each RTT sample; reliable ordered sends and
+owned receives remain actual public transport operations. Echo ns/op and
+throughput use the complete measured-loop duration, including checks and loop
+overhead; percentiles use nearest-rank individual RTT samples. Setup includes the TCP
+signaling connect, bridge creation, and complete ICE/DTLS/SCTP establishment.
+Setup has one sample per size per process invocation; repetitions belong to the runner.
+After validating the final echo, the client sends the reserved JSON string
+`"BENCH-DONE"` and waits for the same marker from the server. The server finishes
+its last echo send (including transport drain), waits for the client marker,
+then sends its own marker. Both bridges keep signaling and RTC live through this
+two-phase handshake; only then do peers close them. Marker writes and completion
+waits are bounded, bridge errors propagate, and completion/retirement remain
+outside measured setup and echo durations.
+
+The cross-process signaling endpoint is benchmark-local TCP, not Minecraft LAN
+discovery or an external HTTP service. Each line is a JSON **string** containing
+the complete `Signal` wire text (SDP CRLFs escaped), except for the reserved
+`"BENCH-DONE"` control record, which is never passed to the Signal parser.
+Sender IDs are attributed by the bridge as server `1`, client `2`.
+Each size opens a fresh TCP connection.
+Public `CallerSignaling`/`CallerServerSignaling` drive the real transport with
+full/nontrickle ICE, host candidates bound to `127.0.0.1:0`, no STUN/TURN servers,
+one attempt, unsigned/anonymous answers and anonymous offers allowed, and
+`TokenTrust::Any` for both token and server trust in this local benchmark.
+Signal delivery completion records local socket acceptance, not a fabricated peer receipt.
+Both same-process and cross-process cases use this same TCP signaling bridge.
+This deliberately measures transport, not account authentication or WAN setup.
+
+Framing rows use public `Message::encode_segments`, `MessageSegment::decode`,
+and `Message::add_segment` at 32/512/4096/65536/1048576 bytes, with a selected
+16383-byte segment-body limit. Encode consumes every resulting wire allocation;
+reassemble starts a fresh owner and includes segment decoding, cheap `Bytes`
+clones, and upstream reassembly copies. Roundtrips are checked before timing.
+Invalid count 255 and nondecrementing sequence rejection use public reassembly;
+oversize uses the public 255-segment encode limit. A configurable small receive
+limit is unavailable because `Message::with_maximum` is crate-private; no copied
+or synthetic decoder substitutes for it.
+
+Signal parse/format fixtures are identical across adapters: connection ID 42,
+the representative SDP with `setup:actpass`/`setup:active`, host candidate
+`candidate:1 1 UDP 2130706431 127.0.0.1 50000 typ host generation 0 ufrag bench network-id 0 network-cost 0`,
+and error code 2. ICE parse/format uses the public candidate conversion API.
+Discovery uses the public encrypted-and-HMAC-checked `encode`/`decode` API with
+MessagePacket sender 1, recipient 2, text `CONNECTERROR 42 2`; payload accounting
+is the encrypted datagram size. Crypto and output allocation are included.
+
+The pinned upstream manifest selects rtc 0.21.1 and rtc-turn revision
+`ceef0780c54c4f5fdc08e7e343403f8026653171`; Tokio minimum 1.53.1, AES 0.9.3,
+HMAC 0.13.0 and SHA-2 0.11.0. Actual resolved versions belong to the standalone
+lockfile. Upstream runtime requests a 2 MiB UDP receive buffer and retains its
+default application receive limit (66,846,465 bytes), queue/backpressure
+settings, and SCTP defaults. The adapter does not tune those buffers. Caller
+signaling uses its default 16-request capacity and signal-size/time limits;
+TCP_NODELAY is enabled only on the local signaling carrier. Tokio worker count
+is controlled by `TOKIO_WORKER_THREADS`; allocation totals are emitted only
+for single-threaded micro measurements, not asynchronous transport.
+
 
 ## Measurement boundaries and asymmetries
 
