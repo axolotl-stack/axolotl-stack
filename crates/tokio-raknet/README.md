@@ -25,15 +25,26 @@ and acceptance evidence: [latency report](LATENCY_REPORT.md).
 
 Application writes and received NAKs flush immediately. Incoming ACKs retire
 outstanding data before checking the congestion window, so window-blocked writes
-resume in the same receive turn. Small unsplit datagrams share a **1 ms ACK
-deadline**, measured from the first pending datagram, serviced by a separate
-on-demand timer on both transports. Later arrivals cannot postpone it.
+resume in the same receive turn. Small unsplit datagrams share a **requested
+1 ms ACK deadline** from the first pending datagram, serviced by a separate
+on-demand timer on both transports. Later datagrams cannot postpone it.
+The listener keeps an ordered armed-deadline queue, not an all-session scan;
+duplicate rearms retain at most one entry per live peer. Removed peers are
+pruned without scanning idle sessions on ACK wakes.
 
-Handshake/split feedback bypasses that delay. Accumulating half an MTU of
-unacknowledged wire data also forces immediate feedback, before the peer's
-initial one-MTU congestion window can fill. No idle ACK timer wakes without
-pending feedback. This coalesces small-message feedback without adopting
-go-raknet's `Conn.startTicking` / `flushACKs` 100 ms policy.
+The requested deadline is not a hard elapsed-time bound: Tokio rounds up to
+millisecond ticks (typically 1-2 ms), Windows IOCP can add approximately 15.6 ms
+timer granularity, and runtime/OS scheduling can delay either platform further.
+See [Tokio #5021](https://github.com/tokio-rs/tokio/issues/5021) for the platform
+timer-resolution limitation.
+The [latency report](LATENCY_REPORT.md#independent-review-receive-burst-experiment)
+records the rejected timer-free receive-burst alternative and its regressions.
+
+Handshake, split and `CONTINUOUS_SEND` feedback bypass coalescing. Accumulating
+half an MTU of unacknowledged wire data also forces immediate feedback. Uneven
+datagram sizes can still stall an initial one-MTU congestion window below that
+threshold; the stall is bounded by servicing the pending deadline, not prevented
+by the half-MTU heuristic. No idle ACK timer wakes without pending feedback.
 
 Application delivery does not wait for an ACK deadline: split messages are
 reassembled and delivered as soon as their final fragment arrives.
@@ -48,8 +59,9 @@ fragment left one outstanding datagram and only 28 bytes of congestion bandwidth
 too little for the next fragment. The legacy receive path emitted its ACK only at
 100 ms; receiving that ACK still left the window closed until sender maintenance
 at 120 ms reopened it to 2400 bytes. No retransmission occurred in this trace.
-Fixed-clock regression tests transfer and acknowledge 32 B within the separate
-1 ms feedback bound and 64 KiB without advancing time or invoking maintenance.
+Fixed-clock regression tests transfer and acknowledge 32 B within the requested
+1 ms deadline and 64 KiB without advancing time or invoking maintenance; real UDP
+quiet-peer tests verify feedback without further traffic on both transports.
 
 #### TRANSPORT-01 loopback verification (2026-10-21)
 
