@@ -40,9 +40,11 @@ After validating the final echo, the client sends the reserved JSON string
 `"BENCH-DONE"` and waits for the same marker from the server. The server finishes
 its last echo send (including transport drain), waits for the client marker,
 then sends its own marker. Both bridges keep signaling and RTC live through this
-two-phase handshake; only then do peers close them. Marker writes and completion
-waits are bounded, bridge errors propagate, and completion/retirement remain
-outside measured setup and echo durations.
+two-phase handshake; only then do peers close them. The bridge task outlives the
+caller-signaling driver (`NetherClient::connect_with` drops its signaling handle
+once connected), and EOF before the peer's marker is an error, never completion.
+Marker writes and completion waits are bounded, bridge errors propagate, and
+completion/retirement remain outside measured setup and echo durations.
 
 The cross-process signaling endpoint is benchmark-local TCP, not Minecraft LAN
 discovery or an external HTTP service. Each line is a JSON **string** containing
