@@ -375,8 +375,9 @@ Defaults are chosen to be safe for general-purpose use to prevent Denial of Serv
 For high-performance servers (e.g., dedicated game servers) with ample RAM, use `RaknetListenerConfig::high_performance()` or tune these values manually.
 
 ### Ticking
-The main muxer loop runs at **10 Hz (100 ms)**, matching
-`go-raknet/conn.go:Conn.startTicking`, to aggregate ACKs and run maintenance.
+The listener runs maintenance at **10 Hz (100 ms)**, matching
+`go-raknet/conn.go:Conn.startTicking`. ACK/NAK feedback and application writes
+are flushed promptly, independently of that maintenance interval.
 
 ## Benchmarks
 Performance is a priority. Benchmarks (Ryzen 7 7800x3d):
@@ -394,4 +395,163 @@ revisions with the same benchmark workload; older reused-session results are
 not comparable. On hybrid CPUs, pin both A/B executables to the same logical
 core and interleave their runs. `iter_batched` session benchmarks include
 session teardown as well as the named operation.
+
+### Encoder and buffer ownership (2026-10-21)
+
+Encoders coalesce adjacent fixed header fields and 24-bit sequences without
+staging payloads. The transport keeps the original `Message.buffer` through
+queueing and fragments it with `Bytes::split_to`; it no longer removes the ID
+and then copies the whole message into a fresh encoding buffer. The low-level
+`OutboundMsg` field is now `buffer: Bytes` (including the ID), replacing `packet`;
+no workspace callers outside this crate used the old field.
+
+Split reassembly allocates once for the sum of validated, received fragment
+lengths, not the peer's declared count. The 512-part, 16-assembly, per-fragment
+size, receive-window, and queue bounds remain unchanged. Duplicate fragments do
+not increase that sum.
+
+Final source: `8ad4b50` (headers/buffer ownership), `b27afae` (wire-only
+benchmark selection), and `4a042d6` (fixed-width ACK tag/start stores), after
+merging `main` at `01842a7`. No workspace-wide compiler flags were changed.
+Rust was `1.96.0-nightly (b90dc1e59 2026-03-04)`; Go was `go1.27.0 windows/amd64`.
+
+References: [Cinnabar RakNet `7eb32a3`](https://github.com/cinnabar-mc/raknet/tree/7eb32a31f5715ed6cd69120ef19118aa03fcab28)
+and [lunar-bedrock/go-raknet `87a6b7e`](https://github.com/lunar-bedrock/go-raknet/tree/87a6b7e53799290d70ac25bcd03645d7ead00d2c),
+using the adapters and locked dependency graphs in `tools/bench-compare`.
+The standalone Cinnabar adapter uses its default release profile; this workspace
+uses its existing thin-LTO release profile.
+
+Five alternating release rounds, CPU 6 (`0x40`) for microbenchmarks, retained
+output buffers, 1,000,000 iterations per wire row; medians in ns/op:
+
+| Wire operation | Before† | Final | Cinnabar |
+|---|---:|---:|---:|
+| datagram 32 encode | 13.26 | 8.90 | 9.32 |
+| datagram 512 encode | 15.80 | 11.20 | 11.79 |
+| datagram 4096 encode | 35.65 | 33.02 | 33.34 |
+| encapsulated 32 encode | 10.27 | 7.17 | 7.89 |
+| encapsulated 512 encode | 13.44 | 9.53 | 10.13 |
+| encapsulated 4096 encode | 34.03 | 30.96 | 29.30 |
+| ACK 3 ranges encode | 20.10 | 9.73 | 15.02 |
+| datagram 32 decode | 68.05 | 68.77 | 81.98 |
+| datagram 512 decode | 68.76 | 69.54 | 84.44 |
+| datagram 4096 decode | 65.99 | 66.13 | 106.66 |
+| encapsulated 32 decode | 25.13 | 25.26 | 44.11 |
+| encapsulated 512 decode | 26.06 | 25.79 | 48.40 |
+| encapsulated 4096 decode | 26.10 | 26.20 | 70.73 |
+| ACK 3 ranges decode | 61.00 | 59.84 | 133.37 |
+| split 2x512 reassemble | 302.37 | 220.42 | unavailable |
+
+† Before is `1e1e325` for data/split rows. Its adapter predates ACK rows, so ACK
+Before is the `8ad4b50` checkpoint with the new adapter. Go exposes no comparable
+public datagram/frame/ACK/split micro APIs; no replacement workload is reported.
+
+Point estimates win six of seven encode rows and all seven decode rows against
+Cinnabar. **The every-row target is not met:** encapsulated 4096 encode is 5.7%
+slower; the datagram 4096 encode lead is below the approximately 3% noise threshold.
+
+Split allocations fall from 4 to 3 and requested bytes from 1972 to 1492 per
+operation. Decoder medians remain within 1.2% of the pre-optimization baseline
+or improve in this final matrix. All wire encoders remain allocation-free with
+the reused destination; decoder ownership/allocation contracts are unchanged.
+
+#### Final loopback comparison
+
+Five alternating rounds on logical CPUs 8, 10, 12, 14 (`0x5500`), high process
+priority for every implementation, `TOKIO_WORKER_THREADS=4`, `GOMAXPROCS=4`.
+Each size uses a fresh connection and one untimed readiness echo. Counts are
+100/100/10/10 for 32/512/4096/65536 bytes. Cells are medians of the per-round
+mean/p99/observed maximum, in microseconds; they are not one-way latency.
+
+| Payload | Metric | Pre-opt | Final | Go | Cinnabar |
+|---|---|---:|---:|---:|---:|
+| 32 B | mean | 69.98 | 82.02 | 44.10 | 314.53 |
+| 32 B | p99 | 141.8 | 161.9 | 75.7 | 10605.0 |
+| 32 B | max | unavailable | 244.5 | 107.8 | 16320.2 |
+| 512 B | mean | 70.04 | 70.81 | 43.37 | 905.69 |
+| 512 B | p99 | 138.1 | 127.0 | 79.4 | 19679.2 |
+| 512 B | max | unavailable | 147.7 | 85.3 | 23224.1 |
+| 4 KiB | mean | 158.34 | 148.11 | 124.05 | 8019.23 |
+| 4 KiB | p99 | 195.0 | 175.2 | 211.3 | 22397.7 |
+| 4 KiB | max | unavailable | 175.2 | 211.3 | 22397.7 |
+| 64 KiB | mean | 1479.70 | 1318.03 | 1160.14 | 7963.75 |
+| 64 KiB | p99 | 1663.2 | 1431.3 | 1484.6 | 17385.2 |
+| 64 KiB | max | unavailable | 1431.3 | 1484.6 | 17385.2 |
+
+All twelve loopback point estimates beat Cinnabar. **Go still wins every mean
+and both small-message tails.** Only the two large-message p99/max pairs beat
+Go, and ten-sample p99 equals the maximum: these are low-sample observations,
+not reliable population-tail estimates. The original adapter did not emit max,
+so its missing maximum is not reconstructed.
+
+#### Small-message regression attribution
+
+The final matrix appeared to regress 32 B against pre-opt. A separate nine-round
+interleaved pre-opt/checkpoint/final run on the same four cores, excluding Go
+and Cinnabar, did not reproduce that pre-opt regression:
+
+| 32 B implementation | Mean µs | p99 µs | Max µs | Per-round mean range µs |
+|---|---:|---:|---:|---:|
+| pre-opt `1e1e325` | 67.87 | 125.6 | unavailable | 58.37–81.17 |
+| checkpoint `8ad4b50` | 61.62 | 112.6 | 139.6 | 54.57–72.16 |
+| final `4a042d6` | 64.92 | 114.7 | 148.2 | 57.00–71.49 |
+
+This does not establish a ≤3% tail/mean regression bound: ACK-only final versus
+checkpoint is still +5.4% mean and +6.2% max in that nine-round sample. Report the
+variance and remaining Go gap rather than claim an across-the-board win.
+
+A shared-session `Arc`/Tokio-mutex/inline-socket-send experiment was tested and
+**discarded**, not committed: its five-round 32 B p99 regressed from 123.5 to
+169.7 µs. A diagnostic 16-send run observed 14 inline sends, two lock-contention
+fallbacks, and no `WouldBlock`; cached UDP readiness was not the cause.
+
+#### Acceptance and evidence
+
+After merging `main`, these commands passed with builds/tests restricted to
+E-cores 16–31 and at most eight Cargo jobs:
+
+```text
+cargo fmt --all
+cargo test -p tokio-raknet -p bench-compare -j8
+cargo clippy -p tokio-raknet -p bench-compare --all-targets -j8 -- -D warnings
+cargo check -p jolyne --all-targets -j8
+cargo build --release -p bench-compare -j8
+cargo clippy --manifest-path tools/bench-compare/cinnabar/Cargo.toml --all-targets -j8 -- -D warnings
+```
+
+RakNet: 236 tests passed, including seven doctests. Benchmark harness: three
+tests passed. Additional boundaries cover wrapping ACKs that split into two
+singleton records, fixed-width writes across a segmented destination, and
+out-of-order unequal-sized split fragments with duplicates/rejected fragments
+and subsequent split-ID reuse. Two independent read-only reviews found no
+blocking correctness issues.
+
+Go client → Rust server and Rust client → Go server both passed byte-for-byte
+echo checks at all four sizes with counts 100/100/10/10. The verification used
+the public `serve`/`client` modes from the same final executables.
+
+Release application smoke build:
+
+```text
+VCPKG_ROOT=C:\Users\jvigu\vcpkg
+cargo build --release -p unastar --bin unastar -p jolyne --example stress_test -j8
+stress_test --addr 127.0.0.1:19172 --clients 5 --duration 15
+```
+
+Unastar used an isolated offline configuration and scratch world, four Tokio workers, and
+E-cores. All five clients joined/spawned, zero failed, and all five despawned.
+Samples with five players were 19.7/20.0/20.1 TPS; idle samples returned to 20.0.
+The server was stopped after observation; no smoke service remains running.
+
+Reproduce wire-only timing with `bench-compare micro --wire-only --iterations
+1000000` and `cinnabar-bench micro --wire-only --iterations 1000000`, alternating
+their order on CPU 6. Loopback uses `loopback --count 100` with
+`BENCH_SPLIT_COUNT=10` and the four-core affinity above. Keep at least five
+interleaved rounds and the same runtime-worker counts.
+
+Raw local evidence is intentionally not committed: `target/raknet-final-*`
+(five-round JSONL, summary, metadata), `target/raknet-regression-*` (nine-round
+attribution), `target/raknet-interop-*`, `target/raknet-inline-*` (discarded
+experiment), and `target/raknet-smoke/server-final-observed.log` plus
+`target/raknet-smoke/client-final-summary.json`.
 

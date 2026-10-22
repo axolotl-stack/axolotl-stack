@@ -24,6 +24,7 @@ struct SplitEntry {
 
     parts: Vec<Option<bytes::Bytes>>,
     received: usize,
+    payload_bytes: usize,
     last_update: Instant,
 }
 
@@ -85,6 +86,7 @@ impl SplitAssembler {
             needs_bas: pkt.header.needs_bas,
             parts: vec![None; split.count as usize],
             received: 0,
+            payload_bytes: 0,
             last_update: now,
         });
 
@@ -115,7 +117,8 @@ impl SplitAssembler {
             return Ok(None);
         }
 
-        entry.parts[idx] = Some(pkt.payload.clone());
+        entry.payload_bytes += pkt.payload.len();
+        entry.parts[idx] = Some(pkt.payload);
         entry.received += 1;
         entry.last_update = now;
 
@@ -124,7 +127,8 @@ impl SplitAssembler {
         }
 
         // All parts present: reassemble
-        let mut buf = BytesMut::new();
+        // Only validated, received fragments contribute to the allocation.
+        let mut buf = BytesMut::with_capacity(entry.payload_bytes);
         for part in &entry.parts {
             let part = part.as_ref().ok_or(DecodeError::SplitCountMismatch)?; // Should not happen given entry.received check
             buf.extend_from_slice(part);
@@ -199,6 +203,58 @@ mod tests {
             }),
             payload: Bytes::from_static(b"abcd"),
         }
+    }
+
+    #[test]
+    fn out_of_order_parts_ignore_duplicates_and_rejected_fragments() {
+        let now = Instant::now();
+        let mut assembler = SplitAssembler::new(Duration::from_secs(30), 512, 16);
+        let part = |count, index, payload: Bytes| {
+            let mut packet = make_split_encap(count, index);
+            packet.bit_length = (payload.len() * 8) as u16;
+            packet.payload = payload;
+            packet
+        };
+        assert!(
+            assembler
+                .add(part(3, 2, Bytes::from_static(b"tail")), now)
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            assembler
+                .add(part(3, 0, Bytes::from_static(b"head")), now)
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            assembler
+                .add(part(3, 0, Bytes::from_static(b"duplicate")), now)
+                .unwrap()
+                .is_none()
+        );
+        assert!(matches!(
+            assembler.add(part(4, 1, Bytes::from_static(b"wrong count")), now),
+            Err(DecodeError::SplitCountMismatch),
+        ));
+        assert!(matches!(
+            assembler.add(
+                part(3, 1, Bytes::from(vec![0; MAX_FRAGMENT_BYTES + 1])),
+                now
+            ),
+            Err(DecodeError::SplitTooLarge),
+        ));
+        let complete = assembler
+            .add(part(3, 1, Bytes::from_static(b"mid")), now)
+            .unwrap()
+            .unwrap();
+        assert_eq!(complete.payload.as_ref(), b"headmidtail");
+        // Completion must release the ID, including the old count and byte total.
+        let reused = assembler
+            .add(part(1, 0, Bytes::from_static(b"reused")), now)
+            .unwrap()
+            .unwrap();
+        assert_eq!(reused.payload.as_ref(), b"reused");
     }
 
     #[test]

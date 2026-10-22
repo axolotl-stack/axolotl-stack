@@ -196,6 +196,31 @@ impl ManagedSession {
 
         Ok(())
     }
+    /// Transport messages already include their ID and can be fragmented by
+    /// slicing the original Bytes rather than serializing them a second time.
+    pub(crate) fn queue_app_buffer(
+        &mut self,
+        buffer: bytes::Bytes,
+        rel: Reliability,
+        channel: u8,
+        priority: RakPriority,
+    ) -> Result<(), SessionError> {
+        match self.state {
+            ConnectionState::Closed | ConnectionState::Closing => return Err(SessionError::Closed),
+            ConnectionState::Unconnected | ConnectionState::OnlineHandshake => {
+                return Err(SessionError::InvalidState {
+                    state: self.state,
+                    msg: "cannot send user data before connection is established",
+                });
+            }
+            ConnectionState::Connected | ConnectionState::Stale => {}
+        }
+        let added = self
+            .inner
+            .queue_encoded_packet(buffer, rel, channel, priority)?;
+        self.queued_reliable_bytes = self.queued_reliable_bytes.saturating_add(added);
+        Ok(())
+    }
 
     /// Handle an incoming datagram, updating state and returning any
     /// high-level packets for the application.
@@ -304,6 +329,43 @@ mod tests {
         types::RaknetTime,
     };
     use bytes::Bytes;
+
+    #[test]
+    fn encoded_application_send_respects_connection_state_and_channel_bounds() {
+        let peer = "127.0.0.1:19132".parse().unwrap();
+        let mut session = ManagedSession::new(peer, 1200, Instant::now());
+        for state in [
+            ConnectionState::Unconnected,
+            ConnectionState::OnlineHandshake,
+            ConnectionState::Closing,
+            ConnectionState::Closed,
+        ] {
+            session.state = state;
+            assert!(
+                session
+                    .queue_app_buffer(
+                        Bytes::from_static(b"\xfehello"),
+                        Reliability::ReliableOrdered,
+                        0,
+                        RakPriority::Normal,
+                    )
+                    .is_err()
+            );
+            assert!(session.inner.outgoing_heap.is_empty());
+        }
+        session.state = ConnectionState::Connected;
+        assert!(
+            session
+                .queue_app_buffer(
+                    Bytes::from_static(b"\xfehello"),
+                    Reliability::ReliableOrdered,
+                    255,
+                    RakPriority::Normal,
+                )
+                .is_err()
+        );
+        assert!(session.inner.outgoing_heap.is_empty());
+    }
 
     // A fixed clock and no on_tick calls make maintenance-driven progress impossible.
     fn deliver_without_maintenance(size: usize) {

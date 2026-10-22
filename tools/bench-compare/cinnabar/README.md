@@ -16,6 +16,10 @@ There is no dependency on bedrock-client, bedrock-client-tokio, bedrock-packs, o
 
 The typed corpus is the same committed `testdata/bench/manifest.json` as the other adapters. Input SHA-256, packet IDs/counts, typed equality, exact reserialization, and batch roundtrips are checked before timing. Unsupported typed cases are explicitly reported rather than timed as opaque forwarding. Ordinary loops use 32 warmups, an amortized wall-clock timing pass, and a separate allocation-counting pass. Output buffers are retained between encode calls where the public API allows it. No Criterion harness is used.
 
+`micro --wire-only --iterations 1000000` selects only the existing RakNet
+wire-codec rows, returning before batch/compression/cipher cases. Timing loops,
+warmups, allocation counting, and wire validation are unchanged.
+
 ## Measurement boundaries and asymmetries
 
 - `codec`: single entries use `Packet::decode_framed`; batches use `Frames::from_batch` followed by `Packet::decode_frame`, including public framing traversal and direction validation. Encodes use `Packet::encode_frame`, retaining header subclient bits and adding the batch marker only for multi-packet cases. These APIs own decoded values; no borrowed implementation is claimed.
