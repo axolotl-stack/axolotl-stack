@@ -72,11 +72,13 @@ pub(super) async fn dispatch_datagram(
                     send_buf,
                 )
                 .await;
-            } else {
+            } else if !config.transmission_policy.is_vanilla() {
                 sessions.remove(&peer);
                 pending.remove(&peer);
                 rate_limiter.block(peer.ip(), Instant::now());
             }
+            // Vanilla: Mojang's reliability layer drops an invalid datagram
+            // and keeps the connection (lens RL_006:199-209).
         }
         return;
     }
@@ -95,9 +97,9 @@ pub(super) async fn dispatch_datagram(
             send_buf,
         )
         .await;
-    } else if bytes[0] & 0x80 == 0 {
+    } else if bytes[0] & 0x80 == 0 && !config.transmission_policy.is_vanilla() {
         // Upstream `handler.go:handleUnconnected` ignores stale datagrams but
-        // rejects unknown offline packet IDs.
+        // rejects unknown offline packet IDs; Mojang ignores them.
         rate_limiter.block(peer.ip(), Instant::now());
     }
 }
@@ -395,5 +397,78 @@ mod tests {
 
         let state = sessions.get_mut(&peer).expect("session kept");
         assert_eq!(state.managed.last_activity(), created);
+    }
+
+    /// Invalid connected datagrams and unknown offline IDs: Mojang drops the
+    /// datagram and keeps the connection and sender; Optimized removes the
+    /// session and blocks the IP.
+    #[tokio::test]
+    async fn vanilla_listener_ignores_invalid_datagrams_and_unknown_offline_ids() {
+        let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let client = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let stranger: SocketAddr = "127.0.0.1:1".parse().unwrap();
+        let peer = client.local_addr().unwrap();
+        for policy in [TransmissionPolicy::Vanilla, TransmissionPolicy::Optimized] {
+            let config = RaknetListenerConfig {
+                transmission_policy: policy,
+                ..Default::default()
+            };
+            let now = Instant::now();
+            let managed = ManagedSession::with_config(
+                peer,
+                1492,
+                now,
+                SessionConfig {
+                    role: SessionRole::Server,
+                    session: SessionTunables {
+                        transmission: policy,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+            );
+            let (to_app, _app_rx) = mpsc::channel(1);
+            let mut sessions = HashMap::new();
+            sessions.insert(
+                peer,
+                SessionState {
+                    managed,
+                    to_app,
+                    pending_rx: None,
+                    announced: false,
+                    handshake_confirmed: false,
+                    rtt: crate::transport::RttCell::new(),
+                    client_guid: 7,
+                    created_at: now,
+                },
+            );
+            let mut pending = HashMap::new();
+            let (tx, _rx) = mpsc::channel(1);
+            let ad = Arc::new(RwLock::new(Bytes::new()));
+            let mut limiter = PingRateLimiter::new(10);
+            let mut send = BytesMut::new();
+            for (from, bytes) in [(peer, &[0x84, 0xff][..]), (stranger, &[0x42, 0, 0][..])] {
+                dispatch_datagram(
+                    &socket,
+                    &config,
+                    bytes,
+                    from,
+                    &mut sessions,
+                    &mut pending,
+                    &tx,
+                    &ad,
+                    &mut limiter,
+                    &mut send,
+                )
+                .await;
+            }
+            let vanilla = policy.is_vanilla();
+            assert_eq!(sessions.contains_key(&peer), vanilla, "{policy:?}");
+            assert_eq!(
+                limiter.blocked(peer.ip(), Instant::now()),
+                !vanilla,
+                "{policy:?}"
+            );
+        }
     }
 }

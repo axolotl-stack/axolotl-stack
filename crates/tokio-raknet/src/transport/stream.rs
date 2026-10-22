@@ -1232,6 +1232,42 @@ mod tests {
         assert!(!harness.task.is_finished());
     }
 
+    /// DG-2: Mojang drops the slow-start bit once its window passes the
+    /// threshold (BDS `baseline` capture: 0x80 and 0x88 datagrams); the
+    /// receiver ignores 0x04/0x08, so every flag combination is delivered.
+    #[tokio::test]
+    async fn vanilla_client_delivers_datagrams_without_the_slow_start_bit() {
+        let mut harness = VanillaHarness::connect().await;
+        for (sequence, flags) in [(100u32, 0x80u8), (101, 0x88), (102, 0x84), (103, 0x8c)] {
+            let body = [0xfe, flags];
+            harness
+                .send_datagram(&Datagram {
+                    header: crate::protocol::types::DatagramHeader {
+                        flags: crate::protocol::constants::DatagramFlags::from_bits_truncate(flags),
+                        sequence: crate::protocol::types::Sequence24::new(sequence),
+                    },
+                    payload: crate::protocol::datagram::DatagramPayload::EncapsulatedPackets(vec![
+                        crate::protocol::encapsulated_packet::EncapsulatedPacket {
+                            header: crate::protocol::types::EncapsulatedPacketHeader {
+                                reliability: crate::protocol::reliability::Reliability::Unreliable,
+                                is_split: false,
+                                needs_bas: false,
+                            },
+                            bit_length: (body.len() << 3) as u16,
+                            reliable_index: None,
+                            sequence_index: None,
+                            ordering_index: None,
+                            ordering_channel: None,
+                            split: None,
+                            payload: Bytes::copy_from_slice(&body),
+                        },
+                    ]),
+                })
+                .await;
+            harness.expect_message(&body).await;
+        }
+    }
+
     /// KA-8: malformed datagrams are logged and dropped (Optimized reports
     /// the error and stops instead).
     #[tokio::test]
