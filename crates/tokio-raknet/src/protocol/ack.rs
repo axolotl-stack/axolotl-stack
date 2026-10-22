@@ -176,6 +176,31 @@ mod tests {
     use bytes::BytesMut;
 
     #[test]
+    fn wrapped_singletons_encode_across_a_segmented_destination() {
+        let payload = AckNackPayload {
+            ranges: vec![
+                SequenceRange {
+                    start: Sequence24::new(0xffffff),
+                    end: Sequence24::new(0),
+                },
+                SequenceRange {
+                    start: Sequence24::new(0xabcdef),
+                    end: Sequence24::new(0xabcdef),
+                },
+            ],
+        };
+        let mut first = [0u8; 3];
+        let mut second = [0u8; 11];
+        payload
+            .encode_raknet(&mut (&mut first[..]).chain_mut(&mut second[..]))
+            .unwrap();
+        assert_eq!(
+            [first.as_slice(), second.as_slice()].concat(),
+            [0, 3, 1, 0xff, 0xff, 0xff, 1, 0, 0, 0, 1, 0xef, 0xcd, 0xab,]
+        );
+    }
+
+    #[test]
     fn rejects_unknown_record_type() {
         let mut src = &[0, 1, 2, 0, 0, 0, 0, 0, 0][..];
         assert!(matches!(

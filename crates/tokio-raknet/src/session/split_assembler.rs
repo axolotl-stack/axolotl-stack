@@ -206,6 +206,58 @@ mod tests {
     }
 
     #[test]
+    fn out_of_order_parts_ignore_duplicates_and_rejected_fragments() {
+        let now = Instant::now();
+        let mut assembler = SplitAssembler::new(Duration::from_secs(30), 512, 16);
+        let part = |count, index, payload: Bytes| {
+            let mut packet = make_split_encap(count, index);
+            packet.bit_length = (payload.len() * 8) as u16;
+            packet.payload = payload;
+            packet
+        };
+        assert!(
+            assembler
+                .add(part(3, 2, Bytes::from_static(b"tail")), now)
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            assembler
+                .add(part(3, 0, Bytes::from_static(b"head")), now)
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            assembler
+                .add(part(3, 0, Bytes::from_static(b"duplicate")), now)
+                .unwrap()
+                .is_none()
+        );
+        assert!(matches!(
+            assembler.add(part(4, 1, Bytes::from_static(b"wrong count")), now),
+            Err(DecodeError::SplitCountMismatch),
+        ));
+        assert!(matches!(
+            assembler.add(
+                part(3, 1, Bytes::from(vec![0; MAX_FRAGMENT_BYTES + 1])),
+                now
+            ),
+            Err(DecodeError::SplitTooLarge),
+        ));
+        let complete = assembler
+            .add(part(3, 1, Bytes::from_static(b"mid")), now)
+            .unwrap()
+            .unwrap();
+        assert_eq!(complete.payload.as_ref(), b"headmidtail");
+        // Completion must release the ID, including the old count and byte total.
+        let reused = assembler
+            .add(part(1, 0, Bytes::from_static(b"reused")), now)
+            .unwrap()
+            .unwrap();
+        assert_eq!(reused.payload.as_ref(), b"reused");
+    }
+
+    #[test]
     fn rejects_too_many_parts() {
         let mut assembler = SplitAssembler::new(Duration::from_secs(30), 128, 256);
         let pkt = make_split_encap(129, 0);
