@@ -100,6 +100,7 @@ impl ManagedSession {
     fn on_vanilla_tick(&mut self, now: Instant) -> Vec<Datagram> {
         // flushACKs, then checkResend on every third tick.
         let out = self.inner.on_tick(now);
+        self.credit_vanilla_acks();
         let tick = self.inner.vanilla_ticks();
         match self.state {
             ConnectionState::Closed => return out,
@@ -240,6 +241,13 @@ impl ManagedSession {
                 self.queued_reliable_bytes = self.queued_reliable_bytes.saturating_sub(pkt.size());
             }
         }
+    }
+
+    /// Vanilla: release the reliable bytes the peer has ACKed. Sends never
+    /// debit, so `queued_reliable_bytes` covers queued and unACKed data.
+    pub(crate) fn credit_vanilla_acks(&mut self) {
+        let acked = self.inner.take_vanilla_acked_bytes();
+        self.queued_reliable_bytes = self.queued_reliable_bytes.saturating_sub(acked);
     }
 }
 
@@ -440,6 +448,53 @@ mod tests {
         }
     }
 
+    /// HS-11/HS-3: the Vanilla listener's CRA is go-raknet's bytes, with the
+    /// client address written by lunar's `putAddr` (IPv6 layout, IPv4-mapped
+    /// addresses unmapped). Optimized keeps the standard `sockaddr_in6` copy.
+    #[test]
+    fn vanilla_connection_request_accepted_matches_go_bytes() {
+        let now = Instant::now();
+        let request = RaknetPacket::ConnectionRequest(ConnectionRequest {
+            client_guid: (-3i64) as u64,
+            timestamp: RaknetTime(11),
+            secure: false,
+        });
+        let mut lunar_v6 = vec![6, 0, 0, 0, 23, 0x4a, 0xbc, 0, 0, 0, 0];
+        lunar_v6.extend_from_slice(&[0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]);
+        lunar_v6.extend_from_slice(&[0, 0]);
+        for (peer, address) in [
+            ("[2001:db8::1]:19132", lunar_v6),
+            (
+                "[::ffff:127.0.0.1]:19132",
+                vec![0x04, 0x80, 0xff, 0xff, 0xfe, 0x4a, 0xbc],
+            ),
+        ] {
+            let mut ms = managed(TransmissionPolicy::Vanilla, SessionRole::Server, peer, now);
+            ms.handle_control_packet(&request, now);
+            let frames = sent_frames(&mut ms, now);
+            assert_eq!(frames.len(), 1);
+            let mut expected = vec![0x10];
+            expected.extend_from_slice(&address);
+            expected.extend_from_slice(&[0, 0]);
+            for _ in 0..20 {
+                expected.extend_from_slice(&[0x04, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00]);
+            }
+            expected.extend_from_slice(&11u64.to_be_bytes());
+            let pong = ManagedSession::current_raknet_time(now).0;
+            expected.extend_from_slice(&pong.to_be_bytes());
+            assert_eq!(&frames[0].payload[..], &expected[..], "{peer}");
+        }
+        let mut ms = managed(
+            TransmissionPolicy::Optimized,
+            SessionRole::Server,
+            "[2001:db8::1]:19132",
+            now,
+        );
+        ms.handle_control_packet(&request, now);
+        let frames = sent_frames(&mut ms, now);
+        assert_eq!(&frames[0].payload[1..6], &[6, 23, 0, 0x4a, 0xbc]);
+    }
+
     /// HS-8/KA-1/REL-1: pings every fifth 100 ms tick from session creation,
     /// ReliableOrdered, also during the online handshake.
     #[test]
@@ -499,6 +554,66 @@ mod tests {
             ms.last_disconnect_reason(),
             Some(DisconnectReason::TimedOut)
         ));
+    }
+
+    /// REL-12/RAKNET-01: without a congestion window, Vanilla charges reliable
+    /// bytes to `max_queued_reliable_bytes` until they are ACKed. A peer that
+    /// stays active but never ACKs trips the cap (`QueueTooLong`, the
+    /// Optimized close path); regular ACKs keep traffic far beyond it open.
+    #[test]
+    fn vanilla_queue_limit_counts_unacked_reliable_bytes() {
+        const LIMIT: usize = 16 * 1024;
+        let start = Instant::now();
+        let write = |ms: &mut ManagedSession| {
+            for _ in 0..4 {
+                ms.queue_app_buffer(
+                    Bytes::from(vec![0xfe; 1000]),
+                    Reliability::ReliableOrdered,
+                    0,
+                    RakPriority::Normal,
+                )
+                .unwrap();
+            }
+        };
+
+        let mut silent = connected_client(TransmissionPolicy::Vanilla, start);
+        silent.config.max_queued_reliable_bytes = Some(LIMIT);
+        let mut closed_at = None;
+        for n in 1..=20u32 {
+            let now = start + VANILLA_TICK * n;
+            write(&mut silent);
+            sent_frames(&mut silent, now);
+            // Datagrams keep arriving, but none of them ACKs.
+            silent.record_activity(now);
+            silent.on_tick(now);
+            if silent.state() == ConnectionState::Closed {
+                closed_at = Some(n);
+                break;
+            }
+        }
+        // About 4 KB per tick: the cap trips on the fifth or sixth tick.
+        assert!(matches!(closed_at, Some(5..=6)), "{closed_at:?}");
+        assert!(matches!(
+            silent.last_disconnect_reason(),
+            Some(DisconnectReason::QueueTooLong)
+        ));
+
+        let mut acked = connected_client(TransmissionPolicy::Vanilla, start);
+        acked.config.max_queued_reliable_bytes = Some(LIMIT);
+        for n in 1..=50u32 {
+            let now = start + VANILLA_TICK * n;
+            write(&mut acked);
+            sent_frames(&mut acked, now);
+            ack_all(&mut acked, now);
+            acked.on_tick(now);
+            assert!(acked.is_connected(), "tick {n}");
+        }
+        // Only the ping queued by the last (ping) tick is still charged.
+        assert!(
+            acked.queued_reliable_bytes < 100,
+            "{}",
+            acked.queued_reliable_bytes
+        );
     }
 
     /// KA-5/KA-7: close waits for the resend map (≤ 5 s), then writes a bare

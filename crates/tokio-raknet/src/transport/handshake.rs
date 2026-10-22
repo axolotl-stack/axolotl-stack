@@ -82,14 +82,22 @@ pub(crate) fn probe_sizes(cap: u16) -> Vec<u16> {
 /// go-raknet `dial.go:dialerID`: a process-wide counter starting at a random
 /// negative value (`-rand.Int64()`, a non-negative 63-bit value), incremented
 /// for every dial and ping (vanilla client IDs are negative).
-static DIALER_ID: LazyLock<AtomicI64> = LazyLock::new(|| {
+static DIALER_ID: LazyLock<AtomicI64> = LazyLock::new(|| AtomicI64::new(random_dialer_seed()));
+
+/// `-rand.Int64()`: the negation of a random non-negative 63-bit value.
+fn random_dialer_seed() -> i64 {
     use std::hash::BuildHasher;
     let random = std::collections::hash_map::RandomState::new().hash_one(Instant::now());
-    AtomicI64::new(-((random >> 1) as i64))
-});
+    -((random >> 1) as i64)
+}
+
+/// `atomic.AddInt64(&dialerID, 1)`.
+fn next_dialer_id(counter: &AtomicI64) -> u64 {
+    (counter.fetch_add(1, Ordering::Relaxed) + 1) as u64
+}
 
 pub(crate) fn vanilla_dialer_id() -> u64 {
-    (DIALER_ID.fetch_add(1, Ordering::Relaxed) + 1) as u64
+    next_dialer_id(&DIALER_ID)
 }
 
 /// go-raknet `conn.go:clampMTU(mtu, minMTUSize)`.
@@ -891,12 +899,25 @@ mod tests {
         assert_eq!(&bytes[17..24], &[4, 0x80, 0xff, 0xff, 0xfe, 0x4a, 0xbc]);
     }
 
+    /// HS-1: IDs follow go-raknet's `dialerID`: a random non-positive seed,
+    /// then `+1` per dial/ping, so they are negative and consecutive.
     #[test]
     fn vanilla_guids_are_negative_and_consecutive() {
+        let seeds: Vec<i64> = (0..64).map(|_| random_dialer_seed()).collect();
+        assert!(seeds.iter().all(|&seed| seed <= 0), "{seeds:?}");
+        assert!(
+            seeds.iter().any(|&seed| seed != seeds[0]),
+            "seed is not random"
+        );
+
+        let counter = AtomicI64::new(-100);
+        let ids: Vec<i64> = (0..3).map(|_| next_dialer_id(&counter) as i64).collect();
+        assert_eq!(ids, [-99, -98, -97]);
+
+        // The process-wide counter (other tests may dial in between).
         let first = vanilla_dialer_id() as i64;
         let second = vanilla_dialer_id() as i64;
-        assert!(first <= 1 && second <= 1);
+        assert!(first < 0 && second < 0, "{first} {second}");
         assert!(second > first);
-        assert!(second - first >= 1);
     }
 }

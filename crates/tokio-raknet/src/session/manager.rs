@@ -327,11 +327,12 @@ impl ManagedSession {
     /// Transports must service `ack_deadline` even when no further traffic arrives.
     pub fn build_datagram(&mut self, now: Instant) -> Option<Datagram> {
         if self.inner.transmission_policy().is_vanilla() {
-            let dgram = self.inner.next_vanilla_datagram(now)?;
-            if let DatagramPayload::EncapsulatedPackets(packets) = &dgram.payload {
-                self.debit_reliable_bytes(packets);
-            }
-            return Some(dgram);
+            // Vanilla has no congestion window, so every queued frame leaves
+            // on the next flush: reliable bytes stay charged to
+            // `max_queued_reliable_bytes` until their ACK, not their send.
+            let dgram = self.inner.next_vanilla_datagram(now);
+            self.credit_vanilla_acks();
+            return dgram;
         }
         self.inner.process_incoming_acks_naks(now);
         let ack = if self.ack_deadline.is_some_and(|deadline| now >= deadline) {

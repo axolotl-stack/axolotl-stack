@@ -41,9 +41,14 @@ pub const MAXIMUM_ORDERING_CHANNELS: u8 = 16;
 pub const MAXIMUM_ENCAPSULATED_HEADER_SIZE: usize = 28;
 
 /// Maximum expanded ACK/NACK sequence count, from lunar-bedrock/go-raknet
-/// `acknowledge.go:acknowledgement.read` (`maxAcknowledgementPackets`).
-/// Unlike upstream's range check, the inclusive endpoint counts toward this cap.
+/// `acknowledge.go:acknowledgement.read` (`maxAcknowledgementPackets`). Our
+/// outgoing ACK/NAK datagrams never exceed it.
 pub const MAX_ACK_SEQUENCES: u16 = 8192;
+
+/// Most sequences an inbound ACK/NACK may expand to: go-raknet checks a range
+/// record as `total + end - start > 8192`, so one range (or a range closing
+/// a payload) may bring the total to 8193.
+pub const MAX_INBOUND_ACK_SEQUENCES: u32 = MAX_ACK_SEQUENCES as u32 + 1;
 
 /// Size of a UDP header on the wire.
 pub const UDP_HEADER_SIZE: usize = 8;

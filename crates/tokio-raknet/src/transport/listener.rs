@@ -47,7 +47,9 @@ pub struct RaknetListenerConfig {
     /// Duration before a session is considered stale.
     pub session_stale: Duration,
 
-    /// Maximum bytes of reliable data to queue for a single session before disconnecting.
+    /// Maximum bytes of reliable data to queue for a single session before
+    /// disconnecting (`QueueTooLong`). `Optimized` counts data not yet sent;
+    /// `Vanilla`, which has no congestion window, counts data until its ACK.
     pub max_queued_reliable_bytes: usize,
 
     /// Initial advertisement string.

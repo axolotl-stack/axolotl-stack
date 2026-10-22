@@ -630,7 +630,7 @@ mod tests {
         session.handle_ack_payload(AckNackPayload {
             ranges: vec![SequenceRange {
                 start: Sequence24::new(0),
-                end: Sequence24::new(constants::MAX_ACK_SEQUENCES as u32),
+                end: Sequence24::new(constants::MAX_INBOUND_ACK_SEQUENCES),
             }],
         });
 

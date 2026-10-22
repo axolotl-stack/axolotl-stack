@@ -346,6 +346,25 @@ pub struct ConnectionRequestAccepted {
     pub accepted_timestamp: RaknetTime,
 }
 
+impl ConnectionRequestAccepted {
+    /// Encode the body with an explicit address layout (lunar's Vanilla
+    /// listener uses [`AddressLayout::Lunar`] for IPv6 clients).
+    pub fn encode_body_with_layout(
+        &self,
+        dst: &mut impl BufMut,
+        layout: AddressLayout,
+    ) -> Result<(), crate::protocol::packet::EncodeError> {
+        encode_address(&self.address, layout, dst)?;
+        self.system_index.encode_raknet(dst)?;
+        for address in &self.system_addresses {
+            encode_address(address, layout, dst)?;
+        }
+        self.request_timestamp.encode_raknet(dst)?;
+        self.accepted_timestamp.encode_raknet(dst)?;
+        Ok(())
+    }
+}
+
 impl Packet for ConnectionRequestAccepted {
     const ID: u8 = 0x10;
 
@@ -353,16 +372,7 @@ impl Packet for ConnectionRequestAccepted {
         &self,
         dst: &mut impl BufMut,
     ) -> Result<(), crate::protocol::packet::EncodeError> {
-        self.address.encode_raknet(dst)?;
-        self.system_index.encode_raknet(dst)?;
-
-        for address in &self.system_addresses {
-            address.encode_raknet(dst)?;
-        }
-
-        self.request_timestamp.encode_raknet(dst)?;
-        self.accepted_timestamp.encode_raknet(dst)?;
-        Ok(())
+        self.encode_body_with_layout(dst, AddressLayout::Standard)
     }
 
     fn decode_body(src: &mut impl bytes::Buf) -> Result<Self, super::DecodeError> {
@@ -432,7 +442,7 @@ impl NewIncomingConnection {
     ) -> Result<(), crate::protocol::packet::EncodeError> {
         encode_address(&self.server_address, layout, dst)?;
         for address in &self.system_addresses {
-            address.encode_raknet(dst)?;
+            encode_address(address, layout, dst)?;
         }
         self.request_timestamp.encode_raknet(dst)?;
         self.accepted_timestamp.encode_raknet(dst)?;

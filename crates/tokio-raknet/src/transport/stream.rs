@@ -513,6 +513,11 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
                     tracing::debug!(len, "dropping datagram longer than go-raknet's buffer");
                     continue;
                 }
+                if vanilla {
+                    // conn.go:receive refreshes activity for every datagram it
+                    // is handed, before (and whatever) its first byte.
+                    managed.record_activity(Instant::now());
+                }
 
                 let mut packet = Bytes::copy_from_slice(&buf[..len]);
 
@@ -567,9 +572,8 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
                     Ok(dgram) => dgram,
                     Err(error) if vanilla => {
                         // dial.go:clientListen logs handler errors and keeps
-                        // reading; conn.go:receive already refreshed activity.
+                        // reading.
                         tracing::debug!(?error, "dropping malformed connected datagram");
-                        managed.record_activity(now);
                         continue;
                     }
                     Err(error) => {
@@ -1047,6 +1051,10 @@ mod tests {
 
     impl VanillaHarness {
         async fn connect() -> Self {
+            Self::connect_with(RaknetStreamConfig::default()).await
+        }
+
+        async fn connect_with(config: RaknetStreamConfig) -> Self {
             let server = UdpSocket::bind("127.0.0.1:0").await.unwrap();
             let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
             let client = socket.local_addr().unwrap();
@@ -1063,7 +1071,7 @@ mod tests {
                     outbound_rx,
                     to_app,
                     ready,
-                    config: RaknetStreamConfig::default(),
+                    config,
                     maintenance_interval: VANILLA_TICK_INTERVAL,
                     rtt: crate::transport::RttCell::new(),
                 },
@@ -1190,6 +1198,31 @@ mod tests {
         harness.send_message(b"\xfeafter").await;
         harness.expect_message(b"\xfeafter").await;
         assert!(!harness.task.is_finished());
+    }
+
+    /// KA-2: go-raknet `conn.go:receive` refreshes activity for every
+    /// datagram, including offline IDs it then ignores. A server sending only
+    /// those keeps the client past its inactivity timeout.
+    #[tokio::test]
+    async fn vanilla_client_offline_packets_refresh_activity() {
+        let mut harness = VanillaHarness::connect_with(RaknetStreamConfig {
+            session_timeout: Duration::from_millis(300),
+            ..RaknetStreamConfig::default()
+        })
+        .await;
+        // Ping ticks at 0.5 s and 1 s check `idle > 300 ms + 2 × rtt`.
+        let until = Instant::now() + Duration::from_millis(1200);
+        while Instant::now() < until {
+            harness
+                .server
+                .send_to(&[0x1c], harness.client)
+                .await
+                .unwrap();
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+        // A closing client would ACK but no longer handle this message.
+        harness.send_message(b"\xfealive").await;
+        harness.expect_message(b"\xfealive").await;
     }
 
     /// KA-8: malformed datagrams are logged and dropped (Optimized reports

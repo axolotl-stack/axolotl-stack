@@ -1,7 +1,7 @@
 use std::{collections::VecDeque, time::Instant};
 
 use crate::protocol::{
-    constants::MAX_ACK_SEQUENCES,
+    constants::MAX_INBOUND_ACK_SEQUENCES,
     encapsulated_packet::EncapsulatedPacket,
     packet::{DecodeError, RaknetPacket},
 };
@@ -50,7 +50,7 @@ impl Session {
     }
 
     fn inbound_ack_range_is_safe(range: SequenceRange) -> bool {
-        !range.wraps() && range.len() <= MAX_ACK_SEQUENCES as u32
+        !range.wraps() && range.len() <= MAX_INBOUND_ACK_SEQUENCES
     }
 
     fn queue_incoming_ack_ranges(
@@ -68,7 +68,7 @@ impl Session {
             }
 
             total_sequences = total_sequences.saturating_add(range.len());
-            if total_sequences > MAX_ACK_SEQUENCES as u32 {
+            if total_sequences > MAX_INBOUND_ACK_SEQUENCES {
                 break;
             }
 
@@ -222,7 +222,7 @@ mod tests {
         session.handle_ack_payload(AckNackPayload {
             ranges: vec![SequenceRange {
                 start: Sequence24::new(0),
-                end: Sequence24::new(MAX_ACK_SEQUENCES as u32),
+                end: Sequence24::new(MAX_INBOUND_ACK_SEQUENCES),
             }],
         });
 

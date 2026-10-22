@@ -127,34 +127,42 @@ impl ManagedSession {
 
         let accepted_ts = Self::current_raknet_time(now);
         // go-raknet handler.go:handleConnectionRequest answers with the
-        // resolved peer, zero-valued system addresses and index 0; Optimized
-        // keeps its RakNet defaults.
-        let (address, system_index, system_addresses) =
-            if self.inner.transmission_policy().is_vanilla() {
-                (
-                    unmap_ipv4(self.peer),
-                    0,
-                    vec![SocketAddr::V4(ANY_V4); MAX_SYSTEM_ADDRESSES],
-                )
-            } else {
-                (self.peer, 47, Self::default_system_addresses(self.peer))
+        // resolved peer, zero-valued system addresses and index 0, written by
+        // lunar's putAddr (IPv6 layout); Optimized keeps its RakNet defaults.
+        // A lost CRA cannot be recovered by the client (its request was
+        // already ACKed), so it is ReliableOrdered like go-raknet's Conn.send.
+        let queued = if self.inner.transmission_policy().is_vanilla() {
+            let packet = ConnectionRequestAccepted {
+                address: unmap_ipv4(self.peer),
+                system_index: 0,
+                system_addresses: vec![SocketAddr::V4(ANY_V4); MAX_SYSTEM_ADDRESSES],
+                request_timestamp: req.timestamp,
+                accepted_timestamp: accepted_ts,
             };
-        let packet = RaknetPacket::ConnectionRequestAccepted(ConnectionRequestAccepted {
-            address,
-            system_index,
-            system_addresses,
-            request_timestamp: req.timestamp,
-            accepted_timestamp: accepted_ts,
-        });
-
-        // A lost CRA cannot be recovered by the client (its request was already
-        // ACKed), so it is ReliableOrdered like go-raknet's Conn.send.
-        match self.queue_control_packet(
-            packet,
-            Reliability::ReliableOrdered,
-            0,
-            RakPriority::Immediate,
-        ) {
+            let mut buffer = BytesMut::with_capacity(1 + 29 + 2 + 7 * MAX_SYSTEM_ADDRESSES + 16);
+            buffer.put_u8(ConnectionRequestAccepted::ID);
+            packet
+                .encode_body_with_layout(&mut buffer, AddressLayout::Lunar)
+                .map_err(|error| SessionError::Queue(error.into()))
+                .and_then(|()| {
+                    self.queue_control_bytes(buffer.freeze(), Reliability::ReliableOrdered)
+                })
+        } else {
+            let packet = RaknetPacket::ConnectionRequestAccepted(ConnectionRequestAccepted {
+                address: self.peer,
+                system_index: 47,
+                system_addresses: Self::default_system_addresses(self.peer),
+                request_timestamp: req.timestamp,
+                accepted_timestamp: accepted_ts,
+            });
+            self.queue_control_packet(
+                packet,
+                Reliability::ReliableOrdered,
+                0,
+                RakPriority::Immediate,
+            )
+        };
+        match queued {
             Ok(()) => {
                 // A repeated request must not move an established session back.
                 if self.state == ConnectionState::Unconnected {

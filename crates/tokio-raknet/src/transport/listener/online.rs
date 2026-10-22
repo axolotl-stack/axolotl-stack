@@ -37,7 +37,13 @@ pub(super) async fn dispatch_datagram(
         return;
     }
 
-    if sessions.contains_key(&peer) {
+    if let Some(state) = sessions.get_mut(&peer) {
+        if state.managed.transmission_policy().is_vanilla() {
+            // listener.go:handle hands every datagram from a connected address
+            // to conn.receive, which refreshes activity before parsing it
+            // (offline IDs included).
+            state.managed.record_activity(Instant::now());
+        }
         if !handle_incoming_udp(
             socket,
             config,
@@ -298,5 +304,91 @@ fn deliver_packets_to_app(pkts: Vec<crate::session::IncomingPacket>, state: &mut
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use super::*;
+    use crate::protocol::constants::DEFAULT_UNCONNECTED_MAGIC;
+    use crate::protocol::packet::{Packet, UnconnectedPing};
+    use crate::protocol::types::RaknetTime;
+    use crate::session::manager::{SessionConfig, SessionRole};
+    use crate::session::{SessionTunables, TransmissionPolicy};
+
+    /// KA-2: go-raknet `listener.go:handle` passes every datagram from a
+    /// connected address to `conn.receive`, which refreshes activity first,
+    /// so offline IDs from the peer keep a Vanilla session alive.
+    #[tokio::test]
+    async fn vanilla_offline_packets_from_a_session_peer_refresh_activity() {
+        let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let client = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let peer = client.local_addr().unwrap();
+        let config = RaknetListenerConfig::default();
+        // Created (and last active) well past the 5 s inactivity timeout.
+        let created = Instant::now().checked_sub(Duration::from_secs(10)).unwrap();
+        let managed = ManagedSession::with_config(
+            peer,
+            1492,
+            created,
+            SessionConfig {
+                role: SessionRole::Server,
+                session: SessionTunables {
+                    transmission: TransmissionPolicy::Vanilla,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        );
+        let (to_app, _app_rx) = mpsc::channel(1);
+        let mut sessions = HashMap::new();
+        sessions.insert(
+            peer,
+            SessionState {
+                managed,
+                to_app,
+                pending_rx: None,
+                announced: false,
+                handshake_confirmed: false,
+                rtt: crate::transport::RttCell::new(),
+            },
+        );
+        let mut pending = HashMap::new();
+        let (tx, _rx) = mpsc::channel(1);
+        let ad = Arc::new(RwLock::new(Bytes::new()));
+        let mut limiter = PingRateLimiter::new(10);
+        let mut send = BytesMut::new();
+        let mut ping = BytesMut::new();
+        RaknetPacket::UnconnectedPing(UnconnectedPing {
+            ping_time: RaknetTime(1),
+            magic: DEFAULT_UNCONNECTED_MAGIC,
+            client_guid: Some(7),
+        })
+        .encode(&mut ping)
+        .unwrap();
+        assert_eq!(ping[0], UnconnectedPing::ID);
+        dispatch_datagram(
+            &socket,
+            &config,
+            &ping,
+            peer,
+            &mut sessions,
+            &mut pending,
+            &tx,
+            &ad,
+            &mut limiter,
+            &mut send,
+        )
+        .await;
+
+        let state = sessions.get_mut(&peer).expect("session kept");
+        let now = Instant::now();
+        for n in 1..=5u32 {
+            state.managed.on_tick(now + Duration::from_millis(100) * n);
+        }
+        // The fifth tick checks inactivity: half a second, not ten.
+        assert_eq!(state.managed.state(), ConnectionState::Unconnected);
     }
 }

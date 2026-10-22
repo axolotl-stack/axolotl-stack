@@ -39,7 +39,8 @@ impl RaknetEncodable for SocketAddr {
         let version = src.get_u8();
 
         match version {
-            4 => {
+            // go-raknet `internal/message/addr.go:addr` reads tag 0 as IPv4.
+            0 | 4 => {
                 // IPv4
                 if src.remaining() < 4 + 2 {
                     // 4 IP bytes + 2 port bytes
@@ -187,5 +188,14 @@ mod tests {
             DecodeError::InvalidAddrVersion(7) => {}
             other => panic!("unexpected error: {:?}", other),
         }
+    }
+
+    /// HS-6: go-raknet `addr.go:addr` decodes tag 0 like tag 4 (7 bytes).
+    #[test]
+    fn tag_zero_decodes_as_ipv4() {
+        let mut src = &[0, 0x80, 0xff, 0xff, 0xfe, 0x4a, 0xbc, 0xaa][..];
+        let decoded = SocketAddr::decode_raknet(&mut src).unwrap();
+        assert_eq!(decoded, "127.0.0.1:19132".parse::<SocketAddr>().unwrap());
+        assert_eq!(src, [0xaa]);
     }
 }

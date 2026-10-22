@@ -49,6 +49,9 @@ pub(crate) struct VanillaState {
     /// `resendMap.delays`: (recorded at, sample). Samples are appended with a
     /// monotonically increasing clock, so expiry pops from the front.
     samples: VecDeque<(Instant, Duration)>,
+    /// Sum of `samples` in nanoseconds, maintained on record and prune so the
+    /// mean is O(1) however many samples the window holds.
+    sample_total_nanos: u128,
     /// `Conn.rtt`: the value stored by the last `checkResend`; zero until the
     /// first resend check. Drives the NAK delay (`conn.go:451-452`).
     stored_rtt: Duration,
@@ -61,30 +64,33 @@ pub(crate) struct VanillaState {
     pub(crate) resend_ready: VecDeque<Datagram>,
     /// Pending NAK datagrams split by the go ACK writer.
     pub(crate) feedback_ready: VecDeque<Datagram>,
+    /// Reliable frame bytes retired by ACKs since the manager last credited
+    /// them against `max_queued_reliable_bytes` (Vanilla has no congestion
+    /// window, so unACKed data stays charged to that cap).
+    pub(crate) acked_reliable_bytes: usize,
 }
 
 impl VanillaState {
     /// `resend_map.go:remove`: `mul` is 1 for ACKs and 2 for retransmissions.
     pub(crate) fn record(&mut self, now: Instant, sent: Instant, mul: u32) {
-        self.samples
-            .push_back((now, now.saturating_duration_since(sent) * mul));
+        let sample = now.saturating_duration_since(sent) * mul;
+        self.sample_total_nanos += sample.as_nanos();
+        self.samples.push_back((now, sample));
     }
 
     /// `resend_map.go:rtt`: prune samples strictly older than five seconds,
     /// then return their integer-nanosecond mean (50 ms when empty).
     pub(crate) fn rtt(&mut self, now: Instant) -> Duration {
-        while self
-            .samples
-            .front()
-            .is_some_and(|&(at, _)| now.saturating_duration_since(at) > RTT_WINDOW)
+        while let Some(&(at, sample)) = self.samples.front()
+            && now.saturating_duration_since(at) > RTT_WINDOW
         {
+            self.sample_total_nanos -= sample.as_nanos();
             self.samples.pop_front();
         }
         if self.samples.is_empty() {
             return DEFAULT_RTT;
         }
-        let total: u128 = self.samples.iter().map(|(_, rtt)| rtt.as_nanos()).sum();
-        Duration::from_nanos((total / self.samples.len() as u128) as u64)
+        Duration::from_nanos((self.sample_total_nanos / self.samples.len() as u128) as u64)
     }
 
     /// `conn.go:checkResend` stores the RTT it computed.
@@ -103,8 +109,7 @@ impl VanillaState {
         if self.samples.is_empty() {
             return u64::MAX;
         }
-        let total: u128 = self.samples.iter().map(|(_, rtt)| rtt.as_nanos()).sum();
-        (total / self.samples.len() as u128 / 1000) as u64
+        (self.sample_total_nanos / self.samples.len() as u128 / 1000) as u64
     }
 }
 
@@ -133,6 +138,43 @@ mod tests {
             state.rtt(later + RTT_WINDOW + Duration::from_nanos(1)),
             DEFAULT_RTT
         );
+    }
+
+    /// CC-3: the mean comes from a running total (O(1) per publish), and
+    /// pruning keeps that total equal to the sum of the samples in the window.
+    #[test]
+    fn rtt_running_total_matches_the_samples_across_record_and_prune() {
+        let start = Instant::now();
+        let mut state = VanillaState::default();
+        let naive = |state: &VanillaState| -> u128 {
+            state
+                .samples
+                .iter()
+                .map(|(_, sample)| sample.as_nanos())
+                .sum()
+        };
+        for i in 0..10_000u32 {
+            let at = start + Duration::from_micros(u64::from(i));
+            state.record(at, at - Duration::from_nanos(u64::from(i % 997)), 1 + i % 2);
+        }
+        assert_eq!(state.sample_total_nanos, naive(&state));
+        let mean = naive(&state) / 10_000;
+        assert_eq!(state.sampled_rtt_micros(), (mean / 1000) as u64);
+        let last = start + Duration::from_micros(9_999);
+        assert_eq!(state.rtt(last), Duration::from_nanos(mean as u64));
+
+        // Prune the first half: samples recorded at 0..5000 µs.
+        let pruned_at = start + RTT_WINDOW + Duration::from_nanos(4_999_001);
+        let rtt = state.rtt(pruned_at);
+        assert_eq!(state.samples.len(), 5_000);
+        assert_eq!(state.sample_total_nanos, naive(&state));
+        assert_eq!(rtt, Duration::from_nanos((naive(&state) / 5_000) as u64));
+        assert_eq!(
+            state.rtt(last + RTT_WINDOW + Duration::from_nanos(1)),
+            DEFAULT_RTT
+        );
+        assert_eq!(state.sample_total_nanos, 0);
+        assert_eq!(state.sampled_rtt_micros(), u64::MAX);
     }
 
     #[test]

@@ -387,7 +387,8 @@ Limits are checked before allocating or scanning peer-controlled windows.
 | Negotiated MTU | 400–1492 bytes including IPv4/UDP headers | `conn.go:clampMTU` |
 | Client MTU discovery | Probes `[cap, 1200, 576]`, four per size, 500 ms apart, replies accepted at any time; 10 transient receive errors tolerated | `dial.go:discoverMTU`, `request1`, `MaxTransientErrors` |
 | Receive / ordered window | 2048 indices; duplicates do not allocate entries | `conn.go:receiveDatagram`, `receivePacket`; `packet_queue.go:put` |
-| ACK/NACK payload | At most 8192 represented sequences; bounded range queues | `acknowledge.go:acknowledgement.read` |
+| ACK/NACK payload | go's rule: a range record while `total + end - start ≤ 8192` (so at most 8193 represented sequences), a single while `total + 1 ≤ 8192`; wrapped ranges and unknown tags rejected; bounded range queues. A NAK resends each awaiting datagram at most once | `acknowledge.go:acknowledgement.read`, `conn.go:resend` |
+| Outgoing reliable data | `max_queued_reliable_bytes` (listener) closes with `QueueTooLong`: Optimized counts unsent bytes, Vanilla (no congestion window) counts bytes until ACKed | none (go-raknet is unbounded) |
 | Split reassembly | 512 fragments per ID, 16 live IDs; fragments fit the supported UDP payload | `conn.go:receiveSplitPacket`, `effectiveMTU` |
 | Handshake cookies | Address-bound, rotated every 2 seconds, current/previous accepted | `handler.go:cookie`; `listener.go:security.tick` |
 | Half-open session | Absolute 10-second completion deadline; retries do not extend it | `handler.go:handleOpenConnectionRequest2` |
