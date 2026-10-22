@@ -91,22 +91,31 @@ to every channel delivery, measuring a different application scheduling model.
 ## NetherNet measurements
 
 `nethernet-micro --iterations 5000` measures only public tokio-nethernet APIs:
-`Signal::parse`/`Display` for CONNECTREQUEST, CONNECTRESPONSE, CANDIDATEADD and
-CONNECTERROR, and `parse_ice_candidate`/`format_ice_candidate`. The exact shared
-fixtures use connection ID 42, a loopback SDP offer/answer, host ICE candidate
-`127.0.0.1:50000` and error code 2. Parse owns its output; format allocates a fresh
-String. Both include output destruction. Fixture construction and roundtrip
-checks precede timing; the existing separate allocation pass is unchanged.
+`Signal::parse` plus `Signal::to_wire_string` (`format`) for CONNECTREQUEST,
+CONNECTRESPONSE, CANDIDATEADD and CONNECTERROR, `parse_ice_candidate`/
+`format_ice_candidate`, and the encrypted/HMAC LAN packet codec
+(`discovery::packet::encode_message`/`decode`). The exact shared fixtures use
+connection ID 42, a loopback SDP offer/answer, host ICE candidate
+`127.0.0.1:50000`, error code 2, and a discovery MessagePacket from sender 1 to
+recipient 2 carrying `CONNECTERROR 42 2`. Parse owns its output (`DATA` copied,
+network ID `"2".into()` per op, as on the Cinnabar side); `format` returns a fresh
+exactly-sized String, as Go `Signal.String` and Cinnabar `to_string` do. Both
+include output destruction. `format_reused_buffer` is an ours-only row:
+`Signal::write_wire` appends into one reused String, so it allocates nothing and
+has no reference counterpart; do not compare it with the fresh-String rows.
+`parse_ice_candidate` borrows its fields from the input (no allocation), whereas
+Cinnabar's parser returns owned fields. Discovery encode returns a fresh Vec and
+decode an owned packet on every side. Fixture construction and roundtrip checks
+precede timing; the existing separate allocation pass is unchanged.
 
 Framing micro rows for 32, 512, 4096, 65536 and 1048576 bytes, invalid countdowns
 and oversize rejection are **unavailable**: `segment_count`, `send_message` and
-`ReassemblyState` are private. The encrypted/HMAC LAN packet codec is also
-**unavailable**: its nominally public functions live in the private
-`discovery::packet` module and are not re-exported. These gaps emit machine-readable
-coverage records on stderr, not fabricated timings. No framing/crypto implementation
-is copied, and transport timings do not stand in for missing isolated micros.
-The sole production API addition (coordinator-approved) is optional WebRTC
-`setting_engine` injection on dialer/listener configs; existing defaults are unchanged.
+`ReassemblyState` are private. This gap emits a machine-readable coverage record
+on stderr, not fabricated timings. No framing/crypto implementation is copied,
+and transport timings do not stand in for missing isolated micros.
+Production API used only by these rows: optional WebRTC `setting_engine`
+injection on dialer/listener configs (existing defaults unchanged) and the public
+`tokio_nethernet::discovery::packet` codec (bench-compare enables `discovery`).
 
 `nethernet-loopback --count 100` uses the real public
 `NetherNetListener`/`NetherNetDialer`/`NetherNetStream` over ICE, DTLS and SCTP.

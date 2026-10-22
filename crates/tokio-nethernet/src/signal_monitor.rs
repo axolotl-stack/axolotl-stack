@@ -27,7 +27,7 @@ use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 
-use crate::signaling::{Signal, signal_type};
+use crate::signaling::{Signal, SignalType};
 
 /// Local monitoring memory limits, not NetherNet protocol constants.
 const MAX_TRACKED_ENTRIES: usize = 1024;
@@ -268,8 +268,8 @@ impl SignalMonitor {
             state.seen_network_ids.insert(network_id.clone());
         }
 
-        match signal.typ.as_str() {
-            signal_type::OFFER => {
+        match signal.typ {
+            SignalType::Offer => {
                 // CONNECTREQUEST from remote
                 if state.request_received && is_new_network {
                     // Multiple networks sending offers for same connection - suspicious
@@ -292,7 +292,7 @@ impl SignalMonitor {
                     anomalies.push(anomaly);
                 }
             }
-            signal_type::ANSWER => {
+            SignalType::Answer => {
                 // We shouldn't receive CONNECTRESPONSE as a listener - we send them
                 // If we receive one, someone is trying to act as a fake server
                 anomalies.push(SignalAnomaly {
@@ -307,7 +307,7 @@ impl SignalMonitor {
                     severity: 5,
                 });
             }
-            signal_type::CANDIDATE => {
+            SignalType::Candidate => {
                 state.candidate_count = state.candidate_count.saturating_add(1);
 
                 // Check if candidate is from expected network
@@ -331,7 +331,7 @@ impl SignalMonitor {
                     anomalies.push(anomaly);
                 }
             }
-            signal_type::ERROR => {
+            SignalType::Error => {
                 state.error_count = state.error_count.saturating_add(1);
 
                 let error_code =
@@ -403,7 +403,6 @@ impl SignalMonitor {
                     );
                 }
             }
-            _ => {}
         }
 
         // Store anomalies
@@ -472,7 +471,7 @@ impl SignalMonitor {
             .entry(conn_id)
             .or_insert_with(ConnectionState::new);
 
-        if signal.typ == signal_type::ANSWER {
+        if signal.typ == SignalType::Answer {
             state.response_sent = true;
             if self.config.verbose {
                 debug!(conn_id, "Marked response sent for connection");
@@ -711,7 +710,7 @@ mod tests {
         });
         for id in 0..1100 {
             let signal = Signal {
-                typ: signal_type::OFFER.into(),
+                typ: SignalType::Offer,
                 connection_id: id,
                 network_id: id.to_string(),
                 data: "bad".into(),
@@ -726,7 +725,7 @@ mod tests {
         for id in 0..100 {
             monitor
                 .process_incoming(&Signal {
-                    typ: signal_type::CANDIDATE.into(),
+                    typ: SignalType::Candidate,
                     connection_id: 0,
                     network_id: id.to_string(),
                     data: String::new(),
@@ -755,7 +754,7 @@ mod tests {
         });
 
         let signal = Signal {
-            typ: signal_type::ERROR.to_string(),
+            typ: SignalType::Error,
             connection_id: 123,
             data: "13".to_string(), // FailedToSetRemoteDescription
             network_id: "attacker_xuid".to_string(),
@@ -778,7 +777,7 @@ mod tests {
         });
 
         let signal = Signal {
-            typ: signal_type::OFFER.to_string(),
+            typ: SignalType::Offer,
             connection_id: 123,
             data: "v=0\r\n".to_string(), // Missing ice-ufrag
             network_id: "client_xuid".to_string(),
@@ -797,7 +796,7 @@ mod tests {
         let monitor = SignalMonitor::disabled();
 
         let signal = Signal {
-            typ: signal_type::ERROR.to_string(),
+            typ: SignalType::Error,
             connection_id: 123,
             data: "13".to_string(),
             network_id: "attacker".to_string(),
@@ -816,7 +815,7 @@ mod tests {
 
         // Receiving CONNECTRESPONSE as a listener is always suspicious
         let signal = Signal {
-            typ: signal_type::ANSWER.to_string(),
+            typ: SignalType::Answer,
             connection_id: 123,
             data: "fake_sdp".to_string(),
             network_id: "attacker".to_string(),

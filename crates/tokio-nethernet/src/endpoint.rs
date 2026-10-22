@@ -3,7 +3,7 @@
 //! Optional credential providers are called per negotiation, as in upstream.
 
 use crate::signaling::{
-    Credentials, Signal, SignalErrorCode, Signaling, SignalingChannel, signal_type,
+    Credentials, Signal, SignalErrorCode, SignalType, Signaling, SignalingChannel,
 };
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -250,8 +250,8 @@ impl Signaling for Client {
     /// Source: endpoint/client.go:Client.Signal.
     async fn signal(&self, signal: Signal) -> anyhow::Result<()> {
         let mut url = parse_url(&signal.network_id)?;
-        match signal.typ.as_str() {
-            signal_type::OFFER => {
+        match signal.typ {
+            SignalType::Offer => {
                 anyhow::ensure!(
                     signal.data.len() <= MAX_SDP_BODY_SIZE,
                     "SDP offer exceeds {MAX_SDP_BODY_SIZE} bytes"
@@ -286,18 +286,20 @@ impl Signaling for Client {
                     anyhow::bail!("negotiation failed with error code: {code}");
                 }
                 self.notify(Signal {
-                    typ: signal_type::ANSWER.into(),
+                    typ: SignalType::Answer,
                     connection_id: signal.connection_id,
                     data,
                     network_id: signal.network_id,
                 });
                 Ok(())
             }
-            signal_type::ERROR => Ok(()),
-            signal_type::CANDIDATE => {
+            SignalType::Error => Ok(()),
+            SignalType::Candidate => {
                 anyhow::bail!("nethernet/endpoint: trickle ICE is not supported")
             }
-            _ => anyhow::bail!("nethernet/endpoint: unknown signal type: {}", signal.typ),
+            SignalType::Answer => {
+                anyhow::bail!("nethernet/endpoint: unexpected signal type: {}", signal.typ)
+            }
         }
     }
 
@@ -561,12 +563,12 @@ impl Handler {
             return text_response(StatusCode::BAD_REQUEST, "Missing SDP offer in request body");
         };
         match self.negotiate(network_id, offer).await {
-            Ok(signal) if signal.typ == signal_type::ANSWER => response(
+            Ok(signal) if signal.typ == SignalType::Answer => response(
                 StatusCode::OK,
                 Some("application/sdp"),
                 Bytes::from(signal.data),
             ),
-            Ok(signal) if signal.typ == signal_type::ERROR => response(
+            Ok(signal) if signal.typ == SignalType::Error => response(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Some("text/plain; charset=utf-8"),
                 Bytes::from(signal.data),
@@ -616,7 +618,7 @@ impl Handler {
             cancel: false,
         };
         let signal = Signal {
-            typ: signal_type::OFFER.into(),
+            typ: SignalType::Offer,
             connection_id: guard.key.1,
             network_id: guard.key.0.clone(),
             data: offer,
@@ -746,7 +748,7 @@ impl Signaling for Handler {
     /// Source: endpoint/handler.go:Handler.Signal.
     async fn signal(&self, signal: Signal) -> anyhow::Result<()> {
         anyhow::ensure!(
-            signal.typ != signal_type::CANDIDATE,
+            signal.typ != SignalType::Candidate,
             "disable trickle ICE in listener configuration"
         );
         anyhow::ensure!(
@@ -900,7 +902,7 @@ mod tests {
             assert!(
                 client
                     .signal(Signal {
-                        typ: signal_type::OFFER.into(),
+                        typ: SignalType::Offer,
                         connection_id: 42,
                         network_id: format!("http://{address}"),
                         data: "offer".into()
@@ -978,8 +980,8 @@ mod tests {
         let answer = async {
             let mut signal = signals.recv().await.unwrap();
             assert_eq!(signal.network_id, "123");
-            assert_eq!(signal.typ, signal_type::OFFER);
-            signal.typ = signal_type::ANSWER.into();
+            assert_eq!(signal.typ, SignalType::Offer);
+            signal.typ = SignalType::Answer;
             signal.data = "v=0\r\ns=-\r\n".into();
             handler.signal(signal).await.unwrap();
         };
@@ -1018,7 +1020,7 @@ mod tests {
                 .offers
                 .read()
                 .try_send(Signal {
-                    typ: signal_type::OFFER.into(),
+                    typ: SignalType::Offer,
                     connection_id: id as u64,
                     data: String::new(),
                     network_id: "123".into(),
@@ -1045,7 +1047,7 @@ mod tests {
         let error = signals.recv().await.unwrap();
         assert_eq!(error.connection_id, offer.connection_id);
         assert_eq!(error.data, "14");
-        assert_eq!(error.typ, signal_type::ERROR);
+        assert_eq!(error.typ, SignalType::Error);
         assert!(handler.pending.lock().is_empty());
     }
 
@@ -1063,7 +1065,7 @@ mod tests {
         let mut two = client.take_signal_receiver().await.unwrap();
         let address = format!("http://{}", handler.local_addr().unwrap());
         let send = client.signal(Signal {
-            typ: signal_type::OFFER.into(),
+            typ: SignalType::Offer,
             connection_id: 42,
             data: "offer".into(),
             network_id: address.clone(),
@@ -1071,7 +1073,7 @@ mod tests {
         let answer = async {
             let mut signal = offers.recv().await.unwrap();
             assert_eq!(signal.network_id, "123");
-            signal.typ = signal_type::ANSWER.into();
+            signal.typ = SignalType::Answer;
             signal.data = "v=0\r\ns=-\r\n".into();
             handler.signal(signal).await.unwrap();
         };
