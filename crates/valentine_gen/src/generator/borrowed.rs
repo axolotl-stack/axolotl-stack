@@ -1221,6 +1221,21 @@ impl BorrowedGenerator<'_, '_> {
                 inner_type,
             } => {
                 let len_decode = self.decode_length_expr(count_type, buf_ident.clone())?;
+                let byte_decoder = match inner_type.as_ref() {
+                    Type::Primitive(Primitive::U8) => {
+                        Some(quote! { crate::bedrock::codec::decode_u8_vec })
+                    }
+                    Type::Primitive(Primitive::I8) => {
+                        Some(quote! { crate::bedrock::codec::decode_i8_vec })
+                    }
+                    _ => None,
+                };
+                if let Some(decode) = byte_decoder {
+                    return Ok(quote! {{
+                        let len = #len_decode;
+                        #decode(#buf_ident, len)?
+                    }});
+                }
                 let inner_decode = self.decode_expr(
                     inner_type,
                     field_name,

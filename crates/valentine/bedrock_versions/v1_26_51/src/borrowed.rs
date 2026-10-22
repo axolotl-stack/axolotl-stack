@@ -405,16 +405,7 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for SkinImageView {
                     (),
                 )?
                 .0 as usize;
-            let mut values = crate::bedrock::codec::prepare_decode_vec(
-                len,
-                bytes::Buf::remaining(&*buf),
-                Some(1usize),
-            )?;
-            for _ in 0..len {
-                let value = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-                values.push(value);
-            }
-            values
+            crate::bedrock::codec::decode_u8_vec(buf, len)?
         };
         Ok(Self {
             width,
@@ -2842,16 +2833,7 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode
                     (),
                 )?
                 .0 as usize;
-            let mut values = crate::bedrock::codec::prepare_decode_vec(
-                len,
-                bytes::Buf::remaining(&*buf),
-                Some(1usize),
-            )?;
-            for _ in 0..len {
-                let value = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-                values.push(value);
-            }
-            values
+            crate::bedrock::codec::decode_u8_vec(buf, len)?
         };
         Ok(Self {
             enum_value_symbol,
@@ -17963,16 +17945,7 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for LegacySetSlotView {
                     (),
                 )?
                 .0 as usize;
-            let mut values = crate::bedrock::codec::prepare_decode_vec(
-                len,
-                bytes::Buf::remaining(&*buf),
-                Some(1usize),
-            )?;
-            for _ in 0..len {
-                let value = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-                values.push(value);
-            }
-            values
+            crate::bedrock::codec::decode_u8_vec(buf, len)?
         };
         Ok(Self {
             container_enum,
@@ -28065,17 +28038,7 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for SubChunkPacketPayloadHeig
                             (),
                         )?
                         .0 as usize;
-                        let mut values = crate::bedrock::codec::prepare_decode_vec(
-                            len,
-                            bytes::Buf::remaining(&*buf),
-                            Some(1usize),
-                        )?;
-                        for _ in 0..len {
-                            let value =
-                                <i8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-                            values.push(value);
-                        }
-                        values
+                        crate::bedrock::codec::decode_i8_vec(buf, len)?
                     })
                 })?
             })
@@ -28098,17 +28061,7 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for SubChunkPacketPayloadHeig
                             (),
                         )?
                         .0 as usize;
-                        let mut values = crate::bedrock::codec::prepare_decode_vec(
-                            len,
-                            bytes::Buf::remaining(&*buf),
-                            Some(1usize),
-                        )?;
-                        for _ in 0..len {
-                            let value =
-                                <i8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-                            values.push(value);
-                        }
-                        values
+                        crate::bedrock::codec::decode_i8_vec(buf, len)?
                     })
                 })?
             })
@@ -29876,16 +29829,7 @@ impl crate::bedrock::borrowed::BedrockBorrowDecode for VoxelShapesSerializableCe
                     (),
                 )?
                 .0 as usize;
-            let mut values = crate::bedrock::codec::prepare_decode_vec(
-                len,
-                bytes::Buf::remaining(&*buf),
-                Some(1usize),
-            )?;
-            for _ in 0..len {
-                let value = <u8 as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
-                values.push(value);
-            }
-            values
+            crate::bedrock::codec::decode_u8_vec(buf, len)?
         };
         Ok(Self {
             x_size,

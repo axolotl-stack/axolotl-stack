@@ -321,6 +321,21 @@ fn generate_field_decode_expr(
                 },
                 _ => quote! { 0 },
             };
+            let byte_decoder = match inner_type.as_ref() {
+                Type::Primitive(Primitive::U8) => {
+                    Some(quote! { crate::bedrock::codec::decode_u8_vec })
+                }
+                Type::Primitive(Primitive::I8) => {
+                    Some(quote! { crate::bedrock::codec::decode_i8_vec })
+                }
+                _ => None,
+            };
+            if let Some(decode) = byte_decoder {
+                return Ok(quote! {{
+                    let len = (#count_read) as usize;
+                    #decode(buf, len)?
+                }});
+            }
 
             let inner_var_name = format!("{}Item", var_name);
             let inner_decode = generate_field_decode_expr(
@@ -3287,6 +3302,10 @@ pub fn generate_enum_type_codec(
 ) -> Result<TokenStream, Box<dyn std::error::Error>> {
     let struct_ident = format_ident!("{}", name);
     let repr_ty = primitive_to_enum_repr_tokens(underlying);
+    // Larger/variable-width enum codecs inflate enclosing container hot loops.
+    let inline_decode = (variants.len() <= 16
+        && matches!(underlying, Primitive::U8 | Primitive::I8))
+    .then(|| quote! { #[inline] });
     let mut match_arms = Vec::new();
     for (var_name, val) in variants {
         let variant_ident = format_ident!("{}", var_name);
@@ -3442,6 +3461,7 @@ pub fn generate_enum_type_codec(
                 };
                 #encode_logic
             }
+            #inline_decode
             fn decode<B: bytes::Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, crate::bedrock::error::DecodeError> {
                 #decode_logic
                 match val {

@@ -66,6 +66,24 @@ pub fn prepare_decode_vec<T>(
     Ok(Vec::new())
 }
 
+/// Decodes a byte-sized collection with one validated bulk copy.
+#[inline]
+pub fn decode_u8_vec<B: Buf>(buf: &mut B, len: usize) -> Result<Vec<u8>, DecodeError> {
+    let mut values = prepare_decode_vec(len, buf.remaining(), Some(1))?;
+    values.resize(len, 0);
+    buf.copy_to_slice(&mut values);
+    Ok(values)
+}
+
+/// Uses an owning iterator so std can reuse the equal-sized byte allocation.
+#[inline]
+pub fn decode_i8_vec<B: Buf>(buf: &mut B, len: usize) -> Result<Vec<i8>, DecodeError> {
+    Ok(decode_u8_vec(buf, len)?
+        .into_iter()
+        .map(|byte| byte as i8)
+        .collect())
+}
+
 /// Ensures one more decoded item can be pushed without an infallible allocator path.
 #[inline]
 pub fn reserve_decode_item<T>(values: &mut Vec<T>) -> Result<(), DecodeError> {
@@ -1927,5 +1945,31 @@ mod tests {
         let mut over_limit = nested_lists(513, NbtEncoding::NetworkLittleEndian);
         let err = Nbt::decode(&mut over_limit, ()).unwrap_err();
         assert!(matches!(err, DecodeError::NbtDepthExceeded { max: 512 }));
+    }
+
+    #[test]
+    fn signed_byte_vectors_preserve_bits_and_boundaries_across_segments() {
+        let mut wire: Vec<u8> = (0..=255).collect();
+        wire.push(0x5a);
+        let source = bytes::Bytes::from(wire);
+        let expected: Vec<i8> = (0..=255).map(|byte| byte as u8 as i8).collect();
+        for split in 0..=source.len() {
+            let mut input = source.slice(..split).chain(source.slice(split..));
+            assert_eq!(decode_i8_vec(&mut input, 256).unwrap(), expected);
+            assert_eq!(input.get_u8(), 0x5a);
+            assert!(!input.has_remaining());
+        }
+        let mut truncated = source.slice(..255);
+        assert!(matches!(
+            decode_i8_vec(&mut truncated, 256),
+            Err(DecodeError::ArrayLengthExceeded {
+                declared: 256,
+                available: 255
+            })
+        ));
+        assert_eq!(truncated.remaining(), 255);
+        let mut empty = source.slice(256..);
+        assert!(decode_i8_vec(&mut empty, 0).unwrap().is_empty());
+        assert_eq!(empty.get_u8(), 0x5a);
     }
 }

@@ -166,7 +166,9 @@ current canonical packet.
 `Primitive::ByteArray` emits `bytes::Bytes`, with length-prefix handling at each
 field site. Contiguous shared inputs use `Buf::copy_to_bytes` to retain the input
 allocation; borrowed-to-owned conversion does not copy these buffers. Explicit
-arrays of `u8` retain their collection representation.
+arrays of `u8`/`i8` retain their collection representation but decode through a
+validated, fallibly reserved bulk copy instead of per-element `Result` handling.
+Signed conversion uses an owning iterator so std can reuse the byte allocation.
 
 `Type::String` and the `LittleString` fixed-width wire codec expose
 `bedrock_core::bedrock::codec::BedrockString` (`bytestring::ByteString`).

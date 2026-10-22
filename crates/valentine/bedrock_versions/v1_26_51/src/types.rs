@@ -151,6 +151,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsActorLinkType {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -370,15 +371,7 @@ impl crate::bedrock::codec::BedrockCodec for SkinImage {
                     (),
                 )?
                 .0) as usize;
-            let mut tmp_vec =
-                crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(1usize))?;
-            for _ in 0..len {
-                tmp_vec.push(<u8 as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?);
-            }
-            tmp_vec
+            crate::bedrock::codec::decode_u8_vec(buf, len)?
         };
         Ok(Self {
             width,
@@ -1867,6 +1860,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsEasNoiseAlignmentType {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -2933,15 +2927,7 @@ impl crate::bedrock::codec::BedrockCodec for AvailableCommandsPacketPayloadConst
                     (),
                 )?
                 .0) as usize;
-            let mut tmp_vec =
-                crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(1usize))?;
-            for _ in 0..len {
-                tmp_vec.push(<u8 as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?);
-            }
-            tmp_vec
+            crate::bedrock::codec::decode_u8_vec(buf, len)?
         };
         Ok(Self {
             enum_value_symbol,
@@ -5642,6 +5628,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsSharedTypesVillageType {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -8759,6 +8746,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsSharedTypesv12190CameraPresetA
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -9019,6 +9007,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsControlSchemeScheme {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -10989,6 +10978,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsSharedTypesCreativeItemCategor
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -11358,6 +11348,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsDataItemType {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -15942,6 +15933,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsItemStackRequestCerealItemDesc
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -19437,6 +19429,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsItemUseInventoryTransactionTri
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -19483,6 +19476,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsHandSlot {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -19526,6 +19520,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsItemUseInventoryTransactionPre
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -19571,6 +19566,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsItemUseInventoryTransactionCli
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -19886,15 +19882,7 @@ impl crate::bedrock::codec::BedrockCodec for LegacySetSlot {
                     (),
                 )?
                 .0) as usize;
-            let mut tmp_vec =
-                crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(1usize))?;
-            for _ in 0..len {
-                tmp_vec.push(<u8 as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?);
-            }
-            tmp_vec
+            crate::bedrock::codec::decode_u8_vec(buf, len)?
         };
         Ok(Self {
             container_enum,
@@ -22878,6 +22866,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsPlayerPermissionLevel {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -22926,6 +22915,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsChatRestrictionLevel {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -23769,6 +23759,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsServerWaypointGroupAction {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -26250,6 +26241,7 @@ impl crate::bedrock::codec::BedrockCodec for PlayerListPacketPayloadAddEntryActi
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -26389,6 +26381,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsSharedTypespersonaArmSizeType 
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -27390,6 +27383,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsPlayerListPacketType {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -27927,6 +27921,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsScriptModuleMinecraftScriptPri
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -29357,6 +29352,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsCommandPermissionLevel {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -32811,6 +32807,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsRotation {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -32862,6 +32859,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsMirror {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -32910,6 +32908,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsAnimationMode {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -33082,6 +33081,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsStructureRedstoneSaveMode {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -33269,6 +33269,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsSubChunkPacketPayloadHeightMap
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -33323,6 +33324,7 @@ impl crate::bedrock::codec::BedrockCodec for SubChunkPacketPayloadHeightmapDataR
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -33444,18 +33446,7 @@ impl crate::bedrock::codec::BedrockCodec for SubChunkPacketPayloadHeightmapData 
                                 (),
                             )?
                             .0) as usize;
-                            let mut tmp_vec = crate::bedrock::codec::prepare_decode_vec(
-                                len,
-                                buf.remaining(),
-                                Some(1usize),
-                            )?;
-                            for _ in 0..len {
-                                tmp_vec.push(<i8 as crate::bedrock::codec::BedrockCodec>::decode(
-                                    buf,
-                                    (),
-                                )?);
-                            }
-                            tmp_vec
+                            crate::bedrock::codec::decode_i8_vec(buf, len)?
                         })
                     })?
                 })
@@ -33478,18 +33469,7 @@ impl crate::bedrock::codec::BedrockCodec for SubChunkPacketPayloadHeightmapData 
                                 (),
                             )?
                             .0) as usize;
-                            let mut tmp_vec = crate::bedrock::codec::prepare_decode_vec(
-                                len,
-                                buf.remaining(),
-                                Some(1usize),
-                            )?;
-                            for _ in 0..len {
-                                tmp_vec.push(<i8 as crate::bedrock::codec::BedrockCodec>::decode(
-                                    buf,
-                                    (),
-                                )?);
-                            }
-                            tmp_vec
+                            crate::bedrock::codec::decode_i8_vec(buf, len)?
                         })
                     })?
                 })
@@ -33584,6 +33564,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsSubChunkPacketPayloadSubChunkR
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -34520,6 +34501,7 @@ impl crate::bedrock::codec::BedrockCodec for TextPacketPayloadAuthorAndMessageMe
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -34655,6 +34637,7 @@ impl crate::bedrock::codec::BedrockCodec for TextPacketPayloadMessageAndParamsMe
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -34826,6 +34809,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsTextPacketType {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -35354,15 +35338,7 @@ impl crate::bedrock::codec::BedrockCodec for VoxelShapesSerializableCells {
                     (),
                 )?
                 .0) as usize;
-            let mut tmp_vec =
-                crate::bedrock::codec::prepare_decode_vec(len, buf.remaining(), Some(1usize))?;
-            for _ in 0..len {
-                tmp_vec.push(<u8 as crate::bedrock::codec::BedrockCodec>::decode(
-                    buf,
-                    (),
-                )?);
-            }
-            tmp_vec
+            crate::bedrock::codec::decode_u8_vec(buf, len)?
         };
         Ok(Self {
             x_size,
@@ -35979,6 +35955,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsAgentAnimation {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -36031,6 +36008,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsAnimatePacketPayloadAction {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -36095,6 +36073,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsBossBarColor {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -36153,6 +36132,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsBossBarOverlay {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -36220,6 +36200,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsBossEventUpdateType {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -36270,6 +36251,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsCameraAimAssistPacketPayloadAc
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -36313,6 +36295,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsCameraAimAssistPacketPayloadTa
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -36356,6 +36339,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsCameraAimAssistPresetsPacketOp
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -36399,6 +36383,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsCameraShakeAction {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -36442,6 +36427,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsCameraShakeType {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -36485,6 +36471,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsClientCameraAimAssistPacketAct
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -36618,6 +36605,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsClientboundTextureShiftPacketP
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -36678,6 +36666,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsCodeBuilderExecutionStateCodeS
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -36728,6 +36717,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsCodeBuilderStorageQueryOptions
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -36778,6 +36768,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsCodeBuilderStorageQueryOptions
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -37482,6 +37473,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsGraphicsMode {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -37986,6 +37978,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsInteractPacketPayloadAction {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -38035,6 +38028,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsLabTablePacketPayloadType {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -38112,6 +38106,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsLabTableReactionType {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -38341,6 +38336,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsMobEffectPacketPayloadEvent {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -38386,6 +38382,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsModalFormCancelReason {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -38658,6 +38655,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsNpcRequestPacketPayloadRequest
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -38864,6 +38862,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsPhotoType {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -39294,6 +39293,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsPlayerPositionModeComponentPos
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -39342,6 +39342,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsPlayerRespawnState {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -39387,6 +39388,7 @@ impl crate::bedrock::codec::BedrockCodec
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -39436,6 +39438,7 @@ impl crate::bedrock::codec::BedrockCodec
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -39483,6 +39486,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsRequestAbilityPacketPayloadTyp
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -39527,6 +39531,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsRewindType {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -39570,6 +39575,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsScoreboardIdentityPacketType {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -39668,6 +39674,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsSetPlayerFurnaceOptionsPacketP
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -39793,6 +39800,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsShowStoreOfferRedirectType {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -39896,6 +39904,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsSimulationType {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -39944,6 +39953,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsSoftEnumUpdateType {
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -40043,6 +40053,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsStructureTemplateRequestOperat
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
@@ -40091,6 +40102,7 @@ impl crate::bedrock::codec::BedrockCodec for EnumsStructureTemplateResponseType 
         };
         val.encode(buf)
     }
+    #[inline]
     fn decode<B: bytes::Buf>(
         buf: &mut B,
         _args: Self::Args,
