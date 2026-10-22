@@ -22,7 +22,8 @@ tokio-util = { workspace = true, features = ["codec", "net"] }
 [dev-dependencies]
 criterion.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
-tokio = { workspace = true, features = ["rt-multi-thread"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "process"] }
+parking_lot = "0.12"
 
 [[bench]]
 name = "codec_benchmark"
