@@ -25,6 +25,7 @@ pub const MAX_SEGMENT_PAYLOAD: usize = 262_143;
 
 /// Number of segments needed for `len` payload bytes; zero for an empty body,
 /// which writes no frames (`conn.go:Conn.Send`).
+#[inline]
 pub fn segment_count(len: usize, max_segment_payload: usize) -> Result<usize, NetherNetError> {
     if max_segment_payload == 0 || max_segment_payload > MAX_SEGMENT_PAYLOAD {
         return Err(NetherNetError::InvalidConfiguration(
@@ -40,6 +41,7 @@ pub fn segment_count(len: usize, max_segment_payload: usize) -> Result<usize, Ne
 
 /// Encode `payload` into wire segments of at most `max_segment_payload` bytes
 /// each (plus the count byte). The segment count is validated before any copy.
+#[inline]
 pub fn encode_segments(
     payload: &[u8],
     max_segment_payload: usize,
@@ -121,6 +123,7 @@ impl Reassembler {
 
     /// Feed one data-channel message. Returns the complete body once the final
     /// segment arrives (unreliable segments complete immediately).
+    #[inline]
     pub fn push(
         &mut self,
         segment: Bytes,

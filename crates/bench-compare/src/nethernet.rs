@@ -46,6 +46,8 @@ pub fn signal_fixtures() -> [(&'static str, String); 4] {
 
 pub fn micro(iterations: usize) -> Result<()> {
     ensure!(iterations > 0, "iterations must be positive");
+    // Framing first, in the same order as the Cinnabar adapter's micro.
+    framing_micro(iterations)?;
     for (name, text) in signal_fixtures() {
         let signal = Signal::parse(&text, "2".into())?;
         ensure!(signal.to_string() == text, "signal roundtrip mismatch");
@@ -110,7 +112,6 @@ pub fn micro(iterations: usize) -> Result<()> {
             black_box(format_candidate());
         },
     )?;
-    framing_micro(iterations)?;
     eprintln!(
         "{}",
         serde_json::json!({"area":"coverage", "status":"unavailable", "name":"nethernet_discovery", "implementation":IMPLEMENTATION, "reason":"discovery::packet is private; encrypted/HMAC encode/decode functions are not publicly re-exported"})

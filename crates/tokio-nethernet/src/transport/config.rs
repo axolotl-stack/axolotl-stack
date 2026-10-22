@@ -14,6 +14,11 @@ pub type IpFilter = Arc<dyn Fn(IpAddr) -> bool + Send + Sync>;
 /// exact for ICE.
 #[derive(Clone)]
 pub struct TransportConfig {
+    /// Explicit local addresses to bind instead of enumerating interfaces
+    /// (the equivalent of webrtc 0.21 `with_udp_addrs`); each must still pass
+    /// the policy below. Enumeration costs milliseconds per connection on
+    /// Windows (`GetAdaptersAddresses`).
+    pub addresses: Option<Vec<IpAddr>>,
     /// Also gather loopback addresses (local testing policy, not a production default).
     pub include_loopback: bool,
     /// Optional additional address filter applied after the loopback/family policy.
@@ -27,6 +32,7 @@ pub struct TransportConfig {
 impl Default for TransportConfig {
     fn default() -> Self {
         Self {
+            addresses: None,
             include_loopback: false,
             ip_filter: None,
             udp4: true,
@@ -38,6 +44,7 @@ impl Default for TransportConfig {
 impl fmt::Debug for TransportConfig {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("TransportConfig")
+            .field("addresses", &self.addresses)
             .field("include_loopback", &self.include_loopback)
             .field("ip_filter", &self.ip_filter.as_ref().map(|_| ".."))
             .field("udp4", &self.udp4)
@@ -50,8 +57,9 @@ impl TransportConfig {
     /// IPv4 loopback only: strict local tests confining the actual ICE/DTLS/SCTP sockets.
     pub fn loopback_v4() -> Self {
         Self {
+            addresses: Some(vec![IpAddr::V4(std::net::Ipv4Addr::LOCALHOST)]),
             include_loopback: true,
-            ip_filter: Some(Arc::new(|ip| ip.is_loopback())),
+            ip_filter: None,
             udp4: true,
             udp6: false,
         }
@@ -85,8 +93,8 @@ mod tests {
         assert!(!config.allows("fe80::1".parse().unwrap()));
         assert!(!config.allows("0.0.0.0".parse().unwrap()));
         let local = TransportConfig::loopback_v4();
+        assert_eq!(local.addresses, Some(vec!["127.0.0.1".parse().unwrap()]));
         assert!(local.allows("127.0.0.1".parse().unwrap()));
-        assert!(!local.allows("192.168.1.2".parse().unwrap()));
         assert!(!local.allows("::1".parse().unwrap()));
     }
 }

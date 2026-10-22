@@ -68,6 +68,22 @@ impl Connection {
             });
             NetherNetError::DependencyPanic { context, message }
         });
+        // Timers made due by this call (e.g. ICE checks after `start`) run
+        // here rather than waiting for the driver to be scheduled.
+        for _ in 0..4 {
+            if session.is_closed() || session.poll_timeout().is_none_or(|due| due > now) {
+                break;
+            }
+            let handled =
+                std::panic::catch_unwind(AssertUnwindSafe(|| session.handle_timeout(now)));
+            if let Err(payload) = handled {
+                session.fail(NetherNetError::DependencyPanic {
+                    context: "timer",
+                    message: panic_message(payload.as_ref()),
+                });
+                break;
+            }
+        }
         let blocked = self.send_transmits(&mut session);
         if blocked || session.driver_needs_wake() || session.is_finished() {
             self.driver.notify_one();
@@ -99,10 +115,16 @@ impl Connection {
 pub(crate) fn bind_sockets(
     config: &TransportConfig,
 ) -> Result<(Vec<UdpSocket>, Vec<SocketAddr>), NetherNetError> {
-    let mut addresses: Vec<IpAddr> = rtc_shared::ifaces::ifaces()
-        .map_err(NetherNetError::Io)?
+    let candidates: Vec<IpAddr> = match &config.addresses {
+        Some(addresses) => addresses.clone(),
+        None => rtc_shared::ifaces::ifaces()
+            .map_err(NetherNetError::Io)?
+            .into_iter()
+            .filter_map(|interface| interface.addr.map(|addr| addr.ip()))
+            .collect(),
+    };
+    let mut addresses: Vec<IpAddr> = candidates
         .into_iter()
-        .filter_map(|interface| interface.addr.map(|addr| addr.ip()))
         .filter(|&ip| config.allows(ip))
         .collect();
     addresses.sort();
@@ -183,6 +205,7 @@ async fn writable_any(sockets: &[UdpSocket]) {
 pub(crate) async fn drive(connection: Arc<Connection>) {
     let mut buf = vec![0u8; RECV_BUFFER];
     let sleep = tokio::time::sleep(std::time::Duration::from_secs(3600));
+    let mut last_due = None;
     tokio::pin!(sleep);
     loop {
         let (deadline, blocked) = {
@@ -195,6 +218,14 @@ pub(crate) async fn drive(connection: Arc<Connection>) {
             (deadline, !session.transmits_mut().is_empty())
         };
         if let Some(deadline) = deadline {
+            // A Tokio sleep that is already due still waits for the timer
+            // driver's next tick (~15.6 ms on Windows); run it now instead,
+            // unless handling it did not move the deadline (no busy loop).
+            if deadline <= Instant::now() && last_due != Some(deadline) {
+                last_due = Some(deadline);
+                let _ = connection.with("timer", |session, now| session.handle_timeout(now));
+                continue;
+            }
             sleep
                 .as_mut()
                 .reset(tokio::time::Instant::from_std(deadline));
