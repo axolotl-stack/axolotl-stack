@@ -112,3 +112,57 @@ pub fn measure(
     }
     .emit()
 }
+
+/// Times an owned in-place operation without charging input preparation or verification.
+pub fn measure_prepared<T, U>(
+    name: &str,
+    operation: &str,
+    payload_bytes: usize,
+    iterations: usize,
+    mut prepare: impl FnMut() -> T,
+    mut operation_fn: impl FnMut(T) -> U,
+    mut check: impl FnMut(U),
+) -> anyhow::Result<()> {
+    anyhow::ensure!(iterations > 0, "iterations must be positive");
+    for _ in 0..32 {
+        check(operation_fn(prepare()));
+    }
+    let mut elapsed = std::time::Duration::ZERO;
+    for _ in 0..iterations {
+        let input = prepare();
+        let start = Instant::now();
+        let output = operation_fn(input);
+        elapsed += start.elapsed();
+        check(output);
+    }
+    let mut allocs = 0;
+    let mut bytes = 0;
+    for _ in 0..iterations {
+        let input = prepare();
+        let before_allocs = ALLOCS.load(Ordering::Relaxed);
+        let before_bytes = BYTES.load(Ordering::Relaxed);
+        COUNTING.store(true, Ordering::Relaxed);
+        let output = operation_fn(input);
+        COUNTING.store(false, Ordering::Relaxed);
+        allocs += ALLOCS.load(Ordering::Relaxed) - before_allocs;
+        bytes += BYTES.load(Ordering::Relaxed) - before_bytes;
+        check(output);
+    }
+    let ns_per_op = elapsed.as_secs_f64() * 1e9 / iterations as f64;
+    Row {
+        area: "batch",
+        name,
+        operation,
+        implementation: "rust-owned",
+        ns_per_op,
+        allocs_per_op: Some(allocs as f64 / iterations as f64),
+        bytes_per_op: Some(bytes as f64 / iterations as f64),
+        payload_bytes,
+        msgs_per_sec: 1e9 / ns_per_op,
+        mb_per_sec: payload_bytes as f64 * 1e3 / ns_per_op,
+        p50_us: None,
+        p99_us: None,
+        max_us: None,
+    }
+    .emit()
+}

@@ -7,27 +7,18 @@ use std::collections::VecDeque;
 use std::future::poll_fn;
 use std::pin::Pin;
 
-use aes::Aes256;
 use aes_gcm::{Aes256Gcm, Key};
 use bytes::BytesMut;
-use ctr::cipher::{KeyIvInit, StreamCipher};
-use sha2::{Digest, Sha256};
 use tracing::{debug, instrument};
 use valentine::bedrock::codec::BedrockSized;
 
 use super::{Transport, TransportMessage, TransportRecvMessage};
-use crate::batch::{
-    BatchCompression, decode_batch_no_prefix_raw, decode_batch_raw, decode_batch_raw_split,
-    encode_batch_multi_into, encode_batch_raw_into,
-};
+use crate::batch::{BatchCodec, BatchCompression, BatchEncoding};
+use crate::crypto::BatchCipher;
 use crate::error::{JolyneError, ProtocolError};
 use crate::raw::{RawPacket, decode_packet_raw, decode_packet_raw_split};
 use crate::valentine::{BorrowedMcpePacket, McpePacket, McpePacketArgs};
 use valentine::bedrock::context::BedrockSession;
-
-type Aes256Ctr = ctr::Ctr32BE<Aes256>;
-
-const CHECKSUM_LEN: usize = 8;
 
 /// Raw transport layer for the Bedrock protocol.
 ///
@@ -53,11 +44,8 @@ pub struct BedrockTransport<T: Transport> {
 
     // Encryption State (Bedrock: AES-256-CTR + SHA256 checksum)
     pub(crate) encryption_enabled: bool,
-    send_cipher: Option<Aes256Ctr>,
-    recv_cipher: Option<Aes256Ctr>,
-    key_bytes: Option<Vec<u8>>,
-    send_counter: u64,
-    recv_counter: u64,
+    send_cipher: Option<BatchCipher>,
+    recv_cipher: Option<BatchCipher>,
 
     // Compression State
     pub(crate) compression_enabled: bool,
@@ -65,6 +53,7 @@ pub struct BedrockTransport<T: Transport> {
     pub(crate) compression_level: u32,
     pub(crate) compression_threshold: u16,
     max_decompressed_batch_size: Option<usize>,
+    batch_codec: BatchCodec,
     encryption_header_len: usize,
 
     // Reusable outbound buffers to avoid per-send allocation churn.
@@ -85,9 +74,7 @@ impl<T: Transport> BedrockTransport<T> {
             encryption_enabled: false,
             send_cipher: None,
             recv_cipher: None,
-            key_bytes: None,
-            send_counter: 0,
-            recv_counter: 0,
+            batch_codec: BatchCodec::default(),
             compression_enabled: false,
             compression_algorithm: BatchCompression::Deflate,
             compression_level: 7,
@@ -103,19 +90,10 @@ impl<T: Transport> BedrockTransport<T> {
     /// Enable encryption with the derived keys.
     #[instrument(skip_all, level = "debug", fields(peer_addr = %self.peer_addr()))]
     pub fn enable_encryption(&mut self, key: Key<Aes256Gcm>, iv: [u8; 12]) {
-        let key_bytes = key.to_vec();
-
-        let mut iv16 = [0u8; 16];
-        iv16[..12].copy_from_slice(&iv);
-        iv16[12..].copy_from_slice(&[0, 0, 0, 2]);
-
-        let base_cipher = Aes256Ctr::new_from_slices(&key_bytes, &iv16)
-            .expect("AES-256-CTR key/iv lengths are fixed (32/16 bytes)");
-        self.send_cipher = Some(base_cipher.clone());
-        self.recv_cipher = Some(base_cipher);
-        self.key_bytes = Some(key_bytes);
-        self.send_counter = 0;
-        self.recv_counter = 0;
+        let mut key_bytes = [0u8; 32];
+        key_bytes.copy_from_slice(&key);
+        self.send_cipher = Some(BatchCipher::new(key_bytes, iv));
+        self.recv_cipher = Some(BatchCipher::new(key_bytes, iv));
         self.encryption_enabled = true;
         debug!("encryption enabled");
     }
@@ -209,13 +187,15 @@ impl<T: Transport> BedrockTransport<T> {
 
         // 1. Encode Batch (Handles Compression)
         // Use T::USES_BATCH_PREFIX to conditionally add 0xFE prefix
-        encode_batch_multi_into(
+        self.batch_codec.encode_batch_multi_into(
             packets,
-            self.compression_enabled,
-            self.compression_algorithm,
-            self.compression_level,
-            self.compression_threshold,
-            T::USES_BATCH_PREFIX,
+            BatchEncoding {
+                enabled: self.compression_enabled,
+                algorithm: self.compression_algorithm,
+                level: self.compression_level,
+                threshold: self.compression_threshold,
+                prefix: T::USES_BATCH_PREFIX,
+            },
             &mut self.send_batch_buffer,
         )?;
 
@@ -225,22 +205,8 @@ impl<T: Transport> BedrockTransport<T> {
                 .send_cipher
                 .as_mut()
                 .expect("encryption_enabled implies send_cipher is initialised");
-            let key_bytes = self
-                .key_bytes
-                .as_deref()
-                .expect("encryption_enabled implies key_bytes is initialised");
-            tracing::trace!(
-                "Encrypting batch of {} bytes (send_counter={})",
-                self.send_batch_buffer.len(),
-                self.send_counter
-            );
-            Self::encrypt_buffer(
-                &mut self.send_batch_buffer,
-                cipher,
-                key_bytes,
-                &mut self.send_counter,
-                self.encryption_header_len,
-            )?;
+            tracing::trace!("Encrypting batch of {} bytes", self.send_batch_buffer.len());
+            cipher.encrypt(&mut self.send_batch_buffer, self.encryption_header_len)?;
             tracing::trace!("Encrypted batch is {} bytes", self.send_batch_buffer.len());
             TransportMessage::reliable(self.send_batch_buffer.split().freeze())
         } else if reliable {
@@ -291,17 +257,7 @@ impl<T: Transport> BedrockTransport<T> {
                 .send_cipher
                 .as_mut()
                 .expect("encryption_enabled implies send_cipher is initialised");
-            let key_bytes = self
-                .key_bytes
-                .as_deref()
-                .expect("encryption_enabled implies key_bytes is initialised");
-            Self::encrypt_buffer(
-                &mut self.send_raw_buffer,
-                cipher,
-                key_bytes,
-                &mut self.send_counter,
-                self.encryption_header_len,
-            )?;
+            cipher.encrypt(&mut self.send_raw_buffer, self.encryption_header_len)?;
         }
 
         let msg = TransportMessage::reliable(self.send_raw_buffer.split().freeze());
@@ -417,17 +373,7 @@ impl<T: Transport> BedrockTransport<T> {
                 .recv_cipher
                 .as_mut()
                 .expect("encryption_enabled implies recv_cipher is initialised");
-            let key_bytes = self
-                .key_bytes
-                .as_deref()
-                .expect("encryption_enabled implies key_bytes is initialised");
-            Self::decrypt_buffer(
-                &mut self.recv_decrypt_buffer,
-                cipher,
-                key_bytes,
-                &mut self.recv_counter,
-                self.encryption_header_len,
-            )?;
+            cipher.decrypt(&mut self.recv_decrypt_buffer, self.encryption_header_len)?;
             let mut buf = self.recv_decrypt_buffer.split().freeze();
             if buf.is_empty() {
                 return Ok(vec![]);
@@ -435,7 +381,7 @@ impl<T: Transport> BedrockTransport<T> {
 
             if T::USES_BATCH_PREFIX {
                 if buf[0] == 0xFE {
-                    decode_batch_raw(
+                    self.batch_codec.decode_batch_raw(
                         &mut buf,
                         self.compression_enabled,
                         self.max_decompressed_batch_size,
@@ -444,7 +390,8 @@ impl<T: Transport> BedrockTransport<T> {
                     Ok(vec![decode_packet_raw(&mut buf)?])
                 }
             } else if self.compression_enabled {
-                decode_batch_no_prefix_raw(&mut buf, self.max_decompressed_batch_size)
+                self.batch_codec
+                    .decode_batch_no_prefix_raw(&mut buf, self.max_decompressed_batch_size)
             } else {
                 Ok(vec![decode_packet_raw(&mut buf)?])
             }
@@ -457,7 +404,7 @@ impl<T: Transport> BedrockTransport<T> {
 
                     if T::USES_BATCH_PREFIX {
                         if buf[0] == 0xFE {
-                            decode_batch_raw(
+                            self.batch_codec.decode_batch_raw(
                                 &mut buf,
                                 self.compression_enabled,
                                 self.max_decompressed_batch_size,
@@ -466,14 +413,15 @@ impl<T: Transport> BedrockTransport<T> {
                             Ok(vec![decode_packet_raw(&mut buf)?])
                         }
                     } else if self.compression_enabled {
-                        decode_batch_no_prefix_raw(&mut buf, self.max_decompressed_batch_size)
+                        self.batch_codec
+                            .decode_batch_no_prefix_raw(&mut buf, self.max_decompressed_batch_size)
                     } else {
                         Ok(vec![decode_packet_raw(&mut buf)?])
                     }
                 }
                 TransportRecvMessage::SplitFirst { first, rest } => {
                     if T::USES_BATCH_PREFIX && first == 0xFE {
-                        decode_batch_raw_split(
+                        self.batch_codec.decode_batch_raw_split(
                             first,
                             rest,
                             self.compression_enabled,
@@ -506,13 +454,15 @@ impl<T: Transport> BedrockTransport<T> {
             return Ok(());
         }
 
-        encode_batch_raw_into(
+        self.batch_codec.encode_batch_raw_into(
             packets,
-            self.compression_enabled,
-            self.compression_algorithm,
-            self.compression_level,
-            self.compression_threshold,
-            T::USES_BATCH_PREFIX,
+            BatchEncoding {
+                enabled: self.compression_enabled,
+                algorithm: self.compression_algorithm,
+                level: self.compression_level,
+                threshold: self.compression_threshold,
+                prefix: T::USES_BATCH_PREFIX,
+            },
             &mut self.send_batch_buffer,
         )?;
 
@@ -521,17 +471,7 @@ impl<T: Transport> BedrockTransport<T> {
                 .send_cipher
                 .as_mut()
                 .expect("encryption_enabled implies send_cipher is initialised");
-            let key_bytes = self
-                .key_bytes
-                .as_deref()
-                .expect("encryption_enabled implies key_bytes is initialised");
-            Self::encrypt_buffer(
-                &mut self.send_batch_buffer,
-                cipher,
-                key_bytes,
-                &mut self.send_counter,
-                self.encryption_header_len,
-            )?;
+            cipher.encrypt(&mut self.send_batch_buffer, self.encryption_header_len)?;
             TransportMessage::reliable(self.send_batch_buffer.split().freeze())
         } else if reliable {
             TransportMessage::reliable(self.send_batch_buffer.split().freeze())
@@ -549,87 +489,6 @@ impl<T: Transport> BedrockTransport<T> {
     /// Sends a single raw packet (convenience wrapper around `send_batch_raw`).
     pub async fn send_packet_raw(&mut self, packet: RawPacket) -> Result<(), JolyneError> {
         self.send_batch_raw(&[packet], true).await
-    }
-
-    // --- Crypto Helpers ---
-
-    fn encrypt_buffer(
-        buf: &mut BytesMut,
-        cipher: &mut Aes256Ctr,
-        key_bytes: &[u8],
-        counter: &mut u64,
-        header_len: usize,
-    ) -> Result<(), JolyneError> {
-        if buf.is_empty() {
-            return Ok(());
-        }
-        if header_len > buf.len() {
-            return Err(ProtocolError::UnexpectedHandshake(format!(
-                "encryption header length {} exceeds packet length {}",
-                header_len,
-                buf.len()
-            ))
-            .into());
-        }
-
-        let counter_value = *counter;
-        *counter = counter.wrapping_add(1);
-
-        let counter_bytes = counter_value.to_le_bytes();
-        let mut digest = Sha256::new();
-        digest.update(counter_bytes);
-        digest.update(&buf[header_len..]);
-        digest.update(key_bytes);
-        let checksum = digest.finalize();
-
-        buf.extend_from_slice(&checksum[..CHECKSUM_LEN]);
-        cipher.apply_keystream(&mut buf[header_len..]);
-
-        Ok(())
-    }
-
-    fn decrypt_buffer(
-        buf: &mut BytesMut,
-        cipher: &mut Aes256Ctr,
-        key_bytes: &[u8],
-        counter: &mut u64,
-        header_len: usize,
-    ) -> Result<(), JolyneError> {
-        if buf.len() < header_len + CHECKSUM_LEN {
-            return Err(ProtocolError::UnexpectedHandshake(format!(
-                "encrypted packet must be at least {} bytes long, got {}",
-                header_len + CHECKSUM_LEN,
-                buf.len()
-            ))
-            .into());
-        }
-
-        cipher.apply_keystream(&mut buf[header_len..]);
-
-        let checksum_start = buf.len() - CHECKSUM_LEN;
-        let their_checksum = &buf[checksum_start..];
-
-        let counter_value = *counter;
-        *counter = counter.wrapping_add(1);
-
-        let counter_bytes = counter_value.to_le_bytes();
-        let mut digest = Sha256::new();
-        digest.update(counter_bytes);
-        digest.update(&buf[header_len..checksum_start]);
-        digest.update(key_bytes);
-        let our_checksum_full = digest.finalize();
-        let our_checksum = &our_checksum_full[..CHECKSUM_LEN];
-
-        if their_checksum != our_checksum {
-            return Err(ProtocolError::UnexpectedHandshake(format!(
-                "invalid checksum of packet {}: expected {:02x?}, got {:02x?}",
-                counter_value, our_checksum, their_checksum
-            ))
-            .into());
-        }
-
-        buf.truncate(checksum_start);
-        Ok(())
     }
 
     /// Returns the peer address.
@@ -674,418 +533,6 @@ mod tests {
         }
     }
 
-    // ========== Encryption Checksum Tests ==========
-
-    /// Computes the Bedrock checksum: SHA256(counter_le || data || key) truncated to 8 bytes.
-    fn compute_checksum(counter: u64, data: &[u8], key: &[u8]) -> [u8; CHECKSUM_LEN] {
-        let mut digest = Sha256::new();
-        digest.update(counter.to_le_bytes());
-        digest.update(data);
-        digest.update(key);
-        let hash = digest.finalize();
-        let mut result = [0u8; CHECKSUM_LEN];
-        result.copy_from_slice(&hash[..CHECKSUM_LEN]);
-        result
-    }
-
-    #[test]
-    fn checksum_is_first_8_bytes_of_sha256() {
-        let counter: u64 = 0;
-        let data = b"hello world";
-        let key = b"0123456789abcdef0123456789abcdef";
-
-        let checksum = compute_checksum(counter, data, key);
-
-        // Verify it's 8 bytes
-        assert_eq!(checksum.len(), CHECKSUM_LEN);
-
-        // Compute full SHA256 and verify truncation
-        let mut full_digest = Sha256::new();
-        full_digest.update(counter.to_le_bytes());
-        full_digest.update(data);
-        full_digest.update(key);
-        let full_hash = full_digest.finalize();
-
-        assert_eq!(&checksum[..], &full_hash[..CHECKSUM_LEN]);
-    }
-
-    #[test]
-    fn checksum_changes_with_counter() {
-        let data = b"test data";
-        let key = b"0123456789abcdef0123456789abcdef";
-
-        let checksum_0 = compute_checksum(0, data, key);
-        let checksum_1 = compute_checksum(1, data, key);
-        let checksum_max = compute_checksum(u64::MAX, data, key);
-
-        assert_ne!(checksum_0, checksum_1);
-        assert_ne!(checksum_0, checksum_max);
-        assert_ne!(checksum_1, checksum_max);
-    }
-
-    #[test]
-    fn checksum_changes_with_data() {
-        let key = b"0123456789abcdef0123456789abcdef";
-
-        let checksum_a = compute_checksum(0, b"data_a", key);
-        let checksum_b = compute_checksum(0, b"data_b", key);
-
-        assert_ne!(checksum_a, checksum_b);
-    }
-
-    #[test]
-    fn checksum_changes_with_key() {
-        let data = b"test data";
-
-        let checksum_key1 = compute_checksum(0, data, b"key1_padding_to_32_bytes_12345");
-        let checksum_key2 = compute_checksum(0, data, b"key2_padding_to_32_bytes_12345");
-
-        assert_ne!(checksum_key1, checksum_key2);
-    }
-
-    // ========== IV Expansion Tests ==========
-
-    #[test]
-    fn iv_expansion_12_to_16_bytes() {
-        let iv_12: [u8; 12] = [
-            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C,
-        ];
-
-        // Bedrock format: [12-byte IV][0, 0, 0, 2]
-        let mut iv_16 = [0u8; 16];
-        iv_16[..12].copy_from_slice(&iv_12);
-        iv_16[12..].copy_from_slice(&[0, 0, 0, 2]);
-
-        assert_eq!(&iv_16[..12], &iv_12[..]);
-        assert_eq!(&iv_16[12..], &[0, 0, 0, 2]);
-    }
-
-    #[test]
-    fn iv_suffix_is_big_endian_2() {
-        // The suffix [0, 0, 0, 2] is big-endian representation of 2
-        let suffix: [u8; 4] = [0, 0, 0, 2];
-        let value = u32::from_be_bytes(suffix);
-        assert_eq!(value, 2);
-    }
-
-    // ========== Counter Wrapping Tests ==========
-
-    #[test]
-    fn counter_wraps_at_u64_max() {
-        let mut counter: u64 = u64::MAX;
-        counter = counter.wrapping_add(1);
-        assert_eq!(counter, 0);
-    }
-
-    #[test]
-    fn counter_increments_correctly() {
-        let mut counter: u64 = 0;
-        for expected in 1..100 {
-            counter = counter.wrapping_add(1);
-            assert_eq!(counter, expected);
-        }
-    }
-
-    // ========== AES-256-CTR Tests ==========
-
-    #[test]
-    fn aes_ctr_encrypt_decrypt_roundtrip() {
-        let key_bytes: [u8; 32] = [0x42; 32];
-        let iv_16: [u8; 16] = [
-            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0, 0, 0, 2,
-        ];
-
-        let plaintext = b"Hello, Bedrock!";
-        let mut ciphertext = plaintext.to_vec();
-
-        // Encrypt
-        let mut cipher = Aes256Ctr::new_from_slices(&key_bytes, &iv_16).expect("valid key/iv");
-        cipher.apply_keystream(&mut ciphertext);
-
-        assert_ne!(&ciphertext[..], plaintext);
-
-        // Decrypt (same cipher state means fresh cipher)
-        let mut decrypted = ciphertext.clone();
-        let mut cipher2 = Aes256Ctr::new_from_slices(&key_bytes, &iv_16).expect("valid key/iv");
-        cipher2.apply_keystream(&mut decrypted);
-
-        assert_eq!(&decrypted[..], plaintext);
-    }
-
-    #[test]
-    fn aes_ctr_different_keys_produce_different_ciphertext() {
-        let iv: [u8; 16] = [0x01; 16];
-        let plaintext = b"Test message for encryption";
-
-        let key1: [u8; 32] = [0x11; 32];
-        let key2: [u8; 32] = [0x22; 32];
-
-        let mut ct1 = plaintext.to_vec();
-        let mut ct2 = plaintext.to_vec();
-
-        Aes256Ctr::new_from_slices(&key1, &iv)
-            .unwrap()
-            .apply_keystream(&mut ct1);
-        Aes256Ctr::new_from_slices(&key2, &iv)
-            .unwrap()
-            .apply_keystream(&mut ct2);
-
-        assert_ne!(ct1, ct2);
-    }
-
-    #[test]
-    fn aes_ctr_different_ivs_produce_different_ciphertext() {
-        let key: [u8; 32] = [0x42; 32];
-        let plaintext = b"Test message for encryption";
-
-        let iv1: [u8; 16] = [0x01; 16];
-        let iv2: [u8; 16] = [0x02; 16];
-
-        let mut ct1 = plaintext.to_vec();
-        let mut ct2 = plaintext.to_vec();
-
-        Aes256Ctr::new_from_slices(&key, &iv1)
-            .unwrap()
-            .apply_keystream(&mut ct1);
-        Aes256Ctr::new_from_slices(&key, &iv2)
-            .unwrap()
-            .apply_keystream(&mut ct2);
-
-        assert_ne!(ct1, ct2);
-    }
-
-    // ========== Encrypt/Decrypt Message Format Tests ==========
-
-    /// Simulates encrypt_outgoing behavior for testing
-    fn encrypt_message(data: &[u8], key: &[u8], cipher: &mut Aes256Ctr, counter: u64) -> BytesMut {
-        if data.is_empty() {
-            return BytesMut::new();
-        }
-
-        let mut buf = BytesMut::from(data);
-
-        // Compute checksum: SHA256(counter || data[1..] || key)[..8]
-        let checksum = compute_checksum(counter, &data[1..], key);
-
-        // Append checksum
-        buf.extend_from_slice(&checksum);
-
-        // Encrypt everything after first byte
-        cipher.apply_keystream(&mut buf[1..]);
-
-        buf
-    }
-
-    /// Simulates decrypt_incoming behavior for testing
-    fn decrypt_message(
-        buf: &mut BytesMut,
-        key: &[u8],
-        cipher: &mut Aes256Ctr,
-        counter: u64,
-    ) -> Result<(), &'static str> {
-        if buf.is_empty() {
-            return Ok(());
-        }
-
-        // Decrypt everything after first byte
-        cipher.apply_keystream(&mut buf[1..]);
-
-        if buf.len() < 1 + CHECKSUM_LEN {
-            return Err("packet too short");
-        }
-
-        // Verify checksum
-        let checksum_start = buf.len() - CHECKSUM_LEN;
-        let their_checksum = &buf[checksum_start..];
-        let our_checksum = compute_checksum(counter, &buf[1..checksum_start], key);
-
-        if their_checksum != our_checksum {
-            return Err("checksum mismatch");
-        }
-
-        // Remove checksum
-        buf.truncate(checksum_start);
-        Ok(())
-    }
-
-    #[test]
-    fn encrypt_decrypt_roundtrip_with_checksum() {
-        let key: [u8; 32] = [0x42; 32];
-        let iv: [u8; 16] = [
-            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0, 0, 0, 2,
-        ];
-
-        let original = [0xFE, 0x01, 0x02, 0x03, 0x04]; // Batch packet marker + data
-
-        // Encrypt
-        let mut send_cipher = Aes256Ctr::new_from_slices(&key, &iv).unwrap();
-        let encrypted = encrypt_message(&original, &key, &mut send_cipher, 0);
-
-        // Verify checksum was appended
-        assert_eq!(encrypted.len(), original.len() + CHECKSUM_LEN);
-
-        // Decrypt
-        let mut recv_cipher = Aes256Ctr::new_from_slices(&key, &iv).unwrap();
-        let mut decrypted = encrypted.clone();
-        decrypt_message(&mut decrypted, &key, &mut recv_cipher, 0).expect("decrypt should succeed");
-
-        assert_eq!(decrypted.as_ref(), &original[..]);
-    }
-
-    #[test]
-    fn decrypt_rejects_modified_checksum() {
-        let key: [u8; 32] = [0x42; 32];
-        let iv: [u8; 16] = [0x01; 16];
-
-        let original = [0xFE, 0x01, 0x02, 0x03, 0x04];
-
-        // Encrypt
-        let mut send_cipher = Aes256Ctr::new_from_slices(&key, &iv).unwrap();
-        let mut encrypted = encrypt_message(&original, &key, &mut send_cipher, 0);
-
-        // Tamper with checksum (last byte)
-        let last_idx = encrypted.len() - 1;
-        encrypted[last_idx] ^= 0xFF;
-
-        // Decrypt should fail
-        let mut recv_cipher = Aes256Ctr::new_from_slices(&key, &iv).unwrap();
-        let result = decrypt_message(&mut encrypted, &key, &mut recv_cipher, 0);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn decrypt_rejects_modified_payload() {
-        let key: [u8; 32] = [0x42; 32];
-        let iv: [u8; 16] = [0x01; 16];
-
-        let original = [0xFE, 0x01, 0x02, 0x03, 0x04];
-
-        // Encrypt
-        let mut send_cipher = Aes256Ctr::new_from_slices(&key, &iv).unwrap();
-        let mut encrypted = encrypt_message(&original, &key, &mut send_cipher, 0);
-
-        // Tamper with encrypted payload (after first byte, before checksum)
-        encrypted[2] ^= 0xFF;
-
-        // Decrypt should fail (checksum won't match)
-        let mut recv_cipher = Aes256Ctr::new_from_slices(&key, &iv).unwrap();
-        let result = decrypt_message(&mut encrypted, &key, &mut recv_cipher, 0);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn decrypt_rejects_wrong_counter() {
-        let key: [u8; 32] = [0x42; 32];
-        let iv: [u8; 16] = [0x01; 16];
-
-        let original = [0xFE, 0x01, 0x02, 0x03, 0x04];
-
-        // Encrypt with counter 0
-        let mut send_cipher = Aes256Ctr::new_from_slices(&key, &iv).unwrap();
-        let mut encrypted = encrypt_message(&original, &key, &mut send_cipher, 0);
-
-        // Decrypt with counter 1 (wrong)
-        let mut recv_cipher = Aes256Ctr::new_from_slices(&key, &iv).unwrap();
-        let result = decrypt_message(&mut encrypted, &key, &mut recv_cipher, 1);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn multiple_messages_with_incrementing_counters() {
-        let key: [u8; 32] = [0x42; 32];
-        let iv: [u8; 16] = [0x01; 16];
-
-        // Simulate multiple message sends with counter tracking
-        let mut send_cipher = Aes256Ctr::new_from_slices(&key, &iv).unwrap();
-        let mut recv_cipher = Aes256Ctr::new_from_slices(&key, &iv).unwrap();
-
-        for counter in 0u64..5 {
-            let original = [0xFE, counter as u8, 0x02, 0x03];
-
-            let encrypted = encrypt_message(&original, &key, &mut send_cipher, counter);
-            let mut decrypted = encrypted.clone();
-            decrypt_message(&mut decrypted, &key, &mut recv_cipher, counter).expect("decrypt");
-
-            assert_eq!(decrypted.as_ref(), &original[..]);
-        }
-    }
-
-    #[test]
-    fn empty_buffer_encrypt_is_noop() {
-        let key: [u8; 32] = [0x42; 32];
-        let iv: [u8; 16] = [0x01; 16];
-
-        let mut cipher = Aes256Ctr::new_from_slices(&key, &iv).unwrap();
-        let encrypted = encrypt_message(&[], &key, &mut cipher, 0);
-
-        assert!(encrypted.is_empty());
-    }
-
-    #[test]
-    fn decrypt_rejects_empty_encrypted_frame_without_panicking() {
-        let key: [u8; 32] = [0x42; 32];
-        let iv: [u8; 16] = [0x01; 16];
-
-        let mut cipher = Aes256Ctr::new_from_slices(&key, &iv).unwrap();
-        let mut buf = BytesMut::new();
-        let mut counter = 0;
-
-        let err = BedrockTransport::<TestTransport>::decrypt_buffer(
-            &mut buf,
-            &mut cipher,
-            &key,
-            &mut counter,
-            1,
-        )
-        .expect_err("empty encrypted frame must be rejected");
-
-        assert!(matches!(
-            err,
-            JolyneError::Protocol(ProtocolError::UnexpectedHandshake(_))
-        ));
-        assert_eq!(counter, 0, "counter must not advance for rejected frames");
-    }
-
-    #[test]
-    fn encrypt_rejects_header_longer_than_packet() {
-        let key: [u8; 32] = [0x42; 32];
-        let iv: [u8; 16] = [0x01; 16];
-
-        let mut cipher = Aes256Ctr::new_from_slices(&key, &iv).unwrap();
-        let mut buf = BytesMut::from(&b"x"[..]);
-        let mut counter = 0;
-
-        let err = BedrockTransport::<TestTransport>::encrypt_buffer(
-            &mut buf,
-            &mut cipher,
-            &key,
-            &mut counter,
-            2,
-        )
-        .expect_err("oversized cleartext header must be rejected");
-
-        assert!(matches!(
-            err,
-            JolyneError::Protocol(ProtocolError::UnexpectedHandshake(_))
-        ));
-        assert_eq!(counter, 0, "counter must not advance for rejected frames");
-    }
-
-    #[test]
-    fn first_byte_is_not_encrypted() {
-        // In Bedrock encryption, the first byte (0xFE batch marker) is NOT encrypted
-        let key: [u8; 32] = [0x42; 32];
-        let iv: [u8; 16] = [0x01; 16];
-
-        let original = [0xFE, 0x01, 0x02, 0x03];
-
-        let mut cipher = Aes256Ctr::new_from_slices(&key, &iv).unwrap();
-        let encrypted = encrypt_message(&original, &key, &mut cipher, 0);
-
-        // First byte should remain 0xFE (unencrypted)
-        assert_eq!(encrypted[0], 0xFE);
-    }
-
     // ========== Transport State Tests ==========
 
     #[test]
@@ -1121,29 +568,66 @@ mod tests {
         assert!(99usize <= threshold as usize);
     }
 
-    #[test]
-    fn encryption_requires_reliable_send() {
-        // Test the logic: encryption_enabled && !reliable -> error
-        let encryption_enabled = true;
-        let reliable = false;
-
-        let should_error = encryption_enabled && !reliable;
-        assert!(should_error);
-
-        // When reliable, no error
-        let reliable = true;
-        let should_error = encryption_enabled && !reliable;
-        assert!(!should_error);
+    #[tokio::test]
+    async fn encryption_requires_reliable_send() {
+        let mut transport = BedrockTransport::new(TestTransport);
+        transport.enable_encryption(*GenericArray::from_slice(&[0x42; 32]), [1; 12]);
+        for result in [
+            transport.send_batch_with_reliability(&[], false).await,
+            transport.send_batch_raw(&[], false).await,
+        ] {
+            assert!(matches!(
+                result,
+                Err(JolyneError::Protocol(ProtocolError::UnexpectedHandshake(_)))
+            ));
+        }
+        transport
+            .send_batch_with_reliability(&[], true)
+            .await
+            .unwrap();
+        transport.send_batch_raw(&[], true).await.unwrap();
     }
 
     // ========== Key/IV Generation Tests ==========
 
     #[test]
-    fn key_from_generic_array() {
-        // Test that GenericArray conversion works correctly
-        let key_bytes: [u8; 32] = [0x42; 32];
-        let key: Key<Aes256Gcm> = *GenericArray::from_slice(&key_bytes);
-
-        assert_eq!(key.as_slice(), &key_bytes);
+    fn enable_encryption_initializes_independent_streams() {
+        let mut transport = BedrockTransport::new(TestTransport);
+        let key = *GenericArray::from_slice(&[0x42; 32]);
+        transport.enable_encryption(key, [1; 12]);
+        let mut reference = BatchCipher::new([0x42; 32], [1; 12]);
+        for _ in 0..3 {
+            let mut expected = BytesMut::from(&b"\xfepayload"[..]);
+            let mut actual = expected.clone();
+            reference.encrypt(&mut expected, 1).unwrap();
+            transport
+                .send_cipher
+                .as_mut()
+                .unwrap()
+                .encrypt(&mut actual, 1)
+                .unwrap();
+            assert_eq!(actual, expected);
+            transport
+                .recv_cipher
+                .as_mut()
+                .unwrap()
+                .decrypt(&mut actual, 1)
+                .unwrap();
+            assert_eq!(&actual[..], b"\xfepayload");
+        }
+        // Re-enabling encryption resets both the checksum counter and AES stream.
+        transport.enable_encryption(key, [1; 12]);
+        let mut actual = BytesMut::from(&b"\xfepayload"[..]);
+        let mut expected = actual.clone();
+        BatchCipher::new([0x42; 32], [1; 12])
+            .encrypt(&mut expected, 1)
+            .unwrap();
+        transport
+            .send_cipher
+            .as_mut()
+            .unwrap()
+            .encrypt(&mut actual, 1)
+            .unwrap();
+        assert_eq!(actual, expected);
     }
 }
