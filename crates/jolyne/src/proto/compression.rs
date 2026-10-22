@@ -11,7 +11,7 @@ mod snappy;
 use bytes::BytesMut;
 use libdeflater::{CompressionLvl, Compressor, DecompressionError, Decompressor};
 
-use crate::batch::BatchCompression;
+use super::batch::BatchCompression;
 use crate::error::{JolyneError, ProtocolError};
 
 pub(crate) struct CompressionContext {
@@ -109,12 +109,12 @@ impl CompressionContext {
         &mut self,
         input: &[u8],
         algorithm: BatchCompression,
-        max: Option<usize>,
+        max: usize,
     ) -> Result<BytesMut, ProtocolError> {
         if algorithm == BatchCompression::Snappy {
             let len = snap::raw::decompress_len(input).map_err(failed)?;
-            if max.is_some_and(|max| len > max) {
-                return Err(too_large(max.unwrap()));
+            if len > max {
+                return Err(too_large(max));
             }
             let mut out = std::mem::take(&mut self.decode_scratch);
             out.resize(len, 0);
@@ -129,7 +129,7 @@ impl CompressionContext {
         // A geometric search avoids zeroing the full configured maximum for
         // small batches. Cap speculative allocations/retries; unknown sizes
         // and very large batches fall back to a strict streaming decoder.
-        let ceiling = max.unwrap_or(1024 * 1024).min(1024 * 1024);
+        let ceiling = max.min(1024 * 1024);
         let mut size = input
             .len()
             .saturating_mul(4)
@@ -150,7 +150,7 @@ impl CompressionContext {
                     return Err(failed("invalid or truncated raw DEFLATE stream"));
                 }
                 Err(DecompressionError::InsufficientSpace) => {
-                    if max == Some(size) {
+                    if max == size {
                         return Err(too_large(size));
                     }
                     if size == ceiling {
@@ -176,9 +176,7 @@ impl CompressionContext {
                 )
                 .map_err(failed)?;
             let written = (decoder.total_out() - before_out) as usize;
-            if let Some(max) = max
-                && written > max.saturating_sub(out.len())
-            {
+            if written > max.saturating_sub(out.len()) {
                 return Err(too_large(max));
             }
             out.extend_from_slice(&chunk[..written]);
@@ -233,19 +231,19 @@ mod tests {
             .compress(&mut compressed, 0, BatchCompression::Deflate, 7)
             .unwrap();
         let first = codec
-            .decompress(&compressed, BatchCompression::Deflate, Some(input.len()))
+            .decompress(&compressed, BatchCompression::Deflate, input.len())
             .unwrap();
         assert_eq!(codec.last_decompressed_len, input.len());
         let pointer = first.as_ptr();
         codec.reclaim(first);
         let second = codec
-            .decompress(&compressed, BatchCompression::Deflate, Some(input.len()))
+            .decompress(&compressed, BatchCompression::Deflate, input.len())
             .unwrap();
         assert_eq!(second.as_ptr(), pointer);
         assert_eq!(second.as_ref(), input.as_slice());
         let held = second.freeze();
         let third = codec
-            .decompress(&compressed, BatchCompression::Deflate, Some(input.len()))
+            .decompress(&compressed, BatchCompression::Deflate, input.len())
             .unwrap();
         assert_ne!(third.as_ptr(), held.as_ptr());
         assert_eq!(held.as_ref(), input.as_slice());
@@ -267,17 +265,13 @@ mod tests {
         assert_eq!(decoded, input);
         assert_eq!(
             codec
-                .decompress(&output[2..], BatchCompression::Deflate, Some(input.len()))
+                .decompress(&output[2..], BatchCompression::Deflate, input.len())
                 .unwrap(),
             input
         );
         assert!(
             codec
-                .decompress(
-                    &output[2..],
-                    BatchCompression::Deflate,
-                    Some(input.len() - 1)
-                )
+                .decompress(&output[2..], BatchCompression::Deflate, input.len() - 1)
                 .is_err()
         );
         assert!(
@@ -285,7 +279,7 @@ mod tests {
                 .decompress(
                     &output[2..output.len() - 1],
                     BatchCompression::Deflate,
-                    None
+                    usize::MAX
                 )
                 .is_err()
         );
@@ -301,7 +295,7 @@ mod tests {
         let mut codec = CompressionContext::default();
         assert_eq!(
             codec
-                .decompress(&compressed, BatchCompression::Deflate, None)
+                .decompress(&compressed, BatchCompression::Deflate, usize::MAX)
                 .unwrap(),
             input
         );
@@ -310,7 +304,7 @@ mod tests {
                 .decompress(
                     &compressed[..compressed.len() / 2],
                     BatchCompression::Deflate,
-                    None
+                    usize::MAX
                 )
                 .is_err()
         );
@@ -330,22 +324,18 @@ mod tests {
                 .unwrap();
             assert_eq!(
                 codec
-                    .decompress(&output[1..], BatchCompression::Snappy, Some(input.len()))
+                    .decompress(&output[1..], BatchCompression::Snappy, input.len())
                     .unwrap(),
                 input
             );
             if !input.is_empty() {
                 assert!(
                     codec
-                        .decompress(&output[1..], BatchCompression::Snappy, Some(0))
+                        .decompress(&output[1..], BatchCompression::Snappy, 0)
                         .is_err()
                 );
             }
         }
-        assert!(
-            codec
-                .decompress(&[], BatchCompression::Deflate, Some(0))
-                .is_err()
-        );
+        assert!(codec.decompress(&[], BatchCompression::Deflate, 0).is_err());
     }
 }

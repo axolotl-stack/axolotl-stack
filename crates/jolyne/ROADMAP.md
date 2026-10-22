@@ -8,7 +8,7 @@ Jolyne is considered compatibility-ready for the pinned Bedrock version only whe
 
 ## Current Foundation
 
-- Typestate protocol flow across handshake/login/resource-pack/start-game/play states.
+- Sans-IO protocol core (`src/proto`) with consuming phase typestates and mandatory deadlines; async driver in `src/stream`.
 - RakNet and NetherNet transport abstraction.
 - Compression, encryption, and packet batching primitives.
 - Online/offline auth paths.
@@ -21,21 +21,21 @@ Jolyne is considered compatibility-ready for the pinned Bedrock version only whe
 - [ ] Add negative tests for forged key headers and malformed chains.
 - [ ] Add explicit HTTP timeout/retry policy for auth metadata and key fetches.
 
-### JOLYNE-M2: Resource-Pack State Machine
-- [ ] Do not advance to start-game until the correct `ResourcePackClientResponse::Completed` state is observed.
-- [ ] Support non-empty pack transfer: `ResourcePackDataInfo`, `ResourcePackChunkRequest`, and `ResourcePackChunkData`.
-- [ ] Handle `ClientCacheStatus` as an explicit negotiated capability; safely ignore when blob cache is disabled.
-- [ ] Add timeout and disconnect reasons for stalled pack negotiation.
+### JOLYNE-M2: Resource-Pack State Machine (done)
+- [x] Do not advance to start-game until `ResourcePackClientResponse::ResourcePackStackFinished` is observed; the stack is only sent after the client's first response (`proto::tests::join_sequence_order_matches_vanilla`, `proto::packs::tests::transfers_verifies_and_orders_stack_after_downloads`).
+- [x] Non-empty pack transfer: `ResourcePackDataInfo`, ordered `ResourcePackChunkRequest`, paced `ResourcePackChunkData`, SHA-256, CDN URL and content keys on the server; bounded windowed download, hash and stack verification on the client (`proto::packs::tests::*`, `stream::tests::resource_packs_download_over_the_async_layer`).
+- [x] `ClientCacheStatus` is deferred during negotiation and delivered to the play session in order (`proto::tests::packets_before_their_phase_are_replayed_into_play_in_order`); the client advertises no blob cache.
+- [x] Pack negotiation has its own deadline (`resource_pack_timeout`, default 5 min) and failures map to `Resourcepackproblem` / `Timeout` disconnects.
 
-### JOLYNE-M3: Start-Game Ordering Test
-- [ ] Add an integration test that asserts packet order from `docs/LOGIN_SEQUENCE.md`.
-- [ ] Cover `StartGame`, `ItemRegistry`, `BiomeDefinitionList`, `AvailableEntityIdentifiers`, `CreativeContent`, `PlayStatus(Spawned)`, and `SetLocalPlayerAsInitialized`.
-- [ ] Run the test with Unastar-provided registry data, not the empty default template.
+### JOLYNE-M3: Start-Game Ordering Test (done; registry-data run re-scoped)
+- [x] `proto::tests::join_sequence_order_matches_vanilla` asserts the server packet order through `PlayStatus(PlayerSpawn)` (BDS order: definitions follow `ItemRegistry`; `ChunkRadiusUpdated`, `NetworkChunkPublisherUpdate`, `PlayerSpawn` answer `RequestChunkRadius`).
+- [x] `SetLocalPlayerAsInitialized` must carry the `StartGame` runtime ID (`proto::tests::runtime_id_mismatch_is_rejected`).
+- [x] Re-scoped: the ordering test uses `WorldTemplate::default()`; real-registry coverage is the Unastar 5-bot smoke (`stress_test --clients 5`), not a jolyne unit test, because the registry data lives in `unastar-data`.
 
-### JOLYNE-M4: Example And CI Health
-- [ ] Fix stale client examples so `cargo test -p jolyne --all-features` succeeds.
-- [ ] Add CI coverage for server and client feature combinations.
-- [ ] Document which protocol version is currently pinned and how compatibility is revalidated when that version changes.
+### JOLYNE-M4: Example And CI Health (done)
+- [x] Examples compile against the current API; `cargo test -p jolyne --all-features` runs in CI.
+- [x] CI checks jolyne feature combinations (`client`/`server` × `raknet`/`nethernet`/`discovery`) with clippy.
+- [x] The pinned version (Bedrock 1.26.51, protocol 2193) is documented in `README.md`; the protocol check is exact in `proto::server::ServerHandshake` and is the single place an accepted-versions list would go.
 
 ## Documentation Rules
 

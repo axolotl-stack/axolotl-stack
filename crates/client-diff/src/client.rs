@@ -18,9 +18,9 @@ use base64::{
 use bytes::Bytes;
 use ctr::cipher::{KeyIvInit, StreamCipher};
 use jolyne::{
-    stream::transport::{
-        BedrockTransport, RakNetTransport, Transport, TransportMessage, TransportRecvMessage,
-    },
+    ClientConfig, JolyneError,
+    proto::raw::decode_packet_raw,
+    stream::transport::{Datagram, Framing, RakNetTransport, Transmit, Transport},
     stream::{BedrockStream, Client, Handshake},
     valentine::*,
 };
@@ -232,10 +232,10 @@ impl Capture {
         for packet in packets {
             let payload = packet_bytes(&packet)?;
             let id = numeric_varint(payload)?.0 & 1023;
-            let name = jolyne::raw::decode_packet_raw(&mut packet.clone()).map_or_else(
-                |_| format!("Unknown_{id}"),
-                |known| format!("{:?}", known.id),
-            );
+            let name = decode_packet_raw(&mut packet.clone())
+                .ok()
+                .and_then(|known| known.name())
+                .map_or_else(|| format!("Unknown_{id}"), |name| format!("{name:?}"));
             let record = serde_json::json!({
                 "seq": self.seq,
                 "t_ms": self.started.elapsed().as_millis(),
@@ -312,31 +312,44 @@ impl ObservedTransport {
 
 impl Transport for ObservedTransport {
     type Error = io::Error;
-    const USES_BATCH_PREFIX: bool = true;
+    const FRAMING: Framing = Framing::RakNet;
 
-    fn poll_send(
-        mut self: Pin<&mut Self>,
-        cx: &mut TaskContext<'_>,
-        msg: TransportMessage,
-    ) -> Poll<io::Result<()>> {
-        let bytes = msg.buffer.clone();
-        match Pin::new(&mut self.inner).poll_send(cx, msg) {
-            Poll::Ready(Ok(())) => Poll::Ready(self.observe(0, &bytes)),
-            Poll::Ready(Err(error)) => Poll::Ready(Err(io::Error::other(error))),
-            Poll::Pending => Poll::Pending,
-        }
+    fn poll_send_ready(mut self: Pin<&mut Self>, cx: &mut TaskContext<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.inner)
+            .poll_send_ready(cx)
+            .map_err(io::Error::other)
+    }
+
+    fn start_send(mut self: Pin<&mut Self>, message: Transmit) -> io::Result<()> {
+        let bytes = message.payload.clone();
+        Pin::new(&mut self.inner)
+            .start_send(message)
+            .map_err(io::Error::other)?;
+        self.observe(0, &bytes)
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut TaskContext<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.inner)
+            .poll_flush(cx)
+            .map_err(io::Error::other)
+    }
+
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut TaskContext<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.inner)
+            .poll_close(cx)
+            .map_err(io::Error::other)
     }
 
     fn poll_recv(
         mut self: Pin<&mut Self>,
         cx: &mut TaskContext<'_>,
-    ) -> Poll<Option<io::Result<TransportRecvMessage>>> {
+    ) -> Poll<Option<io::Result<Datagram>>> {
         match Pin::new(&mut self.inner).poll_recv(cx) {
-            Poll::Ready(Some(Ok(message))) => {
-                let bytes = message.into_bytes();
+            Poll::Ready(Some(Ok(datagram))) => {
+                let bytes = datagram.into_bytes();
                 Poll::Ready(Some(
                     self.observe(1, &bytes)
-                        .map(|()| TransportRecvMessage::Contiguous(bytes)),
+                        .map(|()| Datagram::Contiguous(bytes)),
                 ))
             }
             Poll::Ready(Some(Err(error))) => Poll::Ready(Some(Err(io::Error::other(error)))),
@@ -347,6 +360,10 @@ impl Transport for ObservedTransport {
 
     fn peer_addr(&self) -> SocketAddr {
         self.inner.peer_addr()
+    }
+
+    fn latency(&self) -> Option<Duration> {
+        self.inner.latency()
     }
 }
 
@@ -394,16 +411,18 @@ pub async fn run(
         inner: RakNetTransport::new(socket),
         capture: capture.clone(),
     };
+    // `ClientConfig::join_timeout` (120 s by default) bounds the whole login.
     let stream =
-        BedrockStream::<Handshake, Client, _>::from_transport(BedrockTransport::new(transport));
-    let (mut play, _) = tokio::time::timeout(Duration::from_secs(120), async {
+        BedrockStream::<Handshake, Client, _>::from_transport(transport, ClientConfig::default())
+            .await?;
+    let (mut play, _) = async {
         let login = stream.request_settings().await?;
-        let secure = login.send_login_with_tokens(&chain, &token).await?;
-        let packs = secure.await_handshake(&key).await?;
-        packs.handle_packs().await?.await_start_game().await
-    })
+        let secure = login.send_login_with_tokens(&key, &chain, &token).await?;
+        let packs = secure.await_handshake().await?;
+        Ok::<_, JolyneError>(packs.handle_packs().await?.await_start_game().await?)
+    }
     .await
-    .context("full login timeout")??;
+    .context("full login")?;
     let mut clock = ScenarioClock {
         scenario,
         index: 0,
@@ -439,10 +458,16 @@ pub async fn run(
                 clock.step_completed(tokio::time::Instant::now());
             }
             packet = play.recv_packet_raw() => {
-                let packet = packet?;
-                ensure!(packet.id != McpePacketName::DisconnectPacket, "server disconnected during scenario: {:?}", packet.body());
-                if packet.id == McpePacketName::NetworkStackLatencyPacket
-                    && let McpePacketData::NetworkStackLatencyPacket(mut latency) = play.decode_raw_packet(packet)?.data
+                let packet = match packet {
+                    Ok(packet) => packet,
+                    Err(JolyneError::Disconnected(disconnect)) => bail!(
+                        "server disconnected during scenario: {:?}",
+                        disconnect.packet.body()
+                    ),
+                    Err(error) => return Err(error.into()),
+                };
+                if packet.is(McpePacketName::NetworkStackLatencyPacket)
+                    && let McpePacketData::NetworkStackLatencyPacket(mut latency) = packet.decode()?.data
                     && latency.is_from_server
                 {
                     latency.is_from_server = false;
@@ -451,10 +476,9 @@ pub async fn run(
             }
         }
     }
-    play.flush().await?;
-    // Dropping the real RakNet transport closes the connection; no invented
-    // Bedrock Disconnect packet is sent (that packet is server-to-client).
-    drop(play);
+    // Closing drains pending writes and shuts the RakNet connection; no
+    // invented Bedrock Disconnect packet is sent (that packet is server-to-client).
+    play.close().await?;
     capture
         .lock()
         .map_err(|_| anyhow::anyhow!("capture lock poisoned"))?

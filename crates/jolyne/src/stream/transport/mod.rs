@@ -1,143 +1,61 @@
-//! Transport abstraction for Bedrock protocol.
+//! Message transports the async layer drives the protocol core over.
 //!
-//! This module provides a unified transport trait that works with both
-//! RakNet (UDP) and NetherNet (WebRTC) transports.
+//! A transport moves whole Bedrock batches. RakNet and NetherNet adapters are
+//! provided; anything else (in-memory pipes, custom relays) implements
+//! [`Transport`] directly.
 
-mod inner;
-
+#[cfg(feature = "nethernet")]
+pub mod nethernet;
 #[cfg(feature = "raknet")]
 pub mod raknet;
 
 #[cfg(feature = "nethernet")]
-pub mod nethernet;
-
-pub use inner::BedrockTransport;
-
+pub use nethernet::NetherNetTransport;
 #[cfg(feature = "raknet")]
 pub use raknet::RakNetTransport;
 
-#[cfg(feature = "nethernet")]
-pub use nethernet::NetherNetTransport;
-
-use bytes::Bytes;
 use std::net::SocketAddr;
 use std::pin::Pin;
-use std::task::Poll;
+use std::task::{Context, Poll};
+use std::time::Duration;
 
-/// Unified transport message for Bedrock protocol.
+pub use crate::proto::conn::{Datagram, Framing, Transmit};
+
+/// A message-oriented transport with sink-style backpressure.
 ///
-/// Used by all transport implementations to send/receive data.
-#[derive(Debug, Clone)]
-pub struct TransportMessage {
-    /// The payload data.
-    pub buffer: Bytes,
-    /// Whether to use reliable ordered delivery.
-    /// `true` = ReliableOrdered (required for encrypted traffic)
-    /// `false` = Unreliable (for streaming data like maps)
-    pub reliable: bool,
-}
-
-/// Inbound transport payload.
-///
-/// Some transports can surface a frame as a split first byte plus the remaining
-/// payload without rebuilding a contiguous buffer.
-#[derive(Debug, Clone)]
-pub enum TransportRecvMessage {
-    Contiguous(Bytes),
-    SplitFirst { first: u8, rest: Bytes },
-}
-
-impl TransportRecvMessage {
-    pub fn is_empty(&self) -> bool {
-        match self {
-            Self::Contiguous(bytes) => bytes.is_empty(),
-            Self::SplitFirst { .. } => false,
-        }
-    }
-
-    pub fn len(&self) -> usize {
-        match self {
-            Self::Contiguous(bytes) => bytes.len(),
-            Self::SplitFirst { rest, .. } => 1 + rest.len(),
-        }
-    }
-
-    pub fn into_bytes(self) -> Bytes {
-        match self {
-            Self::Contiguous(bytes) => bytes,
-            Self::SplitFirst { first, rest } => {
-                let mut out = bytes::BytesMut::with_capacity(1 + rest.len());
-                out.extend_from_slice(&[first]);
-                out.extend_from_slice(&rest);
-                out.freeze()
-            }
-        }
-    }
-
-    pub fn copy_into(&self, out: &mut bytes::BytesMut) {
-        out.clear();
-        out.reserve(self.len());
-        match self {
-            Self::Contiguous(bytes) => out.extend_from_slice(bytes),
-            Self::SplitFirst { first, rest } => {
-                out.extend_from_slice(&[*first]);
-                out.extend_from_slice(rest);
-            }
-        }
-    }
-}
-
-impl TransportMessage {
-    /// Create a new reliable message.
-    pub fn reliable(buffer: impl Into<Bytes>) -> Self {
-        Self {
-            buffer: buffer.into(),
-            reliable: true,
-        }
-    }
-
-    /// Create a new unreliable message.
-    pub fn unreliable(buffer: impl Into<Bytes>) -> Self {
-        Self {
-            buffer: buffer.into(),
-            reliable: false,
-        }
-    }
-}
-
-/// Transport layer trait for Bedrock connections.
-///
-/// Implementations must provide:
-/// - `Stream` yielding `Result<Bytes, Error>` for incoming data
-/// - `Sink` accepting `TransportMessage` for outgoing data
-/// - `peer_addr()` for logging/debugging
-///
-/// Both `RakNetTransport` and `NetherNetTransport` implement this trait.
+/// The contract mirrors `futures::Sink`: [`Transport::poll_send_ready`] must
+/// return `Ready(Ok)` before each [`Transport::start_send`], and a message
+/// handed to `start_send` is committed (it is never resubmitted).
 pub trait Transport: Unpin + Send {
-    /// Error type for this transport.
-    type Error: std::error::Error + Send + 'static;
+    type Error: std::error::Error + Send + Sync + 'static;
 
-    /// Whether this transport uses the 0xFE batch ID prefix.
-    ///
-    /// - **RakNet**: `true` - Packets are wrapped as `[0xFE][compression_alg][data]`
-    /// - **NetherNet**: `false` - Packets are just `[compression_alg][data]`
-    ///
-    /// This affects both encoding (send) and decoding (recv) of batch packets.
-    const USES_BATCH_PREFIX: bool;
+    /// RakNet prefixes batches with `0xFE`; message transports do not.
+    const FRAMING: Framing;
 
-    /// Send a message over the transport.
-    fn poll_send(
-        self: Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-        msg: TransportMessage,
-    ) -> Poll<Result<(), Self::Error>>;
+    /// Waits for capacity for one message.
+    fn poll_send_ready(self: Pin<&mut Self>, cx: &mut Context<'_>)
+    -> Poll<Result<(), Self::Error>>;
 
-    /// Receive the next message from the transport.
+    /// Commits one message. Only call after `poll_send_ready` returned `Ready(Ok)`.
+    fn start_send(self: Pin<&mut Self>, message: Transmit) -> Result<(), Self::Error>;
+
+    /// Pushes committed messages towards the peer.
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>>;
+
+    /// Gracefully closes the transport after committed messages drain.
+    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>>;
+
+    /// The next inbound message; `None` once the peer is gone.
     fn poll_recv(
         self: Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> Poll<Option<Result<TransportRecvMessage, Self::Error>>>;
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Result<Datagram, Self::Error>>>;
 
-    /// Returns the peer address (or placeholder for WebRTC).
+    /// Peer address (a placeholder for WebRTC transports).
     fn peer_addr(&self) -> SocketAddr;
+
+    /// Smoothed round-trip time, when the transport measures it.
+    fn latency(&self) -> Option<Duration> {
+        None
+    }
 }

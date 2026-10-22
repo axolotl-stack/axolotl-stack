@@ -54,8 +54,8 @@ original complete batch including `0xfe`; stderr emits `batch_sizes` records
 with actual encoded byte counts. The obsolete flate2-only timing rows were
 removed because flate2 is no longer jolyne's normal compression backend.
 
-`encrypt`/`decrypt` exercise the public in-place `crypto::BatchCipher` used by
-`BedrockTransport`, with independent continuous directional streams. Input
+`encrypt`/`decrypt` exercise the public in-place `proto::crypto::BatchCipher`
+used by jolyne's connection core, with independent continuous directional streams. Input
 allocation/refill and output verification are outside timing; each measured
 operation includes its own `Instant` reads, matching the Cinnabar prepared
 measurement. Input excludes `0xfe`, has eight spare bytes, and uses key/IV

@@ -3,7 +3,8 @@
 //! Provides the `UnastarServer` struct that ties together configuration,
 //! networking, and the game server tick loop.
 
-use jolyne::{BedrockListener, BedrockListenerConfig};
+use jolyne::proto::packs::ServerPacks;
+use jolyne::{BedrockListener, BedrockListenerConfig, FlushMode};
 use p384::SecretKey;
 use rand::thread_rng;
 use std::collections::HashMap;
@@ -164,7 +165,10 @@ impl UnastarServer {
             online_mode: self.config.server.online_mode,
             allow_legacy_auth: self.config.server.allow_legacy_auth,
             encryption_enabled: self.config.server.encryption_enabled,
-            require_resource_packs: self.config.server.require_resource_packs,
+            resource_packs: Arc::new(ServerPacks {
+                required: self.config.server.require_resource_packs,
+                ..ServerPacks::default()
+            }),
             ..Default::default()
         };
 
@@ -458,8 +462,12 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
 
                                 info!(%addr, name = %display_name, "Player joined");
 
-                                // set to manual flushing.
-                                play_stream.set_auto_flush(false);
+                                // Packets are batched per tick; the network loop flushes.
+                                if let Err(e) = play_stream.set_flush_mode(FlushMode::Manual).await
+                                {
+                                    error!(%addr, "Switching to manual flush failed: {e}");
+                                    return;
+                                }
 
                                 // Create bounded outbound channel to prevent memory explosion.
                                 // Bound to ~50MB worth of packets (assuming average 50KB per packet = 1024 packets).

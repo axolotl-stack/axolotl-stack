@@ -7,8 +7,9 @@ mod output;
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use jolyne::BedrockStream;
 use jolyne::stream::client::ClientHandshakeConfig;
+use jolyne::valentine::EnumsConnectionDisconnectFailReason;
+use jolyne::{BedrockStream, JolyneError};
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -124,21 +125,32 @@ async fn extract_data(
     let deadline = tokio::time::Instant::now() + collection_timeout;
     let collection = async {
         while let Some(section) = missing_section(&game_data) {
-            let packet = tokio::time::timeout_at(deadline, play_stream.recv_packet())
+            let packet = match tokio::time::timeout_at(deadline, play_stream.recv_packet())
                 .await
                 .map_err(|_| output::ValidationError::MissingSection(section))?
-                .with_context(|| format!("Receiving required section: {section}"))?;
-            capture_definition(&mut game_data, packet.data)?;
+            {
+                Ok(packet) => packet,
+                Err(JolyneError::Disconnected(disconnect)) => anyhow::bail!(
+                    "Server disconnected during extraction: {:?}",
+                    disconnect.reason
+                ),
+                Err(error) => {
+                    return Err(anyhow::Error::new(error)
+                        .context(format!("Receiving required section: {section}")));
+                }
+            };
+            capture_definition(&mut game_data, packet.data);
         }
         Ok::<_, anyhow::Error>(())
     }
     .await;
 
-    // Send the protocol disconnect even when collection fails; never wait indefinitely
-    // for a peer that stopped sending. Dropping the stream then closes the transport.
+    // Disconnect even when collection fails; never wait indefinitely for a peer
+    // that stopped reading. `disconnect` sends `Disconnect`, drains pending
+    // writes and closes the transport.
     let disconnect = tokio::time::timeout(
         Duration::from_secs(2),
-        play_stream.send_packet(jolyne::valentine::DisconnectPacket::default().into()),
+        play_stream.disconnect(EnumsConnectionDisconnectFailReason::Disconnected, ""),
     )
     .await;
     collection?;
@@ -162,10 +174,7 @@ fn missing_section(data: &jolyne::GameData) -> Option<&'static str> {
     }
 }
 
-fn capture_definition(
-    data: &mut jolyne::GameData,
-    packet: jolyne::valentine::McpePacketData,
-) -> Result<()> {
+fn capture_definition(data: &mut jolyne::GameData, packet: jolyne::valentine::McpePacketData) {
     use jolyne::valentine::McpePacketData;
     match packet {
         McpePacketData::BiomeDefinitionListPacket(packet) => data.biome_definitions = Some(packet),
@@ -174,12 +183,8 @@ fn capture_definition(
         }
         McpePacketData::CreativeContentPacket(packet) => data.creative_content = Some(packet),
         McpePacketData::ItemRegistryPacket(packet) => data.item_registry = packet,
-        McpePacketData::DisconnectPacket(packet) => {
-            anyhow::bail!("Server disconnected during extraction: {:?}", packet.reason);
-        }
         _ => {}
     }
-    Ok(())
 }
 
 #[cfg(test)]
@@ -202,31 +207,19 @@ mod tests {
         capture_definition(
             &mut data,
             McpePacketData::CreativeContentPacket(CreativeContentPacket::default()),
-        )
-        .unwrap();
+        );
         assert_eq!(missing_section(&data), Some("biomes"));
         capture_definition(
             &mut data,
             McpePacketData::BiomeDefinitionListPacket(BiomeDefinitionListPacket::default()),
-        )
-        .unwrap();
+        );
         assert_eq!(missing_section(&data), Some("entities"));
         capture_definition(
             &mut data,
             McpePacketData::AvailableActorIdentifiersPacket(
                 AvailableEntityIdentifiersPacket::default(),
             ),
-        )
-        .unwrap();
-        assert_eq!(missing_section(&data), None);
-        assert!(
-            capture_definition(
-                &mut data,
-                jolyne::valentine::McpePacket::from(
-                    jolyne::valentine::DisconnectPacket::default(),
-                ).data,
-            )
-            .is_err()
         );
+        assert_eq!(missing_section(&data), None);
     }
 }

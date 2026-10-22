@@ -64,9 +64,9 @@ async fn main() -> anyhow::Result<()> {
 
                 tokio::spawn(async move {
                     match handshake_stream.accept_join_sequence(&template, &key).await {
-                        Ok((mut play_stream, identity)) => {
+                        Ok((mut play_stream, login)) => {
                             let display_name =
-                                identity.display_name.as_deref().unwrap_or("Unknown");
+                                login.identity.display_name.as_deref().unwrap_or("Unknown");
                             info!(identity = %display_name, "Player joined via NetherNet!");
 
                             // Play Loop

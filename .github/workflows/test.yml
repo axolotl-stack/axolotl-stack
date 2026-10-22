@@ -46,13 +46,19 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
+      - name: Jolyne feature combinations
+        run: |
+          cargo clippy -p jolyne --lib --no-default-features --features client,raknet -- -D warnings
+          cargo clippy -p jolyne --lib --no-default-features --features server,raknet -- -D warnings
+          cargo clippy -p jolyne --lib --no-default-features --features server,discovery -- -D warnings
+          cargo clippy -p jolyne --lib --no-default-features --features client,nethernet -- -D warnings
+          cargo clippy -p jolyne --all-targets --all-features -- -D warnings
+
       - name: Test core crates
         run: |
-          # Test each core crate individually to avoid feature conflicts
-          # (jolyne has ambiguous exports when both raknet and nethernet features enabled)
           cargo test -p tokio-raknet
           cargo test -p valentine
-          cargo test -p jolyne --lib --tests
+          cargo test -p jolyne --all-features
           cargo test -p tokio-nethernet
           cargo test -p axolotl-xbl
           cargo check -p unastar --all-targets
@@ -84,7 +90,7 @@ jobs:
         run: |
           cargo test -p tokio-raknet
           cargo test -p valentine
-          cargo test -p jolyne --lib --tests
+          cargo test -p jolyne --all-features
           cargo test -p tokio-nethernet
           cargo test -p axolotl-xbl
           cargo check -p unastar --all-targets

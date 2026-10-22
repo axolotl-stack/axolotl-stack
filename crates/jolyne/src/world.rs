@@ -5,7 +5,7 @@ use crate::valentine::{
     EnumsEditorWorldType, EnumsEducationEditionOffer, EnumsGameType, EnumsGeneratorType,
     EnumsPlayerPermissionLevel, EnumsServerEditorConnectionPolicy,
     EnumsSharedTypesLegacyDifficulty, EnumsSocialGamePublishSetting, Experiments,
-    GameRulesChangedPacketData, ItemRegistryPacket, LevelSettings, NetworkPermissions,
+    GameRulesChangedPacketData, ItemRegistryPacket, LevelSettings, McpePacket, NetworkPermissions,
     SocialEventsServerTelemetryData, SpawnSettings, StartGamePacket, SyncedPlayerMovementSettings,
     Vec2, Vec3,
 };
@@ -23,13 +23,23 @@ pub struct WorldTemplate {
     pub creative_content: Arc<CreativeContentPacket>,
 }
 
+/// Per-player parameters for `start_game`.
 #[derive(Debug)]
 pub struct WorldJoinParams {
+    /// Packets sent before `StartGame` in the same batch, e.g.
+    /// `DimensionData`, `JigsawStructureData`, `VoxelShapes` (gophertunnel and
+    /// BDS send these first).
+    pub pre_start_game: Vec<McpePacket>,
     pub start_game: StartGamePacket,
     pub item_registry: Arc<ItemRegistryPacket>,
-    pub biome_definitions: Arc<BiomeDefinitionListPacket>,
-    pub available_entities: Arc<AvailableActorIdentifiersPacket>,
-    pub creative_content: Arc<CreativeContentPacket>,
+    /// Definition packets sent right after `ItemRegistry` (BDS order). `None`
+    /// skips the packet, e.g. for proxies forwarding the upstream's copy.
+    pub biome_definitions: Option<Arc<BiomeDefinitionListPacket>>,
+    pub available_entities: Option<Arc<AvailableActorIdentifiersPacket>>,
+    pub creative_content: Option<Arc<CreativeContentPacket>>,
+    /// Server-chosen chunk radius (gophertunnel `GameData.ChunkRadius`);
+    /// `None` grants the client's request.
+    pub chunk_radius: Option<i32>,
 }
 
 impl WorldTemplate {
@@ -43,11 +53,13 @@ impl WorldTemplate {
         };
 
         WorldJoinParams {
+            pre_start_game: Vec::new(),
             start_game: start,
             item_registry: self.item_registry.clone(),
-            biome_definitions: self.biome_definitions.clone(),
-            available_entities: self.available_entities.clone(),
-            creative_content: self.creative_content.clone(),
+            biome_definitions: Some(self.biome_definitions.clone()),
+            available_entities: Some(self.available_entities.clone()),
+            creative_content: Some(self.creative_content.clone()),
+            chunk_radius: None,
         }
     }
 }

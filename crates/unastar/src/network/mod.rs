@@ -84,17 +84,17 @@ pub async fn run_network_loop(
                             break;
                         }
                     }
+                    Err(jolyne::JolyneError::Disconnected(disconnect)) => {
+                        info!(
+                            session_id,
+                            reason = ?disconnect.reason,
+                            message = disconnect.message.as_deref().unwrap_or(""),
+                            "Client disconnected"
+                        );
+                        break;
+                    }
                     Err(e) => {
-                        // Log decode errors with more context
-                        if let jolyne::JolyneError::Decode(decode_err) = &e {
-                            tracing::error!(
-                                session_id,
-                                error = ?decode_err,
-                                "Packet decode failed - connection closed. This may indicate a malformed packet from the client or a protocol mismatch."
-                            );
-                        } else {
-                            tracing::error!(session_id, "Connection closed by client/error: {:?}", e);
-                        }
+                        tracing::error!(session_id, "Connection closed by client/error: {e}");
                         break;
                     }
                 }
@@ -119,8 +119,10 @@ pub async fn run_network_loop(
         }
     }
 
-    // Final flush on disconnect
-    let _ = stream.flush().await;
+    // Flush whatever is still queued and close the transport.
+    if let Err(e) = stream.close().await {
+        trace!(session_id, "Closing connection failed: {e}");
+    }
     let _ = event_tx
         .send(NetworkEvent::Disconnected { session_id })
         .await;

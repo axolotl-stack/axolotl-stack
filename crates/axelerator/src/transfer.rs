@@ -348,7 +348,8 @@ async fn handle_transfer_connection<T: jolyne::stream::transport::Transport>(
     debug!("Starting Bedrock handshake...");
 
     match handshake_stream.accept_join_sequence(template, key).await {
-        Ok((mut play_stream, identity)) => {
+        Ok((mut play_stream, login)) => {
+            let identity = &login.identity;
             let display_name = identity.display_name.as_deref().unwrap_or("Unknown");
 
             info!(
@@ -376,8 +377,11 @@ async fn handle_transfer_connection<T: jolyne::stream::transport::Transport>(
                 }
             }
 
-            // Give client time to process the transfer
+            // Give the client time to process the transfer, then close cleanly.
             tokio::time::sleep(Duration::from_millis(500)).await;
+            if let Err(e) = play_stream.close().await {
+                debug!("Closing transferred connection failed: {e}");
+            }
         }
         Err(e) => {
             warn!("Handshake failed: {:?}", e);
@@ -401,7 +405,7 @@ async fn send_transfer_packet<T: jolyne::stream::transport::Transport>(
 
     let packet = McpePacket::from(transfer);
     stream
-        .send_batch_with_reliability(&[packet], true)
+        .send_batch(&[packet], true)
         .await
         .map_err(|e| anyhow::anyhow!("Send failed: {}", e))?;
 

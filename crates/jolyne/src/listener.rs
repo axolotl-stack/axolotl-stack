@@ -1,37 +1,16 @@
-//! Bedrock protocol listener with builder API.
+//! Bedrock server listeners.
 //!
-//! Use [`BedrockListener::raknet()`] or [`BedrockListener::nethernet()`] to start
-//! building a listener, then call `.bind()` to actually bind the socket.
-//!
-//! # Examples
-//!
-//! ## RakNet (Traditional UDP)
 //! ```ignore
-//! let mut listener = BedrockListener::raknet()
-//!     .addr("0.0.0.0:19132")
-//!     .bind()
-//!     .await?;
+//! let mut listener = BedrockListener::raknet().addr("0.0.0.0:19132").bind().await?;
+//! let mut listener = BedrockListener::nethernet().lan("0.0.0.0:7551").bind().await?;
 //! ```
 //!
-//! ## NetherNet with LAN Discovery
-//! ```ignore
-//! let mut listener = BedrockListener::nethernet()
-//!     .lan("0.0.0.0:7551")
-//!     .bind()
-//!     .await?;
-//! ```
-//!
-//! ## NetherNet with HTTP endpoint signaling
-//! ```ignore
-//! let endpoint = tokio_nethernet::endpoint::Handler::serve("0.0.0.0:19133").await?;
-//! let mut listener = BedrockListener::nethernet()
-//!     .endpoint(endpoint, nethernet_config)
-//!     .bind()
-//!     .await?;
-//! ```
+//! A listener counts joined players against `max_players` and publishes the
+//! [`StatusProvider`](crate::status::StatusProvider) status (RakNet pong,
+//! NetherNet LAN server data) at bind, every `status_refresh`, and whenever
+//! a player joins or leaves. Refreshes run while `accept` is awaited.
 
 use std::future::poll_fn;
-use std::marker::PhantomData;
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -39,153 +18,155 @@ use std::task::{Context, Poll};
 
 use crate::config::BedrockListenerConfig;
 use crate::error::JolyneError;
-use crate::stream::transport::{BedrockTransport, Transport};
+use crate::status::{ServerStatus, StaticStatus, StatusProvider};
+use crate::stream::slots::PlayerSlots;
+use crate::stream::transport::Transport;
 use crate::stream::{BedrockStream, Handshake, Server};
 
-// ============================================================================
-// RawListener Trait
-// ============================================================================
-
-/// Trait for raw connection listeners that can be wrapped by [`BedrockListener`].
-///
-/// This abstracts over different transport mechanisms:
-/// - `tokio_raknet::transport::RaknetListener` (UDP/RakNet)
-/// - `tokio_nethernet::NetherNetListener` (WebRTC/NetherNet)
-///
-/// Uses poll-based API for consistency with [`Transport`] trait.
+/// A source of connected transports.
 pub trait RawListener: Unpin + Send {
-    /// The transport type this listener yields.
     type Transport: Transport;
 
-    /// Poll for the next incoming connection.
-    ///
-    /// Returns `Poll::Ready(Some(transport))` when a connection is available,
-    /// `Poll::Ready(None)` when the listener has shut down,
-    /// or `Poll::Pending` if no connection is ready yet.
+    /// `Ready(None)` once the listener has shut down.
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Transport>>;
 
-    /// Returns the local bind address, if applicable.
     fn local_addr(&self) -> Option<SocketAddr>;
+
+    /// Publishes `status` wherever this listener answers pings.
+    fn publish_status(&self, _status: &ServerStatus, _server_guid: u64) -> Result<(), JolyneError> {
+        Ok(())
+    }
 }
 
-// ============================================================================
-// BedrockListener<L>
-// ============================================================================
-
-/// A Bedrock protocol server listener, generic over the transport.
-///
-/// Created via the builder pattern:
-/// - [`BedrockListener::raknet()`] for RakNet (UDP)
-/// - [`BedrockListener::nethernet()`] for NetherNet (WebRTC)
+/// A server listener yielding connections in the [`Handshake`] phase.
 pub struct BedrockListener<L: RawListener> {
     inner: L,
     config: Arc<BedrockListenerConfig>,
+    slots: PlayerSlots,
+    status: Arc<dyn StatusProvider>,
+    /// GUID written into the RakNet pong string.
+    server_guid: u64,
+    #[cfg(feature = "discovery")]
+    lan: Option<Arc<tokio_nethernet::discovery::DiscoveryListener>>,
 }
 
 impl<L: RawListener> BedrockListener<L> {
-    /// Creates a `BedrockListener` from an existing raw listener.
-    ///
-    /// This is the escape hatch for advanced usage, such as:
-    /// - Pre-configured `NetherNetListener` with custom signaling
-    /// - Custom listener implementations
-    ///
-    /// # Example
-    /// ```ignore
-    /// let (nn_listener, signal_tx) = NetherNetListener::new(xbox_signaling, config);
-    /// // ... spawn signal pump ...
-    /// let listener = BedrockListener::from_listener(nn_listener, bedrock_config);
-    /// ```
+    /// Wraps a pre-built raw listener (custom signaling, custom transports).
     pub fn from_listener(inner: L, config: BedrockListenerConfig) -> Self {
+        let status = config
+            .status
+            .clone()
+            .unwrap_or_else(|| Arc::new(StaticStatus::new("Jolyne Server", "Jolyne")));
         Self {
             inner,
+            slots: PlayerSlots::new(config.max_players),
             config: Arc::new(config),
+            status,
+            server_guid: rand::random(),
+            #[cfg(feature = "discovery")]
+            lan: None,
         }
     }
 
-    /// Accepts the next connection in the initial Handshake state.
-    ///
-    /// The returned stream has not yet negotiated network settings or authenticated.
-    /// Call `accept_network_settings()` or `accept_join_sequence()` to proceed.
+    /// The status the listener currently advertises.
+    pub fn status(&self) -> ServerStatus {
+        self.status.status(self.slots.count(), self.slots.max())
+    }
+
+    /// Recomputes and publishes the status now.
+    pub async fn refresh_status(&self) -> Result<(), JolyneError> {
+        let status = self.status();
+        self.inner.publish_status(&status, self.server_guid)?;
+        #[cfg(feature = "discovery")]
+        if let Some(lan) = &self.lan {
+            lan.set_server_data(status.lan_server_data()).await;
+        }
+        Ok(())
+    }
+
+    /// Players currently joined (past login admission).
+    pub fn player_count(&self) -> usize {
+        self.slots.count()
+    }
+
+    pub fn config(&self) -> &Arc<BedrockListenerConfig> {
+        &self.config
+    }
+
+    /// Accepts the next connection. Status refreshes run while waiting.
     pub async fn accept(
         &mut self,
     ) -> Result<BedrockStream<Handshake, Server, L::Transport>, JolyneError> {
-        let transport = poll_fn(|cx| Pin::new(&mut self.inner).poll_accept(cx))
-            .await
-            .ok_or(JolyneError::ConnectionClosed)?;
-
-        let mut transport = BedrockTransport::new(transport);
-        transport.apply_listener_config(&self.config);
-
-        Ok(BedrockStream {
-            transport,
-            state: Handshake {
-                config: Some(self.config.clone()),
-            },
-            _role: PhantomData,
-        })
+        let refresh = self
+            .config
+            .status_refresh
+            .max(std::time::Duration::from_millis(100));
+        let mut next_refresh = tokio::time::Instant::now() + refresh;
+        loop {
+            let changed = self.slots.clone();
+            tokio::select! {
+                transport = poll_fn(|cx| Pin::new(&mut self.inner).poll_accept(cx)) => {
+                    let transport = transport.ok_or(JolyneError::ConnectionClosed)?;
+                    return Ok(BedrockStream::listener_accepted(
+                        transport,
+                        self.config.clone(),
+                        self.slots.clone(),
+                    ));
+                }
+                _ = tokio::time::sleep_until(next_refresh) => {
+                    next_refresh = tokio::time::Instant::now() + refresh;
+                    self.refresh_status().await?;
+                }
+                _ = changed.changed() => self.refresh_status().await?,
+            }
+        }
     }
 
-    /// Returns the local address if applicable.
     pub fn local_addr(&self) -> Option<SocketAddr> {
         self.inner.local_addr()
     }
 
-    /// Returns a reference to the underlying raw listener.
-    ///
-    /// Useful for transport-specific operations like `set_advertisement()` on RakNet.
     pub fn inner(&self) -> &L {
         &self.inner
     }
 
-    /// Returns a mutable reference to the underlying raw listener.
     pub fn inner_mut(&mut self) -> &mut L {
         &mut self.inner
     }
 }
 
-// ============================================================================
-// Builder Entry Points
-// ============================================================================
-
-/// Dummy type for builder entry point.
-/// This allows `BedrockListener::raknet()` syntax without a real generic.
+/// Builder entry point type (`BedrockListener::raknet()`, `::nethernet()`).
 pub struct NoListener;
 
-impl BedrockListener<NoListener> {
-    /// Start building a RakNet listener.
-    ///
-    /// RakNet is the traditional UDP-based transport for Minecraft Bedrock.
-    ///
-    /// # Example
-    /// ```ignore
-    /// let listener = BedrockListener::raknet()
-    ///     .addr("0.0.0.0:19132")
-    ///     .bind()
-    ///     .await?;
-    /// ```
-    #[cfg(feature = "raknet")]
+#[cfg(feature = "raknet")]
+impl BedrockListener<tokio_raknet::transport::RaknetListener> {
+    /// Starts building a RakNet (UDP) listener.
     pub fn raknet() -> RakNetBuilder {
-        RakNetBuilder::new()
-    }
-
-    /// Start building a NetherNet listener.
-    ///
-    /// NetherNet uses WebRTC for transport, with signaling via LAN discovery or Xbox Live.
-    ///
-    /// # Example
-    /// ```ignore
-    /// let listener = BedrockListener::nethernet()
-    ///     .lan("0.0.0.0:7551")
-    ///     .bind()
-    ///     .await?;
-    /// ```
-    #[cfg(feature = "nethernet")]
-    pub fn nethernet() -> NetherNetBuilder {
-        NetherNetBuilder::new()
+        RakNetBuilder {
+            addr: None,
+            config: BedrockListenerConfig::default(),
+            raknet: tokio_raknet::transport::RaknetListenerConfig::default(),
+        }
     }
 }
 
-// Compile-time check: server feature requires at least one transport
+#[cfg(feature = "nethernet")]
+impl BedrockListener<tokio_nethernet::NetherNetListener> {
+    /// Starts building a NetherNet (WebRTC) listener.
+    pub fn nethernet() -> NetherNetBuilder {
+        NetherNetBuilder {
+            signaling: NetherNetSignaling::None,
+            config: BedrockListenerConfig {
+                // DTLS already encrypts NetherNet.
+                encryption_enabled: false,
+                ..Default::default()
+            },
+            #[cfg(any(feature = "xbox-signaling", feature = "endpoint"))]
+            signal_monitor_config: None,
+        }
+    }
+}
+
 #[cfg(all(
     feature = "server",
     not(any(feature = "raknet", feature = "nethernet"))
@@ -194,111 +175,58 @@ compile_error!(
     "The `server` feature requires at least one transport feature: `raknet` or `nethernet`"
 );
 
-// Implement RawListener for NoListener to satisfy trait bounds (never actually used)
-// Priority: raknet > nethernet when both are enabled
-#[cfg(feature = "raknet")]
-impl RawListener for NoListener {
-    type Transport = crate::stream::transport::RakNetTransport;
-
-    fn poll_accept(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Transport>> {
-        Poll::Ready(None)
-    }
-
-    fn local_addr(&self) -> Option<SocketAddr> {
-        None
-    }
-}
-
-#[cfg(all(feature = "nethernet", not(feature = "raknet")))]
-impl RawListener for NoListener {
-    type Transport = crate::stream::transport::NetherNetTransport;
-
-    fn poll_accept(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Transport>> {
-        Poll::Ready(None)
-    }
-
-    fn local_addr(&self) -> Option<SocketAddr> {
-        None
-    }
-}
-
-// ============================================================================
-// RakNet Builder
-// ============================================================================
-
 /// Builder for RakNet listeners.
-///
-/// Created via [`BedrockListener::raknet()`].
 #[cfg(feature = "raknet")]
 pub struct RakNetBuilder {
     addr: Option<String>,
     config: BedrockListenerConfig,
+    raknet: tokio_raknet::transport::RaknetListenerConfig,
 }
 
 #[cfg(feature = "raknet")]
 impl RakNetBuilder {
-    fn new() -> Self {
-        Self {
-            addr: None,
-            config: BedrockListenerConfig::default(),
-        }
-    }
-
-    /// Set the bind address (e.g., "0.0.0.0:19132").
-    ///
-    /// This is required before calling `.bind()`.
+    /// Bind address, e.g. `"0.0.0.0:19132"`. Required.
     pub fn addr(mut self, addr: impl Into<String>) -> Self {
         self.addr = Some(addr.into());
         self
     }
 
-    /// Set the Bedrock protocol configuration.
-    ///
-    /// If not called, uses [`BedrockListenerConfig::default()`].
     pub fn config(mut self, config: BedrockListenerConfig) -> Self {
         self.config = config;
         self
     }
 
-    /// Bind the listener.
-    ///
-    /// This is when the UDP socket is actually opened and starts accepting connections.
+    /// RakNet session options (timeouts, MTU, connection caps).
+    pub fn raknet_config(mut self, raknet: tokio_raknet::transport::RaknetListenerConfig) -> Self {
+        self.raknet = raknet;
+        self
+    }
+
     pub async fn bind(
         self,
     ) -> Result<BedrockListener<tokio_raknet::transport::RaknetListener>, JolyneError> {
-        use tokio_raknet::transport::RaknetListener;
-
         let addr = self.addr.ok_or_else(|| {
             JolyneError::Io(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
-                "RakNet listener requires .addr() to be set before .bind()",
+                "RakNet listener requires .addr() before .bind()",
             ))
         })?;
-
-        let socket_addr: SocketAddr = addr.parse().map_err(|e| {
-            JolyneError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
+        let addr: SocketAddr = addr.parse().map_err(|error| {
+            JolyneError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, error))
         })?;
-
-        let inner = RaknetListener::bind(socket_addr).await?;
-        Ok(BedrockListener {
-            inner,
-            config: Arc::new(self.config),
-        })
+        let inner =
+            tokio_raknet::transport::RaknetListener::bind_with_config(addr, self.raknet).await?;
+        let listener = BedrockListener::from_listener(inner, self.config);
+        listener.refresh_status().await?;
+        Ok(listener)
     }
 }
 
-// ============================================================================
-// NetherNet Builder
-// ============================================================================
-
 /// Builder for NetherNet listeners.
-///
-/// Created via [`BedrockListener::nethernet()`].
 #[cfg(feature = "nethernet")]
 pub struct NetherNetBuilder {
     signaling: NetherNetSignaling,
     config: BedrockListenerConfig,
-    /// Optional signal monitoring for remote negotiations.
     #[cfg(any(feature = "xbox-signaling", feature = "endpoint"))]
     signal_monitor_config: Option<tokio_nethernet::SignalMonitorConfig>,
 }
@@ -325,38 +253,16 @@ enum NetherNetSignaling {
 
 #[cfg(feature = "nethernet")]
 impl NetherNetBuilder {
-    fn new() -> Self {
-        Self {
-            signaling: NetherNetSignaling::None,
-            config: BedrockListenerConfig {
-                // NetherNet uses DTLS for transport encryption, so disable Bedrock encryption
-                encryption_enabled: false,
-                ..Default::default()
-            },
-            #[cfg(any(feature = "xbox-signaling", feature = "endpoint"))]
-            signal_monitor_config: None,
-        }
-    }
-
-    /// Use LAN discovery signaling.
-    ///
-    /// Binds a UDP socket for encrypted LAN discovery broadcasts.
-    /// This is how players on the same local network find your server.
-    /// Preserves the existing local identityless-client policy; Bedrock Login
-    /// still performs the configured application authentication.
-    ///
-    /// # Arguments
-    /// * `addr` - The address to bind for discovery (e.g., "0.0.0.0:7551")
+    /// LAN discovery signaling. The listener answers discovery requests with
+    /// the status provider's server data. Identityless LAN clients are
+    /// allowed; Bedrock login still authenticates them.
     #[cfg(feature = "discovery")]
     pub fn lan(mut self, addr: impl Into<String>) -> Self {
         self.signaling = NetherNetSignaling::Lan { addr: addr.into() };
         self
     }
 
-    /// Use the current HTTP `/v1/join` NetherNet signaling endpoint.
-    ///
-    /// Bind the handler first and configure the transport's signed identity and
-    /// client-token verifier before accepting authenticated Minecraft clients.
+    /// HTTP `/v1/join` signaling.
     #[cfg(feature = "endpoint")]
     pub fn endpoint(
         mut self,
@@ -367,8 +273,7 @@ impl NetherNetBuilder {
         self
     }
 
-    /// Retained franchise WebSocket signaling for friend joins.
-    /// No current go-nethernet upstream implements this service.
+    /// Franchise WebSocket signaling for friend joins.
     #[cfg(feature = "xbox-signaling")]
     pub fn xbox(
         mut self,
@@ -384,53 +289,29 @@ impl NetherNetBuilder {
         self
     }
 
-    /// Set the Bedrock protocol configuration.
-    ///
-    /// If not called, uses a default config with encryption disabled
-    /// (since NetherNet uses DTLS for transport encryption).
+    /// Bedrock configuration (defaults to encryption off; DTLS encrypts).
     pub fn config(mut self, config: BedrockListenerConfig) -> Self {
         self.config = config;
         self
     }
 
-    /// Enable signal-level security monitoring for endpoint negotiations.
-    ///
-    /// This monitors the WebRTC signaling channel for attacks like:
-    /// - CONNECTERROR injection
-    /// - Duplicate responses (race condition hijacking)
-    /// - Suspicious ICE candidates / TURN servers
-    /// - SDP manipulation
-    ///
-    /// When enabled, anomalies are logged and can be queried via the monitor.
+    /// Signal-level monitoring for endpoint/Xbox negotiations.
     #[cfg(any(feature = "xbox-signaling", feature = "endpoint"))]
     pub fn with_signal_monitoring(mut self, config: tokio_nethernet::SignalMonitorConfig) -> Self {
         self.signal_monitor_config = Some(config);
         self
     }
 
-    /// Enable signal monitoring with default configuration.
-    ///
-    /// Shorthand for `with_signal_monitoring(SignalMonitorConfig { enabled: true, ..Default::default() })`.
-    #[cfg(any(feature = "xbox-signaling", feature = "endpoint"))]
-    pub fn enable_signal_monitoring(mut self) -> Self {
-        self.signal_monitor_config = Some(tokio_nethernet::SignalMonitorConfig {
-            enabled: true,
-            ..Default::default()
-        });
-        self
-    }
-
-    /// Bind the listener.
-    ///
-    /// This is when the signaling channel connects and starts accepting connections.
     pub async fn bind(
         self,
     ) -> Result<BedrockListener<tokio_nethernet::NetherNetListener>, JolyneError> {
+        #[cfg(feature = "discovery")]
+        let lan: Option<Arc<tokio_nethernet::discovery::DiscoveryListener>>;
         let inner = match self.signaling {
             NetherNetSignaling::None => {
                 return Err(JolyneError::Io(std::io::Error::new(
                     std::io::ErrorKind::InvalidInput,
-                    "NetherNet listener requires .lan(), .xbox(), or .endpoint() signaling before .bind()",
+                    "NetherNet listener requires .lan(), .xbox() or .endpoint() before .bind()",
                 )));
             }
             #[cfg(feature = "discovery")]
@@ -440,6 +321,7 @@ impl NetherNetBuilder {
                 let discovery = DiscoveryListener::bind(&addr, DiscoveryListenerConfig::default())
                     .await
                     .map_err(JolyneError::Io)?;
+                lan = Some(discovery.clone());
                 NetherNetListener::bind_with_signaling(
                     discovery,
                     NetherNetListenerConfig {
@@ -454,8 +336,12 @@ impl NetherNetBuilder {
                 mut config,
             } => {
                 use tokio_nethernet::{NetherNetListener, SignalMonitor};
-                if let Some(monitor_config) = self.signal_monitor_config {
-                    config.signal_monitor = Some(SignalMonitor::new_with_cleanup(monitor_config));
+                #[cfg(feature = "discovery")]
+                {
+                    lan = None;
+                }
+                if let Some(monitor) = self.signal_monitor_config {
+                    config.signal_monitor = Some(SignalMonitor::new_with_cleanup(monitor));
                 }
                 NetherNetListener::bind_with_signaling(handler, config)
             }
@@ -466,29 +352,31 @@ impl NetherNetBuilder {
                 mc_token,
             } => {
                 use tokio_nethernet::{NetherNetListener, NetherNetListenerConfig, XboxSignaling};
-                let monitor_config = self.signal_monitor_config.unwrap_or_default();
+                #[cfg(feature = "discovery")]
+                {
+                    lan = None;
+                }
                 let xbox = XboxSignaling::connect_with_url(
                     signaling_url,
                     nethernet_id,
                     &mc_token,
-                    monitor_config,
+                    self.signal_monitor_config.unwrap_or_default(),
                 )
                 .await
-                .map_err(|error| JolyneError::Transport(error.to_string()))?;
+                .map_err(|error| JolyneError::Transport(error.into()))?;
                 NetherNetListener::bind_with_signaling(xbox, NetherNetListenerConfig::default())
             }
         };
-
-        Ok(BedrockListener {
-            inner,
-            config: Arc::new(self.config),
-        })
+        #[allow(unused_mut)]
+        let mut listener = BedrockListener::from_listener(inner, self.config);
+        #[cfg(feature = "discovery")]
+        {
+            listener.lan = lan;
+        }
+        listener.refresh_status().await?;
+        Ok(listener)
     }
 }
-
-// ============================================================================
-// RawListener Implementations
-// ============================================================================
 
 #[cfg(feature = "raknet")]
 mod raknet_impl {
@@ -503,16 +391,22 @@ mod raknet_impl {
             mut self: Pin<&mut Self>,
             cx: &mut Context<'_>,
         ) -> Poll<Option<Self::Transport>> {
-            // Use the inherent method on RaknetListener, not the trait method
-            match RaknetListener::poll_accept(&mut self, cx) {
-                Poll::Ready(Some(stream)) => Poll::Ready(Some(RakNetTransport::new(stream))),
-                Poll::Ready(None) => Poll::Ready(None),
-                Poll::Pending => Poll::Pending,
-            }
+            RaknetListener::poll_accept(&mut self, cx)
+                .map(|stream| stream.map(RakNetTransport::new))
         }
 
         fn local_addr(&self) -> Option<SocketAddr> {
             Some(RaknetListener::local_addr(self))
+        }
+
+        fn publish_status(
+            &self,
+            status: &ServerStatus,
+            server_guid: u64,
+        ) -> Result<(), JolyneError> {
+            let port = RaknetListener::local_addr(self).port();
+            self.set_advertisement(status.raknet_pong(server_guid, port).into_bytes())
+                .map_err(JolyneError::transport)
         }
     }
 }
@@ -530,16 +424,12 @@ mod nethernet_impl {
             mut self: Pin<&mut Self>,
             cx: &mut Context<'_>,
         ) -> Poll<Option<Self::Transport>> {
-            // Use the inherent method on NetherNetListener, not the trait method
-            match NetherNetListener::poll_accept(&mut self, cx) {
-                Poll::Ready(Some(stream)) => Poll::Ready(Some(NetherNetTransport::new(stream))),
-                Poll::Ready(None) => Poll::Ready(None),
-                Poll::Pending => Poll::Pending,
-            }
+            NetherNetListener::poll_accept(&mut self, cx)
+                .map(|stream| stream.map(NetherNetTransport::new))
         }
 
         fn local_addr(&self) -> Option<SocketAddr> {
-            None // NetherNet uses signaling, no traditional bind address
+            None
         }
     }
 }

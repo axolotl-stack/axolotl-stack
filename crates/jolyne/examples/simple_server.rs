@@ -40,15 +40,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 tokio::spawn(async move {
                     // Run the full join sequence
                     match handshake_stream.accept_join_sequence(&template, &key).await {
-                        Ok((mut play_stream, identity)) => {
+                        Ok((mut play_stream, login)) => {
                             let display_name =
-                                identity.display_name.as_deref().unwrap_or("Unknown");
+                                login.identity.display_name.as_deref().unwrap_or("Unknown");
                             info!(%addr, identity = %display_name, "Joined Game!");
 
                             // OPTIONAL: Enable Manual Flush for higher performance (Server Tick Mode).
                             // By default, jolyne sends every packet immediately (Low Latency).
                             // For a real server, you want to buffer packets and flush once per tick (50ms).
-                            // play_stream.set_auto_flush(false);
+                            // play_stream.set_flush_mode(jolyne::FlushMode::Manual).await?;
 
                             // Play Loop
                             while let Ok(packet) = play_stream.recv_packet().await {

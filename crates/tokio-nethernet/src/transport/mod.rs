@@ -52,6 +52,11 @@ impl Connection {
         })
     }
 
+    /// SCTP smoothed round-trip time; a plain lock, no timer or transmit work.
+    pub(crate) fn rtt(&self) -> Option<std::time::Duration> {
+        self.session.lock().rtt()
+    }
+
     /// Run `f` on the session with panic containment, then send every datagram
     /// it produced inline and wake the driver if its timer moved earlier.
     pub(crate) fn with<R>(
