@@ -26,11 +26,12 @@ use crate::config::ClientConfig;
 use crate::error::{HandshakePhase, JolyneError, ProtocolError};
 use crate::gamedata::GameData;
 use crate::valentine::{
-    ActorRuntimeId, ClientCacheStatusPacket, ClientToServerHandshakePacket,
-    EnumsServerboundLoadingScreenPacketType, ItemRegistryPacket, LoginPacket, McpePacket,
-    McpePacketData, McpePacketName, NetworkSettingsPacketCompressionAlgorithm, PROTOCOL_VERSION,
-    PlayStatusPacketStatus, RequestChunkRadiusPacket, RequestNetworkSettingsPacket,
-    ServerboundLoadingScreenPacket, SetLocalPlayerAsInitializedPacket, StartGamePacket,
+    ActorRuntimeId, ClientCacheStatusPacket, ClientToServerHandshakePacket, DimensionDataPacket,
+    EnumsServerboundLoadingScreenPacketType, ItemRegistryPacket, JigsawStructureDataPacket,
+    LoginPacket, McpePacket, McpePacketData, McpePacketName,
+    NetworkSettingsPacketCompressionAlgorithm, PROTOCOL_VERSION, PlayStatusPacketStatus,
+    RequestChunkRadiusPacket, RequestNetworkSettingsPacket, ServerboundLoadingScreenPacket,
+    SetLocalPlayerAsInitializedPacket, StartGamePacket, VoxelShapesPacket,
 };
 
 macro_rules! owner {
@@ -355,6 +356,9 @@ impl Phase for ClientPacks {
                     packs_required,
                     start_game: None,
                     item_registry: None,
+                    dimension_data: None,
+                    jigsaw_structures: None,
+                    voxel_shapes: None,
                     requested_radius: false,
                     updated_radius: None,
                     spawned: false,
@@ -376,6 +380,11 @@ pub struct ClientSpawn {
     deferred: Deferred,
     start_game: Option<Box<StartGamePacket>>,
     item_registry: Option<ItemRegistryPacket>,
+    /// Pre-`StartGame` structure packets, kept for [`GameData`] (proxies
+    /// must replay them before their own `StartGame`).
+    dimension_data: Option<DimensionDataPacket>,
+    jigsaw_structures: Option<JigsawStructureDataPacket>,
+    voxel_shapes: Option<VoxelShapesPacket>,
     requested_radius: bool,
     updated_radius: Option<i32>,
     spawned: bool,
@@ -455,6 +464,25 @@ impl ClientSpawn {
                     )?;
                     self.conn.flush()?;
                 }
+            }
+            Some(McpePacketName::DimensionDataPacket) => {
+                let McpePacketData::DimensionDataPacket(dimensions) = decode(packet)?.data else {
+                    unreachable!("filtered by name")
+                };
+                self.dimension_data = Some(dimensions);
+            }
+            Some(McpePacketName::JigsawStructureDataPacket) => {
+                let McpePacketData::JigsawStructureDataPacket(structures) = decode(packet)?.data
+                else {
+                    unreachable!("filtered by name")
+                };
+                self.jigsaw_structures = Some(structures);
+            }
+            Some(McpePacketName::VoxelShapesPacket) => {
+                let McpePacketData::VoxelShapesPacket(shapes) = decode(packet)?.data else {
+                    unreachable!("filtered by name")
+                };
+                self.voxel_shapes = Some(shapes);
             }
             Some(McpePacketName::ItemRegistryPacket) => {
                 let McpePacketData::ItemRegistryPacket(registry) = decode(packet)?.data else {
@@ -538,6 +566,9 @@ impl Phase for ClientSpawn {
             packs_required,
             deferred,
             item_registry,
+            dimension_data,
+            jigsaw_structures,
+            voxel_shapes,
             updated_radius,
             ..
         } = self;
@@ -551,6 +582,9 @@ impl Phase for ClientSpawn {
             game_data: GameData {
                 start_game: *start_game,
                 item_registry: item_registry.expect("checked above"),
+                dimension_data,
+                jigsaw_structures,
+                voxel_shapes,
                 biome_definitions: None,
                 entity_identifiers: None,
                 creative_content: None,

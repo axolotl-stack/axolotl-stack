@@ -530,9 +530,10 @@ impl WorldReady {
         &self.login
     }
 
-    /// Sends the pre-StartGame packets, `StartGame`, `ItemRegistry` and the
-    /// definition lists in one batch (BDS order: definitions precede the
-    /// client's `RequestChunkRadius`).
+    /// Sends `DimensionData` (when set), `JigsawStructureData`, `VoxelShapes`,
+    /// `StartGame`, `ItemRegistry` and the definition lists in one batch
+    /// (gophertunnel/BDS order; definitions precede the client's
+    /// `RequestChunkRadius`).
     pub fn start_game(
         mut self,
         params: WorldJoinParams,
@@ -540,9 +541,23 @@ impl WorldReady {
     ) -> Result<ServerSpawn, Failure<Self>> {
         let result = (|| {
             let conn = &mut self.conn;
-            for packet in &params.pre_start_game {
-                conn.queue_packet(packet, now)?;
+            if let Some(dimensions) = &params.dimension_data {
+                conn.queue_body(
+                    McpePacketName::DimensionDataPacket,
+                    dimensions.as_ref(),
+                    now,
+                )?;
             }
+            conn.queue_body(
+                McpePacketName::JigsawStructureDataPacket,
+                params.jigsaw_structures.as_ref(),
+                now,
+            )?;
+            conn.queue_body(
+                McpePacketName::VoxelShapesPacket,
+                params.voxel_shapes.as_ref(),
+                now,
+            )?;
             conn.queue_body(McpePacketName::StartGamePacket, &params.start_game, now)?;
             conn.queue_body(
                 McpePacketName::ItemRegistryPacket,

@@ -107,8 +107,9 @@ pub struct CompressionConfig {
     pub algorithm: BatchCompression,
     /// Deflate level 1..=9 (clamped); ignored for Snappy/None.
     pub level: u32,
-    /// Batches shorter than this are sent uncompressed. gophertunnel's
-    /// default is 256; BDS ships `compression-threshold=1`.
+    /// Batches shorter than this are sent uncompressed. Default: 1 (BDS
+    /// `server.properties` `compression-threshold=1`, confirmed by BDS
+    /// captures); gophertunnel's listener uses 256.
     pub threshold: u16,
 }
 
@@ -117,7 +118,7 @@ impl Default for CompressionConfig {
         Self {
             algorithm: BatchCompression::Deflate,
             level: 7,
-            threshold: 256,
+            threshold: 1,
         }
     }
 }

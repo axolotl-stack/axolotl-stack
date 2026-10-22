@@ -200,6 +200,9 @@ mod tests {
         let mut data = jolyne::GameData {
             start_game: StartGamePacket::default(),
             item_registry: ItemRegistryPacket::default(),
+            dimension_data: None,
+            jigsaw_structures: None,
+            voxel_shapes: None,
             biome_definitions: None,
             entity_identifiers: None,
             creative_content: None,

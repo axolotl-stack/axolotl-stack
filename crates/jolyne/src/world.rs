@@ -1,17 +1,43 @@
 use crate::valentine::GAME_VERSION;
 use crate::valentine::{
     ActorRuntimeId, ActorUniqueId, AvailableActorIdentifiersPacket, BiomeDefinitionListPacket,
-    BlockPos, CreativeContentPacket, EduSharedUriResource, EnumsChatRestrictionLevel,
-    EnumsEditorWorldType, EnumsEducationEditionOffer, EnumsGameType, EnumsGeneratorType,
-    EnumsPlayerPermissionLevel, EnumsServerEditorConnectionPolicy,
+    BlockPos, CreativeContentPacket, DimensionDataPacket, EduSharedUriResource,
+    EnumsChatRestrictionLevel, EnumsEditorWorldType, EnumsEducationEditionOffer, EnumsGameType,
+    EnumsGeneratorType, EnumsPlayerPermissionLevel, EnumsServerEditorConnectionPolicy,
     EnumsSharedTypesLegacyDifficulty, EnumsSocialGamePublishSetting, Experiments,
-    GameRulesChangedPacketData, ItemRegistryPacket, LevelSettings, McpePacket, NetworkPermissions,
-    SocialEventsServerTelemetryData, SpawnSettings, StartGamePacket, SyncedPlayerMovementSettings,
-    Vec2, Vec3,
+    GameRulesChangedPacketData, ItemRegistryPacket, JigsawStructureDataPacket, LevelSettings,
+    NetworkPermissions, SocialEventsServerTelemetryData, SpawnSettings, StartGamePacket,
+    SyncedPlayerMovementSettings, Vec2, Vec3, VoxelShapesPacket,
 };
+use bytes::Bytes;
 use std::sync::Arc;
 use uuid::Uuid;
 use valentine::bedrock::codec::Nbt;
+
+/// Network-NBT `JigsawStructureData` with every list empty: the compound
+/// gophertunnel's listener sends (conn.go `startGame`). Lists are typed as
+/// compounds, matching its `[]map[string]any` fields.
+const EMPTY_JIGSAW_STRUCTURES: &[u8] = &[
+    0x0a, 0x00, // root compound, empty name
+    0x09, 0x07, b'j', b'i', b'g', b's', b'a', b'w', b's', 0x0a, 0x00, //
+    0x09, 0x0a, b'p', b'r', b'o', b'c', b'e', b's', b's', b'o', b'r', b's', 0x0a, 0x00, //
+    0x09, 0x0e, b's', b't', b'r', b'u', b'c', b't', b'u', b'r', b'e', b'_', b's', b'e', b't', b's',
+    0x0a, 0x00, //
+    0x09, 0x0e, b't', b'e', b'm', b'p', b'l', b'a', b't', b'e', b'_', b'p', b'o', b'o', b'l', b's',
+    0x0a, 0x00, //
+    0x00, // end of root
+];
+
+/// `JigsawStructureData` with no jigsaw structures, as gophertunnel sends it.
+///
+/// The client refuses to finish joining ("Missing structure data from
+/// server.") when no `JigsawStructureData` arrives before `StartGame`, but it
+/// accepts empty lists. Servers with world generation should send BDS's data.
+pub fn empty_jigsaw_structures() -> JigsawStructureDataPacket {
+    JigsawStructureDataPacket {
+        jigsaw_structure_data_tag: Nbt(Bytes::from_static(EMPTY_JIGSAW_STRUCTURES)),
+    }
+}
 
 /// The public packet bundle sent during the Bedrock world-join sequence.
 #[derive(Clone, Debug)]
@@ -21,15 +47,28 @@ pub struct WorldTemplate {
     pub biome_definitions: Arc<BiomeDefinitionListPacket>,
     pub available_entities: Arc<AvailableActorIdentifiersPacket>,
     pub creative_content: Arc<CreativeContentPacket>,
+    /// Custom dimension definitions; `None` sends no `DimensionData`
+    /// (gophertunnel only sends it when `GameData.Dimensions` is non-empty).
+    pub dimension_data: Option<Arc<DimensionDataPacket>>,
+    /// Sent before `StartGame`; required by the client. Default:
+    /// [`empty_jigsaw_structures`].
+    pub jigsaw_structures: Arc<JigsawStructureDataPacket>,
+    /// Sent before `StartGame` (BDS and gophertunnel always send it).
+    /// Default: no shapes, as gophertunnel sends.
+    pub voxel_shapes: Arc<VoxelShapesPacket>,
 }
 
 /// Per-player parameters for `start_game`.
+///
+/// The server sends, in one batch and in vanilla order (gophertunnel
+/// conn.go `startGame`, BDS captures): `DimensionData` (when set),
+/// `JigsawStructureData`, `VoxelShapes`, `StartGame`, `ItemRegistry`, then
+/// the definition lists.
 #[derive(Debug)]
 pub struct WorldJoinParams {
-    /// Packets sent before `StartGame` in the same batch, e.g.
-    /// `DimensionData`, `JigsawStructureData`, `VoxelShapes` (gophertunnel and
-    /// BDS send these first).
-    pub pre_start_game: Vec<McpePacket>,
+    pub dimension_data: Option<Arc<DimensionDataPacket>>,
+    pub jigsaw_structures: Arc<JigsawStructureDataPacket>,
+    pub voxel_shapes: Arc<VoxelShapesPacket>,
     pub start_game: StartGamePacket,
     pub item_registry: Arc<ItemRegistryPacket>,
     /// Definition packets sent right after `ItemRegistry` (BDS order). `None`
@@ -53,7 +92,9 @@ impl WorldTemplate {
         };
 
         WorldJoinParams {
-            pre_start_game: Vec::new(),
+            dimension_data: self.dimension_data.clone(),
+            jigsaw_structures: self.jigsaw_structures.clone(),
+            voxel_shapes: self.voxel_shapes.clone(),
             start_game: start,
             item_registry: self.item_registry.clone(),
             biome_definitions: Some(self.biome_definitions.clone()),
@@ -171,6 +212,9 @@ impl Default for WorldTemplate {
             biome_definitions: Arc::new(BiomeDefinitionListPacket::default()),
             available_entities: Arc::new(AvailableActorIdentifiersPacket::default()),
             creative_content: Arc::new(CreativeContentPacket::default()),
+            dimension_data: None,
+            jigsaw_structures: Arc::new(empty_jigsaw_structures()),
+            voxel_shapes: Arc::new(VoxelShapesPacket::default()),
         }
     }
 }

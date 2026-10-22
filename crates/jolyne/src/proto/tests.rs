@@ -213,7 +213,9 @@ fn params(runtime_id: i64) -> WorldJoinParams {
 }
 
 /// ROADMAP M3: the server's packet order through PlayerSpawn, with the stack
-/// only after the client's first pack response (vanilla/BDS ordering).
+/// only after the client's first pack response and the structure packets
+/// before StartGame (vanilla/BDS ordering; the client disconnects with
+/// "Missing structure data from server." without JigsawStructureData).
 #[tokio::test]
 async fn join_sequence_order_matches_vanilla() {
     use McpePacketName as N;
@@ -221,7 +223,9 @@ async fn join_sequence_order_matches_vanilla() {
         online_mode: false,
         ..Default::default()
     });
-    let (server, client) = harness.join(params(42)).await;
+    let mut params = params(42);
+    params.dimension_data = Some(Arc::new(crate::valentine::DimensionDataPacket::default()));
+    let (server, client) = harness.join(params).await;
     assert_eq!(server.session.runtime_id(), 42);
     assert_eq!(client.session.session.runtime_id(), 42);
     assert_eq!(server.session.chunk_radius(), Some(16));
@@ -234,6 +238,9 @@ async fn join_sequence_order_matches_vanilla() {
             N::PlayStatusPacket,
             N::ResourcePacksInfoPacket,
             N::ResourcePackStackPacket,
+            N::DimensionDataPacket,
+            N::JigsawStructureDataPacket,
+            N::VoxelShapesPacket,
             N::StartGamePacket,
             N::ItemRegistryPacket,
             N::BiomeDefinitionListPacket,
@@ -243,6 +250,17 @@ async fn join_sequence_order_matches_vanilla() {
             N::NetworkChunkPublisherUpdatePacket,
             N::PlayStatusPacket,
         ]
+    );
+    // The client keeps the structure packets for proxies to replay.
+    let game_data = &client.game_data;
+    assert!(game_data.dimension_data.is_some());
+    assert_eq!(
+        game_data.jigsaw_structures,
+        Some(crate::world::empty_jigsaw_structures())
+    );
+    assert_eq!(
+        game_data.voxel_shapes,
+        Some(crate::valentine::VoxelShapesPacket::default())
     );
 }
 

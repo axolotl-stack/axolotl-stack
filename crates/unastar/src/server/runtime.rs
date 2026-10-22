@@ -170,7 +170,9 @@ impl UnastarServer {
                 required: self.config.server.require_resource_packs,
                 ..ServerPacks::default()
             }),
-            // Advertise the configured MOTD and live player counts.
+            // Advertise the configured MOTD, live player count and limit
+            // (protocol and game version come from jolyne's pinned surface).
+            max_players: self.config.server.max_players as usize,
             status: Some(Arc::new(StaticStatus::new(
                 self.config.server.motd.clone(),
                 "Unastar",

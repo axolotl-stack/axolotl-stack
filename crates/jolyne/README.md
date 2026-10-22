@@ -96,7 +96,7 @@ the vanilla reference). Tests are in `crates/jolyne` unless noted.
 | RakNet | ✅ | `tests/raknet_listener.rs` (real loopback join) |
 | NetherNet (LAN `ServerData` from the status provider) | ✅ | `listener::NetherNetBuilder::bind` publishes `ServerStatus::lan_server_data` |
 | Custom transport | ✅ | `stream::tests` (in-memory `Transport`) |
-| Compression: Deflate / Snappy / None, server-selectable, threshold 256 | ✅ | `proto::tests::compression_and_encryption_are_active_in_play`, `proto::batch::tests::threshold_selects_marker_and_roundtrips_all_algorithms` |
+| Compression: Deflate / Snappy / None, server-selectable; threshold default 1 (BDS `server.properties` and captures; gophertunnel uses 256), configurable | ✅ | `proto::tests::compression_and_encryption_are_active_in_play`, `proto::batch::tests::threshold_selects_marker_and_roundtrips_all_algorithms` |
 | Encryption (AES-CTR + checksum) | ✅ | `proto::crypto::tests::*`, `proto::conn::tests::checksum_failure_is_terminal_for_the_connection` |
 | Crypto hardening (constant-time compare, cipher invalidated, plaintext zeroized) | ✅ | `proto::crypto::tests::tampering_zeroizes_plaintext_and_invalidates_cipher_permanently` |
 | Resource packs, server send (Info → DataInfo/chunks on request → Stack after download → Completed; SHA-256, CDN URL, content keys, paced chunks) | ✅ | `proto::packs::tests::{transfers_verifies_and_orders_stack_after_downloads, chunk_pacing_holds_replies_on_a_timer, server_rejects_out_of_order_unknown_and_refused, stack_finished_before_stack_is_rejected}` |
@@ -111,7 +111,7 @@ the vanilla reference). Tests are in `crates/jolyne` unless noted.
 | Login timeout (settings → encryption) and per-stage deadlines | ✅ | `proto::tests::{each_stage_has_a_mandatory_deadline, deadline_elapses_exactly_at_login_timeout}` |
 | Admission (max players → `PlayStatus` server full; allow hook → Kicked) | ✅ | `proto::tests::server_full_and_admission_refusals_reach_the_client_typed`, `tests/raknet_listener.rs` |
 | Disconnect with reason (both sides), typed inbound Disconnect, flushing `close` | ✅ | `stream::tests::{join_echo_and_typed_disconnect, failed_step_keeps_the_connection_and_sends_a_reason, close_and_drop_flush_buffered_packets}` |
-| Spawn checks (runtime ID, radius ≥ 1 + server override, BDS packet order) | ✅ | `proto::tests::{runtime_id_mismatch_is_rejected, chunk_radius_requires_one_and_honours_the_server_override, join_sequence_order_matches_vanilla}` |
+| Spawn checks (runtime ID, radius ≥ 1 + server override, BDS packet order incl. `DimensionData?`/`JigsawStructureData`/`VoxelShapes` before `StartGame`) | ✅ | `proto::tests::{runtime_id_mismatch_is_rejected, chunk_radius_requires_one_and_honours_the_server_override, join_sequence_order_matches_vanilla}` |
 | Client: typed `PlayStatus` refusal, ES384-pinned handshake | ✅ | `proto::tests::protocol_mismatch_answers_play_status_and_client_reports_refusal`, `proto::handshake::tests::rejects_non_es384_and_tampered_tokens` |
 | Latency / RTT (RakNet ACK RTT, NetherNet SCTP SRTT) | ✅ | `tests/raknet_listener.rs` (`latency()` after a real join), `stream::tests::join_echo_and_typed_disconnect` |
 | Server status / MOTD (refreshed every 4 s and on join/leave) | ✅ | `status::tests::pong_matches_gophertunnel_layout_and_unlimited_max`, `tests/raknet_listener.rs` |

@@ -127,17 +127,28 @@ where
 
     let downstream = async {
         let start = reasoned(packs.negotiate_packs_with(upstream_pack_set(&upstream))).await?;
-        reasoned(start.start_game(WorldJoinParams {
-            pre_start_game: Vec::new(),
-            start_game: game_data.start_game,
-            item_registry: Arc::new(game_data.item_registry),
-            // The upstream's copies are queued in its play session and get
-            // forwarded verbatim by the relay.
-            biome_definitions: None,
-            available_entities: None,
-            creative_content: None,
-            chunk_radius: upstream.chunk_radius(),
-        }))
+        reasoned(
+            start.start_game(WorldJoinParams {
+                // The upstream's pre-StartGame packets must precede the proxy's
+                // own StartGame; a server that sent none gets gophertunnel's
+                // empty definitions, which the client still requires.
+                dimension_data: game_data.dimension_data.map(Arc::new),
+                jigsaw_structures: Arc::new(
+                    game_data
+                        .jigsaw_structures
+                        .unwrap_or_else(crate::world::empty_jigsaw_structures),
+                ),
+                voxel_shapes: Arc::new(game_data.voxel_shapes.unwrap_or_default()),
+                start_game: game_data.start_game,
+                item_registry: Arc::new(game_data.item_registry),
+                // The upstream's copies are queued in its play session and get
+                // forwarded verbatim by the relay.
+                biome_definitions: None,
+                available_entities: None,
+                creative_content: None,
+                chunk_radius: upstream.chunk_radius(),
+            }),
+        )
         .await
     }
     .await;
