@@ -46,7 +46,7 @@ sequenceDiagram
 
     Note over Server: Start Game Sequence
 
-    Server->>Client: [DimensionData / JigsawStructureData / VoxelShapes] (optional)
+    Server->>Client: [DimensionData] (optional), JigsawStructureData, VoxelShapes
     Server->>Client: StartGame
     Server->>Client: ItemRegistry
     Server->>Client: BiomeDefinitionList
@@ -82,7 +82,7 @@ sequenceDiagram
 - **ClientCacheStatus**: Clients may send this to indicate blob cache support. It should be handled (usually ignored if cache not implemented) without blocking the flow.
 
 ### 3. Spawn Sequence
-- `StartGame`, `ItemRegistry` and the definition lists are sent together, in BDS order.
+- `DimensionData` (only for custom dimensions), `JigsawStructureData` and `VoxelShapes` precede `StartGame`, followed by `ItemRegistry` and the definition lists, in one batch in BDS/gophertunnel order. The client disconnects with "Missing structure data from server." when `JigsawStructureData` is missing (gophertunnel sends empty lists; BDS sends its full definitions).
 - The client requests its chunk radius after `StartGame`; the server answers with `ChunkRadiusUpdated`, `NetworkChunkPublisherUpdate` (radius in blocks) and `PlayStatus(PlayerSpawn)`.
 - `SetLocalPlayerAsInitialized` ends the spawn; its runtime ID must equal the `StartGame` runtime ID.
 
