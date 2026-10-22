@@ -1,0 +1,50 @@
+{
+  "utc": "2026-10-22T02:40:02.9423939Z",
+  "logical_cpu": 4,
+  "rounds": 5,
+  "rust_iterations": 10000,
+  "order_odd": [
+    "before",
+    "after",
+    "after_noop"
+  ],
+  "order_even": [
+    "after_noop",
+    "after",
+    "before"
+  ],
+  "baseline_commit": "d2aa8336e807d4403cbb85f87483172d4e572df7",
+  "encoder_commit": "289f79989ad7d2f26bc4f17f5505466cbdc4f3ce",
+  "snappy_code_commit": "7773324",
+  "executables": {
+    "after_noop": {
+      "sha256": "b337b679c0b82ad9dc8812e21fe1a0775c542cb9f945ebfe38745d96bb1f1189"
+    },
+    "before": {
+      "sha256": "43c2a3804825d16a871fae94b15e2df949831f020f3e83a87627e312aa222049"
+    },
+    "after": {
+      "sha256": "b337b679c0b82ad9dc8812e21fe1a0775c542cb9f945ebfe38745d96bb1f1189"
+    }
+  },
+  "purpose": "Negative control: after and after_noop invoke the exact same executable with identical arguments in independent processes; no code changed",
+  "rows": 480,
+  "chunk_framing": {
+    "primary_before_ns": 2570.67,
+    "primary_after_ns": 2706.19,
+    "primary_delta_percent": 5.2717773965542,
+    "control_before_ns": 2561.8,
+    "control_after_ns": 2733.79,
+    "control_after_noop_ns": 2868.41,
+    "identical_binary_delta_percent": 4.924299232933027
+  },
+  "largest_identical_binary_difference": {
+    "absolute_percent": 20.619800596939108,
+    "fixture": "ServerTick",
+    "operation": "framing_decode",
+    "signed_percent": 20.619800596939108
+  },
+  "conclusion": "The observed identical-binary variability exceeds the requested approximate 3% noise band; a blanket 3% non-regression guarantee is not established",
+  "acceptance_decision": "Coordinator approved delivery with the explicit noise caveat and both complete datasets committed",
+  "strict_3_percent_bound_established": false
+}

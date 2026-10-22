@@ -2,15 +2,63 @@ use async_trait::async_trait;
 use std::fmt;
 use thiserror::Error;
 
-/// Signal names from go-nethernet signal.go:Signal.UnmarshalText / Signal.validate.
-pub mod signal_type {
-    pub const OFFER: &str = "CONNECTREQUEST";
-    pub const ANSWER: &str = "CONNECTRESPONSE";
-    pub const CANDIDATE: &str = "CANDIDATEADD";
-    pub const ERROR: &str = "CONNECTERROR";
+/// Signal kinds and their wire names.
+///
+/// Source: go-nethernet signal.go:SignalTypeOffer constant block / Signal.validate.
+/// Only these four names are valid; `Signal::parse` rejects every other name,
+/// so an unknown type is unrepresentable rather than validated later.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SignalType {
+    /// `CONNECTREQUEST`: SDP offer from the dialer.
+    Offer,
+    /// `CONNECTRESPONSE`: SDP answer from the listener.
+    Answer,
+    /// `CANDIDATEADD`: trickled ICE candidate.
+    Candidate,
+    /// `CONNECTERROR`: signed 32-bit decimal error code.
+    Error,
 }
 
-/// Error codes used in `SignalType::ERROR`.
+impl SignalType {
+    /// Exact (case-sensitive) wire name.
+    #[inline]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Offer => "CONNECTREQUEST",
+            Self::Answer => "CONNECTRESPONSE",
+            Self::Candidate => "CANDIDATEADD",
+            Self::Error => "CONNECTERROR",
+        }
+    }
+
+    /// Parses an exact wire name; go-nethernet compares names case-sensitively.
+    #[inline]
+    pub fn from_wire(name: &[u8]) -> Option<Self> {
+        match name {
+            b"CONNECTREQUEST" => Some(Self::Offer),
+            b"CONNECTRESPONSE" => Some(Self::Answer),
+            b"CANDIDATEADD" => Some(Self::Candidate),
+            b"CONNECTERROR" => Some(Self::Error),
+            _ => None,
+        }
+    }
+}
+
+impl fmt::Display for SignalType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl std::str::FromStr for SignalType {
+    type Err = SignalParseError;
+
+    fn from_str(name: &str) -> Result<Self, Self::Err> {
+        Self::from_wire(name.as_bytes()).ok_or(SignalParseError::InvalidSignalType)
+    }
+}
+
+/// Error codes used in [`SignalType::Error`] signals.
 /// Source: go-nethernet signal.go:ErrorCodeNone constant block / Signal.validate.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -57,7 +105,7 @@ pub enum SignalErrorCode {
 
 impl fmt::Display for SignalErrorCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", *self as i32)
+        f.write_str(itoa::Buffer::new().format(*self as i32))
     }
 }
 
@@ -121,8 +169,8 @@ pub struct IceServer {
 /// Wire format: `[TYPE] [CONNECTION_ID] [DATA]`
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Signal {
-    /// The type of signal (e.g. `CONNECTREQUEST`).
-    pub typ: String,
+    /// The type of signal (e.g. [`SignalType::Offer`] for `CONNECTREQUEST`).
+    pub typ: SignalType,
     /// Unique ID of the connection sending the signal.
     pub connection_id: u64,
     /// The payload data (SDP, Candidate, Error Code, etc.).
@@ -132,40 +180,139 @@ pub struct Signal {
     pub network_id: String,
 }
 
+/// Signals up to this wire length are assembled on the stack and handed to the
+/// formatter in one `write_str`, so `to_string()` allocates exactly once.
+const INLINE_DISPLAY_LEN: usize = 256;
+
+/// Longest `TYPE CONNECTION_ID ` head: 16-byte prefix slot + 20 digits + space.
+const HEAD_CAPACITY: usize = 40;
+
+/// ASCII `TYPE CONNECTION_ID ` prefix of the wire text, built with fixed-size
+/// stores (no per-piece `memcpy` calls) so formatting costs a few nanoseconds.
+struct WireHead {
+    bytes: [u8; HEAD_CAPACITY],
+    len: usize,
+}
+
+impl WireHead {
+    #[inline]
+    fn new(typ: SignalType, connection_id: u64) -> Self {
+        // Each wire name plus its separating space fits a 16-byte slot.
+        let (slot, prefix_len): (&[u8; 16], usize) = match typ {
+            SignalType::Offer => (b"CONNECTREQUEST  ", 15),
+            SignalType::Answer => (b"CONNECTRESPONSE ", 16),
+            SignalType::Candidate => (b"CANDIDATEADD    ", 13),
+            SignalType::Error => (b"CONNECTERROR    ", 13),
+        };
+        let mut bytes = [0u8; HEAD_CAPACITY];
+        bytes[..16].copy_from_slice(slot);
+        let digits = connection_id
+            .checked_ilog10()
+            .map_or(1, |log| log as usize + 1);
+        // Two digits per step from the right, as itoa does.
+        let mut value = connection_id;
+        let mut at = prefix_len + digits;
+        while value >= 10 {
+            let pair = (value % 100) as usize * 2;
+            value /= 100;
+            at -= 2;
+            bytes[at..at + 2].copy_from_slice(&DIGIT_PAIRS[pair..pair + 2]);
+        }
+        if at > prefix_len {
+            bytes[at - 1] = b'0' + value as u8;
+        }
+        bytes[prefix_len + digits] = b' ';
+        Self {
+            bytes,
+            len: prefix_len + digits + 1,
+        }
+    }
+
+    #[inline]
+    fn as_str(&self) -> &str {
+        // SAFETY: `bytes[..len]` holds only ASCII: a wire name, decimal digits
+        // and spaces, all written by `new`.
+        unsafe { std::str::from_utf8_unchecked(&self.bytes[..self.len]) }
+    }
+}
+
+/// `"00" ..= "99"`, two ASCII digits per index pair.
+const DIGIT_PAIRS: [u8; 200] = {
+    let mut table = [0u8; 200];
+    let mut n = 0;
+    while n < 100 {
+        table[n * 2] = b'0' + (n / 10) as u8;
+        table[n * 2 + 1] = b'0' + (n % 10) as u8;
+        n += 1;
+    }
+    table
+};
+
 impl fmt::Display for Signal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {} {}", self.typ, self.connection_id, self.data)
+        let head = WireHead::new(self.typ, self.connection_id);
+        if let Some(result) = with_inline_wire(&head, &self.data, |text| f.write_str(text)) {
+            return result;
+        }
+        f.write_str(head.as_str())?;
+        f.write_str(&self.data)
     }
+}
+
+/// Runs `use_text` on the complete wire text assembled in a stack buffer, or
+/// returns `None` when it exceeds [`INLINE_DISPLAY_LEN`].
+#[inline]
+fn with_inline_wire<R>(head: &WireHead, data: &str, use_text: impl FnOnce(&str) -> R) -> Option<R> {
+    let len = head.len + data.len();
+    if len > INLINE_DISPLAY_LEN {
+        return None;
+    }
+    let mut buf = [0u8; INLINE_DISPLAY_LEN + HEAD_CAPACITY];
+    buf[..HEAD_CAPACITY].copy_from_slice(&head.bytes);
+    buf[head.len..len].copy_from_slice(data.as_bytes());
+    // SAFETY: `buf[..len]` is the ASCII head followed by the complete `data`
+    // string, so it is valid UTF-8 ending on a char boundary.
+    Some(use_text(unsafe {
+        std::str::from_utf8_unchecked(&buf[..len])
+    }))
 }
 
 impl Signal {
     /// Parses a signal string into a `Signal` struct.
     ///
-    /// Expected format: `TYPE CONNECTION_ID DATA`
+    /// Expected format: `TYPE CONNECTION_ID DATA`, split on the first two
+    /// spaces as go-nethernet signal.go:Signal.UnmarshalText does. Error
+    /// precedence matches upstream: format, connection ID, type, error code.
+    /// The only allocation is the owned copy of `DATA`.
     pub fn parse(s: &str, network_id: String) -> Result<Self, SignalParseError> {
-        let mut parts = s.splitn(3, ' ');
-        let typ = parts.next().ok_or(SignalParseError::InvalidFormat)?;
-        let id = parts.next().ok_or(SignalParseError::InvalidFormat)?;
-        let data = parts.next().ok_or(SignalParseError::InvalidFormat)?;
-        let connection_id = decimal_prefix(id, false)
-            .parse::<u64>()
-            .map_err(|_| SignalParseError::InvalidConnectionId)?;
-        let signal = Self {
-            typ: typ.to_owned(),
+        let (typ, connection_id, data_start) = split_wire(s)?;
+        Ok(Self {
+            typ,
             connection_id,
-            data: data.to_owned(),
+            data: s[data_start..].to_owned(),
             network_id,
-        };
-        signal.validate()?;
-        Ok(signal)
+        })
+    }
+
+    /// [`Signal::parse`] that takes ownership of the wire text and reuses its
+    /// buffer for `data` (the `TYPE CONNECTION_ID ` head is shifted out in
+    /// place), so a received text becomes a signal without allocating.
+    pub fn parse_owned(mut text: String, network_id: String) -> Result<Self, SignalParseError> {
+        let (typ, connection_id, data_start) = split_wire(&text)?;
+        text.drain(..data_start);
+        Ok(Self {
+            typ,
+            connection_id,
+            data: text,
+            network_id,
+        })
     }
 
     /// Validates constructed signals too, as go-nethernet signal.go:Signal.validate does.
     pub fn validate(&self) -> Result<(), SignalParseError> {
-        match self.typ.as_str() {
-            signal_type::OFFER | signal_type::ANSWER | signal_type::CANDIDATE => Ok(()),
-            signal_type::ERROR => parse_signal_error_code(&self.data).map(|_| ()),
-            _ => Err(SignalParseError::InvalidSignalType),
+        match self.typ {
+            SignalType::Offer | SignalType::Answer | SignalType::Candidate => Ok(()),
+            SignalType::Error => parse_signal_error_code(&self.data).map(|_| ()),
         }
     }
 
@@ -173,28 +320,107 @@ impl Signal {
     #[inline]
     pub fn error(connection_id: u64, network_id: String, code: SignalErrorCode) -> Self {
         Self {
-            typ: signal_type::ERROR.to_string(),
+            typ: SignalType::Error,
             connection_id,
-            data: code.to_string(),
+            data: itoa::Buffer::new().format(code as i32).to_owned(),
             network_id,
         }
     }
+
+    /// Appends the wire text (`TYPE CONNECTION_ID DATA`) to `out` with one exact
+    /// reservation; a reused `out` makes formatting allocation-free.
+    pub fn write_wire(&self, out: &mut String) {
+        let head = WireHead::new(self.typ, self.connection_id);
+        out.reserve(head.len + self.data.len());
+        out.push_str(head.as_str());
+        out.push_str(&self.data);
+    }
+
+    /// Returns the wire text in a fresh `String` allocated once at its exact
+    /// length. Same text as `to_string()`, which cannot pre-size through
+    /// `fmt` and so grows its buffer, notably for SDP-sized payloads.
+    pub fn to_wire_string(&self) -> String {
+        let head = WireHead::new(self.typ, self.connection_id);
+        with_inline_wire(&head, &self.data, str::to_owned).unwrap_or_else(|| {
+            let mut out = String::with_capacity(head.len + self.data.len());
+            out.push_str(head.as_str());
+            out.push_str(&self.data);
+            out
+        })
+    }
 }
 
-/// Parses signed decimal prefixes, matching go-nethernet signal.go:parseSignalErrorCode.
-pub fn parse_signal_error_code(data: &str) -> Result<i32, SignalParseError> {
-    decimal_prefix(data, true)
-        .parse()
-        .map_err(|_| SignalParseError::InvalidErrorCode)
+/// Validates `TYPE CONNECTION_ID DATA` and returns the type, ID and the byte
+/// offset of `DATA` (go-nethernet signal.go:Signal.UnmarshalText).
+#[inline]
+fn split_wire(s: &str) -> Result<(SignalType, u64, usize), SignalParseError> {
+    let bytes = s.as_bytes();
+    let first = find_space(bytes, 0).ok_or(SignalParseError::InvalidFormat)?;
+    let second = find_space(bytes, first + 1).ok_or(SignalParseError::InvalidFormat)?;
+    let connection_id = decimal_prefix_u64(&bytes[first + 1..second])
+        .ok_or(SignalParseError::InvalidConnectionId)?;
+    let typ = SignalType::from_wire(&bytes[..first]).ok_or(SignalParseError::InvalidSignalType)?;
+    // `second` indexes an ASCII space, so `second + 1` is a char boundary.
+    let data_start = second + 1;
+    if typ == SignalType::Error {
+        parse_signal_error_code(&s[data_start..])?;
+    }
+    Ok((typ, connection_id, data_start))
 }
 
-fn decimal_prefix(data: &str, signed: bool) -> &str {
-    let start = usize::from(signed && data.starts_with('-'));
-    let digits = data.as_bytes()[start..]
+#[inline]
+fn find_space(bytes: &[u8], from: usize) -> Option<usize> {
+    bytes[from..]
         .iter()
-        .take_while(|b| b.is_ascii_digit())
-        .count();
-    &data[..start + digits]
+        .position(|&b| b == b' ')
+        .map(|offset| from + offset)
+}
+
+/// Value of the leading ASCII digits; `None` when there are none or they
+/// overflow, as go-nethernet signal.go:decimalPrefix + strconv.ParseUint do.
+#[inline]
+fn decimal_prefix_u64(bytes: &[u8]) -> Option<u64> {
+    let mut value = 0u64;
+    let mut digits = 0;
+    for &byte in bytes {
+        let digit = byte.wrapping_sub(b'0');
+        if digit > 9 {
+            break;
+        }
+        value = value.checked_mul(10)?.checked_add(u64::from(digit))?;
+        digits += 1;
+    }
+    (digits > 0).then_some(value)
+}
+
+/// Parses signed decimal prefixes, matching go-nethernet signal.go:parseSignalErrorCode
+/// (an optional `-`, at least one digit, trailing text ignored, `i32` range).
+pub fn parse_signal_error_code(data: &str) -> Result<i32, SignalParseError> {
+    let bytes = data.as_bytes();
+    let (negative, digits) = match bytes.split_first() {
+        Some((b'-', rest)) => (true, rest),
+        _ => (false, bytes),
+    };
+    // Magnitude of i32::MIN; anything larger is out of range for either sign.
+    const LIMIT: i64 = 1 << 31;
+    let mut magnitude = 0i64;
+    let mut count = 0;
+    for &byte in digits {
+        let digit = byte.wrapping_sub(b'0');
+        if digit > 9 {
+            break;
+        }
+        magnitude = magnitude * 10 + i64::from(digit);
+        if magnitude > LIMIT {
+            return Err(SignalParseError::InvalidErrorCode);
+        }
+        count += 1;
+    }
+    if count == 0 {
+        return Err(SignalParseError::InvalidErrorCode);
+    }
+    i32::try_from(if negative { -magnitude } else { magnitude })
+        .map_err(|_| SignalParseError::InvalidErrorCode)
 }
 
 #[derive(Debug, Error)]
@@ -227,6 +453,7 @@ const MAX_CANDIDATE_LEN: usize = 1024;
 /// Format: `candidate:<foundation> 1 <proto> <priority> <addr> <port> typ <type> [raddr <raddr> rport <rport>] generation 0 ufrag <ufrag> network-id <id> network-cost 0`
 ///
 /// Source: go-nethernet signal.go:formatICECandidate (component, generation and cost constants).
+/// Allocates the result once, at its exact length.
 #[inline]
 #[allow(clippy::too_many_arguments)]
 pub fn format_ice_candidate(
@@ -241,27 +468,51 @@ pub fn format_ice_candidate(
     related_port: Option<u16>,
     ufrag: &str,
 ) -> String {
-    let mut s = format!(
-        "candidate:{} 1 {} {} {} {} typ {}",
-        foundation, protocol, priority, address, port, candidate_type
+    let (mut priority_buf, mut port_buf, mut id_buf, mut rport_buf) = (
+        itoa::Buffer::new(),
+        itoa::Buffer::new(),
+        itoa::Buffer::new(),
+        itoa::Buffer::new(),
     );
-
     // Upstream emits related fields only for relay and server-reflexive candidates.
-    if matches!(candidate_type, "relay" | "srflx") {
-        use std::fmt::Write;
-        let _ = write!(
-            s,
-            " raddr {} rport {}",
+    let related = matches!(candidate_type, "relay" | "srflx");
+    let (raddr_key, raddr, rport_key, rport) = if related {
+        (
+            " raddr ",
             related_address.unwrap_or(""),
-            related_port.unwrap_or(0)
-        );
+            " rport ",
+            rport_buf.format(related_port.unwrap_or(0)),
+        )
+    } else {
+        ("", "", "", "")
+    };
+    let parts = [
+        "candidate:",
+        foundation,
+        " 1 ",
+        protocol,
+        " ",
+        priority_buf.format(priority),
+        " ",
+        address,
+        " ",
+        port_buf.format(port),
+        " typ ",
+        candidate_type,
+        raddr_key,
+        raddr,
+        rport_key,
+        rport,
+        " generation 0 ufrag ",
+        ufrag,
+        " network-id ",
+        id_buf.format(id),
+        " network-cost 0",
+    ];
+    let mut s = String::with_capacity(parts.iter().map(|part| part.len()).sum());
+    for part in parts {
+        s.push_str(part);
     }
-
-    s.push_str(&format!(
-        " generation 0 ufrag {} network-id {} network-cost 0",
-        ufrag, id
-    ));
-
     s
 }
 
@@ -270,11 +521,12 @@ pub fn format_ice_candidate(
 /// Source: go-nethernet conn.go:parseRemoteCandidate. The legacy return type
 /// exposes only the fields needed by existing callers; use the native WebRTC
 /// candidate parser when component/TCP type information must be preserved.
+/// The result borrows from `s` and parsing does not allocate.
 ///
 /// # Security
 /// - Limits string field lengths to prevent memory exhaustion
 /// - Validates protocol is "udp" or "tcp"
-pub fn parse_ice_candidate(s: &str) -> Result<IceCandidateInfo, SignalParseError> {
+pub fn parse_ice_candidate(s: &str) -> Result<IceCandidateInfo<'_>, SignalParseError> {
     // Check total length limit
     if s.len() > MAX_CANDIDATE_LEN {
         return Err(SignalParseError::FieldTooLong);
@@ -284,83 +536,101 @@ pub fn parse_ice_candidate(s: &str) -> Result<IceCandidateInfo, SignalParseError
     let s = s.trim();
     let s = s.strip_prefix("a=").unwrap_or(s);
     let s = s.strip_prefix("candidate:").unwrap_or(s);
-    let parts: Vec<&str> = s.split_whitespace().collect();
-
-    if parts.len() < 8 {
-        return Err(SignalParseError::InvalidFormat);
+    // Tokens split on Unicode whitespace. For ASCII text that is exactly
+    // `split_ascii_whitespace` plus U+000B, so the byte splitter is used unless
+    // the text holds a vertical tab or any non-ASCII byte.
+    if s.is_ascii() && !s.as_bytes().contains(&0x0b) {
+        parse_candidate_tokens(s.split_ascii_whitespace())
+    } else {
+        parse_candidate_tokens(s.split_whitespace())
     }
+}
 
-    // Validate and parse foundation
-    let foundation = parts[0];
+fn parse_candidate_tokens<'a>(
+    mut parts: impl Iterator<Item = &'a str>,
+) -> Result<IceCandidateInfo<'a>, SignalParseError> {
+    // Count is checked before any field, preserving upstream error precedence.
+    let mut head = [""; 8];
+    for slot in &mut head {
+        *slot = parts.next().ok_or(SignalParseError::InvalidFormat)?;
+    }
+    let [
+        foundation,
+        component,
+        protocol,
+        priority,
+        address,
+        port,
+        typ,
+        candidate_type,
+    ] = head;
+
     if foundation.len() > MAX_FOUNDATION_LEN {
         return Err(SignalParseError::FieldTooLong);
     }
-    let foundation = foundation.to_string();
 
-    parts[1]
+    component
         .parse::<u16>()
         .map_err(|_| SignalParseError::InvalidFormat)?;
 
-    // Validate protocol (must be udp or tcp)
-    let protocol = parts[2].to_lowercase();
-    if protocol != "udp" && protocol != "tcp" {
+    // Validate protocol (must be udp or tcp). No non-ASCII character
+    // lowercases to these ASCII letters, so ASCII case folding is exact.
+    let protocol = if protocol.eq_ignore_ascii_case("udp") {
+        "udp"
+    } else if protocol.eq_ignore_ascii_case("tcp") {
+        "tcp"
+    } else {
         return Err(SignalParseError::InvalidProtocol);
-    }
+    };
 
-    let priority = parts[3]
+    let priority = priority
         .parse()
         .map_err(|_| SignalParseError::InvalidFormat)?;
 
     // Validate IP address format
-    let address = parts[4];
     if address.parse::<std::net::IpAddr>().is_err() && !address.ends_with(".local") {
         return Err(SignalParseError::InvalidIpAddress);
     }
-    let address = address.to_string();
 
     // Standard ICE accepts the full unsigned 16-bit port range.
-    let port: u16 = parts[5]
-        .parse()
-        .map_err(|_| SignalParseError::InvalidPort)?;
+    let port: u16 = port.parse().map_err(|_| SignalParseError::InvalidPort)?;
 
-    if parts[6] != "typ" || !matches!(parts[7], "host" | "srflx" | "prflx" | "relay") {
-        return Err(SignalParseError::InvalidFormat);
-    }
-    let candidate_type = parts[7].to_string();
+    let candidate_type = match (typ, candidate_type) {
+        ("typ", "host") => "host",
+        ("typ", "srflx") => "srflx",
+        ("typ", "prflx") => "prflx",
+        ("typ", "relay") => "relay",
+        _ => return Err(SignalParseError::InvalidFormat),
+    };
 
-    // Parse optional fields
+    // Parse optional fields; a trailing key without a value is ignored.
     let mut related_address = None;
     let mut related_port = None;
     let mut ufrag = None;
 
-    let mut i = 8;
-    while i < parts.len() {
-        match parts[i] {
-            "raddr" if i + 1 < parts.len() => {
-                let addr = parts[i + 1];
-                if addr.parse::<std::net::IpAddr>().is_err() {
+    while let Some(key) = parts.next() {
+        if !matches!(key, "raddr" | "rport" | "ufrag") {
+            continue;
+        }
+        let Some(value) = parts.next() else {
+            break;
+        };
+        match key {
+            "raddr" => {
+                if value.parse::<std::net::IpAddr>().is_err() {
                     return Err(SignalParseError::InvalidIpAddress);
                 }
-                related_address = Some(addr.to_string());
-                i += 2;
+                related_address = Some(value);
             }
-            "rport" if i + 1 < parts.len() => {
-                related_port = Some(
-                    parts[i + 1]
-                        .parse()
-                        .map_err(|_| SignalParseError::InvalidPort)?,
-                );
-                i += 2;
+            "rport" => {
+                related_port = Some(value.parse().map_err(|_| SignalParseError::InvalidPort)?);
             }
-            "ufrag" if i + 1 < parts.len() => {
-                let u = parts[i + 1];
-                if u.len() > MAX_UFRAG_LEN {
+            _ => {
+                if value.len() > MAX_UFRAG_LEN {
                     return Err(SignalParseError::FieldTooLong);
                 }
-                ufrag = Some(u.to_string());
-                i += 2;
+                ufrag = Some(value);
             }
-            _ => i += 1,
         }
     }
 
@@ -377,18 +647,19 @@ pub fn parse_ice_candidate(s: &str) -> Result<IceCandidateInfo, SignalParseError
     })
 }
 
-/// Parsed ICE candidate information.
-#[derive(Debug, Clone)]
-pub struct IceCandidateInfo {
-    pub foundation: String,
-    pub protocol: String,
+/// Parsed ICE candidate information, borrowing from the parsed text.
+/// `protocol` is lowercased; `candidate_type` is one of `host`, `srflx`, `prflx`, `relay`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IceCandidateInfo<'a> {
+    pub foundation: &'a str,
+    pub protocol: &'static str,
     pub priority: u32,
-    pub address: String,
+    pub address: &'a str,
     pub port: u16,
-    pub candidate_type: String,
-    pub related_address: Option<String>,
+    pub candidate_type: &'static str,
+    pub related_address: Option<&'a str>,
     pub related_port: Option<u16>,
-    pub ufrag: Option<String>,
+    pub ufrag: Option<&'a str>,
 }
 
 /// Interface for sending and receiving Signals over a network.
@@ -508,6 +779,44 @@ mod tests {
     }
     use super::*;
 
+    #[test]
+    fn wire_head_formats_every_digit_count() {
+        let mut id = 0u64;
+        for typ in [
+            SignalType::Offer,
+            SignalType::Answer,
+            SignalType::Candidate,
+            SignalType::Error,
+        ] {
+            for value in [
+                0,
+                9,
+                10,
+                99,
+                100,
+                101,
+                12345,
+                1 << 32,
+                u64::MAX - 1,
+                u64::MAX,
+            ] {
+                let head = WireHead::new(typ, value);
+                assert_eq!(head.as_str(), format!("{} {value} ", typ.as_str()));
+                id = id.wrapping_add(value);
+            }
+        }
+        for _ in 0..1000 {
+            id = id
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            let value = id >> (id % 64);
+            assert_eq!(
+                WireHead::new(SignalType::Error, value).as_str(),
+                format!("CONNECTERROR {value} ")
+            );
+        }
+    }
+
     /// Fixtures from go-nethernet signal_test.go:TestSignalUnmarshalText.
     #[test]
     fn upstream_signal_decimal_prefix_fixtures() {
@@ -545,7 +854,84 @@ mod tests {
             "connecterror 42 12",
         ] {
             assert!(Signal::parse(text, "peer".into()).is_err(), "{text}");
+            assert!(
+                Signal::parse_owned(text.into(), "peer".into()).is_err(),
+                "{text}"
+            );
         }
+    }
+
+    /// Display assembles short signals on the stack (one `write_str`) and
+    /// streams longer ones; both, and `write_wire`, must emit identical text,
+    /// including multi-byte UTF-8 straddling the inline limit.
+    #[test]
+    fn wire_text_is_identical_across_inline_boundary() {
+        // 36 bytes of `CONNECTREQUEST <u64::MAX> ` + data; the inline limit is 256.
+        for data_len in [0, 1, 200, 219, 220, 221, 4096] {
+            let data: String = "é".repeat(data_len / 2) + &"x".repeat(data_len % 2);
+            let signal = Signal {
+                typ: SignalType::Offer,
+                connection_id: u64::MAX,
+                data,
+                network_id: "peer".into(),
+            };
+            let expected = format!("CONNECTREQUEST {} {}", u64::MAX, signal.data);
+            assert_eq!(signal.to_string(), expected);
+            assert_eq!(signal.to_wire_string(), expected);
+            let mut reused = String::from("prefix:");
+            signal.write_wire(&mut reused);
+            assert_eq!(reused, format!("prefix:{expected}"));
+            assert_eq!(Signal::parse(&expected, "peer".into()).unwrap(), signal);
+            assert_eq!(
+                Signal::parse_owned(expected, "peer".into()).unwrap(),
+                signal
+            );
+        }
+    }
+
+    #[test]
+    fn signal_type_names_roundtrip_case_sensitively() {
+        for typ in [
+            SignalType::Offer,
+            SignalType::Answer,
+            SignalType::Candidate,
+            SignalType::Error,
+        ] {
+            assert_eq!(typ.as_str().parse::<SignalType>().unwrap(), typ);
+            assert!(typ.as_str().to_lowercase().parse::<SignalType>().is_err());
+        }
+    }
+
+    /// Candidate tokens split on Unicode whitespace (as `split_whitespace`),
+    /// including U+000B and non-ASCII spaces that the ASCII fast path omits.
+    #[test]
+    fn candidate_tokens_split_on_unicode_whitespace() {
+        for text in [
+            "candidate:1\u{0b}1 udp 1 127.0.0.1 9 typ host",
+            "candidate:1\u{a0}1 UDP 1 127.0.0.1 9 typ host ufrag\u{3000}u",
+            "candidate:1\t1\r\nudp\x0c1 127.0.0.1 9 typ host ufrag u",
+        ] {
+            let parsed = parse_ice_candidate(text).unwrap();
+            assert_eq!(
+                (parsed.foundation, parsed.protocol, parsed.port),
+                ("1", "udp", 9),
+                "{text:?}"
+            );
+        }
+        assert_eq!(
+            parse_ice_candidate("candidate:1\u{a0}1 udp 1 127.0.0.1 9 typ host ufrag\u{3000}u")
+                .unwrap()
+                .ufrag,
+            Some("u")
+        );
+        // A key without a value is ignored; a key consumes the next token.
+        let parsed = parse_ice_candidate(
+            "candidate:1 1 udp 1 127.0.0.1 9 typ relay rport raddr 10.0.0.1 ufrag",
+        );
+        assert!(matches!(parsed, Err(SignalParseError::InvalidPort)));
+        let parsed =
+            parse_ice_candidate("candidate:1 1 udp 1 127.0.0.1 9 typ host x ufrag").unwrap();
+        assert_eq!(parsed.ufrag, None);
     }
 
     #[test]
@@ -578,7 +964,7 @@ mod tests {
         assert_eq!(result.address, "192.168.1.100");
         assert_eq!(result.port, 54321);
         assert_eq!(result.candidate_type, "host");
-        assert_eq!(result.ufrag, Some("abc123".to_string()));
+        assert_eq!(result.ufrag, Some("abc123"));
     }
 
     #[test]
@@ -589,9 +975,9 @@ mod tests {
         assert_eq!(result.candidate_type, "relay");
         assert_eq!(result.address, "203.0.113.50");
         assert_eq!(result.port, 19302);
-        assert_eq!(result.related_address, Some("192.168.1.100".to_string()));
+        assert_eq!(result.related_address, Some("192.168.1.100"));
         assert_eq!(result.related_port, Some(54321));
-        assert_eq!(result.ufrag, Some("xyz".to_string()));
+        assert_eq!(result.ufrag, Some("xyz"));
     }
 
     #[test]
@@ -673,7 +1059,7 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(signal.typ, "CONNECTREQUEST");
+        assert_eq!(signal.typ, SignalType::Offer);
         assert_eq!(signal.connection_id, 12345);
         assert_eq!(signal.data, "some sdp data here");
         assert_eq!(signal.network_id, "net123");

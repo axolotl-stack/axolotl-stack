@@ -5,7 +5,7 @@
 
 use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_main};
 use tokio_nethernet::signaling::{
-    Signal, SignalErrorCode, format_ice_candidate, parse_ice_candidate,
+    Signal, SignalErrorCode, SignalType, format_ice_candidate, parse_ice_candidate,
 };
 
 const VALID_HOST_CANDIDATE: &str = "candidate:1 1 udp 2130706431 192.168.1.100 54321 typ host generation 0 ufrag abc123 network-id 1 network-cost 0";
@@ -151,7 +151,7 @@ fn benchmark_signal_creation(c: &mut Criterion) {
 
     group.bench_function("signal_display", |b| {
         let signal = Signal {
-            typ: "CONNECTREQUEST".to_string(),
+            typ: SignalType::Offer,
             connection_id: 12345678901234,
             data: "v=0\r\no=- 1234567890 2 IN IP4 127.0.0.1\r\n".to_string(),
             network_id: "network123".to_string(),

@@ -16,7 +16,7 @@ use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
 
 use crate::error::{NetherNetError, catch_dependency_panic};
 use crate::signaling::{
-    Signal, SignalErrorCode, Signaling, format_ice_candidate, parse_ice_candidate, signal_type,
+    Signal, SignalErrorCode, SignalType, Signaling, format_ice_candidate, parse_ice_candidate,
 };
 use crate::stream::{NetherNetStream, NetherNetStreamConfig};
 
@@ -392,7 +392,7 @@ pub(crate) async fn add_candidate(
         candidate: candidate.to_owned(),
         sdp_mid: Some("0".into()),
         sdp_mline_index: Some(0),
-        username_fragment: info.ufrag,
+        username_fragment: info.ufrag.map(str::to_owned),
     })
     .await?;
     Ok(())
@@ -516,7 +516,7 @@ async fn perform_dial(
                         timeout(
                             Duration::from_secs(15),
                             sig.signal(Signal {
-                                typ: signal_type::CANDIDATE.into(),
+                                typ: SignalType::Candidate,
                                 connection_id,
                                 data,
                                 network_id: remote,
@@ -551,7 +551,7 @@ async fn perform_dial(
         }
         signaling
             .signal(Signal {
-                typ: signal_type::OFFER.into(),
+                typ: SignalType::Offer,
                 connection_id,
                 data: offer_sdp,
                 network_id: network_id.clone(),
@@ -573,8 +573,8 @@ async fn perform_dial(
                 }
                 signal = signal_rx.recv() => {
                     let signal = signal.ok_or(NetherNetError::ConnectionClosed)?;
-                    match signal.typ.as_str() {
-                        signal_type::ANSWER if !answered => {
+                    match signal.typ {
+                        SignalType::Answer if !answered => {
                             let allow_missing = config.allow_identityless_server ||
                                 (!signaling.requires_identity() && config.verify_server_token.is_none());
                             remote_identity = crate::identity::verify_sdp_optional(
@@ -590,7 +590,7 @@ async fn perform_dial(
                             }
                             answered = true;
                         }
-                        signal_type::CANDIDATE => {
+                        SignalType::Candidate => {
                             if answered {
                                 add_candidate(&pc, &signal.data, &candidate_budget).await?;
                             } else if pending_candidates.len() < 32 {
@@ -599,7 +599,7 @@ async fn perform_dial(
                                 return Err(NetherNetError::InvalidPacket);
                             }
                         }
-                        signal_type::ERROR => {
+                        SignalType::Error => {
                             let code = crate::signaling::parse_signal_error_code(&signal.data)
                                 .map_err(|e| NetherNetError::Signaling(e.into()))?;
                             return Err(NetherNetError::Signaling(anyhow::anyhow!("Remote connection error: {code}")));
@@ -634,8 +634,8 @@ async fn perform_dial(
                 let (Some(signal), Some(pc)) = (signal, weak_pc.upgrade()) else {
                     break;
                 };
-                match signal.typ.as_str() {
-                    signal_type::CANDIDATE
+                match signal.typ {
+                    SignalType::Candidate
                         if add_candidate(&pc, &signal.data, &candidate_budget)
                             .await
                             .is_err() =>
@@ -643,7 +643,7 @@ async fn perform_dial(
                         let _ = pc.close().await;
                         break;
                     }
-                    signal_type::ERROR => {
+                    SignalType::Error => {
                         let _ = pc.close().await;
                         break;
                     }
@@ -703,7 +703,7 @@ mod tests {
         };
         actor
             .dispatch_signal(Signal {
-                typ: signal_type::ANSWER.into(),
+                typ: SignalType::Answer,
                 connection_id: 7,
                 data: "forged answer".into(),
                 network_id: "attacker".into(),

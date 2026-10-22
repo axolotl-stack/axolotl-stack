@@ -19,7 +19,9 @@
 //! cannot suspend reception while awaiting a consumer.
 
 mod crypto;
-mod packet;
+/// Public encrypted/HMAC packet codec (`encode_*` / `decode`), usable without
+/// a socket, e.g. by custom transports and benchmarks.
+pub mod packet;
 
 pub use packet::{ServerData, ServerDataBuilder, TransportLayer};
 
@@ -82,6 +84,8 @@ pub struct DiscoveryListener {
     pong_data: RwLock<Option<Vec<u8>>>,
     signal_tx: mpsc::Sender<Signal>,
     signal_rx: RwLock<Option<mpsc::Receiver<Signal>>>,
+    /// Reused wire-text buffer for outgoing signals; held only while encoding.
+    signal_text: parking_lot::Mutex<String>,
 }
 
 impl DiscoveryListener {
@@ -112,6 +116,7 @@ impl DiscoveryListener {
             pong_data: RwLock::new(None),
             signal_tx,
             signal_rx: RwLock::new(Some(signal_rx)),
+            signal_text: parking_lot::Mutex::new(String::new()),
         });
 
         let l = listener.clone();
@@ -263,7 +268,7 @@ impl DiscoveryListener {
                 {
                     return Ok(());
                 }
-                let signal = Signal::parse(&msg.data, sender_id.to_string())?;
+                let signal = Signal::parse_owned(msg.data, sender_id.to_string())?;
                 // Bounded overload policy: drop newest signal rather than block UDP reception.
                 let _ = self.signal_tx.try_send(signal);
             }
@@ -293,8 +298,12 @@ impl Signaling for DiscoveryListener {
             .parse()
             .map_err(|_| anyhow::anyhow!("Invalid network ID"))?;
 
-        let msg_packet =
-            packet::encode_message(self.config.network_id, network_id, &signal.to_string());
+        let msg_packet = {
+            let mut text = self.signal_text.lock();
+            text.clear();
+            signal.write_wire(&mut text);
+            packet::encode_message(self.config.network_id, network_id, &text)
+        };
 
         self.send_to_network(network_id, &msg_packet).await
     }
@@ -356,6 +365,7 @@ mod tests {
             pong_data: RwLock::new(None),
             signal_tx,
             signal_rx: RwLock::new(Some(signal_rx)),
+            signal_text: parking_lot::Mutex::new(String::new()),
         }
     }
 

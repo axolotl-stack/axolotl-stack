@@ -57,8 +57,8 @@ pub use signal_monitor::{
     AnomalyType, MonitorStats, SignalAnomaly, SignalMonitor, SignalMonitorConfig,
 };
 pub use signaling::{
-    ConnectionType, Credentials, IceCandidateInfo, IceServer, Signal, SignalErrorCode, Signaling,
-    SignalingChannel, format_ice_candidate, parse_ice_candidate, signal_type,
+    ConnectionType, Credentials, IceCandidateInfo, IceServer, Signal, SignalErrorCode, SignalType,
+    Signaling, SignalingChannel, format_ice_candidate, parse_ice_candidate,
 };
 pub use stream::{Message, NetherNetStream, NetherNetStreamConfig};
 

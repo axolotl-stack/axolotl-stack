@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tokio::sync::{Mutex, mpsc};
 use tokio_nethernet::{
     Message, NetherNetDialer, NetherNetDialerConfig, NetherNetListener, NetherNetListenerConfig,
-    Signal, Signaling, SignalingChannel,
+    Signal, SignalType, Signaling, SignalingChannel,
 };
 use webrtc::api::setting_engine::SettingEngine;
 
@@ -18,7 +18,7 @@ struct Local {
 #[async_trait]
 impl Signaling for Local {
     async fn signal(&self, mut signal: Signal) -> anyhow::Result<()> {
-        if matches!(signal.typ.as_str(), "CONNECTREQUEST" | "CONNECTRESPONSE") {
+        if matches!(signal.typ, SignalType::Offer | SignalType::Answer) {
             self.observed.lock().await.push(signal.data.clone());
         }
         signal.network_id = self.id.into();

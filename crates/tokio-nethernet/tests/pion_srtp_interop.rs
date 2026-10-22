@@ -14,8 +14,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{Mutex, mpsc};
 use tokio_nethernet::{
-    Message, NetherNetDialer, NetherNetDialerConfig, Signal, Signaling, SignalingChannel,
-    signal_type,
+    Message, NetherNetDialer, NetherNetDialerConfig, Signal, SignalType, Signaling,
+    SignalingChannel,
 };
 use webrtc::api::APIBuilder;
 use webrtc::api::setting_engine::SettingEngine;
@@ -72,7 +72,7 @@ async fn pion_profile_answerer(
     mpsc::Sender<Signal>,
 ) {
     let offer = offers.recv().await.expect("offer");
-    assert_eq!(offer.typ, signal_type::OFFER);
+    assert_eq!(offer.typ, SignalType::Offer);
     let mut settings = loopback_settings();
     settings.set_srtp_protection_profiles(vec![
         SrtpProtectionProfile::Srtp_Aead_Aes_256_Gcm,
@@ -110,7 +110,7 @@ async fn pion_profile_answerer(
     }
     replies
         .send(Signal {
-            typ: signal_type::ANSWER.into(),
+            typ: SignalType::Answer,
             connection_id: offer.connection_id,
             data: sdp,
             network_id: "pion".into(),
