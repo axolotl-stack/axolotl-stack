@@ -55,14 +55,13 @@ impl RawPacket {
     pub fn decode(self, _session: &BedrockSession) -> Result<McpePacket, JolyneError> {
         let packet_id = self.id;
         let body_len = self.body.len();
-        let body_preview = self.body.iter().take(32).copied().collect::<Vec<_>>();
         let mut buf = self.inner_frame;
         let (header, data) =
             McpePacketData::decode_inner_bytes(&mut buf, McpePacketArgs).map_err(|source| {
                 JolyneError::PacketDecode {
                     packet_id,
                     body_len,
-                    body_preview,
+                    body_preview: self.body.iter().take(32).copied().collect(),
                     source,
                 }
             })?;
@@ -80,13 +79,12 @@ impl RawPacket {
     pub fn decode_borrowed(self) -> Result<BorrowedMcpePacket, JolyneError> {
         let packet_id = self.id;
         let body_len = self.body.len();
-        let body_preview = self.body.iter().take(32).copied().collect::<Vec<_>>();
         let mut buf = self.inner_frame;
         let (packet, payload_remaining) = BorrowedMcpePacket::decode_inner_with_remaining(&mut buf)
             .map_err(|source| JolyneError::PacketDecode {
                 packet_id,
                 body_len,
-                body_preview,
+                body_preview: self.body.iter().take(32).copied().collect(),
                 source,
             })?;
         let remaining = buf.remaining() + payload_remaining;
@@ -143,37 +141,46 @@ impl RawPacket {
 ///
 /// Returns the RawPacket and advances the cursor past this entry.
 pub fn decode_packet_raw(cursor: &mut Bytes) -> Result<RawPacket, JolyneError> {
-    // Remember start position to capture full frame
-    let frame_start = cursor.clone();
+    let (header, frame_size, body_start) = parse_frame(cursor.as_ref())?;
+    let inner_frame = cursor.split_to(frame_size);
+    let body = inner_frame.slice(body_start..);
+    Ok(RawPacket {
+        id: header.id,
+        header,
+        body,
+        inner_frame,
+    })
+}
 
-    // Read length
-    let declared_len = wire::read_var_u32(cursor)? as usize;
-    if cursor.remaining() < declared_len {
+fn parse_frame(input: &[u8]) -> Result<(GameHeader, usize, usize), JolyneError> {
+    // Parse borrowed slices first: no reference-count traffic until the frame
+    // and header are known to be valid.
+    let mut remaining = input;
+    let declared_len = wire::read_var_u32(&mut remaining)? as usize;
+    if remaining.len() < declared_len {
         return Err(JolyneError::Protocol(ProtocolError::UnexpectedHandshake(
             format!(
                 "declared packet length {} exceeds available {}",
                 declared_len,
-                cursor.remaining()
+                remaining.len()
             ),
         )));
     }
-
-    // Calculate frame size: length varint + declared payload
-    let len_varint_size = frame_start.remaining() - cursor.remaining();
+    let len_varint_size = input.len() - remaining.len();
     let frame_size = len_varint_size + declared_len;
-    let inner_frame = frame_start.slice(..frame_size);
-
-    // Parse header from payload
-    let mut payload = cursor.slice(..declared_len);
+    let mut payload = &remaining[..declared_len];
     let header_raw = wire::read_var_u32(&mut payload)?;
 
     // Decode the packet ID from the same varint representation used by generated
     // BedrockCodec impls. Feeding little-endian bytes breaks IDs >= 128 because
     // packet IDs are encoded as VarUInts on the wire.
     let id_raw = header_raw & 0x3FF;
-    let mut id_buf = BytesMut::new();
-    wire::write_var_u32(&mut id_buf, id_raw);
-    let mut id_cursor = id_buf.freeze();
+    // Packet IDs are ten bits, so their canonical varint fits on the stack.
+    let id_bytes = [
+        (id_raw as u8 & 0x7f) | if id_raw >= 0x80 { 0x80 } else { 0 },
+        (id_raw >> 7) as u8,
+    ];
+    let mut id_cursor = &id_bytes[..if id_raw >= 0x80 { 2 } else { 1 }];
     let id = McpePacketName::decode(&mut id_cursor, ()).map_err(|e| {
         JolyneError::Protocol(ProtocolError::UnexpectedHandshake(format!(
             "unknown packet ID {}: {}",
@@ -190,18 +197,8 @@ pub fn decode_packet_raw(cursor: &mut Bytes) -> Result<RawPacket, JolyneError> {
         to_subclient,
     };
 
-    // Body is the remaining payload after header varint
-    let body = payload.clone();
-
-    // Advance main cursor past this packet
-    cursor.advance(declared_len);
-
-    Ok(RawPacket {
-        header,
-        id,
-        body,
-        inner_frame,
-    })
+    let body_start = frame_size - payload.len();
+    Ok((header, frame_size, body_start))
 }
 
 /// Decodes a single packet entry from a split frame where the first byte has
@@ -230,18 +227,6 @@ pub(crate) fn decode_packets_raw(mut cursor: Bytes) -> Result<Vec<RawPacket>, Jo
         packets.push(decode_packet_raw(&mut cursor)?);
     }
     Ok(packets)
-}
-
-/// Encodes a slice of [`RawPacket`]s into batch payload bytes.
-///
-/// This just concatenates the inner frames—caller handles compression/batching.
-pub(crate) fn encode_packets_raw(packets: &[RawPacket]) -> Bytes {
-    let total_len: usize = packets.iter().map(|p| p.inner_frame.len()).sum();
-    let mut buf = BytesMut::with_capacity(total_len);
-    for packet in packets {
-        buf.extend_from_slice(&packet.inner_frame);
-    }
-    buf.freeze()
 }
 
 #[cfg(test)]
@@ -536,39 +521,6 @@ mod tests {
             over_limit.extend_from_slice(&frame);
         }
         decode_packets_raw(over_limit.freeze()).expect_err("packet count over limit must fail");
-    }
-
-    // ========== encode_packets_raw Tests ==========
-
-    #[test]
-    fn encode_packets_raw_empty_returns_empty() {
-        let result = encode_packets_raw(&[]);
-        assert!(result.is_empty());
-    }
-
-    #[test]
-    fn encode_packets_raw_roundtrip() {
-        let frame1 = create_test_frame(0x02, 0, 0, &[0x01, 0x02]); // PacketPlayStatus = 2
-        let frame2 = create_test_frame(0x02, 1, 1, &[0x03, 0x04]);
-
-        // Decode
-        let mut combined = BytesMut::new();
-        combined.extend_from_slice(&frame1);
-        combined.extend_from_slice(&frame2);
-        let packets = decode_packets_raw(combined.freeze()).expect("decode");
-
-        // Re-encode
-        let encoded = encode_packets_raw(&packets);
-
-        // Decode again
-        let packets2 = decode_packets_raw(encoded).expect("decode again");
-
-        assert_eq!(packets.len(), packets2.len());
-        for (p1, p2) in packets.iter().zip(packets2.iter()) {
-            assert_eq!(p1.id, p2.id);
-            assert_eq!(p1.body(), p2.body());
-            assert_eq!(p1.inner_frame(), p2.inner_frame());
-        }
     }
 
     // ========== RawPacket Method Tests ==========

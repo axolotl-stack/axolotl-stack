@@ -1,8 +1,9 @@
 use anyhow::{Result, ensure};
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use flate2::{Compression, read::DeflateDecoder, write::DeflateEncoder};
 use jolyne::{
-    batch::{decode_batch_raw, encode_batch_raw},
+    batch::{BatchCodec, BatchCompression, BatchEncoding, decode_batch_raw, encode_batch_raw},
+    crypto::BatchCipher,
     raw::RawPacket,
 };
 use serde::Deserialize;
@@ -26,6 +27,7 @@ struct Case {
     name: String,
     batch: Bytes,
     packets: Vec<RawPacket>,
+    frames: Vec<Bytes>,
 }
 
 fn load() -> Result<Vec<Case>> {
@@ -59,10 +61,20 @@ fn load() -> Result<Vec<Case>> {
                 fixture.name
             );
         }
+        let frames = packets
+            .iter()
+            .map(|packet| {
+                let frame = packet.inner_frame();
+                let mut remaining = frame.as_ref();
+                valentine::protocol::wire::read_var_u32(&mut remaining).unwrap();
+                frame.slice(frame.len() - remaining.len()..)
+            })
+            .collect();
         cases.push(Case {
             name: fixture.name,
             batch,
             packets,
+            frames,
         });
     }
     ensure!(cases.len() == 4, "expected four batch fixtures");
@@ -110,11 +122,61 @@ fn validate(case: &Case) -> Result<()> {
 pub fn run(iterations: usize) -> Result<()> {
     for case in load()? {
         validate(&case)?;
-        for (enabled, encode_op, decode_op) in [
-            (false, "framing_encode", "framing_decode"),
-            (true, "deflate_encode", "deflate_decode"),
+        let mut codec = BatchCodec::default();
+        let mut output = BytesMut::new();
+        for (enabled, algorithm, encode_op, decode_op) in [
+            (
+                false,
+                BatchCompression::None,
+                "framing_encode",
+                "framing_decode",
+            ),
+            (
+                true,
+                BatchCompression::Deflate,
+                "deflate_encode",
+                "deflate_decode",
+            ),
+            (
+                true,
+                BatchCompression::Snappy,
+                "snappy_encode",
+                "snappy_decode",
+            ),
         ] {
-            let encoded = encode_batch_raw(&case.packets, enabled, 6, 0, true)?;
+            let settings = BatchEncoding {
+                enabled,
+                algorithm,
+                level: 6,
+                threshold: 0,
+                prefix: true,
+            };
+            codec.encode_frames_into(&case.frames, settings, &mut output)?;
+            let encoded = output.clone().freeze();
+            let mut decoded = Vec::new();
+            codec.decode_with(
+                encoded.clone(),
+                enabled,
+                Some(4 * 1024 * 1024),
+                true,
+                |frame| {
+                    decoded.push(Bytes::copy_from_slice(frame));
+                    Ok(())
+                },
+            )?;
+            ensure!(
+                decoded == case.frames,
+                "{}: frame roundtrip differs",
+                case.name
+            );
+            eprintln!(
+                "{}",
+                serde_json::json!({
+                    "area": "batch_sizes", "name": case.name, "operation": encode_op,
+                    "implementation": "rust-owned", "plain_bytes": case.batch.len(),
+                    "encoded_bytes": encoded.len()
+                })
+            );
             crate::measure(
                 "batch",
                 &case.name,
@@ -123,9 +185,10 @@ pub fn run(iterations: usize) -> Result<()> {
                 case.batch.len(),
                 iterations,
                 || {
-                    black_box(
-                        encode_batch_raw(black_box(&case.packets), enabled, 6, 0, true).unwrap(),
-                    );
+                    codec
+                        .encode_frames_into(black_box(&case.frames), settings, &mut output)
+                        .unwrap();
+                    black_box(&output);
                 },
             )?;
             crate::measure(
@@ -136,44 +199,62 @@ pub fn run(iterations: usize) -> Result<()> {
                 case.batch.len(),
                 iterations,
                 || {
-                    black_box(decode_batch_raw(&mut encoded.clone(), enabled, None).unwrap());
+                    codec
+                        .decode_with(
+                            black_box(encoded.clone()),
+                            enabled,
+                            Some(4 * 1024 * 1024),
+                            true,
+                            |frame| {
+                                black_box(frame);
+                                Ok(())
+                            },
+                        )
+                        .unwrap();
                 },
             )?;
         }
         let plain = &case.batch[1..];
-        let compressed = compress(plain)?;
-        crate::measure(
-            "batch",
+        let owned = || {
+            let mut input = BytesMut::with_capacity(plain.len() + 8);
+            input.extend_from_slice(plain);
+            input
+        };
+        let mut encryptor = BatchCipher::new([0x42; 32], [0x42; 12]);
+        let mut verifier = BatchCipher::new([0x42; 32], [0x42; 12]);
+        crate::measure_prepared(
             &case.name,
-            "compress",
-            "flate2-rust",
+            "encrypt",
+            plain.len(),
+            iterations,
+            owned,
+            |mut input| {
+                encryptor.encrypt(black_box(&mut input), 0).unwrap();
+                input
+            },
+            |mut output| {
+                verifier.decrypt(&mut output, 0).unwrap();
+                assert_eq!(output.as_ref(), plain);
+            },
+        )?;
+        let mut producer = BatchCipher::new([0x42; 32], [0x42; 12]);
+        let mut decryptor = BatchCipher::new([0x42; 32], [0x42; 12]);
+        crate::measure_prepared(
+            &case.name,
+            "decrypt",
             plain.len(),
             iterations,
             || {
-                black_box(compress(black_box(plain)).unwrap());
+                let mut input = owned();
+                producer.encrypt(&mut input, 0).unwrap();
+                input
             },
-        )?;
-        crate::measure(
-            "batch",
-            &case.name,
-            "decompress",
-            "flate2-rust",
-            plain.len(),
-            iterations,
-            || {
-                black_box(decompress(black_box(&compressed)).unwrap());
+            |mut input| {
+                decryptor.decrypt(black_box(&mut input), 0).unwrap();
+                input
             },
+            |output| assert_eq!(output.as_ref(), plain),
         )?;
-        for operation in ["encrypt", "decrypt"] {
-            eprintln!(
-                "{}",
-                serde_json::json!({
-                    "area": "coverage", "name": case.name, "operation": operation,
-                    "implementation": "rust-owned", "status": "unavailable",
-                    "reason": "isolated checksum/encryption helpers are private; public transport also frames and sends"
-                })
-            );
-        }
     }
     Ok(())
 }

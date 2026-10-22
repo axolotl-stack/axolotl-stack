@@ -121,6 +121,11 @@ valid input, and normalizes malformed UTF-8 lossily before construction. Reads
 through `&*field` do not validate again. Construct fields with `.into()`; clone
 to share storage, or use `.to_string()` when an application needs mutable text.
 
+Construct `McpePacketData` through the generated `From<Packet>` conversion
+(`packet.into()`) rather than adding `Box::new` manually. The generator selects
+inline or boxed packet and union storage from their layouts without changing the
+wire representation.
+
 Every current packet has a typed `Borrowed*Packet` view. Union arms recursively
 retain `BorrowedStr` and `Bytes`; converting to owned validates textual strings
 without copying valid shared input. Borrowed views preserve invalid UTF-8 bytes

@@ -279,12 +279,10 @@ impl Sink<Message> for RaknetStream {
         if bytes.is_empty() {
             return Ok(());
         }
-        let id = bytes[0];
-        let body = bytes.slice(1..);
 
         let msg = OutboundMsg {
             peer,
-            packet: RaknetPacket::UserData { id, payload: body },
+            buffer: bytes,
             reliability: item.reliability,
             channel: item.channel,
             priority: item.priority,
@@ -317,6 +315,7 @@ struct OfflineHandshake {
 enum ClientLoopEvent<Msg> {
     Inbound(std::io::Result<(usize, SocketAddr)>),
     Outbound(Msg),
+    Ack,
     Tick,
     OutboundClosed,
 }
@@ -345,6 +344,8 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
     let mut ready_signal = Some(context.ready);
     let mut tick = time::interval(TICK_INTERVAL);
     tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
+    let ack_timer = time::sleep(Duration::ZERO);
+    tokio::pin!(ack_timer);
 
     // Initial handshake ensure
     {
@@ -371,6 +372,10 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
     }
 
     loop {
+        let ack_deadline = managed.as_ref().and_then(ManagedSession::ack_deadline);
+        if let Some(deadline) = ack_deadline {
+            ack_timer.as_mut().reset(deadline.into());
+        }
         let event = tokio::select! {
             res = socket.recv_from(&mut buf) => ClientLoopEvent::Inbound(res),
             msg = context.outbound_rx.recv() => match msg {
@@ -378,6 +383,7 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
                 None => ClientLoopEvent::OutboundClosed,
             },
             _ = tick.tick() => ClientLoopEvent::Tick,
+            _ = &mut ack_timer, if ack_deadline.is_some() => ClientLoopEvent::Ack,
         };
 
         match event {
@@ -536,7 +542,7 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
                 )
                 .await;
                 if let Err(error) =
-                    ms.queue_app_packet(msg.packet, msg.reliability, msg.channel, msg.priority)
+                    ms.queue_app_buffer(msg.buffer, msg.reliability, msg.channel, msg.priority)
                 {
                     tracing::debug!(?error, "failed to queue outbound packet");
                     let _ = context.to_app.try_send(Err(error.into()));
@@ -544,6 +550,20 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
                 }
                 flush_built_datagrams(ms, &socket, context.server, now, false, &mut send_buf).await;
                 notify_client_ready(ms, &mut ready_signal);
+            }
+
+            ClientLoopEvent::Ack => {
+                if let Some(ms) = managed.as_mut() {
+                    flush_built_datagrams(
+                        ms,
+                        &socket,
+                        context.server,
+                        Instant::now(),
+                        false,
+                        &mut send_buf,
+                    )
+                    .await;
+                }
             }
 
             ClientLoopEvent::Tick => {
@@ -917,6 +937,101 @@ fn notify_client_ready(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn client_acks_a_quiet_server_without_application_or_socket_traffic() {
+        let server = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let client_address = socket.local_addr().unwrap();
+        let (_outbound_tx, outbound_rx) = mpsc::channel(1);
+        let (to_app, mut incoming) = mpsc::channel(8);
+        let (ready, ready_rx) = oneshot::channel();
+        let task = tokio::spawn(run_client_muxer(
+            socket,
+            ClientMuxerContext {
+                server: server.local_addr().unwrap(),
+                server_guid: 1,
+                client_guid: u64::MAX,
+                secure_connection_established: false,
+                outbound_rx,
+                to_app,
+                ready,
+                config: RaknetStreamConfig::default(),
+            },
+        ));
+        let mut session = ManagedSession::with_config(
+            client_address,
+            1200,
+            Instant::now(),
+            SessionConfig {
+                role: SessionRole::Server,
+                ..SessionConfig::default()
+            },
+        );
+        let mut buffer = [0; 2048];
+        let mut encoded = BytesMut::new();
+        timeout(Duration::from_secs(1), async {
+            while !session.is_connected() {
+                let (len, _) = server.recv_from(&mut buffer).await.unwrap();
+                let datagram = Datagram::decode(&mut &buffer[..len]).unwrap();
+                session.handle_datagram(datagram, Instant::now()).unwrap();
+                flush_built_datagrams(
+                    &mut session,
+                    &server,
+                    client_address,
+                    Instant::now(),
+                    false,
+                    &mut encoded,
+                )
+                .await;
+            }
+        })
+        .await
+        .unwrap();
+        ready_rx.await.unwrap().unwrap();
+
+        // Five independent quiet rounds: no reply, ping or further input may
+        // provide the ACK. The server does not run maintenance.
+        for _ in 0..5 {
+            session
+                .queue_app_buffer(
+                    Bytes::from_static(b"\xfequiet server"),
+                    crate::protocol::reliability::Reliability::ReliableOrdered,
+                    0,
+                    crate::protocol::state::RakPriority::Normal,
+                )
+                .unwrap();
+            let datagram = session.build_datagram(Instant::now()).unwrap();
+            let sequence = datagram.header.sequence.value();
+            encoded.clear();
+            datagram.encode(&mut encoded).unwrap();
+            server.send_to(&encoded, client_address).await.unwrap();
+            let message = incoming.recv().await.unwrap().unwrap();
+            assert_eq!(message.payload, Bytes::from_static(b"quiet server"));
+            timeout(Duration::from_millis(20), async {
+                loop {
+                    let (len, _) = server.recv_from(&mut buffer).await.unwrap();
+                    let datagram = Datagram::decode(&mut &buffer[..len]).unwrap();
+                    let acknowledged = matches!(
+                        &datagram.payload,
+                        crate::protocol::datagram::DatagramPayload::Ack(ack)
+                            if ack.ranges.iter().any(|range|
+                                range.start.value() <= sequence && range.end.value() >= sequence)
+                    );
+                    session.handle_datagram(datagram, Instant::now()).unwrap();
+                    if acknowledged {
+                        // Retire feedback so the next round has an empty window.
+                        while session.build_datagram(Instant::now()).is_some() {}
+                        break;
+                    }
+                }
+            })
+            .await
+            .expect("client ACK waited for maintenance");
+        }
+        task.abort();
+        assert!(task.await.unwrap_err().is_cancelled());
+    }
 
     #[tokio::test]
     async fn malformed_server_datagram_reports_error_and_stops_muxer() {

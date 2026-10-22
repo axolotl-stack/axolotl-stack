@@ -7,8 +7,11 @@ Measurement infrastructure, not production optimization. Valentine typed codecs,
 Requirements: repository Rust toolchain, Go (the installation used by `tools/client-diff/gt-client` works), PowerShell 7+, Python 3. No game server, authentication or credentials needed.
 
 ```powershell
+# Workstation-specific: acceptance checks/builds stay on E-cores, <=8 Cargo jobs.
+[Diagnostics.Process]::GetCurrentProcess().ProcessorAffinity = [IntPtr]4294901760
+$env:CARGO_BUILD_JOBS = '8'
 git submodule update --init crates/valentine_gen/protocolgen
-./tools/bench-compare/run.ps1 -Rounds 3 -Count 100 -SplitCount 10 -GoCpu 4 -Processor 2
+./tools/bench-compare/run.ps1 -Rounds 5 -Count 100 -SplitCount 10 -GoCpu 4 -Processor 2
 cargo clippy -p bench-compare --all-targets -- -D warnings
 cargo test -p bench-compare
 cargo clippy --manifest-path tools/bench-compare/cinnabar/Cargo.toml --all-targets -- -D warnings
@@ -21,6 +24,58 @@ Pop-Location
 ```
 
 `run.ps1` builds release executables, rotates Rust/Cinnabar/Go order across at least three rounds, runs all six directed interop combinations, and writes `report.md` plus ignored `results/run-<unique-id>/` JSONL, metadata, logs, and aggregated JSON. Each invocation gets a fresh evidence directory so old rounds and exclusions cannot leak into a report. `-SkipBuild` reuses executables already built by a previous invocation; the cached Go executable stays in the results base directory. `-Output PATH` changes that base directory. The Cinnabar project has its own `[workspace]` and lockfile; its git dependencies never enter the main workspace build or lockfile. See [Cinnabar pins, licensing and API boundaries](cinnabar/README.md).
+
+### NetherNet comparison
+
+```powershell
+./tools/bench-compare/run.ps1 -Area nethernet -Rounds 5
+python tools/bench-compare/test_nethernet_report.py
+```
+
+The NetherNet switch runs only NetherNet and appends/replaces its marked section
+in `report.md`, preserving the existing codec/RakNet measurements. It requires at
+least five alternating rounds. This workload reserves logical CPU **0** for
+microbenchmarks, **16–23** for all three WebRTC loopback/interop implementations
+(eight workers), and **24–31** for builds (at most eight jobs). The loopback set
+uses E-cores on the measured i9-14900HX; the identical set is used for every
+implementation. It never times on logical CPUs 2,4,6,8,10,12,14.
+The NetherNet-specific CPU assignments override the generic runner's processor
+options; they are workstation-specific, not portable topology discovery.
+
+The adapters benchmark `tokio-nethernet`, pinned `df-mc/go-nethernet`, and pinned
+Apache-2.0 `cinnabar-mc/nethernet` / `nethernet-tokio`. Cinnabar dependencies remain
+in the standalone project's lockfile. Framing, signals/ICE strings and encrypted
+discovery packets are measured only where public APIs expose them; unavailable
+cases are emitted as coverage records, never reimplemented copies.
+Every echo size uses a new connection, one same-payload untimed readiness echo,
+then 100/100/10/10 measured echoes for 32 B/512 B/4 KiB/64 KiB. Setup is reported
+separately from echo latency and throughput. There are no credentials or remote
+signaling/STUN/TURN services: the interop adapter bridges complete signals as one
+JSON string per loopback TCP line, with fixed network IDs 1 and 2. A reserved
+`"BENCH-DONE"` string in each direction acknowledges final delivery and completed
+server send/drain before either peer closes RTC; this handshake is untimed.
+This is benchmark-local signaling, not a new production endpoint.
+All six directed cross-implementation combinations check full payload equality.
+Failed interop is retained in the matrix and causes the runner to fail after
+writing its report. See each adapter README for exact public APIs, stack
+versions, DTLS/SCTP/buffer defaults and configuration asymmetries.
+
+For acceptance commands in this task, use logical CPUs 24–31, not the generic
+example's broader build mask:
+
+```powershell
+[Diagnostics.Process]::GetCurrentProcess().ProcessorAffinity = [IntPtr]4278190080
+$env:CARGO_BUILD_JOBS = '8'
+cargo clippy -p bench-compare --all-targets -- -D warnings
+cargo test -p bench-compare
+cargo clippy --manifest-path tools/bench-compare/cinnabar/Cargo.toml --all-targets -- -D warnings
+cargo test --manifest-path tools/bench-compare/cinnabar/Cargo.toml
+python -m unittest discover -s tools/bench-compare -p 'test*.py'
+Push-Location tools/bench-compare/go
+go vet ./...
+go test ./...
+Pop-Location
+```
 
 To collect Criterion estimates for Valentine separately:
 
@@ -49,3 +104,5 @@ Tables contain medians of per-round measurements, with separate Valentine owned/
 Go's allocator/GC accounting differs from Rust's global allocation counter: reclamation timing, size classes, deferred collection and runtime allocation bookkeeping are not equivalent. Rust counts requested bytes; Go reports its runtime B/op. Go uses fixed `GOMAXPROCS` (`-GoCpu`, default 4), equivalent to controlling the Go testing `-cpu` setting; these are not multithreaded scaling results. Rust tokio runtime worker configuration is documented by the runner. No forced GC in the timed region.
 
 Windows timer precision, scheduler quantum, background builds, power management and UDP tick/flush behavior can dominate tiny operations and tail latency. Before timed process creation, the runner pins its parent so children inherit affinity without an unpinned startup window. Codec/micro default to logical CPU 2; loopback/interop default to logical CPUs 0,2,4,6, one hardware thread from each of four P-cores on the measured i9-14900HX, matching four Tokio workers/GOMAXPROCS. Select `-Processor` and `-LoopbackProcessors` after checking topology on other machines; the latter must contain one distinct CPU per configured worker. Builds run before pinning. Previous affinity is restored on exit; no timer-resolution, priority or power-plan changes. Go transport uses Windows QueryPerformanceCounter rather than the coarse `time.Now` clock; startup checks reject nonpositive/≥1 µs clock resolution and log observed positive increments. Alternating order mitigates drift, not contention or statistical uncertainty. Raw large results and build outputs must not be committed.
+
+On this workstation the runner confines builds to E-core logical CPUs 16–31 and caps Cargo/Go build jobs at eight before selecting the timed P-core mask. Acceptance commands must use the same E-core restriction. Five alternating rounds are the default; three are supported for exploratory runs, not optimization decisions. A final comparison requires coordinator-reserved benchmark access: affinity alone does not prevent another worktree from timing or compiling on the same physical cores.

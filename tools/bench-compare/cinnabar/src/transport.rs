@@ -161,9 +161,15 @@ async fn client(address: SocketAddr, count: usize) -> Result<()> {
 }
 
 async fn start_server(address: SocketAddr) -> Result<RakServer<RunningServer>> {
-    Ok(timeout(TIMEOUT, RakServer::new(address, |_| {}).start())
-        .await
-        .context("server start timeout")??)
+    Ok(timeout(
+        TIMEOUT,
+        RakServer::new(address, |config| {
+            config.max_connections = 1;
+        })
+        .start(),
+    )
+    .await
+    .context("server start timeout")??)
 }
 
 pub async fn run(mode: &str, address: &str, count: usize) -> Result<(), Box<dyn Error>> {

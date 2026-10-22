@@ -16,6 +16,13 @@ use crate::protocol::{
 
 use super::{QueuePacketError, Session, SessionTunables};
 
+/// Requested ACK timer backstop, independent of the 100 ms maintenance tick.
+/// Tokio rounds timers
+/// up to millisecond ticks (typically 1-2 ms); Windows IOCP may delay them by
+/// roughly 15.6 ms. Runtime/OS scheduling adds latency: this is not a wall-clock
+/// upper bound. Handshake, split, continuous-send and half-MTU pressure bypass it.
+pub(crate) const MAX_ACK_DELAY: Duration = Duration::from_millis(1);
+
 /// High-level connection state for a managed RakNet session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConnectionState {
@@ -95,6 +102,8 @@ pub struct ManagedSession {
     queued_reliable_bytes: usize,
     remote_guid: Option<u64>,
     last_disconnect_reason: Option<DisconnectReason>,
+    ack_deadline: Option<Instant>,
+    pending_ack_bytes: usize,
 }
 
 impl ManagedSession {
@@ -120,6 +129,8 @@ impl ManagedSession {
             queued_reliable_bytes: 0,
             remote_guid: None,
             last_disconnect_reason: None,
+            ack_deadline: None,
+            pending_ack_bytes: 0,
         }
     }
 
@@ -196,6 +207,31 @@ impl ManagedSession {
 
         Ok(())
     }
+    /// Transport messages already include their ID and can be fragmented by
+    /// slicing the original Bytes rather than serializing them a second time.
+    pub(crate) fn queue_app_buffer(
+        &mut self,
+        buffer: bytes::Bytes,
+        rel: Reliability,
+        channel: u8,
+        priority: RakPriority,
+    ) -> Result<(), SessionError> {
+        match self.state {
+            ConnectionState::Closed | ConnectionState::Closing => return Err(SessionError::Closed),
+            ConnectionState::Unconnected | ConnectionState::OnlineHandshake => {
+                return Err(SessionError::InvalidState {
+                    state: self.state,
+                    msg: "cannot send user data before connection is established",
+                });
+            }
+            ConnectionState::Connected | ConnectionState::Stale => {}
+        }
+        let added = self
+            .inner
+            .queue_encoded_packet(buffer, rel, channel, priority)?;
+        self.queued_reliable_bytes = self.queued_reliable_bytes.saturating_add(added);
+        Ok(())
+    }
 
     /// Handle an incoming datagram, updating state and returning any
     /// high-level packets for the application.
@@ -217,10 +253,25 @@ impl ManagedSession {
             DatagramPayload::EncapsulatedPackets(packets) => {
                 // go-raknet conn.go:receiveDatagram validates and deduplicates
                 // the receive window before touching any packet payload.
-                if !self
+                let accepted = self
                     .inner
-                    .accept_datagram_sequence(dgram.header.sequence, || now)?
+                    .accept_datagram_sequence(dgram.header.sequence, || now)?;
+                self.pending_ack_bytes = self
+                    .pending_ack_bytes
+                    .saturating_add(4 + packets.iter().map(|packet| packet.size()).sum::<usize>());
+                if self.state != ConnectionState::Connected
+                    || dgram
+                        .header
+                        .flags
+                        .contains(crate::protocol::constants::DatagramFlags::CONTINUOUS_SEND)
+                    || packets.iter().any(|packet| packet.header.is_split)
+                    || self.pending_ack_bytes >= self.inner.mtu() / 2
                 {
+                    self.ack_deadline = Some(now);
+                } else {
+                    self.ack_deadline.get_or_insert(now + MAX_ACK_DELAY);
+                }
+                if !accepted {
                     return Ok(Vec::new());
                 }
                 let mut pkts = self.inner.handle_data_payload(packets, now)?;
@@ -242,15 +293,22 @@ impl ManagedSession {
         }
     }
 
-    /// Build receive feedback before application data, without waiting for maintenance.
-    /// Retiring incoming ACKs here reopens the congestion window in the same receive
-    /// turn: both transports drain this method after reads and application writes.
-    /// Timeout-based retransmission and split expiry remain periodic maintenance.
+    /// Flush due ACKs and immediate NAK/data; retire incoming ACKs immediately
+    /// so application delivery and congestion progress never wait for maintenance.
+    /// Transports must service `ack_deadline` even when no further traffic arrives.
     pub fn build_datagram(&mut self, now: Instant) -> Option<Datagram> {
         self.inner.process_incoming_acks_naks(now);
-        let dgram = self
-            .inner
-            .build_ack_datagram(now)
+        let ack = if self.ack_deadline.is_some_and(|deadline| now >= deadline) {
+            let ack = self.inner.build_ack_datagram(now);
+            if ack.is_none() {
+                self.ack_deadline = None;
+                self.pending_ack_bytes = 0;
+            }
+            ack
+        } else {
+            None
+        };
+        let dgram = ack
             .or_else(|| self.inner.build_nak_datagram())
             .or_else(|| self.inner.build_data_datagram(now))?;
 
@@ -259,6 +317,12 @@ impl ManagedSession {
         }
 
         Some(dgram)
+    }
+
+    /// Earliest pending feedback deadline. A custom transport must call
+    /// `build_datagram` at this time even if its socket/application queues are idle.
+    pub fn ack_deadline(&self) -> Option<Instant> {
+        self.ack_deadline
     }
 
     pub fn drain_pending_incoming(&mut self, now: Instant) -> Vec<crate::session::IncomingPacket> {
@@ -305,9 +369,183 @@ mod tests {
     };
     use bytes::Bytes;
 
-    // A fixed clock and no on_tick calls make maintenance-driven progress impossible.
-    fn deliver_without_maintenance(size: usize) {
+    #[test]
+    fn encoded_application_send_respects_connection_state_and_channel_bounds() {
+        let peer = "127.0.0.1:19132".parse().unwrap();
+        let mut session = ManagedSession::new(peer, 1200, Instant::now());
+        for state in [
+            ConnectionState::Unconnected,
+            ConnectionState::OnlineHandshake,
+            ConnectionState::Closing,
+            ConnectionState::Closed,
+        ] {
+            session.state = state;
+            assert!(
+                session
+                    .queue_app_buffer(
+                        Bytes::from_static(b"\xfehello"),
+                        Reliability::ReliableOrdered,
+                        0,
+                        RakPriority::Normal,
+                    )
+                    .is_err()
+            );
+            assert!(session.inner.outgoing_heap.is_empty());
+        }
+        session.state = ConnectionState::Connected;
+        assert!(
+            session
+                .queue_app_buffer(
+                    Bytes::from_static(b"\xfehello"),
+                    Reliability::ReliableOrdered,
+                    255,
+                    RakPriority::Normal,
+                )
+                .is_err()
+        );
+        assert!(session.inner.outgoing_heap.is_empty());
+    }
+
+    #[test]
+    fn small_datagram_acks_coalesce_without_postponing_the_first_deadline() {
         let now = Instant::now();
+        let peer = "127.0.0.1:19132".parse().unwrap();
+        let mut sender = ManagedSession::new(peer, 1200, now);
+        let mut receiver = ManagedSession::new(peer, 1200, now);
+        sender.state = ConnectionState::Connected;
+        receiver.state = ConnectionState::Connected;
+        for delay in [0, 500] {
+            let time = now + Duration::from_micros(delay);
+            sender
+                .queue_app_buffer(
+                    Bytes::from_static(b"\xfefirst"),
+                    Reliability::ReliableOrdered,
+                    0,
+                    RakPriority::Normal,
+                )
+                .unwrap();
+            let datagram = sender.build_datagram(time).unwrap();
+            let delivered = receiver.handle_datagram(datagram, time).unwrap();
+            assert_eq!(delivered.len(), 1, "delivery must not wait for ACK timing");
+            assert!(receiver.build_datagram(time).is_none());
+        }
+        assert!(
+            receiver
+                .build_datagram(now + Duration::from_micros(999))
+                .is_none()
+        );
+        let ack = receiver
+            .build_datagram(now + Duration::from_millis(1))
+            .unwrap();
+        let DatagramPayload::Ack(payload) = ack.payload else {
+            panic!("expected ACK");
+        };
+        assert_eq!(payload.ranges.len(), 1);
+        assert_eq!(payload.ranges[0].start.value(), 0);
+        assert_eq!(payload.ranges[0].end.value(), 1);
+        assert!(
+            receiver
+                .build_datagram(now + Duration::from_millis(1))
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn continuous_send_acks_a_small_datagram_without_waiting_for_the_deadline() {
+        let now = Instant::now();
+        let peer = "127.0.0.1:19132".parse().unwrap();
+        let mut sender = ManagedSession::new(peer, 1200, now);
+        let mut receiver = ManagedSession::new(peer, 1200, now);
+        sender.state = ConnectionState::Connected;
+        receiver.state = ConnectionState::Connected;
+        sender
+            .queue_app_buffer(
+                Bytes::from_static(b"\xfemore queued"),
+                Reliability::ReliableOrdered,
+                0,
+                RakPriority::Normal,
+            )
+            .unwrap();
+        let mut datagram = sender.build_datagram(now).unwrap();
+        datagram
+            .header
+            .flags
+            .insert(crate::protocol::constants::DatagramFlags::CONTINUOUS_SEND);
+        assert_eq!(receiver.handle_datagram(datagram, now).unwrap().len(), 1);
+        assert!(matches!(
+            receiver
+                .build_datagram(now)
+                .map(|datagram| datagram.payload),
+            Some(DatagramPayload::Ack(_))
+        ));
+    }
+
+    #[test]
+    fn half_mtu_of_received_data_flushes_feedback_immediately() {
+        let now = Instant::now();
+        let peer = "127.0.0.1:19132".parse().unwrap();
+        let mut sender = ManagedSession::new(peer, 1200, now);
+        let mut receiver = ManagedSession::new(peer, 1200, now);
+        sender.state = ConnectionState::Connected;
+        receiver.state = ConnectionState::Connected;
+        sender
+            .queue_app_buffer(
+                Bytes::from(vec![0xfe; 700]),
+                Reliability::ReliableOrdered,
+                0,
+                RakPriority::Normal,
+            )
+            .unwrap();
+        let datagram = sender.build_datagram(now).unwrap();
+        assert_eq!(receiver.handle_datagram(datagram, now).unwrap().len(), 1);
+        assert!(matches!(
+            receiver.build_datagram(now).unwrap().payload,
+            DatagramPayload::Ack(_)
+        ));
+    }
+
+    #[test]
+    fn uneven_datagrams_can_stall_the_window_only_until_the_ack_deadline() {
+        let now = Instant::now();
+        let peer = "127.0.0.1:19132".parse().unwrap();
+        let mut sender = ManagedSession::new(peer, 1200, now);
+        let mut receiver = ManagedSession::new(peer, 1200, now);
+        sender.state = ConnectionState::Connected;
+        receiver.state = ConnectionState::Connected;
+        sender
+            .queue_app_buffer(
+                Bytes::from(vec![0xfe; 480]),
+                Reliability::ReliableOrdered,
+                0,
+                RakPriority::Normal,
+            )
+            .unwrap();
+        let first = sender.build_datagram(now).unwrap();
+        assert_eq!(first.size(), 494);
+        receiver.handle_datagram(first, now).unwrap();
+        sender
+            .queue_app_buffer(
+                Bytes::from(vec![0xfe; 700]),
+                Reliability::ReliableOrdered,
+                0,
+                RakPriority::Normal,
+            )
+            .unwrap();
+        assert!(sender.build_datagram(now).is_none());
+        assert!(receiver.build_datagram(now).is_none());
+        let deadline = now + MAX_ACK_DELAY;
+        let ack = receiver.build_datagram(deadline).unwrap();
+        assert!(matches!(&ack.payload, DatagramPayload::Ack(_)));
+        sender.handle_datagram(ack, deadline).unwrap();
+        assert!(matches!(
+            sender.build_datagram(deadline).unwrap().payload,
+            DatagramPayload::EncapsulatedPackets(_)
+        ));
+    }
+
+    // Fixed-clock session model: advance only to the requested backstop, never maintenance.
+    fn deliver_without_maintenance(size: usize) {
+        let mut now = Instant::now();
         let peer = "127.0.0.1:19132".parse().unwrap();
         let mut sender = ManagedSession::new(peer, 1200, now);
         let mut receiver = ManagedSession::new(peer, 1200, now);
@@ -330,6 +568,9 @@ mod tests {
         for _ in 0..1024 {
             while let Some(datagram) = sender.build_datagram(now) {
                 delivered.extend(receiver.handle_datagram(datagram, now).unwrap());
+            }
+            if size < 4096 {
+                now += MAX_ACK_DELAY;
             }
             let mut feedback = 0;
             while let Some(datagram) = receiver.build_datagram(now) {

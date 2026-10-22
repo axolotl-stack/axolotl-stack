@@ -13,7 +13,7 @@
 use bytes::Bytes;
 use std::net::SocketAddr;
 
-use crate::protocol::{packet::RaknetPacket, reliability::Reliability, state::RakPriority};
+use crate::protocol::{reliability::Reliability, state::RakPriority};
 
 pub mod listener;
 mod listener_conn;
@@ -191,8 +191,8 @@ pub struct ReceivedMessage {
 pub struct OutboundMsg {
     /// Remote peer this logical packet should be sent to.
     pub peer: SocketAddr,
-    /// High-level RakNet packet to send.
-    pub packet: RaknetPacket,
+    /// Encoded application packet, including its ID byte.
+    pub buffer: Bytes,
     /// Desired reliability semantics for this send.
     pub reliability: Reliability,
     /// Ordering channel, typically 0 unless using multiple streams.
