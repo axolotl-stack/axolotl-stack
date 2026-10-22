@@ -1,11 +1,10 @@
-use bytes::{Bytes, BytesMut};
+use bytes::Bytes;
 use futures::{Sink, SinkExt, Stream};
 use std::{
     future::Future,
     pin::Pin,
     sync::Arc,
     task::{Context, Poll},
-    time::Instant,
 };
 use tokio::sync::{Notify, mpsc, oneshot};
 use tokio::time::Duration;
@@ -14,11 +13,8 @@ use webrtc::data_channel::RTCDataChannel;
 use webrtc::ice_transport::ice_server::RTCIceServer;
 
 use crate::error::{NetherNetError, catch_dependency_panic};
+use crate::framing::{MAX_SEGMENT_PAYLOAD, Reassembler, encode_segments};
 use crate::signaling::SignalingChannel;
-
-/// Payload ceiling from upstream `conn.go:maxMessageSize` and `description.encode`:
-/// 262144 SCTP bytes minus the one-byte remaining-segment counter.
-pub(crate) const MAX_MESSAGE_SIZE: usize = 262143;
 
 /// Forced webrtc-rs 0.12 deviation from `conn.go:maxMessageSize`: its
 /// `data_channel/mod.rs:RTCDataChannel::read_loop` uses a fixed 65535-byte
@@ -26,7 +22,7 @@ pub(crate) const MAX_MESSAGE_SIZE: usize = 262143;
 pub(crate) const TRANSPORT_MAX_PAYLOAD: usize = 65534;
 
 /// Local bounded-state policy, not a wire constant.
-const DEFAULT_MAX_REASSEMBLY_SIZE: usize = MAX_MESSAGE_SIZE * 255;
+const DEFAULT_MAX_REASSEMBLY_SIZE: usize = MAX_SEGMENT_PAYLOAD * 255;
 
 /// Default reassembly timeout (30 seconds).
 const DEFAULT_REASSEMBLY_TIMEOUT: Duration = Duration::from_secs(30);
@@ -135,9 +131,10 @@ pub(crate) fn local_sdp(sdp: String) -> String {
     result
 }
 
-/// Validate before queuing or casting the countdown (`conn.go:Conn.Send`).
+/// Validate before queuing (`conn.go:Conn.Send`): unreliable messages are one
+/// segment, and outbound segments respect the transport receive ceiling.
 fn segment_count(size: usize, reliable: bool, payload: usize) -> Result<usize, NetherNetError> {
-    if payload == 0 || payload > TRANSPORT_MAX_PAYLOAD {
+    if payload > TRANSPORT_MAX_PAYLOAD {
         return Err(NetherNetError::InvalidConfiguration(
             "invalid segment payload size",
         ));
@@ -148,15 +145,7 @@ fn segment_count(size: usize, reliable: bool, payload: usize) -> Result<usize, N
             limit: payload,
         });
     }
-    let count = if size == 0 {
-        0
-    } else {
-        (size - 1) / payload + 1
-    };
-    if count > 255 {
-        return Err(NetherNetError::TooManySegments { count });
-    }
-    Ok(count)
+    crate::framing::segment_count(size, payload)
 }
 
 async fn deliver_message(
@@ -238,7 +227,7 @@ pub struct NetherNetStream {
     incoming_rx: mpsc::Receiver<Result<Message, NetherNetError>>,
     outbound_tx: PollSender<OutboundMessage>,
     pending_send: Option<oneshot::Receiver<Result<(), NetherNetError>>>,
-    reassembly: ReassemblyState,
+    reassembly: Reassembler,
     max_message_size: usize,
     terminal: bool,
     sender_task: tokio::task::JoinHandle<()>,
@@ -306,13 +295,10 @@ async fn send_message(
     max_len: usize,
     drained: &Notify,
 ) -> Result<(), NetherNetError> {
-    let count = segment_count(item.buffer.len(), item.reliable, max_len)?;
+    segment_count(item.buffer.len(), item.reliable, max_len)?;
     // Empty sends write no frames, matching conn.go:Conn.Send.
-    for (index, fragment) in item.buffer.chunks(max_len).enumerate() {
-        let mut frame = BytesMut::with_capacity(fragment.len() + 1);
-        frame.extend_from_slice(&[(count - 1 - index) as u8]);
-        frame.extend_from_slice(fragment);
-        channel.send(&frame.freeze()).await?;
+    for frame in encode_segments(&item.buffer, max_len)? {
+        channel.send(&frame).await?;
     }
     if channel.buffered_amount().await > BUFFERED_AMOUNT_HIGH {
         drain_channel(channel, drained, BUFFERED_AMOUNT_LOW).await?;
@@ -331,99 +317,6 @@ async fn drain_all(
         drain_channel(channel, drained, 0).await?;
     }
     Ok(())
-}
-
-struct ReassemblyBuffer {
-    remaining: u8,
-    data: BytesMut,
-    started_at: Instant,
-}
-
-struct ReassemblyState {
-    buffer: Option<ReassemblyBuffer>,
-    limit: usize,
-    timeout: Duration,
-}
-
-impl ReassemblyState {
-    fn new(limit: usize, timeout: Duration) -> Self {
-        Self {
-            buffer: None,
-            limit,
-            timeout,
-        }
-    }
-
-    /// Header and strict countdown follow `message.go:parseMessage` and
-    /// `dataChannel.handleMessage`. Size and time limits are local hardening.
-    fn receive(
-        &mut self,
-        data: Bytes,
-        reliable: bool,
-        max_payload: usize,
-    ) -> Result<Option<Message>, NetherNetError> {
-        if data.len() < 2 {
-            return Err(NetherNetError::InvalidPacket);
-        }
-        if data.len() - 1 > max_payload {
-            return Err(NetherNetError::MessageTooLarge {
-                size: data.len() - 1,
-                limit: max_payload,
-            });
-        }
-        let remaining = data[0];
-        let payload = data.slice(1..);
-        if !reliable {
-            if remaining != 0 {
-                return Err(NetherNetError::InvalidSegmentCount {
-                    expected: 0,
-                    actual: remaining,
-                });
-            }
-            return Ok(Some(Message::unreliable(payload)));
-        }
-        if let Some(buffer) = self.buffer.as_mut() {
-            if buffer.started_at.elapsed() > self.timeout {
-                return Err(NetherNetError::ReassemblyTimeout);
-            }
-            let expected = buffer.remaining - 1;
-            if remaining != expected {
-                return Err(NetherNetError::InvalidSegmentCount {
-                    expected,
-                    actual: remaining,
-                });
-            }
-            if payload.len() > self.limit.saturating_sub(buffer.data.len()) {
-                return Err(NetherNetError::MessageTooLarge {
-                    size: buffer.data.len().saturating_add(payload.len()),
-                    limit: self.limit,
-                });
-            }
-            buffer.data.extend_from_slice(&payload);
-            buffer.remaining = remaining;
-            if remaining == 0 {
-                return Ok(Some(Message::reliable(
-                    self.buffer.take().unwrap().data.freeze(),
-                )));
-            }
-            return Ok(None);
-        }
-        if payload.len() > self.limit {
-            return Err(NetherNetError::MessageTooLarge {
-                size: payload.len(),
-                limit: self.limit,
-            });
-        }
-        if remaining == 0 {
-            return Ok(Some(Message::reliable(payload)));
-        }
-        self.buffer = Some(ReassemblyBuffer {
-            remaining,
-            data: BytesMut::from(payload.as_ref()),
-            started_at: Instant::now(),
-        });
-        Ok(None)
-    }
 }
 
 impl NetherNetStream {
@@ -499,7 +392,11 @@ impl NetherNetStream {
             incoming_rx,
             outbound_tx: PollSender::new(outbound_tx),
             pending_send: None,
-            reassembly: ReassemblyState::new(config.max_reassembly_size, config.reassembly_timeout),
+            reassembly: Reassembler::new(
+                TRANSPORT_MAX_PAYLOAD,
+                config.max_reassembly_size,
+                config.reassembly_timeout,
+            ),
             max_message_size: config.max_message_size,
             terminal: false,
             sender_task,
@@ -573,7 +470,7 @@ impl NetherNetStream {
         }
         self.terminal = true;
         self.incoming_rx.close();
-        self.reassembly.buffer = None;
+        self.reassembly.clear();
         self.outbound_tx.close();
         self.sender_task.abort();
         let channels = self.channels.clone();
@@ -602,11 +499,10 @@ impl Stream for NetherNetStream {
         loop {
             match self.incoming_rx.poll_recv(cx) {
                 Poll::Ready(Some(Ok(msg))) => {
-                    match self
-                        .reassembly
-                        .receive(msg.buffer, msg.reliable, TRANSPORT_MAX_PAYLOAD)
-                    {
-                        Ok(Some(message)) => return Poll::Ready(Some(Ok(message))),
+                    match self.reassembly.push(msg.buffer, msg.reliable) {
+                        Ok(Some(buffer)) => {
+                            return Poll::Ready(Some(Ok(Message::new(buffer, msg.reliable))));
+                        }
                         Ok(None) => continue,
                         Err(error) => {
                             self.terminate();
@@ -828,112 +724,13 @@ mod tests {
     }
 
     #[test]
-    fn segment_count_never_wraps() {
+    fn send_validation_bounds_unreliable_and_transport_segments() {
         assert_eq!(segment_count(255 * 3, true, 3).unwrap(), 255);
         assert!(matches!(
-            segment_count(255 * 3 + 1, true, 3),
-            Err(NetherNetError::TooManySegments { .. })
-        ));
-        assert_eq!(segment_count(0, true, 3).unwrap(), 0);
-        assert!(matches!(
             segment_count(4, false, 3),
-            Err(NetherNetError::MessageTooLarge { .. })
+            Err(NetherNetError::MessageTooLarge { size: 4, limit: 3 })
         ));
-        assert!(segment_count(1, true, 0).is_err());
-    }
-
-    #[test]
-    fn receives_both_channel_headers_and_strict_countdown() {
-        let mut state = ReassemblyState::new(100, Duration::from_secs(1));
-        assert!(
-            state
-                .receive(Bytes::from_static(&[2, 1]), true, 10)
-                .unwrap()
-                .is_none()
-        );
-        assert!(matches!(
-            state.receive(Bytes::from_static(&[2, 2]), true, 10),
-            Err(NetherNetError::InvalidSegmentCount {
-                expected: 1,
-                actual: 2
-            })
-        ));
-        let mut state = ReassemblyState::new(100, Duration::from_secs(1));
-        assert!(
-            state
-                .receive(Bytes::from_static(&[1, 1]), true, 10)
-                .unwrap()
-                .is_none()
-        );
-        let unreliable = state
-            .receive(Bytes::from_static(&[0, 9]), false, 10)
-            .unwrap()
-            .unwrap();
-        assert_eq!(unreliable.buffer.as_ref(), &[9]);
-        assert!(!unreliable.reliable);
-        assert_eq!(
-            state
-                .receive(Bytes::from_static(&[0, 2]), true, 10)
-                .unwrap()
-                .unwrap()
-                .buffer
-                .as_ref(),
-            &[1, 2]
-        );
-        assert!(
-            state
-                .receive(Bytes::from_static(&[1, 9]), false, 10)
-                .is_err()
-        );
-    }
-
-    #[test]
-    fn receives_exactly_255_segments_without_overflow() {
-        let mut state = ReassemblyState::new(255, Duration::from_secs(1));
-        for remaining in (1..255u8).rev() {
-            assert!(
-                state
-                    .receive(Bytes::from(vec![remaining, 7]), true, 1)
-                    .unwrap()
-                    .is_none()
-            );
-        }
-        assert_eq!(
-            state
-                .receive(Bytes::from_static(&[0, 7]), true, 1)
-                .unwrap()
-                .unwrap()
-                .buffer
-                .len(),
-            255
-        );
-    }
-
-    #[test]
-    fn receive_limits_include_single_packets_and_timeout() {
-        let mut state = ReassemblyState::new(1, Duration::ZERO);
-        assert!(
-            state
-                .receive(Bytes::from_static(&[0, 1, 2]), true, 10)
-                .is_err()
-        );
-        assert!(state.receive(Bytes::from_static(&[0]), true, 10).is_err());
-        assert!(
-            state
-                .receive(Bytes::from_static(&[0, 1, 2]), false, 1)
-                .is_err()
-        );
-        assert!(
-            state
-                .receive(Bytes::from_static(&[1, 1]), true, 10)
-                .unwrap()
-                .is_none()
-        );
-        state.buffer.as_mut().unwrap().started_at = Instant::now() - Duration::from_secs(1);
-        assert!(matches!(
-            state.receive(Bytes::from_static(&[0, 2]), true, 10),
-            Err(NetherNetError::ReassemblyTimeout)
-        ));
+        assert!(segment_count(1, true, TRANSPORT_MAX_PAYLOAD + 1).is_err());
     }
 
     #[tokio::test]

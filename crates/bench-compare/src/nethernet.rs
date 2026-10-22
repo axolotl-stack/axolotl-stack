@@ -14,6 +14,7 @@ use tokio::{
     sync::{Mutex, mpsc, watch},
     time::timeout,
 };
+use tokio_nethernet::framing::{Reassembler, encode_segments};
 use tokio_nethernet::{
     Message, NetherNetDialer, NetherNetDialerConfig, NetherNetListener, NetherNetListenerConfig,
     NetherNetStream, Signal, Signaling, SignalingChannel, format_ice_candidate,
@@ -113,22 +114,103 @@ pub fn micro(iterations: usize) -> Result<()> {
             black_box(format_candidate());
         },
     )?;
-    for (name, reason) in [
-        (
-            "nethernet_framing",
-            "segment_count, send_message and ReassemblyState are private; encode/reassemble including invalid counts and oversize have no public isolated API",
-        ),
-        (
-            "nethernet_discovery",
-            "discovery::packet is private; encrypted/HMAC encode/decode functions are not publicly re-exported",
-        ),
-    ] {
+    framing_micro(iterations)?;
+    for (name, reason) in [(
+        "nethernet_discovery",
+        "discovery::packet is private; encrypted/HMAC encode/decode functions are not publicly re-exported",
+    )] {
         eprintln!(
             "{}",
             serde_json::json!({"area":"coverage", "status":"unavailable", "name":name, "implementation":IMPLEMENTATION, "reason":reason})
         );
     }
     Ok(())
+}
+
+/// Same cases and 16383-byte segment body as the Cinnabar adapter's framing micro.
+fn framing_micro(iterations: usize) -> Result<()> {
+    const SEGMENT_BYTES: usize = 16383;
+    let reassembler = || Reassembler::new(SEGMENT_BYTES, usize::MAX, Duration::from_secs(30));
+    for size in [32, 512, 4096, 65536, 1048576] {
+        let body = super::transport::payload(size);
+        let name = format!("message_{size}");
+        let segments: Vec<_> = encode_segments(&body, SEGMENT_BYTES)?.collect();
+        let mut checked = reassembler();
+        let mut result = None;
+        for segment in &segments {
+            result = checked.push(segment.clone(), true)?;
+        }
+        ensure!(result.as_deref() == Some(body.as_ref()), "framing mismatch");
+        super::measure(
+            "nethernet_framing",
+            &name,
+            "encode",
+            IMPLEMENTATION,
+            size,
+            iterations,
+            || {
+                for segment in encode_segments(black_box(&body), SEGMENT_BYTES).unwrap() {
+                    black_box(segment);
+                }
+            },
+        )?;
+        super::measure(
+            "nethernet_framing",
+            &name,
+            "reassemble",
+            IMPLEMENTATION,
+            size,
+            iterations,
+            || {
+                let mut message = reassembler();
+                for segment in &segments {
+                    black_box(message.push(segment.clone(), true).unwrap());
+                }
+            },
+        )?;
+    }
+    let invalid_count = bytes::Bytes::from_static(&[255, b'x']);
+    super::measure(
+        "nethernet_framing",
+        "invalid_count",
+        "reassemble",
+        IMPLEMENTATION,
+        1,
+        iterations,
+        || {
+            let mut message = reassembler();
+            black_box(message.push(invalid_count.clone(), true).unwrap_err());
+        },
+    )?;
+    let (first, out_of_order) = (
+        bytes::Bytes::from_static(&[2, b'x']),
+        bytes::Bytes::from_static(&[0, b'x']),
+    );
+    super::measure(
+        "nethernet_framing",
+        "invalid_sequence",
+        "reassemble",
+        IMPLEMENTATION,
+        2,
+        iterations,
+        || {
+            let mut message = reassembler();
+            message.push(first.clone(), true).unwrap();
+            black_box(message.push(out_of_order.clone(), true).unwrap_err());
+        },
+    )?;
+    let oversized = super::transport::payload(SEGMENT_BYTES * 255 + 1);
+    super::measure(
+        "nethernet_framing",
+        "oversize",
+        "encode",
+        IMPLEMENTATION,
+        oversized.len(),
+        iterations,
+        || {
+            assert!(black_box(encode_segments(&oversized, SEGMENT_BYTES)).is_err());
+        },
+    )
 }
 
 /// Benchmark-local signaling only. Application bytes still use real ICE/DTLS/SCTP.

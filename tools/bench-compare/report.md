@@ -629,9 +629,9 @@ Raw per-round JSONL, stderr, metadata, interop outcomes and summary.json remain 
 
 # NetherNet cross-implementation measurements
 
-Measured UTC: 2026-10-22T01:24:43.7247623Z; median of 5 alternating rounds. Echoes: 100 for 32/512 B, 10 for 4/64 KiB, one untimed readiness echo; fresh connection per size and round.
+Measured UTC: 2026-10-22T02:15:58.4136813Z; median of 5 alternating rounds. Echoes: 100 for 32/512 B, 10 for 4/64 KiB, one untimed readiness echo; fresh connection per size and round.
 
-NetherNet source base: `356c2f82ae106e297acd76e7321dbae6bbefc0fc`; raw evidence: `results/nethernet-43e1c77874774af9b5de371eb8388692/`.
+NetherNet source base: `0d795f087eebf7b85ae47abb543d7fb575872f35`; raw evidence: `results/nethernet-21755a93a2f04f4fa857beae4ce096f1/`.
 
 Shared i9-14900HX Windows workstation. Micro logical CPU 0; all three loopback/interop implementations on identical logical CPUs 16-23 (E-cores acceptable for this WebRTC comparison), eight Tokio workers/GOMAXPROCS. Builds only logical CPUs 24-31, at most eight jobs. No timing on logical CPUs 2,4,6,8,10,12,14. Alternating order; no priority, power-plan or timer-resolution adjustment.
 
@@ -662,19 +662,19 @@ Stack parameters, public API boundaries and buffer asymmetries: [ours](../../cra
 
 | Case | Operation | Segments | tokio-nethernet ns/op | Cinnabar ns/op | Go ns/op |
 | --- | --- | ---: | ---: | ---: | ---: |
-| invalid_count | reassemble | — | — | 37.86 | — |
-| invalid_sequence | reassemble | — | — | 94.20 | — |
-| message_1048576 | encode | 65 | — | 27,202.78 | — |
-| message_1048576 | reassemble | 65 | — | 475,836.80 | — |
-| message_32 | encode | 1 | — | 40.76 | — |
-| message_32 | reassemble | 1 | — | 27.16 | — |
-| message_4096 | encode | 1 | — | 85.72 | — |
-| message_4096 | reassemble | 1 | — | 26.16 | — |
-| message_512 | encode | 1 | — | 68.12 | — |
-| message_512 | reassemble | 1 | — | 26.60 | — |
-| message_65536 | encode | 5 | — | 1,047.62 | — |
-| message_65536 | reassemble | 5 | — | 7,579.34 | — |
-| oversize | encode | — | — | 1.72 | — |
+| invalid_count | reassemble | — | — | 44.24 | — |
+| invalid_sequence | reassemble | — | — | 111.16 | — |
+| message_1048576 | encode | 65 | — | 32,217.76 | — |
+| message_1048576 | reassemble | 65 | — | 605,497.80 | — |
+| message_32 | encode | 1 | — | 45.24 | — |
+| message_32 | reassemble | 1 | — | 29.94 | — |
+| message_4096 | encode | 1 | — | 94.58 | — |
+| message_4096 | reassemble | 1 | — | 30.78 | — |
+| message_512 | encode | 1 | — | 76.34 | — |
+| message_512 | reassemble | 1 | — | 30.88 | — |
+| message_65536 | encode | 5 | — | 1,163.46 | — |
+| message_65536 | reassemble | 5 | — | 14,295.86 | — |
+| oversize | encode | — | — | 1.92 | — |
 
 Cinnabar micro uses 16,383-byte segment payloads plus a one-byte countdown. Encode consumes every generated segment; reassembly includes segment decode. The oversize case exceeds the 255-segment encode limit; invalid-count/sequence rows exercise actual public rejection paths.
 
@@ -682,52 +682,52 @@ Cinnabar micro uses 16,383-byte segment payloads plus a one-byte countdown. Enco
 
 | Case | Operation | tokio-nethernet ns/op | Cinnabar ns/op | Go ns/op |
 | --- | --- | ---: | ---: | ---: |
-| candidate_add | format | 115.36 | 126.98 | 74.68 |
-| candidate_add | parse | 107.34 | 103.34 | 94.20 |
-| connect_error | format | 83.14 | 84.70 | 38.44 |
-| connect_error | parse | 97.54 | 99.84 | 67.36 |
-| connect_request | format | 121.02 | 129.26 | 200.56 |
-| connect_request | parse | 132.74 | 118.28 | 103.76 |
-| connect_response | format | 121.38 | 133.00 | 62.42 |
-| connect_response | parse | 102.06 | 99.08 | 64.40 |
-| ice_candidate | format | 273.82 | 530.80 | — |
-| ice_candidate | parse | 347.86 | 686.06 | — |
+| candidate_add | format | 135.06 | 137.62 | 83.26 |
+| candidate_add | parse | 112.34 | 108.88 | 136.34 |
+| connect_error | format | 93.10 | 92.70 | 40.42 |
+| connect_error | parse | 111.10 | 107.84 | 72.92 |
+| connect_request | format | 136.30 | 132.76 | 252.20 |
+| connect_request | parse | 143.92 | 131.62 | 137.14 |
+| connect_response | format | 136.64 | 139.64 | 58.96 |
+| connect_response | parse | 114.84 | 108.24 | 78.56 |
+| ice_candidate | format | 310.82 | 528.02 | — |
+| ice_candidate | parse | 400.50 | 708.60 | — |
 
 ## NetherNet discovery micro
 
 | Case | Operation | tokio-nethernet ns/op | Cinnabar ns/op | Go ns/op |
 | --- | --- | ---: | ---: | ---: |
-| packet | decode | — | 254.08 | 874.92 |
-| packet | encode | — | 188.44 | 895.12 |
+| packet | decode | — | 273.40 | 934.24 |
+| packet | encode | — | 203.82 | 1,037.90 |
 
 ## NetherNet loopback: setup and reliable echo
 
 | Size | Operation | Side | Samples/round | Mean µs | p50 µs | p99 µs | Max µs | msgs/s | MB/s | Ours/reference time |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 32 | echo | cinnabar | 100 | 112.25 | 116.50 | 168.30 | 223.10 | 8,908.92 | 0.29 | 5,426.94 |
-| 32 | echo | go | 100 | 160.94 | 150.90 | 311.20 | 343.60 | 6,213.34 | 0.20 | 3,784.90 |
-| 32 | echo | rust-owned | 100 | 609,157.31 | 218,055.00 | 1,017,249.30 | 1,017,988.30 | 1.64 | 5.25e-05 | — |
-| 32 | setup | cinnabar | 1 | 8,878.00 | 8,878.00 | 8,878.00 | 8,878.00 | — | — | 2.93 |
-| 32 | setup | go | 1 | 75,321.40 | — | — | — | — | — | 0.34 |
-| 32 | setup | rust-owned | 1 | 25,972.00 | 25,972.00 | 25,972.00 | 25,972.00 | — | — | — |
-| 512 | echo | cinnabar | 100 | 109.49 | 121.30 | 153.30 | 178.20 | 9,133.50 | 4.68 | 5,551.02 |
-| 512 | echo | go | 100 | 188.26 | 170.90 | 518.50 | 571.10 | 5,311.92 | 2.72 | 3,228.39 |
-| 512 | echo | rust-owned | 100 | 607,764.54 | 217,812.60 | 1,016,743.40 | 1,017,045.30 | 1.65 | 0.000842 | — |
-| 512 | setup | cinnabar | 1 | 8,211.30 | 8,211.30 | 8,211.30 | 8,211.30 | — | — | 3.14 |
-| 512 | setup | go | 1 | 72,004.00 | — | — | — | — | — | 0.36 |
-| 512 | setup | rust-owned | 1 | 25,801.00 | 25,801.00 | 25,801.00 | 25,801.00 | — | — | — |
-| 4096 | echo | cinnabar | 10 | 362.74 | 350.50 | 432.50 | 432.50 | 2,756.80 | 11.29 | 171.82 |
-| 4096 | echo | go | 10 | 480.38 | 429.20 | 747.60 | 747.60 | 2,081.69 | 8.53 | 129.74 |
-| 4096 | echo | rust-owned | 10 | 62,325.51 | 964.90 | 212,546.40 | 212,546.40 | 16.04 | 0.07 | — |
-| 4096 | setup | cinnabar | 1 | 8,817.00 | 8,817.00 | 8,817.00 | 8,817.00 | — | — | 2.61 |
-| 4096 | setup | go | 1 | 68,109.20 | — | — | — | — | — | 0.34 |
-| 4096 | setup | rust-owned | 1 | 23,044.60 | 23,044.60 | 23,044.60 | 23,044.60 | — | — | — |
-| 65536 | echo | cinnabar | 10 | 3,587.85 | 3,000.60 | 4,758.00 | 4,758.00 | 278.72 | 18.27 | 47.89 |
-| 65536 | echo | go | 10 | 4,311.28 | 4,240.90 | 5,255.60 | 5,255.60 | 231.95 | 15.20 | 39.86 |
-| 65536 | echo | rust-owned | 10 | 171,839.18 | 209,509.20 | 219,582.20 | 219,582.20 | 5.82 | 0.38 | — |
-| 65536 | setup | cinnabar | 1 | 7,401.80 | 7,401.80 | 7,401.80 | 7,401.80 | — | — | 2.93 |
-| 65536 | setup | go | 1 | 68,438.70 | — | — | — | — | — | 0.32 |
-| 65536 | setup | rust-owned | 1 | 21,713.50 | 21,713.50 | 21,713.50 | 21,713.50 | — | — | — |
+| 32 | echo | cinnabar | 100 | 129.54 | 129.20 | 180.90 | 207.30 | 7,719.50 | 0.25 | 2.21 |
+| 32 | echo | go | 100 | 219.40 | 183.10 | 759.80 | 780.20 | 4,557.95 | 0.15 | 1.30 |
+| 32 | echo | rust-owned | 100 | 285.98 | 276.50 | 403.40 | 511.60 | 3,496.78 | 0.11 | — |
+| 32 | setup | cinnabar | 1 | 10,860.60 | 10,860.60 | 10,860.60 | 10,860.60 | — | — | 4.21 |
+| 32 | setup | go | 1 | 108,380.20 | — | — | — | — | — | 0.42 |
+| 32 | setup | rust-owned | 1 | 45,732.00 | 45,732.00 | 45,732.00 | 45,732.00 | — | — | — |
+| 512 | echo | cinnabar | 100 | 140.26 | 150.10 | 211.60 | 225.80 | 7,129.46 | 3.65 | 2.06 |
+| 512 | echo | go | 100 | 249.43 | 158.30 | 813.40 | 918.50 | 4,009.22 | 2.05 | 1.16 |
+| 512 | echo | rust-owned | 100 | 289.21 | 283.10 | 442.20 | 460.30 | 3,457.68 | 1.77 | — |
+| 512 | setup | cinnabar | 1 | 9,669.70 | 9,669.70 | 9,669.70 | 9,669.70 | — | — | 2.90 |
+| 512 | setup | go | 1 | 144,566.70 | — | — | — | — | — | 0.19 |
+| 512 | setup | rust-owned | 1 | 28,065.80 | 28,065.80 | 28,065.80 | 28,065.80 | — | — | — |
+| 4096 | echo | cinnabar | 10 | 390.94 | 374.60 | 447.20 | 447.20 | 2,557.94 | 10.48 | 2.35 |
+| 4096 | echo | go | 10 | 562.19 | 495.70 | 1,176.30 | 1,176.30 | 1,778.76 | 7.29 | 1.63 |
+| 4096 | echo | rust-owned | 10 | 917.89 | 892.30 | 1,088.60 | 1,088.60 | 1,089.46 | 4.46 | — |
+| 4096 | setup | cinnabar | 1 | 16,551.50 | 16,551.50 | 16,551.50 | 16,551.50 | — | — | 1.70 |
+| 4096 | setup | go | 1 | 106,876.40 | — | — | — | — | — | 0.26 |
+| 4096 | setup | rust-owned | 1 | 28,172.40 | 28,172.40 | 28,172.40 | 28,172.40 | — | — | — |
+| 65536 | echo | cinnabar | 10 | 3,727.94 | 3,321.90 | 5,751.80 | 5,751.80 | 268.24 | 17.58 | 2.63 |
+| 65536 | echo | go | 10 | 5,001.90 | 4,966.10 | 6,064.50 | 6,064.50 | 199.92 | 13.10 | 1.96 |
+| 65536 | echo | rust-owned | 10 | 9,792.59 | 9,793.50 | 10,595.00 | 10,595.00 | 102.12 | 6.69 | — |
+| 65536 | setup | cinnabar | 1 | 10,572.60 | 10,572.60 | 10,572.60 | 10,572.60 | — | — | 2.95 |
+| 65536 | setup | go | 1 | 73,202.40 | — | — | — | — | — | 0.43 |
+| 65536 | setup | rust-owned | 1 | 31,189.60 | 31,189.60 | 31,189.60 | 31,189.60 | — | — | — |
 
 Ten-sample p99 equals the maximum; it is not a stable population tail estimate. Setup has one observation per connection; setup percentile columns, if emitted, describe that single sample.
 
@@ -747,9 +747,9 @@ Missing cells are unavailable APIs, not zero time. No private framing algorithm 
 
 | Direction | Result | Evidence |
 | --- | --- | --- |
-| rust-to-go | FAIL | Exit 1: interop-rust-to-go-client  thread 'tokio-runtime-worker' (34784) panicked at C:\Users\jvigu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\generic-array-0.14.7\src\lib.rs:572:9: assertion `left == right` failed   left: 32  right: 16 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace Error: SCTP client connect for 32 bytes  Caused by:     0: signaling error: Remote connection error: 15     1: Remote connection error: 15  |
-| go-to-rust | FAIL | Exit 1: interop-go-to-rust-client {"event":"benchmark_clock","clock":"QueryPerformanceCounter","frequency_hz":10000000,"tick_ns":100,"minimum_positive_ns":100,"positive_increments":94422,"samples":100000} start transports: start SCTP: association closed before connecting  |
-| rust-to-cinnabar | FAIL | Exit 1: interop-rust-to-cinnabar-client  thread 'tokio-runtime-worker' (36012) panicked at C:\Users\jvigu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\generic-array-0.14.7\src\lib.rs:572:9: assertion `left == right` failed   left: 32  right: 16 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace Error: SCTP client connect for 32 bytes  Caused by:     0: signaling error: Remote connection error: 15     1: Remote connection error: 15  |
+| rust-to-go | PASS | All four payload sizes verified byte-for-byte |
+| go-to-rust | PASS | All four payload sizes verified byte-for-byte |
+| rust-to-cinnabar | PASS | All four payload sizes verified byte-for-byte |
 | cinnabar-to-rust | PASS | All four payload sizes verified byte-for-byte |
 | cinnabar-to-go | PASS | All four payload sizes verified byte-for-byte |
 | go-to-cinnabar | PASS | All four payload sizes verified byte-for-byte |
@@ -782,8 +782,8 @@ Distilled source/backtrace evidence and reproduction: [nethernet-diagnostics.jso
 
 ## NetherNet top three measured gaps
 
-- nethernet_loopback / 512 / echo: ours takes 5551.02× cinnabar time. Profile this boundary before attributing a cause.
-- nethernet_loopback / 32 / echo: ours takes 5426.94× cinnabar time. Profile this boundary before attributing a cause.
-- nethernet_loopback / 32 / echo: ours takes 3784.90× go time. Profile this boundary before attributing a cause.
+- nethernet_loopback / 32 / setup: ours takes 4.21× cinnabar time. Profile this boundary before attributing a cause.
+- nethernet_loopback / 65536 / setup: ours takes 2.95× cinnabar time. Profile this boundary before attributing a cause.
+- nethernet_loopback / 512 / setup: ours takes 2.90× cinnabar time. Profile this boundary before attributing a cause.
 
 Reproduce: `./tools/bench-compare/run.ps1 -Area nethernet -Rounds 5`. Raw per-round JSONL, stderr, metadata, interop logs and summary.json are retained in the ignored results directory. Other workers may run concurrently on disjoint allowed CPUs; affinity does not eliminate shared package power/cache contention.

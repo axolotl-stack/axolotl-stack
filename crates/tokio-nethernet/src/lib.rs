@@ -35,6 +35,7 @@
 
 pub mod dialer;
 pub mod error;
+pub mod framing;
 pub mod identity;
 pub mod listener;
 pub mod signal_monitor;
