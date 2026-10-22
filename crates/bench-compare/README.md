@@ -79,3 +79,9 @@ Uses the real public `RaknetListener`/`RaknetStream` with reliable-ordered messa
 Each connection first exchanges one untimed readiness echo with the same payload. The configured count then measures exactly that many subsequent echoes, excluding the readiness response from both elapsed throughput and percentile samples. This prevents application acceptance or prior-session draining from being mistaken for steady-state RTT; Go uses the identical sequence.
 
 Connection establishment and payload/sample-buffer setup are outside measurement. RTT includes send, receive and equality assertion. p50/p99 use nearest-rank microsecond samples; throughput counts one application payload per completed roundtrip, decimal MB/s (not both network directions). Transport allocation metrics are null: asynchronous work cannot be reliably attributed using process-wide allocation snapshots. Transport uses a multi-thread Tokio runtime; set the standard `TOKIO_WORKER_THREADS` environment variable to control concurrency. The comparison script sets it to the same value as Go `GOMAXPROCS` (default 4). `loopback` hosts both peers in that runtime; `client`/`serve` allow cross-language or cross-process peers with the same wire contract.
+
+Application futures run in a spawned Tokio worker task, not directly on
+`Runtime::block_on`'s external calling thread. Go schedules its application
+goroutines on the same worker pool as its transport goroutines. Driving Rust's
+applications on the external thread instead adds OS thread-unpark round trips
+to every channel delivery, measuring a different application scheduling model.
