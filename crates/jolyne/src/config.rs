@@ -1,85 +1,254 @@
-#[derive(Debug, Clone, Copy)]
-pub struct BedrockListenerConfig {
-    /// Whether to enforce Xbox Live authentication (online mode).
-    ///
-    /// If `true`, the Login multiplayer `Token` must be signed by the Minecraft OpenID
-    /// provider (see `auth::openid`). If `false`, self-signed tokens are accepted and
-    /// identities are unauthenticated (`ValidatedIdentity::xuid()` is `None`).
-    ///
-    /// Default: `true`
-    pub online_mode: bool,
+//! Connection, server and client configuration (runtime-free).
 
-    /// Minimum uncompressed payload size (in bytes) before compression is applied to batches.
-    /// Matches Bedrock behavior where very small packets stay uncompressed.
-    ///
-    /// Default: `512`
-    pub compression_threshold: u16,
+#[cfg(feature = "server")]
+use std::net::SocketAddr;
+#[cfg(feature = "server")]
+use std::sync::Arc;
+use std::time::Duration;
 
-    /// The compression level to use for batch packets.
-    /// Default: 7
-    pub compression_level: u32,
+#[cfg(feature = "server")]
+use crate::auth::AuthenticatedLogin;
+use crate::proto::batch::{BatchCompression, BatchLimits};
+use crate::proto::custom::{PacketRegistry, UnknownPacketPolicy};
+use crate::proto::observe::Observer;
+use crate::proto::packs::ClientPackPolicy;
+#[cfg(feature = "server")]
+use crate::proto::packs::ServerPacks;
+#[cfg(feature = "server")]
+use crate::status::StatusProvider;
 
-    /// Whether to enable the Bedrock encryption handshake (ServerToClientHandshake / ClientToServerHandshake).
-    /// When enabled, clients are expected to complete the handshake;
-    ///
-    /// Default: `true`
-    pub encryption_enabled: bool,
-
-    /// Whether offline mode accepts Guest/SelfSigned authentication types
-    /// (self-signed tokens or legacy chains). Ignored in online mode, which only
-    /// accepts provider-signed tokens.
-    ///
-    /// Default: `true`
-    pub allow_legacy_auth: bool,
-
-    /// Whether clients must accept resource packs. We currently send an empty pack list; if this is true and
-    /// the client refuses, the connection is terminated.
-    ///
-    /// Default: `false`
-    pub require_resource_packs: bool,
-
-    /// Whether to handle (accept/ignore) ClientCacheStatus packets. Default: true (accept and ignore payload).
-    pub handle_client_cache_status: bool,
-
-    /// Reserved flag for future explicit block-palette/update packets.
-    ///
-    /// Current generated StartGame data already carries block properties; the server start
-    /// sequence does not send additional palette/update packets until Jolyne has a data source
-    /// for non-empty runtime block data.
-    ///
-    /// Default: `false`
-    pub send_block_palette: bool,
-
-    /// Number of bytes to skip at the beginning of the packet during encryption/decryption.
-    ///
-    /// Bedrock RakNet packets usually start with a Packet ID (0xFE for GamePackets) which is
-    /// kept in cleartext, while the rest of the payload is encrypted.
-    ///
-    /// Default: `1` (Preserves 0xFE)
-    pub encryption_header_len: usize,
-
-    /// Optional guard to cap decompressed batch payloads.
-    ///
-    /// If set, any batch whose decompressed size exceeds this limit will be rejected.
-    /// This helps avoid zip bombs or malformed packets that expand excessively.
-    ///
-    /// Default: `Some(4 MiB)`
-    pub max_decompressed_batch_size: Option<usize>,
+/// When queued outbound packets are sealed into a batch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum FlushMode {
+    /// Every `send_packet` is its own batch (lowest latency).
+    #[default]
+    Immediate,
+    /// Packets accumulate until `flush()` (tick-driven servers).
+    Manual,
+    /// Packets accumulate and are flushed at most this long after the first
+    /// queued packet, while the connection is being driven (gophertunnel's
+    /// 50 ms `FlushRate`), plus on explicit `flush()`.
+    Interval(Duration),
 }
 
+impl FlushMode {
+    /// gophertunnel's default flush cadence.
+    pub const GOPHERTUNNEL: Self = Self::Interval(Duration::from_millis(50));
+}
+
+/// Codec-level options shared by client and server connections.
+#[derive(Clone)]
+pub struct ConnectionOptions {
+    /// Inbound decompression and packet-count bounds.
+    pub limits: BatchLimits,
+    /// Policy for packet IDs valentine does not know.
+    pub unknown_packets: UnknownPacketPolicy,
+    /// Extra packet IDs treated as known.
+    pub custom_packets: PacketRegistry,
+    pub flush: FlushMode,
+    /// Outbound packets per batch before the pending batch is sealed
+    /// automatically (gophertunnel listeners reject more than 812).
+    pub max_packets_per_outbound_batch: usize,
+    /// Pending (unsealed) payload bytes before the batch is sealed automatically.
+    pub max_pending_bytes: usize,
+    /// Sealed batches waiting for the transport, in bytes. A batch that would
+    /// exceed it is dropped and the send fails with
+    /// `ProtocolError::WriteBufferFull`; the connection stays consistent. The
+    /// async layer drains after every send, so in practice this bounds a
+    /// single oversized `send_batch` or a stalled custom driver.
+    pub max_queued_bytes: usize,
+    /// Packets that arrive before the join phase that consumes them are
+    /// kept (compacted, in order) for the next phase or the play session, up
+    /// to this many packets and bytes.
+    pub max_deferred_packets: usize,
+    pub max_deferred_bytes: usize,
+    /// Optional read-only packet hook.
+    pub observer: Option<Observer>,
+}
+
+impl Default for ConnectionOptions {
+    fn default() -> Self {
+        Self {
+            limits: BatchLimits::default(),
+            unknown_packets: UnknownPacketPolicy::Reject,
+            custom_packets: PacketRegistry::default(),
+            flush: FlushMode::Immediate,
+            max_packets_per_outbound_batch: 812,
+            max_pending_bytes: 4 * 1024 * 1024,
+            max_queued_bytes: 64 * 1024 * 1024,
+            max_deferred_packets: 4096,
+            max_deferred_bytes: 16 * 1024 * 1024,
+            observer: None,
+        }
+    }
+}
+
+impl std::fmt::Debug for ConnectionOptions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ConnectionOptions")
+            .field("limits", &self.limits)
+            .field("unknown_packets", &self.unknown_packets)
+            .field("flush", &self.flush)
+            .field(
+                "max_packets_per_outbound_batch",
+                &self.max_packets_per_outbound_batch,
+            )
+            .field("max_pending_bytes", &self.max_pending_bytes)
+            .field("max_queued_bytes", &self.max_queued_bytes)
+            .field("observer", &self.observer.is_some())
+            .finish_non_exhaustive()
+    }
+}
+
+/// Batch compression the server negotiates in `NetworkSettings`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CompressionConfig {
+    /// `Deflate` (vanilla default), `Snappy`, or `None`.
+    pub algorithm: BatchCompression,
+    /// Deflate level 1..=9 (clamped); ignored for Snappy/None.
+    pub level: u32,
+    /// Batches shorter than this are sent uncompressed. Default: 1 (BDS
+    /// `server.properties` `compression-threshold=1`, confirmed by BDS
+    /// captures); gophertunnel's listener uses 256.
+    pub threshold: u16,
+}
+
+impl Default for CompressionConfig {
+    fn default() -> Self {
+        Self {
+            algorithm: BatchCompression::Deflate,
+            level: 7,
+            threshold: 1,
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+/// Server-side admission check run after login verification and before the
+/// encryption handshake (gophertunnel `ListenConfig.Allow`).
+pub trait AdmissionHook: Send + Sync {
+    /// Returns `Err(message)` to refuse the player with a `Kicked` disconnect.
+    /// Runs before the encryption handshake: the identity is
+    /// `Trust::AwaitingKeyProof` (online) and its `claimed_xuid()` may be
+    /// used to refuse, never to grant privileges.
+    fn admit(&self, peer: SocketAddr, login: &AuthenticatedLogin) -> Result<(), String>;
+}
+
+#[cfg(feature = "server")]
+impl<F> AdmissionHook for F
+where
+    F: Fn(SocketAddr, &AuthenticatedLogin) -> Result<(), String> + Send + Sync,
+{
+    fn admit(&self, peer: SocketAddr, login: &AuthenticatedLogin) -> Result<(), String> {
+        self(peer, login)
+    }
+}
+
+#[cfg(feature = "server")]
+/// Server configuration shared by every connection a listener accepts.
+#[derive(Clone)]
+pub struct BedrockListenerConfig {
+    /// Require Xbox Live authentication: the Login multiplayer `Token` must be
+    /// signed by the Minecraft OpenID provider (see `auth::openid`). When off,
+    /// self-signed tokens are accepted and identities are unauthenticated
+    /// (`ValidatedIdentity::xuid()` is `None`). Default: `true`.
+    pub online_mode: bool,
+    /// Whether offline mode accepts Guest/SelfSigned authentication types
+    /// (self-signed tokens or legacy chains). Ignored in online mode, which
+    /// only accepts provider-signed tokens. Default: `true`.
+    pub allow_legacy_auth: bool,
+    /// Run the ECDH handshake and AES-CTR batch encryption. Default: `true`
+    /// (NetherNet listeners default to `false`; DTLS already encrypts). The
+    /// handshake is what proves an online client holds its token's key, so
+    /// RakNet refuses online mode without it.
+    pub encryption_enabled: bool,
+    pub compression: CompressionConfig,
+    /// Deadline from accept through `ClientToServerHandshake` (settings,
+    /// login, authentication, encryption). Default: 30 s.
+    pub login_timeout: Duration,
+    /// Deadline for the resource pack phase. Default: 5 min.
+    pub resource_pack_timeout: Duration,
+    /// Deadline from `StartGame` to `SetLocalPlayerAsInitialized`
+    /// (gophertunnel: 1 min). Default: 60 s.
+    pub spawn_timeout: Duration,
+    /// Packs offered to every player.
+    pub resource_packs: Arc<ServerPacks>,
+    /// Players allowed concurrently (0 = unlimited). When full, the login is
+    /// answered with `PlayStatus(LoginFailedServerFull)`.
+    pub max_players: usize,
+    pub admission: Option<Arc<dyn AdmissionHook>>,
+    /// Status (MOTD) advertised to RakNet pings and NetherNet LAN discovery.
+    pub status: Option<Arc<dyn StatusProvider>>,
+    /// How often the advertised status is refreshed (gophertunnel: 4 s).
+    pub status_refresh: Duration,
+    pub connection: ConnectionOptions,
+}
+
+#[cfg(feature = "server")]
 impl Default for BedrockListenerConfig {
     fn default() -> Self {
         Self {
             online_mode: true,
-            compression_threshold: 512,
-            compression_level: 7,
-            encryption_enabled: true,
             allow_legacy_auth: true,
-            require_resource_packs: false,
-            handle_client_cache_status: true,
-            send_block_palette: false,
-            encryption_header_len: 1,
-            max_decompressed_batch_size: Some(1024 * 1024 * 4),
+            encryption_enabled: true,
+            compression: CompressionConfig::default(),
+            login_timeout: Duration::from_secs(30),
+            resource_pack_timeout: Duration::from_secs(300),
+            spawn_timeout: Duration::from_secs(60),
+            resource_packs: Arc::new(ServerPacks::default()),
+            max_players: 0,
+            admission: None,
+            status: None,
+            status_refresh: Duration::from_secs(4),
+            connection: ConnectionOptions::default(),
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+impl std::fmt::Debug for BedrockListenerConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BedrockListenerConfig")
+            .field("online_mode", &self.online_mode)
+            .field("allow_legacy_auth", &self.allow_legacy_auth)
+            .field("encryption_enabled", &self.encryption_enabled)
+            .field("compression", &self.compression)
+            .field("login_timeout", &self.login_timeout)
+            .field("resource_pack_timeout", &self.resource_pack_timeout)
+            .field("spawn_timeout", &self.spawn_timeout)
+            .field("resource_packs", &self.resource_packs.len())
+            .field("max_players", &self.max_players)
+            .field("admission", &self.admission.is_some())
+            .field("status", &self.status.is_some())
+            .field("connection", &self.connection)
+            .finish()
+    }
+}
+
+/// Client configuration.
+#[derive(Clone, Debug)]
+pub struct ClientConfig {
+    /// Codec options. The unknown-packet policy defaults to `Passthrough`
+    /// (gophertunnel dialers do not disconnect on unknown packets).
+    pub connection: ConnectionOptions,
+    /// One deadline spanning every join phase. Default: 120 s.
+    pub join_timeout: Duration,
+    /// Radius sent in `RequestChunkRadius` after `StartGame`. Default: 16.
+    pub chunk_radius: i32,
+    /// Resource pack download policy and bounds.
+    pub packs: ClientPackPolicy,
+}
+
+impl Default for ClientConfig {
+    fn default() -> Self {
+        Self {
+            connection: ConnectionOptions {
+                unknown_packets: UnknownPacketPolicy::Passthrough,
+                ..ConnectionOptions::default()
+            },
+            join_timeout: Duration::from_secs(120),
+            chunk_radius: 16,
+            packs: ClientPackPolicy::default(),
         }
     }
 }

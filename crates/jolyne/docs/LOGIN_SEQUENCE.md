@@ -46,26 +46,25 @@ sequenceDiagram
 
     Note over Server: Start Game Sequence
 
+    Server->>Client: [DimensionData] (optional), JigsawStructureData, VoxelShapes
     Server->>Client: StartGame
     Server->>Client: ItemRegistry
-    Note right of Server: Required for items to exist
+    Server->>Client: BiomeDefinitionList
+    Server->>Client: AvailableActorIdentifiers
+    Server->>Client: CreativeContent
+    Note right of Server: One batch; BDS sends the definitions before the radius request
 
+    Client->>Server: ServerboundLoadingScreen (Start)
     Client->>Server: RequestChunkRadius
-    Note right of Client: Client requests view distance
+    Note right of Server: radius must be >= 1; the server may override it
 
     Server->>Client: ChunkRadiusUpdated
     Server->>Client: NetworkChunkPublisherUpdate
+    Server->>Client: PlayStatus (PlayerSpawn)
 
-    Server->>Client: BiomeDefinitionList
-    Note right of Server: Fixes crashes on 1.21.80+
-    Server->>Client: AvailableEntityIdentifiers
-    Server->>Client: CreativeContent
-    Note right of Server: Required for Creative Inventory
-
-    Server->>Client: PlayStatus (Spawned)
-    
+    Client->>Server: ServerboundLoadingScreen (End)
     Client->>Server: SetLocalPlayerAsInitialized
-    Note right of Client: Client is done loading and ready to play
+    Note right of Server: runtime ID must match StartGame
 
     Note over Client, Server: In-Game Loop (Tick Sync, MovePlayer, etc.)
 ```
@@ -83,20 +82,19 @@ sequenceDiagram
 - **ClientCacheStatus**: Clients may send this to indicate blob cache support. It should be handled (usually ignored if cache not implemented) without blocking the flow.
 
 ### 3. Spawn Sequence
-- `StartGame`: Contains world settings, basic level info, and player position.
-- `ItemRegistry`: Defines all custom and vanilla items for the session.
-- `RequestChunkRadius`: Sent by the **Client** after receiving `ItemRegistry`.
-- `BiomeDefinitionList`: **CRITICAL** for newer clients.
-- `CreativeContent`: Populates the creative inventory.
-- `PlayStatus(Spawned)`: Sent by the **Server** after `RequestChunkRadius` to remove the loading screen.
-- `SetLocalPlayerAsInitialized`: Sent by the **Client** to confirm they are ready.
+- `DimensionData` (only for custom dimensions), `JigsawStructureData` and `VoxelShapes` precede `StartGame`, followed by `ItemRegistry` and the definition lists, in one batch in BDS/gophertunnel order. The client disconnects with "Missing structure data from server." when `JigsawStructureData` is missing (gophertunnel sends empty lists; BDS sends its full definitions).
+- The client requests its chunk radius after `StartGame`; the server answers with `ChunkRadiusUpdated`, `NetworkChunkPublisherUpdate` (radius in blocks) and `PlayStatus(PlayerSpawn)`.
+- `SetLocalPlayerAsInitialized` ends the spawn; its runtime ID must equal the `StartGame` runtime ID.
 
+### Timeouts
+- Server: `login_timeout` (default 30 s) from accept through `ClientToServerHandshake`, including authentication; `resource_pack_timeout` (5 min); `spawn_timeout` (60 s).
+- Client: one `join_timeout` (120 s) across every phase.
 
 ## Acceptance Gates
 
 This sequence is the contract for compatibility smoke tests, not just documentation.
 
-- A Jolyne integration test should assert the server-side packet order through `PlayStatus(Spawned)`.
+- `proto::tests::join_sequence_order_matches_vanilla` asserts the server-side packet order through `PlayStatus(PlayerSpawn)`.
 - An Unastar smoke test should boot the server, complete this sequence with real registry data, request a chunk radius, and remain connected.
 - Resource-pack negotiation must wait for the correct completed client response before `StartGame`.
 - `ClientCacheStatus` must be accepted without blocking the flow, even when blob-cache support is disabled.

@@ -52,51 +52,34 @@ span.record("uuid", &uuid.to_string());
 
 ---
 
-## 2. Refactor Plan: Logging
+## 2. Where jolyne traces
 
-**Objective:** Audit the codebase to align with the standards above.
+- **Join steps** (`stream::server`, `stream::client`): every step method, `close`
+  and `disconnect` carry `#[instrument(skip_all, level = "debug", fields(peer))]`.
+- **Core** (`proto`): `debug` events at phase transitions (settings negotiated,
+  login accepted, encryption established, player initialized). The core has no
+  spans of its own; events inherit the driver's step span.
+- **Hot paths** (batch encode/decode, crypto, per-packet I/O) emit nothing.
+  Per-packet visibility is the `PacketObserver` hook (zero cost when unset);
+  counters are in `ConnectionMetrics`.
+- **Auth**: secrets are never logged; failures are `warn`.
 
-1.  **Transport Layer (`transport.rs`):**
-    *   Ensure raw packet send/recv is `trace` (no fields).
-    *   Spans should capture the `peer_addr`.
-2.  **Stream Layer (`client.rs`, `server.rs`):**
-    *   Transition `#[instrument]` to `skip_all` + `trace`.
-    *   Use `fields(...)` in `instrument` to capture strictly necessary IDs (e.g. `packet_id` when dispatching).
-    *   Add `debug` events for state transitions.
-    *   Move `println!` or unstructured `info!` to structured events.
-3.  **Auth Layer:**
-    *   Ensure secrets are NEVER logged (redact tokens/keys).
-    *   Log auth failures as `WARN`.
-
----
-
-## 3. Feature Flags Proposal
-
-We will transition `jolyne` to a feature-gated architecture to reduce bloat for pure-client or pure-server use cases.
-
-### Proposed `Cargo.toml`
+## 3. Feature flags
 
 ```toml
 [features]
-default = [] # Force user to choose
-
-# Role Features
-client = ["dep:reqwest", "dep:jsonwebtoken", ...] 
-server = ["dep:jsonwebtoken", ...]
-
-# Meta Features
+default = ["full", "raknet"]
+client = ["dep:jsonwebtoken", "dep:reqwest"]
+server = ["dep:reqwest", "dep:jsonwebtoken"]
 full = ["client", "server"]
+raknet = ["dep:tokio-raknet"]
+nethernet = ["dep:tokio-nethernet"]
+discovery = ["nethernet", "tokio-nethernet/discovery"]
+xbox-signaling = ["nethernet", "tokio-nethernet/xbox-signaling"]
+endpoint = ["nethernet", "tokio-nethernet/endpoint"]
 ```
 
-### Module Reorganization
-
-*   `src/stream/client.rs` -> `#[cfg(feature = "client")]`
-*   `src/stream/server.rs` -> `#[cfg(feature = "server")]`
-*   `src/listener.rs` -> `#[cfg(feature = "server")]`
-*   `src/auth/client.rs` -> `#[cfg(feature = "client")]`
-*   `src/auth/server.rs` -> `#[cfg(feature = "server")]` (if applicable)
-
-### Dependencies
-
-*   `reqwest`: Only needed for `client` (XBox Live Auth / Realms).
-*   `tokio-raknet`: Core dependency, likely needed for both, but `RaknetListener` is server-only.
+- `proto::server`, `stream::server`, `listener`, `login` require `server`.
+- `proto::client`, `stream::client` require `client`; `proxy` requires both.
+- The `server` feature requires at least one transport (`compile_error!`).
+- CI runs clippy on `client`/`server` × `raknet`/`nethernet`/`discovery`.

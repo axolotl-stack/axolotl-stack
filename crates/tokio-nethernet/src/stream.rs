@@ -172,6 +172,11 @@ impl NetherNetStream {
         self.remote_identity.as_ref()
     }
 
+    /// Smoothed SCTP round-trip time (`None` until the first measurement).
+    pub fn rtt(&self) -> Option<std::time::Duration> {
+        self.connection.rtt()
+    }
+
     pub(crate) fn connection(&self) -> &Arc<Connection> {
         &self.connection
     }

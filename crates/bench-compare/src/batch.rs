@@ -1,7 +1,7 @@
 use anyhow::{Result, ensure};
 use bytes::{Bytes, BytesMut};
 use flate2::{Compression, read::DeflateDecoder, write::DeflateEncoder};
-use jolyne::{
+use jolyne::proto::{
     batch::{BatchCodec, BatchCompression, BatchEncoding, decode_batch_raw, encode_batch_raw},
     crypto::BatchCipher,
     raw::RawPacket,
@@ -48,7 +48,7 @@ fn load() -> Result<Vec<Case>> {
             "{}: invalid marker",
             fixture.name
         );
-        let packets = decode_batch_raw(&mut batch.clone(), false, None)?;
+        let packets = decode_batch_raw(&mut batch.clone(), false, usize::MAX)?;
         ensure!(
             packets.len() == fixture.packets.len(),
             "{}: packet count differs",
@@ -56,7 +56,7 @@ fn load() -> Result<Vec<Case>> {
         );
         for (packet, id) in packets.iter().zip(&fixture.packets) {
             ensure!(
-                packet.header.id as u32 == *id,
+                u32::from(packet.id()) == *id,
                 "{}: packet ID differs",
                 fixture.name
             );
@@ -93,21 +93,32 @@ fn decompress(encoded: &[u8]) -> Result<Vec<u8>> {
     Ok(decoded)
 }
 
+/// Raw-packet framing with DEFLATE level 6, no threshold, `0xFE` prefix.
+fn raw_encoding(enabled: bool) -> BatchEncoding {
+    BatchEncoding {
+        enabled,
+        algorithm: BatchCompression::Deflate,
+        level: 6,
+        threshold: 0,
+        prefix: true,
+    }
+}
+
 fn validate(case: &Case) -> Result<()> {
-    let encoded = encode_batch_raw(&case.packets, false, 6, 0, true)?;
+    let encoded = encode_batch_raw(&case.packets, raw_encoding(false))?;
     ensure!(
         encoded == case.batch,
         "{}: raw framing differs from corpus",
         case.name
     );
-    let mut encoded = encode_batch_raw(&case.packets, true, 6, 0, true)?;
+    let mut encoded = encode_batch_raw(&case.packets, raw_encoding(true))?;
     ensure!(
         encoded.starts_with(&[0xfe, 0]),
         "expected negotiated deflate marker"
     );
-    let decoded = decode_batch_raw(&mut encoded, true, None)?;
+    let decoded = decode_batch_raw(&mut encoded, true, usize::MAX)?;
     ensure!(
-        encode_batch_raw(&decoded, false, 6, 0, true)? == case.batch,
+        encode_batch_raw(&decoded, raw_encoding(false))? == case.batch,
         "{}: compressed raw roundtrip differs",
         case.name
     );
@@ -154,16 +165,10 @@ pub fn run(iterations: usize) -> Result<()> {
             codec.encode_frames_into(&case.frames, settings, &mut output)?;
             let encoded = output.clone().freeze();
             let mut decoded = Vec::new();
-            codec.decode_with(
-                encoded.clone(),
-                enabled,
-                Some(4 * 1024 * 1024),
-                true,
-                |frame| {
-                    decoded.push(Bytes::copy_from_slice(frame));
-                    Ok(())
-                },
-            )?;
+            codec.decode_with(encoded.clone(), enabled, 4 * 1024 * 1024, true, |frame| {
+                decoded.push(Bytes::copy_from_slice(frame));
+                Ok(())
+            })?;
             ensure!(
                 decoded == case.frames,
                 "{}: frame roundtrip differs",
@@ -203,7 +208,7 @@ pub fn run(iterations: usize) -> Result<()> {
                         .decode_with(
                             black_box(encoded.clone()),
                             enabled,
-                            Some(4 * 1024 * 1024),
+                            4 * 1024 * 1024,
                             true,
                             |frame| {
                                 black_box(frame);
@@ -275,6 +280,6 @@ mod tests {
     #[test]
     fn raw_decode_rejects_truncated_frame() {
         let mut truncated = Bytes::from_static(&[0xfe, 5, 1]);
-        assert!(decode_batch_raw(&mut truncated, false, None).is_err());
+        assert!(decode_batch_raw(&mut truncated, false, usize::MAX).is_err());
     }
 }

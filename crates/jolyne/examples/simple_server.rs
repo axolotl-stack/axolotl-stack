@@ -47,7 +47,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             // OPTIONAL: Enable Manual Flush for higher performance (Server Tick Mode).
                             // By default, jolyne sends every packet immediately (Low Latency).
                             // For a real server, you want to buffer packets and flush once per tick (50ms).
-                            // play_stream.set_auto_flush(false);
+                            // play_stream.set_flush_mode(jolyne::FlushMode::Manual).await?;
 
                             // Play Loop
                             while let Ok(packet) = play_stream.recv_packet().await {

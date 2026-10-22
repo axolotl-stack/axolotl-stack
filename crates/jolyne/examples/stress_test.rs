@@ -214,18 +214,13 @@ async fn spawn_client(addr: SocketAddr, name: &str, duration: u64) -> anyhow::Re
 
     info!("[{}] Duration complete, sending disconnect", name);
 
-    // Send a clean disconnect packet
-    use jolyne::valentine::{
-        DisconnectPacket, DisconnectPacketMessagesUnion, EnumsConnectionDisconnectFailReason,
-    };
-
-    let disconnect = DisconnectPacket {
-        reason: EnumsConnectionDisconnectFailReason::Unknown,
-        messages: DisconnectPacketMessagesUnion::default(),
-    };
-
-    let _ = play.send_packet(disconnect.into()).await;
-    let _ = play.flush().await;
+    // Clean disconnect: sends `Disconnect`, drains pending writes and closes.
+    let _ = play
+        .disconnect(
+            jolyne::valentine::EnumsConnectionDisconnectFailReason::Disconnected,
+            "",
+        )
+        .await;
 
     Ok(())
 }

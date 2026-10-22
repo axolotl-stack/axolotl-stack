@@ -181,6 +181,12 @@ impl Session {
         })
     }
 
+    /// SCTP smoothed RTT, `None` before the association exists or measures.
+    pub(crate) fn rtt(&self) -> Option<std::time::Duration> {
+        let (_, association) = self.association.as_ref()?;
+        Some(association.rtt()).filter(|rtt| !rtt.is_zero())
+    }
+
     pub(crate) fn local_credentials(&self) -> (String, String) {
         self.ice.local_credentials()
     }

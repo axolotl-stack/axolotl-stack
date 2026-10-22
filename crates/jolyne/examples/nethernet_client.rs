@@ -6,8 +6,9 @@
 //!
 //! Run with: `cargo run -p jolyne --example nethernet_client --features discovery -- --localhost`
 
+use jolyne::ClientConfig;
 use jolyne::stream::client::ClientHandshakeConfig;
-use jolyne::stream::transport::{BedrockTransport, NetherNetTransport};
+use jolyne::stream::transport::NetherNetTransport;
 use jolyne::stream::{BedrockStream, Client, Handshake};
 use p384::SecretKey;
 use rand::thread_rng;
@@ -92,10 +93,13 @@ async fn main() -> anyhow::Result<()> {
     let stream = dialer.dial(server_id.to_string()).await?;
     println!("✓ NetherNet connected!\n");
 
-    // Wrap in transport layer and create BedrockStream using constructor
-    let transport = BedrockTransport::new(NetherNetTransport::new(stream));
-    let handshake_stream =
-        <BedrockStream<Handshake, Client, NetherNetTransport>>::from_transport(transport);
+    // Wrap in the NetherNet transport and start the Bedrock handshake
+    let transport = NetherNetTransport::new(stream);
+    let handshake_stream = <BedrockStream<Handshake, Client, NetherNetTransport>>::from_transport(
+        transport,
+        ClientConfig::default(),
+    )
+    .await?;
 
     // Client config - server_addr is a placeholder for NetherNet (WebRTC has no traditional address)
     let client_config = ClientHandshakeConfig {

@@ -8,6 +8,8 @@ Non-publishable benchmark-only workspace crate; no production codec or transport
 cargo run --release -p bench-compare -- codec --iterations 5000
 cargo run --release -p bench-compare -- micro --iterations 5000
 cargo run --release -p bench-compare -- loopback --count 100
+cargo run --release -p bench-compare -- batch --iterations 5000   # batch rows only
+cargo run --release -p bench-compare -- join --joins 20 --count 200
 cargo run --release -p bench-compare -- serve --address 127.0.0.1:19140 --count 100
 cargo run --release -p bench-compare -- client --address 127.0.0.1:19140 --count 100
 cargo bench -p bench-compare --bench codec
@@ -61,8 +63,8 @@ original complete batch including `0xfe`; stderr emits `batch_sizes` records
 with actual encoded byte counts. The obsolete flate2-only timing rows were
 removed because flate2 is no longer jolyne's normal compression backend.
 
-`encrypt`/`decrypt` exercise the public in-place `crypto::BatchCipher` used by
-`BedrockTransport`, with independent continuous directional streams. Input
+`encrypt`/`decrypt` exercise the public in-place `proto::crypto::BatchCipher`
+used by jolyne's connection core, with independent continuous directional streams. Input
 allocation/refill and output verification are outside timing; each measured
 operation includes its own `Instant` reads, matching the Cinnabar prepared
 measurement. Input excludes `0xfe`, has eight spare bytes, and uses key/IV
@@ -94,6 +96,18 @@ Application futures run in a spawned Tokio worker task, not directly on
 goroutines on the same worker pool as its transport goroutines. Driving Rust's
 applications on the external thread instead adds OS thread-unpark round trips
 to every channel delivery, measuring a different application scheduling model.
+
+## Jolyne join measurement (`join`)
+
+`join` binds a jolyne RakNet listener on `127.0.0.1:0` and joins it with a
+jolyne client in the same Tokio runtime, `joins + 1` times (the first is a
+discarded warm-up). Each join runs the full sequence: settings, offline login,
+ECDH encryption, resource packs (none), StartGame and spawn; the listener uses
+`online_mode = false` and compression threshold 256. After each join the
+client echoes `count` `TextPacket`s through the server's typed
+`recv_packet`/`send_packet` path. Rows: `join/raknet/join` (dial to play, mean
+with p50/p99) and `join/raknet/echo` (one round trip). There is no
+cross-implementation counterpart; it compares jolyne revisions.
 
 ## NetherNet measurements
 
