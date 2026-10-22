@@ -153,13 +153,16 @@ impl OpenIdVerifier {
     }
 
     /// Verifies the provider token and returns its claims.
-    /// `iss`, `aud`, `exp` and `nbf` are mandatory; skew is at most 60 seconds.
+    /// `iss`, `aud` and `exp` are mandatory; `nbf` is checked when present but
+    /// not required, because real Minecraft multiplayer tokens from 1.26.52
+    /// clients omit it (go-oidc likewise only checks a present `nbf`). Skew is
+    /// at most 60 seconds.
     /// The JWT `alg` must equal the trusted key's algorithm and, when the token
     /// names a `kid`, only that key is tried.
     pub fn verify_token(&self, token: &str) -> Result<OpenIdClaims, AuthError> {
         let header = decode_header(token).map_err(|e| AuthError::InvalidHeader(e.to_string()))?;
         let mut validation = Validation::new(header.alg);
-        validation.set_required_spec_claims(&["iss", "aud", "exp", "nbf"]);
+        validation.set_required_spec_claims(&["iss", "aud", "exp"]);
         validation.set_issuer(&[&self.issuer]);
         validation.set_audience(&[MOJANG_AUDIENCE]);
         validation.validate_nbf = true;

@@ -132,7 +132,7 @@ fn trusted_signatures_do_not_override_claim_validation() {
             _ => assert_eq!(error, AuthError::TemporalValidation),
         }
     }
-    for name in ["iss", "aud", "exp", "nbf", "cpk"] {
+    for name in ["iss", "aud", "exp", "cpk"] {
         let mut payload = claims(&identity);
         payload.as_object_mut().unwrap().remove(name);
         assert!(
@@ -142,6 +142,13 @@ fn trusted_signatures_do_not_override_claim_validation() {
             "missing {name}"
         );
     }
+    // Real 1.26.52 client multiplayer tokens carry no `nbf`; a present one is
+    // still enforced above.
+    let mut payload = claims(&identity);
+    payload.as_object_mut().unwrap().remove("nbf");
+    verifier(&provider)
+        .validate(&sign(&provider, &payload), &client)
+        .expect("token without nbf must be accepted");
 }
 
 #[tokio::test]
