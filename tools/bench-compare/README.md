@@ -68,7 +68,7 @@ cargo clippy -p bench-compare --all-targets -- -D warnings
 cargo test -p bench-compare
 cargo clippy --manifest-path tools/bench-compare/cinnabar/Cargo.toml --all-targets -- -D warnings
 cargo test --manifest-path tools/bench-compare/cinnabar/Cargo.toml
-python -m unittest discover -s tools/bench-compare -p 'test*report.py'
+python -m unittest discover -s tools/bench-compare -p 'test*.py'
 Push-Location tools/bench-compare/go
 go vet ./...
 go test ./...

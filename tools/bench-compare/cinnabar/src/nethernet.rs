@@ -328,15 +328,25 @@ async fn serve_connection(stream: TcpStream, size: usize, count: usize) -> Resul
 }
 
 fn rounds(size: usize, count: usize) -> Result<usize> {
-    if size < 4096 {
-        return Ok(count);
-    }
-    let count = match std::env::var("BENCH_SPLIT_COUNT") {
-        Ok(value) => value.parse().context("invalid BENCH_SPLIT_COUNT")?,
-        Err(std::env::VarError::NotPresent) => (count / 10).max(1),
+    let configured = match std::env::var("BENCH_SPLIT_COUNT") {
+        Ok(value) => Some(value),
+        Err(std::env::VarError::NotPresent) => None,
         Err(error) => return Err(error.into()),
     };
-    ensure!(count > 0, "BENCH_SPLIT_COUNT must be positive");
+    message_count(size, count, configured.as_deref())
+}
+
+fn message_count(size: usize, count: usize, configured: Option<&str>) -> Result<usize> {
+    let count = if size < 4096 {
+        count
+    } else {
+        configured
+            .map(str::parse)
+            .transpose()
+            .context("invalid BENCH_SPLIT_COUNT")?
+            .unwrap_or(10)
+    };
+    ensure!(count > 0, "message count must be positive");
     Ok(count)
 }
 
@@ -434,5 +444,23 @@ pub async fn run(mode: &str, address: &str, count: usize) -> Result<()> {
             .await?
         }
         _ => anyhow::bail!("unknown NetherNet mode {mode}"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::message_count;
+
+    #[test]
+    fn split_counts_match_other_peers_when_small_count_changes() {
+        for small_count in [1, 20, 100, 200] {
+            assert_eq!(message_count(32, small_count, None).unwrap(), small_count);
+            for size in [4096, 65536] {
+                assert_eq!(message_count(size, small_count, None).unwrap(), 10);
+                assert_eq!(message_count(size, small_count, Some("7")).unwrap(), 7);
+            }
+        }
+        assert!(message_count(4096, 20, Some("0")).is_err());
+        assert!(message_count(4096, 20, Some("invalid")).is_err());
     }
 }

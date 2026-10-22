@@ -35,7 +35,8 @@ $env:GOMAXPROCS = '8'
 $env:TOKIO_WORKER_THREADS = '8'
 $env:BENCH_SPLIT_COUNT = "$SplitCount"
 $env:CARGO_BUILD_JOBS = '8'
-function Start-NetherNet([string]$Side, [string[]]$Arguments, [bool]$Ready = $false) {
+. (Join-Path $PSScriptRoot 'nethernet-process.ps1')
+function Start-NetherNet([string]$Side, [string[]]$Arguments, [bool]$Ready = $false, [string]$Name = '') {
     # Set before Process.Start: child inherits the allowed mask from its first instruction.
     $ParentProcess.ProcessorAffinity = if ($Arguments[0] -eq 'nethernet-micro') { [IntPtr]1 } else { [IntPtr]16711680 }
     $info = [Diagnostics.ProcessStartInfo]::new()
@@ -49,26 +50,21 @@ function Start-NetherNet([string]$Side, [string[]]$Arguments, [bool]$Ready = $fa
     $process.StartInfo = $info
     if (!$process.Start()) { throw "Cannot start $Side" }
     $stdout = $process.StandardOutput.ReadToEndAsync()
+    $prefix = ''
     if ($Ready) {
         $first = $process.StandardError.ReadLineAsync()
-        if (!$first.Wait(30000) -or $first.GetAwaiter().GetResult() -notmatch '^READY') {
+        $readyInTime = $first.Wait(30000)
+        if (!$readyInTime) {
             if (!$process.HasExited) { $process.Kill($true); $process.WaitForExit() }
+        }
+        $prefix = $first.GetAwaiter().GetResult() + [Environment]::NewLine
+        if (!$readyInTime -or $prefix -notmatch '^READY') {
+            $job = @{ Process = $process; Out = $stdout; Err = $process.StandardError.ReadToEndAsync(); Prefix = $prefix }
+            Stop-NetherNet $job $Name
             throw "NetherNet server failed readiness: $Side"
         }
     }
-    return @{ Process = $process; Out = $stdout; Err = $process.StandardError.ReadToEndAsync() }
-}
-function Finish-NetherNet($Job, [string]$Name, [int]$Seconds = 300) {
-    if (!$Job.Process.WaitForExit($Seconds * 1000)) {
-        $Job.Process.Kill($true)
-        $Job.Process.WaitForExit()
-        throw "NetherNet timeout: $Name"
-    }
-    $stdout = $Job.Out.GetAwaiter().GetResult()
-    $stderr = $Job.Err.GetAwaiter().GetResult()
-    [IO.File]::WriteAllText((Join-Path $Evidence ($Name + '.jsonl')), $stdout)
-    [IO.File]::WriteAllText((Join-Path $Evidence ($Name + '.stderr.log')), $stderr)
-    if ($Job.Process.ExitCode -ne 0) { throw "Exit $($Job.Process.ExitCode): $Name`n$stderr" }
+    return @{ Process = $process; Out = $stdout; Err = $process.StandardError.ReadToEndAsync(); Prefix = $prefix }
 }
 Push-Location $Repo
 try {
@@ -138,7 +134,7 @@ try {
         $server = $null
         $client = $null
         try {
-            $server = Start-NetherNet $serverSide @('nethernet-serve', '--address', $address, '--count', "$Count") $true
+            $server = Start-NetherNet $serverSide @('nethernet-serve', '--address', $address, '--count', "$Count") $true "interop-$direction-server"
             $client = Start-NetherNet $clientSide @('nethernet-client', '--address', $address, '--count', "$Count")
             Finish-NetherNet $client "interop-$direction-client"
             Finish-NetherNet $server "interop-$direction-server"
@@ -146,9 +142,8 @@ try {
         } catch {
             $interop += @{ direction = $direction; status = 'FAIL'; error = "$_"; sizes = @(32, 512, 4096, 65536); count = $Count; split_count = $SplitCount }
         } finally {
-            foreach ($job in @($client, $server)) {
-                if ($null -ne $job -and !$job.Process.HasExited) { $job.Process.Kill($true); $job.Process.WaitForExit() }
-            }
+            Stop-NetherNet $client "interop-$direction-client"
+            Stop-NetherNet $server "interop-$direction-server"
         }
     }
     $interop | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $Evidence 'interop.json')
