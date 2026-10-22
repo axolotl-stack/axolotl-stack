@@ -353,6 +353,8 @@ mod tests {
                 announced: false,
                 handshake_confirmed: false,
                 rtt: crate::transport::RttCell::new(),
+                client_guid: 7,
+                created_at: created,
             },
         );
         let mut pending = HashMap::new();
