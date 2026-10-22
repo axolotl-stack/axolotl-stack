@@ -40,9 +40,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 tokio::spawn(async move {
                     // Run the full join sequence
                     match handshake_stream.accept_join_sequence(&template, &key).await {
-                        Ok((mut play_stream, identity)) => {
-                            let display_name =
-                                identity.display_name.as_deref().unwrap_or("Unknown");
+                        Ok((mut play_stream, login)) => {
+                            let display_name = login.identity.display_name();
                             info!(%addr, identity = %display_name, "Joined Game!");
 
                             // OPTIONAL: Enable Manual Flush for higher performance (Server Tick Mode).

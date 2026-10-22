@@ -225,16 +225,9 @@ async fn disconnect_reconnect_restores_inventory_and_player_state() {
     .await
     .unwrap();
     let config = unastar::config::UnastarConfig::default();
-    let identity = jolyne::auth::ValidatedIdentity {
-        uuid: Some(uuid.to_string()),
-        xuid: None,
-        display_name: None,
-        identity_public_key: String::new(),
-        authenticated: false,
-    };
     let spawn = unastar::server::connect::resolve_spawn_location(
         &config,
-        &identity,
+        Some(&uuid.to_string()),
         &jolyne::WorldTemplate::default(),
         &positions,
         Some(&saved_data),

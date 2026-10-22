@@ -23,7 +23,7 @@ use sha2::{Digest, Sha256};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::auth::{ValidatedIdentity, authenticate_login, decode_login_request};
+use crate::auth::{AuthenticatedLogin, authenticate_login, decode_login_request};
 use crate::error::{JolyneError, ProtocolError};
 use crate::stream::{
     BedrockStream, Handshake, Login, Play, ResourcePacks, SecurePending, Server, StartGame,
@@ -143,7 +143,7 @@ impl<T: Transport> BedrockStream<Handshake, Server, T> {
         self,
         template: &WorldTemplate,
         server_key: &SecretKey,
-    ) -> Result<(BedrockStream<Play, Server, T>, ValidatedIdentity), JolyneError> {
+    ) -> Result<(BedrockStream<Play, Server, T>, AuthenticatedLogin), JolyneError> {
         // 1. Network Settings
         let login = self.accept_network_settings().await?;
 
@@ -155,7 +155,7 @@ impl<T: Transport> BedrockStream<Handshake, Server, T> {
             .unwrap_or(false);
 
         // 2. Auth
-        let (secure, identity) = login.authenticate().await?;
+        let (secure, login) = login.authenticate().await?;
 
         // 3. Encryption
         let packs = secure
@@ -163,7 +163,7 @@ impl<T: Transport> BedrockStream<Handshake, Server, T> {
                 &ServerHandshakeConfig {
                     server_key: server_key.clone(),
                 },
-                &identity.identity_public_key,
+                login.identity.identity_public_key(),
             )
             .await?;
 
@@ -175,7 +175,7 @@ impl<T: Transport> BedrockStream<Handshake, Server, T> {
 
         // 6. Join
         let play = start_game_state.start_game(join_params).await?;
-        Ok((play, identity))
+        Ok((play, login))
     }
 }
 
@@ -186,7 +186,7 @@ impl<T: Transport> BedrockStream<Login, Server, T> {
 
     pub async fn authenticate(
         mut self,
-    ) -> Result<(BedrockStream<SecurePending, Server, T>, ValidatedIdentity), JolyneError> {
+    ) -> Result<(BedrockStream<SecurePending, Server, T>, AuthenticatedLogin), JolyneError> {
         let login_data = self.recv_expect_login().await?;
 
         let listener_config = self.state.config.as_ref().expect("config");
@@ -200,7 +200,7 @@ impl<T: Transport> BedrockStream<Login, Server, T> {
         )
         .await?;
 
-        tracing::debug!(display_name = ?identity.display_name, uuid = ?identity.uuid, "Client authenticated");
+        tracing::debug!(display_name = identity.identity.display_name(), uuid = %identity.identity.uuid(), "Client authenticated");
 
         Ok((
             BedrockStream {

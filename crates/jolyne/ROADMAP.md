@@ -16,10 +16,12 @@ Jolyne is considered compatibility-ready for the pinned Bedrock version only whe
 
 ## Blocking Gates
 
-### JOLYNE-M1: Auth Trust Hardening
-- [ ] Validate online-mode JWT chains against trusted Microsoft/Xbox Live roots instead of trusting header-selected `x5u`/`x5c` key material.
-- [ ] Add negative tests for forged key headers and malformed chains.
-- [ ] Add explicit HTTP timeout/retry policy for auth metadata and key fetches.
+### JOLYNE-M1: Auth Trust Hardening (done)
+- [x] Validate online-mode tokens only against the discovered Minecraft OpenID JWKS; header-selected `x5u`/`x5c` key material is never trusted, and Mojang-rooted legacy chains are rejected online (BDS 1.26.51 no longer carries the Mojang root key). Tests: `auth::security_tests::{self_signed_header_key_is_not_online_trust, trusted_signatures_do_not_override_claim_validation, legacy_self_signed_chain_is_offline_only}`.
+- [x] Negative tests for forged key headers, malformed envelopes/chains/JWTs and invalid client data. Tests: `auth::security_tests::{malformed_envelopes_never_panic, malformed_tokens_and_client_data_never_panic, signed_but_invalid_client_data_is_rejected}`, `auth::client_data::tests::*`.
+- [x] HTTP timeout/refresh policy for auth metadata and key fetches: lock-free cached key set, single-flight refresh, rate-limited unknown-`kid` refresh, stale-key fallback, failure backoff and per-fetch timeout (`auth::openid::RefreshPolicy`). Tests: `auth::provider_tests::*`.
+- [x] Typed, validated `ClientData` and PlayFab/title IDs returned with the identity; offline identities cannot expose a trusted XUID.
+- [x] The Xbox client path sends the modern `AuthenticationType: 0` multiplayer token.
 
 ### JOLYNE-M2: Resource-Pack State Machine
 - [ ] Do not advance to start-game until the correct `ResourcePackClientResponse::Completed` state is observed.

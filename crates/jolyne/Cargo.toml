@@ -5,8 +5,8 @@ edition.workspace = true
 
 [features]
 default = ["full", "raknet"]
-client = ["dep:jsonwebtoken", "dep:reqwest"]
-server = ["dep:reqwest", "dep:jsonwebtoken"]
+client = ["dep:jsonwebtoken"]
+server = ["dep:reqwest", "dep:jsonwebtoken", "dep:md-5"]
 full = ["client", "server"]
 raknet = ["dep:tokio-raknet"]
 nethernet = ["dep:tokio-nethernet"]
@@ -31,6 +31,8 @@ serde.workspace = true
 serde_json.workspace = true
 base64.workspace = true
 uuid.workspace = true
+md-5 = { version = "0.10", optional = true }
+parking_lot = "0.12"
 sha2 = "0.11"
 aes = "0.9"
 ctr = "0.10"
@@ -41,7 +43,7 @@ once_cell.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "test-util"] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 anyhow.workspace = true
 clap.workspace = true

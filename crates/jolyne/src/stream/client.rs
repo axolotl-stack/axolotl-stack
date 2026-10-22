@@ -94,30 +94,7 @@ impl DeferredPackets {
 
 // --- Config ---
 
-/// Xbox Live credentials for authenticated connections.
-#[derive(Debug, Clone)]
-pub struct XblCredentials {
-    /// The XBL authorization token (from BEDROCK_MULTIPLAYER relying party)
-    pub token: String,
-    /// The user hash for the XBL auth header
-    pub user_hash: String,
-    /// Xbox User ID (numeric string)
-    pub xuid: String,
-}
-
-impl XblCredentials {
-    pub fn new(
-        token: impl Into<String>,
-        user_hash: impl Into<String>,
-        xuid: impl Into<String>,
-    ) -> Self {
-        Self {
-            token: token.into(),
-            user_hash: user_hash.into(),
-            xuid: xuid.into(),
-        }
-    }
-}
+pub use crate::auth::client::{LoginCredentials, MultiplayerTokenSource};
 
 #[derive(Debug, Clone)]
 pub struct ClientHandshakeConfig {
@@ -125,8 +102,8 @@ pub struct ClientHandshakeConfig {
     pub identity_key: SecretKey, // Client's private key
     pub display_name: String,
     pub uuid: Uuid,
-    /// Xbox Live credentials for authenticated servers (optional)
-    pub xbl_credentials: Option<XblCredentials>,
+    /// Login authentication; `Offline` unless built with [`Self::with_xbox_live`].
+    pub credentials: LoginCredentials,
 }
 
 impl ClientHandshakeConfig {
@@ -138,24 +115,26 @@ impl ClientHandshakeConfig {
             identity_key: SecretKey::random(&mut rand::thread_rng()),
             display_name: display_name.into(),
             uuid: Uuid::new_v4(),
-            xbl_credentials: None,
+            credentials: LoginCredentials::Offline,
         }
     }
 
-    /// Creates a configuration with Xbox Live credentials for authenticated servers.
+    /// Creates a configuration for online-mode servers. Login sends
+    /// `AuthenticationType: 0` with a multiplayer token issued by `tokens`
+    /// for `identity_key`.
     pub fn with_xbox_live(
         server_addr: SocketAddr,
         identity_key: SecretKey,
         display_name: impl Into<String>,
         uuid: Uuid,
-        xbl_credentials: XblCredentials,
+        tokens: std::sync::Arc<dyn MultiplayerTokenSource>,
     ) -> Self {
         Self {
             server_addr,
             identity_key,
             display_name: display_name.into(),
             uuid,
-            xbl_credentials: Some(xbl_credentials),
+            credentials: LoginCredentials::Online(tokens),
         }
     }
 }
@@ -329,33 +308,15 @@ impl<T: Transport> BedrockStream<Login, Client, T> {
         self,
         config: &ClientHandshakeConfig,
     ) -> Result<BedrockStream<SecurePending, Client, T>, JolyneError> {
-        // Generate JWT Chain - use Xbox Live auth if credentials provided
-        let (chain, client_token) = if let Some(xbl) = &config.xbl_credentials {
-            // Get Mojang-signed chain from Minecraft authentication service
-            tracing::debug!("Requesting Mojang-signed authentication chain...");
-            let mojang_chain = crate::auth::client::request_minecraft_chain(
-                &config.identity_key,
-                &xbl.token,
-                &xbl.user_hash,
-            )
-            .await?;
-            tracing::debug!("Got Mojang chain, encoding login request");
-
-            // Encode the login request with the Mojang chain
-            crate::auth::client::encode_with_mojang_chain(
-                &config.identity_key,
-                &config.display_name,
-                config.uuid,
-                &mojang_chain,
-            )?
-        } else {
-            crate::auth::client::generate_self_signed_chain(
-                &config.identity_key,
-                &config.display_name,
-                config.uuid,
-            )?
-        };
-        self.send_login_with_tokens(&chain, &client_token).await
+        let tokens = crate::auth::client::build_login(
+            &config.identity_key,
+            &config.display_name,
+            config.uuid,
+            &config.credentials,
+        )
+        .await?;
+        self.send_login_with_tokens(&tokens.auth_info_json, &tokens.client_data_jwt)
+            .await
     }
 
     /// Sends caller-signed authentication and client-data tokens.

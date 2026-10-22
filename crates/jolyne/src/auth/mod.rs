@@ -1,5 +1,21 @@
+//! Login authentication.
+//!
+//! Server side: [`decode_login_request`] splits `LoginPacket.connection_request`
+//! and [`authenticate_login`] verifies it, returning the identity and the
+//! typed, validated [`ClientData`].
+//!
+//! | Mode | Accepted | Identity |
+//! |---|---|---|
+//! | online | `AuthenticationType` 0 with a provider-signed `Token` | authenticated; `xuid()`, `playfab_id()`, `title_id()` set |
+//! | offline | type 0 with any `Token`; with `allow_legacy`, type 1/2 with a self-signed `Token` or a legacy chain | unauthenticated; `xuid()` is `None` |
+//!
+//! Client side: see [`client`].
+
 #[cfg(feature = "client")]
 pub mod client;
+
+#[cfg(any(feature = "client", feature = "server"))]
+pub mod client_data;
 
 #[cfg(feature = "server")]
 pub mod legacy;
@@ -10,28 +26,28 @@ pub mod types;
 #[cfg(feature = "server")]
 mod util;
 
+#[cfg(any(feature = "client", feature = "server"))]
+pub use client_data::ClientData;
 #[cfg(feature = "server")]
-pub use legacy::{MOJANG_PUBLIC_KEY_BASE64, parse_login_chain, validate_chain};
+pub use legacy::parse_login_chain;
 #[cfg(feature = "server")]
-pub use types::ValidatedIdentity;
+pub use types::{AuthenticatedLogin, Trust, ValidatedIdentity};
 
 #[cfg(feature = "server")]
 use crate::error::AuthError;
 #[cfg(feature = "server")]
-use crate::error::JolyneError;
+use tracing::{instrument, warn};
 #[cfg(feature = "server")]
-use tracing::warn;
-#[cfg(feature = "server")]
-use types::{AuthInfo, AuthenticationType};
-
-#[cfg(feature = "server")]
-use tracing::instrument;
+use types::{AuthInfo, AuthenticationType, OpenIdClaims};
 
 /// Decodes the length-prefixed authentication payload carried by the
 /// Bedrock 26.51 (`1.26.51`, protocol 2193) `LoginPacket.connection_request` field.
+///
+/// Layout: `[i32 LE len][auth JSON][i32 LE len][client data JWT]`. Negative
+/// lengths, truncation and trailing bytes are rejected with checked arithmetic.
 #[cfg(feature = "server")]
-pub fn decode_login_request(payload: &[u8]) -> Result<(String, String), JolyneError> {
-    fn read_i32(payload: &[u8], offset: &mut usize) -> Result<i32, JolyneError> {
+pub fn decode_login_request(payload: &[u8]) -> Result<(String, String), AuthError> {
+    fn read_i32(payload: &[u8], offset: &mut usize) -> Result<i32, AuthError> {
         let end = offset.checked_add(4).ok_or(AuthError::InvalidJson)?;
         let bytes = payload.get(*offset..end).ok_or(AuthError::InvalidJson)?;
         *offset = end;
@@ -44,10 +60,7 @@ pub fn decode_login_request(payload: &[u8]) -> Result<(String, String), JolyneEr
         payload: &'a [u8],
         offset: &mut usize,
         length: i32,
-    ) -> Result<&'a [u8], JolyneError> {
-        if length < 0 {
-            return Err(AuthError::InvalidJson.into());
-        }
+    ) -> Result<&'a [u8], AuthError> {
         let length = usize::try_from(length).map_err(|_| AuthError::InvalidJson)?;
         let end = offset.checked_add(length).ok_or(AuthError::InvalidJson)?;
         let bytes = payload.get(*offset..end).ok_or(AuthError::InvalidJson)?;
@@ -61,7 +74,7 @@ pub fn decode_login_request(payload: &[u8]) -> Result<(String, String), JolyneEr
     let client_len = read_i32(payload, &mut offset)?;
     let client_bytes = read_bytes(payload, &mut offset, client_len)?;
     if offset != payload.len() {
-        return Err(AuthError::InvalidJson.into());
+        return Err(AuthError::InvalidJson);
     }
 
     let auth_info = std::str::from_utf8(auth_bytes).map_err(|_| AuthError::InvalidUtf8)?;
@@ -69,71 +82,115 @@ pub fn decode_login_request(payload: &[u8]) -> Result<(String, String), JolyneEr
     Ok((auth_info.to_owned(), client_data.to_owned()))
 }
 
-/// Authenticate the two decoded values from a Bedrock `LoginPacket` request.
+/// Authenticate the two decoded values from a Bedrock `LoginPacket` request
+/// against the process-wide Minecraft OpenID provider
+/// ([`openid::OpenIdProvider::minecraft`]).
+///
 /// `auth_info_json` is the AuthenticationInfo JSON and `client_data_jwt` is
-/// the raw ClientData JWT from `connection_request`.
+/// the raw ClientData JWT from `connection_request`. `allow_legacy` admits
+/// Guest/SelfSigned authentication types in offline mode only.
 #[cfg(feature = "server")]
-#[instrument(skip_all, level = "trace")]
 pub async fn authenticate_login(
     auth_info_json: &str,
     client_data_jwt: &str,
     online_mode: bool,
     allow_legacy: bool,
-) -> Result<ValidatedIdentity, JolyneError> {
-    // Try to parse structured AuthenticationInfo
+) -> Result<AuthenticatedLogin, AuthError> {
+    authenticate_login_with(
+        openid::OpenIdProvider::minecraft(),
+        auth_info_json,
+        client_data_jwt,
+        online_mode,
+        allow_legacy,
+    )
+    .await
+}
+
+/// [`authenticate_login`] with an explicit provider (custom trust source or
+/// deterministic tests). The provider is only consulted in online mode.
+#[cfg(feature = "server")]
+#[instrument(skip_all, level = "trace")]
+pub async fn authenticate_login_with(
+    provider: &openid::OpenIdProvider,
+    auth_info_json: &str,
+    client_data_jwt: &str,
+    online_mode: bool,
+    allow_legacy: bool,
+) -> Result<AuthenticatedLogin, AuthError> {
     let auth_info: AuthInfo =
         serde_json::from_str(auth_info_json).map_err(|_| AuthError::InvalidJson)?;
-
-    // Default to SelfSigned (2) if not specified, to support standard Bedrock chains
-    let auth_type_raw = auth_info
-        .authentication_type
-        .ok_or(AuthError::MissingAuthType)?;
-
-    let auth_type = AuthenticationType::try_from(auth_type_raw)?;
+    let auth_type = AuthenticationType::try_from(
+        auth_info
+            .authentication_type
+            .ok_or(AuthError::MissingAuthType)?,
+    )?;
+    let token = auth_info.token.as_deref().filter(|token| !token.is_empty());
     match auth_type {
         AuthenticationType::Full => {
-            let token = auth_info.token.as_ref().ok_or(AuthError::MissingToken)?;
-            let identity = openid::validate_open_id(token, client_data_jwt, online_mode).await?;
-            Ok(identity)
+            let token = token.ok_or(AuthError::MissingToken)?;
+            if online_mode {
+                provider.validate(token, client_data_jwt).await
+            } else {
+                offline_token_login(token, client_data_jwt)
+            }
         }
         AuthenticationType::SelfSigned | AuthenticationType::Guest => {
+            // Online mode accepts only provider-signed tokens; see `legacy`
+            // for why Mojang-rooted chains are not accepted.
             if online_mode || !allow_legacy {
-                tracing::warn!(
+                warn!(
                     online_mode,
-                    allow_legacy,
-                    "Client attempted legacy/self-signed auth but it is not allowed"
+                    allow_legacy, "Client attempted legacy/self-signed auth but it is not allowed"
                 );
-                return Err(AuthError::LegacyAuthDisabled.into());
+                return Err(AuthError::LegacyAuthDisabled);
             }
             // Current offline clients send a self-signed multiplayer token.
-            if let Some(token) = auth_info.token.as_deref().filter(|token| !token.is_empty()) {
-                return openid::validate_open_id(token, client_data_jwt, false).await;
+            if let Some(token) = token {
+                return offline_token_login(token, client_data_jwt);
             }
-
-            let chain_opt = auth_info
+            let chain = auth_info
                 .certificate
                 .as_ref()
                 .and_then(legacy::chain_from_value)
-                .or_else(|| auth_info.chain.as_ref().and_then(legacy::chain_from_value));
-
-            if let Some(chain) = chain_opt {
-                let identity = validate_chain(chain, online_mode)?;
-                openid::verify_client_data(&identity, client_data_jwt)?;
-                Ok(identity)
-            } else {
-                warn!(?auth_type, "failed to extract chain from auth info");
-                Err(AuthError::MissingCertificate.into())
-            }
+                .or_else(|| auth_info.chain.as_ref().and_then(legacy::chain_from_value))
+                .ok_or_else(|| {
+                    warn!(?auth_type, "failed to extract chain from auth info");
+                    AuthError::MissingCertificate
+                })?;
+            let identity = legacy::offline_chain_identity(&chain)?;
+            let client_data =
+                openid::verify_client_data(identity.identity_public_key(), client_data_jwt)?;
+            Ok(AuthenticatedLogin {
+                identity,
+                client_data,
+            })
         }
     }
+}
+
+/// Offline multiplayer token: claims are read without signature or expiry
+/// checks and the identity is always [`Trust::Unauthenticated`]. The client
+/// data must still be signed by the claimed `cpk`.
+#[cfg(feature = "server")]
+fn offline_token_login(
+    token: &str,
+    client_data_jwt: &str,
+) -> Result<AuthenticatedLogin, AuthError> {
+    let claims: OpenIdClaims =
+        util::decode_unverified_claims(token).ok_or(AuthError::InvalidJson)?;
+    openid::login_from_claims(claims, client_data_jwt, Trust::Unauthenticated)
 }
 
 #[cfg(all(test, feature = "server"))]
 mod security_tests;
 
 #[cfg(all(test, feature = "server"))]
+mod provider_tests;
+
+#[cfg(all(test, feature = "server"))]
 mod tests {
     use super::*;
+    use crate::error::JolyneError;
 
     #[test]
     fn parse_login_chain_accepts_valid_payload() {
@@ -178,22 +235,16 @@ mod tests {
         let err = authenticate_login(auth_info, "ignored", true, true)
             .await
             .expect_err("online mode must not accept self-signed auth");
-        assert!(matches!(
-            err,
-            JolyneError::Auth(AuthError::LegacyAuthDisabled)
-        ));
+        assert_eq!(err, AuthError::LegacyAuthDisabled);
     }
 
     #[tokio::test]
     async fn authenticate_login_rejects_legacy_when_disabled() {
         let auth_info = r#"{"AuthenticationType":2,"Certificate":{"chain":["token"]}}"#;
-        let err = authenticate_login(auth_info, "ignored", true, false)
+        let err = authenticate_login(auth_info, "ignored", false, false)
             .await
             .expect_err("legacy disabled");
-        assert!(matches!(
-            err,
-            JolyneError::Auth(AuthError::LegacyAuthDisabled)
-        ));
+        assert_eq!(err, AuthError::LegacyAuthDisabled);
     }
 
     #[tokio::test]
@@ -202,7 +253,7 @@ mod tests {
         let err = authenticate_login(auth_info, "ignored", true, true)
             .await
             .expect_err("should require token");
-        assert!(matches!(err, JolyneError::Auth(AuthError::MissingToken)));
+        assert_eq!(err, AuthError::MissingToken);
     }
 
     #[tokio::test]
@@ -211,10 +262,7 @@ mod tests {
         let err = authenticate_login(auth_info, "ignored", false, true)
             .await
             .expect_err("should require cert");
-        assert!(matches!(
-            err,
-            JolyneError::Auth(AuthError::MissingCertificate)
-        ));
+        assert_eq!(err, AuthError::MissingCertificate);
     }
 
     #[tokio::test]
@@ -223,10 +271,7 @@ mod tests {
         let err = authenticate_login(auth_info, "ignored", true, true)
             .await
             .expect_err("should reject unknown type");
-        assert!(matches!(
-            err,
-            JolyneError::Auth(AuthError::UnsupportedAuthType(99))
-        ));
+        assert_eq!(err, AuthError::UnsupportedAuthType(99));
     }
 
     #[tokio::test]
@@ -235,6 +280,6 @@ mod tests {
         let err = authenticate_login(auth_info, "ignored", true, true)
             .await
             .expect_err("should require auth type");
-        assert!(matches!(err, JolyneError::Auth(AuthError::MissingAuthType)));
+        assert_eq!(err, AuthError::MissingAuthType);
     }
 }
