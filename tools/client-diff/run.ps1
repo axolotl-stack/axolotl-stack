@@ -2,9 +2,16 @@
 [CmdletBinding()]
 param(
     [ValidateSet('vanilla', 'unastar')][string]$Server = 'vanilla',
+    # diff: compare gophertunnel and Jolyne traffic (join-idle, join-chat).
+    # conformance: capture every scenario and check Valentine decodes and
+    # re-encodes every packet exactly (see README).
+    [ValidateSet('diff', 'conformance')][string]$Mode = 'diff',
     [string]$Runtime = (Join-Path $PSScriptRoot 'endstone-capture/runtime'),
     [string]$Output = (Join-Path $PSScriptRoot ('runs/' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))),
     [string]$UnastarCommand = '',
+    # IPv4 game port of the vanilla server (IPv6 uses Port+1); written into the
+    # harness-owned runtime server.properties.
+    [int]$Port = 19132,
     [int]$StartupTimeoutSeconds = 180
 )
 $ErrorActionPreference = 'Stop'
@@ -60,7 +67,13 @@ function Invoke-Checked([string]$Exe, [string[]]$Arguments, [string]$WorkingDire
     if ($job.Process.ExitCode -ne 0) { throw "Command failed ($($job.Process.ExitCode)): $Exe (see $Log.*.log)" }
 }
 function Test-LocalPort {
-    return @((Get-NetUDPEndpoint -LocalPort 19132 -ErrorAction SilentlyContinue)).Count -gt 0
+    return @((Get-NetUDPEndpoint -LocalPort $Port -ErrorAction SilentlyContinue)).Count -gt 0
+}
+function Set-ServerPort {
+    $properties = Join-Path $Bds 'server.properties'
+    $text = [IO.File]::ReadAllText($properties)
+    $text = $text -replace '(?m)^server-port=\d+', "server-port=$Port" -replace '(?m)^server-portv6=\d+', "server-portv6=$($Port + 1)"
+    [IO.File]::WriteAllText($properties, $text)
 }
 function Initialize-WorldTemplate {
     $template = Join-Path $Runtime 'world-template'
@@ -91,7 +104,7 @@ function Initialize-WorldTemplate {
     Copy-Item -Recurse $world $template
 }
 function Invoke-Capture([string]$Backend, [string]$Client, [string]$Scenario) {
-    if (Test-LocalPort) { throw 'UDP port 19132 is already occupied; refusing to touch an unrelated server.' }
+    if (Test-LocalPort) { throw "UDP port $Port is already occupied; refusing to touch an unrelated server." }
     $name = "$Scenario-$Backend-$Client"
     $captureDir = Join-Path $Output "$name-server"
     New-Item -ItemType Directory $captureDir | Out-Null
@@ -130,9 +143,9 @@ function Invoke-Capture([string]$Backend, [string]$Client, [string]$Scenario) {
         $path = Join-Path $Output "$name.jsonl"
         try {
             if ($Client -eq 'go') {
-                Invoke-Checked 'go' @('run', '.', '-address', '127.0.0.1:19132', '-scenario', $Scenario, '-scenarios', $Scenarios, '-output', $path) (Join-Path $PSScriptRoot 'gt-client') (Join-Path $Output "$name-client")
+                Invoke-Checked 'go' @('run', '.', '-address', "127.0.0.1:$Port", '-scenario', $Scenario, '-scenarios', $Scenarios, '-output', $path) (Join-Path $PSScriptRoot 'gt-client') (Join-Path $Output "$name-client")
             } else {
-                Invoke-Checked 'cargo' @('run', '-p', 'client-diff', '--', 'jolyne', '--address', '127.0.0.1:19132', '--scenario', $Scenario, '--scenarios', $Scenarios, '--output', $path) $Repo (Join-Path $Output "$name-client")
+                Invoke-Checked 'cargo' @('run', '-p', 'client-diff', '--', 'jolyne', '--address', "127.0.0.1:$Port", '--scenario', $Scenario, '--scenarios', $Scenarios, '--output', $path) $Repo (Join-Path $Output "$name-client")
             }
         } catch {
             # Preserve and compare rejection traffic too, but never mark a failed join successful.
@@ -151,7 +164,26 @@ function Invoke-Capture([string]$Backend, [string]$Client, [string]$Scenario) {
 
 $diffFailed = $false
 $clientFailed = $false
+if ($Server -eq 'unastar' -and $Port -ne 19132) { throw 'unastar listens on the port configured in unastar.toml (19132).' }
+Set-ServerPort
 Initialize-WorldTemplate
+if ($Mode -eq 'conformance') {
+    # Interaction scenarios are gophertunnel-only (Jolyne rejects their steps).
+    foreach ($scenario in @('join-idle', 'join-chat', 'tour-world', 'tour-interact')) {
+        Invoke-Capture 'vanilla' 'go' $scenario | Out-Null
+        if ($scenario -ne 'tour-interact') { Invoke-Capture 'vanilla' 'jolyne' $scenario | Out-Null }
+    }
+    # Every client and Endstone (server-side) capture under $Output.
+    $conformanceFailed = $false
+    try {
+        # .ndjson so reruns over $Output do not re-check the failure dump.
+        Invoke-Checked 'cargo' @('run', '-p', 'client-diff', '--', 'conformance', $Output, '--output', (Join-Path $Output 'conformance.md'), '--failures', (Join-Path $Output 'conformance-failures.ndjson')) $Repo (Join-Path $Output 'conformance')
+    } catch { Write-Warning $_; $conformanceFailed = $true }
+    Write-Host "Captures, conformance.md and command output: $Output"
+    if ($conformanceFailed) { throw 'Valentine conformance failed; see conformance.md and conformance-failures.ndjson.' }
+    if ($clientFailed) { throw 'One or more client scenarios failed; partial captures were retained for diagnosis.' }
+    return
+}
 foreach ($scenario in @('join-idle', 'join-chat')) {
     $go = Invoke-Capture 'vanilla' 'go' $scenario
     $rust = Invoke-Capture 'vanilla' 'jolyne' $scenario

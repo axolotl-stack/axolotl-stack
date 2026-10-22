@@ -34,15 +34,36 @@ type identity struct {
 	DeviceOS       int    `json:"device_os"`
 }
 
+// step is one scenario action. chat/command use Text ({x}, {y} and {z} expand
+// to the spawn feet block); the remaining kinds are interactions (see
+// session.interaction) whose block coordinates X/Y/Z are offsets from that
+// same block. Slots 0-8 are the hotbar and 9-35 the main inventory.
 type step struct {
-	AfterMS int64  `json:"after_ms"`
-	Kind    string `json:"kind"`
-	Text    string `json:"text"`
+	AfterMS int64   `json:"after_ms"`
+	Kind    string  `json:"kind"`
+	Text    string  `json:"text"`
+	X       int32   `json:"x"`
+	Y       int32   `json:"y"`
+	Z       int32   `json:"z"`
+	Face    int32   `json:"face"`
+	Slot    int     `json:"slot"`
+	To      int     `json:"to"`
+	Count   int     `json:"count"`
+	Ticks   int     `json:"ticks"`
+	DX      float32 `json:"dx"`
+	DY      float32 `json:"dy"`
+	DZ      float32 `json:"dz"`
+	Entity  string  `json:"entity"`
+	Recipe  string  `json:"recipe"`
 }
 
 type scenario struct {
 	IdleMS int64  `json:"idle_ms"`
 	Steps  []step `json:"steps"`
+	// AuthInput makes the client tick like a vanilla client (PlayerAuthInput
+	// every 50ms, respawn and dimension-change acknowledgements). Interaction
+	// steps require it; plain chat/command scenarios keep their minimal traffic.
+	AuthInput bool `json:"auth_input"`
 }
 
 type scenariosFile struct {
@@ -62,11 +83,36 @@ func (s scenario) validate() error {
 		if !validDelay(step.AfterMS) {
 			return fmt.Errorf("step %d: invalid after_ms", i)
 		}
-		if step.Kind != "chat" && step.Kind != "command" {
+		switch step.Kind {
+		case "chat", "command":
+			if step.Text == "" {
+				return fmt.Errorf("step %d: text must not be empty", i)
+			}
+		case "move":
+			if step.Ticks <= 0 {
+				return fmt.Errorf("step %d: move needs positive ticks", i)
+			}
+		case "move_item", "drop", "craft":
+			if step.Count <= 0 || step.Count > 64 || step.Slot < 0 || step.Slot >= inventorySize || step.To < 0 || step.To >= inventorySize {
+				return fmt.Errorf("step %d: %s needs count 1..64 and slots 0..35", i, step.Kind)
+			}
+			if step.Kind == "craft" && step.Recipe == "" {
+				return fmt.Errorf("step %d: craft needs a recipe", i)
+			}
+		case "select":
+			if step.Slot < 0 || step.Slot > 8 {
+				return fmt.Errorf("step %d: select needs a hotbar slot 0..8", i)
+			}
+		case "attack", "interact":
+			if step.Entity == "" {
+				return fmt.Errorf("step %d: %s needs an entity type", i, step.Kind)
+			}
+		case "break", "click":
+		default:
 			return fmt.Errorf("step %d: unsupported kind %q", i, step.Kind)
 		}
-		if step.Text == "" {
-			return fmt.Errorf("step %d: text must not be empty", i)
+		if step.Kind != "chat" && step.Kind != "command" && !s.AuthInput {
+			return fmt.Errorf("step %d: %s requires auth_input", i, step.Kind)
 		}
 	}
 	return nil
@@ -247,6 +293,19 @@ func run(ctx context.Context, address, scenarioName, scenariosPath, output strin
 		return fmt.Errorf("flush initialisation: %w", err)
 	}
 	joinCancel()
+	sess := newSession(conn)
+	// write serialises step, reply and tick sends; conn.Flush is per batch.
+	var writeMu sync.Mutex
+	write := func(pks ...packet.Packet) error {
+		writeMu.Lock()
+		defer writeMu.Unlock()
+		for _, pk := range pks {
+			if err := conn.WritePacket(pk); err != nil {
+				return err
+			}
+		}
+		return conn.Flush()
+	}
 	readerDone = make(chan struct{})
 	go func() {
 		defer close(readerDone)
@@ -258,36 +317,92 @@ func run(ctx context.Context, address, scenarioName, scenariosPath, output strin
 				}
 				return
 			}
+			var replies []packet.Packet
 			if latency, ok := pk.(*packet.NetworkStackLatency); ok && latency.NeedsResponse {
-				err := conn.WritePacket(&packet.NetworkStackLatency{Timestamp: latency.Timestamp})
-				if err == nil {
-					err = conn.Flush()
-				}
-				if err != nil {
+				replies = append(replies, &packet.NetworkStackLatency{Timestamp: latency.Timestamp})
+			}
+			if script.AuthInput {
+				replies = append(replies, sess.handle(pk)...)
+			}
+			if len(replies) > 0 {
+				if err := write(replies...); err != nil {
 					if !stopping.Load() {
-						cancel(fmt.Errorf("respond to latency: %w", err))
+						cancel(fmt.Errorf("reply to %T: %w", pk, err))
 					}
 					return
 				}
 			}
 		}
 	}()
+	// Interaction scenarios behave like a vanilla client: one PlayerAuthInput per
+	// 50ms tick, carrying queued movement/block actions or standing still.
+	inputs := make(chan inputSpec, 1024)
+	inputsDone := make(chan struct{})
+	if script.AuthInput {
+		tickerDone := make(chan struct{})
+		defer func() {
+			close(inputsDone)
+			<-tickerDone
+		}()
+		go func() {
+			defer close(tickerDone)
+			ticker := time.NewTicker(50 * time.Millisecond)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-inputsDone:
+					return
+				case <-ticker.C:
+				}
+				var spec inputSpec
+				select {
+				case spec = <-inputs:
+				default:
+				}
+				if spec.look != nil {
+					sess.lookAt(*spec.look)
+				}
+				batch := []packet.Packet{sess.authInput(spec.delta, spec.extra)}
+				if spec.after != nil {
+					batch = append(batch, spec.after()...)
+				}
+				if err := write(batch...); err != nil {
+					if !stopping.Load() {
+						cancel(fmt.Errorf("send input tick: %w", err))
+					}
+					return
+				}
+			}
+		}()
+	}
 	for i, step := range script.Steps {
 		if err := delay(ctx, step.AfterMS); err != nil {
 			return err
 		}
-		var pk packet.Packet
+		var pks []packet.Packet
 		switch step.Kind {
 		case "chat":
-			pk = &packet.Text{TextType: packet.TextTypeChat, SourceName: id.DisplayName, Message: step.Text}
+			pks = []packet.Packet{&packet.Text{TextType: packet.TextTypeChat, SourceName: id.DisplayName, Message: sess.expand(step.Text)}}
 		case "command":
-			pk = &packet.CommandRequest{CommandLine: step.Text, CommandOrigin: protocol.CommandOrigin{Origin: protocol.CommandOriginPlayer, UUID: uuid.MustParse(id.UUID)}, Version: "latest"}
+			pks = []packet.Packet{&packet.CommandRequest{CommandLine: sess.expand(step.Text), CommandOrigin: protocol.CommandOrigin{Origin: protocol.CommandOriginPlayer, UUID: uuid.MustParse(id.UUID)}, Version: "latest"}}
+		default:
+			var specs []inputSpec
+			pks, specs, err = sess.interaction(step)
+			if err != nil {
+				return fmt.Errorf("step %d (%s): %w", i, step.Kind, err)
+			}
+			for _, spec := range specs {
+				select {
+				case inputs <- spec:
+				case <-ctx.Done():
+					return context.Cause(ctx)
+				}
+			}
 		}
-		if err := conn.WritePacket(pk); err != nil {
-			return fmt.Errorf("step %d: %w", i, err)
-		}
-		if err := conn.Flush(); err != nil {
-			return fmt.Errorf("flush step %d: %w", i, err)
+		if len(pks) > 0 {
+			if err := write(pks...); err != nil {
+				return fmt.Errorf("step %d: %w", i, err)
+			}
 		}
 	}
 	if err := delay(ctx, script.IdleMS); err != nil {
