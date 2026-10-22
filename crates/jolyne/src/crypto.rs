@@ -76,10 +76,9 @@ impl BatchCipher {
         self.cipher.apply_keystream(groups);
         if !tail.is_empty() {
             // Do not prefetch beyond the underlying cipher's stream limit.
-            self.keystream.fill(0);
             if self
                 .cipher
-                .try_apply_keystream(&mut self.keystream)
+                .try_write_keystream(&mut self.keystream)
                 .is_err()
             {
                 self.cipher.apply_keystream(tail);
@@ -217,6 +216,46 @@ mod tests {
                     *byte,
                     u8::from_str_radix(&expected[2 * i..2 * i + 2], 16).unwrap()
                 );
+            }
+        }
+    }
+
+    #[test]
+    fn independent_large_batch_vectors_preserve_hash_and_stream_order() {
+        let mut send = BatchCipher::new(KEY, IV);
+        let mut recv = BatchCipher::new(KEY, IV);
+        for (len, expected) in [
+            (
+                65_535,
+                "c80c0b26e2d3ba335c3f8d01ba9eee87f608b9d676c925e19975e0f359ebff35",
+            ),
+            (
+                65_536,
+                "a72975f8149a93c8e74239d0aed7df6499dc6cc5e0d1bfe19abf28217206e542",
+            ),
+            (
+                65_537,
+                "278300d8df12a3102f103048f7b7a1400e4cdcb121ad154312e8c2ac89b71655",
+            ),
+            (
+                151_490,
+                "4e46732a8835110c530ce3cc30607454302af30353926c19eb85749f11fad852",
+            ),
+        ] {
+            let mut input = BytesMut::with_capacity(len + 9);
+            input.extend_from_slice(&[0xfe]);
+            input.extend((0..len).map(|i| i as u8));
+            send.encrypt(&mut input, 1).unwrap();
+            for (i, byte) in Sha256::digest(&input).iter().enumerate() {
+                assert_eq!(
+                    *byte,
+                    u8::from_str_radix(&expected[2 * i..2 * i + 2], 16).unwrap()
+                );
+            }
+            recv.decrypt(&mut input, 1).unwrap();
+            assert_eq!(input[0], 0xfe);
+            for (i, byte) in input[1..].iter().enumerate() {
+                assert_eq!(*byte, i as u8);
             }
         }
     }
