@@ -990,6 +990,49 @@ mod tests {
         assert!(is_oversized_datagram(&Error::from_raw_os_error(10040)));
     }
 
+    /// HS-10: connection failure packets end the dial with a typed error in
+    /// both policies.
+    #[tokio::test]
+    async fn connection_failure_packet_is_reported() {
+        for policy in [TransmissionPolicy::Vanilla, TransmissionPolicy::Optimized] {
+            let server = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+            let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+            let client = socket.local_addr().unwrap();
+            let (_outbound, outbound_rx) = mpsc::channel(1);
+            let (to_app, _incoming) = mpsc::channel(1);
+            let (ready, ready_rx) = oneshot::channel();
+            let task = tokio::spawn(run_client_muxer(
+                socket,
+                ClientMuxerContext {
+                    server: server.local_addr().unwrap(),
+                    server_guid: 1,
+                    client_guid: u64::MAX,
+                    secure_connection_established: false,
+                    outbound_rx,
+                    to_app,
+                    ready,
+                    config: RaknetStreamConfig {
+                        transmission_policy: policy,
+                        ..RaknetStreamConfig::default()
+                    },
+                    maintenance_interval: Duration::from_millis(100),
+                },
+            ));
+            let mut buffer = [0; 2048];
+            server.recv_from(&mut buffer).await.unwrap();
+            server.send_to(&[0x14], client).await.unwrap();
+            let result = timeout(Duration::from_secs(1), ready_rx).await.unwrap();
+            assert!(
+                matches!(result, Ok(Err(crate::RaknetError::ServerFull))),
+                "{policy:?}"
+            );
+            timeout(Duration::from_secs(1), task)
+                .await
+                .unwrap()
+                .unwrap();
+        }
+    }
+
     /// A Vanilla client muxer connected to a scripted server session.
     struct VanillaHarness {
         server: UdpSocket,

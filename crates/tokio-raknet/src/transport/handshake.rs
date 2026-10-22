@@ -691,6 +691,22 @@ mod tests {
         assert_eq!(hs.finished().unwrap().mtu, 1492);
     }
 
+    /// OT-2: go-raknet never checks the offline magic of Reply1/Reply2.
+    #[test]
+    fn vanilla_offline_replies_ignore_magic() {
+        let start = Instant::now();
+        let mut hs = handshake(TransmissionPolicy::Vanilla, SERVER, 1492, start);
+        sent(&mut hs, start);
+        let mut reply = reply1(9, None, 1400);
+        reply[1..17].fill(0xaa);
+        hs.on_datagram(start, &reply).unwrap();
+        assert_eq!(mtu_of_request2(&sent(&mut hs, start)[0].bytes), 1400);
+        let mut reply = reply2(9, 1400, false);
+        reply[1..17].fill(0xaa);
+        hs.on_datagram(start, &reply).unwrap();
+        assert_eq!(hs.finished().unwrap().mtu, 1400);
+    }
+
     #[test]
     fn optimized_reply1_validation_rejects_without_resending() {
         let start = Instant::now();
