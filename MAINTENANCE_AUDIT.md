@@ -8,11 +8,11 @@
 
 The player-facing stable version is Bedrock **26.51**; Mojang's protocol changelog and the canonical protocolgen schema use `1.26.51`, protocol **2193**. Valentine generates its only version crate, `v1_26_51`, from protocolgen `7b2e47c`; the 1.26.0, 1.26.30, 1.26.40 and 1.26.44 crates were removed. Server game data (blocks, states, items, biomes) now comes from protocolgen's pinned native BDS inputs (`data/source/inputs/1.26.51/native`) through `unastar-data`; PrismarineJS `minecraft-data` remains checked in only as a reference/cross-check source.
 
-Do not use protocolgen's `1.26.50` manifest as stable: it describes Preview 25, protocol 2187. See the [official version-numbering guide](https://www.minecraft.net/en-us/article/minecraft-new-version-numbering-system) and [Bedrock protocol changelog](https://mojang.github.io/bedrock-protocol-docs/changelog/). Endstone 0.11.13 (2026-10-06) added BDS 1.26.52 support; whether 26.52 changed protocol 2193 has not been checked yet.
+Do not use protocolgen's `1.26.50` manifest as stable: it describes Preview 25, protocol 2187. See the [official version-numbering guide](https://www.minecraft.net/en-us/article/minecraft-new-version-numbering-system) and [Bedrock protocol changelog](https://mojang.github.io/bedrock-protocol-docs/changelog/). The 26.52 hotfix (2026-09-25) has no separate protocol entry in Mojang's protocol changelog (latest listed stable: 1.26.51 / protocol 2193), so it is treated as protocol 2193 with no packet changes.
 
 ## Readiness
 
-All high-priority findings except `EXTRACTOR-01` are remediated on `main` (see below). Online mode now verifies logins against Minecraft services' published JWKS. Remaining release blockers: `LICENSE-01`, live verification of Xbox/franchise paths, and the deferred MPSD ConnectionType 7 migration.
+All high-priority findings are remediated on `main` (see below). Online mode verifies logins against Minecraft services' published JWKS. Remaining release blockers: `LICENSE-01`, live verification of Xbox/franchise paths, and the deferred MPSD ConnectionType 7 migration.
 
 ## Remediation status (2026-10-21)
 
@@ -27,7 +27,7 @@ All high-priority findings except `EXTRACTOR-01` are remediated on `main` (see b
 | `RAKNET-01` | Fixed | Receive window 2048 and bounded ACK/NAK/split/ordering state, ported from lunar-bedrock/go-raknet; MTU validated with typed errors (`dd5074d`). |
 | `NETHERNET-01` | Fixed | Discovery receives full datagrams and rejects truncation (`2e6a4ac`). |
 | `CREDENTIALS-01` | Fixed | Secrets removed from logs/errors; token cache written atomically with owner-only permissions (`4e05b3d`). |
-| `EXTRACTOR-01` | Open | Not in this pass; protocolgen's `vanilla-data` BDS capture may replace the extractor. |
+| `EXTRACTOR-01` | Fixed | Play stream retained, bounded collection of post-spawn definitions, typed `MissingSection`/`InvalidData` errors, schema docs; relationship to protocolgen `vanilla-data` documented (`50fce49`). |
 | `PLUGIN-02` | Fixed | Manifest memory/fuel limits enforced; cancellable events dispatched before mutation; chat broadcast once (`c66ce25`). |
 | `DATA-01` | Fixed | Manifest/surface updates merge existing version crates instead of dropping them (`fa91aae`). |
 | `FRAME-01` | Fixed | Owned frame decoding rejects trailing bytes (`fa91aae`). |
@@ -41,17 +41,26 @@ All high-priority findings except `EXTRACTOR-01` are remediated on `main` (see b
 | `LICENSE-01` | Open | Legal review item. |
 | `DOCS-01` | Fixed | README links/prerequisites, workflow references, CI clippy enforced, CI nightly aligned to `rust-toolchain.toml` (`966d817`). |
 
-Additional fixes found during the pass: jolyne's server `start_game` dropped `StartLoadingScreen` sent before `RequestChunkRadius` (jolyne's own client does this) and stalled joins (`f2f6cde`); unastar compiled against 1.26.51 for the first time (`d9c0959`).
+Additional fixes found during the pass:
+- jolyne's server `start_game` dropped `StartLoadingScreen` sent before `RequestChunkRadius` (jolyne's own client does this) and stalled joins (`f2f6cde`); unastar compiled against 1.26.51 for the first time (`d9c0959`).
+- `CODEGEN-UNION-01`: the generator collapsed `DisconnectPacket.Messages` (a control-tagged union) into a bare struct through a name collision, so unastar sent malformed Disconnect packets; fixed with collision-safe naming and protocolgen-contract differential tests over BDS bytes (`a4776c0`). It was the only affected union of 45.
+- `CLIENTDIFF-01`: BDS 1.26.51 rejects Login with DeviceOS 7 (UWP) via its native `isWellFormed` whitelist; jolyne also lacked the modern identity Token. Both fixed; gophertunnel and jolyne now complete join-idle/join-chat against BDS (`3d18c5e`, `c60cd9b`).
+- `NETHERNET-03`: webrtc-rs offered an SRTP AES-256-GCM profile that webrtc-srtp keyed as AES-128 and panicked, breaking interop with pion/Cinnabar; `NETHERNET-04`: sends waited for the peer's delayed SACK (~600 ms small-message echo). Interim fix merged (`ffa64e5`); a rewrite onto the sans-IO `rtc` stack is in progress.
 
 Known deferred items: MPSD ConnectionType 7/`PmsgId` friend broadcasting (go-xsapi sample) needs a signaling path no upstream provides yet; go-nethernet's default client verifier defers JWT verification to the Login GameServerToken, which jolyne must enforce when NetherNet identity is used; live Xbox/TLS paths are not exercised by tests.
 
 ## Performance and conformance tooling (2026-10-21)
 
 - `tools/bench-compare` + `crates/bench-compare`: Valentine and tokio-raknet versus gophertunnel (HashimTheArab fork `80c811b`) and go-raknet (lunar-bedrock), over protocolgen's retail corpus; see `tools/bench-compare/report.md`. Owned codec geometric speedup versus gophertunnel across 25 matched packets: decode 2.0×, encode 5.3×. Cinnabar's protocolgen contract crate (measured on the same machine) decodes faster than Valentine owned (≈1.2–3×) and roughly ties Valentine borrowed; Valentine encodes ≈2–4× faster.
-- `TRANSPORT-01` (open): tokio-raknet loopback echo has near-Go medians (64 KiB: 1.14 ms vs Go ≈1.05 ms mean) but periodic ~100 ms stalls (p99 76–106 ms for ≥512 B), making mean throughput 29–360× slower than go-raknet. The stall period matches the 100 ms listener maintenance tick (`transport/mux.rs`); suspected ACK/congestion-window waits on the tick — not yet traced.
+- `TRANSPORT-01` (fixed): ACKs were built/retired only on the 100 ms maintenance tick, so window-blocked sends stalled ~100 ms (`b4cf9b2`, `fd1f743`). Later work added bounded ACK coalescing with due-only wakes (`6b28ef9`, `9622547`): 32 B loopback echo mean ~30 µs vs go-raknet ~39 µs; 4 KiB/64 KiB means remain ~1.1–1.3× behind Go; Cinnabar raknet-tokio is behind on every loopback metric.
 - Valentine frame dispatch no longer reserves a 10 KB probed stack frame per decode (`333a207`, 240 B). The earlier +78 % `mcpe_frame_decode` regression did not reproduce under pinned interleaved runs.
 - Benchmarking on this i9-14900HX must pin to one P-core and interleave base/head executables; unpinned runs drift 2–3× across P/E cores.
-- `tools/client-diff`: packet capture/diff harness (gophertunnel fork + lunar go-raknet vs jolyne vs BDS 1.26.51/Endstone 0.11.12). `CLIENTDIFF-01` (open): plain BDS 1.26.51 in offline mode rejects every client's Login (`readNoHeader failed`), including unmodified upstream gophertunnel; see `tools/client-diff/examples/rejected-login.md`. The real-client launcher is prepared but has not been run.
+- `tools/client-diff`: packet capture/diff harness (gophertunnel fork + lunar go-raknet vs jolyne vs BDS 1.26.51/Endstone 0.11.12). Both scripted clients spawn after the `CLIENTDIFF-01` fix; all 113 chunks match byte-for-byte by coordinate. The real-client launcher is prepared but has not been run.
+- Optimization round (2026-10-22), all measured with pinned, alternating rounds against Cinnabar (protocolgen contract crate, bedrock-net, cinnabar raknet/nethernet) and Go (gophertunnel, go-raknet, go-nethernet):
+  - Valentine: all 30 corpus packets decode (owned) and encode faster than the contract crate; zero-copy `ByteString`/`Bytes` fields; typed borrowed decoding for every packet (`04a99fc`).
+  - jolyne batch pipeline: zero-copy framing, libdeflate, in-place AES-CTR/SHA-256 and a Go-size-matched Snappy encoder; every row ahead of bedrock-net and gophertunnel or within noise (`0cc495f`, `df91ffb`).
+  - tokio-raknet: encode/ACK paths ahead of Cinnabar on 13/14 wire rows (`894e811`).
+  - tokio-nethernet: signaling, ICE candidate and LAN discovery codecs ahead of Cinnabar and Go on every row (`adbf38b`).
 
 ## Original readiness note (2026-09-25)
 
