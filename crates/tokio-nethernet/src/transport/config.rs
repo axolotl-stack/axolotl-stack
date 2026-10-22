@@ -27,6 +27,10 @@ pub struct TransportConfig {
     pub udp4: bool,
     /// Gather IPv6 host candidates.
     pub udp6: bool,
+    /// ICE transport policy "relay" (go-nethernet `credentials.go:gatherOptions`
+    /// `ICEGatherPolicy`): advertise and use only TURN relay candidates; direct
+    /// traffic is dropped. Requires a UDP `turn:` server.
+    pub relay_only: bool,
 }
 
 impl Default for TransportConfig {
@@ -37,6 +41,7 @@ impl Default for TransportConfig {
             ip_filter: None,
             udp4: true,
             udp6: true,
+            relay_only: false,
         }
     }
 }
@@ -49,6 +54,7 @@ impl fmt::Debug for TransportConfig {
             .field("ip_filter", &self.ip_filter.as_ref().map(|_| ".."))
             .field("udp4", &self.udp4)
             .field("udp6", &self.udp6)
+            .field("relay_only", &self.relay_only)
             .finish()
     }
 }
@@ -62,6 +68,7 @@ impl TransportConfig {
             ip_filter: None,
             udp4: true,
             udp6: false,
+            relay_only: false,
         }
     }
 

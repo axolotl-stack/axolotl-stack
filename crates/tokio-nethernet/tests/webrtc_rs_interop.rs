@@ -15,11 +15,12 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{Mutex, mpsc};
 use tokio_nethernet::{
-    Message, NetherNetDialer, NetherNetDialerConfig, Signal, Signaling, SignalingChannel,
-    TransportConfig, signal_type,
+    Message, NetherNetDialer, NetherNetDialerConfig, NetherNetListener, NetherNetListenerConfig,
+    Signal, Signaling, SignalingChannel, TransportConfig, signal_type,
 };
 use webrtc::api::APIBuilder;
 use webrtc::api::setting_engine::SettingEngine;
+use webrtc::data_channel::data_channel_init::RTCDataChannelInit;
 use webrtc::dtls::extension::extension_use_srtp::SrtpProtectionProfile;
 use webrtc::peer_connection::configuration::RTCConfiguration;
 use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
@@ -157,5 +158,103 @@ async fn dialer_connects_to_peer_preferring_aes_256_gcm_srtp() {
     assert_eq!(echoed.buffer, payload);
     stream.close().await.unwrap();
     let (pc, _signaling) = peer.await.unwrap();
+    pc.close().await.unwrap();
+}
+
+/// Our listener answering an independent webrtc-rs 0.12 offerer that opens
+/// the two NetherNet channels like libwebrtc clients do.
+#[tokio::test]
+async fn listener_accepts_independent_webrtc_rs_offerer() {
+    let (to_listener, listener_rx) = mpsc::channel(16);
+    let (to_peer, mut peer_rx) = mpsc::channel(16);
+    let mut listener = NetherNetListener::bind_with_signaling(
+        Pipe {
+            id: "listener",
+            sender: to_peer,
+            receiver: Mutex::new(Some(listener_rx)),
+        },
+        NetherNetListenerConfig {
+            transport: TransportConfig::loopback_v4(),
+            allow_identityless_client: true,
+            ..Default::default()
+        },
+    );
+    let pc = Arc::new(
+        APIBuilder::new()
+            .with_setting_engine(loopback_settings())
+            .build()
+            .new_peer_connection(RTCConfiguration::default())
+            .await
+            .unwrap(),
+    );
+    let reliable = pc
+        .create_data_channel("ReliableDataChannel", None)
+        .await
+        .unwrap();
+    pc.create_data_channel(
+        "UnreliableDataChannel",
+        Some(RTCDataChannelInit {
+            ordered: Some(false),
+            max_retransmits: Some(0),
+            ..Default::default()
+        }),
+    )
+    .await
+    .unwrap();
+    let (opened_tx, mut opened_rx) = mpsc::channel(1);
+    reliable.on_open(Box::new(move || {
+        Box::pin(async move {
+            let _ = opened_tx.send(()).await;
+        })
+    }));
+    let (frames_tx, mut frames_rx) = mpsc::channel(4);
+    reliable.on_message(Box::new(move |message| {
+        let frames_tx = frames_tx.clone();
+        Box::pin(async move {
+            let _ = frames_tx.send(message.data).await;
+        })
+    }));
+    let offer = pc.create_offer(None).await.unwrap();
+    let mut gathered = pc.gathering_complete_promise().await;
+    pc.set_local_description(offer).await.unwrap();
+    gathered.recv().await;
+    let mut sdp = pc.local_description().await.unwrap().sdp;
+    if !sdp.contains("a=max-message-size:") {
+        sdp.push_str("a=max-message-size:65536\r\n");
+    }
+    to_listener
+        .send(Signal {
+            typ: signal_type::OFFER.into(),
+            connection_id: 7,
+            data: sdp,
+            network_id: "peer".into(),
+        })
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(10), async {
+        let answer = peer_rx.recv().await.unwrap();
+        assert_eq!(answer.typ, signal_type::ANSWER);
+        pc.set_remote_description(RTCSessionDescription::answer(answer.data).unwrap())
+            .await
+            .unwrap();
+        let mut accepted = listener.accept().await.unwrap();
+        opened_rx.recv().await.unwrap();
+        // One NetherNet segment: countdown byte 0, then the payload.
+        reliable
+            .send(&bytes::Bytes::from_static(b"\0hello"))
+            .await
+            .unwrap();
+        assert_eq!(
+            accepted.next().await.unwrap().unwrap().buffer.as_ref(),
+            b"hello"
+        );
+        accepted
+            .send(Message::reliable(bytes::Bytes::from_static(b"back")))
+            .await
+            .unwrap();
+        assert_eq!(frames_rx.recv().await.unwrap().as_ref(), b"\0back");
+    })
+    .await
+    .expect("independent offerer exchange timed out");
     pc.close().await.unwrap();
 }

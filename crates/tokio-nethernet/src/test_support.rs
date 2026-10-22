@@ -68,7 +68,15 @@ pub(crate) fn signaling_pair(trickle: bool) -> (Local, Local) {
 pub(crate) async fn connected_pair(
     config: NetherNetStreamConfig,
 ) -> (NetherNetStream, NetherNetStream, NetherNetListener) {
-    let (server, client) = signaling_pair(false);
+    connected_pair_with(config, false).await
+}
+
+/// As [`connected_pair`], optionally trickling candidates as `CANDIDATEADD`.
+pub(crate) async fn connected_pair_with(
+    config: NetherNetStreamConfig,
+    trickle: bool,
+) -> (NetherNetStream, NetherNetStream, NetherNetListener) {
+    let (server, client) = signaling_pair(trickle);
     let mut listener = NetherNetListener::bind_with_signaling(
         server,
         NetherNetListenerConfig {
@@ -102,6 +110,7 @@ pub(crate) fn idle_connection() -> Arc<Connection> {
             role: Role::Listener,
             hosts: Vec::new(),
             servers: Vec::new(),
+            relay_only: false,
             certificate,
             provider,
             max_segment_payload: crate::framing::MAX_SEGMENT_PAYLOAD,

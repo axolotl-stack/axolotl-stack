@@ -69,6 +69,7 @@ pub(crate) struct SessionParams {
     pub(crate) role: Role,
     pub(crate) hosts: Vec<SocketAddr>,
     pub(crate) servers: Vec<IceServerAddr>,
+    pub(crate) relay_only: bool,
     pub(crate) certificate: LocalCertificate,
     pub(crate) provider: Arc<dyn RTCCryptoProvider>,
     /// Local outbound segment ceiling (`NetherNetStreamConfig::max_message_size`).
@@ -127,6 +128,7 @@ impl Session {
         let ice = IceLayer::new(
             now,
             controlling,
+            params.relay_only,
             params.hosts,
             &params.servers,
             &params.provider,

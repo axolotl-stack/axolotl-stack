@@ -295,7 +295,7 @@ impl Drop for NetherNetStream {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::connected_pair;
+    use crate::test_support::{connected_pair, connected_pair_with};
     use futures::{SinkExt, StreamExt};
     use tokio::sync::mpsc;
 
@@ -478,6 +478,25 @@ mod tests {
         })
         .await
         .expect("loopback exchange timed out");
+    }
+
+    /// Trickle signaling: offers/answers carry no candidates and every
+    /// candidate travels as `CANDIDATEADD` (conn.go:trickleCandidates).
+    #[tokio::test]
+    async fn trickled_candidates_establish_the_connection() {
+        tokio::time::timeout(Duration::from_secs(30), async {
+            let (mut a, mut b, _listener) =
+                connected_pair_with(NetherNetStreamConfig::default(), true).await;
+            a.send(Message::reliable(Bytes::from_static(b"trickled")))
+                .await
+                .unwrap();
+            assert_eq!(
+                b.next().await.unwrap().unwrap().buffer.as_ref(),
+                b"trickled"
+            );
+        })
+        .await
+        .expect("trickled negotiation timed out");
     }
 
     #[tokio::test]

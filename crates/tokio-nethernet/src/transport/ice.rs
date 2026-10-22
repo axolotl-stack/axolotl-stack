@@ -102,6 +102,8 @@ pub(crate) struct IceLayer {
     agent: Agent,
     hosts: Vec<SocketAddr>,
     servers: Vec<TurnServer>,
+    /// ICE transport policy "relay": only relayed candidates and traffic.
+    relay_only: bool,
     local_candidates: Vec<LocalCandidate>,
     /// Candidates not yet handed to trickle signaling.
     new_candidates: Vec<LocalCandidate>,
@@ -157,6 +159,7 @@ impl IceLayer {
     pub(crate) fn new(
         now: Instant,
         controlling: bool,
+        relay_only: bool,
         hosts: Vec<SocketAddr>,
         servers: &[IceServerAddr],
         provider: &Arc<dyn RTCCryptoProvider>,
@@ -164,15 +167,17 @@ impl IceLayer {
         let mut agent = Agent::new(now, Arc::new(agent_config(controlling)), provider.clone())
             .map_err(transport)?;
         let mut local_candidates = Vec::with_capacity(hosts.len());
-        for &host in &hosts {
-            let candidate = CandidateHostConfig {
-                base_config: base_config(host),
-                ..Default::default()
+        if !relay_only {
+            for &host in &hosts {
+                let candidate = CandidateHostConfig {
+                    base_config: base_config(host),
+                    ..Default::default()
+                }
+                .new_candidate_host()
+                .map_err(transport)?;
+                local_candidates.push(describe(&candidate, "host", None));
+                agent.add_local_candidate(candidate).map_err(transport)?;
             }
-            .new_candidate_host()
-            .map_err(transport)?;
-            local_candidates.push(describe(&candidate, "host", None));
-            agent.add_local_candidate(candidate).map_err(transport)?;
         }
         let mut layer = Self {
             agent,
@@ -180,6 +185,7 @@ impl IceLayer {
             local_candidates,
             hosts,
             servers: Vec::new(),
+            relay_only,
             gather_deadline: None,
             selected: None,
             events: VecDeque::new(),
@@ -187,6 +193,10 @@ impl IceLayer {
             early_dtls: Vec::new(),
         };
         for server in servers {
+            // Relay-only gathering needs only TURN allocations.
+            if relay_only && matches!(server, IceServerAddr::Stun(_)) {
+                continue;
+            }
             layer.add_server(now, server, provider);
         }
         if layer.servers.iter().any(TurnServer::gathering) {
@@ -231,7 +241,11 @@ impl IceLayer {
             let Ok(mut client) = TurnClient::new(config, provider.clone()) else {
                 continue;
             };
-            let srflx = client.send_binding_request(now).ok();
+            let srflx = if self.relay_only {
+                None
+            } else {
+                client.send_binding_request(now).ok()
+            };
             let allocate = turn
                 .as_ref()
                 .and_then(|_| client.allocate(now).ok())
@@ -332,7 +346,9 @@ impl IceLayer {
                 message: data,
             });
             self.drain_server(now, index, dtls, out);
-        } else {
+        } else if !self.relay_only {
+            // Relay-only drops direct traffic: rtc-ice would otherwise match it
+            // to the relay candidate through its related (host) address.
             self.deliver(now, host, from, data, dtls);
         }
         self.drain_agent_events(dtls);

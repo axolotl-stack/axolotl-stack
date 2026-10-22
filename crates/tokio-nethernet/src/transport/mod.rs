@@ -303,6 +303,7 @@ impl Pending {
                 role,
                 hosts,
                 servers,
+                relay_only: transport.relay_only,
                 certificate: local.certificate.clone(),
                 provider: local.provider.clone(),
                 max_segment_payload: stream.max_message_size,

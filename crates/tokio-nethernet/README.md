@@ -81,8 +81,9 @@ interface address. `addresses: Some(..)` binds exactly those addresses and
 skips interface enumeration (several milliseconds per connection on Windows).
 `TransportConfig::loopback_v4()` binds only `127.0.0.1`, confining the actual
 ICE/DTLS/SCTP sockets for strict local tests; loopback is a deliberate testing
-policy, not a production default. `ice_servers` uses the crate's own
-`signaling::IceServer` (UDP `turn:` and `stun:` URLs).
+policy, not a production default. `relay_only` is the ICE "relay" transport
+policy (go-nethernet `gatherOptions` `ICEGatherPolicy`). `ice_servers` uses the
+crate's own `signaling::IceServer` (UDP `turn:` and `stun:` URLs).
 
 ## Bounds and error behavior
 
@@ -116,7 +117,7 @@ cargo check -p jolyne --all-targets --features nethernet,discovery,xbox-signalin
 cargo check -p axelerator --all-targets
 ```
 
-Tests include upstream wire fixtures, go-nethernet SDP line order and parse rules, authenticated malformed/truncated discovery input, configuration deadlines/ICE validation, fragment boundaries up to 262143-byte segments, receive-window backpressure, signed-identity tampering, HTTP signaling cancellation/credentials, retained WebSocket framing/closure, real loopback peers exchanging fragmented reliable and unreliable messages, a dial against an independent webrtc-rs 0.12 peer with pion's AES-256-GCM-first SRTP preference, sequential small sends that must not wait for delayed SACKs, and a contained listener negotiation panic.
+Tests include upstream wire fixtures, go-nethernet SDP line order and parse rules, authenticated malformed/truncated discovery input, configuration deadlines/ICE validation, fragment boundaries up to 262143-byte segments, receive-window backpressure, signed-identity tampering, HTTP signaling cancellation/credentials, retained WebSocket framing/closure, real loopback peers exchanging fragmented reliable and unreliable messages over inline and trickled candidates, a relay-only dial through an independent TURN server (webrtc-rs `turn`), an independent webrtc-rs 0.12 answerer with pion's AES-256-GCM-first SRTP preference and an independent webrtc-rs 0.12 offerer, sequential small sends that must not wait for delayed SACKs, and a contained listener negotiation panic.
 
 ## License
 
