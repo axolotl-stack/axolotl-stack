@@ -57,10 +57,7 @@ pub struct U24LE(pub u32);
 impl RaknetEncodable for U24LE {
     fn encode_raknet(&self, dst: &mut impl BufMut) -> Result<(), EncodeError> {
         let v = self.0;
-        // 3-byte little-endian
-        dst.put_u8((v & 0xFF) as u8);
-        dst.put_u8(((v >> 8) & 0xFF) as u8);
-        dst.put_u8(((v >> 16) & 0xFF) as u8);
+        dst.put_slice(&v.to_le_bytes()[..3]);
         Ok(())
     }
 

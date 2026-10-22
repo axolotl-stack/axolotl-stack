@@ -21,6 +21,9 @@ enum Command {
     Micro {
         #[arg(long, default_value_t = 5000)]
         iterations: usize,
+        /// Run only RakNet wire codecs and split reassembly, excluding batch codecs.
+        #[arg(long)]
+        wire_only: bool,
     },
     Loopback {
         #[arg(long, default_value_t = 100)]
@@ -44,9 +47,16 @@ fn main() -> Result<()> {
     let args = Args::parse();
     match args.command {
         Command::Codec { iterations } => bench_compare::codec::run(iterations),
-        Command::Micro { iterations } => {
+        Command::Micro {
+            iterations,
+            wire_only,
+        } => {
             bench_compare::micro::run(iterations)?;
-            bench_compare::batch::run(iterations)
+            if wire_only {
+                Ok(())
+            } else {
+                bench_compare::batch::run(iterations)
+            }
         }
         command => tokio::runtime::Builder::new_multi_thread()
             .enable_all()

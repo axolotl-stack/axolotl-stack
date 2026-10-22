@@ -143,7 +143,7 @@ fn cipher(case: &super::codec::Corpus, iterations: usize) -> Result<()> {
     )
 }
 
-pub fn run(iterations: usize) -> Result<()> {
+pub fn run(iterations: usize, wire_only: bool) -> Result<()> {
     for size in [32, 512, 4096] {
         let mut frame = Frame::new(
             RakReliability::ReliableOrdered,
@@ -176,6 +176,9 @@ pub fn run(iterations: usize) -> Result<()> {
         "unavailable",
         "split reassembly lives in private session implementation; no isolated public assembler API, including test-support",
     );
+    if wire_only {
+        return Ok(());
+    }
     for case in super::codec::corpus()?
         .into_iter()
         .filter(|case| case.packets.len() > 1)
