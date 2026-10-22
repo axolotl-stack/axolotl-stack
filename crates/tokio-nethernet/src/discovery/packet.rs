@@ -1,26 +1,43 @@
-//! Packet types for LAN discovery.
+//! LAN discovery packet codec.
 //!
-//! Packets are encrypted with AES-ECB and verified with HMAC-SHA256.
+//! Wire layout (upstream `discovery/packet.go:Marshal/Unmarshal`):
+//! `HMAC-SHA256(plain) [32] | AES-256-ECB-PKCS7(plain)` where
+//! `plain = u16 LE inclusive length | u16 LE packet ID | u64 LE sender | 8 padding bytes | body`.
+//!
+//! Encoding writes the plaintext once, directly into the output buffer, then
+//! checksums and encrypts it in place: one exact-size allocation per packet.
+//! Decoding decrypts one copy of the ciphertext in place, verifies the HMAC in
+//! constant time before parsing, and reuses that buffer for message text.
 
-use std::io::{Cursor, Read};
+use bytes::BufMut;
 
-use bytes::{Buf, BufMut};
-
-use super::crypto;
+use super::crypto::{self, CHECKSUM_LEN};
 
 /// Upstream `discovery/packet.go:Unmarshal` (`IDRequestPacket` through `IDMessagePacket`).
 const ID_REQUEST: u16 = 0;
 const ID_RESPONSE: u16 = 1;
 const ID_MESSAGE: u16 = 2;
 
+/// Inclusive length prefix preceding the header.
+const LENGTH_LEN: usize = 2;
+/// u16 packet ID, u64 sender and eight padding bytes: upstream `discovery/packet.go:Header.Write`.
+const HEADER_LEN: usize = 18;
+/// Plaintext offset of the packet body.
+const BODY_OFFSET: usize = LENGTH_LEN + HEADER_LEN;
+/// LE u64 recipient and u32 declared length preceding message text.
+const MESSAGE_PREFIX_LEN: usize = 12;
+
 /// Decoded packet types.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Packet {
     Request,
+    /// Decoded application data (the wire carries it hex-encoded).
     Response(Vec<u8>),
     Message(MessageData),
 }
 
 /// Message packet data.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MessageData {
     /// Network ID, not connection ID: upstream `discovery/packet_message.go:MessagePacket.Read`.
     pub recipient_id: u64,
@@ -260,177 +277,207 @@ fn write_string_u32(buf: &mut Vec<u8>, s: &str) {
     buf.extend_from_slice(s.as_bytes());
 }
 
-/// 18-byte header (u16 ID, u64 sender, eight padding bytes): upstream `discovery/packet.go:Header.Write`.
-struct Header {
-    packet_id: u16,
-    sender_id: u64,
+/// Starts a packet buffer with capacity for the whole sealed packet: a zeroed
+/// checksum slot, the length prefix slot and the header
+/// (upstream `discovery/packet.go:Header.Write`).
+fn begin(packet_id: u16, sender_id: u64, body_len: usize) -> Vec<u8> {
+    let plain_len = BODY_OFFSET + body_len;
+    let mut out = Vec::with_capacity(CHECKSUM_LEN + crypto::padded_len(plain_len));
+    out.extend_from_slice(&[0; CHECKSUM_LEN + LENGTH_LEN]);
+    out.put_u16_le(packet_id);
+    out.put_u64_le(sender_id);
+    out.put_u64_le(0); // 8 bytes padding
+    out
 }
 
-impl Header {
-    fn encode(&self) -> Vec<u8> {
-        let mut buf = Vec::with_capacity(18);
-        buf.put_u16_le(self.packet_id);
-        buf.put_u64_le(self.sender_id);
-        buf.put_u64_le(0); // 8 bytes padding
-        buf
-    }
-
-    fn decode(data: &[u8]) -> Option<(Self, usize)> {
-        if data.len() < 18 {
-            return None;
-        }
-        let mut cursor = Cursor::new(data);
-        let header = Self {
-            packet_id: cursor.get_u16_le(),
-            sender_id: cursor.get_u64_le(),
-        };
-        cursor.advance(8); // Skip padding
-        Some((header, 18))
-    }
+/// Writes the inclusive length prefix, then checksums and encrypts the
+/// plaintext after the checksum slot in place: upstream `discovery/packet.go:Marshal`.
+fn seal(mut out: Vec<u8>) -> Vec<u8> {
+    let plain = CHECKSUM_LEN..out.len();
+    // Upstream `uint16(buf.Len())+2` counts the prefix itself and wraps like Go.
+    let inclusive_len = plain.len() as u16;
+    out[CHECKSUM_LEN..CHECKSUM_LEN + LENGTH_LEN].copy_from_slice(&inclusive_len.to_le_bytes());
+    let checksum = crypto::hmac_checksum(&out[plain]);
+    crypto::encrypt_in_place(&mut out, CHECKSUM_LEN);
+    out[..CHECKSUM_LEN].copy_from_slice(&checksum);
+    out
 }
 
 /// Encode a request packet.
 pub fn encode_request(sender_id: u64) -> Vec<u8> {
-    let header = Header {
-        packet_id: ID_REQUEST,
-        sender_id,
-    };
-    let payload = header.encode();
-    wrap_packet(&payload)
+    seal(begin(ID_REQUEST, sender_id, 0))
 }
 
 /// Encode a response packet.
-/// Note: ApplicationData is hex-encoded per go-nethernet protocol.
+/// ApplicationData is written hex-encoded with a u32 LE length, per go-nethernet
+/// `discovery/packet_response.go:ResponsePacket.Write`.
 pub fn encode_response(sender_id: u64, application_data: &[u8]) -> Vec<u8> {
-    let header = Header {
-        packet_id: ID_RESPONSE,
-        sender_id,
-    };
-
-    let mut payload = header.encode();
-
-    // Hex-encode the application data (per go-nethernet packet_response.go)
-    let hex_encoded = hex::encode(application_data);
-
-    // Write hex-encoded data with u32 length prefix
-    payload.put_u32_le(hex_encoded.len() as u32);
-    payload.extend_from_slice(hex_encoded.as_bytes());
-
-    wrap_packet(&payload)
+    let hex_len = application_data.len() * 2;
+    let mut out = begin(ID_RESPONSE, sender_id, 4 + hex_len);
+    out.put_u32_le(hex_len as u32);
+    let start = out.len();
+    out.resize(start + hex_len, 0);
+    hex::encode_to_slice(application_data, &mut out[start..])
+        .expect("hex output sized to twice the input");
+    seal(out)
 }
 
 /// LE u64 recipient and u32 byte length: upstream `discovery/packet_message.go:MessagePacket.Write`.
 pub fn encode_message(sender_id: u64, recipient_id: u64, data: &str) -> Vec<u8> {
-    let header = Header {
-        packet_id: ID_MESSAGE,
-        sender_id,
-    };
-
-    let mut payload = header.encode();
-    payload.put_u64_le(recipient_id);
+    let mut out = begin(ID_MESSAGE, sender_id, MESSAGE_PREFIX_LEN + data.len());
+    out.put_u64_le(recipient_id);
     // Use u32 prefix for large SDP data (SDPs are typically 2000+ bytes)
-    write_string_u32(&mut payload, data);
-
-    wrap_packet(&payload)
+    write_string_u32(&mut out, data);
+    seal(out)
 }
 
-/// Wrap payload with length, encrypt, and add HMAC.
-fn wrap_packet(payload: &[u8]) -> Vec<u8> {
-    // Inclusive prefix: upstream `discovery/packet.go:Marshal`.
-    let mut with_length = Vec::with_capacity(2 + payload.len());
-    with_length.put_u16_le((payload.len() + 2) as u16);
-    with_length.extend_from_slice(payload);
+#[inline]
+fn u16_le(bytes: &[u8], at: usize) -> u16 {
+    u16::from_le_bytes([bytes[at], bytes[at + 1]])
+}
 
-    // Encrypt
-    let encrypted = crypto::encrypt(&with_length);
+#[inline]
+fn u32_le(bytes: &[u8], at: usize) -> u32 {
+    u32::from_le_bytes(bytes[at..at + 4].try_into().expect("4-byte slice"))
+}
 
-    // Prepend HMAC
-    let hmac = crypto::hmac_checksum(&with_length);
-    let mut result = Vec::with_capacity(32 + encrypted.len());
-    result.extend_from_slice(&hmac);
-    result.extend_from_slice(&encrypted);
-
-    result
+#[inline]
+fn u64_le(bytes: &[u8], at: usize) -> u64 {
+    u64::from_le_bytes(bytes[at..at + 8].try_into().expect("8-byte slice"))
 }
 
 /// Decode upstream `discovery/packet.go:Unmarshal`, including the u16::MAX
 /// nested-byte limit from `discovery/packet.go:readBytes`.
+///
+/// The checksum is verified (constant time) before any field is parsed.
+/// Returns the packet and the sender's network ID.
 pub fn decode(data: &[u8]) -> Result<(Packet, u64), &'static str> {
-    if data.len() < 32 {
+    let Some((checksum, encrypted)) = data.split_first_chunk::<CHECKSUM_LEN>() else {
         return Err("packet too short for HMAC");
-    }
+    };
 
-    // Split HMAC and encrypted data
-    let hmac: [u8; 32] = data[..32].try_into().unwrap();
-    let encrypted = &data[32..];
+    let mut plain = encrypted.to_vec();
+    let plain_len = crypto::decrypt_in_place(&mut plain)?;
+    plain.truncate(plain_len);
 
-    // Decrypt
-    let decrypted = crypto::decrypt(encrypted)?;
-
-    // Verify HMAC
-    if !crypto::verify_hmac(&decrypted, &hmac) {
+    if !crypto::verify_hmac(&plain, checksum) {
         return Err("HMAC verification failed");
     }
 
-    // Parse length and content
-    if decrypted.len() < 2 {
+    // Upstream `discovery/packet.go:Unmarshal` ignores the legacy/inclusive length.
+    if plain.len() < LENGTH_LEN {
         return Err("decrypted data too short");
     }
-    let mut cursor = Cursor::new(decrypted.as_slice());
-    // Upstream `discovery/packet.go:Unmarshal` ignores this legacy/inclusive length.
-    let _length = cursor.get_u16_le();
+    if plain.len() < BODY_OFFSET {
+        return Err("invalid header");
+    }
+    let packet_id = u16_le(&plain, LENGTH_LEN);
+    let sender_id = u64_le(&plain, LENGTH_LEN + 2);
+    let body = &plain[BODY_OFFSET..];
 
-    // Parse header
-    let remaining = &decrypted[2..];
-    let (header, header_len) = Header::decode(remaining).ok_or("invalid header")?;
-    let body = &remaining[header_len..];
-
-    // Parse packet body
-    let packet = match header.packet_id {
+    let packet = match packet_id {
         ID_REQUEST if body.is_empty() => Packet::Request,
         ID_RESPONSE => {
             if body.len() < 4 {
                 return Err("response too short");
             }
-            let mut cursor = Cursor::new(body);
-            let app_len = cursor.get_u32_le() as usize;
-            if app_len > u16::MAX as usize || cursor.remaining() != app_len {
+            let app_len = u32_le(body, 0) as usize;
+            let app_data = &body[4..];
+            if app_len > u16::MAX as usize || app_data.len() != app_len {
                 return Err("response application data truncated");
             }
-            let mut app_data = vec![0u8; app_len];
-            cursor.read_exact(&mut app_data).map_err(|_| "read error")?;
             Packet::Response(hex::decode(app_data).map_err(|_| "invalid response hex")?)
         }
         ID_MESSAGE => {
-            if body.len() < 12 {
+            if body.len() < MESSAGE_PREFIX_LEN {
                 return Err("message too short");
             }
-            let mut cursor = Cursor::new(body);
-            let recipient_id = cursor.get_u64_le();
-            let declared_len = cursor.get_u32_le() as usize;
-            if declared_len > u16::MAX as usize || cursor.remaining() < declared_len {
+            let recipient_id = u64_le(body, 0);
+            let declared_len = u32_le(body, 8) as usize;
+            if declared_len > u16::MAX as usize || body.len() - MESSAGE_PREFIX_LEN < declared_len {
                 return Err("message data truncated");
             }
             // Vanilla appends signal bytes past its declared range.
             // Upstream `discovery/packet_message.go:MessagePacket.Read`.
-            let data =
-                String::from_utf8(body[12..].to_vec()).map_err(|_| "invalid message data")?;
+            // The text is moved to the front of the decrypted buffer, which then
+            // becomes the String without another allocation.
+            plain.drain(..BODY_OFFSET + MESSAGE_PREFIX_LEN);
+            let data = String::from_utf8(plain).map_err(|_| "invalid message data")?;
             Packet::Message(MessageData { recipient_id, data })
         }
         _ => return Err("unknown packet ID"),
     };
 
-    Ok((packet, header.sender_id))
+    Ok((packet, sender_id))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// Raw header writer for hand-built (including malformed) payloads.
+    struct Header {
+        packet_id: u16,
+        sender_id: u64,
+    }
+
+    impl Header {
+        fn encode(&self) -> Vec<u8> {
+            let mut buf = Vec::with_capacity(HEADER_LEN);
+            buf.put_u16_le(self.packet_id);
+            buf.put_u64_le(self.sender_id);
+            buf.put_u64_le(0);
+            buf
+        }
+    }
+
+    /// Seals an arbitrary header+body payload exactly as the encoders do.
+    fn wrap_packet(payload: &[u8]) -> Vec<u8> {
+        let mut out = vec![0; CHECKSUM_LEN + LENGTH_LEN];
+        out.extend_from_slice(payload);
+        seal(out)
+    }
+
+    /// Byte-exact vectors from df-mc/go-nethernet 215e464 `discovery.Marshal`
+    /// (AES-ECB and HMAC are deterministic): encoders must reproduce them and
+    /// the decoder must accept them, pinning both to the reference wire format.
+    #[test]
+    fn codec_matches_go_nethernet_marshal() {
+        let cases = [
+            (
+                encode_message(1, 2, "CONNECTERROR 42 2"),
+                "b3925f19dfcc0825cf5035b24f01b34205fa384729639bdf09de4c82c70ab46c7c81bebf50752f9b925421d27e8b8799e9441a820351e758c460a8b32124131d26fc5afa9db75f169bed1c7d1635e4ae1aed5fee47207c062512004edb5d55c8",
+                Packet::Message(MessageData {
+                    recipient_id: 2,
+                    data: "CONNECTERROR 42 2".into(),
+                }),
+                1,
+            ),
+            (
+                encode_request(0x0102030405060708),
+                "a87c6e38b3ff0ef3514ada5d0d433d56709091080306399a2bd75d4c1fbd06562546e9f4ff4485881fd5cb97a655a701ff0f8709e13bf6858e2051c321db615e",
+                Packet::Request,
+                0x0102030405060708,
+            ),
+            (
+                encode_response(7, b"raw"),
+                "572814bbc4fe28cb59d0eff1e0450725e53c938d658d7eea5b99005b777b1b69f54042b07f2a1a52e3406974d8efda1368eaaa22ee025aae072489262d6e3c2c",
+                Packet::Response(b"raw".to_vec()),
+                7,
+            ),
+        ];
+        for (encoded, go, packet, sender) in cases {
+            assert_eq!(hex::encode(&encoded), go);
+            assert_eq!(decode(&hex::decode(go).unwrap()).unwrap(), (packet, sender));
+        }
+    }
+
     #[test]
     fn upstream_wire_regressions() {
         let request = encode_request(u64::MAX);
-        let plain = crypto::decrypt(&request[32..]).unwrap();
+        let mut plain = request[32..].to_vec();
+        let plain_len = crypto::decrypt_in_place(&mut plain).unwrap();
+        plain.truncate(plain_len);
         assert_eq!(
             u16::from_le_bytes([plain[0], plain[1]]) as usize,
             plain.len()

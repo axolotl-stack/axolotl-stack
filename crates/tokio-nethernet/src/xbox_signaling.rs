@@ -141,7 +141,7 @@ fn outgoing_signal(signal: &Signal) -> anyhow::Result<WsOutgoing> {
         !signal.network_id.is_empty() && signal.network_id.len() <= MAX_NETWORK_ID_BYTES,
         "invalid recipient network ID"
     );
-    let message = signal.to_string();
+    let message = signal.to_wire_string();
     Ok(WsOutgoing {
         msg_type: WsMessageType::Signal as u8,
         to: Some(signal.network_id.clone()),
@@ -280,7 +280,7 @@ impl XboxSignaling {
                             1 => {
                                 let (Some(from), Some(message)) = (incoming.from, incoming.message) else { continue };
                                 if from.is_empty() || from.len() > MAX_NETWORK_ID_BYTES { continue; }
-                                let Ok(signal) = Signal::parse(&message, from) else { continue };
+                                let Ok(signal) = Signal::parse_owned(message, from) else { continue };
                                 task_monitor.process_incoming(&signal).await;
                                 match in_tx.try_send(signal) {
                                     Ok(()) | Err(mpsc::error::TrySendError::Full(_)) => {},
@@ -380,6 +380,7 @@ impl std::fmt::Debug for XboxSignaling {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::signaling::SignalType;
 
     #[tokio::test]
     async fn retained_socket_routes_signals_and_refreshes_shared_credentials() {
@@ -443,14 +444,14 @@ mod tests {
         );
         signaling
             .signal(Signal {
-                typ: "CONNECTREQUEST".into(),
+                typ: SignalType::Offer,
                 connection_id: 1,
                 network_id: "42".into(),
                 data: "offer".into(),
             })
             .await
             .unwrap();
-        assert_eq!(signaling.recv().await.unwrap().typ, "CONNECTRESPONSE");
+        assert_eq!(signaling.recv().await.unwrap().typ, SignalType::Answer);
         assert_eq!(
             signaling
                 .credentials()
@@ -471,7 +472,7 @@ mod tests {
     #[test]
     fn retained_signal_envelope_preserves_string_recipient() {
         let outgoing = outgoing_signal(&Signal {
-            typ: "CONNECTREQUEST".into(),
+            typ: SignalType::Offer,
             connection_id: 42,
             network_id: "123".into(),
             data: "v=0\r\n".into(),
@@ -529,16 +530,16 @@ mod tests {
     fn malformed_or_oversized_signals_are_rejected() {
         assert!(
             outgoing_signal(&Signal {
-                typ: "UNKNOWN".into(),
+                typ: SignalType::Error,
                 connection_id: 1,
                 network_id: "1".into(),
-                data: String::new()
+                data: "not-a-code".into()
             })
             .is_err()
         );
         assert!(
             outgoing_signal(&Signal {
-                typ: "CONNECTREQUEST".into(),
+                typ: SignalType::Offer,
                 connection_id: 1,
                 network_id: "1".into(),
                 data: "x".repeat(MAX_FRAME_BYTES + 1)

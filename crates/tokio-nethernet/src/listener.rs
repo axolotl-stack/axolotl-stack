@@ -16,7 +16,7 @@ use webrtc::peer_connection::configuration::RTCConfiguration;
 use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
 
 use crate::error::{NetherNetError, catch_dependency_panic};
-use crate::signaling::{Signal, SignalErrorCode, Signaling, format_ice_candidate, signal_type};
+use crate::signaling::{Signal, SignalErrorCode, SignalType, Signaling, format_ice_candidate};
 use crate::stream::{NetherNetStream, NetherNetStreamConfig};
 
 /// Pair of optional data channels (reliable, unreliable) protected by a mutex.
@@ -284,8 +284,8 @@ impl ListenerActor {
         // listener.go:negotiationKey isolates identical connection IDs on different networks.
         let key = (signal.network_id.clone(), conn_id);
 
-        match signal.typ.as_str() {
-            signal_type::OFFER => {
+        match signal.typ {
+            SignalType::Offer => {
                 if self.connections.contains_key(&key) {
                     debug!(conn_id, "Ignoring duplicate CONNECTREQUEST");
                     return Ok(());
@@ -313,7 +313,7 @@ impl ListenerActor {
                     }
                 }
             }
-            signal_type::CANDIDATE => {
+            SignalType::Candidate => {
                 if let Some(handle) = self.connections.get(&key) {
                     let added = self.handle_candidate(&signal, handle);
                     match catch_dependency_panic("listener candidate", added).await {
@@ -327,7 +327,7 @@ impl ListenerActor {
                     debug!(conn_id, "Received CANDIDATE for unknown connection");
                 }
             }
-            signal_type::ERROR => {
+            SignalType::Error => {
                 warn!(conn_id, data = %signal.data, from = %signal.network_id, "Received CONNECTERROR");
                 if let Some(handle) = self.connections.get(&key) {
                     // Keep tuple ownership until its cancelled worker has stopped replying.
@@ -335,8 +335,8 @@ impl ListenerActor {
                     let _ = handle.pc.close().await;
                 }
             }
-            _ => {
-                debug!(typ = %signal.typ, "Unknown signal type");
+            SignalType::Answer => {
+                debug!(conn_id, "Ignoring CONNECTRESPONSE sent to a listener");
             }
         }
 
@@ -496,7 +496,7 @@ impl ListenerActor {
                             timeout(
                                 Duration::from_secs(15),
                                 sig.signal(Signal {
-                                    typ: signal_type::CANDIDATE.to_string(),
+                                    typ: SignalType::Candidate,
                                     connection_id: conn_id,
                                     data,
                                     network_id: net_id,
@@ -646,7 +646,7 @@ impl ListenerActor {
 
         debug!(conn_id, "Sending CONNECTRESPONSE");
         let answer_signal = Signal {
-            typ: signal_type::ANSWER.to_string(),
+            typ: SignalType::Answer,
             connection_id: conn_id,
             data: fixed_sdp,
             network_id: network_id.clone(),
@@ -849,14 +849,14 @@ mod tests {
         };
         actor
             .handle_connect_request(Signal {
-                typ: signal_type::OFFER.into(),
+                typ: SignalType::Offer,
                 connection_id: 42,
                 network_id: "remote".into(),
                 data: crate::stream::local_sdp(offer.sdp),
             })
             .await
             .unwrap();
-        assert_eq!(replies.recv().await.unwrap().typ, signal_type::ANSWER);
+        assert_eq!(replies.recv().await.unwrap().typ, SignalType::Answer);
         actor
             .handle_signal(Signal::error(
                 42,
@@ -880,7 +880,7 @@ mod tests {
         while let Ok(reply) = replies.try_recv() {
             assert_ne!(
                 reply.typ,
-                signal_type::ERROR,
+                SignalType::Error,
                 "stale terminal reply: {reply:?}"
             );
         }
@@ -935,7 +935,7 @@ mod tests {
         // for every later session; it must become this offer's error instead.
         let error = actor
             .handle_signal(Signal {
-                typ: signal_type::OFFER.into(),
+                typ: SignalType::Offer,
                 connection_id: 42,
                 network_id: "remote".into(),
                 data: crate::stream::local_sdp(offer.sdp),
@@ -950,7 +950,7 @@ mod tests {
             other => panic!("expected DependencyPanic, got {other:?} ({error})"),
         }
         let reply = replies.recv().await.unwrap();
-        assert_eq!(reply.typ, signal_type::ERROR);
+        assert_eq!(reply.typ, SignalType::Error);
         assert_eq!(reply.connection_id, 42);
         assert_eq!(
             reply.data,
