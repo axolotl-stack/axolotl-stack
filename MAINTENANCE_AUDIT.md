@@ -45,7 +45,7 @@ Additional fixes found during the pass:
 - jolyne's server `start_game` dropped `StartLoadingScreen` sent before `RequestChunkRadius` (jolyne's own client does this) and stalled joins (`f2f6cde`); unastar compiled against 1.26.51 for the first time (`d9c0959`).
 - `CODEGEN-UNION-01`: the generator collapsed `DisconnectPacket.Messages` (a control-tagged union) into a bare struct through a name collision, so unastar sent malformed Disconnect packets; fixed with collision-safe naming and protocolgen-contract differential tests over BDS bytes (`a4776c0`). It was the only affected union of 45.
 - `CLIENTDIFF-01`: BDS 1.26.51 rejects Login with DeviceOS 7 (UWP) via its native `isWellFormed` whitelist; jolyne also lacked the modern identity Token. Both fixed; gophertunnel and jolyne now complete join-idle/join-chat against BDS (`3d18c5e`, `c60cd9b`).
-- `NETHERNET-03`: webrtc-rs offered an SRTP AES-256-GCM profile that webrtc-srtp keyed as AES-128 and panicked, breaking interop with pion/Cinnabar; `NETHERNET-04`: sends waited for the peer's delayed SACK (~600 ms small-message echo). Interim fix merged (`ffa64e5`); a rewrite onto the sans-IO `rtc` stack is in progress.
+- `NETHERNET-03`: webrtc-rs offered an SRTP AES-256-GCM profile that webrtc-srtp keyed as AES-128 and panicked, breaking interop with pion/Cinnabar; `NETHERNET-04`: sends waited for the peer's delayed SACK (~600 ms small-message echo). Interim fix `ffa64e5`; the transport now runs on the sans-IO `rtc` stack (ICE/DTLS/SCTP/DCEP composed directly), with an independent parity review's findings fixed (same-address STUN+TURN gathering, poison-after-panic, concurrent bounded DNS, typed framing errors, fingerprint algorithms, mDNS query-only, go-nethernet close semantics) (`0c5c191`). Breaking API: `setting_engine` → `transport: TransportConfig`, `ice_servers` → `signaling::IceServer`.
 
 Known deferred items: MPSD ConnectionType 7/`PmsgId` friend broadcasting (go-xsapi sample) needs a signaling path no upstream provides yet; go-nethernet's default client verifier defers JWT verification to the Login GameServerToken, which jolyne must enforce when NetherNet identity is used; live Xbox/TLS paths are not exercised by tests.
 
@@ -60,7 +60,7 @@ Known deferred items: MPSD ConnectionType 7/`PmsgId` friend broadcasting (go-xsa
   - Valentine: all 30 corpus packets decode (owned) and encode faster than the contract crate; zero-copy `ByteString`/`Bytes` fields; typed borrowed decoding for every packet (`04a99fc`).
   - jolyne batch pipeline: zero-copy framing, libdeflate, in-place AES-CTR/SHA-256 and a Go-size-matched Snappy encoder; every row ahead of bedrock-net and gophertunnel or within noise (`0cc495f`, `df91ffb`).
   - tokio-raknet: encode/ACK paths ahead of Cinnabar on 13/14 wire rows (`894e811`).
-  - tokio-nethernet: signaling, ICE candidate and LAN discovery codecs ahead of Cinnabar and Go on every row (`adbf38b`).
+  - tokio-nethernet: signaling, ICE candidate and LAN discovery codecs ahead of Cinnabar and Go on every row (`adbf38b`). rtc transport (`0c5c191`, report `2e085ea`): interop 6/6 with go-nethernet and Cinnabar; echo mean ahead of Cinnabar at every size (32 B 107 vs 110 µs, 4 KiB 316 vs 365, 64 KiB 3,022 vs 4,349); setup ahead on 3 of 4 sizes (2.6–9.0 vs 11.7–13.0 ms); remaining losses: 512 B p99 (189 vs 150 µs), first-connection setup (13.2 vs 9.7 ms), framing encode at 4096/65536 B (+1.5%/+5.9%).
 
 ## Original readiness note (2026-09-25)
 
