@@ -53,6 +53,19 @@ func TestNethernetBridgePreservesMultilineSignal(t *testing.T) {
 	stop := bridge.Notify(received)
 	defer stop()
 	go bridge.readSignals()
+	// A completion record must notify its own receiver without cancelling the
+	// bridge or preventing subsequent signaling records from being delivered.
+	if err := json.NewEncoder(b).Encode(nethernetBenchDone); err != nil {
+		t.Fatal(err)
+	}
+	completionCtx, cancelCompletion := context.WithTimeout(context.Background(), time.Second)
+	defer cancelCompletion()
+	if err := bridge.waitDone(completionCtx); err != nil {
+		t.Fatal(err)
+	}
+	if err := bridge.Context().Err(); err != nil {
+		t.Fatalf("completion marker cancelled signaling: %v", err)
+	}
 	text := nethernetSignalFixtures()[0].text
 	if err := json.NewEncoder(b).Encode(text); err != nil {
 		t.Fatal(err)
@@ -104,7 +117,7 @@ func TestNethernetDefaultCounts(t *testing.T) {
 }
 
 // This exercises the reference transports and final-echo shutdown, not a mock.
-func TestNethernetFinalLargeEcho(t *testing.T) {
+func TestNethernetFinalEchoShutdown(t *testing.T) {
 	listener, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -148,7 +161,20 @@ func TestNethernetFinalLargeEcho(t *testing.T) {
 			t.Fatal("final echo differs")
 		}
 	}
-	if err := raw.(*net.TCPConn).CloseWrite(); err != nil {
+	select {
+	case err := <-server:
+		t.Fatalf("server stopped before delivery acknowledgement: %v", err)
+	default:
+	}
+	if err := bridge.Context().Err(); err != nil {
+		t.Fatalf("signaling closed before delivery acknowledgement: %v", err)
+	}
+	completionCtx, cancelCompletion := context.WithTimeout(context.Background(), networkTimeout)
+	defer cancelCompletion()
+	if err := bridge.sendDone(completionCtx); err != nil {
+		t.Fatal(err)
+	}
+	if err := bridge.waitDone(completionCtx); err != nil {
 		t.Fatal(err)
 	}
 	select {

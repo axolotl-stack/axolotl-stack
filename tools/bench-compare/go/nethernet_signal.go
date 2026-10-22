@@ -15,6 +15,8 @@ import (
 // The benchmark-local TCP transport carries one JSON string per line. The string
 // is the reference Signal text, including literal SDP CRLF after JSON decoding.
 // Network IDs are fixed out of band, never substituted into the signal payload.
+const nethernetBenchDone = "BENCH-DONE"
+
 type nethernetBridge struct {
 	conn          net.Conn
 	local, remote string
@@ -24,11 +26,12 @@ type nethernetBridge struct {
 	notifyMu      sync.Mutex
 	notifiers     map[uint64]nethernet.Notifier
 	next          uint64
+	completed     chan struct{}
 }
 
 func newNethernetBridge(conn net.Conn, local, remote string) *nethernetBridge {
 	ctx, cancel := context.WithCancelCause(context.Background())
-	return &nethernetBridge{conn: conn, local: local, remote: remote, ctx: ctx, cancel: cancel, notifiers: make(map[uint64]nethernet.Notifier)}
+	return &nethernetBridge{conn: conn, local: local, remote: remote, ctx: ctx, cancel: cancel, notifiers: make(map[uint64]nethernet.Notifier), completed: make(chan struct{})}
 }
 func (b *nethernetBridge) Close() error             { b.cancel(net.ErrClosed); return b.conn.Close() }
 func (b *nethernetBridge) Context() context.Context { return b.ctx }
@@ -38,6 +41,9 @@ func (b *nethernetBridge) Credentials(context.Context) (*nethernet.Credentials, 
 	return nil, nil
 }
 func (b *nethernetBridge) Signal(ctx context.Context, signal *nethernet.Signal) error {
+	return b.writeRecord(ctx, signal.String())
+}
+func (b *nethernetBridge) writeRecord(ctx context.Context, text string) error {
 	b.writeMu.Lock()
 	defer b.writeMu.Unlock()
 	if err := ctx.Err(); err != nil {
@@ -48,7 +54,31 @@ func (b *nethernetBridge) Signal(ctx context.Context, signal *nethernet.Signal) 
 			return err
 		}
 	}
-	return json.NewEncoder(b.conn).Encode(signal.String())
+	if err := json.NewEncoder(b.conn).Encode(text); err != nil {
+		b.cancel(err)
+		return err
+	}
+	return nil
+}
+func (b *nethernetBridge) sendDone(ctx context.Context) error {
+	return b.writeRecord(ctx, nethernetBenchDone)
+}
+func (b *nethernetBridge) waitDone(ctx context.Context) error {
+	select {
+	case <-b.completed:
+		return nil
+	case <-b.ctx.Done():
+		// The peer may close immediately after its completion marker. The
+		// reader publishes the marker before observing that subsequent EOF.
+		select {
+		case <-b.completed:
+			return nil
+		default:
+			return context.Cause(b.ctx)
+		}
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 func (b *nethernetBridge) Notify(notifier nethernet.Notifier) func() {
 	b.notifyMu.Lock()
@@ -66,6 +96,14 @@ func (b *nethernetBridge) readSignals() {
 		if err := json.Unmarshal(scanner.Bytes(), &text); err != nil {
 			b.cancel(err)
 			return
+		}
+		if text == nethernetBenchDone {
+			select {
+			case <-b.completed:
+			default:
+				close(b.completed)
+			}
+			continue
 		}
 		signal := &nethernet.Signal{NetworkID: b.remote}
 		if err := signal.UnmarshalText([]byte(text)); err != nil {

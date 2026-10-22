@@ -136,6 +136,7 @@ struct Bridge {
     writer: Mutex<OwnedWriteHalf>,
     receiver: Mutex<Option<mpsc::Receiver<Signal>>>,
     ended: watch::Receiver<bool>,
+    completed: watch::Receiver<bool>,
     reader_task: tokio::task::AbortHandle,
     local_id: &'static str,
 }
@@ -146,12 +147,17 @@ impl Bridge {
         let (reader, writer) = socket.into_split();
         let (sender, receiver) = mpsc::channel(128);
         let (ended_tx, ended) = watch::channel(false);
+        let (completed_tx, completed) = watch::channel(false);
         let remote_id = if server { "2" } else { "1" };
         let task = tokio::spawn(async move {
             let result: Result<()> = async {
                 let mut lines = BufReader::new(reader).lines();
                 while let Some(line) = lines.next_line().await? {
                     let text: String = serde_json::from_str(&line)?;
+                    if text == "BENCH-DONE" {
+                        let _ = completed_tx.send(true);
+                        continue;
+                    }
                     let signal = Signal::parse(&text, remote_id.into())?;
                     if sender.send(signal).await.is_err() {
                         break;
@@ -169,6 +175,7 @@ impl Bridge {
             writer: Mutex::new(writer),
             receiver: Mutex::new(Some(receiver)),
             ended,
+            completed,
             reader_task: task.abort_handle(),
             local_id: if server { "1" } else { "2" },
         }))
@@ -176,6 +183,26 @@ impl Bridge {
 
     async fn shutdown(&self) -> Result<()> {
         self.writer.lock().await.shutdown().await?;
+        Ok(())
+    }
+
+    async fn mark_complete(&self) -> Result<()> {
+        self.writer
+            .lock()
+            .await
+            .write_all(b"\"BENCH-DONE\"\n")
+            .await?;
+        Ok(())
+    }
+
+    async fn wait_complete(&self) -> Result<()> {
+        let mut completed = self.completed.clone();
+        while !*completed.borrow_and_update() {
+            completed
+                .changed()
+                .await
+                .context("signaling closed before completion marker")?;
+        }
         Ok(())
     }
 }
@@ -253,27 +280,31 @@ async fn echo(listener: TcpListener, count: usize) -> Result<()> {
         );
         let mut stream = timeout(TIMEOUT, listener.accept())
             .await
-            .context("SCTP accept timeout")??;
+            .context("SCTP accept timeout")?
+            .with_context(|| format!("SCTP server accept for {size} bytes"))?;
         let expected = super::transport::payload(size);
         for _ in 0..=count {
             let message = timeout(TIMEOUT, stream.next())
                 .await
                 .context("server receive timeout")?
-                .context("client closed")??;
+                .context("client closed")?
+                .with_context(|| format!("server receive {size} bytes"))?;
             ensure!(
                 message.reliable && message.buffer == expected,
                 "server payload mismatch ({size})"
             );
             timeout(TIMEOUT, stream.send(message))
                 .await
-                .context("server send timeout")??;
+                .context("server send timeout")?
+                .with_context(|| format!("server send {size} bytes"))?;
         }
-        // Client shuts down signaling only after validating the final echo.
-        timeout(TIMEOUT, bridge.closed())
+        // A signaling EOF cancels live RTC. Keep it live through SCTP drain.
+        timeout(TIMEOUT, bridge.wait_complete())
             .await
-            .context("client shutdown timeout")?;
-        drop(stream);
+            .context("client completion timeout")??;
+        bridge.mark_complete().await?;
         bridge.shutdown().await?;
+        drop(stream);
     }
     Ok(())
 }
@@ -288,11 +319,13 @@ pub async fn serve(address: SocketAddr, count: usize) -> Result<()> {
 async fn exchange(stream: &mut NetherNetStream, payload: &bytes::Bytes) -> Result<()> {
     timeout(TIMEOUT, stream.send(Message::reliable(payload.clone())))
         .await
-        .context("client send timeout")??;
+        .context("client send timeout")?
+        .with_context(|| format!("client send {} bytes", payload.len()))?;
     let reply = timeout(TIMEOUT, stream.next())
         .await
         .context("client receive timeout")?
-        .context("server closed")??;
+        .context("server closed")?
+        .with_context(|| format!("client receive {} bytes", payload.len()))?;
     ensure!(
         reply.reliable && reply.buffer == *payload,
         "echo payload mismatch ({})",
@@ -349,7 +382,8 @@ pub async fn client(address: SocketAddr, count: usize) -> Result<()> {
         );
         let mut stream = timeout(TIMEOUT, dialer.dial("1".into()))
             .await
-            .context("SCTP connect timeout")??;
+            .context("SCTP connect timeout")?
+            .with_context(|| format!("SCTP client connect for {size} bytes"))?;
         let setup_seconds = setup.elapsed().as_secs_f64();
         exchange(&mut stream, &payload).await?;
         let started = Instant::now();
@@ -361,9 +395,13 @@ pub async fn client(address: SocketAddr, count: usize) -> Result<()> {
         let seconds = started.elapsed().as_secs_f64();
         emit(size, "setup", setup_seconds, vec![setup_seconds * 1e6])?;
         emit(size, "echo", seconds, samples)?;
+        bridge.mark_complete().await?;
+        timeout(TIMEOUT, bridge.wait_complete())
+            .await
+            .context("server completion timeout")??;
+        bridge.shutdown().await?;
         drop(stream);
         drop(dialer);
-        bridge.shutdown().await?;
     }
     Ok(())
 }
@@ -374,4 +412,45 @@ pub async fn loopback(count: usize) -> Result<()> {
     let address = listener.local_addr()?;
     tokio::try_join!(echo(listener, count), client(address, count))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn completion_markers_do_not_cancel_live_signaling() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let (client, accepted) = tokio::join!(
+            TcpStream::connect(listener.local_addr().unwrap()),
+            listener.accept()
+        );
+        let client = Bridge::new(client.unwrap(), false).unwrap();
+        let server = Bridge::new(accepted.unwrap().0, true).unwrap();
+        client.mark_complete().await.unwrap();
+        timeout(TIMEOUT, server.wait_complete())
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(
+            !*client.ended.borrow(),
+            "client must remain live while server drains SCTP"
+        );
+        assert!(
+            !*server.ended.borrow(),
+            "completion is not signaling cancellation"
+        );
+        server.mark_complete().await.unwrap();
+        timeout(TIMEOUT, client.wait_complete())
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(
+            !*client.ended.borrow(),
+            "both markers precede transport shutdown"
+        );
+        client.shutdown().await.unwrap();
+        timeout(TIMEOUT, server.closed()).await.unwrap();
+        assert!(*server.ended.borrow());
+    }
 }

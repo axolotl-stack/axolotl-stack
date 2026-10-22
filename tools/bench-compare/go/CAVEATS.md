@@ -145,8 +145,12 @@ the last two). Each session first performs one untimed echo of the same full-siz
 payload (index modulo 251, first byte `0xfe`); every response is validated.
 Echo rows include RTT percentiles and maximum. Setup is one sample per size.
 Payload/sample allocation, readiness, shutdown, and percentile sorting are outside
-echo timing. The server waits for signaling EOF after its final write so it cannot
-close the data channel before the client consumes the final echo.
+echo timing. After validating its final echo, the client sends the reserved JSON
+string `"BENCH-DONE"` and waits for the same marker from the server. The server
+finishes its final echo write, waits for the client marker, then sends its marker.
+Both keep RTC and signaling live throughout this bounded two-phase handshake;
+the bridge handles markers separately from Signal parsing without cancellation.
+Only afterward do they close RTC and TCP; signaling EOF is not an acknowledgement.
 
 The bridge starts with a 4 KiB scanner buffer capped at 1 MiB per signaling record.
 Application payload and latency buffers are allocated once per size. Upstream Go
@@ -163,4 +167,4 @@ clocks are used only for deadlines/timeouts, never benchmark durations.
 Added tests cover signal fixture round trips, authenticated discovery corruption
 rejection, multiline JSON bridge preservation, fixed sender attribution, bridge
 serialization, idempotent unsubscribe, default split-message counts, and a real
-65536-byte final echo followed by explicit signaling half-close acknowledgement.
+65536-byte final echo followed by the explicit two-phase completion handshake.

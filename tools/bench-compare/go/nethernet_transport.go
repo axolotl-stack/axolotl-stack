@@ -105,12 +105,14 @@ func nethernetServeRound(raw net.Conn, size, count int) error {
 			return io.ErrShortWrite
 		}
 	}
-	// Do not close the data channel before the client consumes its final echo.
-	<-bridge.Context().Done()
-	if cause := context.Cause(bridge.Context()); cause != io.EOF {
-		return cause
+	// Keep signaling and RTC live until final application delivery and the
+	// server's final Write have both completed.
+	completionCtx, cancelCompletion := context.WithTimeout(context.Background(), networkTimeout)
+	defer cancelCompletion()
+	if err := bridge.waitDone(completionCtx); err != nil {
+		return err
 	}
-	return nil
+	return bridge.sendDone(completionCtx)
 }
 
 func nethernetClient(address string, count int) error {
@@ -230,12 +232,15 @@ func nethernetClientRound(address string, size, count int, clock *benchmarkClock
 	sort.Float64s(samples)
 	p50, p99, maximum := samples[(count*50+99)/100-1], samples[(count*99+99)/100-1], samples[count-1]
 	echo := row{Area: "nethernet_loopback", Name: strconv.Itoa(size), Operation: "echo", Implementation: "go", NSPerOp: elapsed / float64(count), PayloadBytes: size, MsgsPerSec: float64(count) * 1e9 / elapsed, MBPerSec: float64(count) * float64(size) * 1e3 / elapsed, P50US: &p50, P99US: &p99, MaxUS: &maximum}
-	// Half-close signaling explicitly after application delivery, before transport
-	// shutdown, so peers waiting for EOF can safely release their final echo.
-	if tcp, ok := raw.(*net.TCPConn); ok {
-		if err := tcp.CloseWrite(); err != nil {
-			return fail(err)
-		}
+	// Completion is outside measurement, with both transports kept alive until
+	// the server confirms its final echo send has completed.
+	completionCtx, cancelCompletion := context.WithTimeout(context.Background(), networkTimeout)
+	defer cancelCompletion()
+	if err := bridge.sendDone(completionCtx); err != nil {
+		return fail(err)
+	}
+	if err := bridge.waitDone(completionCtx); err != nil {
+		return fail(err)
 	}
 	return setup, echo, nil
 }

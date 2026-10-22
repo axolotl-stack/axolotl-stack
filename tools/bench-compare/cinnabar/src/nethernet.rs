@@ -20,12 +20,15 @@ use std::{
 };
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinHandle;
 
 const SIZES: [usize; 4] = [32, 512, 4096, 65536];
 const SEGMENT_BYTES: usize = 16383;
 const CANDIDATE: &str = "candidate:1 1 UDP 2130706431 127.0.0.1 50000 typ host generation 0 ufrag bench network-id 0 network-cost 0";
 const OFFER: &str = "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\nm=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\na=setup:actpass\r\n";
+const BENCH_DONE: &str = "BENCH-DONE";
+const BENCH_DONE_LINE: &[u8] = b"\"BENCH-DONE\"\n";
 
 pub fn micro(iterations: usize) -> Result<()> {
     ensure!(iterations > 0, "iterations must be positive");
@@ -226,6 +229,9 @@ fn connection_config() -> ConnectionConfig {
         attempts: 1,
         allow_unsigned_answers: true,
         allow_anonymous_answers: true,
+        token_trust: Some(nethernet::identity::TokenTrust::Any),
+        allow_anonymous_offers: true,
+        server_trust: Some(nethernet::identity::TokenTrust::Any),
         client_ice: Some(ClientIceConfig {
             turn_streams: Vec::new(),
             turn_tls: None,
@@ -243,10 +249,54 @@ fn connection_config() -> ConnectionConfig {
 }
 
 // Dropping the owner aborts and drops the bridge driver and socket, including on errors.
-struct Bridge(JoinHandle<Result<()>>);
+struct Bridge {
+    task: JoinHandle<Result<()>>,
+    completion: oneshot::Receiver<()>,
+    commands: mpsc::Sender<oneshot::Sender<()>>,
+}
+
+impl Bridge {
+    async fn complete(&mut self, client: bool) -> Result<()> {
+        let handshake = async {
+            if !client {
+                (&mut self.completion)
+                    .await
+                    .context("signaling closed before client BENCH-DONE")?;
+            }
+            let (sent, received) = oneshot::channel();
+            self.commands
+                .send(sent)
+                .await
+                .context("signaling bridge closed before sending BENCH-DONE")?;
+            received.await.context("BENCH-DONE write failed")?;
+            if client {
+                (&mut self.completion)
+                    .await
+                    .context("signaling closed before server BENCH-DONE")?;
+            }
+            Ok(())
+        };
+        tokio::pin!(handshake);
+        tokio::time::timeout(Duration::from_secs(60), async {
+            tokio::select! {
+                biased;
+                result = &mut self.task => {
+                    result.context("signaling bridge task failed")??;
+                    // A peer may close immediately after its marker. Still require
+                    // both the local write acknowledgment and the received marker.
+                    handshake.await
+                }
+                result = &mut handshake => result,
+            }
+        })
+        .await
+        .context("BENCH-DONE handshake timed out")?
+    }
+}
+
 impl Drop for Bridge {
     fn drop(&mut self) {
-        self.0.abort();
+        self.task.abort();
     }
 }
 
@@ -255,9 +305,17 @@ async fn client_bridge(stream: TcpStream) -> Result<(CallerSignaling, Bridge)> {
     let (signaling, mut driver) = CallerSignaling::new("2".into(), "1".into(), signaling_config())?;
     let (reader, mut writer) = stream.into_split();
     let mut lines = BufReader::new(reader).lines();
+    let (completed, completion) = oneshot::channel();
+    let (commands, mut controls) = mpsc::channel::<oneshot::Sender<()>>(1);
     let task = tokio::spawn(async move {
+        let mut completed = Some(completed);
         loop {
             tokio::select! {
+                command = controls.recv() => {
+                    let Some(sent) = command else { break };
+                    writer.write_all(BENCH_DONE_LINE).await?;
+                    let _ = sent.send(());
+                }
                 request = driver.recv() => {
                     let Some(request) = request else { break };
                     let mut line = serde_json::to_vec(&request.signal().to_string())?;
@@ -268,13 +326,26 @@ async fn client_bridge(stream: TcpStream) -> Result<(CallerSignaling, Bridge)> {
                 line = lines.next_line() => {
                     let Some(line) = line? else { break };
                     let wire: String = serde_json::from_str(&line)?;
+                    if wire == BENCH_DONE {
+                        if let Some(completed) = completed.take() {
+                            let _ = completed.send(());
+                        }
+                        continue;
+                    }
                     driver.try_deliver("1", &wire)?;
                 }
             }
         }
         Ok(())
     });
-    Ok((signaling, Bridge(task)))
+    Ok((
+        signaling,
+        Bridge {
+            task,
+            completion,
+            commands,
+        },
+    ))
 }
 
 async fn serve_connection(stream: TcpStream, size: usize, count: usize) -> Result<()> {
@@ -290,9 +361,17 @@ async fn serve_connection(stream: TcpStream, size: usize, count: usize) -> Resul
     let mut server = NetherServer::bind_with(signaling, connection_config()).await?;
     let (reader, mut writer) = stream.into_split();
     let mut lines = BufReader::new(reader).lines();
-    let mut bridge = Bridge(tokio::spawn(async move {
+    let (completed, completion) = oneshot::channel();
+    let (commands, mut controls) = mpsc::channel::<oneshot::Sender<()>>(1);
+    let task = tokio::spawn(async move {
+        let mut completed = Some(completed);
         loop {
             tokio::select! {
+                command = controls.recv() => {
+                    let Some(sent) = command else { break };
+                    writer.write_all(BENCH_DONE_LINE).await?;
+                    let _ = sent.send(());
+                }
                 request = driver.recv() => {
                     let Some(request) = request else { break };
                     let mut line = serde_json::to_vec(&request.signal().to_string())?;
@@ -303,12 +382,23 @@ async fn serve_connection(stream: TcpStream, size: usize, count: usize) -> Resul
                 line = lines.next_line() => {
                     let Some(line) = line? else { break };
                     let wire: String = serde_json::from_str(&line)?;
+                    if wire == BENCH_DONE {
+                        if let Some(completed) = completed.take() {
+                            let _ = completed.send(());
+                        }
+                        continue;
+                    }
                     driver.try_deliver("2", &wire)?;
                 }
             }
         }
         Ok(())
-    }));
+    });
+    let mut bridge = Bridge {
+        task,
+        completion,
+        commands,
+    };
     let mut accepted = server.accept().await?;
     let expected = payload(size);
     for _ in 0..=count {
@@ -320,8 +410,8 @@ async fn serve_connection(stream: TcpStream, size: usize, count: usize) -> Resul
         ensure!(data == expected, "server echo payload mismatch");
         accepted.session.send(data).await?;
     }
-    // Signaling EOF acknowledges the client's validated final echo, outside timing.
-    (&mut bridge.0).await??;
+    // The last echo send has drained before acknowledging the client's completion.
+    bridge.complete(false).await?;
     drop(accepted.close());
     server.close().await?;
     Ok(())
@@ -390,7 +480,7 @@ async fn client(address: SocketAddr, count: usize) -> Result<()> {
         let body = payload(size);
         let start = Instant::now();
         let stream = TcpStream::connect(address).await?;
-        let (signaling, bridge) = client_bridge(stream).await?;
+        let (signaling, mut bridge) = client_bridge(stream).await?;
         let mut client =
             NetherClient::connect_with(signaling, "1".into(), connection_config()).await?;
         let setup = start.elapsed().as_secs_f64() * 1e9;
@@ -410,10 +500,11 @@ async fn client(address: SocketAddr, count: usize) -> Result<()> {
             samples.push(start.elapsed().as_secs_f64() * 1e9);
         }
         let total_ns = total.elapsed().as_secs_f64() * 1e9;
-        // Close the signaling socket only after validating the final received payload.
-        drop(bridge);
+        // Keep signaling and RTC alive until the server's final echo send has drained.
+        bridge.complete(true).await?;
         let mut retired = client.close();
         while retired.reliable.recv().await?.is_some() {}
+        drop(bridge);
         emit("setup", size, &mut [setup], setup)?;
         emit("echo", size, &mut samples, total_ns)?;
     }
@@ -462,5 +553,18 @@ mod tests {
         }
         assert!(message_count(4096, 20, Some("0")).is_err());
         assert!(message_count(4096, 20, Some("invalid")).is_err());
+    }
+
+    #[tokio::test]
+    async fn local_caller_signaling_echoes_all_payload_boundaries_before_retirement() {
+        // The actual client/server routines compare every reliable payload byte,
+        // including readiness and the final 64 KiB echo before the marker handshake.
+        tokio::time::timeout(
+            std::time::Duration::from_secs(60),
+            super::run("loopback", "127.0.0.1:0", 1),
+        )
+        .await
+        .expect("local caller echo timed out")
+        .expect("local caller echo or retirement failed");
     }
 }

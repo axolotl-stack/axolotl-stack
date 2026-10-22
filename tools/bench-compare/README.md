@@ -51,8 +51,10 @@ Every echo size uses a new connection, one same-payload untimed readiness echo,
 then 100/100/10/10 measured echoes for 32 B/512 B/4 KiB/64 KiB. Setup is reported
 separately from echo latency and throughput. There are no credentials or remote
 signaling/STUN/TURN services: the interop adapter bridges complete signals as one
-JSON string per loopback TCP line, with fixed network IDs 1 and 2. This is
-benchmark-local signaling, not a new production endpoint.
+JSON string per loopback TCP line, with fixed network IDs 1 and 2. A reserved
+`"BENCH-DONE"` string in each direction acknowledges final delivery and completed
+server send/drain before either peer closes RTC; this handshake is untimed.
+This is benchmark-local signaling, not a new production endpoint.
 All six directed cross-implementation combinations check full payload equality.
 Failed interop is retained in the matrix and causes the runner to fail after
 writing its report. See each adapter README for exact public APIs, stack

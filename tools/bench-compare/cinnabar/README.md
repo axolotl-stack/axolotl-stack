@@ -36,18 +36,25 @@ throughput use the complete measured-loop duration, including checks and loop
 overhead; percentiles use nearest-rank individual RTT samples. Setup includes the TCP
 signaling connect, bridge creation, and complete ICE/DTLS/SCTP establishment.
 Setup has one sample per size per process invocation; repetitions belong to the runner.
-The client closes its signaling socket only after validating the final echo.
-The server retains the live transport until that TCP EOF acknowledges delivery;
-connection retirement is excluded from measured setup and echo durations.
+After validating the final echo, the client sends the reserved JSON string
+`"BENCH-DONE"` and waits for the same marker from the server. The server finishes
+its last echo send (including transport drain), waits for the client marker,
+then sends its own marker. Both bridges keep signaling and RTC live through this
+two-phase handshake; only then do peers close them. Marker writes and completion
+waits are bounded, bridge errors propagate, and completion/retirement remain
+outside measured setup and echo durations.
 
 The cross-process signaling endpoint is benchmark-local TCP, not Minecraft LAN
 discovery or an external HTTP service. Each line is a JSON **string** containing
-the complete `Signal` wire text (SDP CRLFs escaped); sender IDs are attributed by
-the bridge as server `1`, client `2`. Each size opens a fresh TCP connection.
+the complete `Signal` wire text (SDP CRLFs escaped), except for the reserved
+`"BENCH-DONE"` control record, which is never passed to the Signal parser.
+Sender IDs are attributed by the bridge as server `1`, client `2`.
+Each size opens a fresh TCP connection.
 Public `CallerSignaling`/`CallerServerSignaling` drive the real transport with
 full/nontrickle ICE, host candidates bound to `127.0.0.1:0`, no STUN/TURN servers,
-one attempt, unsigned answers allowed, and no identity validation. Delivery
-completion records local socket acceptance, not a fabricated peer receipt.
+one attempt, unsigned/anonymous answers and anonymous offers allowed, and
+`TokenTrust::Any` for both token and server trust in this local benchmark.
+Signal delivery completion records local socket acceptance, not a fabricated peer receipt.
 Both same-process and cross-process cases use this same TCP signaling bridge.
 This deliberately measures transport, not account authentication or WAN setup.
 

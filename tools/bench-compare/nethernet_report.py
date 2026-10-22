@@ -78,7 +78,8 @@ def render(source):
               '[ours](../../crates/bench-compare/README.md), [Go](go/CAVEATS.md), '
               '[Cinnabar](cinnabar/README.md). Local signaling uses no public STUN/TURN service or credentials. '
               'The interop adapter exchanges complete signals as JSON strings over benchmark-local loopback TCP; '
-              'this bridge is measurement code, not a production transport change.', '']
+              'reserved JSON-string BENCH-DONE markers acknowledge final delivery and server send/drain before RTC teardown (untimed). '
+              'This bridge is measurement code, not a production transport change.', '']
     index = {tuple(r[k] for k in ('area', 'name', 'operation', 'implementation')): r for r in aggregate}
     for area, title in (('nethernet_framing', 'framing'), ('nethernet_signaling', 'signaling'),
                         ('nethernet_discovery', 'discovery')):

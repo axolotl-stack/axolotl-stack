@@ -131,8 +131,11 @@ Each setup row has one sample per round; its p50/p99/max consequently agree.
 Echo rows exclude setup and readiness and measure exactly the requested count,
 including send, receive and validation. Nearest-rank percentiles and `max_us`
 are emitted; allocation metrics remain null. Throughput counts one payload per
-echo, not both directions. Client TCP shutdown acknowledges receipt of the last
-echo before the server releases the data channel.
+echo, not both directions. After final payload validation the client sends the
+reserved JSON string `"BENCH-DONE"`; the server finishes its SCTP send/drain,
+receives that marker and returns the same marker. Only then do peers tear down
+RTC/signaling. This two-phase barrier is untimed: TCP EOF alone would cancel the
+server's live transport before its pending send completed.
 
 The stack is workspace `tokio-nethernet` 0.1.0, with resolved dependency versions
 in Cargo.lock (webrtc-rs 0.12). Stream defaults remain unchanged: maximum outbound
