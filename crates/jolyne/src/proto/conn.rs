@@ -262,18 +262,19 @@ impl Connection {
     fn decode_datagram(&mut self, datagram: Datagram) -> Result<(), JolyneError> {
         self.metrics.bytes_in += datagram.len() as u64;
         self.metrics.batches_in += 1;
-        let body = match (self.framing, datagram) {
+        // `skip` cleartext marker bytes stay at the front until after
+        // decryption; advancing (not splitting) them never allocates.
+        let (body, skip) = match (self.framing, datagram) {
             (_, datagram) if datagram.is_empty() => return Ok(()),
             (Framing::RakNet, Datagram::SplitFirst { first, rest }) => {
                 BatchCodec::check_prefix(first)?;
-                rest
+                (rest, 0)
             }
-            (Framing::RakNet, Datagram::Contiguous(mut bytes)) => {
+            (Framing::RakNet, Datagram::Contiguous(bytes)) => {
                 BatchCodec::check_prefix(bytes[0])?;
-                let _ = bytes.split_to(1);
-                bytes
+                (bytes, 1)
             }
-            (Framing::Unprefixed, datagram) => datagram.into_bytes(),
+            (Framing::Unprefixed, datagram) => (datagram.into_bytes(), 0),
         };
         let body = match self.recv_cipher.as_mut() {
             Some(cipher) => {
@@ -282,10 +283,15 @@ impl Connection {
                 let mut buf = body
                     .try_into_mut()
                     .unwrap_or_else(|shared| BytesMut::from(&shared[..]));
-                cipher.decrypt(&mut buf, 0)?;
+                cipher.decrypt(&mut buf, skip)?;
+                bytes::Buf::advance(&mut buf, skip);
                 buf.freeze()
             }
-            None => body,
+            None => {
+                let mut body = body;
+                bytes::Buf::advance(&mut body, skip);
+                body
+            }
         };
         let start = self.inbound.len();
         let stats = self.codec.decode_raw_into(
@@ -420,10 +426,15 @@ impl Connection {
     pub fn queue_packet(&mut self, packet: &McpePacket, now: Instant) -> Result<(), JolyneError> {
         use valentine::bedrock::codec::BedrockSized;
         self.begin_pending(now);
-        let start = self.pending.len();
         // Exact capacity up front: the encoder sizes its length prefix from the
         // spare capacity, and growing mid-encode would copy the batch.
         self.pending.reserve(10 + packet.data.encoded_size());
+        self.encode_packet(packet)
+    }
+
+    /// Encodes into capacity the caller already reserved.
+    fn encode_packet(&mut self, packet: &McpePacket) -> Result<(), JolyneError> {
+        let start = self.pending.len();
         if let Err(error) = packet.data.encode_inner_bytes_mut(
             &mut self.pending,
             packet.header.from_subclient,
@@ -523,8 +534,12 @@ impl Connection {
         reliable: bool,
         now: Instant,
     ) -> Result<(), JolyneError> {
-        self.send_batch_with(packets.len(), reliable, |conn, index| {
-            conn.queue_packet(&packets[index], now)
+        use valentine::bedrock::codec::BedrockSized;
+        let estimate = packets.iter().map(|p| 10 + p.data.encoded_size()).sum();
+        self.send_batch_with(packets.len(), reliable, estimate, now, |conn, index| {
+            // Re-opens the batch after an auto-seal at the per-batch limits.
+            conn.begin_pending(now);
+            conn.encode_packet(&packets[index])
         })
     }
 
@@ -535,7 +550,8 @@ impl Connection {
         reliable: bool,
         now: Instant,
     ) -> Result<(), JolyneError> {
-        self.send_batch_with(packets.len(), reliable, |conn, index| {
+        let estimate = packets.iter().map(|p| p.inner_frame().len()).sum();
+        self.send_batch_with(packets.len(), reliable, estimate, now, |conn, index| {
             conn.queue_raw(&packets[index], now)
         })
     }
@@ -544,6 +560,8 @@ impl Connection {
         &mut self,
         count: usize,
         reliable: bool,
+        estimate: usize,
+        now: Instant,
         mut queue: impl FnMut(&mut Self, usize) -> Result<(), JolyneError>,
     ) -> Result<(), JolyneError> {
         if !reliable && self.is_encrypted() {
@@ -553,6 +571,10 @@ impl Connection {
             return Ok(());
         }
         self.flush()?;
+        // One allocation for the whole batch instead of growing per packet.
+        self.begin_pending(now);
+        self.pending
+            .reserve(estimate.min(self.options.max_pending_bytes));
         let mode = std::mem::replace(&mut self.options.flush, FlushMode::Manual);
         self.batch_reliable = reliable;
         let result = (0..count)

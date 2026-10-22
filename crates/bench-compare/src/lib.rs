@@ -3,6 +3,7 @@ pub mod codec;
 pub mod join;
 pub mod micro;
 pub mod nethernet;
+pub mod stream;
 pub mod transport;
 
 use serde::Serialize;
