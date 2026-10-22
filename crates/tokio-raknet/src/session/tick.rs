@@ -38,6 +38,7 @@ impl Session {
         out
     }
 
+    #[inline]
     pub(super) fn prune_expired_splits(&mut self, now: Instant) {
         let dropped = self.split_assembler.prune(now);
         for (ch, idx) in dropped {
