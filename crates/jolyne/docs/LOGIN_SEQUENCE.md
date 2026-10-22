@@ -14,7 +14,7 @@ sequenceDiagram
     Note right of Server: Sets compression threshold/algo
 
     Client->>Server: Login
-    Note right of Client: Contains chain data (skin, identity)
+    Note right of Client: Multiplayer Token (identity) + ClientData JWT (skin, device)
     
     opt Encryption
         Server->>Client: ServerToClientHandshake
@@ -74,7 +74,7 @@ sequenceDiagram
 
 ### 1. Handshake Phase
 - **NetworkSettings**: Negotiates compression.
-- **Login**: Validates the XBOX Live chain (if online mode) and client identity.
+- **Login**: Verifies the provider-signed multiplayer `Token` (online mode) or reads the self-signed one (offline), then verifies and validates the ClientData JWT signed by the token's `cpk`.
 - **Encryption**: ECDH key exchange using P-384 curves.
 
 ### 2. Resource Pack Phase

@@ -52,15 +52,15 @@ async fn handle_proxy_client(
 
     // 2. Authenticate
     // Here we can inspect the identity and decide whether to allow them.
-    let (secure_pending, identity) = login_stream.authenticate().await?;
-    let display_name = identity.display_name.as_deref().unwrap_or("Unknown");
+    let (secure_pending, login) = login_stream.authenticate().await?;
+    let display_name = login.identity.display_name();
     info!(%addr, user=%display_name, "Authenticated by Proxy");
 
     // 3. Complete Encryption Handshake
     // We terminate encryption here. The client talks encrypted to US.
     let handshake_config = ServerHandshakeConfig { server_key };
     let pack_stream = secure_pending
-        .finish_handshake(&handshake_config, &identity.identity_public_key)
+        .finish_handshake(&handshake_config, login.identity.identity_public_key())
         .await?;
 
     // 4. "The Escape Hatch"
@@ -82,7 +82,7 @@ async fn handle_proxy_client(
         identity_key: up_key.clone(),
         display_name: "ProxyUser".to_string(),
         uuid: Uuid::new_v4(),
-        xbl_credentials: None,
+        credentials: Default::default(),
     };
     let up_secure = up_login.send_login(&up_config).await?;
     let up_packs = up_secure.await_handshake(&up_key).await?;
