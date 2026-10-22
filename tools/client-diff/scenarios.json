@@ -8,6 +8,11 @@
   },
   "scenarios": {
     "join-idle": { "idle_ms": 5000, "steps": [] },
+    "raknet-idle": { "idle_ms": 16000, "steps": [] },
+    "raknet-kick": {
+      "idle_ms": 6000,
+      "steps": [{ "after_ms": 3000, "kind": "command", "text": "/kick ClientDiff raknet-capture" }]
+    },
     "join-chat": {
       "idle_ms": 5000,
       "steps": [
