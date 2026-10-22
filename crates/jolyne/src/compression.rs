@@ -6,6 +6,8 @@
 //! 7; libdeflate and Go's level 6 use different parsers, so numeric levels
 //! do not promise identical output sizes and must be compared on the corpus.
 
+mod snappy;
+
 use bytes::BytesMut;
 use libdeflater::{CompressionLvl, Compressor, DecompressionError, Decompressor};
 
@@ -15,7 +17,7 @@ use crate::error::{JolyneError, ProtocolError};
 pub(crate) struct CompressionContext {
     compressor: Option<(u32, Compressor)>,
     decompressor: Option<Decompressor>,
-    snappy_encoder: snap::raw::Encoder,
+    snappy_encoder: snappy::Encoder,
     snappy_decoder: snap::raw::Decoder,
     scratch: BytesMut,
     decode_scratch: BytesMut,
@@ -27,7 +29,7 @@ impl Default for CompressionContext {
         Self {
             compressor: None,
             decompressor: None,
-            snappy_encoder: snap::raw::Encoder::new(),
+            snappy_encoder: snappy::Encoder::default(),
             snappy_decoder: snap::raw::Decoder::new(),
             scratch: BytesMut::new(),
             decode_scratch: BytesMut::new(),
@@ -75,7 +77,13 @@ impl CompressionContext {
                     .1
                     .deflate_compress_bound(input.len())
             }
-            BatchCompression::Snappy => snap::raw::max_compress_len(input.len()),
+            BatchCompression::Snappy => {
+                let bound = snap::raw::max_compress_len(input.len());
+                if bound == 0 {
+                    return Err(failed("Snappy input exceeds the format size limit").into());
+                }
+                bound
+            }
             BatchCompression::None => return Ok(()),
         };
         self.scratch.resize(prefix_len + bound, 0);
@@ -89,10 +97,7 @@ impl CompressionContext {
                 .1
                 .deflate_compress(input, destination)
                 .map_err(failed)?,
-            BatchCompression::Snappy => self
-                .snappy_encoder
-                .compress(input, destination)
-                .map_err(failed)?,
+            BatchCompression::Snappy => self.snappy_encoder.compress(input, destination),
             BatchCompression::None => unreachable!(),
         };
         self.scratch.truncate(prefix_len + len);
@@ -192,6 +197,32 @@ impl CompressionContext {
 mod tests {
     use super::*;
     use std::io::{Read, Write};
+
+    #[test]
+    fn snappy_corpus_size_and_reference_roundtrip() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../valentine_gen/protocolgen/testdata/bench");
+        for (name, limit) in [
+            ("spawn", 1155),
+            ("server_tick", 1599),
+            ("chunk_radius", 79052),
+            ("client_tick", 287),
+        ] {
+            let input = std::fs::read(root.join(format!("synthetic_batch_{name}.bin"))).unwrap();
+            let mut output = BytesMut::from(&b"\xfe\x01"[..]);
+            output.extend_from_slice(&input[1..]);
+            CompressionContext::default()
+                .compress(&mut output, 2, BatchCompression::Snappy, 6)
+                .unwrap();
+            assert_eq!(
+                snap::raw::Decoder::new()
+                    .decompress_vec(&output[2..])
+                    .unwrap(),
+                &input[1..]
+            );
+            assert!(output.len() <= limit, "{name}: {} > {limit}", output.len());
+        }
+    }
 
     #[test]
     fn decode_reuses_unshared_storage_and_remembers_output_size() {
