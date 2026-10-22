@@ -6,6 +6,7 @@ use tracing::{debug, trace, warn};
 use webrtc::api::APIBuilder;
 use webrtc::api::interceptor_registry::register_default_interceptors;
 use webrtc::api::media_engine::MediaEngine;
+use webrtc::api::setting_engine::SettingEngine;
 use webrtc::data_channel::RTCDataChannel;
 use webrtc::ice_transport::ice_candidate::RTCIceCandidate;
 use webrtc::ice_transport::ice_server::RTCIceServer;
@@ -31,6 +32,9 @@ pub struct NetherNetListenerConfig {
     pub connection_timeout: Duration,
     /// Explicit ICE servers; nonempty values override signaling credentials.
     pub ice_servers: Vec<RTCIceServer>,
+    /// Optional WebRTC settings for explicit local interface/ICE policy.
+    /// `None` preserves webrtc-rs defaults, including excluding loopback candidates.
+    pub setting_engine: Option<SettingEngine>,
     /// Maximum SDP size in bytes (prevents OOM from large SDPs).
     pub max_sdp_size: usize,
     /// Maximum tracked negotiations/connections (local resource hardening).
@@ -59,6 +63,7 @@ impl Default for NetherNetListenerConfig {
             connection_timeout: Duration::from_secs(5),
             // credentials.go:gatherOptions uses host candidates when credentials are absent.
             ice_servers: Vec::new(),
+            setting_engine: None,
             max_sdp_size: DEFAULT_MAX_SDP_SIZE,
             max_pending_connections: DEFAULT_MAX_PENDING_CONNECTIONS,
             identity: None,
@@ -395,10 +400,13 @@ impl ListenerActor {
         let mut media_engine = MediaEngine::default();
         let registry = Registry::new();
         let registry = register_default_interceptors(registry, &mut media_engine)?;
-        let api = APIBuilder::new()
+        let mut api = APIBuilder::new()
             .with_media_engine(media_engine)
-            .with_interceptor_registry(registry)
-            .build();
+            .with_interceptor_registry(registry);
+        if let Some(settings) = &self.config.setting_engine {
+            api = api.with_setting_engine(settings.clone());
+        }
+        let api = api.build();
 
         let rtc_config = RTCConfiguration {
             ice_servers: crate::dialer::ice_servers(
