@@ -79,6 +79,19 @@ Do not treat `generated/1.26.50/` as the stable release: it captures Preview 25
 and protocol 2187. Stable 26.50 and 26.51 use protocol 2193; the 26.51 hotfix
 has no packet changes relative to stable 26.50.
 
+## protocolgen corrections
+
+The pinned protocolgen manifest is never edited. Defects that captured BDS
+traffic disproves are corrected while lowering, in
+`src/parser/protocolgen_corrections.rs`: each entry is keyed on the packet and
+protocolgen field name, pins the canonical node it replaces (kind, primitive
+code, encoding) and the protocol version whose captures prove it. Generation
+fails if that node changes (re-verify, then update or drop the correction) or
+if a manifest for the verified protocol no longer contains the field. The
+upstream-ready reports with evidence are in
+[`PROTOCOLGEN_ISSUES.md`](PROTOCOLGEN_ISSUES.md); the captures come from
+`tools/client-diff -Mode conformance`.
+
 ## Mojang corrections and conformance
 
 `overrides/bpd-fixer.json` and `overrides/enum-ordinals.json` are applied in

@@ -1028,6 +1028,53 @@ impl BedrockSized for Nbt {
     }
 }
 
+/// The body of a network little endian NBT compound: its named child tags
+/// followed by TAG_End, without the root tag ID and root name that [`Nbt`]
+/// carries.
+///
+/// BDS serialises some payloads (e.g. `LevelEventGenericPacket` event data)
+/// by writing a `CompoundTag`'s children directly. Decoding validates the tag
+/// structure and keeps the exact wire bytes, so re-encoding is byte-identical.
+#[derive(Debug, Clone, PartialEq)]
+pub struct NbtCompoundBody(pub Bytes);
+
+impl Default for NbtCompoundBody {
+    fn default() -> Self {
+        // Empty compound: TAG_End only.
+        Self(Bytes::from_static(&[0x00]))
+    }
+}
+
+impl NbtCompoundBody {
+    /// Wraps the body in an unnamed root compound so it can be read as [`Nbt`].
+    pub fn to_nbt(&self) -> Nbt {
+        let mut bytes = bytes::BytesMut::with_capacity(self.0.len() + 2);
+        bytes.put_slice(&[0x0a, 0x00]);
+        bytes.put_slice(&self.0);
+        Nbt(bytes.freeze())
+    }
+}
+
+impl BedrockCodec for NbtCompoundBody {
+    type Args = ();
+    const MIN_ENCODED_SIZE: usize = 1;
+
+    fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        buf.put_slice(&self.0);
+        Ok(())
+    }
+
+    fn decode<B: Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, DecodeError> {
+        decode_nbt_bytes(buf, NbtLayout::NetworkCompoundBody).map(Self)
+    }
+}
+
+impl BedrockSized for NbtCompoundBody {
+    fn encoded_size(&self) -> usize {
+        self.0.len()
+    }
+}
+
 impl BedrockSized for Bytes {
     fn encoded_size(&self) -> usize {
         self.len()
@@ -1052,16 +1099,30 @@ enum NbtEncoding {
     LittleEndian,
 }
 
+/// What a scanned NBT value looks like on the wire.
+#[derive(Debug, Clone, Copy)]
+enum NbtLayout {
+    /// A root tag ID and name followed by the tag payload.
+    Rooted(NbtEncoding),
+    /// Network little endian compound children terminated by TAG_End, with
+    /// no root tag ID or name (see [`NbtCompoundBody`]).
+    NetworkCompoundBody,
+}
+
 const MAX_NBT_DEPTH: usize = 512;
 
 fn decode_nbt<B: Buf>(buf: &mut B, encoding: NbtEncoding) -> Result<Nbt, DecodeError> {
+    decode_nbt_bytes(buf, NbtLayout::Rooted(encoding)).map(Nbt)
+}
+
+fn decode_nbt_bytes<B: Buf>(buf: &mut B, layout: NbtLayout) -> Result<Bytes, DecodeError> {
     // Keep zero-copy extraction when the NBT fits the first chunk, even if
     // subsequent packet fields live in another segment.
     let mut cursor = Cursor::new(buf.chunk());
-    match scan_nbt(&mut cursor, encoding) {
+    match scan_nbt(&mut cursor, layout) {
         Ok(()) => {
             let len = cursor.position() as usize;
-            return Ok(Nbt(buf.copy_to_bytes(len)));
+            return Ok(buf.copy_to_bytes(len));
         }
         Err(err) => {
             let incomplete = matches!(&err, DecodeError::UnexpectedEof { .. })
@@ -1078,8 +1139,8 @@ fn decode_nbt<B: Buf>(buf: &mut B, encoding: NbtEncoding) -> Result<Nbt, DecodeE
         inner: buf,
         bytes: bytes::BytesMut::new(),
     };
-    scan_nbt(&mut recording, encoding)?;
-    Ok(Nbt(recording.bytes.freeze()))
+    scan_nbt(&mut recording, layout)?;
+    Ok(recording.bytes.freeze())
 }
 
 struct NbtRecordingBuf<'a, B> {
@@ -1105,19 +1166,22 @@ impl<B: Buf> Buf for NbtRecordingBuf<'_, B> {
     }
 }
 
-fn scan_nbt(cursor: &mut impl Buf, encoding: NbtEncoding) -> Result<(), DecodeError> {
-    let root_tag = read_u8(cursor)?;
+fn scan_nbt(cursor: &mut impl Buf, layout: NbtLayout) -> Result<(), DecodeError> {
     // Select the encoding once; recursive scans specialize away mode branches.
     // Root tags are named in both Bedrock little-endian variants.
-    match encoding {
-        NbtEncoding::NetworkLittleEndian => {
+    match layout {
+        NbtLayout::Rooted(NbtEncoding::NetworkLittleEndian) => {
+            let root_tag = read_u8(cursor)?;
             skip_string::<true>(cursor)?;
             scan_payload::<true>(root_tag, cursor, 0)
         }
-        NbtEncoding::LittleEndian => {
+        NbtLayout::Rooted(NbtEncoding::LittleEndian) => {
+            let root_tag = read_u8(cursor)?;
             skip_string::<false>(cursor)?;
             scan_payload::<false>(root_tag, cursor, 0)
         }
+        // The body sits at the depth of a root compound's children.
+        NbtLayout::NetworkCompoundBody => scan_compound::<true>(cursor, enter_nbt_container(0)?),
     }
 }
 
@@ -1360,6 +1424,25 @@ mod tests {
                 assert_eq!(chained.get_u8(), 0xaa);
             }
         }
+    }
+
+    #[test]
+    fn compound_body_reads_all_children_up_to_tag_end() {
+        // Two named children (int x = 42, byte y = 7) then TAG_End, then an
+        // unrelated byte. Rooted NBT decoding would stop after the first child.
+        const BODY: [u8; 9] = [3, 1, b'x', 84, 1, 1, b'y', 7, 0];
+        let body = BODY;
+        for split in 1..body.len() {
+            let rest = [body[split..].to_vec(), vec![0xaa]].concat();
+            let mut chained = body[..split].chain(rest.as_slice());
+            let decoded = NbtCompoundBody::decode(&mut chained, ()).unwrap();
+            assert_eq!(decoded.0.as_ref(), body);
+            assert_eq!(chained.remaining(), 1);
+        }
+        let mut rooted = NbtCompoundBody(Bytes::from_static(&BODY)).to_nbt().0;
+        assert_eq!(rooted.as_ref(), [&[10, 0][..], &body].concat());
+        Nbt::decode(&mut rooted, ()).unwrap();
+        assert!(!rooted.has_remaining());
     }
 
     // ========== Primitive Tests ==========

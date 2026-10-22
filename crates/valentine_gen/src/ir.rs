@@ -30,6 +30,9 @@ pub enum Primitive {
     Void,      // explicitly nothing
     ByteArray, // 'restBuffer' or raw byte arrays
     Nbt,       // NBT blob (Network Little Endian)
+    /// Network little endian compound children terminated by TAG_End, with
+    /// no root tag ID or name (BDS `CompoundTag::write` without a header).
+    NbtCompoundBody,
 }
 
 /// The core logical types in the Bedrock protocol
