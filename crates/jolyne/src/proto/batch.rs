@@ -356,9 +356,14 @@ impl BatchCodec {
         let estimated = packets.iter().map(|p| 5 + p.len()).sum();
         let prefix_len = Self::start(out, settings.enabled, settings.prefix, estimated);
         for packet in packets {
-            let len = u32::try_from(packet.len())
-                .map_err(|_| ProtocolError::PacketTooLarge(packet.len()))?;
-            bedrock_wire::write_var_u32(out, len);
+            // Most game packets are under 128 bytes: one length byte.
+            if packet.len() < 0x80 {
+                out.put_u8(packet.len() as u8);
+            } else {
+                let len = u32::try_from(packet.len())
+                    .map_err(|_| ProtocolError::PacketTooLarge(packet.len()))?;
+                bedrock_wire::write_var_u32(out, len);
+            }
             out.extend_from_slice(packet);
         }
         self.finish(out, prefix_len, settings)

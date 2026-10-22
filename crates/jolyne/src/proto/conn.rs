@@ -418,8 +418,12 @@ impl Connection {
 
     /// Frames a valentine packet into the pending batch.
     pub fn queue_packet(&mut self, packet: &McpePacket, now: Instant) -> Result<(), JolyneError> {
+        use valentine::bedrock::codec::BedrockSized;
         self.begin_pending(now);
         let start = self.pending.len();
+        // Exact capacity up front: the encoder sizes its length prefix from the
+        // spare capacity, and growing mid-encode would copy the batch.
+        self.pending.reserve(10 + packet.data.encoded_size());
         if let Err(error) = packet.data.encode_inner_bytes_mut(
             &mut self.pending,
             packet.header.from_subclient,

@@ -38,6 +38,11 @@ enum Command {
         #[arg(long, default_value_t = 5000)]
         iterations: usize,
     },
+    /// Batch framing/compression/crypto rows only.
+    Batch {
+        #[arg(long, default_value_t = 5000)]
+        iterations: usize,
+    },
     Micro {
         #[arg(long, default_value_t = 5000)]
         iterations: usize,
@@ -75,6 +80,7 @@ fn main() -> Result<()> {
     match args.command {
         Command::NethernetMicro { iterations } => bench_compare::nethernet::micro(iterations),
         Command::Codec { iterations } => bench_compare::codec::run(iterations),
+        Command::Batch { iterations } => bench_compare::batch::run(iterations),
         Command::Micro {
             iterations,
             wire_only,

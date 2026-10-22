@@ -7,7 +7,6 @@ use ctr::cipher::{
     StreamCipherCore, consts::U16, typenum::Unsigned,
 };
 use sha2::{Digest, Sha256};
-use subtle::ConstantTimeEq;
 use zeroize::Zeroize;
 
 use crate::error::{JolyneError, ProtocolError};
@@ -156,28 +155,41 @@ impl BatchCipher {
             .into());
         }
 
-        self.apply_keystream(&mut buf[header_len..]);
         let checksum_start = buf.len() - CHECKSUM_LEN;
         let counter_value = self.counter;
         self.counter = self.counter.wrapping_add(1);
 
         let mut digest = Sha256::new();
         digest.update(counter_value.to_le_bytes());
+        self.apply_keystream(&mut buf[header_len..]);
         digest.update(&buf[header_len..checksum_start]);
         digest.update(self.key);
         let ours = digest.finalize();
 
-        if !bool::from(buf[checksum_start..].ct_eq(&ours[..CHECKSUM_LEN])) {
-            self.invalidated = true;
-            buf[header_len..].zeroize();
-            return Err(ProtocolError::ChecksumMismatch {
-                counter: counter_value,
-            }
-            .into());
+        // Both checksums as one u64: a single XOR compare has no data-dependent
+        // early exit, so it is constant time without per-byte barriers.
+        let theirs = u64::from_ne_bytes(
+            buf[checksum_start..]
+                .try_into()
+                .expect("checksum is eight bytes"),
+        );
+        let ours = u64::from_ne_bytes(ours[..CHECKSUM_LEN].try_into().expect("eight bytes"));
+        if std::hint::black_box(theirs ^ ours) != 0 {
+            return Err(self.reject(buf, header_len, counter_value));
         }
 
         buf.truncate(checksum_start);
         Ok(())
+    }
+
+    /// Checksum failure: wipe the unauthenticated plaintext and refuse every
+    /// later call.
+    #[cold]
+    #[inline(never)]
+    fn reject(&mut self, buf: &mut BytesMut, header_len: usize, counter: u64) -> JolyneError {
+        self.invalidated = true;
+        buf[header_len..].zeroize();
+        ProtocolError::ChecksumMismatch { counter }.into()
     }
 
     /// Whether an earlier checksum failure invalidated this cipher.
