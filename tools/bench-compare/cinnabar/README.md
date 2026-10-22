@@ -43,6 +43,8 @@ then sends its own marker. Both bridges keep signaling and RTC live through this
 two-phase handshake; only then do peers close them. The bridge task outlives the
 caller-signaling driver (`NetherClient::connect_with` drops its signaling handle
 once connected), and EOF before the peer's marker is an error, never completion.
+Client retirement drains the reliable channel; a peer that already closed
+(go-nethernet and tokio-nethernet abort SCTP on close) also ends it.
 Marker writes and completion waits are bounded, bridge errors propagate, and
 completion/retirement remain outside measured setup and echo durations.
 

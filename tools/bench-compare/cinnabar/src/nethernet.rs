@@ -458,6 +458,18 @@ async fn serve(listener: TcpListener, count: usize) -> Result<()> {
     Ok(())
 }
 
+/// Retirement drains the reliable channel to its end. Every echo was verified
+/// and both BENCH-DONE markers were exchanged before it starts, so a peer that
+/// closed first (go-nethernet and tokio-nethernet abort SCTP on close, as pion
+/// does) ends it as well instead of failing the run.
+fn retirement_finished<T>(received: nethernet_tokio::Result<Option<T>>) -> Result<bool> {
+    match received {
+        Ok(Some(_)) => Ok(false),
+        Ok(None) | Err(nethernet_tokio::NetherError::ConnectionClosed) => Ok(true),
+        Err(error) => Err(error.into()),
+    }
+}
+
 fn emit(operation: &str, size: usize, samples: &mut [f64], total_ns: f64) -> Result<()> {
     samples.sort_by(f64::total_cmp);
     let ns = total_ns / samples.len() as f64;
@@ -509,7 +521,7 @@ async fn client(address: SocketAddr, count: usize) -> Result<()> {
         // Keep signaling and RTC alive until the server's final echo send has drained.
         bridge.complete(true).await?;
         let mut retired = client.close();
-        while retired.reliable.recv().await?.is_some() {}
+        while !retirement_finished(retired.reliable.recv().await)? {}
         drop(bridge);
         emit("setup", size, &mut [setup], setup)?;
         emit("echo", size, &mut samples, total_ns)?;
@@ -546,7 +558,8 @@ pub async fn run(mode: &str, address: &str, count: usize) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Bridge, SignalDriver, SignalRequest, message_count};
+    use super::{Bridge, SignalDriver, SignalRequest, message_count, retirement_finished};
+    use nethernet_tokio::NetherError;
     use tokio::net::{TcpListener, TcpStream};
 
     /// A driver whose signaling handle is already gone, as after
@@ -582,6 +595,20 @@ mod tests {
         let (client, server) = tokio::join!(client.complete(true), server.complete(false));
         client.unwrap();
         server.unwrap();
+    }
+
+    /// Regression: go-nethernet/tokio-nethernet servers abort SCTP right after
+    /// their marker, so the Cinnabar client's retirement saw ConnectionClosed
+    /// and failed cinnabar-to-go/rust interop after every echo had passed.
+    #[test]
+    fn retirement_ends_on_peer_close_but_not_on_other_errors() {
+        assert!(!retirement_finished(Ok(Some(()))).unwrap());
+        assert!(retirement_finished::<()>(Ok(None)).unwrap());
+        assert!(retirement_finished::<()>(Err(NetherError::ConnectionClosed)).unwrap());
+        assert!(
+            retirement_finished::<()>(Err(NetherError::Io(std::io::ErrorKind::Other.into())))
+                .is_err()
+        );
     }
 
     /// EOF is never completion: a peer that closes without its marker fails
