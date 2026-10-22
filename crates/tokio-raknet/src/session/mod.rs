@@ -42,7 +42,7 @@ use crate::protocol::ack::SequenceRange;
 use ack_queue::AckQueue;
 use ordering_channels::OrderingChannels;
 pub use policy::TransmissionPolicy;
-use policy::VanillaState;
+use vanilla::VanillaState;
 use reliable_tracker::ReliableTracker;
 use sliding_window::SlidingWindow;
 use split_assembler::SplitAssembler;
@@ -178,7 +178,7 @@ impl Session {
             vanilla: tunables
                 .transmission
                 .is_vanilla()
-                .then(|| Box::new(VanillaState::default())),
+                .then(|| Box::new(VanillaState::new(mtu))),
             sliding: SlidingWindow::new(mtu),
             split_index: 0,
             receive_window: receive_window::ReceiveWindow::default(),
@@ -238,11 +238,11 @@ impl Session {
     }
 
     /// Latest RTT estimate in microseconds (`u64::MAX` before the first
-    /// sample): Optimized's smoothed ACK RTT, Vanilla's mean of the recent
-    /// resend-map samples (go-raknet `resend_map.go:rtt`).
+    /// sample): Optimized's smoothed ACK RTT, Vanilla's `estimatedRTT` of
+    /// Mojang's sliding window.
     pub fn rtt_micros(&self) -> u64 {
         match &self.vanilla {
-            Some(vanilla) => vanilla.sampled_rtt_micros(),
+            Some(vanilla) => vanilla.cc.rtt_micros(),
             None => self.sliding.rtt_micros(),
         }
     }
@@ -250,13 +250,6 @@ impl Session {
     #[inline]
     fn is_vanilla(&self) -> bool {
         self.vanilla.is_some()
-    }
-
-    /// Vanilla state; only called on Vanilla code paths.
-    fn vanilla_mut(&mut self) -> &mut VanillaState {
-        self.vanilla
-            .as_deref_mut()
-            .expect("Vanilla code path on an Optimized session")
     }
 
     /// Compatibility entry point; invalid sequences are ignored without feedback.
@@ -271,10 +264,10 @@ impl Session {
         seq: Sequence24,
         now: impl FnOnce() -> Instant,
     ) -> Result<bool, DecodeError> {
-        let delay = match &self.vanilla {
-            Some(vanilla) => vanilla.nak_delay(),
-            None => self.sliding.nak_delay(),
-        };
+        if self.is_vanilla() {
+            return self.vanilla_accept_sequence(seq, now());
+        }
+        let delay = self.sliding.nak_delay();
         let naks = &mut self.outgoing_naks;
         if !self
             .receive_window

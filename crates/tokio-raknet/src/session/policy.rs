@@ -1,23 +1,27 @@
-//! Transmission policy selection and the go-raknet (Vanilla) timing state.
+//! Transmission policy selection and the Mojang RakNet (Vanilla) congestion
+//! control state.
 //!
 //! The policy is a plain enum matched on the hot path (no trait objects).
 //! `Optimized` keeps tokio-raknet's packing, congestion window, smoothed RTO
-//! and bounded ACK coalescing. `Vanilla` reproduces lunar-bedrock/go-raknet
-//! `87a6b7e` (see `PARITY.md`): one frame per datagram, no congestion window,
-//! ACKs only on the 100 ms connection tick, a resend scan on every third tick
-//! and go's mean-of-recent-samples RTT.
+//! and bounded ACK coalescing. `Vanilla` reproduces Mojang RakNet, the
+//! Jenkins RakNet 4.081 fork inside the Minecraft Bedrock client and Bedrock
+//! Dedicated Server (see `PARITY.md`): message-level resends re-packed into
+//! datagrams, `CCRakNetSlidingWindow` with Mojang's changes, ACKs 10 ms after
+//! the oldest unacknowledged datagram, NAKs on gap detection and a 10 ms
+//! update cycle. Evidence references `lens` (decompiled Mojang RakNet,
+//! `raknet-truth` report) and the BDS 1.26.51 captures in
+//! `tests/captures/bds-1.26.51`.
 
-use std::collections::VecDeque;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use crate::protocol::datagram::Datagram;
+use crate::protocol::types::Sequence24;
 
 /// Congestion control, resend/RTO, ACK/flush scheduling and pacing policy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TransmissionPolicy {
-    /// Bit-for-bit lunar-bedrock/go-raknet timing, windowing, resend and
-    /// framing semantics, matching the vanilla Bedrock client RakNet. Default
-    /// for `RaknetStream::connect*`.
+    /// Mojang RakNet timing, windowing, resend and framing semantics: the
+    /// Minecraft Bedrock client (`RaknetStream`) and Bedrock Dedicated
+    /// Server (`RaknetListener`). Default for `RaknetStream::connect*`.
     Vanilla,
     /// tokio-raknet's latency/throughput-optimized behaviour. Default for
     /// `RaknetListener` and the low-level `Session` constructors.
@@ -32,84 +36,197 @@ impl TransmissionPolicy {
     }
 }
 
-/// go-raknet `conn.go:startTicking` interval.
-pub const VANILLA_TICK_INTERVAL: Duration = Duration::from_millis(100);
-/// go-raknet `conn.go:startTicking`: `checkResend` runs on every third tick.
-pub(crate) const VANILLA_RESEND_TICKS: u64 = 3;
-/// go-raknet `conn.go:startTicking`: ping and inactivity check every fifth tick.
-pub(crate) const VANILLA_PING_TICKS: u64 = 5;
-/// go-raknet `resend_map.go:rtt` sample window.
-const RTT_WINDOW: Duration = Duration::from_secs(5);
-/// go-raknet `resend_map.go:rtt` value when no samples are recorded.
-const DEFAULT_RTT: Duration = Duration::from_millis(50);
+/// Mojang RakNet `UpdateNetworkLoop`: `RunUpdateCycle`, then
+/// `WaitOnEvent(10)`; a received datagram or an `IMMEDIATE` send wakes the
+/// loop early (lens RN_005:16-29, RP_030:108-114, RP_114:13-17).
+pub const VANILLA_TICK_INTERVAL: Duration = Duration::from_millis(10);
+/// `CCRakNetSlidingWindow::ShouldSendACKs`: SYN, the age of the oldest
+/// unacknowledged datagram before ACKs are sent (lens RL_010:407-412).
+pub(crate) const VANILLA_ACK_DELAY: Duration = Duration::from_millis(10);
+/// `RakPeer::RunUpdateCycle` occasional ping period (Bedrock enables
+/// `SetOccasionalPing(true)`; lens RP_113:1581-1597, RNC_000:248-257).
+pub(crate) const VANILLA_PING_INTERVAL: Duration = Duration::from_millis(5000);
+/// `timeoutTime`: RakPeer default and Bedrock's explicit
+/// `SetTimeoutTime(10000)` (lens RP_001:1160, RNC_000:248-256). Drives the
+/// dead-connection rule and the reliable keepalive (`timeoutTime / 2`).
+pub(crate) const VANILLA_TIMEOUT: Duration = Duration::from_millis(10_000);
+/// `RakPeer::RunUpdateCycle`: connections still in the online handshake are
+/// dropped this long after creation (lens RP_113:1576-1579).
+pub(crate) const VANILLA_HANDSHAKE_TIMEOUT: Duration = Duration::from_millis(10_000);
+/// `RESEND_BUFFER_ARRAY_LENGTH`: reliable messages in flight (lens RL_010:924).
+pub(crate) const VANILLA_RESEND_SLOTS: u32 = 512;
+/// `DATAGRAM_MESSAGE_ID_ARRAY_LENGTH`: datagram history entries (lens
+/// RL_010:1347-1430).
+pub(crate) const VANILLA_HISTORY_LEN: usize = 512;
+/// `UDP_HEADER_SIZE`: subtracted from the MTU for every address family.
+pub(crate) const VANILLA_UDP_HEADER: usize = 28;
+/// `DatagramHeaderFormat::GetDataHeaderByteLength`: 72 bits reserved per
+/// datagram when packing messages and ACK/NAK ranges (lens RL_010:1033,
+/// RL_011).
+pub(crate) const VANILLA_DATAGRAM_RESERVE: usize = 9;
+/// `GetMaxMessageHeaderLengthBits`: the fragment size assumes the largest
+/// message header (RELIABLE_SEQUENCED + split, 23 bytes; lens RL_009:149).
+pub(crate) const VANILLA_MAX_MESSAGE_HEADER: usize = 23;
+/// `OnGotPacket`: a gap above this rejects the datagram.
+pub(crate) const VANILLA_MAX_SKIPPED_DATAGRAMS: u32 = 50_000;
+/// `OnGotPacket`: at most this many datagram numbers are NAKed per gap.
+pub(crate) const VANILLA_MAX_NAKS_PER_GAP: u32 = 1000;
 
-/// Per-session state of the Vanilla policy.
-#[derive(Debug, Default)]
-pub(crate) struct VanillaState {
-    /// `resendMap.delays`: (recorded at, sample). Samples are appended with a
-    /// monotonically increasing clock, so expiry pops from the front.
-    samples: VecDeque<(Instant, Duration)>,
-    /// Sum of `samples` in nanoseconds, maintained on record and prune so the
-    /// mean is O(1) however many samples the window holds.
-    sample_total_nanos: u128,
-    /// `Conn.rtt`: the value stored by the last `checkResend`; zero until the
-    /// first resend check. Drives the NAK delay (`conn.go:451-452`).
-    stored_rtt: Duration,
-    /// Transmission order counter: go writes synchronously, so priorities
-    /// never reorder frames.
-    pub(crate) fifo: u64,
-    /// `conn.go:startTicking` tick counter `i`.
-    pub(crate) ticks: u64,
-    /// Datagrams resent in response to a NAK, waiting for the transport.
-    pub(crate) resend_ready: VecDeque<Datagram>,
-    /// Pending NAK datagrams split by the go ACK writer.
-    pub(crate) feedback_ready: VecDeque<Datagram>,
-    /// Reliable frame bytes retired by ACKs since the manager last credited
-    /// them against `max_queued_reliable_bytes` (Vanilla has no congestion
-    /// window, so unACKed data stays charged to that cap).
-    pub(crate) acked_reliable_bytes: usize,
+/// `GetRTOForRetransmission`: `min(2·RTT + 4·deviation + 30 ms, 2000 ms)`.
+const RTO_MAX_US: f64 = 2_000_000.0;
+const RTO_ADDITIONAL_VARIANCE_US: f64 = 30_000.0;
+/// RTT EWMA gain `d` (lens RL_006:2444-2455).
+const RTT_GAIN: f64 = 0.05;
+
+/// Largest message payload before a message is split, and the fragment
+/// payload size: `MTU - 28 - 9 - 23` = `MTU - 60` (lens RL_009:149).
+pub(crate) fn vanilla_max_fragment_len(mtu: usize) -> usize {
+    mtu.saturating_sub(VANILLA_UDP_HEADER + VANILLA_DATAGRAM_RESERVE + VANILLA_MAX_MESSAGE_HEADER)
 }
 
-impl VanillaState {
-    /// `resend_map.go:remove`: `mul` is 1 for ACKs and 2 for retransmissions.
-    pub(crate) fn record(&mut self, now: Instant, sent: Instant, mul: u32) {
-        let sample = now.saturating_duration_since(sent) * mul;
-        self.sample_total_nanos += sample.as_nanos();
-        self.samples.push_back((now, sample));
-    }
+/// Message bytes (headers and payloads) one datagram may carry:
+/// `(MTU - 28) * 8 - 72` bits.
+pub(crate) fn vanilla_datagram_capacity(mtu: usize) -> usize {
+    mtu.saturating_sub(VANILLA_UDP_HEADER + VANILLA_DATAGRAM_RESERVE)
+}
 
-    /// `resend_map.go:rtt`: prune samples strictly older than five seconds,
-    /// then return their integer-nanosecond mean (50 ms when empty).
-    pub(crate) fn rtt(&mut self, now: Instant) -> Duration {
-        while let Some(&(at, sample)) = self.samples.front()
-            && now.saturating_duration_since(at) > RTT_WINDOW
-        {
-            self.sample_total_nanos -= sample.as_nanos();
-            self.samples.pop_front();
+/// Mojang's inlined `CCRakNetSlidingWindow` (lens RL_006, RL_010, RP_106).
+///
+/// Differences from Jenkins 4.081: congestion avoidance grows the window on
+/// every ACK instead of once per congestion block, and a NAK latches the
+/// block backoff (halving the threshold once per block and suppressing the
+/// resend collapse for that block).
+#[derive(Debug, Clone)]
+pub(crate) struct MojangCongestion {
+    /// `MAXIMUM_MTU_INCLUDING_UDP_HEADER`: the MTU minus 28.
+    mtu: f64,
+    cwnd: f64,
+    ss_thresh: f64,
+    next_congestion_block: Sequence24,
+    backoff_this_block: bool,
+    /// `_isContinuousSend`: set from the send queue state by the update and
+    /// by ACK processing; gates growth and backoff.
+    pub(crate) is_continuous_send: bool,
+    last_rtt_us: Option<f64>,
+    estimated_rtt_us: Option<f64>,
+    deviation_rtt_us: f64,
+}
+
+impl MojangCongestion {
+    /// `Init` inlined in `AssignSystemAddressToRemoteSystemList`: window one
+    /// MTU (minus 28), slow-start threshold 0, RTT unset (lens RP_106:152-201).
+    pub(crate) fn new(mtu: usize) -> Self {
+        let mtu = mtu.saturating_sub(VANILLA_UDP_HEADER) as f64;
+        Self {
+            mtu,
+            cwnd: mtu,
+            ss_thresh: 0.0,
+            next_congestion_block: Sequence24::new(0),
+            backoff_this_block: false,
+            is_continuous_send: false,
+            last_rtt_us: None,
+            estimated_rtt_us: None,
+            deviation_rtt_us: 0.0,
         }
-        if self.samples.is_empty() {
-            return DEFAULT_RTT;
+    }
+
+    /// `IsInSlowStart`: the `needsBAndAs` (0x04) datagram flag.
+    pub(crate) fn in_slow_start(&self) -> bool {
+        self.ss_thresh == 0.0 || self.cwnd <= self.ss_thresh
+    }
+
+    /// `GetTransmissionBandwidth`: new data allowed this update.
+    pub(crate) fn transmission_bandwidth(&self, unacked_bytes: usize) -> usize {
+        let unacked = unacked_bytes as f64;
+        if self.cwnd < unacked {
+            0
+        } else {
+            (self.cwnd - unacked) as usize
         }
-        Duration::from_nanos((self.sample_total_nanos / self.samples.len() as u128) as u64)
     }
 
-    /// `conn.go:checkResend` stores the RTT it computed.
-    pub(crate) fn store_rtt(&mut self, rtt: Duration) {
-        self.stored_rtt = rtt;
+    /// `ShouldSendACKs` sends at once until the first RTT sample.
+    pub(crate) fn rtt_known(&self) -> bool {
+        self.last_rtt_us.is_some()
     }
 
-    /// `conn.go:receiveDatagram`: `rtt + rtt/2` of the stored RTT.
-    pub(crate) fn nak_delay(&self) -> Duration {
-        self.stored_rtt + self.stored_rtt / 2
+    /// Smoothed RTT in microseconds, `u64::MAX` before the first sample.
+    pub(crate) fn rtt_micros(&self) -> u64 {
+        self.estimated_rtt_us.map_or(u64::MAX, |rtt| rtt as u64)
     }
 
-    /// Mean of the recorded samples in microseconds (`u64::MAX` when none),
-    /// without pruning: published as the session RTT estimate.
-    pub(crate) fn sampled_rtt_micros(&self) -> u64 {
-        if self.samples.is_empty() {
-            return u64::MAX;
+    /// `GetRTOForRetransmission` (no exponential backoff: `timesSent` is
+    /// ignored).
+    pub(crate) fn rto(&self) -> Duration {
+        let micros = match self.estimated_rtt_us {
+            None => RTO_MAX_US,
+            Some(estimated) => (2.0 * estimated + 4.0 * self.deviation_rtt_us
+                + RTO_ADDITIONAL_VARIANCE_US)
+                .min(RTO_MAX_US),
+        };
+        Duration::from_micros(micros as u64)
+    }
+
+    /// RTT update of `OnAck` (lens RL_006:2432-2462).
+    pub(crate) fn on_rtt(&mut self, rtt: Duration) {
+        let rtt = rtt.as_micros() as f64;
+        self.last_rtt_us = Some(rtt);
+        match self.estimated_rtt_us {
+            None => {
+                self.estimated_rtt_us = Some(rtt);
+                self.deviation_rtt_us = rtt;
+            }
+            Some(estimated) => {
+                let difference = rtt - estimated;
+                self.estimated_rtt_us = Some(estimated + RTT_GAIN * difference);
+                self.deviation_rtt_us += RTT_GAIN * (difference.abs() - self.deviation_rtt_us);
+            }
         }
-        (self.sample_total_nanos / self.samples.len() as u128 / 1000) as u64
+    }
+
+    /// Window growth of `OnAck` for an ACKed datagram, only while
+    /// continuously sending (lens RL_006:2463-2484).
+    pub(crate) fn on_ack(&mut self, datagram: Sequence24, next_datagram: Sequence24) {
+        if !self.is_continuous_send {
+            return;
+        }
+        if datagram > self.next_congestion_block {
+            self.backoff_this_block = false;
+            self.next_congestion_block = next_datagram;
+        }
+        let square = self.mtu * self.mtu;
+        if self.in_slow_start() {
+            self.cwnd += self.mtu;
+            if self.ss_thresh != 0.0 && self.cwnd > self.ss_thresh {
+                self.cwnd = self.ss_thresh + square / self.cwnd;
+            }
+        } else {
+            self.cwnd += square / self.cwnd;
+        }
+    }
+
+    /// `OnNAK` with Mojang's block latch (lens RL_006:274-281).
+    pub(crate) fn on_nak(&mut self, next_datagram: Sequence24) {
+        if self.is_continuous_send && !self.backoff_this_block {
+            self.ss_thresh = self.cwnd * 0.5;
+            self.next_congestion_block = next_datagram;
+            self.backoff_this_block = true;
+        }
+    }
+
+    /// `OnResend`, once per resent message (lens RL_010:841-856).
+    pub(crate) fn on_resend(&mut self, next_datagram: Sequence24) {
+        if self.is_continuous_send && !self.backoff_this_block && self.cwnd > self.mtu * 2.0 {
+            self.ss_thresh = (self.cwnd * 0.5).max(self.mtu);
+            self.cwnd = self.mtu;
+            self.next_congestion_block = next_datagram;
+            self.backoff_this_block = true;
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn window(&self) -> (f64, f64) {
+        (self.cwnd, self.ss_thresh)
     }
 }
 
@@ -118,70 +235,78 @@ mod tests {
     use super::*;
 
     #[test]
-    fn rtt_is_the_integer_mean_of_samples_within_five_seconds() {
-        let start = Instant::now();
-        let mut state = VanillaState::default();
-        assert_eq!(state.rtt(start), DEFAULT_RTT);
-        state.record(start, start - Duration::from_nanos(10), 1);
-        state.record(start, start - Duration::from_nanos(15), 2);
-        // (10 + 30) / 2
-        assert_eq!(state.rtt(start), Duration::from_nanos(20));
-        let later = start + Duration::from_millis(1);
-        state.record(later, later - Duration::from_nanos(1), 1);
-        // Exactly five seconds old samples are kept (go prunes `> 5s`).
-        assert_eq!(state.rtt(start + RTT_WINDOW), Duration::from_nanos(13));
-        assert_eq!(
-            state.rtt(start + RTT_WINDOW + Duration::from_nanos(1)),
-            Duration::from_nanos(1)
-        );
-        assert_eq!(
-            state.rtt(later + RTT_WINDOW + Duration::from_nanos(1)),
-            DEFAULT_RTT
-        );
+    fn rto_is_two_rtt_plus_four_deviation_plus_30ms_capped_at_two_seconds() {
+        let mut cc = MojangCongestion::new(1400);
+        assert_eq!(cc.rto(), Duration::from_secs(2), "unset RTT");
+        assert!(!cc.rtt_known());
+        cc.on_rtt(Duration::from_millis(40));
+        // First sample: estimate = deviation = 40 ms.
+        assert_eq!(cc.rto(), Duration::from_millis(2 * 40 + 4 * 40 + 30));
+        cc.on_rtt(Duration::from_millis(60));
+        // estimate 41 ms, deviation 40 + 0.05·(20 - 40) = 39 ms.
+        assert_eq!(cc.rto(), Duration::from_micros(82_000 + 156_000 + 30_000));
+        cc.on_rtt(Duration::from_secs(30));
+        assert_eq!(cc.rto(), Duration::from_secs(2), "capped");
     }
 
-    /// CC-3: the mean comes from a running total (O(1) per publish), and
-    /// pruning keeps that total equal to the sum of the samples in the window.
     #[test]
-    fn rtt_running_total_matches_the_samples_across_record_and_prune() {
-        let start = Instant::now();
-        let mut state = VanillaState::default();
-        let naive = |state: &VanillaState| -> u128 {
-            state
-                .samples
-                .iter()
-                .map(|(_, sample)| sample.as_nanos())
-                .sum()
-        };
-        for i in 0..10_000u32 {
-            let at = start + Duration::from_micros(u64::from(i));
-            state.record(at, at - Duration::from_nanos(u64::from(i % 997)), 1 + i % 2);
+    fn slow_start_grows_one_mtu_per_ack_only_while_continuously_sending() {
+        let mut cc = MojangCongestion::new(1400);
+        assert_eq!(cc.window(), (1372.0, 0.0));
+        cc.on_ack(Sequence24::new(1), Sequence24::new(2));
+        assert_eq!(cc.window().0, 1372.0, "application-limited: no growth");
+        cc.is_continuous_send = true;
+        cc.on_ack(Sequence24::new(1), Sequence24::new(2));
+        cc.on_ack(Sequence24::new(2), Sequence24::new(3));
+        assert_eq!(cc.window().0, 3.0 * 1372.0);
+        assert!(cc.in_slow_start());
+    }
+
+    #[test]
+    fn congestion_avoidance_grows_on_every_ack_not_once_per_block() {
+        let mut cc = MojangCongestion::new(1400);
+        cc.is_continuous_send = true;
+        for seq in 0..8 {
+            cc.on_ack(Sequence24::new(seq + 1), Sequence24::new(seq + 2));
         }
-        assert_eq!(state.sample_total_nanos, naive(&state));
-        let mean = naive(&state) / 10_000;
-        assert_eq!(state.sampled_rtt_micros(), (mean / 1000) as u64);
-        let last = start + Duration::from_micros(9_999);
-        assert_eq!(state.rtt(last), Duration::from_nanos(mean as u64));
-
-        // Prune the first half: samples recorded at 0..5000 µs.
-        let pruned_at = start + RTT_WINDOW + Duration::from_nanos(4_999_001);
-        let rtt = state.rtt(pruned_at);
-        assert_eq!(state.samples.len(), 5_000);
-        assert_eq!(state.sample_total_nanos, naive(&state));
-        assert_eq!(rtt, Duration::from_nanos((naive(&state) / 5_000) as u64));
-        assert_eq!(
-            state.rtt(last + RTT_WINDOW + Duration::from_nanos(1)),
-            DEFAULT_RTT
-        );
-        assert_eq!(state.sample_total_nanos, 0);
-        assert_eq!(state.sampled_rtt_micros(), u64::MAX);
+        // A NAK halves the threshold: 9·1372 / 2.
+        cc.on_nak(Sequence24::new(10));
+        let (cwnd, ss) = cc.window();
+        assert_eq!((cwnd, ss), (9.0 * 1372.0, 9.0 * 1372.0 / 2.0));
+        assert!(!cc.in_slow_start());
+        // Jenkins grows once per block; Mojang on each of these ACKs, all
+        // inside the block that ends at datagram 10.
+        cc.on_ack(Sequence24::new(3), Sequence24::new(11));
+        cc.on_ack(Sequence24::new(4), Sequence24::new(11));
+        let square = 1372.0 * 1372.0;
+        let once = cwnd + square / cwnd;
+        assert_eq!(cc.window().0, once + square / once);
     }
 
     #[test]
-    fn nak_delay_is_one_and_a_half_stored_rtt() {
-        let mut state = VanillaState::default();
-        assert_eq!(state.nak_delay(), Duration::ZERO);
-        state.store_rtt(Duration::from_nanos(101));
-        assert_eq!(state.nak_delay(), Duration::from_nanos(151));
+    fn nak_latches_the_block_and_suppresses_resend_collapse() {
+        let mut cc = MojangCongestion::new(1400);
+        cc.is_continuous_send = true;
+        for seq in 0..4 {
+            cc.on_ack(Sequence24::new(seq + 1), Sequence24::new(seq + 2));
+        }
+        let cwnd = cc.window().0;
+        cc.on_nak(Sequence24::new(20));
+        cc.on_nak(Sequence24::new(21));
+        assert_eq!(cc.window(), (cwnd, cwnd / 2.0), "one halving per block");
+        cc.on_resend(Sequence24::new(22));
+        assert_eq!(cc.window().0, cwnd, "resend collapse latched out");
+        // An ACK beyond the block reopens backoff: a resend collapses.
+        cc.on_ack(Sequence24::new(21), Sequence24::new(23));
+        cc.on_resend(Sequence24::new(23));
+        assert_eq!(cc.window().0, 1372.0);
+    }
+
+    #[test]
+    fn fragment_and_datagram_budgets_follow_mojang_header_reserves() {
+        assert_eq!(vanilla_max_fragment_len(1400), 1340);
+        assert_eq!(vanilla_max_fragment_len(1200), 1140);
+        assert_eq!(vanilla_max_fragment_len(576), 516);
+        assert_eq!(vanilla_datagram_capacity(1400), 1363);
     }
 }

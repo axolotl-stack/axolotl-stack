@@ -46,15 +46,16 @@ pub struct RaknetListenerConfig {
     /// Optional socket send buffer size.
     pub socket_send_buffer_size: Option<usize>,
 
-    /// Timeout duration for inactive sessions.
+    /// Timeout duration for inactive sessions (Optimized; Vanilla uses
+    /// Mojang's fixed 10 s `timeoutTime`).
     pub session_timeout: Duration,
 
-    /// Duration before a session is considered stale.
+    /// Duration before a session is considered stale (Optimized only).
     pub session_stale: Duration,
 
     /// Maximum bytes of reliable data to queue for a single session before
     /// disconnecting (`QueueTooLong`). `Optimized` counts data not yet sent;
-    /// `Vanilla`, which has no congestion window, counts data until its ACK.
+    /// `Vanilla` counts reliable data until its ACK.
     pub max_queued_reliable_bytes: usize,
 
     /// Initial advertisement string.
@@ -91,8 +92,8 @@ pub struct RaknetListenerConfig {
 
     /// Transmission policy of accepted sessions. Defaults to
     /// [`TransmissionPolicy::Optimized`](crate::session::TransmissionPolicy).
-    /// Vanilla sessions must be ticked every 100 ms; the listener's
-    /// maintenance interval already is. A Vanilla listener also answers the
+    /// A Vanilla listener runs every session's Mojang update cycle on a
+    /// 10 ms maintenance interval and answers the
     /// offline handshake as Bedrock Dedicated Server (Mojang RakNet): no
     /// Request1 cookie, Reply2 echoes the requested MTU, GUID/address
     /// conflicts get `AlreadyConnected` and a same-IP reconnect within 50 ms
@@ -412,7 +413,7 @@ async fn run_listener_muxer(
     let mut send_buf = BytesMut::with_capacity(config.max_mtu as usize + UDP_HEADER_SIZE + 64);
     let mut sessions: HashMap<SocketAddr, SessionState> = HashMap::new();
     let mut pending: HashMap<SocketAddr, PendingConnection> = HashMap::new();
-    let mut tick = new_tick_interval();
+    let mut tick = new_tick_interval(config.transmission_policy);
     let mut ack_schedule = AckSchedule::default();
     let ack_timer = tokio::time::sleep(Duration::ZERO);
     tokio::pin!(ack_timer);

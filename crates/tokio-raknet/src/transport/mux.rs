@@ -5,14 +5,23 @@ use tokio::net::UdpSocket;
 use tokio::time::{self, Interval, MissedTickBehavior};
 
 use crate::protocol::packet::RaknetPacket;
+use crate::session::TransmissionPolicy;
 use crate::session::manager::ManagedSession;
+use crate::session::policy::VANILLA_TICK_INTERVAL;
 use crate::transport::ReceivedMessage;
 
-/// go-raknet conn.go:Conn.startTicking flushes maintenance every 100 ms.
+/// Optimized listener maintenance period.
 const TICK_INTERVAL_MS: u64 = 100;
 
-pub fn new_tick_interval() -> Interval {
-    let mut tick = time::interval(Duration::from_millis(TICK_INTERVAL_MS));
+/// Listener maintenance interval: 100 ms for Optimized; Vanilla runs every
+/// session's Mojang update cycle every 10 ms (`VANILLA_TICK_INTERVAL`).
+pub fn new_tick_interval(policy: TransmissionPolicy) -> Interval {
+    let period = if policy.is_vanilla() {
+        VANILLA_TICK_INTERVAL
+    } else {
+        Duration::from_millis(TICK_INTERVAL_MS)
+    };
+    let mut tick = time::interval(period);
     tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
     tick
 }

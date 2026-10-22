@@ -39,10 +39,8 @@ pub(super) async fn dispatch_datagram(
 
     if let Some(state) = sessions.get_mut(&peer) {
         if state.managed.transmission_policy().is_vanilla() {
-            // listener.go:handle hands every datagram from a connected address
-            // to conn.receive, which refreshes activity before parsing it
-            // (offline IDs included).
-            state.managed.record_activity(Instant::now());
+            // Mojang `timeLastDatagramArrived` (connected datagrams only).
+            state.managed.record_datagram_activity(bytes, Instant::now());
         }
         if !handle_incoming_udp(
             socket,
@@ -116,6 +114,8 @@ pub(super) async fn handle_outgoing_msg(
     let Some(state) = sessions.get_mut(&msg.peer) else {
         return;
     };
+    let vanilla = state.managed.transmission_policy().is_vanilla();
+    let immediate = msg.priority == crate::protocol::state::RakPriority::Immediate;
 
     if let Err(error) =
         state
@@ -127,7 +127,12 @@ pub(super) async fn handle_outgoing_msg(
     }
 
     tracing::trace!("outbound queued");
-    flush_managed(&mut state.managed, socket, msg.peer, now, false, send_buf).await;
+    // Vanilla: only IMMEDIATE sends wake Mojang's update loop; other
+    // priorities leave on the next 10 ms listener tick.
+    if vanilla && !immediate {
+        return;
+    }
+    flush_managed(&mut state.managed, socket, msg.peer, now, vanilla, send_buf).await;
     state.publish_rtt();
 }
 
@@ -215,7 +220,9 @@ async fn handle_incoming_udp(
     };
 
     maybe_announce_connection(peer, state, new_conn_tx).await;
-    flush_managed(&mut state.managed, socket, peer, now, false, send_buf).await;
+    // Vanilla: a received datagram wakes Mojang's update cycle.
+    let run_tick = state.managed.transmission_policy().is_vanilla();
+    flush_managed(&mut state.managed, socket, peer, now, run_tick, send_buf).await;
     state.publish_rtt();
 
     if closed_after || matches!(state.managed.state(), ConnectionState::Closed) {
@@ -296,7 +303,7 @@ fn deliver_packets_to_app(pkts: Vec<crate::session::IncomingPacket>, state: &mut
                 }
                 Err(mpsc::error::TrySendError::Closed(_)) => {
                     // The application dropped its stream: a graceful close
-                    // (Vanilla drains first, like go-raknet's Conn.Close).
+                    // (Vanilla: Mojang `CloseConnection`, notification first).
                     let _ = state
                         .managed
                         .close(DisconnectReason::Disconnected, Instant::now());
@@ -318,16 +325,15 @@ mod tests {
     use crate::session::manager::{SessionConfig, SessionRole};
     use crate::session::{SessionTunables, TransmissionPolicy};
 
-    /// KA-2: go-raknet `listener.go:handle` passes every datagram from a
-    /// connected address to `conn.receive`, which refreshes activity first,
-    /// so offline IDs from the peer keep a Vanilla session alive.
+    /// KA-2: an offline datagram from a connected peer is answered as
+    /// offline traffic and does not refresh the Vanilla session's
+    /// `timeLastDatagramArrived` (it never reaches the reliability layer).
     #[tokio::test]
-    async fn vanilla_offline_packets_from_a_session_peer_refresh_activity() {
+    async fn vanilla_offline_packets_from_a_session_peer_do_not_refresh_activity() {
         let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
         let client = UdpSocket::bind("127.0.0.1:0").await.unwrap();
         let peer = client.local_addr().unwrap();
         let config = RaknetListenerConfig::default();
-        // Created (and last active) well past the 5 s inactivity timeout.
         let created = Instant::now().checked_sub(Duration::from_secs(10)).unwrap();
         let managed = ManagedSession::with_config(
             peer,
@@ -386,11 +392,6 @@ mod tests {
         .await;
 
         let state = sessions.get_mut(&peer).expect("session kept");
-        let now = Instant::now();
-        for n in 1..=5u32 {
-            state.managed.on_tick(now + Duration::from_millis(100) * n);
-        }
-        // The fifth tick checks inactivity: half a second, not ten.
-        assert_eq!(state.managed.state(), ConnectionState::Unconnected);
+        assert_eq!(state.managed.last_activity(), created);
     }
 }
