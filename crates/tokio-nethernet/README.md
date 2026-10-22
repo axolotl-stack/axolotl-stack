@@ -34,6 +34,10 @@ Upstream advertises 262144-byte SCTP messages with 262143-byte segment payloads.
 
 webrtc-rs requires its exact generated local offer/answer when applying `set_local_description`. The original is installed internally; the wire copy receives the size attribute and signed identity. Fingerprints and transport credentials are unchanged.
 
+webrtc-rs 0.12 offers SRTP_AEAD_AES_256_GCM by default, but webrtc-srtp 0.14 keys every AEAD profile with AES-128 and panics on that profile's 32-byte master key (`key_derivation.rs:aes_cm_key_derivation`). Pion v4, used by df-mc/go-nethernet, prefers AES-256-GCM (`constants.go:defaultSrtpProtectionProfiles`), so the panic fired in every pairing with it and the dial timed out. Both dialer and listener therefore always restrict DTLS `use_srtp` to AES-128-GCM and AES-128-CM-HMAC-SHA1-80/32, overriding any profiles in a supplied `SettingEngine`. NetherNet carries no media, so the profile only has to be keyable.
+
+Message sends complete once SCTP has accepted every segment, as `conn.go:Conn.Send` returns after pion queues them; they do not wait for acknowledgement. Waiting for each SACK previously serialized small messages behind webrtc-sctp's 200 ms delayed-ACK timer. Senders pause while more than 1 MiB is unacknowledged on a channel and resume at 256 KiB.
+
 ## Identities and authentication
 
 Current upstream signaling paths reject identityless peers by default. Set `NetherNetDialerConfig.identity` / `NetherNetListenerConfig.identity` to an `Arc<identity::Identity>` containing a P-384 signing key, matching multiplayer JWT, and authorization domain. When no server identity is supplied, a listener generates one P-384 key and issues a fresh self-signed `"self"` token per negotiation. Server tokens are self-signature-verified by default, with an optional server-token policy override.
@@ -55,7 +59,8 @@ Use `NetherNetDialer::connect_with_signaling` and `NetherNetListener::bind_with_
 `NetherNetDialerConfig.setting_engine` and
 `NetherNetListenerConfig.setting_engine` optionally accept a webrtc-rs
 `SettingEngine` for explicit local interface/ICE policy. `None` preserves the
-existing defaults. For strict local tests, enable loopback candidates and use an
+existing defaults apart from the SRTP profile restriction described above.
+For strict local tests, enable loopback candidates and use an
 IP filter accepting only IPv4 loopback addresses on both peers; this confines
 the actual ICE/DTLS/SCTP sockets, not merely the signaling endpoint. Loopback
 candidates are a deliberate testing policy, not a production default.
@@ -65,8 +70,9 @@ candidates are a deliberate testing policy, not a production default.
 - Full UDP-sized discovery receives; truncated, unauthenticated, malformed, wrong-recipient and non-signal packets are rejected without panics.
 - Discovery admits at most 1024 peers/responses, expires both maps together, and never waits on a full signal queue in the socket receive loop. `responses()` contains decoded application bytes, not ASCII hex.
 - `ServerData` is v7; new protocol/version/auth/nonce fields have defaults. `transport_layer` remains application metadata and is not a v7 wire field.
-- Fragment counters and sizes are validated before queueing and while reassembling. Local reassembly byte/time limits supplement the upstream countdown invariant. Timeout is checked on subsequent input; no timer task is allocated per fragmented message.
-- Incoming and outgoing stream handoffs are bounded. Reliable callbacks backpressure rather than dropping fragments. `flush`/graceful `close` wait for accepted writes; transport failures are returned to the sender. Error/drop cleanup cancels pending work and closes transports.
+- Fragment counters and sizes are validated before queueing and while reassembling (`framing::{encode_segments, Reassembler}`, public so framing can be measured without a transport). A first countdown of 255 (256 segments) is rejected because no conforming sender produces it. Local reassembly byte/time limits supplement the upstream countdown invariant. Timeout is checked on subsequent input; no timer task is allocated per fragmented message.
+- Incoming and outgoing stream handoffs are bounded. Reliable callbacks backpressure rather than dropping fragments. `flush` waits until SCTP accepted the write; graceful `close` additionally waits until both channels' queued bytes are acknowledged. Transport failures are returned to the sender. Error/drop cleanup cancels pending work and closes transports.
+- A panic unwinding out of webrtc-rs or an integration hook (signaling, token verification) while a dial, listener negotiation or stream send is being driven becomes `NetherNetError::DependencyPanic` for that session; the listener replies `CONNECTERROR` 35 and keeps serving other peers. Panics inside webrtc-rs's own detached tasks cannot be caught here and surface as the negotiation deadline.
 - Pending signal delivery, listener connection ownership, endpoint HTTP bodies/subscriptions/negotiations, WebSocket frames/queues, and anomaly-monitor state are bounded. Inline and trickled ICE candidates share a 128-candidate per-peer budget. Congested negotiation subscriptions are failed rather than blocking all peers. Cancellation suppresses pending terminal replies, and cleanup checks connection-instance ownership before removing a reused tuple.
 
 The resource budgets are local hardening policy, not newly invented protocol constants.
@@ -91,7 +97,7 @@ cargo check -p jolyne --all-targets --features nethernet,discovery,xbox-signalin
 cargo check -p axelerator --all-targets
 ```
 
-Tests include upstream wire fixtures, authenticated malformed/truncated discovery input, configuration deadlines/ICE validation, callback backpressure, fragment boundaries, signed-identity tampering, HTTP signaling cancellation/credentials, retained WebSocket framing/closure, and two real loopback WebRTC peers exchanging fragmented reliable and unreliable messages.
+Tests include upstream wire fixtures, authenticated malformed/truncated discovery input, configuration deadlines/ICE validation, callback backpressure, fragment boundaries, signed-identity tampering, HTTP signaling cancellation/credentials, retained WebSocket framing/closure, two real loopback WebRTC peers exchanging fragmented reliable and unreliable messages, a dial against a peer with pion's AES-256-GCM-first SRTP preference, sequential small sends that must not wait for delayed SACKs, and a contained listener negotiation panic.
 
 ## License
 

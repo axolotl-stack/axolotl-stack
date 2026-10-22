@@ -10,7 +10,7 @@
 //!
 //! [`NetherNetStream`]: crate::NetherNetStream
 
-use bytes::{Bytes, BytesMut};
+use bytes::{Buf, Bytes, BytesMut};
 use std::time::{Duration, Instant};
 
 use crate::error::NetherNetError;
@@ -121,7 +121,11 @@ impl Reassembler {
 
     /// Feed one data-channel message. Returns the complete body once the final
     /// segment arrives (unreliable segments complete immediately).
-    pub fn push(&mut self, segment: Bytes, reliable: bool) -> Result<Option<Bytes>, NetherNetError> {
+    pub fn push(
+        &mut self,
+        segment: Bytes,
+        reliable: bool,
+    ) -> Result<Option<Bytes>, NetherNetError> {
         let result = self.push_inner(segment, reliable);
         if result.is_err() {
             self.partial = None;
@@ -135,17 +139,21 @@ impl Reassembler {
     }
 
     #[inline]
-    fn push_inner(&mut self, segment: Bytes, reliable: bool) -> Result<Option<Bytes>, NetherNetError> {
-        let [remaining, body @ ..] = segment.as_ref() else {
+    fn push_inner(
+        &mut self,
+        mut segment: Bytes,
+        reliable: bool,
+    ) -> Result<Option<Bytes>, NetherNetError> {
+        let Some(&remaining) = segment.first() else {
             return Err(NetherNetError::InvalidPacket);
         };
-        let remaining = *remaining;
-        if body.is_empty() {
+        let body_len = segment.len() - 1;
+        if body_len == 0 {
             return Err(NetherNetError::InvalidPacket);
         }
-        if body.len() > self.max_segment_payload {
+        if body_len > self.max_segment_payload {
             return Err(NetherNetError::MessageTooLarge {
-                size: body.len(),
+                size: body_len,
                 limit: self.max_segment_payload,
             });
         }
@@ -156,7 +164,9 @@ impl Reassembler {
                     actual: remaining,
                 });
             }
-            return Ok(Some(segment.slice(1..)));
+            // Owned advance: no extra reference-count traffic for a view.
+            segment.advance(1);
+            return Ok(Some(segment));
         }
         if let Some(partial) = self.partial.as_mut() {
             let expected = partial.remaining - 1;
@@ -166,16 +176,16 @@ impl Reassembler {
                     actual: remaining,
                 });
             }
-            if body.len() > self.max_message_size - partial.data.len() {
+            if body_len > self.max_message_size - partial.data.len() {
                 return Err(NetherNetError::MessageTooLarge {
-                    size: partial.data.len() + body.len(),
+                    size: partial.data.len() + body_len,
                     limit: self.max_message_size,
                 });
             }
             if partial.started_at.elapsed() > self.timeout {
                 return Err(NetherNetError::ReassemblyTimeout);
             }
-            partial.data.extend_from_slice(body);
+            partial.data.extend_from_slice(&segment[1..]);
             if remaining != 0 {
                 partial.remaining = remaining;
                 return Ok(None);
@@ -183,14 +193,15 @@ impl Reassembler {
             let complete = self.partial.take().map(|partial| partial.data.freeze());
             return Ok(complete);
         }
-        if body.len() > self.max_message_size {
+        if body_len > self.max_message_size {
             return Err(NetherNetError::MessageTooLarge {
-                size: body.len(),
+                size: body_len,
                 limit: self.max_message_size,
             });
         }
         if remaining == 0 {
-            return Ok(Some(segment.slice(1..)));
+            segment.advance(1);
+            return Ok(Some(segment));
         }
         if usize::from(remaining) >= MAX_SEGMENTS {
             return Err(NetherNetError::TooManySegments {
@@ -200,10 +211,10 @@ impl Reassembler {
         // Senders fill every segment but the last, so this reserves the whole
         // message once instead of regrowing per segment; bounded by the limit.
         let capacity = (usize::from(remaining) + 1)
-            .saturating_mul(body.len())
+            .saturating_mul(body_len)
             .min(self.max_message_size);
         let mut data = BytesMut::with_capacity(capacity);
-        data.extend_from_slice(body);
+        data.extend_from_slice(&segment[1..]);
         self.partial = Some(Partial {
             remaining,
             data,
@@ -259,7 +270,12 @@ mod tests {
     #[test]
     fn receives_both_channel_headers_and_strict_countdown() {
         let mut state = reassembler(100, Duration::from_secs(1));
-        assert!(state.push(Bytes::from_static(&[2, 1]), true).unwrap().is_none());
+        assert!(
+            state
+                .push(Bytes::from_static(&[2, 1]), true)
+                .unwrap()
+                .is_none()
+        );
         assert!(matches!(
             state.push(Bytes::from_static(&[2, 2]), true),
             Err(NetherNetError::InvalidSegmentCount {
@@ -269,14 +285,30 @@ mod tests {
         ));
         // The rejected partial is discarded: a fresh single segment completes.
         assert_eq!(
-            state.push(Bytes::from_static(&[0, 3]), true).unwrap().unwrap().as_ref(),
+            state
+                .push(Bytes::from_static(&[0, 3]), true)
+                .unwrap()
+                .unwrap()
+                .as_ref(),
             &[3]
         );
-        assert!(state.push(Bytes::from_static(&[1, 1]), true).unwrap().is_none());
-        let unreliable = state.push(Bytes::from_static(&[0, 9]), false).unwrap().unwrap();
+        assert!(
+            state
+                .push(Bytes::from_static(&[1, 1]), true)
+                .unwrap()
+                .is_none()
+        );
+        let unreliable = state
+            .push(Bytes::from_static(&[0, 9]), false)
+            .unwrap()
+            .unwrap();
         assert_eq!(unreliable.as_ref(), &[9]);
         assert_eq!(
-            state.push(Bytes::from_static(&[0, 2]), true).unwrap().unwrap().as_ref(),
+            state
+                .push(Bytes::from_static(&[0, 2]), true)
+                .unwrap()
+                .unwrap()
+                .as_ref(),
             &[1, 2]
         );
         assert!(state.push(Bytes::from_static(&[1, 9]), false).is_err());
@@ -286,10 +318,19 @@ mod tests {
     fn receives_exactly_255_segments_and_rejects_256() {
         let mut state = Reassembler::new(1, 255, Duration::from_secs(1));
         for remaining in (1..255u8).rev() {
-            assert!(state.push(Bytes::from(vec![remaining, 7]), true).unwrap().is_none());
+            assert!(
+                state
+                    .push(Bytes::from(vec![remaining, 7]), true)
+                    .unwrap()
+                    .is_none()
+            );
         }
         assert_eq!(
-            state.push(Bytes::from_static(&[0, 7]), true).unwrap().unwrap().len(),
+            state
+                .push(Bytes::from_static(&[0, 7]), true)
+                .unwrap()
+                .unwrap()
+                .len(),
             255
         );
         assert!(matches!(
@@ -309,14 +350,24 @@ mod tests {
                 .push(Bytes::from_static(&[0, 1, 2]), false)
                 .is_err()
         );
-        assert!(state.push(Bytes::from_static(&[1, 1]), true).unwrap().is_none());
+        assert!(
+            state
+                .push(Bytes::from_static(&[1, 1]), true)
+                .unwrap()
+                .is_none()
+        );
         state.partial.as_mut().unwrap().started_at = Instant::now() - Duration::from_secs(1);
         assert!(matches!(
             state.push(Bytes::from_static(&[0, 2]), true),
             Err(NetherNetError::MessageTooLarge { .. })
         ));
         let mut state = Reassembler::new(10, 10, Duration::ZERO);
-        assert!(state.push(Bytes::from_static(&[1, 1]), true).unwrap().is_none());
+        assert!(
+            state
+                .push(Bytes::from_static(&[1, 1]), true)
+                .unwrap()
+                .is_none()
+        );
         state.partial.as_mut().unwrap().started_at = Instant::now() - Duration::from_secs(1);
         assert!(matches!(
             state.push(Bytes::from_static(&[0, 2]), true),

@@ -115,15 +115,10 @@ pub fn micro(iterations: usize) -> Result<()> {
         },
     )?;
     framing_micro(iterations)?;
-    for (name, reason) in [(
-        "nethernet_discovery",
-        "discovery::packet is private; encrypted/HMAC encode/decode functions are not publicly re-exported",
-    )] {
-        eprintln!(
-            "{}",
-            serde_json::json!({"area":"coverage", "status":"unavailable", "name":name, "implementation":IMPLEMENTATION, "reason":reason})
-        );
-    }
+    eprintln!(
+        "{}",
+        serde_json::json!({"area":"coverage", "status":"unavailable", "name":"nethernet_discovery", "implementation":IMPLEMENTATION, "reason":"discovery::packet is private; encrypted/HMAC encode/decode functions are not publicly re-exported"})
+    );
     Ok(())
 }
 
