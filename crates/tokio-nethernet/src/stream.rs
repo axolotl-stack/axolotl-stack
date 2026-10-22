@@ -13,7 +13,7 @@ use tokio_util::sync::PollSender;
 use webrtc::data_channel::RTCDataChannel;
 use webrtc::ice_transport::ice_server::RTCIceServer;
 
-use crate::error::NetherNetError;
+use crate::error::{NetherNetError, catch_dependency_panic};
 use crate::signaling::SignalingChannel;
 
 /// Payload ceiling from upstream `conn.go:maxMessageSize` and `description.encode`:
@@ -245,26 +245,51 @@ pub struct NetherNetStream {
     channels: [Arc<RTCDataChannel>; 2],
     peer: Option<Arc<webrtc::peer_connection::RTCPeerConnection>>,
     remote_identity: Option<crate::identity::VerifiedIdentity>,
+    /// Graceful close has queued its acknowledged-delivery drain.
+    drain_requested: bool,
+}
+
+/// Pause handing messages to SCTP while more than this many bytes on a channel
+/// await acknowledgement; resume once at most `BUFFERED_AMOUNT_LOW` remain.
+///
+/// Local memory bound, not a wire constant. go-nethernet `conn.go:Conn.Send`
+/// returns once pion `DataChannel.Send` has queued each segment and applies no
+/// limit. Awaiting a full drain per message instead serialized every send behind
+/// the peer's delayed SACK (webrtc-sctp `timer/ack_timer.rs:ACK_INTERVAL`, 200 ms;
+/// a lone DATA chunk is never acknowledged sooner), which is what made small
+/// echoes take 200-1000 ms.
+const BUFFERED_AMOUNT_HIGH: usize = 1024 * 1024;
+const BUFFERED_AMOUNT_LOW: usize = 256 * 1024;
+
+enum OutboundCommand {
+    /// Queue the message's frames on its channel's SCTP stream.
+    Send(Message),
+    /// Wait until every byte queued on both channels is acknowledged.
+    Drain,
 }
 
 struct OutboundMessage {
-    message: Message,
+    command: OutboundCommand,
     completion: oneshot::Sender<Result<(), NetherNetError>>,
 }
 
-/// Await actual SCTP drain, not merely the application's bounded send queue.
+/// Wait until at most `target` bytes remain unacknowledged on `channel`.
 /// The low-buffer callback is the normal wakeup. Periodic state checks ensure a
 /// remotely closed channel cannot strand a waiter (buffered_amount is not reset
 /// by webrtc-rs on close).
-async fn drain_channel(channel: &RTCDataChannel, drained: &Notify) -> Result<(), NetherNetError> {
+async fn drain_channel(
+    channel: &RTCDataChannel,
+    drained: &Notify,
+    target: usize,
+) -> Result<(), NetherNetError> {
     loop {
+        if channel.buffered_amount().await <= target {
+            return Ok(());
+        }
         if channel.ready_state()
             != webrtc::data_channel::data_channel_state::RTCDataChannelState::Open
         {
             return Err(NetherNetError::ConnectionClosed);
-        }
-        if channel.buffered_amount().await == 0 {
-            return Ok(());
         }
         tokio::select! {
             _ = drained.notified() => {},
@@ -273,6 +298,8 @@ async fn drain_channel(channel: &RTCDataChannel, drained: &Notify) -> Result<(),
     }
 }
 
+/// Completes once SCTP has accepted every frame, like go-nethernet
+/// `conn.go:Conn.Send`; it waits for acknowledgements only above the high mark.
 async fn send_message(
     channel: &RTCDataChannel,
     item: Message,
@@ -287,7 +314,23 @@ async fn send_message(
         frame.extend_from_slice(fragment);
         channel.send(&frame.freeze()).await?;
     }
-    drain_channel(channel, drained).await
+    if channel.buffered_amount().await > BUFFERED_AMOUNT_HIGH {
+        drain_channel(channel, drained, BUFFERED_AMOUNT_LOW).await?;
+    }
+    Ok(())
+}
+
+/// Graceful-close drain: every queued byte on both channels is acknowledged.
+async fn drain_all(
+    channels: [&RTCDataChannel; 2],
+    notifications: &[Arc<Notify>; 2],
+) -> Result<(), NetherNetError> {
+    for (channel, drained) in channels.into_iter().zip(notifications) {
+        // The low callback fires only when crossing the threshold; target zero.
+        channel.set_buffered_amount_low_threshold(0).await;
+        drain_channel(channel, drained, 0).await?;
+    }
+    Ok(())
 }
 
 struct ReassemblyBuffer {
@@ -407,7 +450,9 @@ impl NetherNetStream {
             for (channel, notification) in [(&r_dc, &notifications[0]), (&u_dc, &notifications[1])]
             {
                 let notification = notification.clone();
-                channel.set_buffered_amount_low_threshold(0).await;
+                channel
+                    .set_buffered_amount_low_threshold(BUFFERED_AMOUNT_LOW)
+                    .await;
                 channel
                     .on_buffered_amount_low(Box::new(move || {
                         let notification = notification.clone();
@@ -418,16 +463,26 @@ impl NetherNetStream {
                     .await;
             }
             while let Some(OutboundMessage {
-                message,
+                command,
                 completion,
             }) = outbound_rx.recv().await
             {
-                let (channel, drained) = if message.reliable {
-                    (&r_dc, &notifications[0])
-                } else {
-                    (&u_dc, &notifications[1])
-                };
-                let result = send_message(channel, message, max_len, drained).await;
+                let result = match command {
+                    OutboundCommand::Send(message) => {
+                        let (channel, drained) = if message.reliable {
+                            (&r_dc, &notifications[0])
+                        } else {
+                            (&u_dc, &notifications[1])
+                        };
+                        let send = send_message(channel, message, max_len, drained);
+                        catch_dependency_panic("stream send", send).await
+                    }
+                    OutboundCommand::Drain => {
+                        let drain = drain_all([&r_dc, &u_dc], &notifications);
+                        catch_dependency_panic("stream drain", drain).await
+                    }
+                }
+                .and_then(|result| result);
                 let failed = result.is_err();
                 let _ = completion.send(result);
                 if failed {
@@ -451,6 +506,7 @@ impl NetherNetStream {
             channels: [reliable_dc, unreliable_dc],
             peer: None,
             remote_identity: None,
+            drain_requested: false,
         }
     }
 
@@ -576,7 +632,7 @@ impl Sink<Message> for NetherNetStream {
     type Error = NetherNetError;
 
     fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        if self.terminal {
+        if self.terminal || self.drain_requested {
             return Poll::Ready(Err(NetherNetError::ConnectionClosed));
         }
         match self.poll_send_completion(cx) {
@@ -589,7 +645,7 @@ impl Sink<Message> for NetherNetStream {
     }
 
     fn start_send(mut self: Pin<&mut Self>, item: Message) -> Result<(), Self::Error> {
-        if self.terminal {
+        if self.terminal || self.drain_requested {
             return Err(NetherNetError::ConnectionClosed);
         }
         segment_count(item.buffer.len(), item.reliable, self.max_message_size)?;
@@ -601,7 +657,7 @@ impl Sink<Message> for NetherNetStream {
         let (completion, receiver) = oneshot::channel();
         self.outbound_tx
             .start_send_unpin(OutboundMessage {
-                message: item,
+                command: OutboundCommand::Send(item),
                 completion,
             })
             .map_err(|_| NetherNetError::ConnectionClosed)?;
@@ -616,16 +672,41 @@ impl Sink<Message> for NetherNetStream {
         self.poll_send_completion(cx)
     }
 
+    /// Waits for the last send, then until both channels' queued bytes are
+    /// acknowledged: closing resets the SCTP streams, which could otherwise
+    /// discard frames that `flush` reported as accepted.
     fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         if self.terminal {
             return Poll::Ready(Ok(()));
         }
-        match self.poll_send_completion(cx) {
-            Poll::Ready(Ok(())) => {
-                self.terminate();
-                Poll::Ready(Ok(()))
+        loop {
+            match self.poll_send_completion(cx) {
+                Poll::Ready(Ok(())) => {}
+                result => return result,
             }
-            result => result,
+            if self.drain_requested {
+                self.terminate();
+                return Poll::Ready(Ok(()));
+            }
+            match self.outbound_tx.poll_ready_unpin(cx) {
+                Poll::Pending => return Poll::Pending,
+                Poll::Ready(Ok(())) => {}
+                Poll::Ready(Err(_)) => {
+                    self.terminate();
+                    return Poll::Ready(Err(NetherNetError::ConnectionClosed));
+                }
+            }
+            let (completion, receiver) = oneshot::channel();
+            let drain = OutboundMessage {
+                command: OutboundCommand::Drain,
+                completion,
+            };
+            if self.outbound_tx.start_send_unpin(drain).is_err() {
+                self.terminate();
+                return Poll::Ready(Err(NetherNetError::ConnectionClosed));
+            }
+            self.pending_send = Some(receiver);
+            self.drain_requested = true;
         }
     }
 }
@@ -974,92 +1055,142 @@ mod loopback_tests {
         pc.close().await.unwrap();
     }
 
+    /// Two directly negotiated peers carrying NetherNet streams `a` (client,
+    /// sending with `outgoing`) and `b` (server, default configuration).
+    async fn connected_pair(
+        outgoing: NetherNetStreamConfig,
+    ) -> (
+        Arc<RTCPeerConnection>,
+        Arc<RTCPeerConnection>,
+        NetherNetStream,
+        NetherNetStream,
+    ) {
+        let client = peer().await;
+        let server = peer().await;
+        let (accepted_tx, mut accepted_rx) = mpsc::channel(2);
+        server.on_data_channel(Box::new(move |dc| {
+            let tx = accepted_tx.clone();
+            let opened = dc.clone();
+            dc.on_open(Box::new(move || {
+                let tx = tx.clone();
+                let dc = opened.clone();
+                Box::pin(async move {
+                    tx.send(dc).await.unwrap();
+                })
+            }));
+            Box::pin(async {})
+        }));
+        let reliable = client
+            .create_data_channel(
+                "ReliableDataChannel",
+                Some(RTCDataChannelInit {
+                    ordered: Some(true),
+                    ..Default::default()
+                }),
+            )
+            .await
+            .unwrap();
+        let unreliable = client
+            .create_data_channel(
+                "UnreliableDataChannel",
+                Some(RTCDataChannelInit {
+                    ordered: Some(false),
+                    max_retransmits: Some(0),
+                    ..Default::default()
+                }),
+            )
+            .await
+            .unwrap();
+        let (opened_tx, mut opened_rx) = mpsc::channel(2);
+        for dc in [&reliable, &unreliable] {
+            let tx = opened_tx.clone();
+            dc.on_open(Box::new(move || {
+                let tx = tx.clone();
+                Box::pin(async move {
+                    tx.send(()).await.unwrap();
+                })
+            }));
+        }
+
+        let offer = client.create_offer(None).await.unwrap();
+        let mut complete = client.gathering_complete_promise().await;
+        client.set_local_description(offer).await.unwrap();
+        complete.recv().await;
+        server
+            .set_remote_description(client.local_description().await.unwrap())
+            .await
+            .unwrap();
+        let answer = server.create_answer(None).await.unwrap();
+        let mut complete = server.gathering_complete_promise().await;
+        server.set_local_description(answer).await.unwrap();
+        complete.recv().await;
+        client
+            .set_remote_description(server.local_description().await.unwrap())
+            .await
+            .unwrap();
+        opened_rx.recv().await.unwrap();
+        opened_rx.recv().await.unwrap();
+        let first = accepted_rx.recv().await.unwrap();
+        let second = accepted_rx.recv().await.unwrap();
+        let (remote_r, remote_u) = if first.label() == "ReliableDataChannel" {
+            (first, second)
+        } else {
+            (second, first)
+        };
+        let mut a = test_stream(reliable, unreliable, outgoing);
+        let mut b = test_stream(remote_r, remote_u, NetherNetStreamConfig::default());
+        a.attach_peer(client.clone());
+        b.attach_peer(server.clone());
+        (client, server, a, b)
+    }
+
+    /// NETHERNET-04: webrtc-sctp acknowledges a lone DATA chunk only after its
+    /// 200 ms delayed-ACK timer. Send completion used to wait for that SACK, so
+    /// sequential small sends each took >= 200 ms. They must only await SCTP
+    /// acceptance; the peer application deliberately reads nothing until all
+    /// sends completed, so no reply can carry an early acknowledgement.
+    #[tokio::test]
+    async fn small_reliable_sends_do_not_wait_for_delayed_sack() {
+        const SENDS: usize = 20;
+        const DELAYED_ACK: Duration = Duration::from_millis(200);
+        tokio::time::timeout(Duration::from_secs(30), async {
+            let (client, server, mut a, mut b) =
+                connected_pair(NetherNetStreamConfig::default()).await;
+            let started = std::time::Instant::now();
+            for index in 0..SENDS {
+                a.send(Message::reliable(Bytes::from(vec![index as u8; 32])))
+                    .await
+                    .unwrap();
+            }
+            let elapsed = started.elapsed();
+            // Acknowledgement-bound sends need >= SENDS * DELAYED_ACK (4 s).
+            assert!(
+                elapsed < DELAYED_ACK,
+                "{SENDS} small sends took {elapsed:?}; send completion waits for SACKs"
+            );
+            for index in 0..SENDS {
+                let received = b.next().await.unwrap().unwrap();
+                assert!(received.reliable);
+                assert_eq!(received.buffer.as_ref(), [index as u8; 32]);
+            }
+            drop((a, b));
+            client.close().await.unwrap();
+            server.close().await.unwrap();
+        })
+        .await
+        .expect("loopback SCTP exchange timed out");
+    }
+
     #[tokio::test]
     async fn real_loopback_sctp_fragmentation_and_unreliable_header() {
         tokio::time::timeout(Duration::from_secs(30), async {
-            let client = peer().await;
-            let server = peer().await;
-            let (accepted_tx, mut accepted_rx) = mpsc::channel(2);
-            server.on_data_channel(Box::new(move |dc| {
-                let tx = accepted_tx.clone();
-                let opened = dc.clone();
-                dc.on_open(Box::new(move || {
-                    let tx = tx.clone();
-                    let dc = opened.clone();
-                    Box::pin(async move {
-                        tx.send(dc).await.unwrap();
-                    })
-                }));
-                Box::pin(async {})
-            }));
-            let reliable = client
-                .create_data_channel(
-                    "ReliableDataChannel",
-                    Some(RTCDataChannelInit {
-                        ordered: Some(true),
-                        ..Default::default()
-                    }),
-                )
-                .await
-                .unwrap();
-            let unreliable = client
-                .create_data_channel(
-                    "UnreliableDataChannel",
-                    Some(RTCDataChannelInit {
-                        ordered: Some(false),
-                        max_retransmits: Some(0),
-                        ..Default::default()
-                    }),
-                )
-                .await
-                .unwrap();
-            let (opened_tx, mut opened_rx) = mpsc::channel(2);
-            for dc in [&reliable, &unreliable] {
-                let tx = opened_tx.clone();
-                dc.on_open(Box::new(move || {
-                    let tx = tx.clone();
-                    Box::pin(async move {
-                        tx.send(()).await.unwrap();
-                    })
-                }));
-            }
-
-            let offer = client.create_offer(None).await.unwrap();
-            let mut complete = client.gathering_complete_promise().await;
-            client.set_local_description(offer).await.unwrap();
-            complete.recv().await;
-            server
-                .set_remote_description(client.local_description().await.unwrap())
-                .await
-                .unwrap();
-            let answer = server.create_answer(None).await.unwrap();
-            let mut complete = server.gathering_complete_promise().await;
-            server.set_local_description(answer).await.unwrap();
-            complete.recv().await;
-            client
-                .set_remote_description(server.local_description().await.unwrap())
-                .await
-                .unwrap();
-            opened_rx.recv().await.unwrap();
-            opened_rx.recv().await.unwrap();
-            let first = accepted_rx.recv().await.unwrap();
-            let second = accepted_rx.recv().await.unwrap();
-            let (remote_r, remote_u) = if first.label() == "ReliableDataChannel" {
-                (first, second)
-            } else {
-                (second, first)
-            };
             // Exercise fragmentation across the actual webrtc-rs 65535-byte
             // frame receive ceiling, not only small synthetic fragments.
-            let config = NetherNetStreamConfig::default();
             let outgoing_small = NetherNetStreamConfig {
                 max_message_size: 16383,
-                ..config.clone()
+                ..NetherNetStreamConfig::default()
             };
-            let mut a = test_stream(reliable, unreliable, outgoing_small);
-            let mut b = test_stream(remote_r, remote_u, config);
-            a.attach_peer(client.clone());
-            b.attach_peer(server.clone());
+            let (client, server, mut a, mut b) = connected_pair(outgoing_small).await;
             let payload = Bytes::from((0..140000).map(|n| n as u8).collect::<Vec<_>>());
             a.send(Message::reliable(payload.clone())).await.unwrap();
             let received = b.next().await.unwrap().unwrap();
