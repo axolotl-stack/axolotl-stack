@@ -18,7 +18,6 @@ jolyne.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "time", "net", "sync", "macros", "io-util"] }
 tokio-raknet.workspace = true
 tokio-nethernet.workspace = true
-webrtc.workspace = true
 valentine = { workspace = true, features = ["bedrock_1_26_51"] }
 
 [dev-dependencies]

@@ -13,7 +13,17 @@ xbox-signaling = ["dep:tokio-tungstenite", "dep:http", "dep:tungstenite", "dep:u
 
 [dependencies]
 tokio = { workspace = true, features = ["sync", "time", "rt", "net", "macros"] }
-webrtc.workspace = true
+rtc-crypto.workspace = true
+rtc-datachannel.workspace = true
+rtc-dtls.workspace = true
+rtc-ice.workspace = true
+rtc-sctp.workspace = true
+rtc-sdp.workspace = true
+rtc-shared.workspace = true
+rtc-stun.workspace = true
+rtc-turn.workspace = true
+sansio.workspace = true
+socket2 = "0.6"
 bytes.workspace = true
 futures.workspace = true
 async-trait.workspace = true
@@ -55,6 +65,8 @@ futures-util = { workspace = true, optional = true }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 tokio = { workspace = true, features = ["full", "test-util"] }
 criterion.workspace = true
+# Independent WebRTC stack used only as an interop peer in tests.
+webrtc.workspace = true
 
 [[example]]
 name = "client"

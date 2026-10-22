@@ -1,12 +1,13 @@
-//! NETHERNET-03 regression: a peer with pion v4's SRTP preference.
+//! NETHERNET-03 regression: an independent WebRTC peer with pion v4's SRTP
+//! preference.
 //!
 //! df-mc/go-nethernet uses pion, whose `constants.go:defaultSrtpProtectionProfiles`
-//! offers SRTP_AEAD_AES_256_GCM first. webrtc-rs 0.12 also advertised that
-//! profile but webrtc-srtp 0.14 keys it with AES-128 and panics inside
-//! webrtc-rs's operation task, so SCTP never started and dials timed out.
-//! The remote here is a raw webrtc-rs answerer offering pion's exact profile
-//! list as DTLS client; webrtc-dtls servers honour the client's order, so the
-//! unpatched dialer selected AES-256-GCM.
+//! offers SRTP_AEAD_AES_256_GCM first. With webrtc-rs 0.12 that profile was
+//! keyed with AES-128 inside webrtc-srtp 0.14 and panicked, so SCTP never
+//! started and dials timed out. The remote here is a raw webrtc-rs 0.12
+//! answerer (an independent stack) offering pion's exact profile list as DTLS
+//! client. Our DTLS server must answer with a profile both sides can key
+//! (AES-128-GCM): webrtc-rs 0.12 itself still panics on AES-256-GCM.
 
 use async_trait::async_trait;
 use futures::{SinkExt, StreamExt};
@@ -15,7 +16,7 @@ use std::time::Duration;
 use tokio::sync::{Mutex, mpsc};
 use tokio_nethernet::{
     Message, NetherNetDialer, NetherNetDialerConfig, Signal, Signaling, SignalingChannel,
-    signal_type,
+    TransportConfig, signal_type,
 };
 use webrtc::api::APIBuilder;
 use webrtc::api::setting_engine::SettingEngine;
@@ -131,7 +132,7 @@ async fn dialer_connects_to_peer_preferring_aes_256_gcm_srtp() {
             receiver: Mutex::new(Some(dialer_rx)),
         },
         NetherNetDialerConfig {
-            setting_engine: Some(loopback_settings()),
+            transport: TransportConfig::loopback_v4(),
             allow_identityless_server: true,
             connection_timeout: Duration::from_secs(10),
             ..Default::default()

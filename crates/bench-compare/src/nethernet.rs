@@ -26,12 +26,8 @@ const IMPLEMENTATION: &str = "rust-owned";
 pub const CANDIDATE: &str = "candidate:1 1 UDP 2130706431 127.0.0.1 50000 typ host generation 0 ufrag bench network-id 0 network-cost 0";
 const SDP: &str = "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\nm=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\na=setup:";
 
-fn loopback_settings() -> webrtc::api::setting_engine::SettingEngine {
-    let mut settings = webrtc::api::setting_engine::SettingEngine::default();
-    settings.set_include_loopback_candidate(true);
-    settings.set_ip_filter(Box::new(|ip| ip.is_loopback() && ip.is_ipv4()));
-    settings.set_network_types(vec![webrtc::ice::network_type::NetworkType::Udp4]);
-    settings
+fn loopback_settings() -> tokio_nethernet::TransportConfig {
+    tokio_nethernet::TransportConfig::loopback_v4()
 }
 pub fn signal_fixtures() -> [(&'static str, String); 4] {
     [
@@ -351,7 +347,7 @@ async fn echo(listener: TcpListener, count: usize) -> Result<()> {
             bridge.clone(),
             NetherNetListenerConfig {
                 allow_identityless_client: true,
-                setting_engine: Some(loopback_settings()),
+                transport: loopback_settings(),
                 ..Default::default()
             },
         );
@@ -453,7 +449,7 @@ pub async fn client(address: SocketAddr, count: usize) -> Result<()> {
             bridge.clone(),
             NetherNetDialerConfig {
                 allow_identityless_server: true,
-                setting_engine: Some(loopback_settings()),
+                transport: loopback_settings(),
                 ..Default::default()
             },
         );

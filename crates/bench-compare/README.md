@@ -98,15 +98,17 @@ fixtures use connection ID 42, a loopback SDP offer/answer, host ICE candidate
 String. Both include output destruction. Fixture construction and roundtrip
 checks precede timing; the existing separate allocation pass is unchanged.
 
-Framing micro rows for 32, 512, 4096, 65536 and 1048576 bytes, invalid countdowns
-and oversize rejection are **unavailable**: `segment_count`, `send_message` and
-`ReassemblyState` are private. The encrypted/HMAC LAN packet codec is also
-**unavailable**: its nominally public functions live in the private
-`discovery::packet` module and are not re-exported. These gaps emit machine-readable
-coverage records on stderr, not fabricated timings. No framing/crypto implementation
-is copied, and transport timings do not stand in for missing isolated micros.
-The sole production API addition (coordinator-approved) is optional WebRTC
-`setting_engine` injection on dialer/listener configs; existing defaults are unchanged.
+Framing micro rows use the public `tokio_nethernet::framing` API with the same
+16383-byte segment body as the Cinnabar adapter: `encode_segments` consumes every
+encoded segment for 32, 512, 4096, 65536 and 1048576-byte messages; `Reassembler`
+rows push cloned wire segments (including header validation) into a fresh
+reassembler; `invalid_count` is a first countdown of 255 (256 segments),
+`invalid_sequence` a countdown gap, and `oversize` a body needing 256 segments.
+The encrypted/HMAC LAN packet codec is **unavailable**: its nominally public
+functions live in the private `discovery::packet` module and are not re-exported.
+That gap emits a machine-readable coverage record on stderr, not a fabricated
+timing. No framing/crypto implementation is copied, and transport timings do not
+stand in for missing isolated micros.
 
 `nethernet-loopback --count 100` uses the real public
 `NetherNetListener`/`NetherNetDialer`/`NetherNetStream` over ICE, DTLS and SCTP.
@@ -122,9 +124,9 @@ the signal receive queue holds 128 records, and candidates are embedded in SDP
 are used. Local identityless operation is explicitly enabled; this intentionally
 does not measure signed-identity authentication. Same-implementation loopback
 uses this same TCP bridge rather than an in-memory signaling shortcut.
-Both peers explicitly enable loopback candidates, filter candidates to IPv4 loopback
-and restrict ICE network types to UDP4 through that setting engine. The actual data
-path is therefore on `127.0.0.1`, not merely the signaling TCP listener.
+Both peers use `TransportConfig::loopback_v4()`, which binds the ICE sockets
+only on IPv4 loopback addresses. The actual data path is therefore on
+`127.0.0.1`, not merely the signaling TCP listener.
 
 Four fresh connections carry 32, 512, 4096 and 65536-byte reliable messages.
 Counts are 100, 100, 10 and 10 by default; `--count` controls small messages and
@@ -143,13 +145,14 @@ receives that marker and returns the same marker. Only then do peers tear down
 RTC/signaling. This two-phase barrier is untimed: TCP EOF alone would cancel the
 server's live transport before its pending send completed.
 
-The stack is workspace `tokio-nethernet` 0.1.0, with resolved dependency versions
-in Cargo.lock (webrtc-rs 0.12). Stream defaults remain unchanged: maximum outbound
-segment payload 65534 bytes (webrtc-rs fixed receive-buffer limitation), one-slot
-inbound/outbound queues, maximum reassembly 262143 * 255 bytes and 30-second
-reassembly timeout. Thus 65536-byte messages really exercise segmentation.
-Other adapters may negotiate different segment limits/buffer sizes; these are
-public-stack comparisons, not artificially identical transport internals.
+The stack is workspace `tokio-nethernet` 0.1.0 on the sans-IO `rtc` 0.21 crates
+(resolved versions in Cargo.lock). Stream defaults: maximum outbound segment
+payload 262143 bytes (go-nethernet `conn.go:maxMessageSize`, further limited by
+the peer's `max-message-size - 1`), a 64-message inbound queue backed by the SCTP
+receive window, inline sends, maximum reassembly 262143 * 255 bytes and 30-second
+reassembly timeout. 65536-byte messages are one segment against every adapter.
+Other adapters may negotiate different buffer sizes; these are public-stack
+comparisons, not artificially identical transport internals.
 Dial timeout is 15 seconds, listener negotiation timeout 5 seconds, and benchmark
 accept/send/receive/shutdown operations have 30-second bounds. Set
 `TOKIO_WORKER_THREADS=8` (the runner does so); the existing Tokio runtime builder

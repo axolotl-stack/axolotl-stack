@@ -2,23 +2,14 @@ use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot};
 use tokio::time::{Duration, timeout};
 use tracing::{debug, trace};
-use webrtc::api::APIBuilder;
-use webrtc::api::interceptor_registry::register_default_interceptors;
-use webrtc::api::media_engine::MediaEngine;
-use webrtc::api::setting_engine::SettingEngine;
-use webrtc::data_channel::data_channel_init::RTCDataChannelInit;
-use webrtc::dtls::extension::extension_use_srtp::SrtpProtectionProfile;
-use webrtc::ice_transport::ice_candidate::RTCIceCandidate;
-use webrtc::ice_transport::ice_server::RTCIceServer;
-use webrtc::interceptor::registry::Registry;
-use webrtc::peer_connection::configuration::RTCConfiguration;
-use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
 
 use crate::error::{NetherNetError, catch_dependency_panic};
 use crate::signaling::{
-    Signal, SignalErrorCode, Signaling, format_ice_candidate, parse_ice_candidate, signal_type,
+    IceServer, Signal, SignalErrorCode, Signaling, parse_ice_candidate, signal_type,
 };
 use crate::stream::{NetherNetStream, NetherNetStreamConfig};
+use crate::transport::session::Role;
+use crate::transport::{Connection, LocalIdentity, Pending, TransportConfig, sdp};
 
 /// Configuration for `NetherNetDialer`.
 #[derive(Clone)]
@@ -28,11 +19,10 @@ pub struct NetherNetDialerConfig {
     /// Timeout for connection establishment.
     pub connection_timeout: Duration,
     /// Explicit ICE servers; nonempty values override signaling credentials.
-    pub ice_servers: Vec<RTCIceServer>,
-    /// Optional WebRTC settings for explicit local interface/ICE policy.
-    /// `None` preserves webrtc-rs defaults, including excluding loopback candidates.
-    /// SRTP protection profiles are always replaced by `SRTP_PROTECTION_PROFILES`.
-    pub setting_engine: Option<SettingEngine>,
+    pub ice_servers: Vec<IceServer>,
+    /// Local interface/ICE policy; the default matches go-nethernet's pion
+    /// defaults (all non-loopback UDP4/UDP6 addresses).
+    pub transport: TransportConfig,
     /// Local signed SDP identity (identity.go:Identity).
     pub identity: Option<Arc<crate::identity::Identity>>,
     /// Optional server-token policy; the default verifies self-signed server tokens.
@@ -49,7 +39,7 @@ impl Default for NetherNetDialerConfig {
             connection_timeout: Duration::from_secs(15),
             // credentials.go:gatherOptions: no implicit public STUN service.
             ice_servers: Vec::new(),
-            setting_engine: None,
+            transport: TransportConfig::default(),
             identity: None,
             verify_server_token: None,
             allow_identityless_server: false,
@@ -78,6 +68,8 @@ struct DialerActor {
     signal_rx: mpsc::Receiver<Signal>,
     request_rx: mpsc::Receiver<DialerRequest>,
     pending_dials: std::collections::HashMap<(String, u64), mpsc::Sender<Signal>>,
+    /// DTLS certificate shared by this dialer's connections (generated on first dial).
+    local: Option<LocalIdentity>,
 }
 
 impl NetherNetDialer {
@@ -104,6 +96,7 @@ impl NetherNetDialer {
             signal_rx,
             request_rx,
             pending_dials: std::collections::HashMap::new(),
+            local: None,
         };
 
         tokio::spawn(actor.run());
@@ -142,6 +135,7 @@ impl NetherNetDialer {
             signal_rx,
             request_rx,
             pending_dials: std::collections::HashMap::new(),
+            local: None,
         };
 
         // Subscribe before starting the actor: HTTP offers can synchronously produce an answer.
@@ -226,6 +220,15 @@ impl DialerActor {
         }
     }
 
+    fn local_identity(&mut self) -> Result<LocalIdentity, NetherNetError> {
+        if let Some(local) = &self.local {
+            return Ok(local.clone());
+        }
+        let local = LocalIdentity::generate()?;
+        self.local = Some(local.clone());
+        Ok(local)
+    }
+
     async fn handle_request(&mut self, request: DialerRequest) {
         match request {
             DialerRequest::Dial {
@@ -238,6 +241,13 @@ impl DialerActor {
                     let _ = response_tx.send(Err(NetherNetError::ConnectionClosed));
                     return;
                 }
+                let local = match self.local_identity() {
+                    Ok(local) => local,
+                    Err(error) => {
+                        let _ = response_tx.send(Err(error));
+                        return;
+                    }
+                };
                 let mut connection_id = rand::random::<u64>();
                 while self
                     .pending_dials
@@ -254,8 +264,14 @@ impl DialerActor {
                 let config = self.config.clone();
 
                 tokio::spawn(async move {
-                    let dial =
-                        perform_dial(connection_id, network_id, signaling, config, signal_in_rx);
+                    let dial = perform_dial(
+                        connection_id,
+                        network_id,
+                        signaling,
+                        config,
+                        local,
+                        signal_in_rx,
+                    );
                     // Report a contained panic instead of dropping response_tx,
                     // which the caller would otherwise see as ConnectionClosed.
                     let result = catch_dependency_panic("dial negotiation", dial)
@@ -273,73 +289,17 @@ impl DialerActor {
 /// fresh TURN credentials through credentials.go:gatherOptions.
 pub(crate) async fn ice_servers(
     signaling: &dyn Signaling,
-    configured: &[RTCIceServer],
-) -> Result<Vec<RTCIceServer>, NetherNetError> {
+    configured: &[IceServer],
+) -> Result<Vec<IceServer>, NetherNetError> {
     if !configured.is_empty() {
         return Ok(configured.to_vec());
     }
-    Ok(
-        match signaling
-            .credentials()
-            .await
-            .map_err(NetherNetError::Signaling)?
-        {
-            Some(credentials) => credentials
-                .ice_servers
-                .into_iter()
-                .map(|server| RTCIceServer {
-                    urls: server.urls,
-                    username: server.username,
-                    credential: server.password,
-                })
-                .collect(),
-            None => configured.to_vec(),
-        },
-    )
-}
-
-/// SRTP profiles that webrtc-srtp 0.14 can actually key.
-///
-/// webrtc-rs 0.12 `dtls_transport/mod.rs:default_srtp_protection_profiles` also
-/// offers SRTP_AEAD_AES_256_GCM, but webrtc-srtp 0.14
-/// `cipher/cipher_aead_aes_gcm.rs:CipherAeadAesGcm::new` and
-/// `key_derivation.rs:aes_cm_key_derivation` hard-code AES-128 and panic
-/// (generic-array length 32 != 16) on that profile's 32-byte master key, inside
-/// webrtc-rs's detached operation task, so SCTP never starts. Pion v4
-/// (`constants.go:defaultSrtpProtectionProfiles`, used by df-mc/go-nethernet)
-/// lists AES-256-GCM first; pion/dtls v3 servers select by their own preference
-/// (`flight0handler.go`) and webrtc-dtls servers by the client's (`flight0.rs`),
-/// so pairings with go-nethernet negotiated the unimplemented profile in both
-/// directions. NetherNet carries no media: the profile only has to be keyable,
-/// and pion supports all of these.
-const SRTP_PROTECTION_PROFILES: [SrtpProtectionProfile; 3] = [
-    SrtpProtectionProfile::Srtp_Aead_Aes_128_Gcm,
-    SrtpProtectionProfile::Srtp_Aes128_Cm_Hmac_Sha1_80,
-    SrtpProtectionProfile::Srtp_Aes128_Cm_Hmac_Sha1_32,
-];
-
-/// Caller settings (or webrtc-rs defaults) restricted to keyable SRTP profiles.
-pub(crate) fn nethernet_setting_engine(settings: Option<SettingEngine>) -> SettingEngine {
-    let mut settings = settings.unwrap_or_default();
-    settings.set_srtp_protection_profiles(SRTP_PROTECTION_PROFILES.to_vec());
-    settings
-}
-
-/// Close transports when negotiation is cancelled or any fallible step fails.
-pub(crate) struct PeerGuard(pub Option<Arc<webrtc::peer_connection::RTCPeerConnection>>);
-
-impl Drop for PeerGuard {
-    fn drop(&mut self) {
-        if let Some(pc) = self.0.take()
-            && let Ok(runtime) = tokio::runtime::Handle::try_current()
-        {
-            runtime.spawn(async move {
-                if let Err(error) = pc.close().await {
-                    debug!(%error, "Closing peer transports failed");
-                }
-            });
-        }
-    }
+    Ok(signaling
+        .credentials()
+        .await
+        .map_err(NetherNetError::Signaling)?
+        .map(|credentials| credentials.ice_servers)
+        .unwrap_or_default())
 }
 
 /// Local resource bound for conn.go:addRemoteCandidate's peer-controlled state.
@@ -378,24 +338,52 @@ impl CandidateBudget {
     }
 }
 
-/// Add the original candidate, preserving related address, TCP type and extensions.
-/// Upstream conn.go:parseRemoteCandidate accepts either candidate: or a=candidate:.
-pub(crate) async fn add_candidate(
-    pc: &webrtc::peer_connection::RTCPeerConnection,
+/// Validate and add one trickled candidate; upstream conn.go:parseRemoteCandidate
+/// accepts either `candidate:` or `a=candidate:`.
+pub(crate) fn add_candidate(
+    connection: &Connection,
     data: &str,
     budget: &CandidateBudget,
 ) -> Result<(), NetherNetError> {
     let candidate = data.trim().strip_prefix("a=").unwrap_or(data.trim());
-    let info = parse_ice_candidate(candidate).map_err(|_| NetherNetError::InvalidIceCandidate)?;
+    parse_ice_candidate(candidate).map_err(|_| NetherNetError::InvalidIceCandidate)?;
     budget.reserve(1)?;
-    pc.add_ice_candidate(webrtc::ice_transport::ice_candidate::RTCIceCandidateInit {
-        candidate: candidate.to_owned(),
-        sdp_mid: Some("0".into()),
-        sdp_mline_index: Some(0),
-        username_fragment: info.ufrag,
-    })
-    .await?;
-    Ok(())
+    connection.add_remote_candidate(candidate)
+}
+
+/// Signal each newly gathered local candidate (conn.go:trickleCandidates);
+/// a failed signal closes the connection, as upstream does.
+pub(crate) fn trickle_candidates(
+    connection: Arc<Connection>,
+    signaling: Arc<dyn Signaling>,
+    remote: String,
+    connection_id: u64,
+) {
+    tokio::spawn(async move {
+        let ufrag = connection.local_ufrag();
+        let mut network_id = 0u32;
+        while let Some(candidates) = connection.next_candidates().await {
+            for candidate in candidates {
+                let data = candidate.format(network_id, &ufrag);
+                network_id += 1;
+                // conn.go:trickleCandidate bounds each signaling operation to 15 seconds.
+                let sent = timeout(
+                    Duration::from_secs(15),
+                    signaling.signal(Signal {
+                        typ: signal_type::CANDIDATE.into(),
+                        connection_id,
+                        data,
+                        network_id: remote.clone(),
+                    }),
+                )
+                .await;
+                if !matches!(sent, Ok(Ok(()))) {
+                    connection.close();
+                    return;
+                }
+            }
+        }
+    });
 }
 
 /// Performs one negotiation under the single deadline used by upstream dial.go:Dialer.Dial.
@@ -403,173 +391,60 @@ async fn perform_dial(
     connection_id: u64,
     network_id: String,
     signaling: Arc<dyn Signaling>,
-    mut config: NetherNetDialerConfig,
+    config: NetherNetDialerConfig,
+    local: LocalIdentity,
     mut signal_rx: mpsc::Receiver<Signal>,
 ) -> Result<NetherNetStream, NetherNetError> {
     config.stream_config.validate()?;
     let connection_timeout = config.connection_timeout;
     let negotiation = async {
-        let mut media_engine = MediaEngine::default();
-        let registry = register_default_interceptors(Registry::new(), &mut media_engine)?;
-        let api = APIBuilder::new()
-            .with_media_engine(media_engine)
-            .with_interceptor_registry(registry)
-            .with_setting_engine(nethernet_setting_engine(config.setting_engine.take()))
-            .build();
-        let pc = Arc::new(
-            api.new_peer_connection(RTCConfiguration {
-                ice_servers: ice_servers(signaling.as_ref(), &config.ice_servers).await?,
-                ..Default::default()
-            })
-            .await?,
-        );
-        let mut guard = PeerGuard(Some(pc.clone()));
-        let weak_pc = Arc::downgrade(&pc);
-        pc.on_data_channel(Box::new(move |_| {
-            let weak_pc = weak_pc.clone();
-            Box::pin(async move {
-                // dial.go:Dialer.DialContext rejects server-opened channels.
-                if let Some(pc) = weak_pc.upgrade() {
-                    tokio::spawn(async move {
-                        let _ = pc.close().await;
-                    });
-                }
-            })
-        }));
-
-        // message.go:MessageReliability.Parameters specifies both channel labels and ordering.
-        let reliable = pc.create_data_channel("ReliableDataChannel", None).await?;
-        let unreliable = pc
-            .create_data_channel(
-                "UnreliableDataChannel",
-                Some(RTCDataChannelInit {
-                    ordered: Some(false),
-                    max_retransmits: Some(0),
-                    ..Default::default()
-                }),
-            )
-            .await?;
-        // Register before any SDP can start transports: an eager peer may send on open.
-        let (incoming_tx, incoming_rx) =
-            mpsc::channel(config.stream_config.incoming_channel_capacity);
-        crate::stream::install_message_handler(&reliable, incoming_tx.clone(), true);
-        crate::stream::install_message_handler(&unreliable, incoming_tx.clone(), false);
-        let (opened_tx, mut opened_rx) = mpsc::channel(2);
-        for channel in [&reliable, &unreliable] {
-            let tx = opened_tx.clone();
-            channel.on_open(Box::new(move || {
-                let tx = tx.clone();
-                Box::pin(async move {
-                    let _ = tx.send(()).await;
-                })
-            }));
-        }
-        drop(opened_tx);
-
-        let offer = pc.create_offer(None).await?;
-        let mut offer_sdp = crate::stream::local_sdp(offer.sdp.clone());
-        if let Some(identity) = &config.identity {
-            offer_sdp = identity
-                .sign_sdp(&offer_sdp)
-                .map_err(|e| NetherNetError::Signaling(e.into()))?;
-        }
-        let ufrag = offer_sdp
-            .lines()
-            .find_map(|line| line.strip_prefix("a=ice-ufrag:"))
-            .unwrap_or_default()
-            .to_owned();
-        let sig = signaling.clone();
-        let remote = network_id.clone();
-        let candidate_id = Arc::new(std::sync::atomic::AtomicU32::new(0));
-        // Gate trickle messages until the offer is sent (conn.go:trickleCandidates).
-        let (started_tx, started_rx) = tokio::sync::watch::channel(false);
-        let weak_pc = Arc::downgrade(&pc);
+        let servers = ice_servers(signaling.as_ref(), &config.ice_servers).await?;
+        let pending = Pending::open(
+            Role::Dialer,
+            &local,
+            &config.transport,
+            &servers,
+            &config.stream_config,
+        )
+        .await?;
         let nontrickle = signaling.disable_trickle_ice();
-        if !nontrickle {
-            pc.on_ice_candidate(Box::new(move |candidate: Option<RTCIceCandidate>| {
-                let sig = sig.clone();
-                let remote = remote.clone();
-                let ufrag = ufrag.clone();
-                let mut started = started_rx.clone();
-                let weak_pc = weak_pc.clone();
-                let id = candidate_id.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                Box::pin(async move {
-                    let Some(candidate) = candidate else { return };
-                    if started.wait_for(|ready| *ready).await.is_err() {
-                        return;
-                    }
-                    let data = format_ice_candidate(
-                        id,
-                        &candidate.foundation,
-                        &candidate.protocol.to_string().to_lowercase(),
-                        candidate.priority,
-                        &candidate.address,
-                        candidate.port,
-                        &candidate.typ.to_string().to_lowercase(),
-                        (!candidate.related_address.is_empty())
-                            .then_some(candidate.related_address.as_str()),
-                        (candidate.related_port != 0).then_some(candidate.related_port),
-                        &ufrag,
-                    );
-                    // conn.go:trickleCandidate bounds each signaling operation to 15 seconds.
-                    if !matches!(
-                        timeout(
-                            Duration::from_secs(15),
-                            sig.signal(Signal {
-                                typ: signal_type::CANDIDATE.into(),
-                                connection_id,
-                                data,
-                                network_id: remote,
-                            })
-                        )
-                        .await,
-                        Ok(Ok(()))
-                    ) && let Some(pc) = weak_pc.upgrade()
-                    {
-                        let _ = pc.close().await;
-                    }
-                })
-            }));
-        }
-        let mut gathering = pc.gathering_complete_promise().await;
-        // webrtc-rs validates local SDP against its exact generated offer.
-        // Apply the native description internally; normalize/sign only the wire SDP.
-        pc.set_local_description(offer).await?;
         if nontrickle {
-            gathering.recv().await;
-            offer_sdp = crate::stream::local_sdp(
-                pc.local_description()
-                    .await
-                    .ok_or(NetherNetError::ConnectionClosed)?
-                    .sdp,
-            );
-            if let Some(identity) = &config.identity {
-                offer_sdp = identity
-                    .sign_sdp(&offer_sdp)
-                    .map_err(|e| NetherNetError::Signaling(e.into()))?;
-            }
+            pending.gathered().await?;
+        }
+        let mut offer = pending.describe(sdp::Setup::ActPass, nontrickle)?;
+        if let Some(identity) = &config.identity {
+            offer = identity
+                .sign_sdp(&offer)
+                .map_err(|e| NetherNetError::Signaling(e.into()))?;
         }
         signaling
             .signal(Signal {
                 typ: signal_type::OFFER.into(),
                 connection_id,
-                data: offer_sdp,
+                data: offer,
                 network_id: network_id.clone(),
             })
             .await
             .map_err(NetherNetError::Signaling)?;
-        let _ = started_tx.send(true);
+        // Trickle only after the offer (conn.go:trickleCandidates).
+        if !nontrickle {
+            trickle_candidates(
+                pending.connection().clone(),
+                signaling.clone(),
+                network_id.clone(),
+                connection_id,
+            );
+        }
 
         let mut answered = false;
-        let mut opened = 0;
         let mut pending_candidates: Vec<String> = Vec::new();
         let mut remote_identity = None;
         let candidate_budget = CandidateBudget::default();
-        while !answered || opened < 2 {
+        loop {
             tokio::select! {
-                event = opened_rx.recv(), if opened < 2 => {
-                    event.ok_or(NetherNetError::ConnectionClosed)?;
-                    opened += 1;
+                opened = pending.opened(), if answered => {
+                    opened?;
+                    break;
                 }
                 signal = signal_rx.recv() => {
                     let signal = signal.ok_or(NetherNetError::ConnectionClosed)?;
@@ -582,17 +457,18 @@ async fn perform_dial(
                                 config.verify_server_token.as_deref(), allow_missing,
                             ).await.map_err(|e| NetherNetError::Signaling(e.into()))?;
                             candidate_budget.reserve_sdp(&signal.data)?;
-                            config.stream_config.max_message_size = crate::stream::negotiate_max_message_size(
-                                &signal.data, config.stream_config.max_message_size)?;
-                            pc.set_remote_description(RTCSessionDescription::answer(signal.data)?).await?;
+                            let remote = sdp::parse(&signal.data)?;
+                            pending.connection().with("answer", |session, now| {
+                                session.start(now, &remote, sdp::Setup::ActPass)
+                            })??;
                             for candidate in pending_candidates.drain(..) {
-                                add_candidate(&pc, &candidate, &candidate_budget).await?;
+                                add_candidate(pending.connection(), &candidate, &candidate_budget)?;
                             }
                             answered = true;
                         }
                         signal_type::CANDIDATE => {
                             if answered {
-                                add_candidate(&pc, &signal.data, &candidate_budget).await?;
+                                add_candidate(pending.connection(), &signal.data, &candidate_budget)?;
                             } else if pending_candidates.len() < 32 {
                                 pending_candidates.push(signal.data);
                             } else {
@@ -609,42 +485,31 @@ async fn perform_dial(
                 }
             }
         }
-        let mut stream = NetherNetStream::new_with_receiver(
-            reliable,
-            unreliable,
-            incoming_tx,
-            incoming_rx,
-            config.stream_config,
-        );
-        stream.attach_peer(pc.clone());
-        stream.set_remote_identity(remote_identity);
-        guard.0 = None;
-        // Keep routing post-establishment ICE/errors without retaining the peer forever.
-        let weak_pc = Arc::downgrade(&pc);
+        let connection = Arc::downgrade(pending.connection());
+        let stream = pending.into_stream(remote_identity);
+        // Keep routing post-establishment ICE/errors without retaining the connection.
         tokio::spawn(async move {
             loop {
-                // Closed peers must release their bounded subscription even with no new signals.
+                // Ended connections must release their bounded subscription even with no new signals.
                 let signal = tokio::select! {
                     signal = signal_rx.recv() => signal,
                     _ = tokio::time::sleep(Duration::from_secs(1)) => {
-                        if weak_pc.upgrade().is_none_or(|pc| pc.connection_state() == webrtc::peer_connection::peer_connection_state::RTCPeerConnectionState::Closed) { break; }
+                        if connection.upgrade().is_none_or(|c| c.is_finished()) { break; }
                         continue;
                     }
                 };
-                let (Some(signal), Some(pc)) = (signal, weak_pc.upgrade()) else {
+                let (Some(signal), Some(connection)) = (signal, connection.upgrade()) else {
                     break;
                 };
                 match signal.typ.as_str() {
                     signal_type::CANDIDATE
-                        if add_candidate(&pc, &signal.data, &candidate_budget)
-                            .await
-                            .is_err() =>
+                        if add_candidate(&connection, &signal.data, &candidate_budget).is_err() =>
                     {
-                        let _ = pc.close().await;
+                        connection.close();
                         break;
                     }
                     signal_type::ERROR => {
-                        let _ = pc.close().await;
+                        connection.close();
                         break;
                     }
                     _ => {}
@@ -700,6 +565,7 @@ mod tests {
             signal_rx,
             request_rx,
             pending_dials: std::collections::HashMap::from([(("remote".into(), 7), tx)]),
+            local: None,
         };
         actor
             .dispatch_signal(Signal {

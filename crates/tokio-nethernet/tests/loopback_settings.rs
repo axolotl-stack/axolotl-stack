@@ -4,9 +4,8 @@ use std::sync::Arc;
 use tokio::sync::{Mutex, mpsc};
 use tokio_nethernet::{
     Message, NetherNetDialer, NetherNetDialerConfig, NetherNetListener, NetherNetListenerConfig,
-    Signal, Signaling, SignalingChannel,
+    Signal, Signaling, SignalingChannel, TransportConfig,
 };
-use webrtc::api::setting_engine::SettingEngine;
 
 struct Local {
     id: &'static str,
@@ -45,9 +44,7 @@ impl SignalingChannel for Local {
 
 #[tokio::test]
 async fn custom_settings_restrict_both_peers_to_ipv4_loopback() {
-    let mut settings = SettingEngine::default();
-    settings.set_include_loopback_candidate(true);
-    settings.set_ip_filter(Box::new(|ip| ip.is_loopback() && ip.is_ipv4()));
+    let settings = TransportConfig::loopback_v4();
     let observed = Arc::new(Mutex::new(Vec::new()));
     let (to_server, server_rx) = mpsc::channel(16);
     let (to_client, client_rx) = mpsc::channel(16);
@@ -59,7 +56,7 @@ async fn custom_settings_restrict_both_peers_to_ipv4_loopback() {
             observed: observed.clone(),
         },
         NetherNetListenerConfig {
-            setting_engine: Some(settings.clone()),
+            transport: settings.clone(),
             allow_identityless_client: true,
             ..Default::default()
         },
@@ -72,7 +69,7 @@ async fn custom_settings_restrict_both_peers_to_ipv4_loopback() {
             observed: observed.clone(),
         },
         NetherNetDialerConfig {
-            setting_engine: Some(settings),
+            transport: settings,
             allow_identityless_server: true,
             ..Default::default()
         },

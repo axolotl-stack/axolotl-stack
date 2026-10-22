@@ -106,7 +106,19 @@ tungstenite = "0.26"
 http = "1.0"
 
 # WebRTC
+# webrtc-rs 0.12 remains an independent interop peer in tokio-nethernet tests.
 webrtc = "0.12"
+# Sans-IO WebRTC layers composed directly by tokio-nethernet (see its DESIGN.md).
+rtc-crypto = "0.21.1"
+rtc-datachannel = "0.21.1"
+rtc-dtls = "0.21.1"
+rtc-ice = "0.21.1"
+rtc-sctp = "0.21.1"
+rtc-sdp = "0.21.1"
+rtc-shared = "0.21.1"
+rtc-stun = "0.21.1"
+rtc-turn = "0.21.1"
+sansio = "1"
 
 # ECS
 bevy_ecs = { version = "0.17", features = ["multi_threaded"] }
