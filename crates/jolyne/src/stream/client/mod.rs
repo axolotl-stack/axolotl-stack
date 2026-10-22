@@ -330,4 +330,9 @@ impl<T: Transport> BedrockStream<Play, Client, T> {
     pub fn resource_packs(&self) -> &[DownloadedPack] {
         &self.owner().packs
     }
+
+    /// Whether the server marked its resource packs as required.
+    pub fn resource_packs_required(&self) -> bool {
+        self.owner().packs_required
+    }
 }

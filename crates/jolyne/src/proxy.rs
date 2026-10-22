@@ -101,71 +101,76 @@ where
 {
     let login_stream = reasoned(downstream.accept_network_settings()).await?;
     let (secure, login) = reasoned(login_stream.authenticate()).await?;
-
-    let (upstream, identity) = match dial(&login).await {
-        Ok(dialed) => dialed,
-        Err(error) => {
-            let _ = secure
-                .disconnect(
-                    EnumsConnectionDisconnectFailReason::Unknown,
-                    &error.to_string(),
-                )
-                .await;
-            return Err(error);
-        }
-    };
-    let (upstream, game_data) = match upstream.join(identity).await {
-        Ok(joined) => joined,
-        Err(error) => {
-            let _ = secure
-                .disconnect(
-                    EnumsConnectionDisconnectFailReason::Unknown,
-                    &error.to_string(),
-                )
-                .await;
-            return Err(error);
-        }
-    };
-
+    // Finish the downstream login stage first: it runs under `login_timeout`,
+    // while the logged-in pack phase has no deadline until packs are offered.
     let packs = reasoned(secure.finish_handshake(&ServerHandshakeConfig {
         server_key: server_key.clone(),
     }))
     .await?;
-    let upstream_packs = upstream_pack_set(&upstream);
-    let start = reasoned(packs.negotiate_packs_with(upstream_packs)).await?;
-    let chunk_radius = upstream.chunk_radius();
-    let downstream = reasoned(start.start_game(WorldJoinParams {
-        pre_start_game: Vec::new(),
-        start_game: game_data.start_game,
-        item_registry: Arc::new(game_data.item_registry),
-        // The upstream's copies are queued in its play session and get
-        // forwarded verbatim by the relay.
-        biome_definitions: None,
-        available_entities: None,
-        creative_content: None,
-        chunk_radius,
-    }))
-    .await?;
-    Ok(ProxySession {
-        downstream,
-        upstream,
-        login,
-    })
+
+    let dialed = match dial(&login).await {
+        Ok((upstream, identity)) => upstream.join(identity).await,
+        Err(error) => Err(error),
+    };
+    let (upstream, game_data) = match dialed {
+        Ok(joined) => joined,
+        Err(error) => {
+            let _ = packs
+                .disconnect(
+                    EnumsConnectionDisconnectFailReason::Unknown,
+                    &error.to_string(),
+                )
+                .await;
+            return Err(error);
+        }
+    };
+
+    let downstream = async {
+        let start = reasoned(packs.negotiate_packs_with(upstream_pack_set(&upstream))).await?;
+        reasoned(start.start_game(WorldJoinParams {
+            pre_start_game: Vec::new(),
+            start_game: game_data.start_game,
+            item_registry: Arc::new(game_data.item_registry),
+            // The upstream's copies are queued in its play session and get
+            // forwarded verbatim by the relay.
+            biome_definitions: None,
+            available_entities: None,
+            creative_content: None,
+            chunk_radius: upstream.chunk_radius(),
+        }))
+        .await
+    }
+    .await;
+    match downstream {
+        Ok(downstream) => Ok(ProxySession {
+            downstream,
+            upstream,
+            login,
+        }),
+        Err(error) => {
+            let _ = upstream.close().await;
+            Err(error)
+        }
+    }
 }
 
+/// The upstream's packs, re-offered downstream with the upstream's
+/// `required` flag, CDN URLs and already-verified hashes.
 fn upstream_pack_set<U: Transport>(upstream: &BedrockStream<Play, Client, U>) -> Arc<ServerPacks> {
     let packs = upstream
         .resource_packs()
         .iter()
         .filter_map(|pack| {
-            let mut offered = ResourcePack::new(
+            let mut offered = ResourcePack::from_verified(
                 pack.offer.uuid,
                 pack.offer.version.clone(),
                 pack.content.clone(),
+                pack.sha256,
             )
             .ok()?;
             offered.content_key = pack.offer.content_key.clone();
             offered.sub_pack_name = pack.offer.sub_pack_name.clone();
+            offered.cdn_url = pack.offer.cdn_url.clone();
             offered.has_scripts = pack.offer.has_scripts;
             offered.is_addon = pack.offer.is_addon;
             Some(Arc::new(offered))
@@ -173,6 +178,7 @@ fn upstream_pack_set<U: Transport>(upstream: &BedrockStream<Play, Client, U>) ->
         .collect();
     Arc::new(ServerPacks {
         packs,
+        required: upstream.resource_packs_required(),
         ..ServerPacks::default()
     })
 }

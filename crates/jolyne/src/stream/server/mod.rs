@@ -228,16 +228,11 @@ impl<T: Transport> BedrockStream<SecurePending, Server, T> {
         } = self.take();
         match owner.start_encryption(&config.server_key, Instant::now()) {
             Ok(Step::Next(ready)) => advance_to(transport, ready, seat).await,
-            Ok(Step::Wait(mut encryption)) => {
-                if let Err(error) = driver::flush_out(&mut transport, encryption.connection()).await
-                {
-                    return Err(failed(Failure::new(error, encryption), transport, seat));
-                }
-                match driver::drive(&mut transport, encryption).await {
-                    Ok(ready) => advance_to(transport, ready, seat).await,
-                    Err(failure) => Err(failed(failure, transport, seat)),
-                }
-            }
+            // `drive` flushes the queued ServerToClientHandshake first.
+            Ok(Step::Wait(encryption)) => match driver::drive(&mut transport, encryption).await {
+                Ok(ready) => advance_to(transport, ready, seat).await,
+                Err(failure) => Err(failed(failure, transport, seat)),
+            },
             Err(failure) => Err(failed(failure, transport, seat)),
         }
     }
@@ -270,13 +265,10 @@ impl<T: Transport> BedrockStream<ResourcePacks, Server, T> {
             owner,
             seat,
         } = self.take();
-        let mut phase = match owner.start_packs_with(packs, Instant::now()) {
+        let phase = match owner.start_packs_with(packs, Instant::now()) {
             Ok(phase) => phase,
             Err(failure) => return Err(failed(failure, transport, seat)),
         };
-        if let Err(error) = driver::flush_out(&mut transport, phase.connection()).await {
-            return Err(failed(Failure::new(error, phase), transport, seat));
-        }
         match driver::drive(&mut transport, phase).await {
             Ok(ready) => advance_to(transport, ready, seat).await,
             Err(failure) => Err(failed(failure, transport, seat)),
@@ -301,13 +293,10 @@ impl<T: Transport> BedrockStream<StartGame, Server, T> {
             owner,
             seat,
         } = self.take();
-        let mut spawn = match owner.start_game(params, Instant::now()) {
+        let spawn = match owner.start_game(params, Instant::now()) {
             Ok(spawn) => spawn,
             Err(failure) => return Err(failed(failure, transport, seat)),
         };
-        if let Err(error) = driver::flush_out(&mut transport, spawn.connection()).await {
-            return Err(failed(Failure::new(error, spawn), transport, seat));
-        }
         match driver::drive(&mut transport, spawn).await {
             Ok(session) => advance_to(transport, session, seat).await,
             Err(failure) => Err(failed(failure, transport, seat)),

@@ -46,13 +46,14 @@ impl PlayerSlots {
                 (max == 0 || count < max).then_some(count + 1)
             })
             .ok()?;
-        self.inner.changed.notify_waiters();
+        self.inner.changed.notify_one();
         Some(PlayerSlot {
             inner: self.inner.clone(),
         })
     }
 
-    /// Resolves the next time a player joins or leaves.
+    /// Resolves after a player joined or left since the last call (a change
+    /// is remembered while nobody waits). Meant for one consumer.
     pub async fn changed(&self) {
         self.inner.changed.notified().await;
     }
@@ -66,7 +67,7 @@ pub struct PlayerSlot {
 impl Drop for PlayerSlot {
     fn drop(&mut self) {
         self.inner.count.fetch_sub(1, Ordering::AcqRel);
-        self.inner.changed.notify_waiters();
+        self.inner.changed.notify_one();
     }
 }
 
@@ -76,7 +77,8 @@ pub(crate) enum Seat {
     /// Not counted (connections built without a listener).
     #[default]
     Uncounted,
-    /// Admission pending: a slot is taken when the login is accepted.
+    /// Admission pending: a slot is taken when `Login` arrives, before the
+    /// login is verified (a full server answers before any verification work).
     #[cfg(feature = "server")]
     Pool(PlayerSlots),
     /// Counted until the connection is dropped (the slot releases on drop).

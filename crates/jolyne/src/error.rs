@@ -129,8 +129,6 @@ pub enum PackError {
 pub enum ProtocolError {
     #[error("expected batch marker 0xfe, got 0x{0:02x}")]
     InvalidBatchId(u8),
-    #[error("RakNet frame without the 0xfe batch marker after encryption was enabled")]
-    MissingBatchMarker,
     #[error("unknown batch compression algorithm 0x{0:02x}")]
     UnknownCompression(u8),
     #[error("compressed batch has no algorithm byte")]
@@ -174,12 +172,21 @@ pub enum ProtocolError {
     ConflictingStartGame { first: u64, second: u64 },
     #[error("resource packs: {0}")]
     Pack(#[from] PackError),
+    #[error(
+        "more than {max_packets} packets / {max_bytes} bytes arrived before the phase that handles them"
+    )]
+    DeferredOverflow {
+        max_packets: usize,
+        max_bytes: usize,
+    },
     #[error("write buffer full: {pending} bytes pending (max {max})")]
     WriteBufferFull { pending: usize, max: usize },
     #[error("packet of {0} bytes exceeds the u32 length prefix")]
     PacketTooLarge(usize),
-    #[error("packet id {0} is not a registered custom packet")]
+    #[error("packet id {0} does not match the custom packet type's ID")]
     NotCustomPacket(u16),
+    #[error("packet id {0} is not a valid custom packet ID (ten-bit, outside valentine)")]
+    InvalidPacketId(u16),
     #[error("handshake token: {0}")]
     HandshakeToken(String),
 }

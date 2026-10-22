@@ -10,7 +10,7 @@
 use std::time::Instant;
 
 use super::conn::{Connection, Datagram, Transmit};
-use super::raw::{DEFAULT_MAX_PACKETS_PER_BATCH, RawPacket};
+use super::raw::RawPacket;
 use crate::error::{HandshakePhase, JolyneError, ProtocolError};
 use crate::valentine::EnumsConnectionDisconnectFailReason;
 
@@ -155,30 +155,33 @@ pub(crate) fn unexpected(phase: HandshakePhase, packet: &RawPacket) -> JolyneErr
     ProtocolError::UnexpectedPacket { phase, got }.into()
 }
 
-const MAX_DEFERRED_BYTES: usize = 16 * 1024 * 1024;
-
-/// Packets that arrived before the phase that handles them, replayed in
-/// order into the play session. Bounded by count and bytes; each packet is
-/// compacted so it does not pin its whole batch allocation.
-#[derive(Default)]
+/// Packets that arrived before the phase that handles them, in arrival
+/// order, bounded by `ConnectionOptions::max_deferred_{packets,bytes}`. Each
+/// packet is compacted once so it does not pin its whole batch allocation.
 pub struct Deferred {
     packets: Vec<RawPacket>,
     bytes: usize,
+    max_packets: usize,
+    max_bytes: usize,
 }
 
 impl Deferred {
-    pub fn push(&mut self, packet: RawPacket) -> Result<(), JolyneError> {
-        if self.packets.len() == DEFAULT_MAX_PACKETS_PER_BATCH {
-            return Err(ProtocolError::TooManyPackets {
-                max: DEFAULT_MAX_PACKETS_PER_BATCH,
-            }
-            .into());
+    pub fn new(connection: &Connection) -> Self {
+        let options = connection.options();
+        Self {
+            packets: Vec::new(),
+            bytes: 0,
+            max_packets: options.max_deferred_packets,
+            max_bytes: options.max_deferred_bytes,
         }
+    }
+
+    pub fn push(&mut self, packet: RawPacket) -> Result<(), JolyneError> {
         let bytes = self.bytes.saturating_add(packet.inner_frame().len());
-        if bytes > MAX_DEFERRED_BYTES {
-            return Err(ProtocolError::BatchTooLarge {
-                actual: bytes,
-                max: MAX_DEFERRED_BYTES,
+        if self.packets.len() == self.max_packets || bytes > self.max_bytes {
+            return Err(ProtocolError::DeferredOverflow {
+                max_packets: self.max_packets,
+                max_bytes: self.max_bytes,
             }
             .into());
         }
@@ -195,7 +198,8 @@ impl Deferred {
         self.packets.is_empty()
     }
 
-    /// Moves the deferred packets ahead of the connection's unread packets.
+    /// Moves the deferred packets ahead of the connection's unread packets,
+    /// so the next owner (phase or session) sees them first, in order.
     pub fn replay_into(self, connection: &mut Connection) {
         connection.prepend_inbound(self.packets.into_iter());
     }

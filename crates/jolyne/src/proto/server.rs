@@ -324,10 +324,10 @@ impl Authenticated {
         if !self.shared.config.encryption_enabled {
             return match login_success(&mut self.conn, now) {
                 Ok(()) => Ok(Step::Next(PacksReady {
+                    deferred: Deferred::new(&self.conn),
                     conn: self.conn,
                     config: self.shared.config,
                     login: self.login,
-                    deferred: Deferred::default(),
                 })),
                 Err(error) => Err(Failure::new(error, self)),
             };
@@ -349,10 +349,10 @@ impl Authenticated {
         })();
         match result {
             Ok(()) => Ok(Step::Wait(ServerEncryption {
+                deferred: Deferred::new(&self.conn),
                 conn: self.conn,
                 shared: self.shared,
                 login: self.login,
-                deferred: Deferred::default(),
             })),
             Err(error) => Err(Failure::new(error, self)),
         }

@@ -1,8 +1,9 @@
 //! Packet observation and connection counters.
 //!
-//! Both are zero-cost when unused: the observer is an `Option` checked once
-//! per batch, and counters are plain integers bumped once per batch (never per
-//! packet), except on the error and unknown-packet paths.
+//! Both are near zero-cost when unused: the observer is an `Option` checked
+//! once per inbound batch and once per outbound packet, and counters are
+//! plain integers bumped once per batch, except on the error and
+//! unknown-packet paths.
 
 use std::sync::Arc;
 

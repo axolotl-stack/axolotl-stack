@@ -46,7 +46,7 @@ pub enum UnknownPacketPolicy {
 /// A packet type outside the valentine enum, encoded by user code.
 ///
 /// `ID` must be a ten-bit ID not used by valentine; [`PacketRegistry::register`]
-/// enforces this.
+/// and [`RawPacket::from_custom`](super::raw::RawPacket::from_custom) enforce this.
 pub trait CustomPacket: Sized {
     const ID: u16;
 

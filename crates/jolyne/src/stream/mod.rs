@@ -17,9 +17,7 @@ use crate::proto::custom::CustomPacket;
 use crate::proto::observe::ConnectionMetrics;
 use crate::proto::phase::Owner;
 use crate::proto::raw::RawPacket;
-use crate::valentine::{
-    BorrowedMcpePacket, EnumsConnectionDisconnectFailReason, McpePacket, McpePacketArgs,
-};
+use crate::valentine::{BorrowedMcpePacket, EnumsConnectionDisconnectFailReason, McpePacket};
 
 pub(crate) mod driver;
 mod failed;
@@ -159,7 +157,7 @@ impl<S: PhaseOf<R>, R: Role, T: Transport> BedrockStream<S, R, T> {
     /// Switches between immediate, manual and interval flushing.
     pub async fn set_flush_mode(&mut self, mode: FlushMode) -> Result<(), JolyneError> {
         let (transport, conn) = self.io();
-        conn.set_flush_mode(mode)?;
+        conn.set_flush_mode(mode, Instant::now())?;
         driver::after_send(transport, conn).await
     }
 
@@ -170,29 +168,25 @@ impl<S: PhaseOf<R>, R: Role, T: Transport> BedrockStream<S, R, T> {
         driver::flush_out(transport, conn).await
     }
 
-    /// Packet codec arguments (kept for callers that decode borrowed packets).
-    pub fn packet_args(&self) -> McpePacketArgs {
-        McpePacketArgs
-    }
-
     /// Sends `Disconnect{reason, message}`, drains pending writes and closes.
     #[tracing::instrument(skip_all, level = "debug", fields(peer = %self.peer_addr()))]
     pub async fn disconnect(
-        self,
+        mut self,
         reason: EnumsConnectionDisconnectFailReason,
         message: &str,
     ) -> Result<(), JolyneError> {
-        let mut parts = self.take();
-        let conn = parts.owner.connection();
+        // Through `io()`: if this fails or is cancelled, `Drop` still sends
+        // what was queued.
+        let (transport, conn) = self.io();
         conn.queue_disconnect(reason, message, Instant::now())?;
-        driver::close(&mut parts.transport, conn).await
+        driver::close(transport, conn).await
     }
 
     /// Drains pending writes and closes the transport.
     #[tracing::instrument(skip_all, level = "debug", fields(peer = %self.peer_addr()))]
-    pub async fn close(self) -> Result<(), JolyneError> {
-        let mut parts = self.take();
-        driver::close(&mut parts.transport, parts.owner.connection()).await
+    pub async fn close(mut self) -> Result<(), JolyneError> {
+        let (transport, conn) = self.io();
+        driver::close(transport, conn).await
     }
 
     /// Leaves the typestate for raw packet I/O (proxies, custom flows).
@@ -260,7 +254,7 @@ macro_rules! packet_io {
             driver::after_send(transport, conn).await
         }
 
-        /// Queues a registered custom packet.
+        /// Queues a custom packet (its ID must be outside valentine's range).
         pub async fn send_custom<P: CustomPacket>(
             &mut self,
             packet: &P,
@@ -308,13 +302,15 @@ pub mod raknet_types {
     //! Phase aliases over RakNet.
     use super::*;
 
-    pub type ServerLogin = BedrockStream<Handshake, Server, RakNetTransport>;
+    pub type ServerHandshake = BedrockStream<Handshake, Server, RakNetTransport>;
+    pub type ServerLogin = BedrockStream<Login, Server, RakNetTransport>;
     pub type ServerSecurePending = BedrockStream<SecurePending, Server, RakNetTransport>;
     pub type ServerResourcePacks = BedrockStream<ResourcePacks, Server, RakNetTransport>;
     pub type ServerStartGame = BedrockStream<StartGame, Server, RakNetTransport>;
     pub type ServerPlay = BedrockStream<Play, Server, RakNetTransport>;
 
-    pub type ClientLogin = BedrockStream<Handshake, Client, RakNetTransport>;
+    pub type ClientHandshake = BedrockStream<Handshake, Client, RakNetTransport>;
+    pub type ClientLogin = BedrockStream<Login, Client, RakNetTransport>;
     pub type ClientSecurePending = BedrockStream<SecurePending, Client, RakNetTransport>;
     pub type ClientResourcePacks = BedrockStream<ResourcePacks, Client, RakNetTransport>;
     pub type ClientStartGame = BedrockStream<StartGame, Client, RakNetTransport>;
@@ -326,13 +322,15 @@ pub mod nethernet_types {
     //! Phase aliases over NetherNet.
     use super::*;
 
-    pub type ServerLogin = BedrockStream<Handshake, Server, NetherNetTransport>;
+    pub type ServerHandshake = BedrockStream<Handshake, Server, NetherNetTransport>;
+    pub type ServerLogin = BedrockStream<Login, Server, NetherNetTransport>;
     pub type ServerSecurePending = BedrockStream<SecurePending, Server, NetherNetTransport>;
     pub type ServerResourcePacks = BedrockStream<ResourcePacks, Server, NetherNetTransport>;
     pub type ServerStartGame = BedrockStream<StartGame, Server, NetherNetTransport>;
     pub type ServerPlay = BedrockStream<Play, Server, NetherNetTransport>;
 
-    pub type ClientLogin = BedrockStream<Handshake, Client, NetherNetTransport>;
+    pub type ClientHandshake = BedrockStream<Handshake, Client, NetherNetTransport>;
+    pub type ClientLogin = BedrockStream<Login, Client, NetherNetTransport>;
     pub type ClientSecurePending = BedrockStream<SecurePending, Client, NetherNetTransport>;
     pub type ClientResourcePacks = BedrockStream<ResourcePacks, Client, NetherNetTransport>;
     pub type ClientStartGame = BedrockStream<StartGame, Client, NetherNetTransport>;

@@ -1,8 +1,9 @@
 //! Async glue between a [`Transport`] and the sans-IO core.
 //!
-//! Every future here is cancel-safe: a transmit is only taken from the
-//! connection after the transport reported capacity, and receives are a
-//! single `poll_recv`.
+//! Writes and receives are cancel-safe: a transmit is only taken from the
+//! connection after the transport reported capacity, and a receive is a
+//! single `poll_recv`. A packet handed to a `send_*` method is queued before
+//! the first await, so retrying a cancelled send queues it twice.
 
 use std::future::poll_fn;
 use std::pin::Pin;
@@ -11,6 +12,8 @@ use std::time::Instant;
 
 use super::transport::{Datagram, Transport};
 use crate::error::JolyneError;
+#[cfg(any(feature = "server", feature = "client"))]
+use crate::error::ProtocolError;
 use crate::proto::conn::Connection;
 #[cfg(any(feature = "server", feature = "client"))]
 use crate::proto::phase::{Failure, Phase, Step};
@@ -95,8 +98,13 @@ pub(crate) async fn drive<T: Transport, P: Phase>(
             Ok(Step::Wait(phase)) => phase,
             Err(failure) => return Err(failure),
         };
-        if let Err(error) = flush_out(transport, phase.connection()).await {
-            return Err(Failure::new(error, phase));
+        // Writes share the phase deadline: a peer that stops reading cannot
+        // hold the join open past it.
+        let deadline = tokio::time::Instant::from_std(phase.deadline());
+        match tokio::time::timeout_at(deadline, flush_out(transport, phase.connection())).await {
+            Ok(Ok(())) => {}
+            Ok(Err(error)) => return Err(Failure::new(error, phase)),
+            Err(_) => return Err(Failure::new(ProtocolError::Timeout(P::PHASE), phase)),
         }
         let wake = tokio::time::Instant::from_std(phase.poll_timeout());
         match tokio::time::timeout_at(wake, recv_datagram(transport)).await {
@@ -119,7 +127,14 @@ pub(crate) async fn recv_raw<T: Transport>(
     conn: &mut Connection,
 ) -> Result<RawPacket, JolyneError> {
     loop {
+        // Fire a due interval flush even while packets keep arriving.
+        if conn.poll_timeout().is_some() {
+            conn.handle_timeout(Instant::now())?;
+        }
         if let Some(packet) = conn.next_packet()? {
+            if conn.has_transmits() {
+                flush_out(transport, conn).await?;
+            }
             return Ok(packet);
         }
         flush_out(transport, conn).await?;
@@ -150,6 +165,9 @@ pub(crate) async fn after_send<T: Transport>(
     transport: &mut T,
     conn: &mut Connection,
 ) -> Result<(), JolyneError> {
+    if conn.poll_timeout().is_some() {
+        conn.handle_timeout(Instant::now())?;
+    }
     if conn.has_transmits() {
         flush_out(transport, conn).await?;
     }

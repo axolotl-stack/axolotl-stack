@@ -4,7 +4,7 @@ pub mod events;
 
 use jolyne::BedrockStream;
 use jolyne::stream::{Play, Server as ServerRole};
-use jolyne::valentine::McpePacket;
+use jolyne::valentine::{McpePacket, McpePacketArgs};
 use tokio::sync::{broadcast, mpsc};
 use tracing::{info, trace, warn};
 
@@ -64,7 +64,7 @@ pub async fn run_network_loop(
             result = stream.recv_packet_borrowed() => {
                 match result {
                     Ok(packet) => {
-                        let packet_args = stream.packet_args();
+                        let packet_args = McpePacketArgs;
                         if let Err(e) = event_tx.try_send(NetworkEvent::Packet {
                             session_id,
                             packet_args,

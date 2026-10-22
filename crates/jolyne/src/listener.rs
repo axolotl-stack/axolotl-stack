@@ -46,6 +46,7 @@ pub struct BedrockListener<L: RawListener> {
     status: Arc<dyn StatusProvider>,
     /// GUID written into the RakNet pong string.
     server_guid: u64,
+    next_refresh: tokio::time::Instant,
     #[cfg(feature = "discovery")]
     lan: Option<Arc<tokio_nethernet::discovery::DiscoveryListener>>,
 }
@@ -63,6 +64,7 @@ impl<L: RawListener> BedrockListener<L> {
             config: Arc::new(config),
             status,
             server_guid: rand::random(),
+            next_refresh: tokio::time::Instant::now(),
             #[cfg(feature = "discovery")]
             lan: None,
         }
@@ -84,7 +86,7 @@ impl<L: RawListener> BedrockListener<L> {
         Ok(())
     }
 
-    /// Players currently joined (past login admission).
+    /// Players currently counted (from `Login` until the connection drops).
     pub fn player_count(&self) -> usize {
         self.slots.count()
     }
@@ -93,7 +95,8 @@ impl<L: RawListener> BedrockListener<L> {
         &self.config
     }
 
-    /// Accepts the next connection. Status refreshes run while waiting.
+    /// Accepts the next connection. Status refreshes run while waiting;
+    /// a failed refresh is logged, never surfaced as an accept error.
     pub async fn accept(
         &mut self,
     ) -> Result<BedrockStream<Handshake, Server, L::Transport>, JolyneError> {
@@ -101,9 +104,8 @@ impl<L: RawListener> BedrockListener<L> {
             .config
             .status_refresh
             .max(std::time::Duration::from_millis(100));
-        let mut next_refresh = tokio::time::Instant::now() + refresh;
         loop {
-            let changed = self.slots.clone();
+            let slots = self.slots.clone();
             tokio::select! {
                 transport = poll_fn(|cx| Pin::new(&mut self.inner).poll_accept(cx)) => {
                     let transport = transport.ok_or(JolyneError::ConnectionClosed)?;
@@ -113,11 +115,12 @@ impl<L: RawListener> BedrockListener<L> {
                         self.slots.clone(),
                     ));
                 }
-                _ = tokio::time::sleep_until(next_refresh) => {
-                    next_refresh = tokio::time::Instant::now() + refresh;
-                    self.refresh_status().await?;
-                }
-                _ = changed.changed() => self.refresh_status().await?,
+                _ = tokio::time::sleep_until(self.next_refresh) => {}
+                _ = slots.changed() => {}
+            }
+            self.next_refresh = tokio::time::Instant::now() + refresh;
+            if let Err(error) = self.refresh_status().await {
+                tracing::warn!(%error, "publishing server status failed");
             }
         }
     }

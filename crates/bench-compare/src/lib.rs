@@ -1,5 +1,6 @@
 pub mod batch;
 pub mod codec;
+pub mod join;
 pub mod micro;
 pub mod nethernet;
 pub mod transport;

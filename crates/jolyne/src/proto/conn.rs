@@ -111,6 +111,8 @@ pub struct Connection {
     outbound_bytes: usize,
     metrics: ConnectionMetrics,
     peer_closed: bool,
+    /// Reliability of auto-sealed batches (false only inside `send_batch`).
+    batch_reliable: bool,
 }
 
 impl Connection {
@@ -136,6 +138,7 @@ impl Connection {
             outbound_bytes: 0,
             metrics: ConnectionMetrics::default(),
             peer_closed: false,
+            batch_reliable: true,
         }
     }
 
@@ -182,11 +185,17 @@ impl Connection {
         self.options.flush
     }
 
-    /// Changes the flush mode. Leaving a buffering mode seals pending packets.
-    pub fn set_flush_mode(&mut self, mode: FlushMode) -> Result<(), JolyneError> {
+    /// Changes the flush mode. Switching to `Immediate` seals pending
+    /// packets; switching to `Interval` arms the timer for packets already
+    /// pending.
+    pub fn set_flush_mode(&mut self, mode: FlushMode, now: Instant) -> Result<(), JolyneError> {
         self.options.flush = mode;
-        if mode == FlushMode::Immediate {
-            self.flush()?;
+        match mode {
+            FlushMode::Immediate => self.flush()?,
+            FlushMode::Interval(_) if self.pending_packets > 0 => {
+                self.pending_since.get_or_insert(now);
+            }
+            FlushMode::Interval(_) | FlushMode::Manual => self.pending_since = None,
         }
         Ok(())
     }
@@ -345,6 +354,15 @@ impl Connection {
         }
     }
 
+    /// Drops a partially written frame after a failed encode so the packets
+    /// already queued in this batch stay intact.
+    fn abandon_frame(&mut self, frame_start: usize) {
+        self.pending.truncate(frame_start);
+        if self.pending_packets == 0 {
+            self.pending_since = None;
+        }
+    }
+
     fn after_queue(&mut self, frame_start: usize) -> Result<(), JolyneError> {
         self.pending_packets += 1;
         if let Some(observer) = &self.options.observer {
@@ -366,7 +384,7 @@ impl Connection {
             || self.pending_packets >= self.options.max_packets_per_outbound_batch
             || self.pending.len() >= self.options.max_pending_bytes
         {
-            self.flush()?;
+            self.seal(self.batch_reliable)?;
         }
         Ok(())
     }
@@ -391,7 +409,10 @@ impl Connection {
         self.pending.reserve(5 + len as usize);
         wire::write_var_u32(&mut self.pending, len);
         wire::write_var_u32(&mut self.pending, header);
-        body.encode(&mut self.pending)?;
+        if let Err(error) = body.encode(&mut self.pending) {
+            self.abandon_frame(start);
+            return Err(error.into());
+        }
         self.after_queue(start)
     }
 
@@ -399,11 +420,14 @@ impl Connection {
     pub fn queue_packet(&mut self, packet: &McpePacket, now: Instant) -> Result<(), JolyneError> {
         self.begin_pending(now);
         let start = self.pending.len();
-        packet.data.encode_inner_bytes_mut(
+        if let Err(error) = packet.data.encode_inner_bytes_mut(
             &mut self.pending,
             packet.header.from_subclient,
             packet.header.to_subclient,
-        )?;
+        ) {
+            self.abandon_frame(start);
+            return Err(error.into());
+        }
         self.after_queue(start)
     }
 
@@ -462,19 +486,22 @@ impl Connection {
         let encoding = self.encoding();
         self.codec
             .finish(&mut self.pending, self.pending_header, encoding)?;
-        let header_len = usize::from(self.prefix());
-        if let Some(cipher) = self.send_cipher.as_mut() {
-            cipher.encrypt(&mut self.pending, header_len)?;
-        }
-        let payload = self.pending.split().freeze();
-        let len = payload.len();
+        // Check the bound before encrypting: a refused batch must not advance
+        // the cipher, or every later batch would fail the peer's checksum.
+        let len = self.pending.len() + if self.send_cipher.is_some() { 8 } else { 0 };
         if self.outbound_bytes + len > self.options.max_queued_bytes {
+            self.pending.clear();
             return Err(ProtocolError::WriteBufferFull {
                 pending: self.outbound_bytes + len,
                 max: self.options.max_queued_bytes,
             }
             .into());
         }
+        let header_len = usize::from(self.prefix());
+        if let Some(cipher) = self.send_cipher.as_mut() {
+            cipher.encrypt(&mut self.pending, header_len)?;
+        }
+        let payload = self.pending.split().freeze();
         self.outbound_bytes += len;
         self.metrics.packets_out += packets;
         self.metrics.batches_out += 1;
@@ -483,59 +510,57 @@ impl Connection {
         Ok(())
     }
 
-    /// Seals pending packets, then sends `packets` as their own batch with the
-    /// given reliability. Unreliable delivery is refused while encrypted.
+    /// Seals pending packets, then sends `packets` as their own batch (split
+    /// into several when they exceed the per-batch limits) with the given
+    /// reliability. Unreliable delivery is refused while encrypted.
     pub fn send_batch(
         &mut self,
         packets: &[McpePacket],
         reliable: bool,
         now: Instant,
     ) -> Result<(), JolyneError> {
-        if !reliable && self.is_encrypted() {
-            return Err(ProtocolError::UnreliableWhileEncrypted.into());
-        }
-        if packets.is_empty() {
-            return Ok(());
-        }
-        self.flush()?;
-        let mode = std::mem::replace(&mut self.options.flush, FlushMode::Manual);
-        let result = (|| {
-            for packet in packets {
-                self.queue_packet(packet, now)?;
-            }
-            if self.pending_packets > 0 {
-                self.seal(reliable)?;
-            }
-            Ok(())
-        })();
-        self.options.flush = mode;
-        result
+        self.send_batch_with(packets.len(), reliable, |conn, index| {
+            conn.queue_packet(&packets[index], now)
+        })
     }
 
-    /// Seals pending packets, then sends raw `packets` as their own batch.
+    /// Like [`Self::send_batch`] for raw packets.
     pub fn send_batch_raw(
         &mut self,
         packets: &[RawPacket],
         reliable: bool,
         now: Instant,
     ) -> Result<(), JolyneError> {
+        self.send_batch_with(packets.len(), reliable, |conn, index| {
+            conn.queue_raw(&packets[index], now)
+        })
+    }
+
+    fn send_batch_with(
+        &mut self,
+        count: usize,
+        reliable: bool,
+        mut queue: impl FnMut(&mut Self, usize) -> Result<(), JolyneError>,
+    ) -> Result<(), JolyneError> {
         if !reliable && self.is_encrypted() {
             return Err(ProtocolError::UnreliableWhileEncrypted.into());
         }
-        if packets.is_empty() {
+        if count == 0 {
             return Ok(());
         }
         self.flush()?;
         let mode = std::mem::replace(&mut self.options.flush, FlushMode::Manual);
-        let result = (|| {
-            for packet in packets {
-                self.queue_raw(packet, now)?;
-            }
-            if self.pending_packets > 0 {
-                self.seal(reliable)?;
-            }
-            Ok(())
-        })();
+        self.batch_reliable = reliable;
+        let result = (0..count)
+            .try_for_each(|index| queue(self, index))
+            .and_then(|()| {
+                if self.pending_packets > 0 {
+                    self.seal(reliable)
+                } else {
+                    Ok(())
+                }
+            });
+        self.batch_reliable = true;
         self.options.flush = mode;
         result
     }
@@ -545,12 +570,6 @@ impl Connection {
         let transmit = self.outbound.pop_front()?;
         self.outbound_bytes -= transmit.payload.len();
         Some(transmit)
-    }
-
-    /// Returns a transmit the transport could not accept to the queue head.
-    pub fn unpoll_transmit(&mut self, transmit: Transmit) {
-        self.outbound_bytes += transmit.payload.len();
-        self.outbound.push_front(transmit);
     }
 
     pub fn has_transmits(&self) -> bool {
@@ -736,27 +755,128 @@ mod tests {
         assert_eq!(interval.poll_timeout(), None);
     }
 
+    /// Regression: the bound was checked after encrypting, so a refused batch
+    /// advanced the cipher and every later batch failed the peer's checksum.
     #[test]
-    fn queued_transmit_bytes_are_bounded() {
+    fn refused_batch_leaves_the_cipher_in_sync() {
+        let options = ConnectionOptions {
+            max_queued_bytes: 40,
+            ..Default::default()
+        };
+        let (mut a, mut b) = pair(options);
+        a.enable_encryption([5; 32], [6; 12]).unwrap();
+        b.enable_encryption([5; 32], [6; 12]).unwrap();
+        let now = Instant::now();
+        a.queue_packet(&status(), now).unwrap();
+        a.queue_packet(&status(), now).unwrap();
+        assert!(matches!(
+            a.queue_packet(&status(), now),
+            Err(JolyneError::Protocol(ProtocolError::WriteBufferFull {
+                max: 40,
+                ..
+            }))
+        ));
+        deliver(&mut a, &mut b);
+        a.queue_packet(&status(), now).unwrap();
+        deliver(&mut a, &mut b);
+        let mut received = 0;
+        while b.next_packet().unwrap().is_some() {
+            received += 1;
+        }
+        assert_eq!(received, 3, "batches after the refusal still decrypt");
+    }
+
+    struct Unencodable;
+
+    impl valentine::bedrock::codec::BedrockSized for Unencodable {
+        fn encoded_size(&self) -> usize {
+            4
+        }
+    }
+
+    impl valentine::bedrock::codec::BedrockCodec for Unencodable {
+        type Args = ();
+        fn encode<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+            buf.put_u8(0xAA);
+            Err(std::io::Error::other("unencodable"))
+        }
+        fn decode<B: bytes::Buf>(
+            _: &mut B,
+            _: (),
+        ) -> Result<Self, valentine::bedrock::error::DecodeError> {
+            Ok(Self)
+        }
+    }
+
+    /// Regression: a failed encode left a partial frame in the batch and, in
+    /// interval mode, an armed timer with nothing pending (a busy loop).
+    #[test]
+    fn failed_encode_keeps_the_pending_batch_intact() {
+        let interval = Duration::from_millis(50);
+        let (mut a, mut b) = pair(ConnectionOptions {
+            flush: FlushMode::Interval(interval),
+            ..Default::default()
+        });
+        let now = Instant::now();
+        assert!(
+            a.queue_body(McpePacketName::TextPacket, &Unencodable, now)
+                .is_err()
+        );
+        assert_eq!(a.poll_timeout(), None, "no timer without pending packets");
+        a.queue_packet(&status(), now).unwrap();
+        assert!(
+            a.queue_body(McpePacketName::TextPacket, &Unencodable, now)
+                .is_err()
+        );
+        a.queue_packet(&status(), now).unwrap();
+        a.handle_timeout(now + interval).unwrap();
+        deliver(&mut a, &mut b);
+        for _ in 0..2 {
+            assert!(
+                b.next_packet()
+                    .unwrap()
+                    .unwrap()
+                    .is(McpePacketName::PlayStatusPacket)
+            );
+        }
+        assert!(b.next_packet().unwrap().is_none());
+    }
+
+    #[test]
+    fn switching_to_interval_arms_the_timer_for_pending_packets() {
         let mut conn = Connection::new(
             Framing::RakNet,
             ConnectionOptions {
-                max_queued_bytes: 20,
+                flush: FlushMode::Manual,
                 ..Default::default()
             },
         );
         let now = Instant::now();
         conn.queue_packet(&status(), now).unwrap();
-        conn.queue_packet(&status(), now).unwrap();
-        assert!(matches!(
-            conn.queue_packet(&status(), now),
-            Err(JolyneError::Protocol(ProtocolError::WriteBufferFull {
-                max: 20,
-                ..
-            }))
-        ));
-        while conn.poll_transmit().is_some() {}
-        conn.queue_packet(&status(), now).unwrap();
+        assert_eq!(conn.poll_timeout(), None);
+        let interval = Duration::from_millis(20);
+        conn.set_flush_mode(FlushMode::Interval(interval), now)
+            .unwrap();
+        assert_eq!(conn.poll_timeout(), Some(now + interval));
+        conn.handle_timeout(now + interval).unwrap();
+        assert!(conn.has_transmits());
+    }
+
+    #[test]
+    fn send_batch_splits_at_the_limit_with_the_requested_reliability() {
+        let mut conn = Connection::new(
+            Framing::RakNet,
+            ConnectionOptions {
+                max_packets_per_outbound_batch: 2,
+                ..Default::default()
+            },
+        );
+        conn.send_batch(&[status(), status(), status()], false, Instant::now())
+            .unwrap();
+        let reliabilities: Vec<_> = std::iter::from_fn(|| conn.poll_transmit())
+            .map(|transmit| transmit.reliable)
+            .collect();
+        assert_eq!(reliabilities, [false, false]);
     }
 
     #[test]

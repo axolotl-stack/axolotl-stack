@@ -49,6 +49,13 @@ enum Command {
         #[arg(long, default_value_t = 100)]
         count: usize,
     },
+    /// Full jolyne join plus Text echoes over RakNet loopback.
+    Join {
+        #[arg(long, default_value_t = 20)]
+        joins: usize,
+        #[arg(long, default_value_t = 100)]
+        count: usize,
+    },
     Serve {
         #[arg(long)]
         address: SocketAddr,
@@ -95,6 +102,9 @@ fn main() -> Result<()> {
                         }
                         Command::NethernetClient { address, count } => {
                             bench_compare::nethernet::client(address, count).await
+                        }
+                        Command::Join { joins, count } => {
+                            bench_compare::join::loopback(joins, count).await
                         }
                         Command::Loopback { count } => {
                             bench_compare::transport::loopback(count).await

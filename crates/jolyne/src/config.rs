@@ -51,10 +51,17 @@ pub struct ConnectionOptions {
     pub max_packets_per_outbound_batch: usize,
     /// Pending (unsealed) payload bytes before the batch is sealed automatically.
     pub max_pending_bytes: usize,
-    /// Sealed batches waiting for the transport, in bytes. Exceeding it fails
-    /// the send with `ProtocolError::WriteBufferFull` (the async layer drains
-    /// after every send, so this only trips for stalled custom drivers).
+    /// Sealed batches waiting for the transport, in bytes. A batch that would
+    /// exceed it is dropped and the send fails with
+    /// `ProtocolError::WriteBufferFull`; the connection stays consistent. The
+    /// async layer drains after every send, so in practice this bounds a
+    /// single oversized `send_batch` or a stalled custom driver.
     pub max_queued_bytes: usize,
+    /// Packets that arrive before the join phase that consumes them are
+    /// kept (compacted, in order) for the next phase or the play session, up
+    /// to this many packets and bytes.
+    pub max_deferred_packets: usize,
+    pub max_deferred_bytes: usize,
     /// Optional read-only packet hook.
     pub observer: Option<Observer>,
 }
@@ -69,6 +76,8 @@ impl Default for ConnectionOptions {
             max_packets_per_outbound_batch: 812,
             max_pending_bytes: 4 * 1024 * 1024,
             max_queued_bytes: 64 * 1024 * 1024,
+            max_deferred_packets: 4096,
+            max_deferred_bytes: 16 * 1024 * 1024,
             observer: None,
         }
     }

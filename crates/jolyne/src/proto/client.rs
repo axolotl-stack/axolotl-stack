@@ -2,12 +2,13 @@
 //!
 //! ```text
 //! ClientSettings ─NetworkSettings→ ClientLogin ─login(tokens)→ ClientHandshake
-//!   ─S2C + LoginSuccess→ ClientPacks ─Stack→ ClientSpawn ─PlayerSpawn→ ClientSession
+//!   ─LoginSuccess→ ClientPacks ─Stack→ ClientSpawn ─PlayerSpawn→ ClientSession
 //! ```
 //!
 //! One deadline (the join timeout) spans every phase. Packets arriving before
-//! the phase that consumes them are deferred (bounded) and replayed into the
-//! next phase, so nothing the server sends early is lost.
+//! the phase that consumes them are deferred in arrival order (bounded by
+//! `ConnectionOptions::max_deferred_*`) and handed to the next phase, and
+//! finally to the play session.
 
 use std::time::Instant;
 
@@ -181,25 +182,23 @@ impl ClientLogin {
             .and_then(|()| self.conn.flush());
         match result {
             Ok(()) => Ok(ClientHandshake {
+                deferred: Deferred::new(&self.conn),
                 conn: self.conn,
                 shared: self.shared,
                 identity_key,
-                early_info: None,
-                deferred: Deferred::default(),
             }),
             Err(error) => Err(Failure::new(error, self)),
         }
     }
 }
 
-/// Phase 2: `Login` sent; waiting for `ServerToClientHandshake` and
-/// `PlayStatus(LoginSuccess)` (either may come first when encryption is off).
+/// Phase 2: `Login` sent; waiting for the optional `ServerToClientHandshake`
+/// and then `PlayStatus(LoginSuccess)`. Anything else (some servers send
+/// `ResourcePacksInfo` before `LoginSuccess`) is deferred to the pack phase.
 pub struct ClientHandshake {
     conn: Connection,
     shared: Shared,
     identity_key: SecretKey,
-    /// Some servers send `ResourcePacksInfo` before `LoginSuccess`.
-    early_info: Option<RawPacket>,
     deferred: Deferred,
 }
 owner!(ClientHandshake);
@@ -230,10 +229,6 @@ impl Phase for ClientHandshake {
         now: Instant,
     ) -> Result<Step<Self, ClientPacks>, Failure<Self>> {
         match packet.name() {
-            Some(McpePacketName::ResourcePacksInfoPacket) if self.early_info.is_none() => {
-                self.early_info = Some(packet.into_compact());
-                return Ok(Step::Wait(self));
-            }
             Some(
                 McpePacketName::ServerToClientHandshakePacket | McpePacketName::PlayStatusPacket,
             ) => {}
@@ -285,19 +280,15 @@ impl Phase for ClientHandshake {
                 let ClientHandshake {
                     mut conn,
                     shared,
-                    early_info,
                     deferred,
                     ..
                 } = self;
                 deferred.replay_into(&mut conn);
-                if let Some(info) = early_info {
-                    conn.prepend_inbound(std::iter::once(info));
-                }
                 Ok(Step::Next(ClientPacks {
                     exchange: ClientPackExchange::new(shared.packs.clone()),
+                    deferred: Deferred::new(&conn),
                     conn,
                     shared,
-                    deferred: Deferred::default(),
                 }))
             }
             Err(error) => Err(Failure::new(error, self)),
@@ -355,11 +346,13 @@ impl Phase for ClientPacks {
                     deferred,
                 } = self;
                 deferred.replay_into(&mut conn);
+                let (packs, packs_required) = exchange.into_downloaded();
                 Ok(Step::Next(ClientSpawn {
+                    deferred: Deferred::new(&conn),
                     conn,
                     shared,
-                    packs: exchange.into_downloaded(),
-                    deferred: Deferred::default(),
+                    packs,
+                    packs_required,
                     start_game: None,
                     item_registry: None,
                     requested_radius: false,
@@ -379,6 +372,7 @@ pub struct ClientSpawn {
     conn: Connection,
     shared: Shared,
     packs: Vec<DownloadedPack>,
+    packs_required: bool,
     deferred: Deferred,
     start_game: Option<Box<StartGamePacket>>,
     item_registry: Option<ItemRegistryPacket>,
@@ -393,6 +387,8 @@ pub struct ClientSession {
     pub session: Session,
     /// Packs downloaded (or loaded from cache) during the join.
     pub packs: Vec<DownloadedPack>,
+    /// Whether the server marked its packs as required.
+    pub packs_required: bool,
 }
 
 impl Owner for ClientSession {
@@ -539,6 +535,7 @@ impl Phase for ClientSpawn {
         let ClientSpawn {
             mut conn,
             packs,
+            packs_required,
             deferred,
             item_registry,
             updated_radius,
@@ -549,6 +546,7 @@ impl Phase for ClientSpawn {
             session: ClientSession {
                 session: Session::new(conn, runtime_id, updated_radius),
                 packs,
+                packs_required,
             },
             game_data: GameData {
                 start_game: *start_game,

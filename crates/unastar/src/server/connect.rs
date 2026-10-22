@@ -4,7 +4,7 @@
 
 use glam::DVec3;
 use jolyne::auth::ValidatedIdentity;
-use jolyne::stream::raknet_types::{ServerLogin, ServerPlay};
+use jolyne::stream::raknet_types::{ServerHandshake, ServerPlay};
 use jolyne::stream::server::ServerHandshakeConfig;
 use jolyne::stream::{Failed, RakNetTransport};
 use jolyne::valentine::types::{BlockPos, Vec2, Vec3};
@@ -32,7 +32,7 @@ pub async fn accept_join_sequence(
     player_data_store: &PlayerDataStore,
     player_provider: Option<&dyn PlayerProvider>,
     session_id: u64,
-    handshake_stream: ServerLogin,
+    handshake_stream: ServerHandshake,
 ) -> Result<(ServerPlay, ValidatedIdentity, Vec3, Option<PlayerData>), JolyneError> {
     /// Tells the client why a join step failed, then surfaces the error.
     async fn reasoned<T>(

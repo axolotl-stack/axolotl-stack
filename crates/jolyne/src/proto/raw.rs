@@ -58,6 +58,8 @@ pub struct RawPacket {
     /// Complete inner frame: `[Length varint][Header varint][Body]`.
     frame: Bytes,
     body_start: u32,
+    /// The frame owns its own allocation (see [`RawPacket::into_compact`]).
+    compact: bool,
 }
 
 impl fmt::Debug for RawPacket {
@@ -73,8 +75,12 @@ impl fmt::Debug for RawPacket {
 }
 
 impl RawPacket {
-    /// Builds a packet from a header and body, framing it once.
+    /// Builds a packet from a header and body, framing it once. Subclient
+    /// fields are truncated to their two wire bits.
     pub fn new(header: PacketHeader, body: &[u8]) -> Result<Self, JolyneError> {
+        if header.id > super::custom::MAX_PACKET_ID {
+            return Err(ProtocolError::InvalidPacketId(header.id).into());
+        }
         let header_raw = header.encode();
         let payload_len = wire::var_u32_len(header_raw) + body.len();
         let len =
@@ -89,6 +95,7 @@ impl RawPacket {
             name: packet_name(header.id),
             frame: frame.freeze(),
             body_start,
+            compact: true,
         })
     }
 
@@ -104,8 +111,12 @@ impl RawPacket {
         decode_packet_raw(&mut cursor)
     }
 
-    /// Encodes a custom packet into a raw packet.
+    /// Encodes a custom packet into a raw packet. `P::ID` must be a ten-bit
+    /// ID that valentine does not use.
     pub fn from_custom<P: CustomPacket>(packet: &P) -> Result<Self, JolyneError> {
+        if P::ID > super::custom::MAX_PACKET_ID || packet_name(P::ID).is_some() {
+            return Err(ProtocolError::InvalidPacketId(P::ID).into());
+        }
         let mut body = BytesMut::new();
         packet.encode(&mut body)?;
         Self::new(PacketHeader::new(P::ID), &body)
@@ -222,8 +233,12 @@ impl RawPacket {
     /// allocation. Long-lived queues must compact those slices or one small
     /// packet can keep the entire batch resident.
     pub(crate) fn into_compact(self) -> Self {
+        if self.compact {
+            return self;
+        }
         Self {
             frame: Bytes::copy_from_slice(&self.frame),
+            compact: true,
             ..self
         }
     }
@@ -265,6 +280,7 @@ pub fn decode_packet_raw(cursor: &mut Bytes) -> Result<RawPacket, JolyneError> {
         header,
         frame: cursor.split_to(frame_size),
         body_start: body_start as u32,
+        compact: false,
     })
 }
 
@@ -317,6 +333,7 @@ pub(crate) fn decode_packets_into(
             name,
             frame: payload.slice(offset..offset + frame_size),
             body_start: body_start as u32,
+            compact: false,
         });
         stats.packets += 1;
         offset += frame_size;
@@ -514,5 +531,41 @@ mod tests {
         let pointer = compact.inner_frame().as_ptr() as usize;
         assert!(pointer < start || pointer >= start + batch.len());
         assert_eq!(compact.body(), &[0; 4]);
+    }
+
+    /// Regression: custom packets were framed without an ID check, so ID
+    /// 1025 went out as `Login` (1025 & 0x3FF == 1).
+    #[test]
+    fn custom_packets_must_use_free_ten_bit_ids() {
+        struct Wide;
+        impl CustomPacket for Wide {
+            const ID: u16 = 1025;
+            fn decode(_: &[u8]) -> Result<Self, valentine::bedrock::error::DecodeError> {
+                Ok(Self)
+            }
+            fn encode(&self, _: &mut BytesMut) -> Result<(), std::io::Error> {
+                Ok(())
+            }
+        }
+        struct Shadow;
+        impl CustomPacket for Shadow {
+            const ID: u16 = 1;
+            fn decode(_: &[u8]) -> Result<Self, valentine::bedrock::error::DecodeError> {
+                Ok(Self)
+            }
+            fn encode(&self, _: &mut BytesMut) -> Result<(), std::io::Error> {
+                Ok(())
+            }
+        }
+        for result in [
+            RawPacket::from_custom(&Wide),
+            RawPacket::from_custom(&Shadow),
+        ] {
+            assert!(matches!(
+                result,
+                Err(JolyneError::Protocol(ProtocolError::InvalidPacketId(_)))
+            ));
+        }
+        assert!(RawPacket::new(PacketHeader::new(1024), &[]).is_err());
     }
 }

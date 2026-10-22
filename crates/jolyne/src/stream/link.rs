@@ -76,7 +76,7 @@ impl<T: Transport> BedrockTransport<T> {
     }
 
     pub async fn set_flush_mode(&mut self, mode: FlushMode) -> Result<(), JolyneError> {
-        self.conn.set_flush_mode(mode)?;
+        self.conn.set_flush_mode(mode, Instant::now())?;
         driver::after_send(&mut self.transport, &mut self.conn).await
     }
 

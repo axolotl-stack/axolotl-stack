@@ -449,6 +449,8 @@ dependencies = [
  "flate2",
  "futures",
  "jolyne",
+ "p384",
+ "rand 0.8.5",
  "serde",
  "serde_json",
  "sha2 0.10.9",

@@ -63,7 +63,7 @@ fn run(
             done |= server.on_packet(&packet, &mut server_conn, clock)? == PackProgress::Done;
         }
         if done {
-            return Ok((client.into_downloaded(), kinds));
+            return Ok((client.into_downloaded().0, kinds));
         }
         if let Some(at) = server.timer() {
             clock = at;
@@ -82,8 +82,8 @@ fn transfers_verifies_and_orders_stack_after_downloads() {
     )
     .unwrap();
     assert_eq!(downloaded.len(), 1);
-    assert_eq!(downloaded[0].content, offered.content);
-    assert_eq!(downloaded[0].sha256, offered.sha256);
+    assert_eq!(&downloaded[0].content, offered.content());
+    assert_eq!(&downloaded[0].sha256, offered.sha256());
     assert_eq!(
         kinds,
         ["info", "data_info", "chunk", "chunk", "chunk", "stack"],
@@ -328,7 +328,7 @@ fn client_bounds_offers_chunk_size_and_hash() {
         resource_name: name.clone().into(),
         chunk_id: 0,
         byte_offset: 0,
-        chunk_data: pack(10).content.clone(),
+        chunk_data: pack(10).content().clone(),
     });
     assert!(matches!(
         client.on_packet(&chunk, &mut client_conn, now),
@@ -336,4 +336,53 @@ fn client_bounds_offers_chunk_size_and_hash() {
             PackError::HashMismatch(_)
         )))
     ));
+}
+
+/// Regression: the client trusted `ResourcePackDataInfo.file_size` and
+/// allocated it up front, bypassing the advertised-size caps.
+#[test]
+fn data_info_must_match_the_advertised_size() {
+    let now = Instant::now();
+    let mut client_conn = conn();
+    let mut client = ClientPackExchange::new(ClientPackPolicy::default());
+    let mut info = pack(10).info();
+    info.pack_size = 10;
+    client
+        .on_packet(
+            &McpePacket::from(ResourcePacksInfoPacket {
+                resource_packs: vec![info],
+                ..Default::default()
+            }),
+            &mut client_conn,
+            now,
+        )
+        .unwrap();
+    let inflated = McpePacket::from(ResourcePackDataInfoPacket {
+        resource_name: format!("{}_1.2.3", Uuid::from_u128(7)).into(),
+        chunk_size: 1024,
+        numberof_chunks: 512 * 1024,
+        file_size: 512 * 1024 * 1024,
+        file_hash: Bytes::copy_from_slice(&[0; 32]),
+        is_premium_pack: false,
+        pack_type: PackType::Resources as u8,
+    });
+    assert!(matches!(
+        client.on_packet(&inflated, &mut client_conn, now),
+        Err(JolyneError::Protocol(ProtocolError::Pack(
+            PackError::Invalid(_, _)
+        )))
+    ));
+}
+
+#[test]
+fn stack_finished_before_stack_is_rejected() {
+    let now = Instant::now();
+    let mut server_conn = conn();
+    let mut server =
+        ServerPackExchange::start(server_packs(vec![], Duration::ZERO), &mut server_conn, now)
+            .unwrap();
+    let finished = response(
+        ResourcePackClientResponsePacketResponse::ResourcePackStackFinished(Default::default()),
+    );
+    assert!(server.on_packet(&finished, &mut server_conn, now).is_err());
 }

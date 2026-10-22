@@ -11,9 +11,11 @@
 //! 5. client → `ResourcePackStackFinished`
 //!
 //! Memory is bounded on both sides: the server only slices shared pack
-//! content, and the client caps pack count, per-pack and total sizes before
-//! allocating, keeps at most `window` chunk requests in flight, and verifies
-//! every pack's SHA-256.
+//! content; the client caps the pack count and the advertised per-pack and
+//! total sizes, requires `ResourcePackDataInfo` to match the advertised size,
+//! grows its buffer only as chunks arrive, keeps at most `window` chunk
+//! requests in flight, and verifies every downloaded pack's SHA-256. Cache hits
+//! are size-checked; the cache is trusted for content.
 
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -74,12 +76,13 @@ pub enum PackType {
 }
 
 /// A pack the server can send: identity plus its `.mcpack`/zip bytes.
+/// Content and hash are private so they always agree and are never empty.
 #[derive(Debug, Clone)]
 pub struct ResourcePack {
     pub uuid: Uuid,
     pub version: String,
-    pub content: Bytes,
-    pub sha256: [u8; 32],
+    content: Bytes,
+    sha256: [u8; 32],
     pub pack_type: PackType,
     /// AES key for encrypted (marketplace-style) packs; empty when plain.
     pub content_key: String,
@@ -94,7 +97,25 @@ pub struct ResourcePack {
 impl ResourcePack {
     /// Hashes `content` once; the content is shared, never copied, by transfers.
     pub fn new(uuid: Uuid, version: impl Into<String>, content: Bytes) -> Result<Self, PackError> {
-        let version = version.into();
+        let mut pack = Self::new_unhashed(uuid, version.into(), content)?;
+        pack.sha256 = Sha256::digest(&pack.content).into();
+        Ok(pack)
+    }
+
+    /// Wraps content whose SHA-256 was already verified (a proxied download).
+    #[cfg(all(feature = "server", feature = "client"))]
+    pub(crate) fn from_verified(
+        uuid: Uuid,
+        version: String,
+        content: Bytes,
+        sha256: [u8; 32],
+    ) -> Result<Self, PackError> {
+        let mut pack = Self::new_unhashed(uuid, version, content)?;
+        pack.sha256 = sha256;
+        Ok(pack)
+    }
+
+    fn new_unhashed(uuid: Uuid, version: String, content: Bytes) -> Result<Self, PackError> {
         let name = format!("{uuid}_{version}");
         if content.is_empty() {
             return Err(PackError::Invalid(name, "empty content"));
@@ -105,7 +126,7 @@ impl ResourcePack {
         Ok(Self {
             uuid,
             version,
-            sha256: Sha256::digest(&content).into(),
+            sha256: [0; 32],
             content,
             pack_type: PackType::Resources,
             content_key: String::new(),
@@ -115,6 +136,14 @@ impl ResourcePack {
             is_addon: false,
             ray_tracing: false,
         })
+    }
+
+    pub fn content(&self) -> &Bytes {
+        &self.content
+    }
+
+    pub fn sha256(&self) -> &[u8; 32] {
+        &self.sha256
     }
 
     /// The `uuid_version` name used in requests and chunk packets.
@@ -396,7 +425,12 @@ impl ServerPackExchange {
                     }
                     Ok(PackProgress::Handled)
                 }
-                R::ResourcePackStackFinished(_) => Ok(PackProgress::Done),
+                R::ResourcePackStackFinished(_) if self.stack_sent => Ok(PackProgress::Done),
+                R::ResourcePackStackFinished(_) => Err(PackError::Invalid(
+                    "stack".into(),
+                    "stack finished before the stack was sent",
+                )
+                .into()),
             },
             D::ResourcePackChunkRequestPacket(request) => {
                 let name = request.resource_name.to_string();
@@ -540,6 +574,7 @@ struct Download {
 /// The client half of the exchange.
 pub struct ClientPackExchange {
     policy: ClientPackPolicy,
+    required: bool,
     offers: Vec<PackOffer>,
     ignored: Vec<PackOffer>,
     awaiting: Vec<PackOffer>,
@@ -553,6 +588,7 @@ impl ClientPackExchange {
     pub fn new(policy: ClientPackPolicy) -> Self {
         Self {
             policy,
+            required: false,
             offers: Vec::new(),
             ignored: Vec::new(),
             awaiting: Vec::new(),
@@ -563,8 +599,9 @@ impl ClientPackExchange {
         }
     }
 
-    pub fn into_downloaded(self) -> Vec<DownloadedPack> {
-        self.downloaded
+    /// Downloaded packs and whether the server marked them required.
+    pub fn into_downloaded(self) -> (Vec<DownloadedPack>, bool) {
+        (self.downloaded, self.required)
     }
 
     fn finish_downloads(&mut self, conn: &mut Connection, now: Instant) -> Result<(), JolyneError> {
@@ -595,6 +632,7 @@ impl ClientPackExchange {
             return Ok(());
         }
         self.info_seen = true;
+        self.required = info.resource_pack_required;
         if info.resource_packs.len() > self.policy.max_packs {
             return Err(PackError::TooManyPacks {
                 count: info.resource_packs.len(),
@@ -729,31 +767,34 @@ impl ClientPackExchange {
             }
             .into());
         }
-        if info.file_size > self.policy.max_pack_size {
-            return Err(PackError::PackTooLarge {
-                pack: name,
-                size: info.file_size,
-                max: self.policy.max_pack_size,
-            }
-            .into());
+        // The advertised size already passed the per-pack and total caps.
+        if info.file_size != self.awaiting[position].size {
+            return Err(PackError::Invalid(name, "size differs from ResourcePacksInfo").into());
         }
-        let chunks = info.file_size.div_ceil(u64::from(info.chunk_size));
-        if chunks != u64::from(info.numberof_chunks) {
-            return Err(PackError::Invalid(name, "chunk count does not match size").into());
-        }
+        // Like gophertunnel, derive the chunk count from the size rather than
+        // trusting `numberof_chunks`.
+        let chunks =
+            u32::try_from(info.file_size.div_ceil(u64::from(info.chunk_size))).map_err(|_| {
+                PackError::InvalidChunkSize {
+                    pack: name.clone(),
+                    size: info.chunk_size,
+                }
+            })?;
         let offer = self.awaiting.remove(position);
+        let initial = (u64::from(info.chunk_size) * u64::from(self.policy.window.max(1)))
+            .min(info.file_size) as usize;
         self.current = Some(Download {
             offer,
             name,
             chunk_size: info.chunk_size,
-            chunks: info.numberof_chunks,
+            chunks,
             size: info.file_size,
             hash: info.file_hash.clone(),
-            buffer: BytesMut::with_capacity(info.file_size as usize),
+            buffer: BytesMut::with_capacity(initial),
             requested: 0,
             received: 0,
         });
-        if info.numberof_chunks == 0 {
+        if chunks == 0 {
             return self.complete(conn, now);
         }
         self.request_more(conn, now)
@@ -762,6 +803,8 @@ impl ClientPackExchange {
     fn complete(&mut self, conn: &mut Connection, now: Instant) -> Result<(), JolyneError> {
         let download = self.current.take().expect("completing without a download");
         let sha256: [u8; 32] = Sha256::digest(&download.buffer).into();
+        // Deliberately stricter than gophertunnel, which never checks the
+        // hash: the advertised value must be the 32-byte SHA-256 and match.
         if download.hash.len() != 32 || download.hash[..] != sha256 {
             return Err(PackError::HashMismatch(download.name).into());
         }
