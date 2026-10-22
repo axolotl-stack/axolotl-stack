@@ -46,28 +46,7 @@ impl PhaseOf<Client> for Play {
 /// A spawned client stream and the game data captured while joining.
 pub type JoinedStream<T> = (BedrockStream<Play, Client, T>, GameData);
 
-/// Xbox Live credentials for authenticated servers.
-#[derive(Debug, Clone)]
-pub struct XblCredentials {
-    /// XBL token for the Bedrock multiplayer relying party.
-    pub token: String,
-    pub user_hash: String,
-    pub xuid: String,
-}
-
-impl XblCredentials {
-    pub fn new(
-        token: impl Into<String>,
-        user_hash: impl Into<String>,
-        xuid: impl Into<String>,
-    ) -> Self {
-        Self {
-            token: token.into(),
-            user_hash: user_hash.into(),
-            xuid: xuid.into(),
-        }
-    }
-}
+pub use crate::auth::client::{LoginCredentials, MultiplayerTokenSource};
 
 /// Who the client logs in as.
 #[derive(Debug, Clone)]
@@ -77,8 +56,8 @@ pub struct ClientHandshakeConfig {
     pub identity_key: SecretKey,
     pub display_name: String,
     pub uuid: Uuid,
-    /// Xbox Live credentials; `None` logs in offline (self-signed).
-    pub xbl_credentials: Option<XblCredentials>,
+    /// Login authentication; `Offline` unless built with [`Self::with_xbox_live`].
+    pub credentials: LoginCredentials,
 }
 
 impl ClientHandshakeConfig {
@@ -89,24 +68,26 @@ impl ClientHandshakeConfig {
             identity_key: SecretKey::random(&mut rand::thread_rng()),
             display_name: display_name.into(),
             uuid: Uuid::new_v4(),
-            xbl_credentials: None,
+            credentials: LoginCredentials::Offline,
         }
     }
 
-    /// An Xbox Live identity.
+    /// An identity for online-mode servers: Login sends
+    /// `AuthenticationType: 0` with a multiplayer token issued by `tokens`
+    /// for `identity_key`.
     pub fn with_xbox_live(
         server_addr: SocketAddr,
         identity_key: SecretKey,
         display_name: impl Into<String>,
         uuid: Uuid,
-        xbl_credentials: XblCredentials,
+        tokens: std::sync::Arc<dyn MultiplayerTokenSource>,
     ) -> Self {
         Self {
             server_addr,
             identity_key,
             display_name: display_name.into(),
             uuid,
-            xbl_credentials: Some(xbl_credentials),
+            credentials: LoginCredentials::Online(tokens),
         }
     }
 }
@@ -200,21 +181,34 @@ impl<T: Transport> BedrockStream<Handshake, Client, T> {
 }
 
 impl<T: Transport> BedrockStream<Login, Client, T> {
-    /// Builds the login tokens for `config` (fetching a Minecraft chain when
-    /// Xbox credentials are set) and sends `Login`.
+    /// Builds the login tokens for `config` (a provider multiplayer token for
+    /// online credentials, self-signed otherwise) and sends `Login`.
     #[tracing::instrument(skip_all, level = "debug", fields(peer = %self.peer_addr()))]
     pub async fn send_login(
         self,
         config: &ClientHandshakeConfig,
     ) -> Result<BedrockStream<SecurePending, Client, T>, Failed<T>> {
         let deadline = tokio::time::Instant::from_std(self.owner().deadline());
-        let tokens = tokio::time::timeout_at(deadline, login_tokens(config)).await;
+        let tokens = tokio::time::timeout_at(
+            deadline,
+            crate::auth::client::build_login(
+                &config.identity_key,
+                &config.display_name,
+                config.uuid,
+                &config.credentials,
+            ),
+        )
+        .await;
         match tokens {
-            Ok(Ok((chain, client_token))) => {
-                self.send_login_with_tokens(&config.identity_key, &chain, &client_token)
-                    .await
+            Ok(Ok(tokens)) => {
+                self.send_login_with_tokens(
+                    &config.identity_key,
+                    &tokens.auth_info_json,
+                    &tokens.client_data_jwt,
+                )
+                .await
             }
-            Ok(Err(error)) => Err(self.fail(error)),
+            Ok(Err(error)) => Err(self.fail(error.into())),
             Err(_) => Err(self.fail(ProtocolError::Timeout(HandshakePhase::Login).into())),
         }
     }
@@ -242,30 +236,6 @@ impl<T: Transport> BedrockStream<Login, Client, T> {
             Ok(handshake) => advance_to(parts.transport, handshake).await,
             Err(failure) => Err(failed(failure, parts.transport)),
         }
-    }
-}
-
-async fn login_tokens(config: &ClientHandshakeConfig) -> Result<(String, String), JolyneError> {
-    match &config.xbl_credentials {
-        Some(xbl) => {
-            let chain = crate::auth::client::request_minecraft_chain(
-                &config.identity_key,
-                &xbl.token,
-                &xbl.user_hash,
-            )
-            .await?;
-            crate::auth::client::encode_with_mojang_chain(
-                &config.identity_key,
-                &config.display_name,
-                config.uuid,
-                &chain,
-            )
-        }
-        None => crate::auth::client::generate_self_signed_chain(
-            &config.identity_key,
-            &config.display_name,
-            config.uuid,
-        ),
     }
 }
 

@@ -24,9 +24,9 @@ use super::packs::{PackProgress, ServerPackExchange, ServerPacks};
 use super::phase::{Deferred, Failure, Owner, Phase, Step, unexpected};
 use super::raw::RawPacket;
 use super::session::Session;
+use crate::auth::AuthenticatedLogin;
 use crate::config::BedrockListenerConfig;
 use crate::error::{HandshakePhase, JolyneError, LoginRefusal, ProtocolError};
-use crate::login::AuthenticatedLogin;
 use crate::valentine::{
     BorrowedMcpePacketData, ChunkRadiusUpdatedPacket, EnumsConnectionDisconnectFailReason,
     McpePacket, McpePacketData, McpePacketName, NetworkChunkPublisherUpdatePacket,
@@ -292,7 +292,7 @@ impl LoginRequest {
                 self,
             ));
         }
-        tracing::debug!(name = login.display_name(), "login accepted");
+        tracing::debug!(name = login.identity.display_name(), "login accepted");
         Ok(Authenticated {
             conn: self.conn,
             shared: self.shared,
@@ -333,7 +333,8 @@ impl Authenticated {
             };
         }
         let result = (|| {
-            let client_key = handshake::parse_public_key(self.login.identity_public_key())?;
+            let client_key =
+                handshake::parse_public_key(self.login.identity.identity_public_key())?;
             let mut salt = [0u8; 16];
             rand::thread_rng().fill_bytes(&mut salt);
             let token = handshake::server_token(server_key, &salt)?;

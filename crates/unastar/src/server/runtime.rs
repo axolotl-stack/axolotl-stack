@@ -460,11 +460,7 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
                         .await
                         {
                             Ok((mut play_stream, identity, initial_position, saved_data)) => {
-                                let display_name = identity
-                                    .display_name
-                                    .as_deref()
-                                    .unwrap_or("Unknown")
-                                    .to_string();
+                                let display_name = identity.display_name().to_string();
 
                                 info!(%addr, name = %display_name, "Player joined");
 
@@ -487,8 +483,8 @@ fn spawn_accept_loop(mut listener: BedrockListener<RaknetListener>, state: Accep
                                     .send(NetworkEvent::Joined {
                                         session_id,
                                         display_name: display_name.clone(),
-                                        xuid: identity.xuid.clone(),
-                                        uuid: identity.uuid.clone(),
+                                        xuid: identity.xuid().map(str::to_owned),
+                                        uuid: Some(identity.uuid().to_string()),
                                         runtime_id: session_id as i64,
                                         initial_position: spawn_to_dvec3(&initial_position),
                                         saved_data: saved_data.map(Box::new),

@@ -17,10 +17,10 @@ use super::{
     BedrockStream, BedrockTransport, Failed, Handshake, Login, PhaseOf, Play, ResourcePacks,
     SecurePending, Server, StartGame,
 };
-use crate::auth::ValidatedIdentity;
+use crate::auth::AuthenticatedLogin;
+use crate::auth::{ClientData, ValidatedIdentity};
 use crate::config::BedrockListenerConfig;
 use crate::error::{HandshakePhase, JolyneError, ProtocolError};
-use crate::login::AuthenticatedLogin;
 use crate::proto::conn::Connection;
 use crate::proto::packs::ServerPacks;
 use crate::proto::phase::{Failure, Owner, Step};
@@ -44,6 +44,19 @@ impl PhaseOf<Server> for StartGame {
 }
 impl PhaseOf<Server> for Play {
     type Owner = core::ServerSession;
+}
+
+/// Decodes and verifies a `LoginPacket.connection_request`.
+pub(crate) async fn verify_login(
+    connection_request: &[u8],
+    online_mode: bool,
+    allow_legacy: bool,
+) -> Result<AuthenticatedLogin, JolyneError> {
+    let (auth_info, client_data) = crate::auth::decode_login_request(connection_request)?;
+    Ok(
+        crate::auth::authenticate_login(&auth_info, &client_data, online_mode, allow_legacy)
+            .await?,
+    )
 }
 
 /// A verified player and its stream, as returned by `authenticate`.
@@ -184,7 +197,7 @@ impl<T: Transport> BedrockStream<Login, Server, T> {
         let deadline = tokio::time::Instant::from_std(request.deadline());
         let verified = tokio::time::timeout_at(
             deadline,
-            crate::login::authenticate(
+            verify_login(
                 request.connection_request(),
                 config.online_mode,
                 config.allow_legacy_auth,
@@ -311,6 +324,11 @@ impl<T: Transport> BedrockStream<Play, Server, T> {
 
     pub fn identity(&self) -> &ValidatedIdentity {
         &self.owner().login.identity
+    }
+
+    /// The validated client data (skin, device, locale, platform IDs).
+    pub fn client_data(&self) -> &ClientData {
+        &self.owner().login.client_data
     }
 
     pub fn runtime_id(&self) -> u64 {

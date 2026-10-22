@@ -60,12 +60,20 @@ func TestScenarioValidation(t *testing.T) {
 		{Steps: []step{{AfterMS: -1, Kind: "chat", Text: "hello"}}},
 		{Steps: []step{{Kind: "unknown", Text: "hello"}}},
 		{Steps: []step{{Kind: "chat"}}},
+		// Interactions only make sense while the client ticks like vanilla.
+		{Steps: []step{{Kind: "click"}}},
+		{AuthInput: true, Steps: []step{{Kind: "move"}}},
+		{AuthInput: true, Steps: []step{{Kind: "drop", Slot: 36, Count: 1}}},
+		{AuthInput: true, Steps: []step{{Kind: "select", Slot: 9}}},
 	} {
 		if err := scenario.validate(); err == nil {
 			t.Fatalf("accepted invalid scenario: %+v", scenario)
 		}
 	}
 	if err := (scenario{IdleMS: 10, Steps: []step{{AfterMS: 1, Kind: "chat", Text: "hello"}, {Kind: "command", Text: "/say hi"}}}).validate(); err != nil {
+		t.Fatal(err)
+	}
+	if err := (scenario{AuthInput: true, Steps: []step{{Kind: "move", Ticks: 2}, {Kind: "click", Face: 1}, {Kind: "drop", Slot: 35, Count: 64}}}).validate(); err != nil {
 		t.Fatal(err)
 	}
 }

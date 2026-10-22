@@ -8917,7 +8917,7 @@ impl crate::bedrock::codec::BedrockCodec for LevelSoundEventPacket {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct LevelEventGenericPacket {
     pub event_id: i32,
-    pub __ctd__: crate::bedrock::codec::Nbt,
+    pub __ctd__: crate::bedrock::codec::NbtCompoundBody,
 }
 impl crate::bedrock::codec::BedrockSized for LevelEventGenericPacket {
     fn encoded_size(&self) -> usize {
@@ -8950,8 +8950,10 @@ impl crate::bedrock::codec::BedrockCodec for LevelEventGenericPacket {
                 (),
             )?
             .0;
-        let __ctd__ =
-            <crate::bedrock::codec::Nbt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?;
+        let __ctd__ = <crate::bedrock::codec::NbtCompoundBody as crate::bedrock::codec::BedrockCodec>::decode(
+            buf,
+            (),
+        )?;
         Ok(Self { event_id, __ctd__ })
     }
 }

@@ -33,7 +33,7 @@ pub trait RawListener: Unpin + Send {
     fn local_addr(&self) -> Option<SocketAddr>;
 
     /// Publishes `status` wherever this listener answers pings.
-    fn publish_status(&self, _status: &ServerStatus, _server_guid: u64) -> Result<(), JolyneError> {
+    fn publish_status(&self, _status: &ServerStatus) -> Result<(), JolyneError> {
         Ok(())
     }
 }
@@ -44,8 +44,6 @@ pub struct BedrockListener<L: RawListener> {
     config: Arc<BedrockListenerConfig>,
     slots: PlayerSlots,
     status: Arc<dyn StatusProvider>,
-    /// GUID written into the RakNet pong string.
-    server_guid: u64,
     next_refresh: tokio::time::Instant,
     #[cfg(feature = "discovery")]
     lan: Option<Arc<tokio_nethernet::discovery::DiscoveryListener>>,
@@ -63,7 +61,6 @@ impl<L: RawListener> BedrockListener<L> {
             slots: PlayerSlots::new(config.max_players),
             config: Arc::new(config),
             status,
-            server_guid: rand::random(),
             next_refresh: tokio::time::Instant::now(),
             #[cfg(feature = "discovery")]
             lan: None,
@@ -78,7 +75,7 @@ impl<L: RawListener> BedrockListener<L> {
     /// Recomputes and publishes the status now.
     pub async fn refresh_status(&self) -> Result<(), JolyneError> {
         let status = self.status();
-        self.inner.publish_status(&status, self.server_guid)?;
+        self.inner.publish_status(&status)?;
         #[cfg(feature = "discovery")]
         if let Some(lan) = &self.lan {
             lan.set_server_data(status.lan_server_data()).await;
@@ -402,13 +399,10 @@ mod raknet_impl {
             Some(RaknetListener::local_addr(self))
         }
 
-        fn publish_status(
-            &self,
-            status: &ServerStatus,
-            server_guid: u64,
-        ) -> Result<(), JolyneError> {
+        fn publish_status(&self, status: &ServerStatus) -> Result<(), JolyneError> {
+            // The pong string's GUID must match the RakNet pong header.
             let port = RaknetListener::local_addr(self).port();
-            self.set_advertisement(status.raknet_pong(server_guid, port).into_bytes())
+            self.set_advertisement(status.raknet_pong(self.guid(), port).into_bytes())
                 .map_err(JolyneError::transport)
         }
     }

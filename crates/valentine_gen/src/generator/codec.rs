@@ -3818,14 +3818,19 @@ fn union_control_decode(primitive: &Primitive) -> Result<TokenStream, Box<dyn st
 /// True when a union variant's payload is a bare scalar whose wire encoding the
 /// union codec has to choose itself.
 ///
-/// `Uuid`, `Nbt` and `ByteArray` lower to Rust types that carry a correct
-/// `BedrockCodec` of their own, so they stay on the generic path; `Void` is not
-/// a payload at all. Everything else lowers to a bare Rust primitive
-/// (`i32`, `f32`, ...) whose blanket impl in `bedrock_core` is big-endian.
+/// `Uuid`, `Nbt`, `NbtCompoundBody` and `ByteArray` lower to Rust types that
+/// carry a correct `BedrockCodec` of their own, so they stay on the generic
+/// path; `Void` is not a payload at all. Everything else lowers to a bare Rust
+/// primitive (`i32`, `f32`, ...) whose blanket impl in `bedrock_core` is
+/// big-endian.
 pub fn is_union_scalar_payload(primitive: &Primitive) -> bool {
     !matches!(
         primitive,
-        Primitive::Void | Primitive::Uuid | Primitive::Nbt | Primitive::ByteArray
+        Primitive::Void
+            | Primitive::Uuid
+            | Primitive::Nbt
+            | Primitive::NbtCompoundBody
+            | Primitive::ByteArray
     )
 }
 

@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 #[cfg(feature = "server")]
-use crate::login::AuthenticatedLogin;
+use crate::auth::AuthenticatedLogin;
 use crate::proto::batch::{BatchCompression, BatchLimits};
 use crate::proto::custom::{PacketRegistry, UnknownPacketPolicy};
 use crate::proto::observe::Observer;
@@ -144,9 +144,14 @@ where
 /// Server configuration shared by every connection a listener accepts.
 #[derive(Clone)]
 pub struct BedrockListenerConfig {
-    /// Require Xbox Live (OpenID) authentication. Default: `true`.
+    /// Require Xbox Live authentication: the Login multiplayer `Token` must be
+    /// signed by the Minecraft OpenID provider (see `auth::openid`). When off,
+    /// self-signed tokens are accepted and identities are unauthenticated
+    /// (`ValidatedIdentity::xuid()` is `None`). Default: `true`.
     pub online_mode: bool,
-    /// Accept self-signed chains when `online_mode` is off. Default: `true`.
+    /// Whether offline mode accepts Guest/SelfSigned authentication types
+    /// (self-signed tokens or legacy chains). Ignored in online mode, which
+    /// only accepts provider-signed tokens. Default: `true`.
     pub allow_legacy_auth: bool,
     /// Run the ECDH handshake and AES-CTR batch encryption. Default: `true`
     /// (NetherNet listeners default to `false`; DTLS already encrypts).

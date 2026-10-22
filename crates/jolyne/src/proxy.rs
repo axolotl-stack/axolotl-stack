@@ -17,9 +17,9 @@ use std::sync::Arc;
 use p384::SecretKey;
 
 use crate::FlushMode;
+use crate::auth::AuthenticatedLogin;
 use crate::config::BedrockListenerConfig;
 use crate::error::JolyneError;
-use crate::login::AuthenticatedLogin;
 use crate::proto::custom::UnknownPacketPolicy;
 use crate::proto::packs::{ResourcePack, ServerPacks};
 use crate::proto::phase::Owner;

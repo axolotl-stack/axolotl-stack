@@ -147,7 +147,7 @@ impl Harness {
         pump(&mut client, &mut server);
         let request = next(server);
         let identity =
-            crate::login::authenticate(request.connection_request(), false, true).await?;
+            crate::stream::server::verify_login(request.connection_request(), false, true).await?;
         let authenticated = request
             .authenticated(identity, PEER, Instant::now())
             .map_err(|failure| failure.error)?;
@@ -473,7 +473,7 @@ async fn server_full_and_admission_refusals_reach_the_client_typed() {
     let denying = Harness::new(BedrockListenerConfig {
         online_mode: false,
         admission: Some(Arc::new(
-            |_: SocketAddr, _: &crate::login::AuthenticatedLogin| Err("whitelist".to_string()),
+            |_: SocketAddr, _: &crate::auth::AuthenticatedLogin| Err("whitelist".to_string()),
         )),
         ..Default::default()
     });
@@ -491,7 +491,7 @@ async fn server_full_and_admission_refusals_reach_the_client_typed() {
         .unwrap();
     pump(&mut client, &mut server);
     let request = next(server);
-    let identity = crate::login::authenticate(request.connection_request(), false, true)
+    let identity = crate::stream::server::verify_login(request.connection_request(), false, true)
         .await
         .unwrap();
     let failure = match request.authenticated(identity, PEER, Instant::now()) {

@@ -113,13 +113,13 @@ the vanilla reference). Tests are in `crates/jolyne` unless noted.
 | Disconnect with reason (both sides), typed inbound Disconnect, flushing `close` | ✅ | `stream::tests::{join_echo_and_typed_disconnect, failed_step_keeps_the_connection_and_sends_a_reason, close_and_drop_flush_buffered_packets}` |
 | Spawn checks (runtime ID, radius ≥ 1 + server override, BDS packet order) | ✅ | `proto::tests::{runtime_id_mismatch_is_rejected, chunk_radius_requires_one_and_honours_the_server_override, join_sequence_order_matches_vanilla}` |
 | Client: typed `PlayStatus` refusal, ES384-pinned handshake | ✅ | `proto::tests::protocol_mismatch_answers_play_status_and_client_reports_refusal`, `proto::handshake::tests::rejects_non_es384_and_tampered_tokens` |
-| Latency / RTT | ✅ NetherNet (SCTP SRTT), 🟡 RakNet | `Transport::latency`; RakNet needs `tokio-raknet` `RaknetStream::rtt()` |
+| Latency / RTT (RakNet ACK RTT, NetherNet SCTP SRTT) | ✅ | `tests/raknet_listener.rs` (`latency()` after a real join), `stream::tests::join_echo_and_typed_disconnect` |
 | Server status / MOTD (refreshed every 4 s and on join/leave) | ✅ | `status::tests::pong_matches_gophertunnel_layout_and_unlimited_max`, `tests/raknet_listener.rs` |
 | Packet observer hook (zero cost when unset) | ✅ | `proto::conn::tests::observer_sees_both_directions_with_bodies` |
 | Metrics (packets/bytes/batches in/out, decode errors, unknown IDs) | ✅ | `proto::conn::tests::enabling_compression_and_encryption_seals_pending_in_the_old_format`, `proto::tests::unknown_and_custom_packets_follow_the_configured_policy` |
 | Tracing | ✅ | `#[instrument]` spans on every join step, `close` and `disconnect` |
 | Typestate phase safety | ✅ | `stream::BedrockStream<S, R, T>` |
-| Xbox auth / ClientData exposure | owned by `jolyne::auth` | see *Server authentication* |
+| Validated ClientData / identity on the session | ✅ | `BedrockStream<Play, Server, _>::{identity, client_data}`; `stream::tests::join_echo_and_typed_disconnect`; validation in `jolyne::auth` |
 
 ### Reusable batch pipeline
 
@@ -190,14 +190,19 @@ P-384 key. A top-level legacy `chain` is not a modern BDS identity token.
 The client does not implement client-side chunk generation and advertises that
 capability as disabled for both offline and provider-token Login.
 
-For modern online Login, acquire a provider multiplayer token bound to the
-connection key (for example with `axolotl_xbl::PlayFabClient::multiplayer_token`),
-then call `auth::client::encode_with_multiplayer_token` and
-`send_login_with_tokens`. This sends `AuthenticationType: 0` and preserves the
-provider token; it does not turn self-signed claims into authenticated credentials.
-The older `XblCredentials`/Mojang-chain acquisition path is a legacy flow, not
-live-verified against 26.51. Online envelope bytes and client signatures are tested;
-live Xbox authentication is not exercised by the offline harness.
+`ClientHandshakeConfig::credentials` selects the Login authentication
+(`auth::client::LoginCredentials`). `ClientHandshakeConfig::with_xbox_live`
+takes an `Arc<dyn auth::client::MultiplayerTokenSource>` and sends
+`AuthenticationType: 0` with a provider multiplayer token bound to the
+connection key, as vanilla clients and gophertunnel's dialer do; jolyne online
+servers and BDS 1.26.51 authenticate only this token. jolyne does not depend on
+an Xbox client: `examples/simple_client.rs` implements the source with
+`axolotl-xbl` (PlayFab-scoped XBL token → `PlayFabClient::login` →
+`service_token` → `multiplayer_token`). `auth::client::build_login` produces the
+same `(auth_info_json, client_data_jwt)` pair for `send_login_with_tokens`.
+The client no longer requests or sends a Mojang-signed legacy chain.
+Online envelopes are tested end to end against the jolyne verifier with test
+keys; live Xbox authentication is not exercised by the offline harness.
 
 The offline vanilla differential harness lives in
 [`tools/client-diff`](../../tools/client-diff/README.md). Its acceptance report
@@ -237,31 +242,57 @@ schema label is `valentine::bedrock::version::v1_26_51`.
 
 ### Server authentication
 
-`auth::authenticate_login` retains its existing arguments and
-`Result<ValidatedIdentity, JolyneError>` return type. Authentication failures are
-typed `JolyneError::Auth(AuthError)` values; issuer, audience and temporal failures
-have distinct variants. Key/signature mismatches are `AuthError::BadSignature`.
-`ValidatedIdentity::authenticated` is true only for online-verified identities;
-offline identities are always false, even if their payload claims an XUID.
+`auth::authenticate_login(auth_info_json, client_data_jwt, online_mode,
+allow_legacy)` returns `Result<AuthenticatedLogin, AuthError>` with
+`AuthenticatedLogin { identity: ValidatedIdentity, client_data: ClientData }`.
+`authenticate_login_with` takes an explicit `auth::openid::OpenIdProvider`.
+Issuer, audience and temporal failures have distinct `AuthError` variants;
+key/signature mismatches are `AuthError::BadSignature`.
+
+| Mode | Accepted | `ValidatedIdentity` |
+|---|---|---|
+| online | `AuthenticationType: 0` with a provider-signed `Token` carrying an XUID | `is_authenticated()`; `xuid()`, `playfab_id()` (`mid`), `title_id()` (`tid`, `20CA2` retail) |
+| offline | type 0 with an unverified `Token`; with `allow_legacy`, type 1/2 with a self-signed `Token` or a legacy chain | unauthenticated; `xuid()`, `playfab_id()`, `title_id()` are `None` |
+
+`ValidatedIdentity` has private fields and no public constructor, so an offline
+identity cannot be upgraded or edited. Its offline XUID claim is only reachable
+through `claimed_xuid()` and must never key persistent or privileged state. The
+UUID is `leguuid`, else the gophertunnel MD5 v3 UUID of the XUID, else random.
+Identity claims are validated like gophertunnel `IdentityData.Validate` (int64
+XUID, non-nil UUID, display-name length/spacing rules).
 
 Online OpenID trust starts at Minecraft's HTTPS build discovery endpoint for
 `1.26.51`, follows the published issuer's OpenID configuration and JWKS, and
 enforces issuer, multiplayer audience, expiry/not-before (60-second skew) and
 the published RS256/ES384 algorithm allow-list. JWT `x5u`/`x5c` keys and URLs are
-never trust sources. JWKS snapshots expire after 30 minutes; expired snapshots
-are refreshed before validation and discovery failures fail closed.
-`auth::openid::OpenIdVerifier::from_jwks` accepts an explicitly trusted issuer,
-algorithm list and JWKS snapshot for deterministic tests; its `validate` method
-uses the same verification path as production.
+never trust sources. The process-wide `OpenIdProvider::minecraft()` caches the
+key set without serializing logins: validation clones an `Arc` snapshot and
+verifies without holding a lock; refreshes are single-flight and shared by all
+waiters (success or failure); an unknown `kid` refreshes at most once per 30
+minutes (gophertunnel `refreshingKeySet`); snapshots older than one hour are
+revalidated by one caller while the others keep using the cached keys, which
+keep serving for up to 24 hours if refreshing fails; failed fetches back off for
+30 seconds; each refresh is bounded by 30 seconds (HTTP connect 5 s, request
+10 s). `RefreshPolicy` and `KeySetSource` make all of this injectable;
+`OpenIdVerifier::from_jwks` builds an explicitly trusted snapshot and its
+synchronous `validate` uses the production verification path.
 
-Client data must be ES384-signed by the token's authenticated `cpk` identity key.
-A contradictory client identity key is rejected, and client data cannot override
-provider-asserted identity fields. Self-signed multiplayer tokens remain supported
-offline. The existing `allow_legacy` policy also gates self-signed authentication.
-`validate_chain(..., true)` accepts only Mojang-rooted legacy chains, including
-the vanilla self-signed prefix delegating to Mojang; subsequent links must verify
-against the preceding signed `identityPublicKey`. Online `authenticate_login`
-continues to reject Guest/SelfSigned authentication types.
+Client data must be ES384-signed by the token's `cpk` identity key, and an
+`IdentityPublicKey` echo must match it. It is parsed into the typed
+`auth::ClientData` and validated like gophertunnel `ClientData.Validate`
+(DeviceOS 1–15, numeric GameVersion, BCP-47 language, UUID/uint64 platform IDs,
+skin/cape/animation byte sizes equal to width × height × 4, base64 JSON
+geometry and resource patch, non-empty SkinId, UIProfile 0–2, lower-case hex
+PlayFabId). Unlike gophertunnel, `ServerAddress` is checked syntactically and
+never resolved through DNS.
+
+Online mode rejects Guest/SelfSigned authentication types, including
+Mojang-rooted legacy chains, which gophertunnel still accepts. Evidence: BDS
+1.26.51's `bedrock_server.exe` contains neither the Mojang root key (base64 SPKI
+or DER bytes) nor the `identityPublicKey`, `extraData` or `certificateAuthority`
+claim names, while it does contain `cpk`, `xname`, `leguuid` and the
+multiplayer audience; vanilla servers therefore only authenticate the `Token`.
+Legacy chains are parsed for offline logins only and never authenticate.
 
 Provider discovery and claim conventions follow
 [gophertunnel `service/token.go:VerifierContext`](https://github.com/Sandertv/gophertunnel/blob/be557e33fe6f8d0c0db7ef05b5fd068725c325ad/minecraft/service/token.go)

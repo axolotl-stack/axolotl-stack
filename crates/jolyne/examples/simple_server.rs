@@ -41,8 +41,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     // Run the full join sequence
                     match handshake_stream.accept_join_sequence(&template, &key).await {
                         Ok((mut play_stream, login)) => {
-                            let display_name =
-                                login.identity.display_name.as_deref().unwrap_or("Unknown");
+                            let display_name = login.identity.display_name();
                             info!(%addr, identity = %display_name, "Joined Game!");
 
                             // OPTIONAL: Enable Manual Flush for higher performance (Server Tick Mode).

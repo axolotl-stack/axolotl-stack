@@ -47,7 +47,9 @@ pub struct RaknetListenerConfig {
     /// Duration before a session is considered stale.
     pub session_stale: Duration,
 
-    /// Maximum bytes of reliable data to queue for a single session before disconnecting.
+    /// Maximum bytes of reliable data to queue for a single session before
+    /// disconnecting (`QueueTooLong`). `Optimized` counts data not yet sent;
+    /// `Vanilla`, which has no congestion window, counts data until its ACK.
     pub max_queued_reliable_bytes: usize,
 
     /// Initial advertisement string.
@@ -81,6 +83,12 @@ pub struct RaknetListenerConfig {
 
     /// Maximum number of source IPs tracked by the ping/handshake rate limiter.
     pub ping_rate_limit_max_entries: usize,
+
+    /// Transmission policy of accepted sessions. Defaults to
+    /// [`TransmissionPolicy::Optimized`](crate::session::TransmissionPolicy).
+    /// Vanilla sessions must be ticked every 100 ms; the listener's
+    /// maintenance interval already is.
+    pub transmission_policy: crate::session::TransmissionPolicy,
 }
 
 impl Default for RaknetListenerConfig {
@@ -89,7 +97,7 @@ impl Default for RaknetListenerConfig {
             max_connections: 1024,
             max_pending_connections: 256, // Reduced from 1024 to prevent handshake flooding
             max_mtu: constants::MAXIMUM_MTU_SIZE,
-            socket_recv_buffer_size: None,
+            socket_recv_buffer_size: Some(super::DEFAULT_SOCKET_RECV_BUFFER),
             socket_send_buffer_size: None,
             // Upstream `conn.go:Conn.startTicking`: base inactivity timeout5s.
             session_timeout: Duration::from_secs(5),
@@ -106,6 +114,7 @@ impl Default for RaknetListenerConfig {
             max_incoming_ack_queue: 4096,
             ping_rate_limit_per_ip: 10, // 10 pings per second per IP
             ping_rate_limit_max_entries: 16_384,
+            transmission_policy: crate::session::TransmissionPolicy::Optimized,
         }
     }
 }
@@ -181,10 +190,7 @@ impl RaknetListenerConfig {
 /// Server-side RakNet listener that accepts new connections.
 pub struct RaknetListener {
     local_addr: SocketAddr,
-    new_connections: mpsc::Receiver<(
-        SocketAddr,
-        mpsc::Receiver<Result<super::ReceivedMessage, crate::RaknetError>>,
-    )>,
+    new_connections: mpsc::Receiver<super::listener_conn::Accepted>,
     outbound_tx: mpsc::Sender<super::OutboundMsg>,
     advertisement: Arc<RwLock<Bytes>>,
 }
@@ -203,10 +209,11 @@ impl RaknetListener {
         config.validate().map_err(std::io::Error::from)?;
         let socket = std::net::UdpSocket::bind(addr)?;
         socket.set_nonblocking(true)?;
-        report_socket_buffer_config(
+        super::apply_socket_buffers(
+            &socket,
             config.socket_recv_buffer_size,
             config.socket_send_buffer_size,
-        );
+        )?;
 
         let socket = UdpSocket::from_std(socket)?;
         let local_addr = socket.local_addr()?;
@@ -234,16 +241,26 @@ impl RaknetListener {
         self.local_addr
     }
 
+    /// The server GUID advertised in `UnconnectedPong`, `OpenConnectionReply1`
+    /// and `OpenConnectionReply2`: one random value per process.
+    pub fn guid(&self) -> u64 {
+        offline::server_guid()
+    }
+
+    fn stream(&self, accepted: super::listener_conn::Accepted) -> RaknetStream {
+        RaknetStream::new(
+            self.local_addr,
+            accepted.peer,
+            accepted.incoming,
+            self.outbound_tx.clone(),
+            accepted.rtt,
+        )
+    }
+
     /// Accepts the next incoming connection.
     pub async fn accept(&mut self) -> Option<RaknetStream> {
-        let (peer, incoming) = self.new_connections.recv().await?;
-
-        Some(RaknetStream::new(
-            self.local_addr,
-            peer,
-            incoming,
-            self.outbound_tx.clone(),
-        ))
+        let accepted = self.new_connections.recv().await?;
+        Some(self.stream(accepted))
     }
 
     /// Poll-based accept for use with manual polling or futures combinators.
@@ -252,10 +269,8 @@ impl RaknetListener {
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<RaknetStream>> {
         match self.new_connections.poll_recv(cx) {
-            std::task::Poll::Ready(Some((peer, incoming))) => {
-                let stream =
-                    RaknetStream::new(self.local_addr, peer, incoming, self.outbound_tx.clone());
-                std::task::Poll::Ready(Some(stream))
+            std::task::Poll::Ready(Some(accepted)) => {
+                std::task::Poll::Ready(Some(self.stream(accepted)))
             }
             std::task::Poll::Ready(None) => std::task::Poll::Ready(None),
             std::task::Poll::Pending => std::task::Poll::Pending,
@@ -294,16 +309,6 @@ enum LoopEvent<Msg> {
     Outbound(Msg),
     Tick,
     Ack,
-}
-
-fn report_socket_buffer_config(recv_size: Option<usize>, send_size: Option<usize>) {
-    if recv_size.is_some() || send_size.is_some() {
-        tracing::debug!(
-            recv_size,
-            send_size,
-            "socket buffer tuning is unavailable on the std-only listener path; using OS defaults"
-        );
-    }
 }
 
 /// One entry per armed peer, including peers flushed inline and re-armed before
@@ -376,6 +381,7 @@ async fn flush_scheduled_acks(
             .is_some_and(|deadline| deadline <= now)
         {
             super::mux::flush_managed(&mut state.managed, socket, peer, now, false, send_buf).await;
+            state.publish_rtt();
         }
     }
 }
@@ -385,10 +391,7 @@ async fn run_listener_muxer(
 
     config: RaknetListenerConfig,
 
-    new_conn_tx: mpsc::Sender<(
-        SocketAddr,
-        mpsc::Receiver<Result<super::ReceivedMessage, crate::RaknetError>>,
-    )>,
+    new_conn_tx: super::listener_conn::AcceptSender,
 
     mut outbound_rx: mpsc::Receiver<super::OutboundMsg>,
 
@@ -515,6 +518,7 @@ mod tests {
             pending_rx: None,
             announced: true,
             handshake_confirmed: true,
+            rtt: crate::transport::RttCell::new(),
         }
     }
 

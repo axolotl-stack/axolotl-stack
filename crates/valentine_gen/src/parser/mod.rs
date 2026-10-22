@@ -2,6 +2,7 @@ use crate::ir::{Container, Field, PackedField, Packet, Primitive, Type};
 pub mod endstone;
 pub mod mojang;
 pub mod protocolgen;
+mod protocolgen_corrections;
 
 use serde::Deserialize;
 use serde_json::Value;

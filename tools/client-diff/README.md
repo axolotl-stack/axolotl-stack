@@ -48,6 +48,60 @@ cargo run -p client-diff -- diff tools/client-diff/gt-client/gt.jsonl jolyne.jso
 
 `diff` accepts two or more logs and compares each subsequent log with the first. Direction is filtered before alignment. Reports contain an exact packet-ID LCS sequence alignment, original side-by-side hex dumps (different bytes bracketed), and identical/masked-equal/different/missing counts. Missing counts include unmatched packets from either side. Very large captures fail explicitly rather than allocating an unbounded alignment matrix.
 
+`run.ps1 -Port <udp-port>` moves the vanilla server off 19132 (it rewrites the
+port lines of the harness-owned runtime `server.properties`; IPv6 uses
+`Port+1`), so the harness can run next to another server.
+
+## Codec conformance
+
+```powershell
+./tools/client-diff/run.ps1 -Mode conformance -Port 29132
+cargo run -p client-diff -- conformance tools/client-diff/runs/<run> --output report.md --failures failures.ndjson
+```
+
+Conformance mode captures `join-idle`, `join-chat` and `tour-world` with both
+clients and `tour-interact` with the gophertunnel client, then decodes **every**
+captured packet — client-side logs and the Endstone server-side
+`player-*.jsonl` logs of what BDS sent and received — with Valentine's owned and
+borrowed decoders. A packet passes only if both decoders consume the whole
+payload, both re-encodings are byte-identical to the capture, and the borrowed
+view materialises to the owned value. The `conformance` subcommand accepts files
+or directories (searched for `*.jsonl`), writes a packet type × count table, and
+exits non-zero on any failure. Failing packets go to `--failures` and become
+regression fixtures under `crates/valentine/tests/fixtures/conformance`; schema
+defects they reveal are corrected in `valentine_gen` and reported in
+`crates/valentine_gen/PROTOCOLGEN_ISSUES.md`. The committed result is
+[`conformance-report.md`](conformance-report.md).
+
+Scenarios with `"auth_input": true` make both clients tick like vanilla
+(`PlayerAuthInput` every 50 ms, respawn and dimension-change acknowledgements),
+which BDS needs to simulate the player (item pickup, death/respawn, dimension
+changes). `{x}`, `{y}` and `{z}` in chat/command text expand to the player's
+feet block, fixed at first use after the spawn correction. `tour-world` drives
+the world through commands (weather/time, items with NBT, block placement and
+`destroy` particles, sculk sensor/shrieker/catalyst events, mob spawning,
+damage and deaths, explosions, lightning, a wither boss bar, effects, XP,
+titles, scoreboards, camera/fog/HUD, music, survival death and respawn,
+teleports and an overworld→nether→overworld round trip).
+
+`tour-interact` adds gophertunnel-only interaction steps; X/Y/Z are block
+offsets from the same feet block and slots 0–8/9–35 are hotbar/inventory:
+
+| Kind | Fields | Packets |
+|---|---|---|
+| `move` | `dx`,`dy`,`dz`,`ticks` | `PlayerAuthInput` movement |
+| `break` | `x`,`y`,`z`,`face` | aim, then `PlayerAuthInput` block actions |
+| `click` | `x`,`y`,`z`,`face` | aim, then `InventoryTransaction` use-item on block |
+| `select` | `slot` | `MobEquipment` |
+| `move_item`, `drop`, `craft` | `slot`,`to`,`count`,`recipe` | `ItemStackRequest` take/drop/craft |
+| `attack`, `interact` | `entity` (type, e.g. `minecraft:zombie`) | aim, then `InventoryTransaction` use-item on entity |
+
+BDS 1.26.51 answers this bot's block `click` transactions with a block and
+inventory resync instead of placing or opening, so container windows
+(`ContainerOpen` and friends) are not yet covered; the click and resync
+packets themselves are. Jolyne runs only chat/command scenarios and rejects
+interaction steps before connecting.
+
 ## Capture and normalization contract
 
 Every line is `{seq,t_ms,dir,id,name,hex}`. `seq` is monotonically increasing within that vantage point, `t_ms` is elapsed time, `dir` is `c2s` or `s2c`, and `hex` is the actual decrypted, decompressed, unbatched packet including its varuint header, **without batch-entry length**. Packet names are descriptive; IDs and bytes determine comparison. Secrets in login JWTs remain in raw logs: do not publish captures without inspection.
@@ -56,7 +110,7 @@ Normalization decodes/encodes using `valentine::bedrock::version::v1_26_51`. `ma
 
 ## Add a scenario
 
-Edit `scenarios.json`, shared by both clients. Each scenario has `steps` and `idle_ms`. Each step has `after_ms` (delay since the preceding step, or since spawn for the first step), `kind` (`chat` or `command`), and `text`. Both clients wait for completed spawn/local-player initialization, execute the steps in order, then idle for `idle_ms` and disconnect. Keep fixed identity values in the shared `identity` object; private keys and signatures remain per connection.
+Edit `scenarios.json`, shared by both clients. Each scenario has `steps`, `idle_ms` and optionally `auth_input` (see [Codec conformance](#codec-conformance)). Each step has `after_ms` (delay since the preceding step, or since spawn for the first step), `kind` (`chat` or `command` with `text`, or a gophertunnel-only interaction kind), and the kind's fields. Both clients wait for completed spawn/local-player initialization, execute the steps in order, then idle for `idle_ms` and disconnect. Keep fixed identity values in the shared `identity` object; private keys and signatures remain per connection.
 
 ## Later: real Minecraft
 
@@ -74,6 +128,7 @@ cargo test -p client-diff
 cargo clippy -p client-diff --all-targets -- -D warnings
 cd tools/client-diff/gt-client
 go vet ./...
+go test ./...
 ```
 
 Fixture tests cover packet insertion alignment, configurable timestamp masking,

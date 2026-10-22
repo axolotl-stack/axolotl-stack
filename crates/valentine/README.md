@@ -131,6 +131,16 @@ retain `BorrowedStr` and `Bytes`; converting to owned validates textual strings
 without copying valid shared input. Borrowed views preserve invalid UTF-8 bytes
 on re-encoding, while owned conversion replaces them lossily.
 
+`BorrowedMcpePacketData::encode_payload` re-encodes a decoded view (or copies a
+`Raw` payload) without the game header; `tools/client-diff` uses it to check
+that every captured BDS packet round-trips byte-for-byte through both paths.
+
+Network NBT has two layouts. `bedrock::codec::Nbt` is a rooted value (tag ID,
+name, payload). `bedrock::codec::NbtCompoundBody` is a compound's named children
+followed by `TAG_End` with no root header, which BDS writes for
+`LevelEventGenericPacket` event data; `to_nbt()` wraps it in an unnamed root
+compound for NBT readers. Both keep and re-encode the exact wire bytes.
+
 `encode_inner_bytes_mut` predicts the frame prefix width from reusable capacity
 and writes the header and body in place. It moves the body only when the prefix
 width prediction is wrong; payload bytes still must be copied once into a

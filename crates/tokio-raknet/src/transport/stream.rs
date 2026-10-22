@@ -11,25 +11,26 @@ use tokio::time::{self, MissedTickBehavior, timeout};
 use tokio_util::sync::PollSender;
 
 use crate::protocol::{
-    constants::{
-        DEFAULT_UNCONNECTED_MAGIC, MAXIMUM_MTU_SIZE, MINIMUM_MTU_SIZE, RAKNET_PROTOCOL_VERSION,
-        UDP_HEADER_SIZE,
-    },
+    constants::{MAXIMUM_MTU_SIZE, UDP_HEADER_SIZE},
     datagram::Datagram,
     packet::RaknetPacket,
-    types::EoBPadding,
 };
+use crate::session::TransmissionPolicy;
 use crate::session::manager::{ConnectionState, ManagedSession, SessionConfig, SessionRole};
+use crate::session::policy::VANILLA_TICK_INTERVAL;
 
+use super::handshake;
 use super::{OutboundMsg, ReceivedMessage};
 use crate::transport::Message;
 
 use crate::protocol::constants::{self};
 
+/// Optimized client maintenance cadence.
 const TICK_INTERVAL: Duration = Duration::from_millis(20);
-/// Upstream `dial.go:connState.request1` sends four probes, 500ms apart.
-const HANDSHAKE_RETRIES: usize = 4;
-const HANDSHAKE_TIMEOUT: Duration = Duration::from_millis(500);
+/// go-raknet `conn.go:newConn`: the application queue grows to 4096 messages.
+pub(crate) const CLIENT_RECEIVE_QUEUE: usize = 4096;
+/// go-raknet `dial.go:clientListen` reads into a `maxMTUSize` buffer.
+const VANILLA_MAX_DATAGRAM: usize = MAXIMUM_MTU_SIZE as usize;
 
 /// Configuration for a `RaknetStream`.
 #[derive(Debug, Clone)]
@@ -58,13 +59,20 @@ pub struct RaknetStreamConfig {
     pub max_concurrent_splits: usize,
     /// Maximum number of incoming ACK/NACK ranges to queue per session.
     pub max_incoming_ack_queue: usize,
+    /// Transmission policy. Defaults to [`TransmissionPolicy::Vanilla`], the
+    /// lunar-bedrock/go-raknet (vanilla Bedrock client) behaviour.
+    pub transmission_policy: TransmissionPolicy,
+    /// Transient receive errors (connection refused/reset/aborted, host or
+    /// network unreachable) ignored during the offline handshake; `None` is
+    /// unlimited. go-raknet `Dialer.MaxTransientErrors` defaults to 10.
+    pub max_transient_errors: Option<u32>,
 }
 
 impl Default for RaknetStreamConfig {
     fn default() -> Self {
         Self {
             mtu: MAXIMUM_MTU_SIZE,
-            socket_recv_buffer_size: None,
+            socket_recv_buffer_size: Some(super::DEFAULT_SOCKET_RECV_BUFFER),
             socket_send_buffer_size: None,
             connection_timeout: Duration::from_secs(10),
             // Upstream `conn.go:Conn.startTicking`: base inactivity timeout5s.
@@ -78,6 +86,8 @@ impl Default for RaknetStreamConfig {
             max_split_parts: 512,
             max_concurrent_splits: 16,
             max_incoming_ack_queue: 4096,
+            transmission_policy: TransmissionPolicy::Vanilla,
+            max_transient_errors: Some(10),
         }
     }
 }
@@ -114,6 +124,7 @@ pub struct RaknetStream {
     peer: SocketAddr,
     incoming: mpsc::Receiver<Result<ReceivedMessage, crate::RaknetError>>,
     outbound_tx: PollSender<OutboundMsg>,
+    rtt: super::RttCell,
 }
 
 impl RaknetStream {
@@ -123,13 +134,23 @@ impl RaknetStream {
         peer: SocketAddr,
         incoming: mpsc::Receiver<Result<ReceivedMessage, crate::RaknetError>>,
         outbound_tx: mpsc::Sender<OutboundMsg>,
+        rtt: super::RttCell,
     ) -> Self {
         Self {
             local,
             peer,
             incoming,
             outbound_tx: PollSender::new(outbound_tx),
+            rtt,
         }
+    }
+
+    /// Latest round-trip time estimate of the session, `None` before the
+    /// first acknowledgement sample: the smoothed ACK RTT (Optimized) or the
+    /// mean of the recent resend-map samples (Vanilla, go-raknet
+    /// `resend_map.go:rtt`). Readable without involving the transport task.
+    pub fn rtt(&self) -> Option<Duration> {
+        self.rtt.load()
     }
 
     /// Connect to a RakNet server at the given address using default configuration.
@@ -152,20 +173,29 @@ impl RaknetStream {
                 "[::]:0"
             })?;
             socket.set_nonblocking(true)?;
-            apply_socket_buffer_config(
+            super::apply_socket_buffers(
                 &socket,
                 config.socket_recv_buffer_size,
                 config.socket_send_buffer_size,
-            );
+            )?;
 
             let socket = UdpSocket::from_std(socket)?;
             let local = socket.local_addr()?;
 
             // Perform offline handshake using OpenConnectionRequest1/2.
-            let client_guid = client_guid();
-            let handshake =
-                perform_offline_handshake(&socket, server, config.mtu as usize, client_guid)
-                    .await?;
+            let client_guid = match config.transmission_policy {
+                TransmissionPolicy::Vanilla => handshake::vanilla_dialer_id(),
+                TransmissionPolicy::Optimized => client_guid(),
+            };
+            let handshake = handshake::perform(
+                &socket,
+                server,
+                config.transmission_policy,
+                config.mtu,
+                client_guid,
+                config.max_transient_errors,
+            )
+            .await?;
 
             // Use negotiated MTU
             let mut config = config;
@@ -173,9 +203,14 @@ impl RaknetStream {
 
             let (outbound_tx, outbound_rx) = mpsc::channel::<OutboundMsg>(1024);
             let (to_app_tx, to_app_rx) =
-                mpsc::channel::<Result<ReceivedMessage, crate::RaknetError>>(128);
+                mpsc::channel::<Result<ReceivedMessage, crate::RaknetError>>(CLIENT_RECEIVE_QUEUE);
             let (ready_tx, ready_rx) = oneshot::channel();
 
+            let maintenance_interval = match config.transmission_policy {
+                TransmissionPolicy::Vanilla => VANILLA_TICK_INTERVAL,
+                TransmissionPolicy::Optimized => TICK_INTERVAL,
+            };
+            let rtt = super::RttCell::new();
             let context = ClientMuxerContext {
                 server,
                 server_guid: handshake.server_guid,
@@ -185,18 +220,14 @@ impl RaknetStream {
                 to_app: to_app_tx,
                 ready: ready_tx,
                 config,
-                maintenance_interval: TICK_INTERVAL,
+                maintenance_interval,
+                rtt: rtt.clone(),
             };
 
             tokio::spawn(run_client_muxer(socket, context));
 
             match ready_rx.await {
-                Ok(Ok(())) => Ok(Self {
-                    local,
-                    peer: server,
-                    incoming: to_app_rx,
-                    outbound_tx: PollSender::new(outbound_tx),
-                }),
+                Ok(Ok(())) => Ok(Self::new(local, server, to_app_rx, outbound_tx, rtt)),
                 Ok(Err(e)) => Err(e),
                 Err(_) => Err(crate::RaknetError::ConnectionAborted),
             }
@@ -307,12 +338,6 @@ impl Sink<Message> for RaknetStream {
     }
 }
 
-struct OfflineHandshake {
-    mtu: u16,
-    server_guid: u64,
-    secure_connection_established: bool,
-}
-
 enum ClientLoopEvent<Msg> {
     Inbound(std::io::Result<(usize, SocketAddr)>),
     Outbound(Msg),
@@ -333,57 +358,125 @@ struct ClientMuxerContext {
     to_app: mpsc::Sender<Result<ReceivedMessage, crate::RaknetError>>,
     ready: oneshot::Sender<Result<(), crate::RaknetError>>,
     config: RaknetStreamConfig,
-    /// Maintenance (ACK/retransmission bookkeeping) cadence; always
-    /// `TICK_INTERVAL` in production, lengthened only by tests that must prove
-    /// a behaviour does not depend on maintenance.
+    /// Maintenance cadence: 100 ms for Vanilla (go-raknet's connection
+    /// ticker), `TICK_INTERVAL` for Optimized. Tests may lengthen it to prove a
+    /// behaviour does not depend on maintenance.
     maintenance_interval: Duration,
+    /// RTT estimate published to the `RaknetStream`.
+    rtt: super::RttCell,
+}
+
+/// Windows reports a datagram longer than the receive buffer as `WSAEMSGSIZE`
+/// (Unix truncates silently). go-raknet logs it and keeps reading; the
+/// datagram is dropped in both policies.
+pub(crate) fn is_oversized_datagram(error: &std::io::Error) -> bool {
+    #[cfg(windows)]
+    {
+        error.raw_os_error() == Some(10040)
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = error;
+        false
+    }
+}
+
+fn client_session(
+    config: &RaknetStreamConfig,
+    server: SocketAddr,
+    client_guid: u64,
+    now: Instant,
+) -> ManagedSession {
+    ManagedSession::with_config(
+        server,
+        config.mtu as usize,
+        now,
+        SessionConfig {
+            role: SessionRole::Client,
+            guid: client_guid,
+            session_timeout: config.session_timeout,
+            session: crate::session::SessionTunables {
+                max_ordering_channels: config.max_ordering_channels,
+                ack_queue_capacity: config.ack_queue_capacity,
+                split_timeout: config.split_timeout,
+                reliable_window: config.reliable_window,
+                max_split_parts: config.max_split_parts,
+                max_concurrent_splits: config.max_concurrent_splits,
+                max_incoming_ack_queue: config.max_incoming_ack_queue,
+                transmission: config.transmission_policy,
+            },
+            ..SessionConfig::default()
+        },
+    )
+}
+
+/// Report a closed session to the application.
+fn report_closed(
+    managed: &ManagedSession,
+    to_app: &mpsc::Sender<Result<ReceivedMessage, crate::RaknetError>>,
+) {
+    let error = match managed.last_disconnect_reason() {
+        Some(reason) => {
+            tracing::info!(reason = ?reason, "session disconnected");
+            crate::RaknetError::Disconnected(reason)
+        }
+        None => crate::RaknetError::ConnectionClosed,
+    };
+    let _ = to_app.try_send(Err(error));
 }
 
 #[tracing::instrument(skip(socket, context), fields(server = %context.server, mtu = context.config.mtu), level = "debug")]
 async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
-    let mut buf = vec![0u8; context.config.mtu as usize + UDP_HEADER_SIZE + 64];
+    let vanilla = context.config.transmission_policy.is_vanilla();
+    // Vanilla reads like go-raknet's 1492-byte buffer; one extra byte detects
+    // (and drops) longer datagrams on platforms that truncate.
+    let buffer_len = if vanilla {
+        VANILLA_MAX_DATAGRAM + 1
+    } else {
+        context.config.mtu as usize + UDP_HEADER_SIZE + 64
+    };
+    let mut buf = vec![0u8; buffer_len];
     let mut send_buf = BytesMut::with_capacity(context.config.mtu as usize + UDP_HEADER_SIZE + 64);
-    let mut managed: Option<ManagedSession> = None;
-    let mut handshake_started = false;
-    // We move the `ready` sender into a local Option
     let mut ready_signal = Some(context.ready);
-    let mut tick = time::interval(context.maintenance_interval);
+    let server = context.server;
+
+    let now = Instant::now();
+    let mut managed = client_session(&context.config, server, context.client_guid, now);
+    // go-raknet conn.go:newConn starts the 100 ms connection ticker before the
+    // ConnectionRequest is written; its first tick fires one period later.
+    let mut tick = if vanilla {
+        time::interval_at(
+            (now + context.maintenance_interval).into(),
+            context.maintenance_interval,
+        )
+    } else {
+        time::interval(context.maintenance_interval)
+    };
     tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
     let ack_timer = time::sleep(Duration::ZERO);
     tokio::pin!(ack_timer);
+    let mut outbound_open = true;
 
-    // Initial handshake ensure
-    {
-        let now = Instant::now();
-        let ms = ensure_client_session(
-            &mut managed,
-            context.server,
-            context.config.mtu as usize,
-            context.client_guid,
-            now,
-            &context.config,
-        );
-        ensure_client_handshake(
-            ms,
-            &mut handshake_started,
+    if managed
+        .start_client_handshake(
             context.server_guid,
             now,
             context.secure_connection_established,
-            &socket,
-            context.server,
-            &mut send_buf,
         )
-        .await;
+        .is_ok()
+    {
+        flush_built_datagrams(&mut managed, &socket, server, now, false, &mut send_buf).await;
     }
 
     loop {
-        let ack_deadline = managed.as_ref().and_then(ManagedSession::ack_deadline);
+        context.rtt.store(managed.rtt_micros());
+        let ack_deadline = managed.ack_deadline();
         if let Some(deadline) = ack_deadline {
             ack_timer.as_mut().reset(deadline.into());
         }
         let event = tokio::select! {
             res = socket.recv_from(&mut buf) => ClientLoopEvent::Inbound(res),
-            msg = context.outbound_rx.recv() => match msg {
+            msg = context.outbound_rx.recv(), if outbound_open => match msg {
                 Some(msg) => ClientLoopEvent::Outbound(msg),
                 None => ClientLoopEvent::OutboundClosed,
             },
@@ -395,23 +488,35 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
             ClientLoopEvent::Inbound(res) => {
                 let (len, peer) = match res {
                     Ok(v) => v,
+                    Err(e)
+                        if handshake::is_transient_receive_error(&e)
+                            || is_oversized_datagram(&e) =>
+                    {
+                        tracing::debug!("ignoring transient udp receive error: {}", e);
+                        continue;
+                    }
                     Err(e) => {
-                        if e.kind() == std::io::ErrorKind::ConnectionReset {
-                            tracing::debug!("udp connection reset (ignoring): {}", e);
-                            continue;
-                        }
                         tracing::error!("udp socket recv error: {}", e);
                         break;
                     }
                 };
 
-                if peer != context.server {
+                if peer != server {
                     tracing::debug!("ignoring packet from unknown peer");
                     continue;
                 }
 
                 if len == 0 {
                     continue;
+                }
+                if vanilla && len > VANILLA_MAX_DATAGRAM {
+                    tracing::debug!(len, "dropping datagram longer than go-raknet's buffer");
+                    continue;
+                }
+                if vanilla {
+                    // conn.go:receive refreshes activity for every datagram it
+                    // is handed, before (and whatever) its first byte.
+                    managed.record_activity(Instant::now());
                 }
 
                 let mut packet = Bytes::copy_from_slice(&buf[..len]);
@@ -462,154 +567,137 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
                     continue;
                 }
 
+                let now = Instant::now();
                 let dgram = match Datagram::decode(&mut packet) {
                     Ok(dgram) => dgram,
+                    Err(error) if vanilla => {
+                        // dial.go:clientListen logs handler errors and keeps
+                        // reading.
+                        tracing::debug!(?error, "dropping malformed connected datagram");
+                        continue;
+                    }
                     Err(error) => {
                         tracing::debug!(?error, "failed to decode connected datagram");
                         let _ = context.to_app.try_send(Err(error.into()));
                         return;
                     }
                 };
-                {
-                    let now = Instant::now();
-                    let ms = ensure_client_session(
-                        &mut managed,
-                        context.server,
-                        context.config.mtu as usize,
-                        context.client_guid,
-                        now,
-                        &context.config,
-                    );
-                    ensure_client_handshake(
-                        ms,
-                        &mut handshake_started,
-                        context.server_guid,
-                        now,
-                        context.secure_connection_established,
-                        &socket,
-                        context.server,
-                        &mut send_buf,
-                    )
-                    .await;
 
-                    match ms.handle_datagram(dgram, now) {
-                        Ok(pkts) => {
-                            if !deliver_app_packets(pkts, &context.to_app).await {
-                                break;
-                            }
-                        }
-                        Err(e) => {
-                            tracing::debug!(error = ?e, "failed to handle datagram");
-                            let _ = context.to_app.try_send(Err(e.into()));
-                            return;
+                match managed.handle_datagram(dgram, now) {
+                    Ok(pkts) => {
+                        if !deliver_app_packets(pkts, &context.to_app).await {
+                            break;
                         }
                     }
-                    notify_client_ready(ms, &mut ready_signal);
-
-                    if ms.state() == ConnectionState::Closed {
-                        if let Some(reason) = ms.last_disconnect_reason() {
-                            tracing::info!(reason = ?reason, "session disconnected");
-                            let _ = context
-                                .to_app
-                                .try_send(Err(crate::RaknetError::Disconnected(reason)));
-                        } else {
-                            let _ = context
-                                .to_app
-                                .try_send(Err(crate::RaknetError::ConnectionClosed));
-                        }
+                    Err(error) if vanilla => {
+                        tracing::debug!(?error, "dropping datagram after protocol error");
+                    }
+                    Err(e) => {
+                        tracing::debug!(error = ?e, "failed to handle datagram");
+                        let _ = context.to_app.try_send(Err(e.into()));
                         return;
                     }
+                }
+                notify_client_ready(&managed, &mut ready_signal);
 
-                    flush_built_datagrams(ms, &socket, context.server, now, false, &mut send_buf)
+                if vanilla {
+                    // Responses (NIC, pong, the echoed disconnect) are written
+                    // before the connection closes, as in go-raknet.
+                    flush_built_datagrams(&mut managed, &socket, server, now, false, &mut send_buf)
+                        .await;
+                }
+                if managed.state() == ConnectionState::Closed {
+                    report_closed(&managed, &context.to_app);
+                    return;
+                }
+                if !vanilla {
+                    flush_built_datagrams(&mut managed, &socket, server, now, false, &mut send_buf)
                         .await;
                 }
             }
 
             ClientLoopEvent::Outbound(msg) => {
                 let now = Instant::now();
-                let ms = ensure_client_session(
-                    &mut managed,
-                    context.server,
-                    context.config.mtu as usize,
-                    context.client_guid,
-                    now,
-                    &context.config,
-                );
-                ensure_client_handshake(
-                    ms,
-                    &mut handshake_started,
-                    context.server_guid,
-                    now,
-                    context.secure_connection_established,
-                    &socket,
-                    context.server,
-                    &mut send_buf,
-                )
-                .await;
                 if let Err(error) =
-                    ms.queue_app_buffer(msg.buffer, msg.reliability, msg.channel, msg.priority)
+                    managed.queue_app_buffer(msg.buffer, msg.reliability, msg.channel, msg.priority)
                 {
                     tracing::debug!(?error, "failed to queue outbound packet");
                     let _ = context.to_app.try_send(Err(error.into()));
                     continue;
                 }
-                flush_built_datagrams(ms, &socket, context.server, now, false, &mut send_buf).await;
-                notify_client_ready(ms, &mut ready_signal);
+                flush_built_datagrams(&mut managed, &socket, server, now, false, &mut send_buf)
+                    .await;
+                notify_client_ready(&managed, &mut ready_signal);
             }
 
             ClientLoopEvent::Ack => {
-                if let Some(ms) = managed.as_mut() {
-                    flush_built_datagrams(
-                        ms,
-                        &socket,
-                        context.server,
-                        Instant::now(),
-                        false,
-                        &mut send_buf,
-                    )
-                    .await;
-                }
+                flush_built_datagrams(
+                    &mut managed,
+                    &socket,
+                    server,
+                    Instant::now(),
+                    false,
+                    &mut send_buf,
+                )
+                .await;
             }
 
             ClientLoopEvent::Tick => {
-                if let Some(ms) = managed.as_mut() {
-                    let now = Instant::now();
-                    flush_built_datagrams(ms, &socket, context.server, now, true, &mut send_buf)
-                        .await;
-                    if ms.state() == ConnectionState::Closed {
+                let now = Instant::now();
+                flush_built_datagrams(&mut managed, &socket, server, now, true, &mut send_buf)
+                    .await;
+                if managed.state() == ConnectionState::Closed {
+                    if vanilla {
+                        report_closed(&managed, &context.to_app);
+                    } else {
                         let _ = context
                             .to_app
                             .try_send(Err(crate::RaknetError::ConnectionClosed));
-                        return;
                     }
-                    if !deliver_app_packets(ms.drain_pending_incoming(now), &context.to_app).await {
-                        break;
-                    }
-                    notify_client_ready(ms, &mut ready_signal);
+                    return;
                 }
+                if !deliver_app_packets(managed.drain_pending_incoming(now), &context.to_app).await
+                {
+                    break;
+                }
+                notify_client_ready(&managed, &mut ready_signal);
             }
 
-            ClientLoopEvent::OutboundClosed => break,
+            ClientLoopEvent::OutboundClosed => {
+                outbound_open = false;
+                if !vanilla {
+                    break;
+                }
+                // go-raknet Conn.Close: keep ticking (ACKs, resends) until the
+                // resend map drains, then send a bare DisconnectNotification.
+                tracing::debug!("stream dropped, closing after drain");
+                if managed
+                    .close(
+                        crate::protocol::state::DisconnectReason::Disconnected,
+                        Instant::now(),
+                    )
+                    .is_err()
+                {
+                    break;
+                }
+            }
         }
     }
 
-    // Graceful shutdown check using match to avoid nesting if-lets
-    match managed {
-        Some(mut ms) if ms.is_connected() => {
-            tracing::debug!("channel closed, sending disconnect notification");
-            let _ = ms.send_disconnect(crate::protocol::state::DisconnectReason::Disconnected);
-            // Flush the disconnect packet
-            flush_built_datagrams(
-                &mut ms,
-                &socket,
-                context.server,
-                Instant::now(),
-                true,
-                &mut send_buf,
-            )
-            .await;
-        }
-        _ => {}
+    // The loop only ends on a local failure (socket error, full or dropped
+    // application queue, or an Optimized stream drop): notify the peer.
+    if managed.state() != ConnectionState::Closed && (vanilla || managed.is_connected()) {
+        tracing::debug!("sending disconnect notification");
+        managed.disconnect_now(crate::protocol::state::DisconnectReason::Disconnected);
+        flush_built_datagrams(
+            &mut managed,
+            &socket,
+            server,
+            Instant::now(),
+            !vanilla,
+            &mut send_buf,
+        )
+        .await;
     }
 
     tracing::debug!("client muxer terminated");
@@ -637,196 +725,11 @@ async fn deliver_app_packets(
     true
 }
 
-#[tracing::instrument(skip_all, level = "debug")]
-async fn perform_offline_handshake(
-    socket: &UdpSocket,
-    server: SocketAddr,
-    mtu_hint: usize,
-    client_guid: u64,
-) -> std::io::Result<OfflineHandshake> {
-    let mut reply1 = None;
-    let mut used_mtu = 0;
-
-    for mtu in mtu_probe_candidates(mtu_hint) {
-        tracing::debug!(mtu = mtu, "probing mtu");
-        let req1 =
-            RaknetPacket::OpenConnectionRequest1(crate::protocol::packet::OpenConnectionRequest1 {
-                magic: DEFAULT_UNCONNECTED_MAGIC,
-                protocol_version: RAKNET_PROTOCOL_VERSION,
-                // IP + UDP + packet ID + magic + protocol.
-                padding: EoBPadding(
-                    mtu.saturating_sub(if server.is_ipv4() { 46 } else { 66 })
-                        .into(),
-                ),
-            });
-
-        let mut buf = BytesMut::new();
-        if req1.encode(&mut buf).is_err() {
-            tracing::warn!(mtu = mtu, "failed to encode OpenConnectionRequest1");
-            continue;
-        }
-
-        let mut tmp = [0u8; 2048];
-        let mut attempts = 0;
-        while attempts < HANDSHAKE_RETRIES {
-            if let Err(error) = socket.send_to(&buf, server).await {
-                // Upstream `dial.go:connState.openConnectionRequest1` ignores
-                // probe write errors: a smaller MTU may fit the local route.
-                tracing::debug!(?error, mtu, "MTU probe send failed; trying smaller probe");
-                break;
-            }
-            // Short timeout for each attempt so we don't stall the whole probe sequence.
-            let res = timeout(HANDSHAKE_TIMEOUT, socket.recv_from(&mut tmp)).await;
-
-            if let Ok(Ok((len, from))) = res {
-                if from == server {
-                    let mut slice = &tmp[..len];
-                    // Cleaner pattern match without let_chains or nesting
-                    if let Ok(RaknetPacket::OpenConnectionReply1(r)) =
-                        RaknetPacket::decode(&mut slice)
-                    {
-                        if r.magic != DEFAULT_UNCONNECTED_MAGIC
-                            || r.server_guid == 0
-                            || !(MINIMUM_MTU_SIZE..=mtu).contains(&r.mtu)
-                        {
-                            attempts += 1;
-                            continue;
-                        }
-                        tracing::debug!(
-                            mtu = mtu,
-                            server_mtu = r.mtu,
-                            "received OpenConnectionReply1"
-                        );
-                        reply1 = Some(r);
-                        used_mtu = mtu;
-                        break;
-                    } else {
-                        tracing::debug!("ignoring non-reply1 packet during probe");
-                    }
-                } else {
-                    tracing::debug!("ignoring reply from non-server during probe");
-                }
-            } else {
-                tracing::debug!("timeout waiting for reply1 attempt");
-            }
-            attempts += 1;
-        }
-
-        if reply1.is_some() {
-            break;
-        }
-        tracing::debug!(
-            mtu = mtu,
-            "no valid OpenConnectionReply1 received for probe"
-        );
-    }
-
-    let reply1 = reply1.ok_or_else(|| {
-        tracing::error!("failed to receive any OpenConnectionReply1");
-        std::io::Error::new(
-            std::io::ErrorKind::TimedOut,
-            "timeout waiting for OpenConnectionReply1 after probing MTUs",
-        )
-    })?;
-
-    let server_mtu = reply1.mtu;
-    let cookie = reply1.cookie;
-
-    // Negotiate final MTU: min(client_probed, server_reported)
-    let mtu_final = used_mtu
-        .clamp(MINIMUM_MTU_SIZE, MAXIMUM_MTU_SIZE)
-        .min(server_mtu);
-
-    tracing::debug!(negotiated_mtu = mtu_final, "sending OpenConnectionRequest2");
-
-    let req2 =
-        RaknetPacket::OpenConnectionRequest2(crate::protocol::packet::OpenConnectionRequest2 {
-            magic: DEFAULT_UNCONNECTED_MAGIC,
-            cookie,
-            client_proof: false,
-            server_addr: server,
-            mtu: mtu_final,
-            client_guid,
-        });
-
-    let mut buf2 = BytesMut::new();
-    req2.encode(&mut buf2).map_err(|_| {
-        std::io::Error::new(std::io::ErrorKind::InvalidData, "failed to encode request2")
-    })?;
-
-    let mut tmp = [0u8; 2048];
-    let mut retries = time::interval(HANDSHAKE_TIMEOUT);
-    retries.set_missed_tick_behavior(MissedTickBehavior::Skip);
-    let reply2 = loop {
-        // Upstream `dial.go:connState.request2`: retransmit every 500ms until
-        // the outer connection deadline, rather than sending only once.
-        retries.tick().await;
-        socket.send_to(&buf2, server).await?;
-        let res = timeout(HANDSHAKE_TIMEOUT, socket.recv_from(&mut tmp)).await;
-        let (len, from) = match res {
-            Ok(Ok(v)) => v,
-            Ok(Err(error)) => return Err(error),
-            Err(_) => continue,
-        };
-        if from != server {
-            continue;
-        }
-        let mut slice = &tmp[..len];
-        if let Ok(RaknetPacket::OpenConnectionReply2(r)) = RaknetPacket::decode(&mut slice) {
-            if r.magic != DEFAULT_UNCONNECTED_MAGIC
-                || r.server_guid != reply1.server_guid
-                || !(MINIMUM_MTU_SIZE..=mtu_final).contains(&r.mtu)
-                || r.security
-            {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    "invalid reply2 negotiation",
-                ));
-            }
-            tracing::debug!(server_guid = r.server_guid, "handshake complete");
-            break r;
-        }
-    };
-
-    Ok(OfflineHandshake {
-        mtu: reply2.mtu,
-        server_guid: reply2.server_guid,
-        secure_connection_established: reply2.security,
-    })
-}
-
 fn connection_timed_out(timeout: Duration) -> crate::RaknetError {
     crate::RaknetError::Io(std::io::Error::new(
         std::io::ErrorKind::TimedOut,
         format!("connection timed out after {:?}", timeout),
     ))
-}
-
-fn apply_socket_buffer_config(
-    _socket: &std::net::UdpSocket,
-    recv_size: Option<usize>,
-    send_size: Option<usize>,
-) {
-    if recv_size.is_some() || send_size.is_some() {
-        tracing::debug!(
-            recv_size,
-            send_size,
-            "socket buffer tuning is unavailable on the std-only transport path; using OS defaults"
-        );
-    }
-}
-
-/// Upstream `dial.go:mtuSizesFor`: never probe above the configured cap;
-/// the dial probe floor is 576, distinct from the connection floor of 400.
-fn mtu_probe_candidates(mtu_hint: usize) -> Vec<u16> {
-    let hinted = mtu_hint.clamp(576, MAXIMUM_MTU_SIZE as usize) as u16;
-    let mut candidates = vec![hinted];
-    for candidate in [MAXIMUM_MTU_SIZE, 1200, 576] {
-        if candidate < hinted {
-            candidates.push(candidate);
-        }
-    }
-    candidates
 }
 
 fn client_guid() -> u64 {
@@ -835,59 +738,6 @@ fn client_guid() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map(|d| (d.as_nanos() as u64) | (1 << 63))
         .unwrap_or(0xdead_beef_dead_beef)
-}
-
-fn ensure_client_session<'a>(
-    managed: &'a mut Option<ManagedSession>,
-    server: SocketAddr,
-    mtu: usize,
-    client_guid: u64,
-    now: Instant,
-    config: &RaknetStreamConfig,
-) -> &'a mut ManagedSession {
-    managed.get_or_insert_with(|| {
-        ManagedSession::with_config(
-            server,
-            mtu,
-            now,
-            SessionConfig {
-                role: SessionRole::Client,
-                guid: client_guid,
-                session_timeout: config.session_timeout,
-                session: crate::session::SessionTunables {
-                    max_ordering_channels: config.max_ordering_channels,
-                    ack_queue_capacity: config.ack_queue_capacity,
-                    split_timeout: config.split_timeout,
-                    reliable_window: config.reliable_window,
-                    max_split_parts: config.max_split_parts,
-                    max_concurrent_splits: config.max_concurrent_splits,
-                    max_incoming_ack_queue: config.max_incoming_ack_queue,
-                },
-                ..SessionConfig::default()
-            },
-        )
-    })
-}
-
-#[allow(clippy::too_many_arguments)]
-async fn ensure_client_handshake(
-    managed: &mut ManagedSession,
-    handshake_started: &mut bool,
-    server_guid: u64,
-    now: Instant,
-    secure_connection_established: bool,
-    socket: &UdpSocket,
-    server: SocketAddr,
-    send_buf: &mut BytesMut,
-) {
-    if !*handshake_started
-        && managed
-            .start_client_handshake(server_guid, now, secure_connection_established)
-            .is_ok()
-    {
-        *handshake_started = true;
-        flush_built_datagrams(managed, socket, server, now, false, send_buf).await;
-    }
 }
 
 #[tracing::instrument(skip_all, fields(peer= %peer, on_tick = %run_tick), level = "trace")]
@@ -920,21 +770,17 @@ async fn flush_built_datagrams(
         }
         let _ = socket.send_to(out.as_ref(), peer).await;
     }
-
-    // Delivery of any unblocked packets happens via drain_ready_to_app() at call sites.
 }
 
 #[tracing::instrument(skip(managed, ready), level = "trace")]
 fn notify_client_ready(
     managed: &ManagedSession,
-
     ready: &mut Option<oneshot::Sender<Result<(), crate::RaknetError>>>,
 ) {
     if managed.is_connected()
         && let Some(tx) = ready.take()
     {
         tracing::trace!("sending ready signal");
-
         let _ = tx.send(Ok(()));
     }
 }
@@ -961,12 +807,16 @@ mod tests {
                 outbound_rx,
                 to_app,
                 ready,
-                config: RaknetStreamConfig::default(),
+                config: RaknetStreamConfig {
+                    transmission_policy: TransmissionPolicy::Optimized,
+                    ..RaknetStreamConfig::default()
+                },
                 // A maintenance tick far beyond the assertion window: an ACK
                 // that arrives in time can only come from the ACK deadline path,
                 // so scheduler load cannot turn a maintenance flush into a pass
                 // and the window can be generous enough not to flake.
                 maintenance_interval: Duration::from_secs(30),
+                rtt: crate::transport::RttCell::new(),
             },
         ));
         let mut session = ManagedSession::with_config(
@@ -1061,8 +911,12 @@ mod tests {
                 outbound_rx,
                 to_app,
                 ready,
-                config: RaknetStreamConfig::default(),
+                config: RaknetStreamConfig {
+                    transmission_policy: TransmissionPolicy::Optimized,
+                    ..RaknetStreamConfig::default()
+                },
                 maintenance_interval: TICK_INTERVAL,
+                rtt: crate::transport::RttCell::new(),
             },
         ));
         // A connected datagram flag without its mandatory sequence number.
@@ -1084,13 +938,19 @@ mod tests {
         let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
         let result = timeout(
             Duration::from_secs(1),
-            perform_offline_handshake(&socket, "[::1]:19132".parse().unwrap(), 1492, u64::MAX),
+            handshake::perform(
+                &socket,
+                "[::1]:19132".parse().unwrap(),
+                TransmissionPolicy::Optimized,
+                1492,
+                u64::MAX,
+                Some(10),
+            ),
         )
         .await
         .expect("failed writes must advance immediately to smaller probes");
-        let error = match result {
-            Err(error) => error,
-            Ok(_) => panic!("address-family-mismatched probe succeeded"),
+        let Err(crate::RaknetError::Io(error)) = result else {
+            panic!("address-family-mismatched probe did not fail with an I/O error");
         };
         assert_eq!(error.kind(), std::io::ErrorKind::TimedOut);
         assert!(error.to_string().contains("after probing MTUs"));
@@ -1113,21 +973,409 @@ mod tests {
         assert!((client_guid() as i64) < 0);
     }
 
+    /// KA-7: errors go-raknet treats as transient never end the client.
     #[test]
-    fn mtu_probe_candidates_prefers_hint_without_duplicates() {
-        assert_eq!(mtu_probe_candidates(900), vec![900, 576]);
-        assert_eq!(
-            mtu_probe_candidates(MAXIMUM_MTU_SIZE as usize),
-            vec![MAXIMUM_MTU_SIZE, 1200, 576]
+    fn transient_receive_errors_do_not_close_the_client() {
+        use std::io::{Error, ErrorKind};
+        for kind in [
+            ErrorKind::ConnectionRefused,
+            ErrorKind::ConnectionReset,
+            ErrorKind::ConnectionAborted,
+            ErrorKind::HostUnreachable,
+            ErrorKind::NetworkUnreachable,
+        ] {
+            assert!(handshake::is_transient_receive_error(&Error::from(kind)));
+        }
+        assert!(!handshake::is_transient_receive_error(&Error::from(
+            ErrorKind::PermissionDenied
+        )));
+        #[cfg(windows)]
+        assert!(is_oversized_datagram(&Error::from_raw_os_error(10040)));
+    }
+
+    /// HS-10: connection failure packets end the dial with a typed error in
+    /// both policies.
+    #[tokio::test]
+    async fn connection_failure_packet_is_reported() {
+        for policy in [TransmissionPolicy::Vanilla, TransmissionPolicy::Optimized] {
+            let server = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+            let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+            let client = socket.local_addr().unwrap();
+            let (_outbound, outbound_rx) = mpsc::channel(1);
+            let (to_app, _incoming) = mpsc::channel(1);
+            let (ready, ready_rx) = oneshot::channel();
+            let task = tokio::spawn(run_client_muxer(
+                socket,
+                ClientMuxerContext {
+                    server: server.local_addr().unwrap(),
+                    server_guid: 1,
+                    client_guid: u64::MAX,
+                    secure_connection_established: false,
+                    outbound_rx,
+                    to_app,
+                    ready,
+                    config: RaknetStreamConfig {
+                        transmission_policy: policy,
+                        ..RaknetStreamConfig::default()
+                    },
+                    maintenance_interval: Duration::from_millis(100),
+                    rtt: crate::transport::RttCell::new(),
+                },
+            ));
+            let mut buffer = [0; 2048];
+            server.recv_from(&mut buffer).await.unwrap();
+            server.send_to(&[0x14], client).await.unwrap();
+            let result = timeout(Duration::from_secs(1), ready_rx).await.unwrap();
+            assert!(
+                matches!(result, Ok(Err(crate::RaknetError::ServerFull))),
+                "{policy:?}"
+            );
+            timeout(Duration::from_secs(1), task)
+                .await
+                .unwrap()
+                .unwrap();
+        }
+    }
+
+    /// A Vanilla client muxer connected to a scripted server session.
+    struct VanillaHarness {
+        server: UdpSocket,
+        client: SocketAddr,
+        session: ManagedSession,
+        incoming: mpsc::Receiver<Result<ReceivedMessage, crate::RaknetError>>,
+        outbound: Option<mpsc::Sender<OutboundMsg>>,
+        task: tokio::task::JoinHandle<()>,
+        /// When the server received the ConnectionRequest.
+        request_seen: Instant,
+    }
+
+    impl VanillaHarness {
+        async fn connect() -> Self {
+            Self::connect_with(RaknetStreamConfig::default()).await
+        }
+
+        async fn connect_with(config: RaknetStreamConfig) -> Self {
+            let server = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+            let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+            let client = socket.local_addr().unwrap();
+            let (outbound, outbound_rx) = mpsc::channel(8);
+            let (to_app, incoming) = mpsc::channel(CLIENT_RECEIVE_QUEUE);
+            let (ready, ready_rx) = oneshot::channel();
+            let task = tokio::spawn(run_client_muxer(
+                socket,
+                ClientMuxerContext {
+                    server: server.local_addr().unwrap(),
+                    server_guid: 1,
+                    client_guid: handshake::vanilla_dialer_id(),
+                    secure_connection_established: false,
+                    outbound_rx,
+                    to_app,
+                    ready,
+                    config,
+                    maintenance_interval: VANILLA_TICK_INTERVAL,
+                    rtt: crate::transport::RttCell::new(),
+                },
+            ));
+            let mut session = ManagedSession::with_config(
+                client,
+                1492,
+                Instant::now(),
+                SessionConfig {
+                    role: SessionRole::Server,
+                    ..SessionConfig::default()
+                },
+            );
+            let mut buffer = [0; 2048];
+            let mut encoded = BytesMut::new();
+            let mut request_seen = None;
+            timeout(Duration::from_secs(2), async {
+                while !session.is_connected() {
+                    let (len, _) = server.recv_from(&mut buffer).await.unwrap();
+                    request_seen.get_or_insert_with(Instant::now);
+                    let datagram = Datagram::decode(&mut &buffer[..len]).unwrap();
+                    session.handle_datagram(datagram, Instant::now()).unwrap();
+                    flush_built_datagrams(
+                        &mut session,
+                        &server,
+                        client,
+                        Instant::now(),
+                        false,
+                        &mut encoded,
+                    )
+                    .await;
+                }
+            })
+            .await
+            .unwrap();
+            ready_rx.await.unwrap().unwrap();
+            Self {
+                server,
+                client,
+                session,
+                incoming,
+                outbound: Some(outbound),
+                task,
+                request_seen: request_seen.unwrap(),
+            }
+        }
+
+        /// Send one user message from the server, returning its datagram sequence.
+        async fn send_message(&mut self, body: &'static [u8]) -> u32 {
+            self.session
+                .queue_app_buffer(
+                    Bytes::from_static(body),
+                    crate::protocol::reliability::Reliability::ReliableOrdered,
+                    0,
+                    crate::protocol::state::RakPriority::Normal,
+                )
+                .unwrap();
+            let datagram = self.session.build_datagram(Instant::now()).unwrap();
+            self.send_datagram(&datagram).await;
+            datagram.header.sequence.value()
+        }
+
+        async fn send_datagram(&self, datagram: &Datagram) {
+            let mut encoded = BytesMut::new();
+            datagram.encode(&mut encoded).unwrap();
+            self.server.send_to(&encoded, self.client).await.unwrap();
+        }
+
+        /// Next datagram from the client, without feeding the server session.
+        async fn recv_raw(&self) -> Datagram {
+            let mut buffer = [0; 2048];
+            let (len, _) = timeout(Duration::from_secs(3), self.server.recv_from(&mut buffer))
+                .await
+                .expect("client went silent")
+                .unwrap();
+            Datagram::decode(&mut &buffer[..len]).unwrap()
+        }
+
+        async fn expect_message(&mut self, body: &[u8]) {
+            let message = timeout(Duration::from_secs(2), self.incoming.recv())
+                .await
+                .expect("message not delivered")
+                .unwrap()
+                .unwrap();
+            assert_eq!(message.id, body[0]);
+            assert_eq!(message.payload.as_ref(), &body[1..]);
+        }
+    }
+
+    fn acks(datagram: &Datagram, sequence: u32) -> bool {
+        matches!(&datagram.payload, crate::protocol::datagram::DatagramPayload::Ack(ack)
+            if ack.ranges.iter().any(|range|
+                range.start.value() <= sequence && range.end.value() >= sequence))
+    }
+
+    /// MTU-11: datagrams above go-raknet's 1492-byte read buffer are dropped
+    /// without ending the connection.
+    #[tokio::test]
+    async fn vanilla_client_drops_datagrams_longer_than_1492() {
+        let mut harness = VanillaHarness::connect().await;
+        let oversized = Datagram {
+            header: crate::protocol::types::DatagramHeader {
+                flags: crate::protocol::constants::DatagramFlags::VALID,
+                sequence: crate::protocol::types::Sequence24::new(100),
+            },
+            payload: crate::protocol::datagram::DatagramPayload::EncapsulatedPackets(vec![
+                crate::protocol::encapsulated_packet::EncapsulatedPacket {
+                    header: crate::protocol::types::EncapsulatedPacketHeader {
+                        reliability: crate::protocol::reliability::Reliability::Unreliable,
+                        is_split: false,
+                        needs_bas: false,
+                    },
+                    bit_length: 1500 << 3,
+                    reliable_index: None,
+                    sequence_index: None,
+                    ordering_index: None,
+                    ordering_channel: None,
+                    split: None,
+                    payload: Bytes::from(vec![0xfe; 1500]),
+                },
+            ]),
+        };
+        harness.send_datagram(&oversized).await;
+        harness.send_message(b"\xfeafter").await;
+        harness.expect_message(b"\xfeafter").await;
+        assert!(!harness.task.is_finished());
+    }
+
+    /// KA-2: go-raknet `conn.go:receive` refreshes activity for every
+    /// datagram, including offline IDs it then ignores. A server sending only
+    /// those keeps the client past its inactivity timeout.
+    #[tokio::test]
+    async fn vanilla_client_offline_packets_refresh_activity() {
+        let mut harness = VanillaHarness::connect_with(RaknetStreamConfig {
+            session_timeout: Duration::from_millis(300),
+            ..RaknetStreamConfig::default()
+        })
+        .await;
+        // Ping ticks at 0.5 s and 1 s check `idle > 300 ms + 2 × rtt`.
+        let until = Instant::now() + Duration::from_millis(1200);
+        while Instant::now() < until {
+            harness
+                .server
+                .send_to(&[0x1c], harness.client)
+                .await
+                .unwrap();
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+        // A closing client would ACK but no longer handle this message.
+        harness.send_message(b"\xfealive").await;
+        harness.expect_message(b"\xfealive").await;
+    }
+
+    /// KA-8: malformed datagrams are logged and dropped (Optimized reports
+    /// the error and stops instead).
+    #[tokio::test]
+    async fn vanilla_client_survives_malformed_datagram() {
+        let mut harness = VanillaHarness::connect().await;
+        harness
+            .server
+            .send_to(&[0x80], harness.client)
+            .await
+            .unwrap();
+        harness.send_message(b"\xfestill here").await;
+        harness.expect_message(b"\xfestill here").await;
+        assert!(!harness.task.is_finished());
+    }
+
+    /// REL-7: a datagram beyond the 2048 receive window is dropped, and the
+    /// connection continues like go-raknet's logged receive errors.
+    #[tokio::test]
+    async fn vanilla_client_survives_receive_window_violation() {
+        let mut harness = VanillaHarness::connect().await;
+        harness
+            .session
+            .queue_app_buffer(
+                Bytes::from_static(b"\xfefar"),
+                crate::protocol::reliability::Reliability::Unreliable,
+                0,
+                crate::protocol::state::RakPriority::Normal,
+            )
+            .unwrap();
+        let mut far = harness.session.build_datagram(Instant::now()).unwrap();
+        far.header.sequence = crate::protocol::types::Sequence24::new(5000);
+        harness.send_datagram(&far).await;
+        harness.send_message(b"\xfenear").await;
+        harness.expect_message(b"\xfenear").await;
+        assert!(
+            harness.incoming.try_recv().is_err(),
+            "far datagram delivered"
+        );
+        assert!(!harness.task.is_finished());
+    }
+
+    /// CC-4/ACK-1: the client ticker starts with the session, before the
+    /// ConnectionRequest, and ACKs only every 100 ms. Lower bounds only:
+    /// timers never fire early, so this cannot flake under load.
+    #[tokio::test]
+    async fn vanilla_client_ticks_every_100ms_from_session_creation() {
+        let mut harness = VanillaHarness::connect().await;
+        let first = harness.send_message(b"\xfeone").await;
+        let first_ack = loop {
+            if acks(&harness.recv_raw().await, first) {
+                break Instant::now();
+            }
+        };
+        assert!(
+            first_ack.duration_since(harness.request_seen) >= Duration::from_millis(90),
+            "ACK before the first 100 ms tick"
+        );
+        let second = harness.send_message(b"\xfetwo").await;
+        let second_ack = loop {
+            if acks(&harness.recv_raw().await, second) {
+                break Instant::now();
+            }
+        };
+        assert!(
+            second_ack.duration_since(first_ack) >= Duration::from_millis(90),
+            "ACK between ticks"
         );
     }
 
-    #[test]
-    fn mtu_probe_candidates_clamps_out_of_range_hints() {
-        assert_eq!(mtu_probe_candidates(0).first().copied(), Some(576));
+    /// KA-5: dropping the stream drains unacknowledged data first; the bare
+    /// DisconnectNotification follows the ACK that empties the resend map.
+    #[tokio::test]
+    async fn vanilla_client_drop_closes_after_drain() {
+        let mut harness = VanillaHarness::connect().await;
+        // Retire the handshake's resend entries so only `last` remains.
+        let mut buffer = [0; 2048];
+        let mut encoded = BytesMut::new();
+        harness
+            .outbound
+            .as_ref()
+            .unwrap()
+            .send(OutboundMsg {
+                peer: harness.server.local_addr().unwrap(),
+                buffer: Bytes::from_static(b"\xfelast"),
+                reliability: crate::protocol::reliability::Reliability::ReliableOrdered,
+                channel: 0,
+                priority: crate::protocol::state::RakPriority::Normal,
+            })
+            .await
+            .unwrap();
+        drop(harness.outbound.take());
+        // Withhold every ACK: the client keeps resending and never says goodbye.
+        let withheld_until = Instant::now() + Duration::from_millis(700);
+        let mut pending = Vec::new();
+        while Instant::now() < withheld_until {
+            let Ok(Ok((len, _))) = timeout(
+                withheld_until - Instant::now(),
+                harness.server.recv_from(&mut buffer),
+            )
+            .await
+            else {
+                break;
+            };
+            let datagram = Datagram::decode(&mut &buffer[..len]).unwrap();
+            if let crate::protocol::datagram::DatagramPayload::EncapsulatedPackets(frames) =
+                &datagram.payload
+            {
+                assert!(
+                    frames.iter().all(|frame| frame.payload.as_ref() != [0x15]),
+                    "disconnect sent before the resend map drained"
+                );
+            }
+            pending.push(datagram);
+        }
+        // Now ACK everything: the next tick sends the bare notification.
+        for datagram in pending {
+            harness
+                .session
+                .handle_datagram(datagram, Instant::now())
+                .unwrap();
+        }
+        flush_built_datagrams(
+            &mut harness.session,
+            &harness.server,
+            harness.client,
+            // Past the Optimized server's 1 ms ACK deadline.
+            Instant::now() + Duration::from_millis(5),
+            false,
+            &mut encoded,
+        )
+        .await;
+        let disconnect = timeout(Duration::from_secs(2), async {
+            loop {
+                let datagram = harness.recv_raw().await;
+                if let crate::protocol::datagram::DatagramPayload::EncapsulatedPackets(frames) =
+                    &datagram.payload
+                    && frames.iter().any(|frame| frame.payload.as_ref() == [0x15])
+                {
+                    break frames[0].header.reliability;
+                }
+            }
+        })
+        .await
+        .expect("no DisconnectNotification after the drain");
         assert_eq!(
-            mtu_probe_candidates(usize::MAX).first().copied(),
-            Some(MAXIMUM_MTU_SIZE)
+            disconnect,
+            crate::protocol::reliability::Reliability::ReliableOrdered
         );
+        timeout(Duration::from_secs(1), harness.task)
+            .await
+            .unwrap()
+            .unwrap();
     }
 }

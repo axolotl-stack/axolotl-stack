@@ -14,11 +14,13 @@ mod inbound;
 pub mod manager;
 mod ordering_channels;
 mod outbound;
+pub mod policy;
 mod receive_window;
 mod reliable_tracker;
 mod sliding_window;
 pub mod split_assembler;
 mod tick;
+mod vanilla;
 
 use std::{
     cmp::Ordering,
@@ -39,6 +41,8 @@ use crate::protocol::{
 use crate::protocol::ack::SequenceRange;
 use ack_queue::AckQueue;
 use ordering_channels::OrderingChannels;
+pub use policy::TransmissionPolicy;
+use policy::VanillaState;
 use reliable_tracker::ReliableTracker;
 use sliding_window::SlidingWindow;
 use split_assembler::SplitAssembler;
@@ -72,6 +76,8 @@ pub struct SessionTunables {
     /// Maximum number of incoming ACK/NACK ranges to queue before dropping oldest.
     /// Prevents OOM from malicious peers sending excessive ACK/NACK packets.
     pub max_incoming_ack_queue: usize,
+    /// Transmission policy (framing, congestion control, resend, ACK cadence).
+    pub transmission: TransmissionPolicy,
 }
 
 impl Default for SessionTunables {
@@ -87,6 +93,7 @@ impl Default for SessionTunables {
             max_split_parts: 512,
             max_concurrent_splits: 16,
             max_incoming_ack_queue: 4096,
+            transmission: TransmissionPolicy::Optimized,
         }
     }
 }
@@ -120,6 +127,9 @@ impl Ord for QueuedEncap {
 
 pub struct Session {
     mtu: usize,
+    /// `Some` selects `TransmissionPolicy::Vanilla`. Boxed so Optimized
+    /// sessions keep their pre-policy size and never allocate it.
+    vanilla: Option<Box<VanillaState>>,
 
     sliding: SlidingWindow,
     split_index: u16,
@@ -165,6 +175,10 @@ impl Session {
         );
         let mut s = Self {
             mtu,
+            vanilla: tunables
+                .transmission
+                .is_vanilla()
+                .then(|| Box::new(VanillaState::default())),
             sliding: SlidingWindow::new(mtu),
             split_index: 0,
             receive_window: receive_window::ReceiveWindow::default(),
@@ -215,6 +229,36 @@ impl Session {
         self.mtu
     }
 
+    pub fn transmission_policy(&self) -> TransmissionPolicy {
+        if self.is_vanilla() {
+            TransmissionPolicy::Vanilla
+        } else {
+            TransmissionPolicy::Optimized
+        }
+    }
+
+    /// Latest RTT estimate in microseconds (`u64::MAX` before the first
+    /// sample): Optimized's smoothed ACK RTT, Vanilla's mean of the recent
+    /// resend-map samples (go-raknet `resend_map.go:rtt`).
+    pub fn rtt_micros(&self) -> u64 {
+        match &self.vanilla {
+            Some(vanilla) => vanilla.sampled_rtt_micros(),
+            None => self.sliding.rtt_micros(),
+        }
+    }
+
+    #[inline]
+    fn is_vanilla(&self) -> bool {
+        self.vanilla.is_some()
+    }
+
+    /// Vanilla state; only called on Vanilla code paths.
+    fn vanilla_mut(&mut self) -> &mut VanillaState {
+        self.vanilla
+            .as_deref_mut()
+            .expect("Vanilla code path on an Optimized session")
+    }
+
     /// Compatibility entry point; invalid sequences are ignored without feedback.
     /// Managed sessions use the checked path to close on protocol violations.
     #[tracing::instrument(skip_all, level = "trace")]
@@ -227,10 +271,14 @@ impl Session {
         seq: Sequence24,
         now: impl FnOnce() -> Instant,
     ) -> Result<bool, DecodeError> {
+        let delay = match &self.vanilla {
+            Some(vanilla) => vanilla.nak_delay(),
+            None => self.sliding.nak_delay(),
+        };
         let naks = &mut self.outgoing_naks;
         if !self
             .receive_window
-            .receive(seq, now, self.sliding.nak_delay(), |range| naks.push(range))?
+            .receive(seq, now, delay, |range| naks.push(range))?
         {
             return Ok(false);
         }
@@ -582,7 +630,7 @@ mod tests {
         session.handle_ack_payload(AckNackPayload {
             ranges: vec![SequenceRange {
                 start: Sequence24::new(0),
-                end: Sequence24::new(constants::MAX_ACK_SEQUENCES as u32),
+                end: Sequence24::new(constants::MAX_INBOUND_ACK_SEQUENCES),
             }],
         });
 

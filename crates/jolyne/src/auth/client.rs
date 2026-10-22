@@ -1,99 +1,103 @@
-use crate::error::JolyneError;
+//! Client-side Login request construction.
+//!
+//! [`build_login`] produces the AuthenticationInfo JSON and the client-data JWT
+//! for [`LoginCredentials`]:
+//!
+//! - [`LoginCredentials::Online`] sends `AuthenticationType: 0` with a
+//!   provider-signed multiplayer token whose `cpk` is this connection's key,
+//!   as vanilla clients and gophertunnel (`minecraft/dial.go`) do. Jolyne
+//!   online servers and BDS 1.26.51 authenticate only this token.
+//! - [`LoginCredentials::Offline`] sends a self-signed multiplayer token
+//!   (`AuthenticationType: 2`), accepted only by offline-mode servers.
+//!
+//! Token acquisition is behind [`MultiplayerTokenSource`] so this crate does
+//! not depend on an Xbox Live client. With `axolotl-xbl` the chain is
+//! PlayFab-scoped XBL token → `PlayFabClient::login` → `service_token` →
+//! `multiplayer_token` (see `examples/simple_client.rs`).
+
+use crate::auth::client_data::ClientData;
+use crate::error::AuthError;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
+use futures::future::BoxFuture;
 use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use p384::SecretKey;
 use p384::pkcs8::{EncodePrivateKey, EncodePublicKey};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-/// Minecraft authentication endpoint for getting Mojang-signed chains
-const MINECRAFT_AUTH_URL: &str = "https://multiplayer.minecraft.net/authentication";
-
-/// Response from Minecraft authentication endpoint
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-struct MinecraftAuthResponse {
-    chain: Vec<String>,
+/// Issues provider-signed multiplayer tokens (gophertunnel
+/// `minecraft.MultiplayerTokenSource`).
+pub trait MultiplayerTokenSource: Send + Sync {
+    /// Returns a token whose `cpk` claim is `public_key_der` (PKIX/SPKI DER of
+    /// the connection's P-384 key). A fresh token is needed per connection key.
+    fn multiplayer_token<'a>(
+        &'a self,
+        public_key_der: &'a [u8],
+    ) -> BoxFuture<'a, Result<String, AuthError>>;
 }
 
-/// Requests a Mojang-signed authentication chain from Minecraft services.
-///
-/// This calls the Minecraft authentication endpoint with the XBL token to get
-/// a properly signed JWT chain that servers can verify against Mojang's public key.
-///
-/// # Arguments
-/// * `key` - The client's P-384 private key (used for encryption later)
-/// * `xbl_token` - The XBL authorization token (from BEDROCK_MULTIPLAYER relying party)
-/// * `user_hash` - The user hash for the XBL auth header
-///
-/// # Returns
-/// The Mojang-signed chain as a JSON string: `{"chain": ["...", "...", "..."]}`
-pub async fn request_minecraft_chain(
-    key: &SecretKey,
-    xbl_token: &str,
-    user_hash: &str,
-) -> Result<String, JolyneError> {
-    // Marshal the public key to DER format
-    let public_key_der = key
-        .public_key()
-        .to_public_key_der()
-        .map_err(|e| JolyneError::Auth(crate::error::AuthError::BadSignature(e.to_string())))?;
-    let public_key_b64 = STANDARD.encode(public_key_der.as_bytes());
+/// How the client proves its identity in the Login packet.
+#[derive(Clone, Default)]
+pub enum LoginCredentials {
+    /// Self-signed identity for offline-mode servers.
+    #[default]
+    Offline,
+    /// Provider-signed multiplayer token (`AuthenticationType: 0`).
+    Online(Arc<dyn MultiplayerTokenSource>),
+}
 
-    // Build the request body
-    let body = serde_json::json!({
-        "identityPublicKey": public_key_b64
-    });
-
-    // Build the authorization header
-    let auth_header = format!("XBL3.0 x={};{}", user_hash, xbl_token);
-
-    // Make the request
-    let client = reqwest::Client::new();
-    let response = client
-        .post(MINECRAFT_AUTH_URL)
-        .header("Authorization", auth_header)
-        .header("User-Agent", "MCPE/Android")
-        .header("Client-Version", crate::valentine::GAME_VERSION)
-        .header("Content-Type", "application/json")
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| {
-            JolyneError::Auth(crate::error::AuthError::BadSignature(format!(
-                "HTTP error: {}",
-                e
-            )))
-        })?;
-
-    if !response.status().is_success() {
-        let status = response.status();
-        let body = response.text().await.unwrap_or_default();
-        return Err(JolyneError::Auth(crate::error::AuthError::BadSignature(
-            format!("Minecraft auth failed ({}): {}", status, body),
-        )));
+impl std::fmt::Debug for LoginCredentials {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Offline => "Offline",
+            Self::Online(_) => "Online(..)",
+        })
     }
+}
 
-    // Return the raw response as the chain JSON
-    let chain_data = response.text().await.map_err(|e| {
-        JolyneError::Auth(crate::error::AuthError::BadSignature(format!(
-            "Failed to read response: {}",
-            e
-        )))
-    })?;
+/// The two values carried by `LoginPacket.connection_request`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LoginTokens {
+    pub auth_info_json: String,
+    pub client_data_jwt: String,
+}
 
-    Ok(chain_data)
+/// Builds the Login authentication for `credentials`, signing the client data
+/// with `key`. Retain `key` for the encryption handshake.
+pub async fn build_login(
+    key: &SecretKey,
+    display_name: &str,
+    uuid: Uuid,
+    credentials: &LoginCredentials,
+) -> Result<LoginTokens, AuthError> {
+    let (auth_info_json, client_data_jwt) = match credentials {
+        LoginCredentials::Offline => generate_self_signed_chain(key, display_name, uuid)?,
+        LoginCredentials::Online(source) => {
+            let token = source.multiplayer_token(&public_key_der(key)?).await?;
+            if token.is_empty() {
+                return Err(AuthError::TokenAcquisition(
+                    "empty multiplayer token".into(),
+                ));
+            }
+            encode_with_multiplayer_token(key, display_name, uuid, &token)?
+        }
+    };
+    Ok(LoginTokens {
+        auth_info_json,
+        client_data_jwt,
+    })
 }
 
 #[derive(Serialize)]
-struct IdentityClaims {
+struct IdentityClaims<'a> {
     aud: &'static str,
-    cpk: String,
-    xname: String,
+    cpk: &'a str,
+    xname: &'a str,
     leguuid: String,
-    xid: String,
+    xid: &'static str,
     ipt: &'static str,
     mid: &'static str,
     tid: &'static str,
@@ -101,121 +105,105 @@ struct IdentityClaims {
     exp: u64,
 }
 
-/// Complete ClientData payload with all fields required by BDS.
-/// Based on gophertunnel's minecraft/protocol/login/data.go
-#[derive(Serialize)]
-struct ClientDataPayload {
-    // Animation data (empty for simple skins)
-    #[serde(rename = "AnimatedImageData")]
-    animated_image_data: Vec<()>,
-    #[serde(rename = "ArmSize")]
-    arm_size: String,
-    #[serde(rename = "CapeData")]
-    cape_data: String,
-    #[serde(rename = "CapeId")]
-    cape_id: String,
-    #[serde(rename = "CapeImageHeight")]
-    cape_image_height: u32,
-    #[serde(rename = "CapeImageWidth")]
-    cape_image_width: u32,
-    #[serde(rename = "CapeOnClassicSkin")]
-    cape_on_classic_skin: bool,
-    #[serde(rename = "ClientRandomId")]
-    client_random_id: i64,
-    #[serde(rename = "CompatibleWithClientSideChunkGen")]
-    compatible_with_client_side_chunk_gen: bool,
-    #[serde(rename = "CurrentInputMode")]
-    current_input_mode: u32,
-    #[serde(rename = "DefaultInputMode")]
-    default_input_mode: u32,
-    #[serde(rename = "DeviceId")]
-    device_id: String,
-    #[serde(rename = "DeviceModel")]
-    device_model: String,
-    #[serde(rename = "DeviceOS")]
-    device_os: u32,
-    #[serde(rename = "GameVersion")]
-    game_version: String,
-    #[serde(rename = "GraphicsMode")]
-    graphics_mode: u32,
-    #[serde(rename = "GuiScale")]
-    gui_scale: i32,
-    #[serde(rename = "IsEditorMode")]
-    is_editor_mode: bool,
-    #[serde(rename = "LanguageCode")]
-    language_code: String,
-    #[serde(rename = "MaxViewDistance")]
-    max_view_distance: u32,
-    #[serde(rename = "MemoryTier")]
-    memory_tier: u32,
-    #[serde(rename = "OverrideSkin")]
-    override_skin: bool,
-    #[serde(rename = "PersonaPieces")]
-    persona_pieces: Vec<()>,
-    #[serde(rename = "PersonaSkin")]
-    persona_skin: bool,
-    #[serde(rename = "PieceTintColors")]
-    piece_tint_colors: Vec<()>,
-    #[serde(rename = "PlatformOfflineId")]
-    platform_offline_id: String,
-    #[serde(rename = "PlatformOnlineId")]
-    platform_online_id: String,
-    #[serde(rename = "PlatformType")]
-    platform_type: u32,
-    #[serde(rename = "PlayFabId")]
-    play_fab_id: String,
-    #[serde(rename = "PremiumSkin")]
-    premium_skin: bool,
-    #[serde(rename = "SelfSignedId")]
-    self_signed_id: String,
-    #[serde(rename = "ServerAddress")]
-    server_address: String,
-    #[serde(rename = "SkinAnimationData")]
-    skin_animation_data: String,
-    #[serde(rename = "SkinColor")]
-    skin_color: String,
-    #[serde(rename = "SkinData")]
-    skin_data: String,
-    #[serde(rename = "SkinGeometryData")]
-    skin_geometry_data: String,
-    #[serde(rename = "SkinGeometryDataEngineVersion")]
-    skin_geometry_data_engine_version: String,
-    #[serde(rename = "SkinId")]
-    skin_id: String,
-    #[serde(rename = "SkinImageHeight")]
-    skin_image_height: u32,
-    #[serde(rename = "SkinImageWidth")]
-    skin_image_width: u32,
-    #[serde(rename = "SkinResourcePatch")]
-    skin_resource_patch: String,
-    #[serde(rename = "ThirdPartyName")]
-    third_party_name: String,
-    #[serde(rename = "ThirdPartyNameOnly")]
-    third_party_name_only: bool,
-    #[serde(rename = "TrustedSkin")]
-    trusted_skin: bool,
-    #[serde(rename = "UIProfile")]
-    ui_profile: u32,
+fn signing_error(err: impl std::fmt::Display) -> AuthError {
+    AuthError::TokenAcquisition(err.to_string())
 }
 
-/// Generates a minimal valid skin resource patch JSON.
-fn generate_skin_resource_patch() -> String {
-    let json = serde_json::json!({
-        "geometry": {
-            "default": "geometry.humanoid.custom"
-        }
-    });
-    STANDARD.encode(json.to_string().as_bytes())
+fn public_key_der(key: &SecretKey) -> Result<Vec<u8>, AuthError> {
+    Ok(key
+        .public_key()
+        .to_public_key_der()
+        .map_err(signing_error)?
+        .into_vec())
+}
+
+fn encoding_key(key: &SecretKey) -> Result<EncodingKey, AuthError> {
+    Ok(EncodingKey::from_ec_der(
+        key.to_pkcs8_der().map_err(signing_error)?.as_bytes(),
+    ))
+}
+
+/// ES384 JWT signed by `key` with the base64 SPKI key in `x5u`, as vanilla.
+fn sign_es384(key: &SecretKey, claims: &impl Serialize) -> Result<String, AuthError> {
+    let mut header = Header::new(Algorithm::ES384);
+    header.x5u = Some(STANDARD.encode(public_key_der(key)?));
+    encode(&header, claims, &encoding_key(key)?).map_err(signing_error)
+}
+
+/// Client data with jolyne's defaults: an Android device (retail BDS 1.26.51
+/// rejects UWP before authentication) with an opaque 64x64 Steve-shaped skin.
+pub fn default_client_data(display_name: &str, uuid: Uuid) -> ClientData {
+    ClientData {
+        arm_size: "wide".into(),
+        client_random_id: (rand::random::<u64>() & 0x7FFF_FFFF_FFFF_FFFF) as i64,
+        current_input_mode: 1, // Mouse/Keyboard
+        default_input_mode: 1,
+        device_id: Uuid::new_v4().to_string(),
+        device_model: "JolyneClient".into(),
+        device_os: 1, // Android
+        game_version: crate::valentine::GAME_VERSION.into(),
+        language_code: "en_US".into(),
+        max_view_distance: 32,
+        memory_tier: 5,
+        self_signed_id: uuid.to_string(),
+        skin_colour: "#b37b62".into(),
+        skin_data: STANDARD.encode([255u8; 64 * 64 * 4]),
+        skin_geometry: String::new(),
+        skin_id: format!("{uuid}.Custom"),
+        skin_image_height: 64,
+        skin_image_width: 64,
+        skin_resource_patch: STANDARD
+            .encode(r#"{"geometry":{"default":"geometry.humanoid.custom"}}"#),
+        third_party_name: display_name.into(),
+        third_party_name_only: Some(false),
+        ..ClientData::default()
+    }
+}
+
+/// Signs `client_data` as the client-data JWT. The server verifies it with the
+/// identity key (`cpk`), so `key` must be the connection key.
+pub fn sign_client_data(key: &SecretKey, client_data: &ClientData) -> Result<String, AuthError> {
+    sign_es384(key, client_data)
 }
 
 /// Generates a modern self-signed multiplayer identity and a ClientData JWT.
 /// Returns `(authentication_json, client_data_jwt)` for offline mode.
+///
+/// The XUID claim is empty: self-signed tokens never carry account authority.
 pub fn generate_self_signed_chain(
     key: &SecretKey,
     display_name: &str,
     uuid: Uuid,
-) -> Result<(String, String), JolyneError> {
-    generate_chain_internal(key, display_name, uuid, None)
+) -> Result<(String, String), AuthError> {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(signing_error)?
+        .as_secs();
+    let cpk = STANDARD.encode(public_key_der(key)?);
+    let identity_jwt = sign_es384(
+        key,
+        &IdentityClaims {
+            aud: "api://auth-minecraft-services/multiplayer",
+            cpk: &cpk,
+            xname: display_name,
+            leguuid: uuid.to_string(),
+            xid: "",
+            ipt: "",
+            mid: "",
+            tid: "",
+            nbf: now - 1,
+            exp: now + 24 * 60 * 60,
+        },
+    )?;
+    // BDS 26.51 reads the multiplayer Token, not a top-level legacy chain.
+    let auth = serde_json::json!({
+        "AuthenticationType": 2,
+        "Certificate": r#"{"chain":[""]}"#,
+        "Token": identity_jwt
+    })
+    .to_string();
+    let client = sign_client_data(key, &default_client_data(display_name, uuid))?;
+    Ok((auth, client))
 }
 
 /// Formats modern online authentication using an already acquired multiplayer token.
@@ -228,13 +216,14 @@ pub fn encode_with_multiplayer_token(
     display_name: &str,
     uuid: Uuid,
     multiplayer_token: &str,
-) -> Result<(String, String), JolyneError> {
+) -> Result<(String, String), AuthError> {
     let auth = serde_json::json!({
         "AuthenticationType": 0,
         "Token": multiplayer_token,
     })
     .to_string();
-    Ok((auth, generate_client_data_token(key, display_name, uuid)?))
+    let client = sign_client_data(key, &default_client_data(display_name, uuid))?;
+    Ok((auth, client))
 }
 
 /// Encodes the authentication JSON and client-data JWT into the raw
@@ -258,370 +247,11 @@ pub fn encode_login_request(auth_info_json: &str, client_data_jwt: &str) -> Vec<
     request
 }
 
-/// Response structure from Mojang authentication
-#[derive(Debug, Deserialize)]
-struct MojangChainResponse {
-    chain: Vec<String>,
-}
-
-/// JWT header for extracting x5u
-#[derive(Debug, Deserialize)]
-struct JwtHeader {
-    x5u: Option<String>,
-}
-
-/// Claims for the client's first token that links to Mojang chain
-#[derive(Serialize)]
-struct LinkingClaims {
-    #[serde(rename = "identityPublicKey")]
-    identity_public_key: String,
-    #[serde(rename = "certificateAuthority")]
-    certificate_authority: bool,
-    nbf: u64,
-    exp: u64,
-}
-
-/// Encodes a login request using a Mojang-signed chain.
-///
-/// This prepends the client's own token to the Mojang chain (like gophertunnel's login.Encode).
-/// Returns (identity_chain_json_string, client_data_jwt).
-pub fn encode_with_mojang_chain(
-    key: &SecretKey,
-    display_name: &str,
-    uuid: Uuid,
-    mojang_chain_json: &str,
-) -> Result<(String, String), JolyneError> {
-    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-    let exp = now + 6 * 60 * 60; // 6 hours
-
-    // Parse the Mojang chain
-    let mojang_response: MojangChainResponse =
-        serde_json::from_str(mojang_chain_json).map_err(|e| {
-            JolyneError::Auth(crate::error::AuthError::BadSignature(format!(
-                "Failed to parse Mojang chain: {}",
-                e
-            )))
-        })?;
-
-    if mojang_response.chain.is_empty() {
-        return Err(JolyneError::Auth(crate::error::AuthError::BadSignature(
-            "Mojang chain is empty".to_string(),
-        )));
-    }
-
-    // Get the x5u from the first token in the Mojang chain
-    // The first token's header contains the public key we need to link to
-    let first_token = &mojang_response.chain[0];
-    let parts: Vec<&str> = first_token.split('.').collect();
-    if parts.len() != 3 {
-        return Err(JolyneError::Auth(crate::error::AuthError::BadSignature(
-            "Invalid JWT format in Mojang chain".to_string(),
-        )));
-    }
-
-    let header_json = URL_SAFE_NO_PAD.decode(parts[0]).map_err(|e| {
-        JolyneError::Auth(crate::error::AuthError::BadSignature(format!(
-            "Failed to decode JWT header: {}",
-            e
-        )))
-    })?;
-    let header: JwtHeader = serde_json::from_slice(&header_json).map_err(|e| {
-        JolyneError::Auth(crate::error::AuthError::BadSignature(format!(
-            "Failed to parse JWT header: {}",
-            e
-        )))
-    })?;
-
-    let mojang_public_key = header.x5u.ok_or_else(|| {
-        JolyneError::Auth(crate::error::AuthError::BadSignature(
-            "Missing x5u in Mojang chain header".to_string(),
-        ))
-    })?;
-
-    // Prepare our keys
-    let public_key_der = key
-        .public_key()
-        .to_public_key_der()
-        .map_err(|e| JolyneError::Auth(crate::error::AuthError::BadSignature(e.to_string())))?;
-    let public_key_b64 = STANDARD.encode(public_key_der.as_bytes());
-
-    let private_der = key
-        .to_pkcs8_der()
-        .map_err(|e| JolyneError::Auth(crate::error::AuthError::BadSignature(e.to_string())))?;
-    let encoding_key = EncodingKey::from_ec_der(private_der.as_bytes());
-
-    // Create the linking token that connects our key to the Mojang chain
-    let linking_claims = LinkingClaims {
-        identity_public_key: mojang_public_key,
-        certificate_authority: true,
-        nbf: now - 6 * 60 * 60,
-        exp,
-    };
-
-    let mut header = Header::new(Algorithm::ES384);
-    header.x5u = Some(public_key_b64.clone());
-
-    let linking_jwt = encode(&header, &linking_claims, &encoding_key)
-        .map_err(|e| JolyneError::Auth(crate::error::AuthError::BadSignature(e.to_string())))?;
-
-    // Build the complete chain: our token + Mojang chain
-    let mut complete_chain = vec![linking_jwt];
-    complete_chain.extend(mojang_response.chain);
-
-    // Inner chain JSON (just the chain array)
-    let inner_chain = serde_json::json!({
-        "chain": complete_chain
-    })
-    .to_string();
-
-    // Outer request JSON (Certificate is a string containing the chain JSON)
-    // This matches gophertunnel's format for Xbox Live authenticated logins
-    let chain_json = serde_json::json!({
-        "Certificate": inner_chain,
-        "AuthenticationType": 2,
-        "Token": ""
-    })
-    .to_string();
-
-    // Generate client data token
-    let client_token = generate_client_data_token(key, display_name, uuid)?;
-
-    Ok((chain_json, client_token))
-}
-
-/// Generates self-signed multiplayer claims with an explicitly untrusted XUID.
-///
-/// This does not authenticate an Xbox account or obtain a provider-signed token.
-#[allow(dead_code)]
-pub fn generate_xbox_live_chain(
-    key: &SecretKey,
-    display_name: &str,
-    uuid: Uuid,
-    xuid: &str,
-) -> Result<(String, String), JolyneError> {
-    generate_chain_internal(key, display_name, uuid, Some(xuid))
-}
-
-/// Internal self-signed generation; XUID claims do not grant provider authority.
-fn generate_chain_internal(
-    key: &SecretKey,
-    display_name: &str,
-    uuid: Uuid,
-    xuid: Option<&str>,
-) -> Result<(String, String), JolyneError> {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-    let exp = now + 24 * 60 * 60; // 24h
-
-    let public_key_der = key
-        .public_key()
-        .to_public_key_der()
-        .map_err(|e| JolyneError::Auth(crate::error::AuthError::BadSignature(e.to_string())))?;
-    let public_key_b64 = STANDARD.encode(public_key_der.as_bytes());
-
-    let private_der = key
-        .to_pkcs8_der()
-        .map_err(|e| JolyneError::Auth(crate::error::AuthError::BadSignature(e.to_string())))?;
-    let encoding_key = EncodingKey::from_ec_der(private_der.as_bytes());
-
-    // Determine XUID - use provided XUID if available (Xbox Live auth), empty otherwise (self-signed)
-    let xuid_value = xuid.unwrap_or("").to_string();
-
-    // Modern self-signed multiplayer identity. Account claims remain untrusted.
-    let identity_claims = IdentityClaims {
-        aud: "api://auth-minecraft-services/multiplayer",
-        cpk: public_key_b64.clone(),
-        xname: display_name.to_string(),
-        leguuid: uuid.to_string(),
-        xid: xuid_value,
-        ipt: "",
-        mid: "",
-        tid: "",
-        nbf: now - 1,
-        exp,
-    };
-
-    let mut header = Header::new(Algorithm::ES384);
-    header.x5u = Some(public_key_b64); // Self-signed: x5u is self
-
-    let identity_jwt = encode(&header, &identity_claims, &encoding_key)
-        .map_err(|e| JolyneError::Auth(crate::error::AuthError::BadSignature(e.to_string())))?;
-
-    // BDS 26.51 reads the multiplayer Token, not a top-level legacy chain.
-    let chain_json = serde_json::json!({
-        "AuthenticationType": 2,
-        "Certificate": r#"{"chain":[""]}"#,
-        "Token": identity_jwt
-    })
-    .to_string();
-
-    // 2. ClientData Token
-    // A minimal 64x64 RGBA skin is 16384 bytes (64*64*4).
-    // Create a simple solid-color skin (all white/opaque)
-    let skin_pixels = vec![255u8; 64 * 64 * 4];
-    let skin_data_b64 = STANDARD.encode(&skin_pixels);
-
-    // Device ID is a UUID
-    let device_id = Uuid::new_v4().to_string();
-
-    let client_claims = ClientDataPayload {
-        animated_image_data: vec![],
-        arm_size: "wide".into(), // Standard Steve arm size
-        cape_data: "".into(),
-        cape_id: "".into(),
-        cape_image_height: 0,
-        cape_image_width: 0,
-        cape_on_classic_skin: false,
-        client_random_id: (rand::random::<u64>() & 0x7FFFFFFFFFFFFFFF) as i64,
-        compatible_with_client_side_chunk_gen: false,
-        current_input_mode: 1, // Mouse/Keyboard
-        default_input_mode: 1,
-        device_id,
-        device_model: "JolyneClient".into(),
-        // UWP (7) is rejected by retail BDS 1.26.51 before authentication.
-        device_os: 1, // Android
-        game_version: crate::valentine::GAME_VERSION.into(),
-        graphics_mode: 0,
-        gui_scale: 0,
-        is_editor_mode: false,
-        language_code: "en_US".into(),
-        max_view_distance: 32,
-        memory_tier: 5, // Super High
-        override_skin: false,
-        persona_pieces: vec![],
-        persona_skin: false,
-        piece_tint_colors: vec![],
-        platform_offline_id: "".into(),
-        platform_online_id: "".into(),
-        platform_type: 0,
-        play_fab_id: "".into(),
-        premium_skin: false,
-        self_signed_id: uuid.to_string(),
-        server_address: "".into(),
-        skin_animation_data: "".into(),
-        skin_color: "#b37b62".into(), // Default Steve skin color
-        skin_data: skin_data_b64,
-        skin_geometry_data: STANDARD.encode(""), // Empty = use default
-        skin_geometry_data_engine_version: "".into(),
-        skin_id: format!("{}.Custom", uuid),
-        skin_image_height: 64,
-        skin_image_width: 64,
-        skin_resource_patch: generate_skin_resource_patch(),
-        third_party_name: display_name.into(),
-        third_party_name_only: false,
-        trusted_skin: false,
-        ui_profile: 0,
-    };
-
-    // ClientData JWT - uses x5u to specify the signing key
-    let mut client_header = Header::new(Algorithm::ES384);
-    client_header.x5u = Some(
-        STANDARD.encode(
-            key.public_key()
-                .to_public_key_der()
-                .map_err(|e| {
-                    JolyneError::Auth(crate::error::AuthError::BadSignature(e.to_string()))
-                })?
-                .as_bytes(),
-        ),
-    );
-
-    let client_jwt = encode(&client_header, &client_claims, &encoding_key)
-        .map_err(|e| JolyneError::Auth(crate::error::AuthError::BadSignature(e.to_string())))?;
-
-    Ok((chain_json, client_jwt))
-}
-
-/// Generates just the client data token (used with Mojang chain).
-fn generate_client_data_token(
-    key: &SecretKey,
-    display_name: &str,
-    uuid: Uuid,
-) -> Result<String, JolyneError> {
-    let public_key_der = key
-        .public_key()
-        .to_public_key_der()
-        .map_err(|e| JolyneError::Auth(crate::error::AuthError::BadSignature(e.to_string())))?;
-    let public_key_b64 = STANDARD.encode(public_key_der.as_bytes());
-
-    let private_der = key
-        .to_pkcs8_der()
-        .map_err(|e| JolyneError::Auth(crate::error::AuthError::BadSignature(e.to_string())))?;
-    let encoding_key = EncodingKey::from_ec_der(private_der.as_bytes());
-
-    // A minimal 64x64 RGBA skin is 16384 bytes (64*64*4).
-    let skin_pixels = vec![255u8; 64 * 64 * 4];
-    let skin_data_b64 = STANDARD.encode(&skin_pixels);
-    let device_id = Uuid::new_v4().to_string();
-
-    let client_claims = ClientDataPayload {
-        animated_image_data: vec![],
-        arm_size: "wide".into(),
-        cape_data: "".into(),
-        cape_id: "".into(),
-        cape_image_height: 0,
-        cape_image_width: 0,
-        cape_on_classic_skin: false,
-        client_random_id: (rand::random::<u64>() & 0x7FFFFFFFFFFFFFFF) as i64,
-        compatible_with_client_side_chunk_gen: false,
-        current_input_mode: 1,
-        default_input_mode: 1,
-        device_id,
-        device_model: "JolyneClient".into(),
-        device_os: 1, // Android (for Xbox Live auth)
-        game_version: crate::valentine::GAME_VERSION.into(),
-        graphics_mode: 0,
-        gui_scale: 0,
-        is_editor_mode: false,
-        language_code: "en_US".into(),
-        max_view_distance: 32,
-        memory_tier: 5,
-        override_skin: false,
-        persona_pieces: vec![],
-        persona_skin: false,
-        piece_tint_colors: vec![],
-        platform_offline_id: "".into(),
-        platform_online_id: "".into(),
-        platform_type: 0,
-        play_fab_id: "".into(),
-        premium_skin: false,
-        self_signed_id: uuid.to_string(),
-        server_address: "".into(),
-        skin_animation_data: "".into(),
-        skin_color: "#b37b62".into(),
-        skin_data: skin_data_b64,
-        skin_geometry_data: STANDARD.encode(""),
-        skin_geometry_data_engine_version: "".into(),
-        skin_id: format!("{}.Custom", uuid),
-        skin_image_height: 64,
-        skin_image_width: 64,
-        skin_resource_patch: generate_skin_resource_patch(),
-        third_party_name: display_name.into(),
-        third_party_name_only: false,
-        trusted_skin: false,
-        ui_profile: 0,
-    };
-
-    let mut client_header = Header::new(Algorithm::ES384);
-    client_header.x5u = Some(public_key_b64);
-
-    let client_jwt = encode(&client_header, &client_claims, &encoding_key)
-        .map_err(|e| JolyneError::Auth(crate::error::AuthError::BadSignature(e.to_string())))?;
-
-    Ok(client_jwt)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    use parking_lot::Mutex;
 
     #[test]
     fn offline_login_encodes_a_retail_supported_device_os() {
@@ -722,5 +352,64 @@ mod tests {
             .unwrap();
             assert_eq!(claims["CompatibleWithClientSideChunkGen"], false);
         }
+    }
+
+    #[test]
+    fn default_client_data_passes_server_validation() {
+        default_client_data("ClientDiff", Uuid::from_u128(7))
+            .validate()
+            .unwrap();
+    }
+
+    struct RecordingSource {
+        token: &'static str,
+        keys: Mutex<Vec<Vec<u8>>>,
+    }
+
+    impl MultiplayerTokenSource for RecordingSource {
+        fn multiplayer_token<'a>(
+            &'a self,
+            public_key_der: &'a [u8],
+        ) -> BoxFuture<'a, Result<String, AuthError>> {
+            self.keys.lock().push(public_key_der.to_vec());
+            Box::pin(async move { Ok(self.token.to_owned()) })
+        }
+    }
+
+    #[tokio::test]
+    async fn online_credentials_send_the_modern_token_for_the_connection_key() {
+        let key = SecretKey::from_slice(&[1; 48]).unwrap();
+        let source = Arc::new(RecordingSource {
+            token: "provider.signed.token",
+            keys: Mutex::default(),
+        });
+        let login = build_login(
+            &key,
+            "ClientDiff",
+            Uuid::nil(),
+            &LoginCredentials::Online(source.clone()),
+        )
+        .await
+        .unwrap();
+        let envelope: serde_json::Value = serde_json::from_str(&login.auth_info_json).unwrap();
+        assert_eq!(envelope["AuthenticationType"], 0);
+        assert_eq!(envelope["Token"], "provider.signed.token");
+        assert_eq!(
+            *source.keys.lock(),
+            vec![key.public_key().to_public_key_der().unwrap().into_vec()]
+        );
+    }
+
+    #[tokio::test]
+    async fn empty_provider_token_is_rejected_before_sending() {
+        let key = SecretKey::from_slice(&[1; 48]).unwrap();
+        let source = Arc::new(RecordingSource {
+            token: "",
+            keys: Mutex::default(),
+        });
+        let err = build_login(&key, "A", Uuid::nil(), &LoginCredentials::Online(source))
+            .await
+            .unwrap_err();
+        assert!(matches!(err, AuthError::TokenAcquisition(_)));
     }
 }

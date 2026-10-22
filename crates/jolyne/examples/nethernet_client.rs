@@ -107,7 +107,7 @@ async fn main() -> anyhow::Result<()> {
         display_name: "NetherNet Client".to_string(),
         uuid: Uuid::new_v4(),
         identity_key: SecretKey::random(&mut thread_rng()),
-        xbl_credentials: None,
+        credentials: Default::default(),
     };
 
     // Join the server

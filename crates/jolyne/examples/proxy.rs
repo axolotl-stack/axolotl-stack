@@ -46,7 +46,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         tokio::spawn(async move {
             let peer = stream.peer_addr();
             let session = proxy::accept(stream, &server_key, |login| {
-                let name = login.identity.display_name.clone().unwrap_or_default();
+                let name = login.identity.display_name().to_owned();
                 async move {
                     let upstream_stream =
                         BedrockStream::connect_with(upstream, ClientConfig::default()).await?;

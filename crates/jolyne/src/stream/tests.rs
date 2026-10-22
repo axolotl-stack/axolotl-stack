@@ -134,7 +134,12 @@ where
 async fn join_echo_and_typed_disconnect() {
     let (mut server, mut client) = joined(offline()).await;
     assert_eq!(server.runtime_id(), client.runtime_id());
-    assert_eq!(server.identity().display_name.as_deref(), Some("Tester"));
+    assert_eq!(server.identity().display_name(), "Tester");
+    assert_eq!(
+        server.client_data().device_os,
+        1,
+        "jolyne clients identify as Android"
+    );
     assert_eq!(client.latency(), Some(Duration::from_millis(3)));
 
     client
@@ -301,7 +306,7 @@ async fn proxy_relays_unknown_packets_and_disconnects() {
             BedrockStream::<Handshake, Server, _>::from_transport(proxy_io, passthrough),
             &key,
             |login| {
-                let name = login.identity.display_name.clone().unwrap_or_default();
+                let name = login.identity.display_name().to_owned();
                 async move {
                     let stream = BedrockStream::<Handshake, Client, _>::from_transport(
                         upstream_client_io,
@@ -335,7 +340,7 @@ async fn proxy_relays_unknown_packets_and_disconnects() {
         .await
         .unwrap();
     let (mut upstream, login) = upstream.await.unwrap().unwrap();
-    assert_eq!(login.identity.display_name.as_deref(), Some("Proxied"));
+    assert_eq!(login.identity.display_name(), "Proxied");
     assert_eq!(player.runtime_id(), upstream.runtime_id());
 
     let unknown = RawPacket::new(PacketHeader::new(1000), b"custom").unwrap();

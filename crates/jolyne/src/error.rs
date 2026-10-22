@@ -52,6 +52,24 @@ pub enum AuthError {
     InvalidJson,
     #[error("Token expired or not yet valid")]
     TemporalValidation,
+    /// The provider-verified token carries no XUID, so it does not prove an
+    /// Xbox Live account (gophertunnel `AuthResult.XBOXLiveAuthenticated`).
+    #[error("Login token does not identify an Xbox Live account")]
+    NotAuthenticated,
+    /// Identity claims failed gophertunnel `IdentityData.Validate` rules. The
+    /// payload names the rule only; client values are never echoed.
+    #[error("Invalid identity data: {0}")]
+    InvalidIdentityData(&'static str),
+    /// Client data failed gophertunnel `ClientData.Validate` rules. The payload
+    /// names the rule only; client values are never echoed.
+    #[error("Invalid client data: {0}")]
+    InvalidClientData(&'static str),
+    /// Discovery, OpenID configuration or JWKS could not be obtained.
+    #[error("Authentication provider unavailable: {0}")]
+    ProviderUnavailable(String),
+    /// A client-side login token could not be produced or acquired.
+    #[error("Login token acquisition failed: {0}")]
+    TokenAcquisition(String),
 }
 
 /// The handshake stage an error or timeout belongs to.

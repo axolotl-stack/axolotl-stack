@@ -1,10 +1,12 @@
-use crate::error::{AuthError, JolyneError};
+use crate::error::AuthError;
 use base64::Engine as _;
 use base64::engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD};
 use jsonwebtoken::DecodingKey;
 use p384::{PublicKey, elliptic_curve::sec1::ToEncodedPoint, pkcs8::DecodePublicKey};
 use serde::de::DeserializeOwned;
 
+/// Decodes a JWT payload without verifying it. Only for offline logins, whose
+/// claims are untrusted by definition.
 pub fn decode_unverified_claims<T: DeserializeOwned>(token: &str) -> Option<T> {
     let mut parts = token.split('.');
     let _header = parts.next()?;
@@ -13,7 +15,7 @@ pub fn decode_unverified_claims<T: DeserializeOwned>(token: &str) -> Option<T> {
     serde_json::from_slice(&payload).ok()
 }
 
-pub fn key_from_base64(b64: &str) -> Result<DecodingKey, JolyneError> {
+pub fn key_from_base64(b64: &str) -> Result<DecodingKey, AuthError> {
     let der = STANDARD
         .decode(b64)
         .map_err(|e| AuthError::BadSignature(format!("Invalid base64 key: {e}")))?;

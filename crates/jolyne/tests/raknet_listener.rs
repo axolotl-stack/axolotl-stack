@@ -32,6 +32,11 @@ async fn listener_advertises_status_and_enforces_max_players() {
         pong.starts_with("MCPE;Test MOTD;2193;1.26.51;0;1;"),
         "{pong}"
     );
+    let guid = listener.inner().guid();
+    assert!(
+        pong.contains(&format!(";{guid};")),
+        "pong GUID matches RakNet: {pong}"
+    );
 
     let key = SecretKey::random(&mut rand::thread_rng());
     let server = tokio::spawn(async move {
@@ -57,6 +62,10 @@ async fn listener_advertises_status_and_enforces_max_players() {
         stream.join(ClientHandshakeConfig::random(addr, name)).await
     };
     let (mut first, _) = join("First").await.unwrap();
+    assert!(
+        first.latency().is_some(),
+        "RakNet RTT measured during the join"
+    );
     first
         .send_packet(TextPacket::default().into())
         .await

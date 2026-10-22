@@ -52,13 +52,121 @@ struct Identity {
 struct Scenario {
     idle_ms: u64,
     steps: Vec<Step>,
+    /// Tick like a vanilla client: PlayerAuthInput every 50ms plus respawn and
+    /// dimension-change acknowledgements (see `gt-client`).
+    #[serde(default)]
+    auth_input: bool,
 }
 
+/// Interaction kinds (`move`, `place`, ...) are gophertunnel-only; Jolyne
+/// rejects scenarios containing them before connecting.
 #[derive(Deserialize)]
 struct Step {
     after_ms: u64,
     kind: String,
+    #[serde(default)]
     text: String,
+}
+
+/// Player state needed to tick and to expand `{x}`/`{y}`/`{z}` (the spawn
+/// feet block) in command text, as `gt-client` does.
+struct PlayerState {
+    runtime_id: u64,
+    position: Vec3,
+    /// Fixed on first use: in a fresh world StartGame carries a placeholder
+    /// height (y=32767) that MovePlayer corrects once the spawn is resolved.
+    anchor: Option<[i32; 3]>,
+    tick: u64,
+}
+
+/// Eye height above the feet in StartGame/MovePlayer/PlayerAuthInput positions.
+const EYE_HEIGHT: f32 = 1.62;
+
+impl PlayerState {
+    fn new(start_game: &StartGamePacket) -> Self {
+        Self {
+            runtime_id: start_game.runtime_id.actor_runtime_id,
+            position: start_game.position.clone(),
+            anchor: None,
+            tick: 0,
+        }
+    }
+
+    fn expand(&mut self, text: &str) -> String {
+        let position = &self.position;
+        let anchor = *self.anchor.get_or_insert_with(|| {
+            [
+                position.x.floor() as i32,
+                (position.y - EYE_HEIGHT + 0.01).floor() as i32,
+                position.z.floor() as i32,
+            ]
+        });
+        text.replace("{x}", &anchor[0].to_string())
+            .replace("{y}", &anchor[1].to_string())
+            .replace("{z}", &anchor[2].to_string())
+    }
+
+    fn auth_input(&mut self) -> McpePacket {
+        self.tick += 1;
+        McpePacket::from(PlayerAuthInputPacket {
+            position: self.position.clone(),
+            input_mode: EnumsInputMode::Mouse,
+            play_mode: EnumsClientPlayMode::Normal,
+            new_interaction_model: EnumsNewInteractionModel::Crosshair,
+            client_tick: PlayerInputTick {
+                inputtick: self.tick,
+            },
+            ..Default::default()
+        })
+    }
+
+    fn action(&self, action: EnumsPlayerActionType) -> McpePacket {
+        McpePacket::from(PlayerActionPacket {
+            player_runtime_id: ActorRuntimeId {
+                actor_runtime_id: self.runtime_id,
+            },
+            action,
+            face: -1,
+            ..Default::default()
+        })
+    }
+
+    /// Tracks the own position and returns the acknowledgements a vanilla
+    /// client sends for respawns and dimension changes.
+    fn handle(&mut self, packet: McpePacketData) -> Vec<McpePacket> {
+        match packet {
+            McpePacketData::MovePlayerPacket(packet)
+                if packet.player_runtime_id.actor_runtime_id == self.runtime_id =>
+            {
+                self.position = packet.position;
+            }
+            McpePacketData::CorrectPlayerMovePredictionPacket(packet) => {
+                self.position = packet.pos;
+            }
+            McpePacketData::ChangeDimensionPacket(packet) => {
+                self.position = packet.position;
+                return vec![self.action(EnumsPlayerActionType::Changedimensionack)];
+            }
+            McpePacketData::RespawnPacket(packet) => match packet.state {
+                EnumsPlayerRespawnState::Searchingforspawn => {
+                    return vec![
+                        McpePacket::from(RespawnPacket {
+                            position: packet.position,
+                            state: EnumsPlayerRespawnState::Clientreadytospawn,
+                            player_runtime_id: ActorRuntimeId {
+                                actor_runtime_id: self.runtime_id,
+                            },
+                        }),
+                        self.action(EnumsPlayerActionType::Respawn),
+                    ];
+                }
+                EnumsPlayerRespawnState::Readytospawn => self.position = packet.position,
+                _ => {}
+            },
+            _ => {}
+        }
+        Vec::new()
+    }
 }
 
 struct ScenarioClock<'a> {
@@ -385,9 +493,10 @@ pub async fn run(
     for step in &scenario.steps {
         ensure!(
             matches!(step.kind.as_str(), "chat" | "command"),
-            "unknown step kind {}",
+            "step kind {} is not supported by the Jolyne client (gophertunnel-only interaction)",
             step.kind
         );
+        ensure!(!step.text.is_empty(), "{} step needs text", step.kind);
     }
     let key = SecretKey::random(&mut p384::elliptic_curve::rand_core::OsRng);
     let (chain, token) = offline_tokens(&key, &config.identity, address)?;
@@ -415,7 +524,7 @@ pub async fn run(
     let stream =
         BedrockStream::<Handshake, Client, _>::from_transport(transport, ClientConfig::default())
             .await?;
-    let (mut play, _) = async {
+    let (mut play, game_data) = async {
         let login = stream.request_settings().await?;
         let secure = login.send_login_with_tokens(&key, &chain, &token).await?;
         let packs = secure.await_handshake().await?;
@@ -423,6 +532,8 @@ pub async fn run(
     }
     .await
     .context("full login")?;
+    let mut player = PlayerState::new(&game_data.start_game);
+    let mut ticker = tokio::time::interval(Duration::from_millis(50));
     let mut clock = ScenarioClock {
         scenario,
         index: 0,
@@ -434,17 +545,18 @@ pub async fn run(
             biased;
             _ = tokio::time::sleep_until(deadline) => {
                 let Some(step) = scenario.steps.get(clock.index) else { break };
+                let text = player.expand(&step.text);
                 let packet = match step.kind.as_str() {
                     "chat" => McpePacket::from(TextPacket {
                         body: TextPacketBody::AuthorAndMessage(TextPacketPayloadAuthorAndMessage {
                             message_type: TextPacketPayloadAuthorAndMessageMessageType::Chat,
                             player_name: config.identity.display_name.clone().into(),
-                            message: step.text.clone().into(),
+                            message: text.into(),
                         }),
                         ..Default::default()
                     }),
                     "command" => McpePacket::from(CommandRequestPacket {
-                        command: step.text.clone().into(),
+                        command: text.into(),
                         origin: CommandOriginDatajson {
                             type_: "player".into(), uuid: config.identity.uuid,
                             ..Default::default()
@@ -457,6 +569,9 @@ pub async fn run(
                 play.send_packet(packet).await?;
                 clock.step_completed(tokio::time::Instant::now());
             }
+            _ = ticker.tick(), if scenario.auth_input => {
+                play.send_packet(player.auth_input()).await?;
+            }
             packet = play.recv_packet_raw() => {
                 let packet = match packet {
                     Ok(packet) => packet,
@@ -466,12 +581,26 @@ pub async fn run(
                     ),
                     Err(error) => return Err(error.into()),
                 };
-                if packet.is(McpePacketName::NetworkStackLatencyPacket)
-                    && let McpePacketData::NetworkStackLatencyPacket(mut latency) = packet.decode()?.data
-                    && latency.is_from_server
-                {
-                    latency.is_from_server = false;
-                    play.send_packet(McpePacket::from(latency)).await?;
+                match packet.name() {
+                    Some(McpePacketName::NetworkStackLatencyPacket) => {
+                        if let McpePacketData::NetworkStackLatencyPacket(mut latency) = packet.decode()?.data
+                            && latency.is_from_server
+                        {
+                            latency.is_from_server = false;
+                            play.send_packet(McpePacket::from(latency)).await?;
+                        }
+                    }
+                    Some(
+                        McpePacketName::MovePlayerPacket
+                        | McpePacketName::CorrectPlayerMovePredictionPacket
+                        | McpePacketName::ChangeDimensionPacket
+                        | McpePacketName::RespawnPacket,
+                    ) if scenario.auth_input => {
+                        for reply in player.handle(packet.decode()?.data) {
+                            play.send_packet(reply).await?;
+                        }
+                    }
+                    _ => {}
                 }
             }
         }
@@ -577,6 +706,7 @@ mod tests {
     fn slow_sends_do_not_shorten_following_delays_or_final_idle() {
         let scenario = Scenario {
             idle_ms: 5000,
+            auth_input: false,
             steps: vec![
                 Step {
                     after_ms: 500,
@@ -612,5 +742,53 @@ mod tests {
             clock.deadline().unwrap() - final_send_done,
             Duration::from_secs(5)
         );
+    }
+
+    #[test]
+    fn anchor_uses_the_corrected_spawn_and_respawn_is_acknowledged() {
+        let start_game = StartGamePacket {
+            runtime_id: ActorRuntimeId {
+                actor_runtime_id: 7,
+            },
+            // Fresh worlds announce a placeholder height before MovePlayer.
+            position: Vec3 {
+                x: 0.5,
+                y: 32767.0,
+                z: -0.5,
+            },
+            ..Default::default()
+        };
+        let mut player = PlayerState::new(&start_game);
+        player.handle(McpePacketData::MovePlayerPacket(MovePlayerPacket {
+            player_runtime_id: ActorRuntimeId {
+                actor_runtime_id: 7,
+            },
+            position: Vec3 {
+                x: 0.5,
+                y: -58.38,
+                z: -0.5,
+            },
+            ..Default::default()
+        }));
+        assert_eq!(player.expand("/tp @s {x} {y} {z}"), "/tp @s 0 -60 -1");
+        // The anchor stays fixed after the player moves on.
+        player.position.x = 20.0;
+        assert_eq!(player.expand("{x}"), "0");
+
+        let replies = player.handle(McpePacketData::RespawnPacket(RespawnPacket {
+            state: EnumsPlayerRespawnState::Searchingforspawn,
+            ..Default::default()
+        }));
+        assert!(matches!(
+            &replies[0].data,
+            McpePacketData::RespawnPacket(packet)
+                if packet.state == EnumsPlayerRespawnState::Clientreadytospawn
+                    && packet.player_runtime_id.actor_runtime_id == 7
+        ));
+        assert!(matches!(
+            &replies[1].data,
+            McpePacketData::PlayerActionPacket(packet)
+                if packet.action == EnumsPlayerActionType::Respawn
+        ));
     }
 }

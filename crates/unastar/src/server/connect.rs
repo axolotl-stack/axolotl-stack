@@ -61,10 +61,11 @@ pub async fn accept_join_sequence(
     let start_game_state = reasoned(packs.negotiate_packs()).await?;
 
     // 5. Resolve spawn before StartGame.
-    let mut saved_data = load_player_data(player_provider, identity.uuid.as_deref()).await;
+    let uuid = identity.uuid().to_string();
+    let mut saved_data = load_player_data(player_provider, Some(&uuid)).await;
     let spawn = resolve_spawn_location(
         config,
-        &identity,
+        Some(&uuid),
         template,
         player_data_store,
         saved_data.as_ref(),
@@ -138,12 +139,11 @@ pub async fn load_player_data(
 /// is configured at all.
 pub async fn resolve_spawn_location(
     config: &UnastarConfig,
-    identity: &ValidatedIdentity,
+    uuid: Option<&str>,
     template: &WorldTemplate,
     player_data_store: &PlayerDataStore,
     saved_data: Option<&PlayerData>,
 ) -> SpawnLocation {
-    let uuid = identity.uuid.as_deref();
     let world_dimension = template
         .start_game_template
         .settings

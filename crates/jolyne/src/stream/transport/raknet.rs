@@ -76,4 +76,8 @@ impl Transport for RakNetTransport {
     fn peer_addr(&self) -> SocketAddr {
         self.inner.peer_addr()
     }
+
+    fn latency(&self) -> Option<std::time::Duration> {
+        self.inner.rtt()
+    }
 }

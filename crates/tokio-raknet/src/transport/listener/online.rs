@@ -8,7 +8,7 @@ use tokio::sync::mpsc;
 use crate::protocol::state::DisconnectReason;
 use crate::protocol::{datagram::Datagram, packet::RaknetPacket};
 use crate::session::manager::{ConnectionState, ManagedSession};
-use crate::transport::listener_conn::SessionState;
+use crate::transport::listener_conn::{AcceptSender, Accepted, SessionState};
 use crate::transport::mux::flush_managed;
 use bytes::Bytes;
 use bytes::BytesMut;
@@ -28,10 +28,7 @@ pub(super) async fn dispatch_datagram(
     peer: SocketAddr,
     sessions: &mut HashMap<SocketAddr, SessionState>,
     pending: &mut HashMap<SocketAddr, PendingConnection>,
-    new_conn_tx: &mpsc::Sender<(
-        SocketAddr,
-        mpsc::Receiver<Result<crate::transport::ReceivedMessage, crate::RaknetError>>,
-    )>,
+    new_conn_tx: &AcceptSender,
     advertisement: &Arc<RwLock<Bytes>>,
     rate_limiter: &mut PingRateLimiter,
     send_buf: &mut BytesMut,
@@ -40,7 +37,13 @@ pub(super) async fn dispatch_datagram(
         return;
     }
 
-    if sessions.contains_key(&peer) {
+    if let Some(state) = sessions.get_mut(&peer) {
+        if state.managed.transmission_policy().is_vanilla() {
+            // listener.go:handle hands every datagram from a connected address
+            // to conn.receive, which refreshes activity before parsing it
+            // (offline IDs included).
+            state.managed.record_activity(Instant::now());
+        }
         if !handle_incoming_udp(
             socket,
             config,
@@ -125,16 +128,14 @@ pub(super) async fn handle_outgoing_msg(
 
     tracing::trace!("outbound queued");
     flush_managed(&mut state.managed, socket, msg.peer, now, false, send_buf).await;
+    state.publish_rtt();
 }
 
 #[tracing::instrument(skip(socket, sessions), level = "trace")]
 pub(super) async fn tick_sessions(
     socket: &UdpSocket,
     sessions: &mut HashMap<SocketAddr, SessionState>,
-    new_conn_tx: &mpsc::Sender<(
-        SocketAddr,
-        mpsc::Receiver<Result<crate::transport::ReceivedMessage, crate::RaknetError>>,
-    )>,
+    new_conn_tx: &AcceptSender,
     send_buf: &mut BytesMut,
 ) {
     let now = Instant::now();
@@ -143,6 +144,7 @@ pub(super) async fn tick_sessions(
     for (&peer, state) in sessions.iter_mut() {
         maybe_announce_connection(peer, state, new_conn_tx).await;
         flush_managed(&mut state.managed, socket, peer, now, true, send_buf).await;
+        state.publish_rtt();
         let pending = state.managed.drain_pending_incoming(now);
         update_handshake_confirmation(&pending, state);
         if state.handshake_confirmed {
@@ -180,10 +182,7 @@ async fn handle_incoming_udp(
     peer: SocketAddr,
     sessions: &mut HashMap<SocketAddr, SessionState>,
     _pending: &mut HashMap<SocketAddr, PendingConnection>,
-    new_conn_tx: &mpsc::Sender<(
-        SocketAddr,
-        mpsc::Receiver<Result<crate::transport::ReceivedMessage, crate::RaknetError>>,
-    )>,
+    new_conn_tx: &AcceptSender,
     send_buf: &mut BytesMut,
 ) -> bool {
     let mut slice = bytes;
@@ -217,6 +216,7 @@ async fn handle_incoming_udp(
 
     maybe_announce_connection(peer, state, new_conn_tx).await;
     flush_managed(&mut state.managed, socket, peer, now, false, send_buf).await;
+    state.publish_rtt();
 
     if closed_after || matches!(state.managed.state(), ConnectionState::Closed) {
         if state.announced {
@@ -239,27 +239,28 @@ async fn handle_incoming_udp(
 pub(super) async fn maybe_announce_connection(
     peer: SocketAddr,
     state: &mut SessionState,
-    new_conn_tx: &mpsc::Sender<(
-        SocketAddr,
-        mpsc::Receiver<Result<crate::transport::ReceivedMessage, crate::RaknetError>>,
-    )>,
+    new_conn_tx: &AcceptSender,
 ) {
     if state.announced || !state.handshake_confirmed || !state.managed.is_connected() {
         return;
     }
 
-    if let Some(rx) = state.pending_rx.take() {
+    if let Some(incoming) = state.pending_rx.take() {
         tracing::info!("announce_connection");
-        match new_conn_tx.try_send((peer, rx)) {
+        let accepted = Accepted {
+            peer,
+            incoming,
+            rtt: state.rtt.clone(),
+        };
+        match new_conn_tx.try_send(accepted) {
             Ok(()) => {
                 state.announced = true;
             }
-            Err(mpsc::error::TrySendError::Full((_, rx))) => {
-                state.pending_rx = Some(rx);
-                state.announced = false;
-            }
-            Err(mpsc::error::TrySendError::Closed((_, rx))) => {
-                state.pending_rx = Some(rx);
+            Err(
+                mpsc::error::TrySendError::Full(accepted)
+                | mpsc::error::TrySendError::Closed(accepted),
+            ) => {
+                state.pending_rx = Some(accepted.incoming);
                 state.announced = false;
             }
         }
@@ -290,18 +291,104 @@ fn deliver_packets_to_app(pkts: Vec<crate::session::IncomingPacket>, state: &mut
             match state.to_app.try_send(Ok(msg)) {
                 Ok(()) => {}
                 Err(mpsc::error::TrySendError::Full(_)) => {
-                    let _ = state
-                        .managed
-                        .send_disconnect(DisconnectReason::QueueTooLong);
+                    state.managed.disconnect_now(DisconnectReason::QueueTooLong);
                     break;
                 }
                 Err(mpsc::error::TrySendError::Closed(_)) => {
+                    // The application dropped its stream: a graceful close
+                    // (Vanilla drains first, like go-raknet's Conn.Close).
                     let _ = state
                         .managed
-                        .send_disconnect(DisconnectReason::Disconnected);
+                        .close(DisconnectReason::Disconnected, Instant::now());
                     break;
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use super::*;
+    use crate::protocol::constants::DEFAULT_UNCONNECTED_MAGIC;
+    use crate::protocol::packet::{Packet, UnconnectedPing};
+    use crate::protocol::types::RaknetTime;
+    use crate::session::manager::{SessionConfig, SessionRole};
+    use crate::session::{SessionTunables, TransmissionPolicy};
+
+    /// KA-2: go-raknet `listener.go:handle` passes every datagram from a
+    /// connected address to `conn.receive`, which refreshes activity first,
+    /// so offline IDs from the peer keep a Vanilla session alive.
+    #[tokio::test]
+    async fn vanilla_offline_packets_from_a_session_peer_refresh_activity() {
+        let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let client = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let peer = client.local_addr().unwrap();
+        let config = RaknetListenerConfig::default();
+        // Created (and last active) well past the 5 s inactivity timeout.
+        let created = Instant::now().checked_sub(Duration::from_secs(10)).unwrap();
+        let managed = ManagedSession::with_config(
+            peer,
+            1492,
+            created,
+            SessionConfig {
+                role: SessionRole::Server,
+                session: SessionTunables {
+                    transmission: TransmissionPolicy::Vanilla,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        );
+        let (to_app, _app_rx) = mpsc::channel(1);
+        let mut sessions = HashMap::new();
+        sessions.insert(
+            peer,
+            SessionState {
+                managed,
+                to_app,
+                pending_rx: None,
+                announced: false,
+                handshake_confirmed: false,
+                rtt: crate::transport::RttCell::new(),
+            },
+        );
+        let mut pending = HashMap::new();
+        let (tx, _rx) = mpsc::channel(1);
+        let ad = Arc::new(RwLock::new(Bytes::new()));
+        let mut limiter = PingRateLimiter::new(10);
+        let mut send = BytesMut::new();
+        let mut ping = BytesMut::new();
+        RaknetPacket::UnconnectedPing(UnconnectedPing {
+            ping_time: RaknetTime(1),
+            magic: DEFAULT_UNCONNECTED_MAGIC,
+            client_guid: Some(7),
+        })
+        .encode(&mut ping)
+        .unwrap();
+        assert_eq!(ping[0], UnconnectedPing::ID);
+        dispatch_datagram(
+            &socket,
+            &config,
+            &ping,
+            peer,
+            &mut sessions,
+            &mut pending,
+            &tx,
+            &ad,
+            &mut limiter,
+            &mut send,
+        )
+        .await;
+
+        let state = sessions.get_mut(&peer).expect("session kept");
+        let now = Instant::now();
+        for n in 1..=5u32 {
+            state.managed.on_tick(now + Duration::from_millis(100) * n);
+        }
+        // The fifth tick checks inactivity: half a second, not ten.
+        assert_eq!(state.managed.state(), ConnectionState::Unconnected);
     }
 }

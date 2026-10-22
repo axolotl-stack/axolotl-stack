@@ -150,6 +150,7 @@ impl BorrowedGenerator<'_, '_> {
         let mut id_arms = Vec::new();
         let mut decode_arms = Vec::new();
         let mut into_owned_arms = Vec::new();
+        let mut encode_arms = Vec::new();
         let mut view_conversions = Vec::new();
 
         for meta in metas {
@@ -191,6 +192,9 @@ impl BorrowedGenerator<'_, '_> {
                 };
                 into_owned_arms.push(quote! {
                     Self::#variant_ident(view) => { #unpack_view Ok(#wrap_owned) }
+                });
+                encode_arms.push(quote! {
+                    Self::#variant_ident(view) => view.encode(buf)
                 });
             }
         }
@@ -300,6 +304,19 @@ impl BorrowedGenerator<'_, '_> {
                     match self {
                         Self::Raw { payload, .. } => Some(payload),
                         _ => None,
+                    }
+                }
+
+                /// Encodes the packet payload (without the game header) exactly as
+                /// the view or raw bytes describe it. Re-encoding a decoded view
+                /// reproduces the canonical wire bytes; `Raw` payloads are copied.
+                pub fn encode_payload<B: bytes::BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+                    match self {
+                        #(#encode_arms),*,
+                        Self::Raw { payload, .. } => {
+                            bytes::BufMut::put_slice(buf, payload);
+                            Ok(())
+                        }
                     }
                 }
 

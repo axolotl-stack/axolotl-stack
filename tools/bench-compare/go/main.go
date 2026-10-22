@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 )
 
 type row struct {
@@ -28,13 +29,15 @@ func emit(r row) error { return json.NewEncoder(os.Stdout).Encode(r) }
 
 func run() error {
 	if len(os.Args) < 2 {
-		return fmt.Errorf("usage: bench-compare codec|micro|loopback|serve|client|nethernet-micro|nethernet-loopback|nethernet-serve|nethernet-client [options]")
+		return fmt.Errorf("usage: bench-compare codec|micro|loopback|serve|client|nethernet-micro|nethernet-loopback|nethernet-serve|nethernet-client|raknet-conformance-serve|raknet-conformance-client [options]")
 	}
 	fs := flag.NewFlagSet(os.Args[1], flag.ContinueOnError)
 	address := fs.String("address", "127.0.0.1:19142", "transport address (NetherNet: local TCP signaling endpoint)")
 	count := fs.Int("count", 100, "sequential echoes per payload size")
 	corpus := fs.String("corpus", defaultCorpus(), "committed benchmark corpus directory")
 	iterations := fs.Int("iterations", 5000, "NetherNet micro iterations")
+	messageSizes := fs.String("sizes", "32", "raknet-conformance-client: comma-separated message sizes")
+	hold := fs.Duration("hold", time.Second, "raknet-conformance-client: idle time before closing")
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		return err
 	}
@@ -103,6 +106,14 @@ func run() error {
 		return client(*address, *count)
 	case "loopback":
 		return loopback(*count)
+	case "raknet-conformance-serve":
+		return conformanceServe(*address)
+	case "raknet-conformance-client":
+		parsed, err := parseSizes(*messageSizes)
+		if err != nil {
+			return err
+		}
+		return conformanceClient(*address, parsed, *hold)
 	default:
 		return fmt.Errorf("unknown command %q", os.Args[1])
 	}
