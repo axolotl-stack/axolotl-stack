@@ -418,7 +418,7 @@ pub fn estimated_inline_size(ty: &Type, ctx: &Context) -> usize {
                 align: 1,
                 niche: false,
             },
-            Primitive::ByteArray | Primitive::Nbt => Layout {
+            Primitive::ByteArray | Primitive::Nbt | Primitive::NbtCompoundBody => Layout {
                 size: 32,
                 align: 8,
                 niche: true,

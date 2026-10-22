@@ -25,6 +25,7 @@ pub fn primitive_to_rust_tokens(p: &Primitive) -> TokenStream {
         Primitive::Void => quote! { () },
         Primitive::ByteArray => quote! { bytes::Bytes },
         Primitive::Nbt => quote! { crate::bedrock::codec::Nbt },
+        Primitive::NbtCompoundBody => quote! { crate::bedrock::codec::NbtCompoundBody },
     }
 }
 

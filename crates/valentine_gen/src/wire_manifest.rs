@@ -351,6 +351,7 @@ fn primitive_name(primitive: &Primitive) -> &'static str {
         Primitive::Void => "Void",
         Primitive::ByteArray => "RawBytes",
         Primitive::Nbt => "Nbt",
+        Primitive::NbtCompoundBody => "NbtCompoundBody",
     }
 }
 

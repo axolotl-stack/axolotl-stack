@@ -1,9 +1,11 @@
 //! Frontend for protocolgen's canonical v2 manifest.
 
 use super::ParseResult;
+use super::protocolgen_corrections::{correction_for, ensure_all_applied};
 use crate::ir::{Container, Field, Packet, Primitive, Type, UnionVariant};
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
@@ -36,9 +38,11 @@ fn parse_manifest(reader: impl Read) -> Result<ParsedManifest, Box<dyn std::erro
 
     let mut types = HashMap::new();
     let mut packets = Vec::with_capacity(manifest.packets.len());
+    let mut applied = HashSet::new();
     for packet in manifest.packets {
-        packets.push(lower_packet(packet, &mut types)?);
+        packets.push(lower_packet(packet, &mut types, &mut applied)?);
     }
+    ensure_all_applied(manifest.target.protocol_version, &applied)?;
     packets.sort_by_key(|packet| packet.id);
     Ok(ParsedManifest {
         minecraft_version: manifest.target.minecraft_version,
@@ -113,18 +117,43 @@ struct CanonicalNode {
 fn lower_packet(
     packet: CanonicalPacket,
     types: &mut HashMap<String, Type>,
+    applied: &mut HashSet<(&'static str, &'static str)>,
 ) -> Result<Packet, String> {
     let mut fields = packet.fields.unwrap_or_default();
     fields.sort_by_key(|field| field.ordinal);
+    let fields = fields
+        .into_iter()
+        .map(|field| {
+            let corrected = correction_for(
+                &packet.name,
+                &field.name,
+                &field.encode.kind,
+                field
+                    .encode
+                    .primitive
+                    .as_ref()
+                    .map(|shape| shape.code.as_str()),
+                field.encode.encoding.as_deref(),
+                applied,
+            )?;
+            match corrected {
+                Some(primitive) => {
+                    // Keep the symmetry check of the uncorrected path.
+                    lower_field(field, types).map(|field| Field {
+                        name: field.name,
+                        type_def: Type::Primitive(primitive),
+                    })
+                }
+                None => lower_field(field, types),
+            }
+        })
+        .collect::<Result<_, _>>()?;
     Ok(Packet {
         id: packet.id,
         name: packet.name.clone(),
         body: Container {
             name: packet.name,
-            fields: fields
-                .into_iter()
-                .map(|field| lower_field(field, types))
-                .collect::<Result<_, _>>()?,
+            fields,
         },
     })
 }
@@ -404,7 +433,8 @@ fn primitive_accepts_i64(primitive: &Primitive, value: i64) -> bool {
         | Primitive::Uuid
         | Primitive::Void
         | Primitive::ByteArray
-        | Primitive::Nbt => false,
+        | Primitive::Nbt
+        | Primitive::NbtCompoundBody => false,
     }
 }
 
@@ -613,5 +643,48 @@ mod tests {
         let fixture = r#"{"schema_version":3,"target":{"minecraft_version":"1.26.40","protocol_version":2168},"packets":[]}"#;
         let error = parse_reader(fixture.as_bytes()).expect_err("unknown schema must fail closed");
         assert!(error.to_string().contains("expected 2"));
+    }
+
+    fn level_event_generic_manifest(protocol: i32, data_node: &str) -> String {
+        format!(
+            r#"{{
+          "schema_version": 2,
+          "target": {{"minecraft_version":"1.26.51","protocol_version":{protocol}}},
+          "packets": [{{"id":124,"name":"LevelEventGenericPacket","fields":[
+            {{"ordinal":0,"name":"Event Id","symmetry":"symmetric","encode":{{"kind":"primitive","primitive":{{"code":"zigzag_i32"}}}}}},
+            {{"ordinal":1,"name":"__[[CTD]]__","symmetry":"symmetric","encode":{data_node}}}
+          ]}}]
+        }}"#
+        )
+    }
+
+    #[test]
+    fn corrects_level_event_generic_data_to_a_compound_body() {
+        let fixture = level_event_generic_manifest(
+            2193,
+            r#"{"kind":"primitive","primitive":{"code":"nbt_le"},"encoding":"network"}"#,
+        );
+        let parsed = parse_reader(fixture.as_bytes()).expect("parse corrected packet");
+        assert_eq!(
+            parsed.packets[0].body.fields[1].type_def,
+            Type::Primitive(Primitive::NbtCompoundBody)
+        );
+    }
+
+    #[test]
+    fn correction_fails_when_the_manifest_node_changes() {
+        let fixture = level_event_generic_manifest(
+            2193,
+            r#"{"kind":"bytes","prefix":{"kind":"primitive","primitive":{"code":"var_u32"}}}"#,
+        );
+        let error = parse_reader(fixture.as_bytes()).expect_err("changed node must fail closed");
+        assert!(error.to_string().contains("re-verify against captures"));
+    }
+
+    #[test]
+    fn correction_fails_when_its_verified_manifest_lacks_the_field() {
+        let fixture = r#"{"schema_version":2,"target":{"minecraft_version":"1.26.51","protocol_version":2193},"packets":[]}"#;
+        let error = parse_reader(fixture.as_bytes()).expect_err("stale correction must fail");
+        assert!(error.to_string().contains("matched no manifest field"));
     }
 }
