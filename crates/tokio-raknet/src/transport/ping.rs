@@ -22,8 +22,9 @@ pub async fn ping(server: SocketAddr) -> Result<Bytes, RaknetError> {
     ping_with_timeout(server, DEFAULT_PING_TIMEOUT).await
 }
 
-/// go-raknet `Dialer.PingContext`: one 33-byte `UnconnectedPing` carrying the
-/// next dialer GUID, then the first datagram from the server must be an
+/// go-raknet `Dialer.PingContext`: one 33-byte `UnconnectedPing` carrying a
+/// fresh random client GUID (as the Mojang client's per-connect
+/// `resetMyGUID`), then the first datagram from the server must be an
 /// `UnconnectedPong`.
 pub async fn ping_with_timeout(
     server: SocketAddr,
@@ -43,7 +44,7 @@ pub async fn ping_with_timeout(
                     .as_millis() as u64,
             ),
             magic: DEFAULT_UNCONNECTED_MAGIC,
-            client_guid: Some(super::handshake::vanilla_dialer_id()),
+            client_guid: Some(super::handshake::random_guid()),
         });
         let mut out = BytesMut::with_capacity(33);
         ping.encode(&mut out)?;

@@ -153,24 +153,6 @@ impl OpenConnectionRequest2 {
             client_guid: u64::decode_raknet(src)?,
         })
     }
-
-    /// Encode the body with an explicit server-address layout (lunar's Vanilla
-    /// client uses [`AddressLayout::Lunar`] for IPv6 servers).
-    pub fn encode_body_with_layout(
-        &self,
-        dst: &mut impl bytes::BufMut,
-        layout: AddressLayout,
-    ) -> Result<(), crate::protocol::packet::EncodeError> {
-        self.magic.encode_raknet(dst)?;
-        if let Some(cookie) = self.cookie {
-            cookie.encode_raknet(dst)?;
-            self.client_proof.encode_raknet(dst)?;
-        }
-        encode_address(&self.server_addr, layout, dst)?;
-        self.mtu.encode_raknet(dst)?;
-        self.client_guid.encode_raknet(dst)?;
-        Ok(())
-    }
 }
 
 impl Packet for OpenConnectionRequest2 {
@@ -180,7 +162,15 @@ impl Packet for OpenConnectionRequest2 {
         &self,
         dst: &mut impl bytes::BufMut,
     ) -> Result<(), crate::protocol::packet::EncodeError> {
-        self.encode_body_with_layout(dst, AddressLayout::Standard)
+        self.magic.encode_raknet(dst)?;
+        if let Some(cookie) = self.cookie {
+            cookie.encode_raknet(dst)?;
+            self.client_proof.encode_raknet(dst)?;
+        }
+        self.server_addr.encode_raknet(dst)?;
+        self.mtu.encode_raknet(dst)?;
+        self.client_guid.encode_raknet(dst)?;
+        Ok(())
     }
 
     fn decode_body(src: &mut impl bytes::Buf) -> Result<Self, super::DecodeError> {
