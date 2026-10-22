@@ -13,7 +13,7 @@
 # Address to bind the Bedrock listener to.
 bind_address = "0.0.0.0:19132"
 
-# Shown in server list (if/when advertisement is implemented).
+# Shown in the server list (RakNet pong and LAN discovery).
 motd = "Unastar Server"
 
 # Soft maximum: connection acceptance still depends on upstream layers.

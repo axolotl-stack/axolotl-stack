@@ -4,6 +4,7 @@
 //! networking, and the game server tick loop.
 
 use jolyne::proto::packs::ServerPacks;
+use jolyne::status::StaticStatus;
 use jolyne::{BedrockListener, BedrockListenerConfig, FlushMode};
 use p384::SecretKey;
 use rand::thread_rng;
@@ -169,6 +170,11 @@ impl UnastarServer {
                 required: self.config.server.require_resource_packs,
                 ..ServerPacks::default()
             }),
+            // Advertise the configured MOTD and live player counts.
+            status: Some(Arc::new(StaticStatus::new(
+                self.config.server.motd.clone(),
+                "Unastar",
+            ))),
             ..Default::default()
         };
 
