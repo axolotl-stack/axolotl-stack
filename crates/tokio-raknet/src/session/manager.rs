@@ -16,6 +16,10 @@ use crate::protocol::{
 
 use super::{QueuePacketError, Session, SessionTunables};
 
+/// Bounded small-datagram feedback, independent of the 100 ms maintenance tick.
+/// go-raknet flushes ACKs on its ticker; split/window pressure bypasses our delay.
+pub(crate) const MAX_ACK_DELAY: Duration = Duration::from_millis(1);
+
 /// High-level connection state for a managed RakNet session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConnectionState {
@@ -95,6 +99,8 @@ pub struct ManagedSession {
     queued_reliable_bytes: usize,
     remote_guid: Option<u64>,
     last_disconnect_reason: Option<DisconnectReason>,
+    ack_deadline: Option<Instant>,
+    pending_ack_bytes: usize,
 }
 
 impl ManagedSession {
@@ -120,6 +126,8 @@ impl ManagedSession {
             queued_reliable_bytes: 0,
             remote_guid: None,
             last_disconnect_reason: None,
+            ack_deadline: None,
+            pending_ack_bytes: 0,
         }
     }
 
@@ -242,10 +250,21 @@ impl ManagedSession {
             DatagramPayload::EncapsulatedPackets(packets) => {
                 // go-raknet conn.go:receiveDatagram validates and deduplicates
                 // the receive window before touching any packet payload.
-                if !self
+                let accepted = self
                     .inner
-                    .accept_datagram_sequence(dgram.header.sequence, || now)?
+                    .accept_datagram_sequence(dgram.header.sequence, || now)?;
+                self.pending_ack_bytes = self
+                    .pending_ack_bytes
+                    .saturating_add(4 + packets.iter().map(|packet| packet.size()).sum::<usize>());
+                if self.state != ConnectionState::Connected
+                    || packets.iter().any(|packet| packet.header.is_split)
+                    || self.pending_ack_bytes >= self.inner.mtu() / 2
                 {
+                    self.ack_deadline = Some(now);
+                } else {
+                    self.ack_deadline.get_or_insert(now + MAX_ACK_DELAY);
+                }
+                if !accepted {
                     return Ok(Vec::new());
                 }
                 let mut pkts = self.inner.handle_data_payload(packets, now)?;
@@ -267,15 +286,22 @@ impl ManagedSession {
         }
     }
 
-    /// Build receive feedback before application data, without waiting for maintenance.
-    /// Retiring incoming ACKs here reopens the congestion window in the same receive
-    /// turn: both transports drain this method after reads and application writes.
-    /// Timeout-based retransmission and split expiry remain periodic maintenance.
+    /// Flush due ACKs and immediate NAK/data; retire incoming ACKs immediately
+    /// so application delivery and congestion progress never wait for maintenance.
+    /// Transports must service `ack_deadline` even when no further traffic arrives.
     pub fn build_datagram(&mut self, now: Instant) -> Option<Datagram> {
         self.inner.process_incoming_acks_naks(now);
-        let dgram = self
-            .inner
-            .build_ack_datagram(now)
+        let ack = if self.ack_deadline.is_some_and(|deadline| now >= deadline) {
+            let ack = self.inner.build_ack_datagram(now);
+            if ack.is_none() {
+                self.ack_deadline = None;
+                self.pending_ack_bytes = 0;
+            }
+            ack
+        } else {
+            None
+        };
+        let dgram = ack
             .or_else(|| self.inner.build_nak_datagram())
             .or_else(|| self.inner.build_data_datagram(now))?;
 
@@ -284,6 +310,12 @@ impl ManagedSession {
         }
 
         Some(dgram)
+    }
+
+    /// Earliest pending feedback deadline. A custom transport must call
+    /// `build_datagram` at this time even if its socket/application queues are idle.
+    pub fn ack_deadline(&self) -> Option<Instant> {
+        self.ack_deadline
     }
 
     pub fn drain_pending_incoming(&mut self, now: Instant) -> Vec<crate::session::IncomingPacket> {
@@ -367,9 +399,77 @@ mod tests {
         assert!(session.inner.outgoing_heap.is_empty());
     }
 
-    // A fixed clock and no on_tick calls make maintenance-driven progress impossible.
-    fn deliver_without_maintenance(size: usize) {
+    #[test]
+    fn small_datagram_acks_coalesce_without_postponing_the_first_deadline() {
         let now = Instant::now();
+        let peer = "127.0.0.1:19132".parse().unwrap();
+        let mut sender = ManagedSession::new(peer, 1200, now);
+        let mut receiver = ManagedSession::new(peer, 1200, now);
+        sender.state = ConnectionState::Connected;
+        receiver.state = ConnectionState::Connected;
+        for delay in [0, 500] {
+            let time = now + Duration::from_micros(delay);
+            sender
+                .queue_app_buffer(
+                    Bytes::from_static(b"\xfefirst"),
+                    Reliability::ReliableOrdered,
+                    0,
+                    RakPriority::Normal,
+                )
+                .unwrap();
+            let datagram = sender.build_datagram(time).unwrap();
+            let delivered = receiver.handle_datagram(datagram, time).unwrap();
+            assert_eq!(delivered.len(), 1, "delivery must not wait for ACK timing");
+            assert!(receiver.build_datagram(time).is_none());
+        }
+        assert!(
+            receiver
+                .build_datagram(now + Duration::from_micros(999))
+                .is_none()
+        );
+        let ack = receiver
+            .build_datagram(now + Duration::from_millis(1))
+            .unwrap();
+        let DatagramPayload::Ack(payload) = ack.payload else {
+            panic!("expected ACK");
+        };
+        assert_eq!(payload.ranges.len(), 1);
+        assert_eq!(payload.ranges[0].start.value(), 0);
+        assert_eq!(payload.ranges[0].end.value(), 1);
+        assert!(
+            receiver
+                .build_datagram(now + Duration::from_millis(1))
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn ack_feedback_is_immediate_before_an_initial_mtu_window_can_fill() {
+        let now = Instant::now();
+        let peer = "127.0.0.1:19132".parse().unwrap();
+        let mut sender = ManagedSession::new(peer, 1200, now);
+        let mut receiver = ManagedSession::new(peer, 1200, now);
+        sender.state = ConnectionState::Connected;
+        receiver.state = ConnectionState::Connected;
+        sender
+            .queue_app_buffer(
+                Bytes::from(vec![0xfe; 700]),
+                Reliability::ReliableOrdered,
+                0,
+                RakPriority::Normal,
+            )
+            .unwrap();
+        let datagram = sender.build_datagram(now).unwrap();
+        assert_eq!(receiver.handle_datagram(datagram, now).unwrap().len(), 1);
+        assert!(matches!(
+            receiver.build_datagram(now).unwrap().payload,
+            DatagramPayload::Ack(_)
+        ));
+    }
+
+    // No on_tick calls: feedback advances by at most its separate 1 ms bound.
+    fn deliver_without_maintenance(size: usize) {
+        let mut now = Instant::now();
         let peer = "127.0.0.1:19132".parse().unwrap();
         let mut sender = ManagedSession::new(peer, 1200, now);
         let mut receiver = ManagedSession::new(peer, 1200, now);
@@ -392,6 +492,9 @@ mod tests {
         for _ in 0..1024 {
             while let Some(datagram) = sender.build_datagram(now) {
                 delivered.extend(receiver.handle_datagram(datagram, now).unwrap());
+            }
+            if size < 4096 {
+                now += MAX_ACK_DELAY;
             }
             let mut feedback = 0;
             while let Some(datagram) = receiver.build_datagram(now) {

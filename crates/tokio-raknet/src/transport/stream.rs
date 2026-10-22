@@ -315,6 +315,7 @@ struct OfflineHandshake {
 enum ClientLoopEvent<Msg> {
     Inbound(std::io::Result<(usize, SocketAddr)>),
     Outbound(Msg),
+    Ack,
     Tick,
     OutboundClosed,
 }
@@ -343,6 +344,8 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
     let mut ready_signal = Some(context.ready);
     let mut tick = time::interval(TICK_INTERVAL);
     tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
+    let ack_timer = time::sleep(Duration::ZERO);
+    tokio::pin!(ack_timer);
 
     // Initial handshake ensure
     {
@@ -369,6 +372,10 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
     }
 
     loop {
+        let ack_deadline = managed.as_ref().and_then(ManagedSession::ack_deadline);
+        if let Some(deadline) = ack_deadline {
+            ack_timer.as_mut().reset(deadline.into());
+        }
         let event = tokio::select! {
             res = socket.recv_from(&mut buf) => ClientLoopEvent::Inbound(res),
             msg = context.outbound_rx.recv() => match msg {
@@ -376,6 +383,7 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
                 None => ClientLoopEvent::OutboundClosed,
             },
             _ = tick.tick() => ClientLoopEvent::Tick,
+            _ = &mut ack_timer, if ack_deadline.is_some() => ClientLoopEvent::Ack,
         };
 
         match event {
@@ -542,6 +550,20 @@ async fn run_client_muxer(socket: UdpSocket, mut context: ClientMuxerContext) {
                 }
                 flush_built_datagrams(ms, &socket, context.server, now, false, &mut send_buf).await;
                 notify_client_ready(ms, &mut ready_signal);
+            }
+
+            ClientLoopEvent::Ack => {
+                if let Some(ms) = managed.as_mut() {
+                    flush_built_datagrams(
+                        ms,
+                        &socket,
+                        context.server,
+                        Instant::now(),
+                        false,
+                        &mut send_buf,
+                    )
+                    .await;
+                }
             }
 
             ClientLoopEvent::Tick => {
