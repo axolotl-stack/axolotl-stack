@@ -33,6 +33,11 @@ pub struct RaknetListenerConfig {
     pub max_pending_connections: usize,
 
     /// Maximum MTU size to support/advertise.
+    ///
+    /// A [`TransmissionPolicy::Vanilla`](crate::session::TransmissionPolicy)
+    /// listener behaves as Bedrock Dedicated Server, whose Mojang RakNet build
+    /// has `MAXIMUM_MTU_SIZE` 1400 (lens `W4_RakPeer_ctor.c:614`,
+    /// `W5_RakPeer_ctor.c:601`). It negotiates at most `min(max_mtu, 1400)`.
     pub max_mtu: u16,
 
     /// Optional socket receive buffer size.
@@ -87,7 +92,11 @@ pub struct RaknetListenerConfig {
     /// Transmission policy of accepted sessions. Defaults to
     /// [`TransmissionPolicy::Optimized`](crate::session::TransmissionPolicy).
     /// Vanilla sessions must be ticked every 100 ms; the listener's
-    /// maintenance interval already is.
+    /// maintenance interval already is. A Vanilla listener also answers the
+    /// offline handshake as Bedrock Dedicated Server (Mojang RakNet): no
+    /// Request1 cookie, Reply2 echoes the requested MTU, GUID/address
+    /// conflicts get `AlreadyConnected` and a same-IP reconnect within 50 ms
+    /// gets `IpRecentlyConnected`.
     pub transmission_policy: crate::session::TransmissionPolicy,
 }
 
@@ -519,6 +528,8 @@ mod tests {
             announced: true,
             handshake_confirmed: true,
             rtt: crate::transport::RttCell::new(),
+            client_guid: 0,
+            created_at: Instant::now(),
         }
     }
 
