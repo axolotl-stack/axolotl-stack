@@ -969,4 +969,336 @@ mod tests {
     fn generated_guid_is_negative_on_wire() {
         assert!((client_guid() as i64) < 0);
     }
+
+    /// KA-7: errors go-raknet treats as transient never end the client.
+    #[test]
+    fn transient_receive_errors_do_not_close_the_client() {
+        use std::io::{Error, ErrorKind};
+        for kind in [
+            ErrorKind::ConnectionRefused,
+            ErrorKind::ConnectionReset,
+            ErrorKind::ConnectionAborted,
+            ErrorKind::HostUnreachable,
+            ErrorKind::NetworkUnreachable,
+        ] {
+            assert!(handshake::is_transient_receive_error(&Error::from(kind)));
+        }
+        assert!(!handshake::is_transient_receive_error(&Error::from(
+            ErrorKind::PermissionDenied
+        )));
+        #[cfg(windows)]
+        assert!(is_oversized_datagram(&Error::from_raw_os_error(10040)));
+    }
+
+    /// A Vanilla client muxer connected to a scripted server session.
+    struct VanillaHarness {
+        server: UdpSocket,
+        client: SocketAddr,
+        session: ManagedSession,
+        incoming: mpsc::Receiver<Result<ReceivedMessage, crate::RaknetError>>,
+        outbound: Option<mpsc::Sender<OutboundMsg>>,
+        task: tokio::task::JoinHandle<()>,
+        /// When the server received the ConnectionRequest.
+        request_seen: Instant,
+    }
+
+    impl VanillaHarness {
+        async fn connect() -> Self {
+            let server = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+            let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+            let client = socket.local_addr().unwrap();
+            let (outbound, outbound_rx) = mpsc::channel(8);
+            let (to_app, incoming) = mpsc::channel(CLIENT_RECEIVE_QUEUE);
+            let (ready, ready_rx) = oneshot::channel();
+            let task = tokio::spawn(run_client_muxer(
+                socket,
+                ClientMuxerContext {
+                    server: server.local_addr().unwrap(),
+                    server_guid: 1,
+                    client_guid: handshake::vanilla_dialer_id(),
+                    secure_connection_established: false,
+                    outbound_rx,
+                    to_app,
+                    ready,
+                    config: RaknetStreamConfig::default(),
+                    maintenance_interval: VANILLA_TICK_INTERVAL,
+                },
+            ));
+            let mut session = ManagedSession::with_config(
+                client,
+                1492,
+                Instant::now(),
+                SessionConfig {
+                    role: SessionRole::Server,
+                    ..SessionConfig::default()
+                },
+            );
+            let mut buffer = [0; 2048];
+            let mut encoded = BytesMut::new();
+            let mut request_seen = None;
+            timeout(Duration::from_secs(2), async {
+                while !session.is_connected() {
+                    let (len, _) = server.recv_from(&mut buffer).await.unwrap();
+                    request_seen.get_or_insert_with(Instant::now);
+                    let datagram = Datagram::decode(&mut &buffer[..len]).unwrap();
+                    session.handle_datagram(datagram, Instant::now()).unwrap();
+                    flush_built_datagrams(
+                        &mut session,
+                        &server,
+                        client,
+                        Instant::now(),
+                        false,
+                        &mut encoded,
+                    )
+                    .await;
+                }
+            })
+            .await
+            .unwrap();
+            ready_rx.await.unwrap().unwrap();
+            Self {
+                server,
+                client,
+                session,
+                incoming,
+                outbound: Some(outbound),
+                task,
+                request_seen: request_seen.unwrap(),
+            }
+        }
+
+        /// Send one user message from the server, returning its datagram sequence.
+        async fn send_message(&mut self, body: &'static [u8]) -> u32 {
+            self.session
+                .queue_app_buffer(
+                    Bytes::from_static(body),
+                    crate::protocol::reliability::Reliability::ReliableOrdered,
+                    0,
+                    crate::protocol::state::RakPriority::Normal,
+                )
+                .unwrap();
+            let datagram = self.session.build_datagram(Instant::now()).unwrap();
+            self.send_datagram(&datagram).await;
+            datagram.header.sequence.value()
+        }
+
+        async fn send_datagram(&self, datagram: &Datagram) {
+            let mut encoded = BytesMut::new();
+            datagram.encode(&mut encoded).unwrap();
+            self.server.send_to(&encoded, self.client).await.unwrap();
+        }
+
+        /// Next datagram from the client, without feeding the server session.
+        async fn recv_raw(&self) -> Datagram {
+            let mut buffer = [0; 2048];
+            let (len, _) = timeout(Duration::from_secs(3), self.server.recv_from(&mut buffer))
+                .await
+                .expect("client went silent")
+                .unwrap();
+            Datagram::decode(&mut &buffer[..len]).unwrap()
+        }
+
+        async fn expect_message(&mut self, body: &[u8]) {
+            let message = timeout(Duration::from_secs(2), self.incoming.recv())
+                .await
+                .expect("message not delivered")
+                .unwrap()
+                .unwrap();
+            assert_eq!(message.id, body[0]);
+            assert_eq!(message.payload.as_ref(), &body[1..]);
+        }
+    }
+
+    fn acks(datagram: &Datagram, sequence: u32) -> bool {
+        matches!(&datagram.payload, crate::protocol::datagram::DatagramPayload::Ack(ack)
+            if ack.ranges.iter().any(|range|
+                range.start.value() <= sequence && range.end.value() >= sequence))
+    }
+
+    /// MTU-11: datagrams above go-raknet's 1492-byte read buffer are dropped
+    /// without ending the connection.
+    #[tokio::test]
+    async fn vanilla_client_drops_datagrams_longer_than_1492() {
+        let mut harness = VanillaHarness::connect().await;
+        let oversized = Datagram {
+            header: crate::protocol::types::DatagramHeader {
+                flags: crate::protocol::constants::DatagramFlags::VALID,
+                sequence: crate::protocol::types::Sequence24::new(100),
+            },
+            payload: crate::protocol::datagram::DatagramPayload::EncapsulatedPackets(vec![
+                crate::protocol::encapsulated_packet::EncapsulatedPacket {
+                    header: crate::protocol::types::EncapsulatedPacketHeader {
+                        reliability: crate::protocol::reliability::Reliability::Unreliable,
+                        is_split: false,
+                        needs_bas: false,
+                    },
+                    bit_length: 1500 << 3,
+                    reliable_index: None,
+                    sequence_index: None,
+                    ordering_index: None,
+                    ordering_channel: None,
+                    split: None,
+                    payload: Bytes::from(vec![0xfe; 1500]),
+                },
+            ]),
+        };
+        harness.send_datagram(&oversized).await;
+        harness.send_message(b"\xfeafter").await;
+        harness.expect_message(b"\xfeafter").await;
+        assert!(!harness.task.is_finished());
+    }
+
+    /// KA-8: malformed datagrams are logged and dropped (Optimized reports
+    /// the error and stops instead).
+    #[tokio::test]
+    async fn vanilla_client_survives_malformed_datagram() {
+        let mut harness = VanillaHarness::connect().await;
+        harness
+            .server
+            .send_to(&[0x80], harness.client)
+            .await
+            .unwrap();
+        harness.send_message(b"\xfestill here").await;
+        harness.expect_message(b"\xfestill here").await;
+        assert!(!harness.task.is_finished());
+    }
+
+    /// REL-7: a datagram beyond the 2048 receive window is dropped, and the
+    /// connection continues like go-raknet's logged receive errors.
+    #[tokio::test]
+    async fn vanilla_client_survives_receive_window_violation() {
+        let mut harness = VanillaHarness::connect().await;
+        harness
+            .session
+            .queue_app_buffer(
+                Bytes::from_static(b"\xfefar"),
+                crate::protocol::reliability::Reliability::Unreliable,
+                0,
+                crate::protocol::state::RakPriority::Normal,
+            )
+            .unwrap();
+        let mut far = harness.session.build_datagram(Instant::now()).unwrap();
+        far.header.sequence = crate::protocol::types::Sequence24::new(5000);
+        harness.send_datagram(&far).await;
+        harness.send_message(b"\xfenear").await;
+        harness.expect_message(b"\xfenear").await;
+        assert!(
+            harness.incoming.try_recv().is_err(),
+            "far datagram delivered"
+        );
+        assert!(!harness.task.is_finished());
+    }
+
+    /// CC-4/ACK-1: the client ticker starts with the session, before the
+    /// ConnectionRequest, and ACKs only every 100 ms. Lower bounds only:
+    /// timers never fire early, so this cannot flake under load.
+    #[tokio::test]
+    async fn vanilla_client_ticks_every_100ms_from_session_creation() {
+        let mut harness = VanillaHarness::connect().await;
+        let first = harness.send_message(b"\xfeone").await;
+        let first_ack = loop {
+            if acks(&harness.recv_raw().await, first) {
+                break Instant::now();
+            }
+        };
+        assert!(
+            first_ack.duration_since(harness.request_seen) >= Duration::from_millis(90),
+            "ACK before the first 100 ms tick"
+        );
+        let second = harness.send_message(b"\xfetwo").await;
+        let second_ack = loop {
+            if acks(&harness.recv_raw().await, second) {
+                break Instant::now();
+            }
+        };
+        assert!(
+            second_ack.duration_since(first_ack) >= Duration::from_millis(90),
+            "ACK between ticks"
+        );
+    }
+
+    /// KA-5: dropping the stream drains unacknowledged data first; the bare
+    /// DisconnectNotification follows the ACK that empties the resend map.
+    #[tokio::test]
+    async fn vanilla_client_drop_closes_after_drain() {
+        let mut harness = VanillaHarness::connect().await;
+        // Retire the handshake's resend entries so only `last` remains.
+        let mut buffer = [0; 2048];
+        let mut encoded = BytesMut::new();
+        harness
+            .outbound
+            .as_ref()
+            .unwrap()
+            .send(OutboundMsg {
+                peer: harness.server.local_addr().unwrap(),
+                buffer: Bytes::from_static(b"\xfelast"),
+                reliability: crate::protocol::reliability::Reliability::ReliableOrdered,
+                channel: 0,
+                priority: crate::protocol::state::RakPriority::Normal,
+            })
+            .await
+            .unwrap();
+        drop(harness.outbound.take());
+        // Withhold every ACK: the client keeps resending and never says goodbye.
+        let withheld_until = Instant::now() + Duration::from_millis(700);
+        let mut pending = Vec::new();
+        while Instant::now() < withheld_until {
+            let Ok(Ok((len, _))) = timeout(
+                withheld_until - Instant::now(),
+                harness.server.recv_from(&mut buffer),
+            )
+            .await
+            else {
+                break;
+            };
+            let datagram = Datagram::decode(&mut &buffer[..len]).unwrap();
+            if let crate::protocol::datagram::DatagramPayload::EncapsulatedPackets(frames) =
+                &datagram.payload
+            {
+                assert!(
+                    frames.iter().all(|frame| frame.payload.as_ref() != [0x15]),
+                    "disconnect sent before the resend map drained"
+                );
+            }
+            pending.push(datagram);
+        }
+        // Now ACK everything: the next tick sends the bare notification.
+        for datagram in pending {
+            harness
+                .session
+                .handle_datagram(datagram, Instant::now())
+                .unwrap();
+        }
+        flush_built_datagrams(
+            &mut harness.session,
+            &harness.server,
+            harness.client,
+            // Past the Optimized server's 1 ms ACK deadline.
+            Instant::now() + Duration::from_millis(5),
+            false,
+            &mut encoded,
+        )
+        .await;
+        let disconnect = timeout(Duration::from_secs(2), async {
+            loop {
+                let datagram = harness.recv_raw().await;
+                if let crate::protocol::datagram::DatagramPayload::EncapsulatedPackets(frames) =
+                    &datagram.payload
+                    && frames.iter().any(|frame| frame.payload.as_ref() == [0x15])
+                {
+                    break frames[0].header.reliability;
+                }
+            }
+        })
+        .await
+        .expect("no DisconnectNotification after the drain");
+        assert_eq!(
+            disconnect,
+            crate::protocol::reliability::Reliability::ReliableOrdered
+        );
+        timeout(Duration::from_secs(1), harness.task)
+            .await
+            .unwrap()
+            .unwrap();
+    }
 }

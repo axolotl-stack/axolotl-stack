@@ -5,7 +5,10 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::time::timeout;
-use tokio_raknet::{RaknetListener, RaknetStream, transport::Message};
+use tokio_raknet::{
+    RaknetListener, RaknetStream,
+    transport::{Message, RaknetListenerConfig, RaknetStreamConfig, TransmissionPolicy},
+};
 
 pub const SIZES: [usize; 4] = [32, 512, 4096, 65536];
 const TIMEOUT: Duration = Duration::from_secs(30);
@@ -31,6 +34,37 @@ fn count_for_size(size: usize, count: usize) -> Result<usize> {
         Err(std::env::VarError::NotPresent) => Ok(count),
         Err(error) => Err(error.into()),
     }
+}
+
+/// `BENCH_RAKNET_POLICY=vanilla|optimized` selects the transmission policy of
+/// both peers. Unset keeps the library defaults (Vanilla client, Optimized
+/// listener).
+fn policy_override() -> Result<Option<TransmissionPolicy>> {
+    match std::env::var("BENCH_RAKNET_POLICY") {
+        Ok(value) => match value.as_str() {
+            "vanilla" => Ok(Some(TransmissionPolicy::Vanilla)),
+            "optimized" => Ok(Some(TransmissionPolicy::Optimized)),
+            _ => anyhow::bail!("BENCH_RAKNET_POLICY must be `vanilla` or `optimized`"),
+        },
+        Err(std::env::VarError::NotPresent) => Ok(None),
+        Err(error) => Err(error.into()),
+    }
+}
+
+async fn bind(address: SocketAddr) -> Result<RaknetListener> {
+    let mut config = RaknetListenerConfig::default();
+    if let Some(policy) = policy_override()? {
+        config.transmission_policy = policy;
+    }
+    Ok(RaknetListener::bind_with_config(address, config).await?)
+}
+
+async fn connect(address: SocketAddr) -> Result<RaknetStream> {
+    let mut config = RaknetStreamConfig::default();
+    if let Some(policy) = policy_override()? {
+        config.transmission_policy = policy;
+    }
+    Ok(RaknetStream::connect_with_config(address, config).await?)
 }
 
 pub async fn echo(mut listener: RaknetListener, count: usize) -> Result<()> {
@@ -69,7 +103,7 @@ pub async fn echo(mut listener: RaknetListener, count: usize) -> Result<()> {
 
 pub async fn serve(address: SocketAddr, count: usize) -> Result<()> {
     ensure!(count > 0, "count must be positive");
-    let listener = timeout(TIMEOUT, RaknetListener::bind(address)).await??;
+    let listener = timeout(TIMEOUT, bind(address)).await??;
     eprintln!("READY {}", listener.local_addr());
     echo(listener, count).await
 }
@@ -78,7 +112,7 @@ pub async fn client(address: SocketAddr, count: usize) -> Result<()> {
     ensure!(count > 0, "count must be positive");
     for size in SIZES {
         let count = count_for_size(size, count)?;
-        let mut stream = timeout(TIMEOUT, RaknetStream::connect(address))
+        let mut stream = timeout(TIMEOUT, connect(address))
             .await
             .context("connect timeout")??;
         let payload = payload(size);
@@ -136,7 +170,7 @@ pub async fn client(address: SocketAddr, count: usize) -> Result<()> {
 
 pub async fn loopback(count: usize) -> Result<()> {
     ensure!(count > 0, "count must be positive");
-    let listener = RaknetListener::bind("127.0.0.1:0".parse()?).await?;
+    let listener = bind("127.0.0.1:0".parse()?).await?;
     let address = listener.local_addr();
     tokio::try_join!(echo(listener, count), client(address, count))?;
     Ok(())

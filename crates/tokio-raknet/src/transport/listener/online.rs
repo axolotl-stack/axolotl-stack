@@ -290,15 +290,15 @@ fn deliver_packets_to_app(pkts: Vec<crate::session::IncomingPacket>, state: &mut
             match state.to_app.try_send(Ok(msg)) {
                 Ok(()) => {}
                 Err(mpsc::error::TrySendError::Full(_)) => {
-                    let _ = state
-                        .managed
-                        .send_disconnect(DisconnectReason::QueueTooLong);
+                    state.managed.disconnect_now(DisconnectReason::QueueTooLong);
                     break;
                 }
                 Err(mpsc::error::TrySendError::Closed(_)) => {
+                    // The application dropped its stream: a graceful close
+                    // (Vanilla drains first, like go-raknet's Conn.Close).
                     let _ = state
                         .managed
-                        .send_disconnect(DisconnectReason::Disconnected);
+                        .close(DisconnectReason::Disconnected, Instant::now());
                     break;
                 }
             }
