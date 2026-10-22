@@ -35,6 +35,7 @@ pub use crate::session::TransmissionPolicy;
 /// 64 KiB message is 46 datagrams, more than the 64 KiB Windows default).
 /// Linux caps the request at `net.core.rmem_max`.
 pub const DEFAULT_SOCKET_RECV_BUFFER: usize = 1 << 20;
+const _: () = assert!(DEFAULT_SOCKET_RECV_BUFFER >= 46 * 1492);
 
 /// Apply the configured socket buffer sizes before the socket is registered.
 pub(crate) fn apply_socket_buffers(
@@ -362,7 +363,6 @@ mod tests {
         let applied = socket2::SockRef::from(&socket);
         assert!(applied.recv_buffer_size().unwrap() >= requested);
         assert!(applied.send_buffer_size().unwrap() >= requested);
-        assert!(DEFAULT_SOCKET_RECV_BUFFER >= 46 * 1492);
         assert_eq!(
             RaknetStreamConfig::default().socket_recv_buffer_size,
             Some(DEFAULT_SOCKET_RECV_BUFFER)
