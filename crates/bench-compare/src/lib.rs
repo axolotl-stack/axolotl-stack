@@ -1,6 +1,7 @@
 pub mod batch;
 pub mod codec;
 pub mod micro;
+pub mod nethernet;
 pub mod transport;
 
 use serde::Serialize;

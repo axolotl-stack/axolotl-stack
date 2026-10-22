@@ -2,3 +2,4 @@
 /go/bench-compare
 /go/bench-compare.exe
 /cinnabar/target/
+/__pycache__/

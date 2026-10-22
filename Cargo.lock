@@ -397,17 +397,21 @@ name = "bench-compare"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "bytes",
  "clap",
  "criterion",
  "flate2",
+ "futures",
  "jolyne",
  "serde",
  "serde_json",
  "sha2",
  "tokio",
+ "tokio-nethernet",
  "tokio-raknet",
  "valentine",
+ "webrtc",
 ]
 
 [[package]]

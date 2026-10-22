@@ -79,3 +79,67 @@ Uses the real public `RaknetListener`/`RaknetStream` with reliable-ordered messa
 Each connection first exchanges one untimed readiness echo with the same payload. The configured count then measures exactly that many subsequent echoes, excluding the readiness response from both elapsed throughput and percentile samples. This prevents application acceptance or prior-session draining from being mistaken for steady-state RTT; Go uses the identical sequence.
 
 Connection establishment and payload/sample-buffer setup are outside measurement. RTT includes send, receive and equality assertion. p50/p99 use nearest-rank microsecond samples; throughput counts one application payload per completed roundtrip, decimal MB/s (not both network directions). Transport allocation metrics are null: asynchronous work cannot be reliably attributed using process-wide allocation snapshots. Transport uses a multi-thread Tokio runtime; set the standard `TOKIO_WORKER_THREADS` environment variable to control concurrency. The comparison script sets it to the same value as Go `GOMAXPROCS` (default 4). `loopback` hosts both peers in that runtime; `client`/`serve` allow cross-language or cross-process peers with the same wire contract.
+
+## NetherNet measurements
+
+`nethernet-micro --iterations 5000` measures only public tokio-nethernet APIs:
+`Signal::parse`/`Display` for CONNECTREQUEST, CONNECTRESPONSE, CANDIDATEADD and
+CONNECTERROR, and `parse_ice_candidate`/`format_ice_candidate`. The exact shared
+fixtures use connection ID 42, a loopback SDP offer/answer, host ICE candidate
+`127.0.0.1:50000` and error code 2. Parse owns its output; format allocates a fresh
+String. Both include output destruction. Fixture construction and roundtrip
+checks precede timing; the existing separate allocation pass is unchanged.
+
+Framing micro rows for 32, 512, 4096, 65536 and 1048576 bytes, invalid countdowns
+and oversize rejection are **unavailable**: `segment_count`, `send_message` and
+`ReassemblyState` are private. The encrypted/HMAC LAN packet codec is also
+**unavailable**: its nominally public functions live in the private
+`discovery::packet` module and are not re-exported. These gaps emit machine-readable
+coverage records on stderr, not fabricated timings. No framing/crypto implementation
+is copied, and transport timings do not stand in for missing isolated micros.
+The sole production API addition (coordinator-approved) is optional WebRTC
+`setting_engine` injection on dialer/listener configs; existing defaults are unchanged.
+
+`nethernet-loopback --count 100` uses the real public
+`NetherNetListener`/`NetherNetDialer`/`NetherNetStream` over ICE, DTLS and SCTP.
+`nethernet-serve --address 127.0.0.1:PORT --count 100` and
+`nethernet-client --address 127.0.0.1:PORT --count 100` expose the same protocol
+across processes. The address is a **benchmark-local TCP signaling endpoint**,
+not the SCTP data endpoint or the production HTTP/LAN discovery service.
+Each TCP record is a JSON string containing the complete raw Signal text,
+followed by newline; JSON escapes preserve multiline SDP. The bridge attributes
+incoming signals to server network ID `1` or client ID `2`. TCP_NODELAY is set,
+the signal receive queue holds 128 records, and candidates are embedded in SDP
+(nontrickle). No external signaling service, STUN, TURN, Xbox login or credentials
+are used. Local identityless operation is explicitly enabled; this intentionally
+does not measure signed-identity authentication. Same-implementation loopback
+uses this same TCP bridge rather than an in-memory signaling shortcut.
+Both peers explicitly enable loopback candidates, filter candidates to IPv4 loopback
+and restrict ICE network types to UDP4 through that setting engine. The actual data
+path is therefore on `127.0.0.1`, not merely the signaling TCP listener.
+
+Four fresh connections carry 32, 512, 4096 and 65536-byte reliable messages.
+Counts are 100, 100, 10 and 10 by default; `--count` controls small messages and
+`BENCH_SPLIT_COUNT` controls the two larger sizes. Every session first echoes
+one untimed full-size readiness payload; all bytes match the RakNet fixture
+(`index % 251`, byte zero `0xfe`). Both peers validate every message.
+`nethernet_loopback` setup rows include TCP signaling establishment, initial
+offer/answer, ICE/DTLS and SCTP channel opening, but not the readiness echo.
+Each setup row has one sample per round; its p50/p99/max consequently agree.
+Echo rows exclude setup and readiness and measure exactly the requested count,
+including send, receive and validation. Nearest-rank percentiles and `max_us`
+are emitted; allocation metrics remain null. Throughput counts one payload per
+echo, not both directions. Client TCP shutdown acknowledges receipt of the last
+echo before the server releases the data channel.
+
+The stack is workspace `tokio-nethernet` 0.1.0, with resolved dependency versions
+in Cargo.lock (webrtc-rs 0.12). Stream defaults remain unchanged: maximum outbound
+segment payload 65534 bytes (webrtc-rs fixed receive-buffer limitation), one-slot
+inbound/outbound queues, maximum reassembly 262143 * 255 bytes and 30-second
+reassembly timeout. Thus 65536-byte messages really exercise segmentation.
+Other adapters may negotiate different segment limits/buffer sizes; these are
+public-stack comparisons, not artificially identical transport internals.
+Dial timeout is 15 seconds, listener negotiation timeout 5 seconds, and benchmark
+accept/send/receive/shutdown operations have 30-second bounds. Set
+`TOKIO_WORKER_THREADS=8` (the runner does so); the existing Tokio runtime builder
+honors that standard environment convention. Microbenchmarks do not start Tokio.

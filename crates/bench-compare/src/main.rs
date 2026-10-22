@@ -6,7 +6,7 @@ use std::net::SocketAddr;
 static GLOBAL: bench_compare::CountingAllocator = bench_compare::CountingAllocator;
 
 #[derive(Parser)]
-#[command(about = "Typed Valentine and public RakNet cross-implementation benchmarks")]
+#[command(about = "Typed Valentine and public transport cross-implementation benchmarks")]
 struct Args {
     #[command(subcommand)]
     command: Command,
@@ -14,6 +14,26 @@ struct Args {
 
 #[derive(Subcommand)]
 enum Command {
+    NethernetMicro {
+        #[arg(long, default_value_t = 5000)]
+        iterations: usize,
+    },
+    NethernetLoopback {
+        #[arg(long, default_value_t = 100)]
+        count: usize,
+    },
+    NethernetServe {
+        #[arg(long)]
+        address: SocketAddr,
+        #[arg(long, default_value_t = 100)]
+        count: usize,
+    },
+    NethernetClient {
+        #[arg(long)]
+        address: SocketAddr,
+        #[arg(long, default_value_t = 100)]
+        count: usize,
+    },
     Codec {
         #[arg(long, default_value_t = 5000)]
         iterations: usize,
@@ -46,6 +66,7 @@ enum Command {
 fn main() -> Result<()> {
     let args = Args::parse();
     match args.command {
+        Command::NethernetMicro { iterations } => bench_compare::nethernet::micro(iterations),
         Command::Codec { iterations } => bench_compare::codec::run(iterations),
         Command::Micro {
             iterations,
@@ -63,6 +84,15 @@ fn main() -> Result<()> {
             .build()?
             .block_on(async {
                 match command {
+                    Command::NethernetLoopback { count } => {
+                        bench_compare::nethernet::loopback(count).await
+                    }
+                    Command::NethernetServe { address, count } => {
+                        bench_compare::nethernet::serve(address, count).await
+                    }
+                    Command::NethernetClient { address, count } => {
+                        bench_compare::nethernet::client(address, count).await
+                    }
                     Command::Loopback { count } => bench_compare::transport::loopback(count).await,
                     Command::Serve { address, count } => {
                         bench_compare::transport::serve(address, count).await
