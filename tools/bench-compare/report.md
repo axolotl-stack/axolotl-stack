@@ -629,9 +629,9 @@ Raw per-round JSONL, stderr, metadata, interop outcomes and summary.json remain 
 
 # NetherNet cross-implementation measurements
 
-Measured UTC: 2026-10-22T03:16:07.6819533Z; median of 5 alternating rounds. Echoes: 100 for 32/512 B, 10 for 4/64 KiB, one untimed readiness echo; fresh connection per size and round.
+Measured UTC: 2026-10-22T15:06:52.6435111Z; median of 5 alternating rounds. Echoes: 100 for 32/512 B, 10 for 4/64 KiB, one untimed readiness echo; fresh connection per size and round.
 
-NetherNet source base: `f1e9b4c5907f8baf218473bd485ee26bf6a863db`; raw evidence: `results/nethernet-425ed8b1ff554051892b0589e5b3e44a/`.
+NetherNet source base: `1f4c8fc93fc67522d72e019ef3a3c07ed86b38cc`; raw evidence: `results/nethernet-4e2e21af47874c2b915866e5ccbdbc98/`.
 
 Shared i9-14900HX Windows workstation. Micro logical CPU 0; all three loopback/interop implementations on identical logical CPUs 16-23 (E-cores acceptable for this WebRTC comparison), eight Tokio workers/GOMAXPROCS. Builds only logical CPUs 24-31, at most eight jobs. No timing on logical CPUs 2,4,6,8,10,12,14. Alternating order; no priority, power-plan or timer-resolution adjustment.
 
@@ -641,7 +641,7 @@ Measurement only: no production optimization. Throughput counts completed reliab
 
 | Component | Version / configuration |
 | --- | --- |
-| buffers | Ours one-slot inbound/outbound handoffs; Go unbuffered completed-packet handoff; Cinnabar requests2MiB UDP receive buffer; other socket/DTLS/SCTP buffers remain stack defaults (OS-effective sizes not queried) |
+| buffers | Ours 64-message inbound queue backed by the SCTP receive window, inline sends, 4 MiB UDP socket buffers; Go unbuffered completed-packet handoff; Cinnabar requests2MiB UDP receive buffer; other socket/DTLS/SCTP buffers remain stack defaults (OS-effective sizes not queried) |
 | channel_parameters | ReliableDataChannel: ordered, reliable, default retransmission policy; second unreliable channel also opens; no DTLS cipher, certificate, retransmission or SCTP congestion/RTO overrides |
 | cinnabar_nethernet | cinnabar-mc/nethernet fed09fc05afb3b0fe34d0e7b18702f7ea86c3290; Apache-2.0 |
 | cinnabar_stack | rtc / rtc-dtls / rtc-sctp / rtc-datachannel 0.21.1; rtc-turn git ceef0780c54c4f5fdc08e7e343403f8026653171 |
@@ -649,11 +649,11 @@ Measurement only: no production optimization. Throughput counts completed reliab
 | go_stack | Pion webrtc v4.2.21-0.20260920133716-91bfc6c2039f; ICE v4.4.4; DTLS v3.1.9; SCTP v1.11.3; datachannel v1.6.3 |
 | go_toolchain | go version go1.27.0 windows/amd64 |
 | identities | Go listener requires default self-signed server identity; ours/Cinnabar permit unsigned local answers; Go setup therefore includes identity key issuance/signing, which is not patched out |
-| ours_stack | webrtc-rs 0.12.0; webrtc-dtls 0.11.0; webrtc-sctp 0.11.0; webrtc-data 0.10.0 |
+| ours_stack | sans-IO rtc 0.21.1 (rtc-ice, rtc-dtls, rtc-sctp, rtc-datachannel, rtc-turn) composed directly by tokio-nethernet; one driver task per connection, inline sends |
 | release_profile | Both Rust binaries: opt-level=3; lto=thin; codegen-units=16; strip=true |
 | rust | rustc 1.96.0-nightly (b90dc1e59 2026-03-04) |
 | scheduling | Both Rust NetherNet application futures are spawned onto the Tokio worker pool, matching Go application goroutines rather than driving Rust application channels on block_on external thread |
-| sctp_limits | Advertised max-message-size: ours 65535 (segment payload65534); Go/Cinnabar262144 (segment payload262143); outgoing segmentation follows peer limit; Cinnabar framing micro separately uses16383 payload |
+| sctp_limits | Advertised max-message-size: ours/Go/Cinnabar 262144 (segment payload 262143); outgoing segmentation follows peer limit; framing micros use 16383-byte segment payloads |
 | signaling | Benchmark-local JSON-string TCP signals; server network ID 1, client ID 2; no external network signaling/STUN/TURN |
 
 Stack parameters, public API boundaries and buffer asymmetries: [ours](../../crates/bench-compare/README.md), [Go](go/CAVEATS.md), [Cinnabar](cinnabar/README.md). Local signaling uses no public STUN/TURN service or credentials. The interop adapter exchanges complete signals as JSON strings over benchmark-local loopback TCP; reserved JSON-string BENCH-DONE markers acknowledge final delivery and server send/drain before RTC teardown (untimed). This bridge is measurement code, not a production transport change.
@@ -662,19 +662,19 @@ Stack parameters, public API boundaries and buffer asymmetries: [ours](../../cra
 
 | Case | Operation | Segments | tokio-nethernet ns/op | Cinnabar ns/op | Go ns/op |
 | --- | --- | ---: | ---: | ---: | ---: |
-| invalid_count | reassemble | — | 10.80 | 35.64 | — |
-| invalid_sequence | reassemble | — | 68.60 | 90.48 | — |
-| message_1048576 | encode | 65 | 28,596.92 | 28,512.26 | — |
-| message_1048576 | reassemble | 65 | 251,337.02 | 508,481.98 | — |
-| message_32 | encode | 1 | 38.76 | 41.46 | — |
-| message_32 | reassemble | 1 | 27.46 | 25.74 | — |
-| message_4096 | encode | 1 | 90.78 | 88.32 | — |
-| message_4096 | reassemble | 1 | 27.22 | 25.72 | — |
-| message_512 | encode | 1 | 66.90 | 63.26 | — |
-| message_512 | reassemble | 1 | 28.70 | 25.72 | — |
-| message_65536 | encode | 5 | 1,134.86 | 1,007.88 | — |
-| message_65536 | reassemble | 5 | 5,914.26 | 8,249.84 | — |
-| oversize | encode | — | 0.90 | 1.54 | — |
+| invalid_count | reassemble | — | 11.30 | 35.56 | — |
+| invalid_sequence | reassemble | — | 72.86 | 91.80 | — |
+| message_1048576 | encode | 65 | 35,188.74 | 36,270.96 | — |
+| message_1048576 | reassemble | 65 | 295,505.38 | 569,354.02 | — |
+| message_32 | encode | 1 | 46.90 | 51.70 | — |
+| message_32 | reassemble | 1 | 28.50 | 31.22 | — |
+| message_4096 | encode | 1 | 97.70 | 96.34 | — |
+| message_4096 | reassemble | 1 | 24.82 | 34.52 | — |
+| message_512 | encode | 1 | 76.08 | 79.74 | — |
+| message_512 | reassemble | 1 | 26.36 | 31.34 | — |
+| message_65536 | encode | 5 | 1,298.66 | 1,226.82 | — |
+| message_65536 | reassemble | 5 | 1,700.56 | 10,461.44 | — |
+| oversize | encode | — | 1.72 | 1.56 | — |
 
 Cinnabar micro uses 16,383-byte segment payloads plus a one-byte countdown. Encode consumes every generated segment; reassembly includes segment decode. The oversize case exceeds the 255-segment encode limit; invalid-count/sequence rows exercise actual public rejection paths.
 
@@ -682,52 +682,58 @@ Cinnabar micro uses 16,383-byte segment payloads plus a one-byte countdown. Enco
 
 | Case | Operation | tokio-nethernet ns/op | Cinnabar ns/op | Go ns/op |
 | --- | --- | ---: | ---: | ---: |
-| candidate_add | format | 121.94 | 152.90 | 78.00 |
-| candidate_add | parse | 101.18 | 100.72 | 129.66 |
-| connect_error | format | 80.84 | 86.26 | 33.26 |
-| connect_error | parse | 100.24 | 103.28 | 69.62 |
-| connect_request | format | 107.76 | 113.38 | 235.74 |
-| connect_request | parse | 115.74 | 104.14 | 127.68 |
-| connect_response | format | 108.14 | 108.10 | 62.02 |
-| connect_response | parse | 100.60 | 86.82 | 66.36 |
-| ice_candidate | format | 262.68 | 458.84 | — |
-| ice_candidate | parse | 340.90 | 722.96 | — |
+| candidate_add | format | 39.78 | 109.86 | 74.92 |
+| candidate_add | format_reused_buffer | 11.16 | — | — |
+| candidate_add | parse | 64.82 | 84.16 | 144.24 |
+| connect_error | format | 34.68 | 71.66 | 40.04 |
+| connect_error | format_reused_buffer | 8.92 | — | — |
+| connect_error | parse | 71.40 | 84.14 | 76.70 |
+| connect_request | format | 34.28 | 108.32 | 270.44 |
+| connect_request | format_reused_buffer | 13.14 | — | — |
+| connect_request | parse | 104.02 | 117.56 | 124.16 |
+| connect_response | format | 39.32 | 106.10 | 57.90 |
+| connect_response | format_reused_buffer | 12.38 | — | — |
+| connect_response | parse | 68.22 | 84.20 | 74.66 |
+| ice_candidate | format | 73.46 | 395.58 | — |
+| ice_candidate | parse | 100.46 | 591.64 | — |
+
+`format` returns a fresh String per op on every side (ours `Signal::to_wire_string`, Go `Signal.String`, Cinnabar `to_string`). `format_reused_buffer` is ours only: `Signal::write_wire` appends into one reused String without allocating; it has no reference counterpart and is not a comparison.
 
 ## NetherNet discovery micro
 
 | Case | Operation | tokio-nethernet ns/op | Cinnabar ns/op | Go ns/op |
 | --- | --- | ---: | ---: | ---: |
-| packet | decode | — | 238.76 | 832.68 |
-| packet | encode | — | 182.20 | 1,043.50 |
+| packet | decode | 127.72 | 305.46 | 842.04 |
+| packet | encode | 168.80 | 174.64 | 911.52 |
 
 ## NetherNet loopback: setup and reliable echo
 
 | Size | Operation | Side | Samples/round | Mean µs | p50 µs | p99 µs | Max µs | msgs/s | MB/s | Ours/reference time |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 32 | echo | cinnabar | 100 | 107.75 | 114.70 | 154.60 | 170.70 | 9,281.00 | 0.30 | 0.87 |
-| 32 | echo | go | 100 | 192.15 | 175.10 | 359.40 | 385.10 | 5,204.24 | 0.17 | 0.49 |
-| 32 | echo | rust-owned | 100 | 94.10 | 103.30 | 132.30 | 146.10 | 10,627.33 | 0.34 | — |
-| 32 | setup | cinnabar | 1 | 12,207.20 | 12,207.20 | 12,207.20 | 12,207.20 | — | — | 1.32 |
-| 32 | setup | go | 1 | 79,613.30 | — | — | — | — | — | 0.20 |
-| 32 | setup | rust-owned | 1 | 16,058.70 | 16,058.70 | 16,058.70 | 16,058.70 | — | — | — |
-| 512 | echo | cinnabar | 100 | 111.84 | 119.60 | 159.90 | 187.50 | 8,941.50 | 4.58 | 0.89 |
-| 512 | echo | go | 100 | 190.77 | 179.30 | 381.40 | 557.30 | 5,242.00 | 2.68 | 0.52 |
-| 512 | echo | rust-owned | 100 | 99.57 | 109.70 | 143.20 | 212.50 | 10,043.19 | 5.14 | — |
-| 512 | setup | cinnabar | 1 | 19,488.10 | 19,488.10 | 19,488.10 | 19,488.10 | — | — | 0.57 |
-| 512 | setup | go | 1 | 71,243.10 | — | — | — | — | — | 0.16 |
-| 512 | setup | rust-owned | 1 | 11,130.00 | 11,130.00 | 11,130.00 | 11,130.00 | — | — | — |
-| 4096 | echo | cinnabar | 10 | 355.03 | 335.10 | 472.20 | 472.20 | 2,816.66 | 11.54 | 0.78 |
-| 4096 | echo | go | 10 | 472.08 | 432.20 | 856.00 | 856.00 | 2,118.29 | 8.68 | 0.58 |
-| 4096 | echo | rust-owned | 10 | 275.72 | 267.30 | 332.90 | 332.90 | 3,626.87 | 14.86 | — |
-| 4096 | setup | cinnabar | 1 | 7,632.00 | 7,632.00 | 7,632.00 | 7,632.00 | — | — | 1.60 |
-| 4096 | setup | go | 1 | 71,777.60 | — | — | — | — | — | 0.17 |
-| 4096 | setup | rust-owned | 1 | 12,247.30 | 12,247.30 | 12,247.30 | 12,247.30 | — | — | — |
-| 65536 | echo | cinnabar | 10 | 3,632.91 | 3,220.10 | 4,707.30 | 4,707.30 | 275.26 | 18.04 | 0.78 |
-| 65536 | echo | go | 10 | 4,800.56 | 4,539.40 | 5,661.10 | 5,661.10 | 208.31 | 13.65 | 0.59 |
-| 65536 | echo | rust-owned | 10 | 2,819.09 | 2,629.50 | 3,521.20 | 3,521.20 | 354.72 | 23.25 | — |
-| 65536 | setup | cinnabar | 1 | 16,792.40 | 16,792.40 | 16,792.40 | 16,792.40 | — | — | 1.49 |
-| 65536 | setup | go | 1 | 71,918.60 | — | — | — | — | — | 0.35 |
-| 65536 | setup | rust-owned | 1 | 24,948.60 | 24,948.60 | 24,948.60 | 24,948.60 | — | — | — |
+| 32 | echo | cinnabar | 100 | 110.43 | 116.10 | 168.10 | 259.80 | 9,055.59 | 0.29 | 0.97 |
+| 32 | echo | go | 100 | 280.06 | 269.60 | 516.10 | 567.90 | 3,570.68 | 0.11 | 0.38 |
+| 32 | echo | rust-owned | 100 | 107.02 | 111.10 | 149.00 | 153.60 | 9,344.05 | 0.30 | — |
+| 32 | setup | cinnabar | 1 | 9,722.10 | 9,722.10 | 9,722.10 | 9,722.10 | — | — | 1.36 |
+| 32 | setup | go | 1 | 88,667.40 | — | — | — | — | — | 0.15 |
+| 32 | setup | rust-owned | 1 | 13,191.70 | 13,191.70 | 13,191.70 | 13,191.70 | — | — | — |
+| 512 | echo | cinnabar | 100 | 111.62 | 120.20 | 150.10 | 468.50 | 8,959.21 | 4.59 | 0.98 |
+| 512 | echo | go | 100 | 229.49 | 224.00 | 578.10 | 602.80 | 4,357.47 | 2.23 | 0.48 |
+| 512 | echo | rust-owned | 100 | 109.06 | 113.00 | 188.60 | 233.00 | 9,169.10 | 4.69 | — |
+| 512 | setup | cinnabar | 1 | 12,716.00 | 12,716.00 | 12,716.00 | 12,716.00 | — | — | 0.34 |
+| 512 | setup | go | 1 | 79,275.80 | — | — | — | — | — | 0.05 |
+| 512 | setup | rust-owned | 1 | 4,297.00 | 4,297.00 | 4,297.00 | 4,297.00 | — | — | — |
+| 4096 | echo | cinnabar | 10 | 364.73 | 354.70 | 524.30 | 524.30 | 2,741.75 | 11.23 | 0.87 |
+| 4096 | echo | go | 10 | 634.08 | 541.60 | 1,118.10 | 1,118.10 | 1,577.09 | 6.46 | 0.50 |
+| 4096 | echo | rust-owned | 10 | 315.86 | 265.80 | 349.50 | 349.50 | 3,165.96 | 12.97 | — |
+| 4096 | setup | cinnabar | 1 | 13,049.70 | 13,049.70 | 13,049.70 | 13,049.70 | — | — | 0.69 |
+| 4096 | setup | go | 1 | 103,913.10 | — | — | — | — | — | 0.09 |
+| 4096 | setup | rust-owned | 1 | 8,963.50 | 8,963.50 | 8,963.50 | 8,963.50 | — | — | — |
+| 65536 | echo | cinnabar | 10 | 4,348.95 | 3,943.00 | 9,076.70 | 9,076.70 | 229.94 | 15.07 | 0.69 |
+| 65536 | echo | go | 10 | 5,024.13 | 4,976.90 | 6,336.80 | 6,336.80 | 199.04 | 13.04 | 0.60 |
+| 65536 | echo | rust-owned | 10 | 3,021.75 | 2,888.30 | 3,385.80 | 3,385.80 | 330.93 | 21.69 | — |
+| 65536 | setup | cinnabar | 1 | 11,686.00 | 11,686.00 | 11,686.00 | 11,686.00 | — | — | 0.22 |
+| 65536 | setup | go | 1 | 79,734.50 | — | — | — | — | — | 0.03 |
+| 65536 | setup | rust-owned | 1 | 2,583.90 | 2,583.90 | 2,583.90 | 2,583.90 | — | — | — |
 
 Ten-sample p99 equals the maximum; it is not a stable population tail estimate. Setup has one observation per connection; setup percentile columns, if emitted, describe that single sample.
 
@@ -735,7 +741,6 @@ Ten-sample p99 equals the maximum; it is not a stable population tail estimate. 
 
 | Case | Side | Unavailable because |
 | --- | --- | --- |
-| nethernet_discovery | rust-owned | discovery::packet is private; encrypted/HMAC encode/decode functions are not publicly re-exported |
 | nethernet_framing | go | Framing encode, reassembly, invalid segment counts and oversize rejection are private; no public micro API for 32/512/4096/65536/1048576-byte messages. |
 | nethernet_framing_configured_limit | cinnabar | Message::with_maximum is crate-private; public oversize row exercises the 255-segment encoding limit instead |
 | nethernet_signaling/ice_candidate | go | NetherNet ICE candidate formatting/parsing is private; CANDIDATEADD measures only public Signal text parsing/formatting. |
@@ -752,17 +757,6 @@ Missing cells are unavailable APIs, not zero time. No private framing algorithm 
 | cinnabar-to-rust | PASS | All four payload sizes verified byte-for-byte |
 | cinnabar-to-go | PASS | All four payload sizes verified byte-for-byte |
 | go-to-cinnabar | PASS | All four payload sizes verified byte-for-byte |
-
-### NETHERNET-BENCH-INTEROP-01: SRTP key derivation panic during cross-stack WebRTC setup
-
-A separate untimed rust-to-go run with RUST_BACKTRACE=1 reaches webrtc_srtp::key_derivation::aes_cm_key_derivation, called by CipherAeadAesGcm::new, Context::new and RTCPeerConnection::set_remote_description. It reproduces the same 32-versus-16-byte assertion. No cipher/profile restriction, dependency patch or panic suppression was applied to the measured defaults.
-
-webrtc-srtp 0.14.0 src/key_derivation.rs:43-44 constructs GenericArray::from_slice(master_key) followed by Aes128::new(key); src/cipher/cipher_aead_aes_gcm.rs stores Aes128Gcm and derives keys using master_key.len(). The observed key-length mismatch identifies this dependency boundary; the negotiated SRTP profile itself was not logged.
-
-Investigate the dependency's SRTP key derivation/profile support separately from SCTP echo stalls. This task measures and reports the gap; it does not optimize or patch production transports.
-
-Distilled source/backtrace evidence and reproduction: [nethernet-diagnostics.json](nethernet-diagnostics.json). Raw failing peer logs remain in the evidence directories named there.
-
 
 ## NetherNet Go QPC validation
 
@@ -781,8 +775,8 @@ Distilled source/backtrace evidence and reproduction: [nethernet-diagnostics.jso
 
 ## NetherNet top three measured gaps
 
-- nethernet_signaling / connect_error / format: ours takes 2.43× go time. Profile this boundary before attributing a cause.
-- nethernet_signaling / connect_response / format: ours takes 1.74× go time. Profile this boundary before attributing a cause.
-- nethernet_loopback / 4096 / setup: ours takes 1.60× cinnabar time. Profile this boundary before attributing a cause.
+- nethernet_loopback / 32 / setup: ours takes 1.36× cinnabar time. Profile this boundary before attributing a cause.
+- nethernet_framing / oversize / encode: ours takes 1.10× cinnabar time. Profile this boundary before attributing a cause.
+- nethernet_framing / message_65536 / encode: ours takes 1.06× cinnabar time. Profile this boundary before attributing a cause.
 
 Reproduce: `./tools/bench-compare/run.ps1 -Area nethernet -Rounds 5`. Raw per-round JSONL, stderr, metadata, interop logs and summary.json are retained in the ignored results directory. Other workers may run concurrently on disjoint allowed CPUs; affinity does not eliminate shared package power/cache contention.
