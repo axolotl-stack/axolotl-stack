@@ -326,6 +326,9 @@ async fn run_tokio(server: SocketAddr, faults: Faults, script: &Script) -> Vec<R
     relay.finish().await
 }
 
+/// An application frame: reliability, split (count, index), payload length.
+type AppFrame = (Reliability, Option<(u32, u32)>, usize);
+
 /// Timing-independent and timing features of one client trace.
 #[derive(Debug, Default)]
 struct Features {
@@ -340,8 +343,8 @@ struct Features {
     new_incoming: Option<(Reliability, Vec<u8>)>,
     data_flags: Vec<u8>,
     frames_per_datagram: Vec<usize>,
-    /// First transmissions of application frames: reliability, split, length.
-    app_frames: Vec<(Reliability, Option<(u32, u32)>, usize)>,
+    /// First transmissions of application frames.
+    app_frames: Vec<AppFrame>,
     /// Message indices seen more than once: (first send, resend).
     resends: Vec<(Duration, Duration)>,
     acks: Vec<Duration>,
