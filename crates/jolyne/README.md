@@ -59,9 +59,41 @@ graph TD
 #### Layer 0: `BedrockTransport`
 The "pipe" layer. It handles the gritty details of the protocol:
 - **Encryption:** AES-256-CTR with Bedrock SHA-256 checksums (managed transparently).
-- **Compression:** Deflate/Zlib support; Snappy packets are rejected until implemented.
+- **Compression:** Raw DEFLATE and raw Snappy, negotiated per connection; thresholds and decompressed-size limits are enforced.
 - **Batching:** Decodes raw frames into batches of packets.
 - **IO:** Implements `Stream` and `Sink` for raw `Batch` objects.
+
+
+### Reusable batch pipeline
+
+`BedrockTransport` retains a `batch::BatchCodec` per connection. Its compressor,
+decompressor, Snappy tables and encode/decode scratch are reused instead of
+constructing a compression engine for every batch. DEFLATE uses libdeflate;
+levels 1–9 retain their numeric value (higher values clamp to 9), level zero
+disables compression, and the transport default remains 7. Cross-implementation
+benchmarks use nominal level 6; different compressors need not emit identical
+bytes. Building jolyne now requires a C compiler for bundled libdeflate.
+Decode remembers the previous output length and bounds speculative buffer
+growth; batches exceeding the 1 MiB speculative ceiling use a guarded zlib-rs
+streaming decoder instead of allocating the entire configured maximum.
+
+For opaque framing, `BatchCodec::encode_frames_into` accepts packet `Bytes`
+including the game header but excluding the length prefix, a `BatchEncoding`
+settings value, and a reusable `BytesMut`. `decode_with` synchronously borrows
+each validated frame without constructing a packet vector or incrementing a
+reference count per packet. The raw packet decode APIs retain zero-copy `Bytes`
+slices when frames must outlive the call. Callback delivery is ordered; if a
+later frame is malformed, earlier callbacks have already run. The 1,600-frame
+limit and configured decompressed-size limit still apply.
+
+`crypto::BatchCipher` exposes the same owned in-place encryption used by the
+transport. Construct separate send/receive instances with the session key and
+12-byte IV, and call `encrypt`/`decrypt` with the cleartext header length (one
+for RakNet, zero for prefix-free batches). Reserve eight spare bytes before
+encryption to avoid allocation. CTR state and checksum counters continue
+across batches; a failed checksum consumes state and requires closing the
+connection. RustCrypto's AES and SHA implementations select hardware support
+on capable CPUs; the library does not override workspace compiler flags.
 
 #### Layer 1: `BedrockStream<S, R>`
 The "state" layer. A strongly-typed wrapper around the transport that enforces protocol correctness.
