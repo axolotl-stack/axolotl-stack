@@ -1,6 +1,7 @@
 #requires -Version 7.0
 [CmdletBinding()]
 param(
+    [ValidateSet('all', 'nethernet')][string]$Area = 'all',
     [ValidateRange(3, 99)][int]$Rounds = 5,
     [ValidateRange(1, 100000)][int]$Count = 100,
     [ValidateRange(1, 100000)][int]$SplitCount = 10,
@@ -10,6 +11,10 @@ param(
     [ValidateRange(0, 63)][int]$Processor = 2,
     [int[]]$LoopbackProcessors = @(0, 2, 4, 6)
 )
+if ($Area -eq 'nethernet') {
+    & (Join-Path $PSScriptRoot 'nethernet-run.ps1') -Rounds $Rounds -Count $Count -SplitCount $SplitCount -Output $Output -SkipBuild:$SkipBuild
+    return
+}
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $Repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))

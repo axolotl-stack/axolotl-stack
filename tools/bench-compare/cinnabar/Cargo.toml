@@ -25,4 +25,6 @@ tokio = { version = "1", features = ["full"] }
 bedrock-net = { git = "https://github.com/cinnabar-mc/bedrock-net", rev = "0eaf6d4cb38ac1b52328815302c0964645150d17", default-features = false }
 raknet = { git = "https://github.com/cinnabar-mc/raknet", rev = "7eb32a31f5715ed6cd69120ef19118aa03fcab28", features = ["test-support"] }
 raknet-tokio = { git = "https://github.com/cinnabar-mc/raknet", rev = "7eb32a31f5715ed6cd69120ef19118aa03fcab28" }
+nethernet = { git = "https://github.com/cinnabar-mc/nethernet", rev = "fed09fc05afb3b0fe34d0e7b18702f7ea86c3290" }
+nethernet-tokio = { git = "https://github.com/cinnabar-mc/nethernet", rev = "fed09fc05afb3b0fe34d0e7b18702f7ea86c3290" }
 contract = { package = "bedrock-protocol-1-26-51", path = "../../../crates/valentine_gen/protocolgen/generated/1.26.51/rust-contract" }

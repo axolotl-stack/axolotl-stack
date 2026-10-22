@@ -6,6 +6,8 @@ publish = false
 
 [dependencies]
 anyhow.workspace = true
+async-trait.workspace = true
+futures.workspace = true
 bytes.workspace = true
 clap.workspace = true
 serde.workspace = true
@@ -13,8 +15,10 @@ serde_json.workspace = true
 sha2.workspace = true
 flate2.workspace = true
 jolyne.workspace = true
-tokio = { workspace = true, features = ["rt-multi-thread", "time", "net", "sync", "macros"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "time", "net", "sync", "macros", "io-util"] }
 tokio-raknet.workspace = true
+tokio-nethernet.workspace = true
+webrtc.workspace = true
 valentine = { workspace = true, features = ["bedrock_1_26_51"] }
 
 [dev-dependencies]
