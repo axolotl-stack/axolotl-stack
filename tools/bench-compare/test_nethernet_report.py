@@ -60,6 +60,11 @@ class NetherNetReport(unittest.TestCase):
             self.assertEqual(text.count(report.MARKER), 1)
             self.assertIn('Second measurement', text)
 
+    def test_small_positive_throughput_is_not_reported_as_zero(self):
+        actual = float(report.fmt(0.0000526))
+        self.assertGreater(actual, 0)
+        self.assertAlmostEqual(actual, 0.0000526, delta=0.0000001)
+
 
 if __name__ == '__main__':
     unittest.main()

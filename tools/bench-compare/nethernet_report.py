@@ -11,7 +11,9 @@ SIDES = ('rust-owned', 'cinnabar', 'go')
 
 
 def fmt(value):
-    return '—' if value is None else f'{value:,.2f}'
+    if value is None:
+        return '—'
+    return f'{value:.3g}' if 0 < abs(value) < 0.01 else f'{value:,.2f}'
 
 
 def clean(value):
@@ -61,11 +63,13 @@ def render(source):
             if record.get('area') == 'coverage' and record.get('status') == 'unavailable':
                 exclusions.add((record['name'], record['implementation'], record['reason']))
             if record.get('event') == 'benchmark_clock':
-                clocks.append((number, record))
+                phase = file.name.removesuffix('.stderr.log').rsplit('-', 1)[-1]
+                clocks.append((number, phase, record))
     lines = ['# NetherNet cross-implementation measurements', '',
              f"Measured UTC: {metadata.get('utc', 'not recorded')}; median of {rounds} alternating rounds. "
              f"Echoes: {metadata.get('count', 100)} for 32/512 B, {metadata.get('split_count', 10)} for 4/64 KiB, "
              'one untimed readiness echo; fresh connection per size and round.', '',
+             f"NetherNet source base: `{metadata.get('commit', 'not recorded')}`; raw evidence: `results/{source.name}/`.", '',
              metadata.get('conditions', ''), '',
              'Measurement only: no production optimization. Throughput counts completed reliable-channel echoes and request payload only (decimal MB/s), not both directions or saturation bandwidth. '
              'Setup spans offer/answer, ICE, DTLS and SCTP/data-channel opening; readiness is excluded. '
@@ -108,7 +112,8 @@ def render(source):
     lines += ['## NetherNet loopback: setup and reliable echo', '',
               '| Size | Operation | Side | Samples/round | Mean µs | p50 µs | p99 µs | Max µs | msgs/s | MB/s | Ours/reference time |',
               '| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |']
-    for r in (r for r in aggregate if r['area'] == 'nethernet_loopback'):
+    for r in sorted((r for r in aggregate if r['area'] == 'nethernet_loopback'),
+                    key=lambda r: (int(r['name']), r['operation'], r['implementation'])):
         setup = r['operation'] == 'setup'
         size = r['payload_bytes'] or int(r['name'])
         samples = 1 if setup else metadata.get('split_count', 10) if size >= 4096 else metadata.get('count', 100)
@@ -134,12 +139,21 @@ def render(source):
         interop = [interop]
     for item in interop:
         lines.append(f"| {clean(item['direction'])} | {clean(item['status'])} | {clean(item.get('error', 'All four payload sizes verified byte-for-byte'))} |")
+    diagnostic_path = Path(__file__).with_name('nethernet-diagnostics.json')
+    if diagnostic_path.exists():
+        diagnostic = json.loads(diagnostic_path.read_text(encoding='utf-8'))
+        if metadata.get('versions', {}).get('ours_stack') == diagnostic['ours_stack']:
+            lines += ['', f"### {diagnostic['finding_id']}: {diagnostic['title']}", '',
+                      diagnostic['diagnostic'], '', diagnostic['source_evidence'], '',
+                      diagnostic['follow_up'], '',
+                      'Distilled source/backtrace evidence and reproduction: [nethernet-diagnostics.json](nethernet-diagnostics.json). '
+                      'Raw failing peer logs remain in the evidence directories named there.', '']
     if clocks:
         lines += ['', '## NetherNet Go QPC validation', '',
-                  '| Round | Clock | Frequency Hz | Tick ns | Minimum positive ns |',
-                  '| ---: | --- | ---: | ---: | ---: |']
-        for number, clock in clocks:
-            lines.append(f"| {number} | {clock['clock']} | {clock['frequency_hz']} | {fmt(clock['tick_ns'])} | {fmt(clock['minimum_positive_ns'])} |")
+                  '| Round | Phase | Clock | Frequency Hz | Tick ns | Minimum positive ns |',
+                  '| ---: | --- | --- | ---: | ---: | ---: |']
+        for number, phase, clock in clocks:
+            lines.append(f"| {number} | {phase} | {clock['clock']} | {clock['frequency_hz']} | {fmt(clock['tick_ns'])} | {fmt(clock['minimum_positive_ns'])} |")
     lines += ['', '## NetherNet top three measured gaps', '']
     for ratio, row in sorted(gaps, key=lambda pair: pair[0], reverse=True)[:3]:
         lines.append(f"- {row['area']} / {row['name']} / {row['operation']}: ours takes {ratio:.2f}× {row['implementation']} time. Profile this boundary before attributing a cause.")
