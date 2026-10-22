@@ -103,6 +103,7 @@ try {
             buffers = 'Ours one-slot inbound/outbound handoffs; Go unbuffered completed-packet handoff; Cinnabar requests2MiB UDP receive buffer; other socket/DTLS/SCTP buffers remain stack defaults (OS-effective sizes not queried)'
             identities = 'Go listener requires default self-signed server identity; ours/Cinnabar permit unsigned local answers; Go setup therefore includes identity key issuance/signing, which is not patched out'
             release_profile = 'Both Rust binaries: opt-level=3; lto=thin; codegen-units=16; strip=true'
+            scheduling = 'Both Rust NetherNet application futures are spawned onto the Tokio worker pool, matching Go application goroutines rather than driving Rust application channels on block_on external thread'
             signaling = 'Benchmark-local JSON-string TCP signals; server network ID 1, client ID 2; no external network signaling/STUN/TURN'
         }
     }
