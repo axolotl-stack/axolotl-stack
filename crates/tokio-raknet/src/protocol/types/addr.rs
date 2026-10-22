@@ -84,10 +84,88 @@ impl RaknetEncodable for SocketAddr {
     }
 }
 
+/// Byte layout used when encoding an outgoing system address.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AddressLayout {
+    /// RakNet's raw `sockaddr_in6` copy (upstream sandertv/go-raknet, Cloudburst).
+    Standard,
+    /// lunar-bedrock/go-raknet `internal/message/addr.go:putAddr` (commit
+    /// `a71d0e9`): IPv6 family `23` as a big-endian `u16` at offset 3, port at
+    /// offset 5 and the address at offset 11, still 29 bytes in total. IPv4 is
+    /// unchanged. The fork derived this from a captured vanilla client
+    /// `NewIncomingConnection`.
+    Lunar,
+}
+
+/// Encode `addr` with the given layout. Decoding always accepts the standard
+/// layout; lunar's decoded IPv6 values are never used by its client.
+pub fn encode_address(
+    addr: &SocketAddr,
+    layout: AddressLayout,
+    dst: &mut impl BufMut,
+) -> Result<(), EncodeError> {
+    match (layout, addr) {
+        (AddressLayout::Lunar, SocketAddr::V6(addr)) => {
+            dst.put_u8(6);
+            dst.put_u16(0);
+            dst.put_u16(23);
+            dst.put_u16(addr.port());
+            dst.put_u32(0);
+            dst.put_slice(&addr.ip().octets());
+            dst.put_u16(0);
+            Ok(())
+        }
+        _ => addr.encode_raknet(dst),
+    }
+}
+
+/// go-raknet `conn.go:resolve`: IPv4-mapped IPv6 addresses are unmapped.
+pub fn unmap_ipv4(addr: SocketAddr) -> SocketAddr {
+    match addr {
+        SocketAddr::V6(v6) => match v6.ip().to_ipv4_mapped() {
+            Some(v4) => SocketAddr::V4(SocketAddrV4::new(v4, v6.port())),
+            None => addr,
+        },
+        v4 => v4,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use bytes::BytesMut;
+
+    #[test]
+    fn lunar_ipv6_layout_matches_go_bytes() {
+        let addr: SocketAddr = "[2001:db8::1]:19132".parse().unwrap();
+        let mut lunar = BytesMut::new();
+        encode_address(&addr, AddressLayout::Lunar, &mut lunar).unwrap();
+        // Bytes produced by lunar putAddr for the same netip.AddrPort.
+        let mut expected = vec![6, 0, 0, 0, 23, 0x4a, 0xbc, 0, 0, 0, 0];
+        expected.extend_from_slice(&[0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]);
+        expected.extend_from_slice(&[0, 0]);
+        assert_eq!(&lunar[..], &expected[..]);
+
+        let mut standard = BytesMut::new();
+        encode_address(&addr, AddressLayout::Standard, &mut standard).unwrap();
+        assert_eq!(standard.len(), lunar.len());
+        assert_eq!(&standard[..5], &[6, 23, 0, 0x4a, 0xbc]);
+
+        let v4: SocketAddr = "127.0.0.1:19132".parse().unwrap();
+        let mut a = BytesMut::new();
+        let mut b = BytesMut::new();
+        encode_address(&v4, AddressLayout::Lunar, &mut a).unwrap();
+        encode_address(&v4, AddressLayout::Standard, &mut b).unwrap();
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn ipv4_mapped_addresses_are_unmapped() {
+        let mapped: SocketAddr = "[::ffff:10.0.0.1]:19132".parse().unwrap();
+        assert_eq!(unmap_ipv4(mapped), "10.0.0.1:19132".parse().unwrap());
+        let v6: SocketAddr = "[::1]:19132".parse().unwrap();
+        assert_eq!(unmap_ipv4(v6), v6);
+    }
 
     #[test]
     fn ipv4_roundtrip() -> Result<(), DecodeError> {

@@ -121,6 +121,15 @@ impl SlidingWindow {
         Duration::from_secs_f64(self.estimated_rtt.max(0.0) / 1000.0)
     }
 
+    /// Smoothed RTT in microseconds, `u64::MAX` before the first ACK sample.
+    pub fn rtt_micros(&self) -> u64 {
+        if self.estimated_rtt < 0.0 {
+            u64::MAX
+        } else {
+            (self.estimated_rtt * 1000.0) as u64
+        }
+    }
+
     pub fn nak_delay(&self) -> Duration {
         self.nak_delay
     }

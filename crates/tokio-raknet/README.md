@@ -18,8 +18,60 @@
 - 🔧 **Simple API**: A high-level abstraction that feels like working with a TCP stream, but with the control of UDP.
 - 🔍 **Tracing Support**: Deep integration with `tracing` for low-overhead debugging and performance profiling.
 
+### Transmission policies
+
+`TransmissionPolicy` selects congestion control, resend/RTO, ACK/flush
+scheduling, pacing and framing. It is a plain enum matched on the hot path
+(no trait objects).
+
+| | `Vanilla` | `Optimized` |
+|---|---|---|
+| Default for | `RaknetStream::connect*` | `RaknetListener`, low-level `Session` |
+| Model | lunar-bedrock/go-raknet `87a6b7e` (the vanilla Bedrock client RakNet) | tokio-raknet's latency/throughput tuning |
+| Framing | one frame per datagram, flags `0x84`, write order | frames packed to the MTU, RakNet priorities, `0x88` while bursting |
+| Congestion control | none | sliding window (slow start, backoff) |
+| ACKs | every 100 ms connection tick, go's ACK writer | 1 ms coalescing deadline, immediate under pressure |
+| Resends | every third tick for datagrams older than 1.5 × RTT; NAKs resend immediately | per-datagram RTO (`2·SRTT + 4·RTTVAR + 30 ms`), NAKs on the next tick |
+| RTT | mean of samples in the last 5 s (resends count 2 × age), 50 ms default | smoothed ACK RTT |
+| Keepalive / close | ReliableOrdered ping every fifth tick from session creation; close drains the resend map then sends a bare notification | Unreliable ping every 500 ms once connected; close sends the notification first |
+| Client handshake | go's OVH Reply1 workaround, unvalidated Reply2 with MTU clamp, lunar IPv6 address layout, go GUIDs | strict Reply1/Reply2 validation |
+
+Wire format, ordering/reassembly correctness and the RAKNET-01 safety bounds
+are shared. Every behaviour, the go-raknet source line it comes from, the
+intentional differences and the pinning tests are listed in
+[PARITY.md](PARITY.md). Select a policy per connection:
+
+```rust,no_run
+use tokio_raknet::transport::{RaknetListenerConfig, RaknetStreamConfig, TransmissionPolicy};
+
+let client = RaknetStreamConfig {
+    transmission_policy: TransmissionPolicy::Optimized,
+    ..Default::default()
+};
+let server = RaknetListenerConfig {
+    transmission_policy: TransmissionPolicy::Vanilla,
+    ..Default::default()
+};
+# let _ = (client, server);
+```
+
+A differential conformance test drives a real go-raknet peer through a
+recording, fault-injecting relay and compares Vanilla against the go-raknet
+client (needs Go):
+
+```text
+cargo test -p tokio-raknet --test go_conformance -- --ignored --nocapture
+```
+
+`transport::ping` sends go-raknet's 33-byte unconnected ping and returns the
+server's pong data. `RaknetStream::rtt()` exposes the session's RTT estimate
+(`None` before the first acknowledgement sample: Optimized's smoothed ACK RTT,
+Vanilla's mean of recent resend-map samples) without involving the transport
+task, and `RaknetListener::guid()` returns the server GUID carried by its pongs.
+
 ### Application delivery and maintenance
 
+This section describes the `Optimized` policy.
 Latest small-message profiling, scheduling correction, bounded ACK measurements,
 and acceptance evidence: [latency report](LATENCY_REPORT.md).
 
@@ -333,7 +385,7 @@ Limits are checked before allocating or scanning peer-controlled windows.
 | Resource | Limit / behavior | Upstream reference |
 | --- | --- | --- |
 | Negotiated MTU | 400–1492 bytes including IPv4/UDP headers | `conn.go:clampMTU` |
-| Client MTU discovery | Descending probes, minimum probe 576, four attempts per candidate, 500 ms retry | `dial.go:discoverMTU`, `openConnectionRequest1` |
+| Client MTU discovery | Probes `[cap, 1200, 576]`, four per size, 500 ms apart, replies accepted at any time; 10 transient receive errors tolerated | `dial.go:discoverMTU`, `request1`, `MaxTransientErrors` |
 | Receive / ordered window | 2048 indices; duplicates do not allocate entries | `conn.go:receiveDatagram`, `receivePacket`; `packet_queue.go:put` |
 | ACK/NACK payload | At most 8192 represented sequences; bounded range queues | `acknowledge.go:acknowledgement.read` |
 | Split reassembly | 512 fragments per ID, 16 live IDs; fragments fit the supported UDP payload | `conn.go:receiveSplitPacket`, `effectiveMTU` |
@@ -341,7 +393,9 @@ Limits are checked before allocating or scanning peer-controlled windows.
 | Half-open session | Absolute 10-second completion deadline; retries do not extend it | `handler.go:handleOpenConnectionRequest2` |
 | Malformed peer | Session removed and source IP blocked for 10 seconds | `listener.go:ListenConfig`, `security.block` |
 | Keepalive / inactivity | 500 ms keepalives; 5 seconds plus twice measured RTT; outgoing traffic does not refresh receive activity | `conn.go:startTicking` |
-| Graceful close | Drain reliable sends, at most 5 seconds; empty queues permit close after 1 second | `conn.go:startTicking` |
+| Graceful close | Drain reliable sends, at most 5 seconds; empty queues permit close after 1 second (Vanilla: go's ordering, notification last) | `conn.go:startTicking` |
+| Client receive queue | 4096 unread messages; one more disconnects | `conn.go:newConn`, `internal/chan.go` |
+| Socket buffers | `socket_recv_buffer_size` defaults to 1 MiB (one unpaced 64 KiB burst; the Windows default is 64 KiB), `socket_send_buffer_size` to the OS default; both applied with `socket2` | Go's IOCP reads (PARITY.md OT-7) |
 
 Construction APIs remain source-compatible. `bind_with_config` and
 `connect_with_config` reject invalid configuration before binding a socket:
@@ -354,6 +408,12 @@ invalid sequences, while managed transport sessions return a protocol error.
 `set_advertisement` returns `Result<(), ConfigError>` for oversized pong data;
 the previous advertisement remains unchanged on error. No jolyne, unastar,
 or valentine caller changes are needed.
+
+Packet structs changed for go-raknet parity: `ConnectionRequestAccepted` and
+`NewIncomingConnection` carry `system_addresses: Vec<SocketAddr>` (decoded like
+go-raknet: up to 20, stopping when only the two timestamps remain), and
+`UnconnectedPing` has an optional trailing `client_guid`. Both configs gained
+`transmission_policy`; `RaknetStreamConfig` also gained `max_transient_errors`.
 
 Safety adaptations to the reference:
 - Missing datagrams are derived as ranges from received entries, and receive
@@ -383,13 +443,15 @@ Safety adaptations to the reference:
   bounded and a full block table fails closed for unknown addresses.
 - Cookie hashing uses a randomly keyed standard-library hash, not salted CRC32,
   with the same stateless address binding and rotation lifecycle.
-- Invalid configuration/negotiated MTU is rejected instead of silently clamped
-  or applying the reference's provider-specific malformed-reply workaround.
+- Optimized only: invalid negotiated MTU is rejected instead of silently
+  clamped or applying the reference's provider-specific malformed-reply
+  workaround (Vanilla reproduces both, see PARITY.md MTU-4/MTU-8).
 - Extended reliability/channel support is retained. Unknown ACK record tags,
   zero-length frames, malformed datagram flags and overflowing varints are
   rejected; frame bit lengths still round up to the next byte.
-- Sliding congestion control and its smoothed RTT estimator are retained;
-  the Go reference instead averages recovery RTT samples over five seconds.
+- Optimized only: sliding congestion control and its smoothed RTT estimator
+  are retained; Vanilla averages recovery RTT samples over five seconds like
+  the Go reference.
 
 ### Memory Usage
 Defaults are chosen to be safe for general-purpose use to prevent Denial of Service (DoS) via memory exhaustion:
@@ -400,8 +462,11 @@ For high-performance servers (e.g., dedicated game servers) with ample RAM, use 
 
 ### Ticking
 The listener runs maintenance at **10 Hz (100 ms)**, matching
-`go-raknet/conn.go:Conn.startTicking`. ACK/NAK feedback and application writes
-are flushed promptly, independently of that maintenance interval.
+`go-raknet/conn.go:Conn.startTicking`. Optimized clients tick every 20 ms;
+Vanilla clients use go's 100 ms connection ticker, phased at session creation.
+Under Optimized, ACK/NAK feedback and application writes are flushed promptly,
+independently of that maintenance interval; under Vanilla, ACKs wait for the
+tick and timeout resends for every third tick, as in go-raknet.
 
 ## Benchmarks
 Performance is a priority. Benchmarks (Ryzen 7 7800x3d):
@@ -419,6 +484,77 @@ revisions with the same benchmark workload; older reused-session results are
 not comparable. On hybrid CPUs, pin both A/B executables to the same logical
 core and interleave their runs. `iter_batched` session benchmarks include
 session teardown as well as the named operation.
+
+### Transmission policies A/B (2026-10-22)
+
+Base `6e3b96c` (`main` before the policy split; Optimized on both sides) against
+this branch. Windows i9-14900HX, release builds, high process priority,
+implementations interleaved with alternating order; other workers were running
+on the workstation, so expect a few percent of noise. Medians of per-round
+Criterion estimates (ns), logical CPU 6 (`0x40`); six rounds, 2 s measurement:
+
+| Benchmark group | Rows | Median change | Range |
+|---|---:|---:|---|
+| `ack_benchmark` | 3 | +0.3% | −0.8% … +0.5% |
+| `codec_benchmark` | 2 | −0.5% | −2.3% … +1.2% |
+| `process_datagram` | 2 | −2.3% | −5.8% … +1.2% |
+| `session_hotpath` | 26 | −1.3% | −27.3% … +17.9% |
+| `split_benchmark` | 2 | −5.5% | −8.0% … −2.9% |
+| `throughput_stress` | 22 | −4.8% | −17.9% … +12.9% |
+| `varint_benchmark` | 5 | −0.3% | −7.1% … +1.8% |
+
+The session-hotpath outliers (`handle_ack_overflow` +17.9%, `handle_nack`
++16.3%, `session_tick/*` +12–16%) were re-measured with nine rounds and 4 s
+measurement after Vanilla state moved behind `Option<Box<_>>` (an Optimized
+`Session` is 616 bytes, 608 before; boxing removed a +54.9%
+`handle_data_payload/single_reliable` result caused by the 736-byte inline
+state):
+
+| Benchmark | Base ns | Head ns | Change |
+|---|---:|---:|---:|
+| `handle_ack_nack/handle_ack_small` | 29.82 | 30.14 | +1.1% |
+| `handle_ack_nack/handle_ack_large` | 261.94 | 264.12 | +0.8% |
+| `handle_ack_nack/handle_nack` | 146.99 | 149.23 | +1.5% |
+| `handle_ack_nack/handle_ack_overflow` | 882.82 | 915.58 | +3.7% |
+| `session_tick/tick_empty` | 18.05 | 19.25 | +6.6% |
+| `session_tick/tick_with_pending_acks` | 309.66 | 293.66 | −5.2% |
+| `session_tick/tick_with_outgoing_packets` | 1003.00 | 1006.50 | +0.3% |
+
+`tick_empty` pays 1.2 ns for the policy branch on the 100 ms maintenance
+path; the ACK rows run unchanged code and agree within noise.
+
+Loopback echo, `bench-compare loopback --count 100`, `BENCH_SPLIT_COUNT=10`,
+logical CPUs 8, 10, 12, 14 (`0x5500`), `TOKIO_WORKER_THREADS=4`,
+`GOMAXPROCS=4`, five rounds with a rotating order. Medians of per-round mean,
+p50 and p99; max is the worst observation; microseconds. `BENCH_RAKNET_POLICY`
+selects both peers' policy; Go is go-raknet `87a6b7e` on both sides:
+
+| Bytes | Implementation | Mean | p50 | p99 | Max | Echoes/s |
+|---:|---|---:|---:|---:|---:|---:|
+| 32 | main (Optimized) | 34.89 | 32.6 | 57.8 | 118.4 | 28658 |
+| 32 | head Optimized | 34.14 | 30.5 | 64.7 | 126.4 | 29295 |
+| 32 | head Vanilla | 33.93 | 32.1 | 55.3 | 621.8 | 29472 |
+| 32 | go-raknet | 27.80 | 25.6 | 53.4 | 163.9 | 35967 |
+| 512 | main (Optimized) | 41.91 | 46.2 | 69.1 | 125.6 | 23859 |
+| 512 | head Optimized | 41.65 | 46.3 | 67.9 | 99.7 | 24008 |
+| 512 | head Vanilla | 33.82 | 32.1 | 46.4 | 110.1 | 29570 |
+| 512 | go-raknet | 29.98 | 25.2 | 70.5 | 291.5 | 33354 |
+| 4096 | main (Optimized) | 131.62 | 124.6 | 180.8 | 209.1 | 7598 |
+| 4096 | head Optimized | 122.38 | 118.1 | 163.9 | 270.3 | 8171 |
+| 4096 | head Vanilla | 81.68 | 75.5 | 104.8 | 145.2 | 12243 |
+| 4096 | go-raknet | 83.01 | 74.0 | 114.0 | 754.8 | 12047 |
+| 65536 | main (Optimized) | 1535.15 | 1306.9 | 2083.4 | 34720.5 | 651 |
+| 65536 | head Optimized | 1429.84 | 1404.0 | 1745.9 | 1915.3 | 699 |
+| 65536 | head Vanilla | 1061.82 | 1011.8 | 1198.0 | 1310.3 | 942 |
+| 65536 | go-raknet | 1319.48 | 1103.5 | 2004.4 | 400069.3 | 758 |
+
+Optimized is within noise of `main` (head means −0.6% … −7.0%). Vanilla is
+close to go-raknet: 22% slower at 32 B, 13% slower at 512 B, and 2%/20% faster
+at 4 KiB/64 KiB, where it sends every fragment without a congestion window.
+Before the 1 MiB receive-buffer default, Vanilla↔Vanilla 64 KiB echoes took
+about 290 ms because the unpaced 46-datagram burst overflowed Windows' 64 KiB
+socket buffer (PARITY.md OT-7). The loopback head binary predates only the
+`#[inline]` on split pruning.
 
 ### Encoder and buffer ownership (2026-10-21)
 

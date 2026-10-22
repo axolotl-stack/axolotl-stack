@@ -1,6 +1,6 @@
 use std::{
     net::SocketAddr,
-    sync::{Arc, OnceLock, RwLock},
+    sync::{Arc, LazyLock, RwLock},
     time::{Duration, Instant},
 };
 
@@ -53,6 +53,7 @@ pub(super) fn server_session_config(config: &RaknetListenerConfig) -> SessionCon
             max_split_parts: config.max_split_parts,
             max_concurrent_splits: config.max_concurrent_splits,
             max_incoming_ack_queue: config.max_incoming_ack_queue,
+            transmission: config.transmission_policy,
         },
         ..Default::default()
     }
@@ -66,10 +67,7 @@ pub(super) async fn handle_offline(
     peer: SocketAddr,
     sessions: &mut std::collections::HashMap<SocketAddr, SessionState>,
     pending: &mut std::collections::HashMap<SocketAddr, PendingConnection>,
-    new_conn_tx: &mpsc::Sender<(
-        SocketAddr,
-        mpsc::Receiver<Result<crate::transport::ReceivedMessage, crate::RaknetError>>,
-    )>,
+    new_conn_tx: &crate::transport::listener_conn::AcceptSender,
     advertisement: &Arc<RwLock<Bytes>>,
     rate_limiter: &mut PingRateLimiter,
     send_buf: &mut BytesMut,
@@ -264,6 +262,7 @@ pub(super) async fn handle_offline(
                     pending_rx: Some(rx),
                     announced: false,
                     handshake_confirmed: false,
+                    rtt: crate::transport::RttCell::new(),
                 },
             );
             if let Some(state) = sessions.get_mut(&peer) {
@@ -288,15 +287,17 @@ pub(super) async fn handle_offline(
     }
 }
 
-fn server_guid() -> u64 {
-    static GUID: OnceLock<u64> = OnceLock::new();
-    *GUID.get_or_init(|| {
-        use std::time::{SystemTime, UNIX_EPOCH};
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_nanos() as u64)
-            .unwrap_or(0x1234_5678_9abc_def0)
-    })
+/// One random server GUID per process, advertised in every offline reply.
+static SERVER_GUID: LazyLock<u64> = LazyLock::new(|| {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos() as u64)
+        .unwrap_or(0x1234_5678_9abc_def0)
+});
+
+pub(super) fn server_guid() -> u64 {
+    *SERVER_GUID
 }
 
 async fn send_unconnected_packet(

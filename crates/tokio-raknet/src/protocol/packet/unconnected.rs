@@ -9,10 +9,15 @@ use crate::protocol::{
 };
 
 /// Unconnected ping used by clients to discover RakNet servers.
+///
+/// go-raknet `internal/message/unconnected_ping.go` always appends the client
+/// GUID (33 bytes in total); older peers may omit it, so decoding treats it as
+/// optional.
 #[derive(Debug, Clone)]
 pub struct UnconnectedPing {
     pub ping_time: RaknetTime,
     pub magic: Magic,
+    pub client_guid: Option<u64>,
 }
 
 impl Packet for UnconnectedPing {
@@ -23,8 +28,10 @@ impl Packet for UnconnectedPing {
         dst: &mut impl BufMut,
     ) -> Result<(), crate::protocol::packet::EncodeError> {
         self.ping_time.encode_raknet(dst)?;
-
         self.magic.encode_raknet(dst)?;
+        if let Some(guid) = self.client_guid {
+            guid.encode_raknet(dst)?;
+        }
         Ok(())
     }
 
@@ -34,7 +41,16 @@ impl Packet for UnconnectedPing {
         if magic != DEFAULT_UNCONNECTED_MAGIC {
             return Err(super::DecodeError::InvalidMagic);
         }
-        Ok(Self { ping_time, magic })
+        let client_guid = if src.remaining() >= 8 {
+            Some(u64::decode_raknet(src)?)
+        } else {
+            None
+        };
+        Ok(Self {
+            ping_time,
+            magic,
+            client_guid,
+        })
     }
 }
 
@@ -151,6 +167,7 @@ impl Packet for UnconnectedPingOpenConnections {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::protocol::packet::RaknetPacket;
     use bytes::BytesMut;
 
     #[test]
@@ -158,6 +175,7 @@ mod tests {
         let pkt = UnconnectedPing {
             ping_time: RaknetTime(123),
             magic: DEFAULT_UNCONNECTED_MAGIC,
+            client_guid: None,
         };
         let mut buf = BytesMut::new();
         pkt.encode_body(&mut buf).unwrap();
@@ -165,6 +183,27 @@ mod tests {
         let decoded = UnconnectedPing::decode_body(&mut slice).unwrap();
         assert_eq!(decoded.ping_time.0, pkt.ping_time.0);
         assert_eq!(decoded.magic, pkt.magic);
+        assert_eq!(decoded.client_guid, None);
+    }
+
+    /// go-raknet `UnconnectedPing.MarshalBinary`: 33 bytes, GUID last.
+    #[test]
+    fn unconnected_ping_carries_client_guid() {
+        let pkt = RaknetPacket::UnconnectedPing(UnconnectedPing {
+            ping_time: RaknetTime(0x0102),
+            magic: DEFAULT_UNCONNECTED_MAGIC,
+            client_guid: Some((-5i64) as u64),
+        });
+        let mut buf = BytesMut::new();
+        pkt.encode(&mut buf).unwrap();
+        let mut expected = vec![0x01];
+        expected.extend_from_slice(&0x0102u64.to_be_bytes());
+        expected.extend_from_slice(&DEFAULT_UNCONNECTED_MAGIC);
+        expected.extend_from_slice(&(-5i64).to_be_bytes());
+        assert_eq!(&buf[..], &expected[..]);
+        let mut slice = &buf[1..];
+        let decoded = UnconnectedPing::decode_body(&mut slice).unwrap();
+        assert_eq!(decoded.client_guid, Some((-5i64) as u64));
     }
 
     #[test]

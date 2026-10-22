@@ -22,6 +22,13 @@ selection only; wire timing loops, warmups, and allocation counting are unchange
 
 The comparison script also sets `BENCH_SPLIT_COUNT=10`: sizes 4,096 and 65,536 use that measured count while 32/512 retain `--count` (normally 100). Without the variable, direct CLI calls use `--count` for all sizes. Both peers use the same override; each size opens a fresh connection. Ten-sample p99 is low-sample and is labeled as such in the comparison report.
 
+`BENCH_RAKNET_POLICY=vanilla|optimized` selects the tokio-raknet
+`TransmissionPolicy` of both the client and the listener for
+`loopback`/`serve`/`client`. Without it the library defaults apply: a Vanilla
+client (go-raknet behaviour) and an Optimized listener. Use `optimized` for A/B
+comparisons against builds older than the policy split (which were Optimized on
+both sides) and `vanilla` to compare against go-raknet.
+
 ## Codec measurement
 
 The committed `crates/valentine_gen/protocolgen/testdata/bench/manifest.json` supplies every case. SHA-256 is checked before decoding. Valentine `v1_26_51` decodes actual typed packets. Setup checks full frame/payload consumption, owned/borrowed value equality where supported, typed encode/decode equality, stable reserialization, and byte-for-byte equality with the original framed entry. Corpus integrity/framing failures are fatal. Typed codec incompatibilities instead produce a JSON coverage record on stderr and no timing for that case; every corpus name receives owned and borrowed coverage records, including supported cases. Unsupported cases never use raw-byte copying as a fallback.
