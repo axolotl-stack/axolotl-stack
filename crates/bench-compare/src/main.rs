@@ -83,25 +83,32 @@ fn main() -> Result<()> {
             .enable_all()
             .build()?
             .block_on(async {
-                match command {
-                    Command::NethernetLoopback { count } => {
-                        bench_compare::nethernet::loopback(count).await
+                // Keep application futures on the same worker scheduler as the
+                // transport tasks, like Go's application goroutines.
+                tokio::spawn(async move {
+                    match command {
+                        Command::NethernetLoopback { count } => {
+                            bench_compare::nethernet::loopback(count).await
+                        }
+                        Command::NethernetServe { address, count } => {
+                            bench_compare::nethernet::serve(address, count).await
+                        }
+                        Command::NethernetClient { address, count } => {
+                            bench_compare::nethernet::client(address, count).await
+                        }
+                        Command::Loopback { count } => {
+                            bench_compare::transport::loopback(count).await
+                        }
+                        Command::Serve { address, count } => {
+                            bench_compare::transport::serve(address, count).await
+                        }
+                        Command::Client { address, count } => {
+                            bench_compare::transport::client(address, count).await
+                        }
+                        _ => unreachable!(),
                     }
-                    Command::NethernetServe { address, count } => {
-                        bench_compare::nethernet::serve(address, count).await
-                    }
-                    Command::NethernetClient { address, count } => {
-                        bench_compare::nethernet::client(address, count).await
-                    }
-                    Command::Loopback { count } => bench_compare::transport::loopback(count).await,
-                    Command::Serve { address, count } => {
-                        bench_compare::transport::serve(address, count).await
-                    }
-                    Command::Client { address, count } => {
-                        bench_compare::transport::client(address, count).await
-                    }
-                    _ => unreachable!(),
-                }
+                })
+                .await?
             }),
     }
 }

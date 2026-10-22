@@ -20,11 +20,23 @@
 
 ### Application delivery and maintenance
 
-Application writes flush available datagrams immediately. Each socket receive also
-flushes ACK/NAK feedback before application data and retires received ACKs before
-checking the congestion window, so an ACK drives window-blocked writes in the same
-receive turn. This applies to both listener sessions and client streams, including
-split messages; the final fragment is reassembled and delivered on receipt.
+Latest small-message profiling, scheduling correction, bounded ACK measurements,
+and acceptance evidence: [latency report](LATENCY_REPORT.md).
+
+Application writes and received NAKs flush immediately. Incoming ACKs retire
+outstanding data before checking the congestion window, so window-blocked writes
+resume in the same receive turn. Small unsplit datagrams share a **1 ms ACK
+deadline**, measured from the first pending datagram, serviced by a separate
+on-demand timer on both transports. Later arrivals cannot postpone it.
+
+Handshake/split feedback bypasses that delay. Accumulating half an MTU of
+unacknowledged wire data also forces immediate feedback, before the peer's
+initial one-MTU congestion window can fill. No idle ACK timer wakes without
+pending feedback. This coalesces small-message feedback without adopting
+go-raknet's `Conn.startTicking` / `flushACKs` 100 ms policy.
+
+Application delivery does not wait for an ACK deadline: split messages are
+reassembled and delivered as soon as their final fragment arrives.
 
 The listener's 100 ms and client's 20 ms maintenance intervals govern idle/close
 checks, timeout-based retransmission and expired split cleanup, not successful
@@ -36,8 +48,8 @@ fragment left one outstanding datagram and only 28 bytes of congestion bandwidth
 too little for the next fragment. The legacy receive path emitted its ACK only at
 100 ms; receiving that ACK still left the window closed until sender maintenance
 at 120 ms reopened it to 2400 bytes. No retransmission occurred in this trace.
-Fixed-clock regression tests transfer and acknowledge 32 B and 64 KiB messages
-without invoking maintenance or advancing time.
+Fixed-clock regression tests transfer and acknowledge 32 B within the separate
+1 ms feedback bound and 64 KiB without advancing time or invoking maintenance.
 
 #### TRANSPORT-01 loopback verification (2026-10-21)
 

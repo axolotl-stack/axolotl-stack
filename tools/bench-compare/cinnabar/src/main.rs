@@ -89,7 +89,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .build()?;
             if let Some(mode) = mode.strip_prefix("nethernet-") {
                 runtime
-                    .block_on(nethernet::run(mode, &address, count))
+                    .block_on(async move {
+                        tokio::spawn(async move { nethernet::run(mode, &address, count).await })
+                            .await?
+                    })
                     .map_err(Into::into)
             } else {
                 runtime.block_on(transport::run(mode, &address, count))

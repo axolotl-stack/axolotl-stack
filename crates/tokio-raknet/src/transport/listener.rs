@@ -293,6 +293,7 @@ enum LoopEvent<Msg> {
     Inbound(std::io::Result<(usize, std::net::SocketAddr)>),
     Outbound(Msg),
     Tick,
+    Ack,
 }
 
 fn report_socket_buffer_config(recv_size: Option<usize>, send_size: Option<usize>) {
@@ -326,12 +327,18 @@ async fn run_listener_muxer(
     let mut sessions: HashMap<SocketAddr, SessionState> = HashMap::new();
     let mut pending: HashMap<SocketAddr, PendingConnection> = HashMap::new();
     let mut tick = new_tick_interval();
+    let mut next_ack: Option<std::time::Instant> = None;
+    let ack_timer = tokio::time::sleep(Duration::ZERO);
+    tokio::pin!(ack_timer);
     let mut rate_limiter = rate_limiter::PingRateLimiter::with_max_entries(
         config.ping_rate_limit_per_ip,
         config.ping_rate_limit_max_entries,
     );
 
     loop {
+        if let Some(deadline) = next_ack {
+            ack_timer.as_mut().reset(deadline.into());
+        }
         let event = tokio::select! {
             res = socket.recv_from(&mut buf) => LoopEvent::Inbound(res),
             msg = outbound_rx.recv() => match msg {
@@ -339,6 +346,7 @@ async fn run_listener_muxer(
                 None => break,
             },
             _ = tick.tick() => LoopEvent::Tick,
+            _ = &mut ack_timer, if next_ack.is_some() => LoopEvent::Ack,
         };
 
         match event {
@@ -357,6 +365,12 @@ async fn run_listener_muxer(
                         &mut send_buf,
                     )
                     .await;
+                    if let Some(deadline) = sessions
+                        .get(&peer)
+                        .and_then(|state| state.managed.ack_deadline())
+                    {
+                        next_ack = Some(next_ack.map_or(deadline, |next| next.min(deadline)));
+                    }
                 }
                 Err(e) => {
                     if e.kind() == std::io::ErrorKind::ConnectionReset {
@@ -375,6 +389,30 @@ async fn run_listener_muxer(
                     &mut send_buf,
                 )
                 .await;
+            }
+            LoopEvent::Ack => {
+                let now = std::time::Instant::now();
+                next_ack = None;
+                for (&peer, state) in &mut sessions {
+                    if state
+                        .managed
+                        .ack_deadline()
+                        .is_some_and(|deadline| deadline <= now)
+                    {
+                        super::mux::flush_managed(
+                            &mut state.managed,
+                            &socket,
+                            peer,
+                            now,
+                            false,
+                            &mut send_buf,
+                        )
+                        .await;
+                    }
+                    if let Some(deadline) = state.managed.ack_deadline() {
+                        next_ack = Some(next_ack.map_or(deadline, |next| next.min(deadline)));
+                    }
+                }
             }
             LoopEvent::Tick => {
                 pending.retain(|peer, connection| {
