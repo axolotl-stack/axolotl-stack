@@ -298,7 +298,7 @@ impl ExtractedData {
                     };
 
                     ItemEntry {
-                        name: item.item_name,
+                        name: item.item_name.to_string(),
                         runtime_id: item.item_id,
                         component_based: item.is_component_based,
                         version: version_str,
@@ -315,7 +315,7 @@ impl ExtractedData {
                 .block_properties
                 .into_iter()
                 .map(|block| BlockEntry {
-                    name: block.block_name,
+                    name: block.block_name.to_string(),
                     state_nbt_base64: b64.encode(&block.block_definition.0),
                 })
                 .collect(),
@@ -333,7 +333,7 @@ impl ExtractedData {
                         let _ = g.creative_category.encode(&mut buf);
                         buf.first().copied().unwrap_or(0) as i32
                     },
-                    name: g.name,
+                    name: g.name.to_string(),
                     icon_item_id: g.group_icon_item.id,
                 })
                 .collect(),
@@ -363,7 +363,12 @@ impl ExtractedData {
                     downfall: b.value.downfall,
                 })
                 .collect(),
-            string_list: bd.stringlist.strings,
+            string_list: bd
+                .stringlist
+                .strings
+                .iter()
+                .map(ToString::to_string)
+                .collect(),
         });
 
         // Extract entity identifiers if available
@@ -374,8 +379,8 @@ impl ExtractedData {
         // Build metadata
         let metadata = Metadata {
             extraction_date: chrono_lite_now(),
-            game_version: data.start_game.settings.base_game_version,
-            engine: data.start_game.server_version,
+            game_version: data.start_game.settings.base_game_version.to_string(),
+            engine: data.start_game.server_version.to_string(),
         };
 
         Self {
@@ -548,20 +553,20 @@ mod tests {
 
         let data = GameData {
             start_game: StartGamePacket {
-                server_version: "1.26.40".to_string(),
+                server_version: "1.26.40".into(),
                 settings: jolyne::valentine::LevelSettings {
-                    base_game_version: "1.26.20".to_string(),
+                    base_game_version: "1.26.20".into(),
                     ..Default::default()
                 },
                 block_properties: vec![ServerBlockProperty {
-                    block_name: "minecraft:stone".to_string(),
+                    block_name: "minecraft:stone".into(),
                     block_definition: Nbt::default(),
                 }],
                 ..Default::default()
             },
             item_registry: ItemRegistryPacket {
                 item_data: vec![ProtocolItemData {
-                    item_name: "minecraft:stone".to_string(),
+                    item_name: "minecraft:stone".into(),
                     item_id: 42,
                     is_component_based: true,
                     item_version: EnumsItemVersion::Datadriven,

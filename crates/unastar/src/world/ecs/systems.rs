@@ -314,7 +314,7 @@ pub fn process_chunk_load_queues(
                 client_request_sub_chunk_limit: Some(highest_subchunk as i32),
                 cache_enabled: false,
                 cache_metadata: vec![],
-                serialized_chunk_data: payload,
+                serialized_chunk_data: payload.into(),
             }));
 
             if !send_result {
@@ -426,7 +426,7 @@ pub fn request_chunk_generation(
                         client_request_sub_chunk_limit: Some(highest_subchunk as i32),
                         cache_enabled: false,
                         cache_metadata: vec![],
-                        serialized_chunk_data: payload,
+                        serialized_chunk_data: payload.into(),
                     };
 
                     if session.send(McpePacket::from(packet)) {
@@ -564,7 +564,7 @@ pub fn process_completed_generations(
                     client_request_sub_chunk_limit: Some(highest_subchunk as i32),
                     cache_enabled: false,
                     cache_metadata: vec![],
-                    serialized_chunk_data: biome_data.clone(),
+                    serialized_chunk_data: biome_data.clone().into(),
                 };
 
                 if session.send(McpePacket::from(packet)) {

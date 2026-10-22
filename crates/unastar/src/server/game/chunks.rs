@@ -213,7 +213,11 @@ fn handle_subchunk_request(
         entries.push(SubChunkPacketPayloadSubChunkPacketData {
             sub_chunk_pos_offset: offset.clone(),
             sub_chunk_request_result: result,
-            serialized_sub_chunk: if is_empty { None } else { Some(subchunk_data) },
+            serialized_sub_chunk: if is_empty {
+                None
+            } else {
+                Some(subchunk_data.into())
+            },
             height_map_data,
             blob_id: None,
         });

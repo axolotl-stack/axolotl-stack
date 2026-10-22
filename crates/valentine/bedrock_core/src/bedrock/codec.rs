@@ -2,6 +2,10 @@ use bytes::{Buf, BufMut, Bytes};
 use std::io::Cursor;
 use std::mem;
 
+/// Valid UTF-8 text sharing its packet allocation; malformed wire text is
+/// normalized lossily at decode time, before this type is constructed.
+pub use bytestring::ByteString as BedrockString;
+
 use crate::bedrock::context::BedrockSession;
 use crate::bedrock::error::DecodeError;
 use crate::protocol::wire;
@@ -32,6 +36,7 @@ fn allocation_failed(requested: usize) -> DecodeError {
 
 /// Creates storage for a decoded collection after applying any statically known
 /// lower bound on the encoded size of each item.
+#[inline]
 pub fn prepare_decode_vec<T>(
     len: usize,
     remaining: usize,
@@ -61,7 +66,26 @@ pub fn prepare_decode_vec<T>(
     Ok(Vec::new())
 }
 
+/// Decodes a byte-sized collection with one validated bulk copy.
+#[inline]
+pub fn decode_u8_vec<B: Buf>(buf: &mut B, len: usize) -> Result<Vec<u8>, DecodeError> {
+    let mut values = prepare_decode_vec(len, buf.remaining(), Some(1))?;
+    values.resize(len, 0);
+    buf.copy_to_slice(&mut values);
+    Ok(values)
+}
+
+/// Uses an owning iterator so std can reuse the equal-sized byte allocation.
+#[inline]
+pub fn decode_i8_vec<B: Buf>(buf: &mut B, len: usize) -> Result<Vec<i8>, DecodeError> {
+    Ok(decode_u8_vec(buf, len)?
+        .into_iter()
+        .map(|byte| byte as i8)
+        .collect())
+}
+
 /// Ensures one more decoded item can be pushed without an infallible allocator path.
+#[inline]
 pub fn reserve_decode_item<T>(values: &mut Vec<T>) -> Result<(), DecodeError> {
     if values.len() == values.capacity() {
         values
@@ -69,6 +93,22 @@ pub fn reserve_decode_item<T>(values: &mut Vec<T>) -> Result<(), DecodeError> {
             .map_err(|_| allocation_failed(values.len().saturating_add(1)))?;
     }
     Ok(())
+}
+
+/// Decodes a schema-sized array without an intermediate heap allocation.
+/// ArrayVec drops the initialized prefix if decoding any later element fails.
+#[inline]
+pub fn decode_fixed_array<T, const N: usize>(
+    mut decode: impl FnMut() -> Result<T, DecodeError>,
+) -> Result<[T; N], DecodeError> {
+    let mut values = arrayvec::ArrayVec::<T, N>::new();
+    for _ in 0..N {
+        values.push(decode()?);
+    }
+    match values.into_inner() {
+        Ok(array) => Ok(array),
+        Err(_) => unreachable!("fixed-array decoder produced the wrong length"),
+    }
 }
 
 /// Client resource policy for recursive generated values, not a wire-format limit.
@@ -121,6 +161,20 @@ pub fn decode_utf8_lossy_owned(bytes: Vec<u8>) -> String {
     match String::from_utf8(bytes) {
         Ok(s) => s,
         Err(err) => String::from_utf8_lossy(&err.into_bytes()).into_owned(),
+    }
+}
+
+/// Shares valid wire text and materializes replacement characters only when
+/// the input is malformed. ByteString keeps later access UTF-8-check-free.
+#[inline]
+pub fn decode_utf8_lossy_bytes(bytes: Bytes) -> BedrockString {
+    if bytes.is_ascii() || std::str::from_utf8(&bytes).is_ok() {
+        // SAFETY: ASCII is valid UTF-8; otherwise from_utf8 has validated the
+        // entire immutable Bytes value. Moving it cannot invalidate that check.
+        // Constructing directly avoids a speculative refcount clone per string.
+        unsafe { BedrockString::from_bytes_unchecked(bytes) }
+    } else {
+        String::from_utf8_lossy(&bytes).into_owned().into()
     }
 }
 
@@ -483,6 +537,37 @@ impl BedrockSized for String {
     }
 }
 
+impl BedrockCodec for BedrockString {
+    type Args = ();
+    const MIN_ENCODED_SIZE: usize = 1;
+
+    #[inline]
+    fn encode<B: BufMut>(&self, buf: &mut B) -> Result<(), std::io::Error> {
+        wire::write_var_u32(buf, self.len() as u32);
+        buf.put_slice(self.as_bytes());
+        Ok(())
+    }
+
+    #[inline]
+    fn decode<B: Buf>(buf: &mut B, _args: ()) -> Result<Self, DecodeError> {
+        let len = wire::read_var_u32(buf)? as usize;
+        if buf.remaining() < len {
+            return Err(DecodeError::StringLengthExceeded {
+                declared: len,
+                available: buf.remaining(),
+            });
+        }
+        Ok(decode_utf8_lossy_bytes(buf.copy_to_bytes(len)))
+    }
+}
+
+impl BedrockSized for BedrockString {
+    #[inline]
+    fn encoded_size(&self) -> usize {
+        wire::var_u32_len(self.len() as u32) + self.len()
+    }
+}
+
 impl<T: BedrockCodec> BedrockCodec for Box<T> {
     type Args = T::Args;
     const MIN_ENCODED_SIZE: usize = T::MIN_ENCODED_SIZE;
@@ -517,7 +602,9 @@ where
         let mut v = prepare_decode_vec(len, buf.remaining(), Some(T::MIN_ENCODED_SIZE))?;
         for _ in 0..len {
             let value = T::decode(buf, args.clone())?;
-            reserve_decode_item(&mut v)?;
+            if T::MIN_ENCODED_SIZE == 0 {
+                reserve_decode_item(&mut v)?;
+            }
             v.push(value);
         }
         Ok(v)
@@ -1020,16 +1107,24 @@ impl<B: Buf> Buf for NbtRecordingBuf<'_, B> {
 
 fn scan_nbt(cursor: &mut impl Buf, encoding: NbtEncoding) -> Result<(), DecodeError> {
     let root_tag = read_u8(cursor)?;
+    // Select the encoding once; recursive scans specialize away mode branches.
     // Root tags are named in both Bedrock little-endian variants.
-    skip_string(cursor, encoding)?;
-    scan_payload(root_tag, cursor, encoding, 0)
+    match encoding {
+        NbtEncoding::NetworkLittleEndian => {
+            skip_string::<true>(cursor)?;
+            scan_payload::<true>(root_tag, cursor, 0)
+        }
+        NbtEncoding::LittleEndian => {
+            skip_string::<false>(cursor)?;
+            scan_payload::<false>(root_tag, cursor, 0)
+        }
+    }
 }
 
 // --- NBT scanner logic ---
 
-fn scan_compound(
+fn scan_compound<const NETWORK: bool>(
     cursor: &mut impl Buf,
-    encoding: NbtEncoding,
     depth: usize,
 ) -> Result<(), DecodeError> {
     // A Compound is just a list of tags terminated by End (0x00)
@@ -1042,53 +1137,52 @@ fn scan_compound(
 
         // Tags in a compound are named.
         // Read Name (Short Length + Bytes)
-        skip_string(cursor, encoding)?;
+        skip_string::<NETWORK>(cursor)?;
 
         // Skip the payload based on ID
-        scan_payload(tag_id, cursor, encoding, depth)?;
+        scan_payload::<NETWORK>(tag_id, cursor, depth)?;
     }
     Ok(())
 }
 
-fn scan_payload(
+fn scan_payload<const NETWORK: bool>(
     tag_id: u8,
     cursor: &mut impl Buf,
-    encoding: NbtEncoding,
     depth: usize,
 ) -> Result<(), DecodeError> {
     match tag_id {
         1 => skip(cursor, 1), // Byte
         2 => skip(cursor, 2), // Short
-        3 => skip_i32(cursor, encoding),
-        4 => skip_i64(cursor, encoding),
+        3 => skip_i32::<NETWORK>(cursor),
+        4 => skip_i64::<NETWORK>(cursor),
         5 => skip(cursor, 4), // Float
         6 => skip(cursor, 8), // Double
         7 => {
-            let len = nonnegative_len(read_i32(cursor, encoding)?)?;
+            let len = nonnegative_len(read_i32::<NETWORK>(cursor)?)?;
             skip(cursor, len as usize)
         }
-        8 => skip_string(cursor, encoding), // String
+        8 => skip_string::<NETWORK>(cursor), // String
         9 => {
             let depth = enter_nbt_container(depth)?;
             let inner_id = read_u8(cursor)?;
-            let count = nonnegative_len(read_i32(cursor, encoding)?)?;
+            let count = nonnegative_len(read_i32::<NETWORK>(cursor)?)?;
             for _ in 0..count {
-                scan_payload(inner_id, cursor, encoding, depth)?;
+                scan_payload::<NETWORK>(inner_id, cursor, depth)?;
             }
             Ok(())
         }
-        10 => scan_compound(cursor, encoding, enter_nbt_container(depth)?),
+        10 => scan_compound::<NETWORK>(cursor, enter_nbt_container(depth)?),
         11 => {
-            let len = nonnegative_len(read_i32(cursor, encoding)?)?;
+            let len = nonnegative_len(read_i32::<NETWORK>(cursor)?)?;
             for _ in 0..len {
-                skip_i32(cursor, encoding)?;
+                skip_i32::<NETWORK>(cursor)?;
             }
             Ok(())
         }
         12 => {
-            let len = nonnegative_len(read_i32(cursor, encoding)?)?;
+            let len = nonnegative_len(read_i32::<NETWORK>(cursor)?)?;
             for _ in 0..len {
-                skip_i64(cursor, encoding)?;
+                skip_i64::<NETWORK>(cursor)?;
             }
             Ok(())
         }
@@ -1116,54 +1210,50 @@ fn read_u8(cursor: &mut impl Buf) -> Result<u8, DecodeError> {
     Ok(cursor.get_u8())
 }
 
-fn skip_string(cursor: &mut impl Buf, encoding: NbtEncoding) -> Result<(), DecodeError> {
-    let len = match encoding {
-        NbtEncoding::NetworkLittleEndian => crate::protocol::wire::read_var_u32(cursor)? as usize,
-        NbtEncoding::LittleEndian => {
-            if cursor.remaining() < 2 {
-                return Err(DecodeError::UnexpectedEof {
-                    needed: 2,
-                    available: cursor.remaining(),
-                });
-            }
-            nonnegative_len(cursor.get_i16_le() as i32)? as usize
+fn skip_string<const NETWORK: bool>(cursor: &mut impl Buf) -> Result<(), DecodeError> {
+    let len = if NETWORK {
+        crate::protocol::wire::read_var_u32(cursor)? as usize
+    } else {
+        if cursor.remaining() < 2 {
+            return Err(DecodeError::UnexpectedEof {
+                needed: 2,
+                available: cursor.remaining(),
+            });
         }
+        nonnegative_len(cursor.get_i16_le() as i32)? as usize
     };
     skip(cursor, len)
 }
 
-fn read_i32(cursor: &mut impl Buf, encoding: NbtEncoding) -> Result<i32, DecodeError> {
-    match encoding {
-        NbtEncoding::NetworkLittleEndian => Ok(crate::protocol::wire::read_zigzag32(cursor)?),
-        NbtEncoding::LittleEndian => {
-            if cursor.remaining() < 4 {
-                return Err(DecodeError::UnexpectedEof {
-                    needed: 4,
-                    available: cursor.remaining(),
-                });
-            }
-            Ok(cursor.get_i32_le())
+fn read_i32<const NETWORK: bool>(cursor: &mut impl Buf) -> Result<i32, DecodeError> {
+    if NETWORK {
+        Ok(crate::protocol::wire::read_zigzag32(cursor)?)
+    } else {
+        if cursor.remaining() < 4 {
+            return Err(DecodeError::UnexpectedEof {
+                needed: 4,
+                available: cursor.remaining(),
+            });
         }
+        Ok(cursor.get_i32_le())
     }
 }
 
-fn skip_i32(cursor: &mut impl Buf, encoding: NbtEncoding) -> Result<(), DecodeError> {
-    match encoding {
-        NbtEncoding::NetworkLittleEndian => {
-            crate::protocol::wire::read_zigzag32(cursor)?;
-            Ok(())
-        }
-        NbtEncoding::LittleEndian => skip(cursor, 4),
+fn skip_i32<const NETWORK: bool>(cursor: &mut impl Buf) -> Result<(), DecodeError> {
+    if NETWORK {
+        crate::protocol::wire::read_zigzag32(cursor)?;
+        Ok(())
+    } else {
+        skip(cursor, 4)
     }
 }
 
-fn skip_i64(cursor: &mut impl Buf, encoding: NbtEncoding) -> Result<(), DecodeError> {
-    match encoding {
-        NbtEncoding::NetworkLittleEndian => {
-            crate::protocol::wire::read_zigzag64(cursor)?;
-            Ok(())
-        }
-        NbtEncoding::LittleEndian => skip(cursor, 8),
+fn skip_i64<const NETWORK: bool>(cursor: &mut impl Buf) -> Result<(), DecodeError> {
+    if NETWORK {
+        crate::protocol::wire::read_zigzag64(cursor)?;
+        Ok(())
+    } else {
+        skip(cursor, 8)
     }
 }
 
@@ -1210,6 +1300,33 @@ mod tests {
     #[test]
     fn zero_width_collection_values_remain_decodable() {
         assert_codec_roundtrip(vec![(); 5], ());
+    }
+
+    #[test]
+    fn fixed_array_error_drops_the_initialized_prefix() {
+        use std::cell::Cell;
+
+        struct Tracked<'a>(&'a Cell<usize>);
+        impl Drop for Tracked<'_> {
+            fn drop(&mut self) {
+                self.0.set(self.0.get() + 1);
+            }
+        }
+        let dropped = Cell::new(0);
+        let mut calls = 0;
+        let result = decode_fixed_array::<_, 4>(|| {
+            calls += 1;
+            if calls == 3 {
+                return Err(DecodeError::UnexpectedEof {
+                    needed: 1,
+                    available: 0,
+                });
+            }
+            Ok(Tracked(&dropped))
+        });
+        assert!(matches!(result, Err(DecodeError::UnexpectedEof { .. })));
+        assert_eq!(calls, 3);
+        assert_eq!(dropped.get(), 2);
     }
 
     #[test]
@@ -1548,6 +1665,27 @@ mod tests {
         assert_eq!(buf.as_ref(), &[0x00]); // Just length 0
     }
 
+    #[test]
+    fn shared_text_handles_utf8_and_lossy_segment_boundaries() {
+        for (payload, expected) in [
+            (b"a\xc3\xa9z".as_slice(), "aéz"),
+            (b"a\xff\xc3z".as_slice(), "a\u{fffd}\u{fffd}z"),
+        ] {
+            let mut wire = BytesMut::new();
+            wire::write_var_u32(&mut wire, payload.len() as u32);
+            wire.extend_from_slice(payload);
+            wire.put_u8(0xa5);
+            let wire = wire.freeze();
+            for split in 0..wire.len() {
+                let mut input = wire.slice(..split).chain(wire.slice(split..));
+                let value = BedrockString::decode(&mut input, ()).unwrap();
+                assert_eq!(&*value, expected);
+                assert_eq!(input.remaining(), 1);
+                assert_eq!(input.get_u8(), 0xa5);
+            }
+        }
+    }
+
     // ========== UUID Tests ==========
 
     #[test]
@@ -1807,5 +1945,31 @@ mod tests {
         let mut over_limit = nested_lists(513, NbtEncoding::NetworkLittleEndian);
         let err = Nbt::decode(&mut over_limit, ()).unwrap_err();
         assert!(matches!(err, DecodeError::NbtDepthExceeded { max: 512 }));
+    }
+
+    #[test]
+    fn signed_byte_vectors_preserve_bits_and_boundaries_across_segments() {
+        let mut wire: Vec<u8> = (0..=255).collect();
+        wire.push(0x5a);
+        let source = bytes::Bytes::from(wire);
+        let expected: Vec<i8> = (0..=255).map(|byte| byte as u8 as i8).collect();
+        for split in 0..=source.len() {
+            let mut input = source.slice(..split).chain(source.slice(split..));
+            assert_eq!(decode_i8_vec(&mut input, 256).unwrap(), expected);
+            assert_eq!(input.get_u8(), 0x5a);
+            assert!(!input.has_remaining());
+        }
+        let mut truncated = source.slice(..255);
+        assert!(matches!(
+            decode_i8_vec(&mut truncated, 256),
+            Err(DecodeError::ArrayLengthExceeded {
+                declared: 256,
+                available: 255
+            })
+        ));
+        assert_eq!(truncated.remaining(), 255);
+        let mut empty = source.slice(256..);
+        assert!(decode_i8_vec(&mut empty, 0).unwrap().is_empty());
+        assert_eq!(empty.get_u8(), 0x5a);
     }
 }

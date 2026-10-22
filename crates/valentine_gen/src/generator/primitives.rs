@@ -23,7 +23,7 @@ pub fn primitive_to_rust_tokens(p: &Primitive) -> TokenStream {
         Primitive::ZigZag64 => quote! { crate::bedrock::codec::ZigZag64 },
         Primitive::Uuid => quote! { uuid::Uuid },
         Primitive::Void => quote! { () },
-        Primitive::ByteArray => quote! { Vec<u8> },
+        Primitive::ByteArray => quote! { bytes::Bytes },
         Primitive::Nbt => quote! { crate::bedrock::codec::Nbt },
     }
 }

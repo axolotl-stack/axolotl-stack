@@ -11,8 +11,8 @@ fn sample_disconnect_packet() -> DisconnectPacket {
         reason: EnumsConnectionDisconnectFailReason::Timeout,
         messages: DisconnectPacketMessagesUnion::DisconnectPacketMessages(
             DisconnectPacketMessages {
-                message: "Server maintenance in 5 minutes".to_string(),
-                filtered_message: "Server maintenance".to_string(),
+                message: "Server maintenance in 5 minutes".into(),
+                filtered_message: "Server maintenance".into(),
             },
         ),
     }
@@ -22,7 +22,8 @@ fn sample_login_packet() -> LoginPacket {
     LoginPacket {
         client_network_version: PROTOCOL_VERSION,
         connection_request: br#"{\"chain\":[{\"extraData\":{\"displayName\":\"Player\"}}]}"#
-            .repeat(4),
+            .repeat(4)
+            .into(),
     }
 }
 
@@ -31,12 +32,12 @@ fn sample_text_packet() -> TextPacket {
         localize: false,
         body: TextPacketBody::AuthorAndMessage(TextPacketPayloadAuthorAndMessage {
             message_type: TextPacketPayloadAuthorAndMessageMessageType::Chat,
-            player_name: "PlayerName".to_string(),
-            message: "Hello, world!".repeat(8),
+            player_name: "PlayerName".into(),
+            message: "Hello, world!".repeat(8).into(),
         }),
-        senders_xuid: "1234567890123456".to_string(),
-        platform_id: "platform-chat-id".to_string(),
-        filtered_message: Some("Hello, world!".repeat(8)),
+        senders_xuid: "1234567890123456".into(),
+        platform_id: "platform-chat-id".into(),
+        filtered_message: Some("Hello, world!".repeat(8).into()),
     }
 }
 
@@ -58,15 +59,15 @@ fn sample_start_game_packet() -> StartGamePacket {
             game_type: EnumsGameType::Creative,
             ..Default::default()
         },
-        level_name: "World".to_string(),
+        level_name: "World".into(),
         level_current_time: 0,
         enchantment_seed: 0,
         block_properties: vec![ServerBlockProperty {
-            block_name: "minecraft:stone".to_string(),
+            block_name: "minecraft:stone".into(),
             block_definition: Nbt::default(),
         }],
-        multiplayer_correlation_id: "".to_string(),
-        server_version: "1.26.51".to_string(),
+        multiplayer_correlation_id: "".into(),
+        server_version: "1.26.51".into(),
         world_template_id: uuid::Uuid::nil(),
         ..Default::default()
     }
@@ -272,7 +273,7 @@ fn bench_mcpe_frame(c: &mut Criterion) {
         b.iter_batched(
             || encoded.clone(),
             |mut reader| {
-                let decoded = McpePacket::decode(&mut reader, args.clone()).unwrap();
+                let decoded = McpePacket::decode_bytes(&mut reader, args.clone()).unwrap();
                 black_box(decoded);
                 assert!(!reader.has_remaining());
             },

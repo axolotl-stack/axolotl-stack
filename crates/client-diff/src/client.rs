@@ -254,7 +254,7 @@ impl Capture {
                     143 => self.compression = true,
                     3 => {
                         if let (_, McpePacketData::ServerToClientHandshakePacket(handshake)) =
-                            McpePacketData::decode_inner(&mut packet.as_ref(), McpePacketArgs)?
+                            McpePacketData::decode_inner_bytes(&mut packet.clone(), McpePacketArgs)?
                         {
                             self.enable_encryption(&handshake.handshake_web_token)?;
                         }
@@ -419,13 +419,13 @@ pub async fn run(
                     "chat" => McpePacket::from(TextPacket {
                         body: TextPacketBody::AuthorAndMessage(TextPacketPayloadAuthorAndMessage {
                             message_type: TextPacketPayloadAuthorAndMessageMessageType::Chat,
-                            player_name: config.identity.display_name.clone(),
-                            message: step.text.clone(),
+                            player_name: config.identity.display_name.clone().into(),
+                            message: step.text.clone().into(),
                         }),
                         ..Default::default()
                     }),
                     "command" => McpePacket::from(CommandRequestPacket {
-                        command: step.text.clone(),
+                        command: step.text.clone().into(),
                         origin: CommandOriginDatajson {
                             type_: "player".into(), uuid: config.identity.uuid,
                             ..Default::default()

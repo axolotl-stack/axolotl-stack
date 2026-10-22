@@ -308,7 +308,7 @@ impl<T: Transport> BedrockStream<SecurePending, Server, T> {
         let token = encode(&header, &claims, &encoding_key).unwrap();
 
         let handshake_pkt = ServerToClientHandshakePacket {
-            handshake_web_token: token,
+            handshake_web_token: token.into(),
         };
 
         self.transport
@@ -358,7 +358,7 @@ impl<T: Transport> BedrockStream<ResourcePacks, Server, T> {
         let stack = ResourcePackStackPacket {
             texture_pack_required: required,
             texture_pack_list: vec![],
-            base_game_version: crate::valentine::GAME_VERSION.to_string(),
+            base_game_version: crate::valentine::GAME_VERSION.into(),
             experiments: Experiments {
                 toggles: vec![],
                 experiments_ever_toggled: false,

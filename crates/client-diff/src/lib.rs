@@ -131,7 +131,7 @@ fn decode(
     let mut framed = Vec::with_capacity(data.len() + 5);
     write_varint(u32::try_from(data.len()).ok()?, &mut framed);
     framed.extend_from_slice(data);
-    McpePacketData::decode_inner(&mut framed.as_slice(), McpePacketArgs).ok()
+    McpePacketData::decode_inner_bytes(&mut framed.into(), McpePacketArgs).ok()
 }
 fn encode(
     header: &valentine::bedrock::version::v1_26_51::GameHeader,
@@ -216,12 +216,12 @@ fn normalize(packet: &mut McpePacketData, masks: &Masks) {
     match packet {
         LoginPacket(p) if masks.jwt => {
             if let Some(data) = scrub_login(&p.connection_request, masks) {
-                p.connection_request = data;
+                p.connection_request = data.into();
             }
         }
         ServerToClientHandshakePacket(p) if masks.jwt => {
             if let Some(token) = scrub_jwt(&p.handshake_web_token, masks) {
-                p.handshake_web_token = token;
+                p.handshake_web_token = token.into();
             }
         }
         NetworkStackLatencyPacket(p) if masks.timestamps => p.creation_time = 0,
@@ -232,7 +232,7 @@ fn normalize(packet: &mut McpePacketData, masks: &Masks) {
         SetActorMotionPacket(p) if masks.ticks => p.tick.inputtick = 0,
         CommandRequestPacket(p) if masks.uuids => {
             p.origin.uuid = Default::default();
-            p.origin.request_id.clear();
+            p.origin.request_id = Default::default();
         }
         ServerboundLoadingScreenPacket(p)
             if masks.loading_screen_ids && p.loading_screen_id.is_some() =>

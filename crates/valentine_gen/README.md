@@ -153,16 +153,42 @@ feature gates must not survive a version removal.
 
 Codec emission derives conservative minimum wire sizes for collection bounds
 and detects named-reference cycles to insert the shared recursive-value budget.
-The same bounds apply to borrowed collections; recursive borrowed raw fallbacks
-use the owned codec on materialization.
+Positive bounds reserve the complete validated count once; only unknown-size
+collections need fallible per-item growth. Borrowed unions, fixed arrays,
+bitsets, and packed values are typed recursively, including named-reference
+cycles guarded by the same recursive-value budget.
 
-Owned frame dispatch uses a non-inlined typed payload helper. Each packet's
-decode temporaries and trailing-byte rejection stay inside that helper, before
-conversion to the dispatch enum. This preserves exact payload consumption while
-preventing the largest packet codecs from imposing their stack frame and Windows
-stack probes on every small packet. Use `valentine`'s `mcpe_frame_decode` benchmark
+Legacy frontend `Type::Switch` shapes retain deferred raw-payload decoding;
+their contextual control fields are not represented by the typed view emitter.
+Canonical protocolgen emits `Union`/`Option` instead, so this does not defer any
+current canonical packet.
+
+`Primitive::ByteArray` emits `bytes::Bytes`, with length-prefix handling at each
+field site. Contiguous shared inputs use `Buf::copy_to_bytes` to retain the input
+allocation; borrowed-to-owned conversion does not copy these buffers. Explicit
+arrays of `u8`/`i8` retain their collection representation but decode through a
+validated, fallibly reserved bulk copy instead of per-element `Result` handling.
+Signed conversion uses an owning iterator so std can reuse the byte allocation.
+
+`Type::String` and the `LittleString` fixed-width wire codec expose
+`bedrock_core::bedrock::codec::BedrockString` (`bytestring::ByteString`).
+Length-prefix width and Latin-1 conversion remain field-site decisions. Valid
+UTF-8 shares packet storage; malformed UTF-8 is normalized lossily exactly once,
+including borrowed-view conversion.
+
+Owned frame dispatch inlines payloads up to 256 bytes and keeps larger payloads
+behind a non-inlined typed helper. Trailing-byte rejection runs before conversion
+to the dispatch enum in both paths. This avoids small-packet dispatch overhead
+without imposing the largest codecs' stack frame and Windows stack probes on
+every packet. Use `valentine`'s `mcpe_frame_decode` benchmark
 and generated assembly to check this boundary; interleave benchmark executables
 because machine load and hybrid-core scheduling can obscure small differences.
+
+Union storage uses a 128-byte native-layout estimate instead of field count.
+The estimate accounts for scalar widths, padding, collection handles and common
+`Option` niches; recursive payloads remain boxed. Packet dispatch reserves one
+word for its discriminant within a three-cache-line budget. These are storage
+heuristics, not wire-size bounds or unsafe layout assumptions.
 
 The test suite generates Mojang output in a temporary directory and runs
 `cargo check` on the generated crate.

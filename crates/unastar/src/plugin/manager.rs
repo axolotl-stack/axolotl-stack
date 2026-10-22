@@ -875,11 +875,11 @@ impl PluginManager {
                 localize: false,
                 body: TextPacketBody::AuthorAndMessage(TextPacketPayloadAuthorAndMessage {
                     message_type: TextPacketPayloadAuthorAndMessageMessageType::Chat,
-                    player_name: sender_name.clone(),
-                    message: message.clone(),
+                    player_name: sender_name.as_str().into(),
+                    message: message.as_str().into(),
                 }),
-                senders_xuid: "0".to_string(),
-                platform_id: String::new(),
+                senders_xuid: "0".into(),
+                platform_id: "".into(),
                 filtered_message: None,
             };
 

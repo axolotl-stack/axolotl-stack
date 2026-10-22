@@ -57,7 +57,7 @@ impl RawPacket {
         let body_len = self.body.len();
         let mut buf = self.inner_frame;
         let (header, data) =
-            McpePacketData::decode_inner(&mut buf, McpePacketArgs).map_err(|source| {
+            McpePacketData::decode_inner_bytes(&mut buf, McpePacketArgs).map_err(|source| {
                 JolyneError::PacketDecode {
                     packet_id,
                     body_len,

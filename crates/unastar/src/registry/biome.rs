@@ -73,14 +73,15 @@ impl BiomeRegistry {
     /// Convert registry to protocol packet with string interning.
     /// Match the map-of-biome-names-to-data wire shape, preserving sourced native IDs.
     pub fn to_packet(&self) -> jolyne::valentine::BiomeDefinitionListPacket {
+        use jolyne::valentine::bedrock::codec::BedrockString;
         use jolyne::valentine::{
             BiomeDefinitionData, BiomeDefinitionListPacketMapofBiomenamestodataItem,
             BiomeStringList,
         };
         use std::collections::HashMap;
 
-        let mut string_list: Vec<String> = Vec::new();
-        let mut string_index: HashMap<String, usize> = HashMap::new();
+        let mut string_list = Vec::new();
+        let mut string_index: HashMap<BedrockString, usize> = HashMap::new();
 
         // String interning helper (matches Go intern function)
         let mut intern = |s: &str| -> usize {
@@ -88,8 +89,9 @@ impl BiomeRegistry {
                 return idx;
             }
             let idx = string_list.len();
-            string_list.push(s.to_string());
-            string_index.insert(s.to_string(), idx);
+            let value: BedrockString = s.into();
+            string_list.push(value.clone());
+            string_index.insert(value, idx);
             idx
         };
 

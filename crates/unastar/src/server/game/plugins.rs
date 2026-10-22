@@ -139,7 +139,7 @@ pub fn process_plugin_actions(
                             auxvalue: 0,
                             net_id_variant: None,
                             block_runtime_id,
-                            user_data_buffer: Vec::new(),
+                            user_data_buffer: Default::default(),
                         };
 
                         let slot_packet = InventorySlotPacket {
@@ -165,12 +165,14 @@ pub fn process_plugin_actions(
             }
             PluginAction::Kick { entity, reason } => {
                 if let Ok((_, _, _, session, _)) = players.get(entity) {
+                    let wire_reason: jolyne::valentine::bedrock::codec::BedrockString =
+                        reason.as_str().into();
                     let packet = DisconnectPacket {
                         reason: EnumsConnectionDisconnectFailReason::Disconnected,
                         messages: DisconnectPacketMessagesUnion::DisconnectPacketMessages(
                             DisconnectPacketMessages {
-                                message: reason.clone(),
-                                filtered_message: reason.clone(),
+                                message: wire_reason.clone(),
+                                filtered_message: wire_reason,
                             },
                         ),
                     };

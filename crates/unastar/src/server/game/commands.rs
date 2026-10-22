@@ -67,16 +67,16 @@ fn handle_text(
     events: &mut ResMut<ChatEvents>,
 ) {
     let message = match &pk.body {
-        TextPacketBody::AuthorAndMessage(author) => author.message.clone(),
+        TextPacketBody::AuthorAndMessage(author) => &*author.message,
         TextPacketBody::MessageOnly(message)
             if matches!(
                 message.message_type,
                 EnumsTextPacketType::Raw | EnumsTextPacketType::Systemmessage
             ) =>
         {
-            message.message.clone()
+            &*message.message
         }
-        _ => String::new(),
+        _ => "",
     };
 
     if message.is_empty() {
@@ -98,7 +98,7 @@ fn handle_text(
             events.0.push(ServerEvent::PlayerChat {
                 entity,
                 player_id: sender_uuid,
-                message,
+                message: message.to_string(),
             });
         }
         TextPacketBody::AuthorAndMessage(author)
@@ -367,8 +367,8 @@ mod tests {
                 player_name: "spoofed".into(),
                 message: "hello".into(),
             }),
-            senders_xuid: String::new(),
-            platform_id: String::new(),
+            senders_xuid: "".into(),
+            platform_id: "".into(),
             filtered_message: None,
         };
         world

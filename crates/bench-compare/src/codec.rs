@@ -3,6 +3,7 @@ use bytes::{Buf, Bytes, BytesMut};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::{hint::black_box, path::Path};
+use valentine::bedrock::borrowed::BorrowedReader;
 use valentine::{
     bedrock::version::v1_26_51::{
         BorrowedMcpePacket, BorrowedMcpePacketData, GameHeader, McpePacketArgs, McpePacketData,
@@ -66,9 +67,10 @@ pub fn load() -> Result<Vec<Case>> {
             let mut borrowed_supported = true;
             let mut borrowed_error = None;
             for frame in &frames {
-                let mut cursor = frame.clone();
-                let (header, packet) = McpePacketData::decode_inner(&mut cursor, McpePacketArgs)
-                    .context("typed owned decode")?;
+                let mut cursor = BorrowedReader::new(frame, frame.len());
+                let (header, packet) =
+                    McpePacketData::decode_inner_reader(&mut cursor, McpePacketArgs)
+                        .context("typed owned decode")?;
                 ensure!(!cursor.has_remaining(), "trailing owned frame");
                 let mut encoded = BytesMut::new();
                 packet.encode_inner_bytes_mut(
@@ -77,7 +79,7 @@ pub fn load() -> Result<Vec<Case>> {
                     header.to_subclient,
                 )?;
                 let mut again = encoded.clone().freeze();
-                let decoded = McpePacketData::decode_inner(&mut again, McpePacketArgs)?;
+                let decoded = McpePacketData::decode_inner_bytes(&mut again, McpePacketArgs)?;
                 ensure!(
                     !again.has_remaining() && decoded == (header, packet.clone()),
                     "typed encode roundtrip differs"
@@ -94,9 +96,9 @@ pub fn load() -> Result<Vec<Case>> {
                     "typed encoding differs from committed corpus"
                 );
                 let borrowed_result = (|| -> Result<()> {
-                    let mut cursor = frame.clone();
+                    let mut cursor = BorrowedReader::new(frame, frame.len());
                     let (borrowed, remaining) =
-                        BorrowedMcpePacket::decode_inner_with_remaining(&mut cursor)?;
+                        BorrowedMcpePacket::decode_inner_reader(&mut cursor)?;
                     ensure!(
                         !matches!(&borrowed.data, BorrowedMcpePacketData::Raw { .. }),
                         "public decoder returns Raw"
@@ -170,27 +172,29 @@ pub fn load() -> Result<Vec<Case>> {
 
 impl Case {
     pub fn decode_owned(&self) {
-        let mut cursor = black_box(self.batch_entries.clone());
+        let mut cursor =
+            BorrowedReader::new(black_box(&self.batch_entries), self.batch_entries.len());
         if self.frames.len() > 1 {
             assert_eq!(cursor.get_u8(), 0xfe);
         }
         while cursor.has_remaining() {
             black_box(
-                McpePacketData::decode_inner(&mut cursor, McpePacketArgs)
+                McpePacketData::decode_inner_reader(&mut cursor, McpePacketArgs)
                     .expect("validated owned decode"),
             );
         }
     }
     pub fn decode_borrowed(&self) {
-        let mut cursor = black_box(self.batch_entries.clone());
+        let mut cursor =
+            BorrowedReader::new(black_box(&self.batch_entries), self.batch_entries.len());
         if self.frames.len() > 1 {
             assert_eq!(cursor.get_u8(), 0xfe);
         }
         while cursor.has_remaining() {
-            black_box(
-                BorrowedMcpePacket::decode_inner_with_remaining(&mut cursor)
-                    .expect("validated borrowed decode"),
-            );
+            let (packet, remaining) = BorrowedMcpePacket::decode_inner_reader(&mut cursor)
+                .expect("validated borrowed decode");
+            assert_eq!(remaining, 0, "validated borrowed trailing bytes");
+            black_box(packet);
         }
     }
     pub fn encode(&self, out: &mut BytesMut) {

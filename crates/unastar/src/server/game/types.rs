@@ -112,11 +112,11 @@ pub fn system_text(message: &str) -> TextPacket {
         localize: false,
         body: TextPacketBody::AuthorAndMessage(TextPacketPayloadAuthorAndMessage {
             message_type: TextPacketPayloadAuthorAndMessageMessageType::Chat,
-            player_name: "§eServer§r".to_string(),
-            message: message.to_string(),
+            player_name: "§eServer§r".into(),
+            message: message.into(),
         }),
-        senders_xuid: "0".to_string(),
-        platform_id: String::new(),
+        senders_xuid: "0".into(),
+        platform_id: "".into(),
         filtered_message: None,
     }
 }

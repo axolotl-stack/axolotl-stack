@@ -49,11 +49,8 @@ fn borrowed_packet_decode_enforces_recursive_budget() {
     let mut frame = BytesMut::new();
     valentine::protocol::wire::write_var_u32(&mut frame, payload.len() as u32);
     frame.extend_from_slice(&payload);
-    // Recursive unions use the deferred owned fallback; parsing the frame alone
-    // deliberately retains raw bytes without decoding that payload.
-    let borrowed = BorrowedMcpePacket::decode_inner(&mut frame.freeze()).unwrap();
     assert!(matches!(
-        borrowed.into_owned(McpePacketArgs),
+        BorrowedMcpePacket::decode_inner(&mut frame.freeze()),
         Err(DecodeError::RecursiveDepthExceeded { .. })
     ));
 }

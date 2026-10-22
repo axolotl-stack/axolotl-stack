@@ -369,7 +369,8 @@ impl<T: Transport> BedrockStream<Login, Client, T> {
     ) -> Result<BedrockStream<SecurePending, Client, T>, JolyneError> {
         let login_pkt = LoginPacket {
             client_network_version: crate::valentine::PROTOCOL_VERSION,
-            connection_request: crate::auth::client::encode_login_request(chain, client_token),
+            connection_request: crate::auth::client::encode_login_request(chain, client_token)
+                .into(),
         };
         self.transport
             .send_batch(&[McpePacket::from(login_pkt)])
@@ -931,7 +932,7 @@ mod tests {
         const HALF_LIMIT: usize = 8 * 1024 * 1024;
         let level_chunk = || {
             McpePacket::from(crate::valentine::LevelChunkPacket {
-                serialized_chunk_data: vec![0; HALF_LIMIT],
+                serialized_chunk_data: vec![0; HALF_LIMIT].into(),
                 ..Default::default()
             })
         };

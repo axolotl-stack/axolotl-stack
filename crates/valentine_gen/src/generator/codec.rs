@@ -104,6 +104,7 @@ pub fn generate_codec_impl(
                 Ok(())
             }
 
+            #[inline]
             fn decode<B: bytes::Buf>(buf: &mut B, #args_usage: Self::Args) -> Result<Self, crate::bedrock::error::DecodeError> {
                 #depth_guard
                 let _ = buf;
@@ -194,6 +195,16 @@ fn generate_field_decode_expr(
 ) -> Result<TokenStream, Box<dyn std::error::Error>> {
     match ty {
         Type::Primitive(p) => match p {
+            Primitive::ByteArray => Ok(quote! {{
+                let len = <crate::bedrock::codec::VarUInt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 as usize;
+                if buf.remaining() < len {
+                    return Err(crate::bedrock::error::DecodeError::ArrayLengthExceeded {
+                        declared: len,
+                        available: buf.remaining(),
+                    });
+                }
+                buf.copy_to_bytes(len)
+            }}),
             Primitive::VarInt => Ok(
                 quote! { <crate::bedrock::codec::VarInt as crate::bedrock::codec::BedrockCodec>::decode(buf, ())?.0 },
             ),
@@ -310,6 +321,21 @@ fn generate_field_decode_expr(
                 },
                 _ => quote! { 0 },
             };
+            let byte_decoder = match inner_type.as_ref() {
+                Type::Primitive(Primitive::U8) => {
+                    Some(quote! { crate::bedrock::codec::decode_u8_vec })
+                }
+                Type::Primitive(Primitive::I8) => {
+                    Some(quote! { crate::bedrock::codec::decode_i8_vec })
+                }
+                _ => None,
+            };
+            if let Some(decode) = byte_decoder {
+                return Ok(quote! {{
+                    let len = (#count_read) as usize;
+                    #decode(buf, len)?
+                }});
+            }
 
             let inner_var_name = format!("{}Item", var_name);
             let inner_decode = generate_field_decode_expr(
@@ -348,6 +374,13 @@ fn generate_field_decode_expr(
                 }
             };
             let minimum_size = minimum_encoded_size(inner_type, ctx);
+            // Positive wire bounds make prepare_decode_vec reserve the entire count.
+            // Unknown/zero-byte elements must retain fallible incremental growth.
+            let reserve_item = (minimum_size == 0).then(|| {
+                quote! {
+                    crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
+                }
+            });
 
             Ok(quote! {{
                 #len_logic
@@ -357,7 +390,7 @@ fn generate_field_decode_expr(
                     Some(#minimum_size),
                 )?;
                 for _ in 0..len {
-                    crate::bedrock::codec::reserve_decode_item(&mut tmp_vec)?;
+                    #reserve_item
                     tmp_vec.push(#inner_decode);
                 }
                 tmp_vec
@@ -394,14 +427,9 @@ fn generate_field_decode_expr(
                 )?;
 
                 Ok(quote! {{
-                    let mut values = Vec::with_capacity(#size_lit);
-                    for _ in 0..#size_lit {
-                        values.push(#inner_decode);
-                    }
-                    match values.try_into() {
-                        Ok(array) => array,
-                        Err(_) => unreachable!("fixed-array decoder produced the wrong length"),
-                    }
+                    crate::bedrock::codec::decode_fixed_array::<_, #size_lit>(
+                        || Ok(#inner_decode),
+                    )?
                 }})
             }
         }
@@ -508,9 +536,12 @@ fn generate_field_decode_expr(
                             available: buf.remaining(),
                         });
                     }
-                    let mut bytes = vec![0u8; len];
-                    buf.copy_to_slice(&mut bytes);
-                    bytes.into_iter().map(|b| b as char).collect::<String>()
+                    let bytes = buf.copy_to_bytes(len);
+                    if bytes.is_ascii() {
+                        crate::bedrock::codec::decode_utf8_lossy_bytes(bytes)
+                    } else {
+                        bytes.iter().map(|&b| b as char).collect::<String>().into()
+                    }
                 }})
             } else {
                 Ok(quote! {{
@@ -521,9 +552,7 @@ fn generate_field_decode_expr(
                             available: buf.remaining(),
                         });
                     }
-                    let mut bytes = vec![0u8; len];
-                    buf.copy_to_slice(&mut bytes);
-                    crate::bedrock::codec::decode_utf8_lossy_owned(bytes)
+                    crate::bedrock::codec::decode_utf8_lossy_bytes(buf.copy_to_bytes(len))
                 }})
             }
         }
@@ -615,9 +644,7 @@ fn generate_field_decode_expr(
                             available: buf.remaining(),
                         });
                     }
-                    let mut value = vec![0u8; len];
-                    buf.copy_to_slice(&mut value);
-                    value
+                    buf.copy_to_bytes(len)
                 }});
             }
 
@@ -697,8 +724,8 @@ fn generate_field_decode_expr(
                 }});
             }
 
-            // If the reference points to an Array, FixedArray, String, or Option, we MUST inline the decoding logic
-            // because the typedef (Vec<T> or Option<T> or [T; N]) does not implement BedrockCodec with the specific args we might need.
+            // Inline schema-specific collections and byte payloads: their typedefs
+            // cannot express custom length encodings or argument propagation.
             let resolved_ty = resolve_type(ty, ctx);
             if matches!(
                 resolved_ty,
@@ -706,6 +733,8 @@ fn generate_field_decode_expr(
                     | Type::FixedArray { .. }
                     | Type::Option(_)
                     | Type::String { .. }
+                    | Type::Encapsulated { .. }
+                    | Type::Primitive(Primitive::ByteArray)
             ) {
                 let hint = format!("{}{}", container_name, camel_case(var_name));
                 let type_tokens = resolve_type_to_tokens(ty, &hint, ctx)?;
@@ -1211,6 +1240,12 @@ fn generate_field_size_expr(
                 access_expr.clone()
             };
             Ok(match p {
+                Primitive::ByteArray => quote! {{
+                    let len = (#access_expr).len();
+                    crate::bedrock::codec::BedrockSized::encoded_size(
+                        &crate::bedrock::codec::VarUInt(len as u32),
+                    ) + len
+                }},
                 Primitive::VarInt => {
                     quote! { crate::bedrock::codec::BedrockSized::encoded_size(&crate::bedrock::codec::VarInt(#owned_expr)) }
                 }
@@ -1288,6 +1323,7 @@ fn generate_field_size_expr(
                     | Type::Option(_)
                     | Type::String { .. }
                     | Type::Encapsulated { .. }
+                    | Type::Primitive(Primitive::ByteArray)
                     | Type::Switch { .. }
             ) {
                 return generate_field_size_expr(
@@ -1789,7 +1825,7 @@ fn generate_field_encode(
                     quote! { &#access_expr }
                 };
                 return Ok(quote! {
-                    let bytes = (#value_expr).as_slice();
+                    let bytes: &[u8] = (#value_expr).as_ref();
                     let len = bytes.len();
                     #len_encode
                     buf.put_slice(bytes);
@@ -1857,6 +1893,11 @@ fn generate_field_encode(
                 access_expr
             };
             match p {
+                Primitive::ByteArray => Ok(quote! {
+                    let bytes: &[u8] = (#access_expr).as_ref();
+                    crate::bedrock::codec::VarUInt(bytes.len() as u32).encode(buf)?;
+                    buf.put_slice(bytes);
+                }),
                 Primitive::VarInt => {
                     Ok(quote! { crate::bedrock::codec::VarInt(#access_expr).encode(buf)?; })
                 }
@@ -1931,13 +1972,15 @@ fn generate_field_encode(
 
             let clean = clean_type_name(r);
             if clean == "LittleString" {
-                let owned = if is_ref {
-                    quote! { (#access_expr).to_string() }
+                let value = if is_ref {
+                    quote! { #access_expr }
                 } else {
-                    quote! { (#access_expr).clone() }
+                    quote! { &#access_expr }
                 };
                 return Ok(quote! {
-                    LittleString(#owned).encode(buf)?;
+                    let bytes = (#value).as_bytes();
+                    crate::bedrock::codec::U32LE(bytes.len() as u32).encode(buf)?;
+                    buf.put_slice(bytes);
                 });
             }
 
@@ -1948,6 +1991,8 @@ fn generate_field_encode(
                     | Type::FixedArray { .. }
                     | Type::Option(_)
                     | Type::String { .. }
+                    | Type::Encapsulated { .. }
+                    | Type::Primitive(Primitive::ByteArray)
             ) {
                 // Inline encoding so we honor custom length encodings and argument propagation.
                 return generate_field_encode(
@@ -3257,6 +3302,10 @@ pub fn generate_enum_type_codec(
 ) -> Result<TokenStream, Box<dyn std::error::Error>> {
     let struct_ident = format_ident!("{}", name);
     let repr_ty = primitive_to_enum_repr_tokens(underlying);
+    // Larger/variable-width enum codecs inflate enclosing container hot loops.
+    let inline_decode = (variants.len() <= 16
+        && matches!(underlying, Primitive::U8 | Primitive::I8))
+    .then(|| quote! { #[inline] });
     let mut match_arms = Vec::new();
     for (var_name, val) in variants {
         let variant_ident = format_ident!("{}", var_name);
@@ -3412,6 +3461,7 @@ pub fn generate_enum_type_codec(
                 };
                 #encode_logic
             }
+            #inline_decode
             fn decode<B: bytes::Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, crate::bedrock::error::DecodeError> {
                 #decode_logic
                 match val {
@@ -3483,6 +3533,11 @@ pub fn generate_union_type_codec(
             let element_encode = union_control_encode(element, quote! { (*item) })?;
             let element_decode = union_control_decode(element)?;
             let element_size = union_control_size(element, quote! { (*item) })?;
+            let array_value = if *boxed {
+                quote! { Box::new(array) }
+            } else {
+                quote! { array }
+            };
             encode_arms.push(quote! {
                 #struct_ident::#variant_ident(value) => {
                     let control_value = #control_literal as i64;
@@ -3501,7 +3556,7 @@ pub fn generate_union_type_codec(
                         #element_decode
                         *slot = control_value as _;
                     }
-                    Ok(#struct_ident::#variant_ident(array))
+                    Ok(#struct_ident::#variant_ident(#array_value))
                 }
             });
             size_arms.push(quote! {
@@ -3619,6 +3674,7 @@ pub fn generate_union_type_codec(
                 }
             }
 
+            #[inline]
             fn decode<B: bytes::Buf>(buf: &mut B, _args: Self::Args) -> Result<Self, crate::bedrock::error::DecodeError> {
                 #depth_guard
                 #decode_control

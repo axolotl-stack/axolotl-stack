@@ -8,7 +8,7 @@ use valentine::bedrock::version::v1_26_51::*;
 fn sample_login_packet() -> LoginPacket {
     LoginPacket {
         client_network_version: PROTOCOL_VERSION,
-        connection_request: b"\0\xffopaque connection request\x80".repeat(4),
+        connection_request: b"\0\xffopaque connection request\x80".repeat(4).into(),
     }
 }
 
@@ -18,11 +18,11 @@ fn sample_text_packet() -> TextPacket {
         body: TextPacketBody::AuthorAndMessage(TextPacketPayloadAuthorAndMessage {
             message_type: TextPacketPayloadAuthorAndMessageMessageType::Chat,
             player_name: "PlayerName".into(),
-            message: "Hello, world!".repeat(4),
+            message: "Hello, world!".repeat(4).into(),
         }),
         senders_xuid: "1234567890123456".into(),
         platform_id: "platform-chat-id".into(),
-        filtered_message: Some("Hello, world!".repeat(4)),
+        filtered_message: Some("Hello, world!".repeat(4).into()),
     }
 }
 
@@ -72,11 +72,11 @@ fn borrowed_disconnect_decode_roundtrips_strings() {
     assert_eq!(reason, packet.reason);
     assert_eq!(
         messages.message.as_str().expect("message utf8"),
-        expected.message
+        &*expected.message
     );
     assert_eq!(
         messages.filtered_message.as_str().expect("filtered utf8"),
-        expected.filtered_message
+        &*expected.filtered_message
     );
     assert!(!encoded.has_remaining());
 }
@@ -87,14 +87,14 @@ fn borrowed_text_decode_roundtrips_strings() {
     let mut encoded = encode_to_bytes(&packet);
     let decoded = BorrowedTextPacket::decode(&mut encoded).expect("borrowed text decode");
     assert_eq!(decoded.localize, packet.localize);
-    assert_eq!(decoded.body, packet.body);
+    assert_eq!(TextPacketBody::from(decoded.body.clone()), packet.body);
     assert_eq!(
         decoded.senders_xuid.as_str().expect("xuid utf8"),
-        packet.senders_xuid
+        &*packet.senders_xuid
     );
     assert_eq!(
         decoded.platform_id.as_str().expect("platform utf8"),
-        packet.platform_id
+        &*packet.platform_id
     );
     assert_eq!(
         decoded
@@ -103,7 +103,7 @@ fn borrowed_text_decode_roundtrips_strings() {
             .expect("filtered message")
             .as_str()
             .expect("filtered utf8"),
-        packet.filtered_message.as_ref().unwrap()
+        &**packet.filtered_message.as_ref().unwrap()
     );
     assert!(!encoded.has_remaining());
     assert_eq!(TextPacket::from(decoded), packet);
@@ -114,7 +114,7 @@ fn borrowed_mcpe_frame_slices_payload() {
     let args = McpePacketArgs;
     let packet = McpePacket::from(sample_text_packet());
     let encoded = encode_to_bytes(&packet);
-    let expected = McpePacket::decode(&mut encoded.clone(), args).expect("owned decode");
+    let expected = McpePacket::decode_bytes(&mut encoded.clone(), args).expect("owned decode");
     let mut raw = encoded;
     let frame = RawMcpeFrame::decode(&mut raw).expect("raw frame decode");
     assert_eq!(frame.header.id_raw, expected.header.id as u32);
@@ -148,7 +148,8 @@ fn borrowed_mcpe_frame_dispatches_login_packet() {
 fn borrowed_mcpe_packet_materializes_to_owned() {
     let args = McpePacketArgs;
     let packet = McpePacket::from(sample_login_packet());
-    let expected = McpePacket::decode(&mut encode_to_bytes(&packet), args.clone()).expect("owned");
+    let expected =
+        McpePacket::decode_bytes(&mut encode_to_bytes(&packet), args.clone()).expect("owned");
     let mut encoded = encode_to_bytes(&packet);
     let borrowed = BorrowedMcpePacket::decode_game_frame(&mut encoded).expect("borrowed mcpe");
     assert_eq!(
@@ -156,4 +157,43 @@ fn borrowed_mcpe_packet_materializes_to_owned() {
         expected
     );
     assert!(!encoded.has_remaining());
+}
+
+#[test]
+fn shared_frame_errors_preserve_the_next_entry() {
+    let valid = McpePacket::from(DisconnectPacket::default());
+    let mut next = BytesMut::new();
+    valid.data.encode_inner_bytes_mut(&mut next, 0, 0).unwrap();
+    let next = next.freeze();
+
+    let mut truncated_message = BytesMut::new();
+    valentine::protocol::wire::write_var_u32(
+        &mut truncated_message,
+        McpePacketName::DisconnectPacket as u32,
+    );
+    truncated_message.extend_from_slice(&[0, 0, 3, b'a']);
+    for malformed in [
+        bytes::Bytes::from_static(&[0x80]),
+        truncated_message.freeze(),
+    ] {
+        let mut joined = BytesMut::new();
+        valentine::protocol::wire::write_var_u32(&mut joined, malformed.len() as u32);
+        joined.extend_from_slice(&malformed);
+        joined.extend_from_slice(&next);
+        let mut cursor = joined.freeze();
+        let mut owned_cursor = cursor.clone();
+        assert!(McpePacketData::decode_inner_bytes(&mut owned_cursor, McpePacketArgs).is_err());
+        assert_eq!(owned_cursor, next);
+        let (header, data) =
+            McpePacketData::decode_inner_bytes(&mut owned_cursor, McpePacketArgs).unwrap();
+        assert_eq!(McpePacket { header, data }, valid);
+        assert!(owned_cursor.is_empty());
+        assert!(BorrowedMcpePacket::decode_inner_with_remaining(&mut cursor).is_err());
+        assert_eq!(cursor, next);
+        let (packet, remaining) =
+            BorrowedMcpePacket::decode_inner_with_remaining(&mut cursor).unwrap();
+        assert_eq!(remaining, 0);
+        assert_eq!(packet.into_owned(McpePacketArgs).unwrap(), valid);
+        assert!(cursor.is_empty());
+    }
 }
